@@ -1,0 +1,95 @@
+{
+  "test_run": {
+    "timestamp": "2025-11-09T13:50:59.580392",
+    "total_tests": 14,
+    "passed_tests": 12,
+    "failed_tests": 0,
+    "warning_tests": 2
+  },
+  "detailed_results": [
+    {
+      "test_name": "Phase 3 Health Check",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.464749",
+      "details": "Version: 3.0.0-lightweight, Features: {'lightweight_ai_intelligence': True, 'phase3_enhanced_chat': True, 'sentiment_analysis': True, 'entity_extraction': True, 'intent_detection': True}"
+    },
+    {
+      "test_name": "Main Chat Health Check",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.483646",
+      "details": "Status: healthy"
+    },
+    {
+      "test_name": "WebSocket Health Check",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.500475",
+      "details": "Active connections: 0"
+    },
+    {
+      "test_name": "AI Analysis - 'This is amazing! I love how we...'",
+      "status": "warning",
+      "timestamp": "2025-11-09T13:50:59.509439",
+      "details": "Sentiment: 0.755 (positive)"
+    },
+    {
+      "test_name": "AI Analysis - 'I'm really frustrated with thi...'",
+      "status": "warning",
+      "timestamp": "2025-11-09T13:50:59.514450",
+      "details": "Sentiment: -0.460 (negative)"
+    },
+    {
+      "test_name": "AI Analysis - 'Can you help me find informati...'",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.519704",
+      "details": "Sentiment: 0.201 (neutral)"
+    },
+    {
+      "test_name": "Enhanced Chat - 'I need help with my account se...'",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.526185",
+      "details": "AI applied: True, Sentiment: 0.201"
+    },
+    {
+      "test_name": "Enhanced Chat - 'This system is fantastic! Grea...'",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.538859",
+      "details": "AI applied: True, Sentiment: 0.801"
+    },
+    {
+      "test_name": "Enhanced Chat - 'Why is this so slow and unresp...'",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.543487",
+      "details": "AI applied: True, Sentiment: -0.150"
+    },
+    {
+      "test_name": "Conversation Step 1",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.548035",
+      "details": "Message: 'Hello, I need help w...', Sentiment: 0.201"
+    },
+    {
+      "test_name": "Conversation Step 2",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.553163",
+      "details": "Message: 'Specifically, I can'...', Sentiment: 0.000"
+    },
+    {
+      "test_name": "Conversation Step 3",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.558190",
+      "details": "Message: 'This is really frust...', Sentiment: -0.446"
+    },
+    {
+      "test_name": "Conversation Step 4",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.571370",
+      "details": "Message: 'Thank you for helpin...', Sentiment: 0.371"
+    },
+    {
+      "test_name": "Performance Test",
+      "status": "passed",
+      "timestamp": "2025-11-09T13:50:59.580253",
+      "details": "Response time: 8.65ms"
+    }
+  ]
+}

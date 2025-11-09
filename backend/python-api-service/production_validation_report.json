@@ -1,75 +1,69 @@
 {
   "summary": {
     "total_checks": 14,
-    "passed_checks": 11,
-    "partial_checks": 1,
-    "failed_checks": 0,
-    "success_rate": 78.57142857142857,
-    "total_time": 0.4569079875946045,
-    "readiness_assessment": "\ud83d\udfe0 FAIR - Significant improvements needed",
-    "timestamp": "2025-10-30 19:03:06"
+    "passed_checks": 0,
+    "partial_checks": 0,
+    "failed_checks": 12,
+    "success_rate": 0.0,
+    "total_time": 0.25983476638793945,
+    "readiness_assessment": "\ud83d\udd34 POOR - Not ready for deployment",
+    "timestamp": "2025-11-08 18:03:00"
   },
   "detailed_results": [
     {
       "component": "API Server Health",
-      "status": "passed",
-      "response_time": 0.023743,
-      "details": "All required fields present: ['status', 'database', 'blueprints']"
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /healthz (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1101838d0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "Service Registry Health",
-      "status": "passed",
-      "response_time": 0.010833,
-      "details": "All required fields present: ['success', 'total_services', 'status_summary']"
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/services/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x110195810>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "Transcription Service Health",
-      "status": "passed",
-      "response_time": 0.040485,
-      "details": "All required fields present: ['status', 'deepgram_configured']"
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/transcription/health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x110197710>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "BYOK - BYOK API Endpoints",
-      "status": "passed",
-      "response_time": 0.123412
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/user/api-keys/test_user/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1101a9a10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "BYOK - BYOK Provider Configuration",
-      "status": "passed",
-      "response_time": 0.010743
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/user/api-keys/production_test_user/keys/openai (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1101abdd0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "Workflow - Workflow Generation",
-      "status": "passed",
-      "response_time": 0.01016,
-      "service_coverage": "100.0%"
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1101ab290>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "Workflow - Complex Workflow Generation",
-      "status": "partial",
-      "details": "Service coverage: 0.0% (expected >= 50%)"
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1101a8cd0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "Services - Service Registry",
-      "status": "passed",
-      "details": "33 services available"
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/services (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x110196c50>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "Services - OAuth Endpoints",
-      "status": "passed",
-      "details": "OAuth redirect working"
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/gdrive/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x110195950>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "Performance - API Response Time",
-      "status": "passed",
-      "response_time": 0.005484,
-      "threshold": 2.0
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /healthz (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1101b6b90>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "Performance - Workflow Generation Time",
-      "status": "passed",
-      "response_time": 0.015292,
-      "threshold": 5.0
+      "status": "failed",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1101c4d90>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     {
       "component": "Security - Encryption Key Configuration",
@@ -83,8 +77,8 @@
     },
     {
       "component": "Database - Database Connectivity",
-      "status": "passed",
-      "details": "Database connectivity confirmed: lancedb"
+      "status": "failed",
+      "error": "Database check failed: HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /healthz (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x110194a90>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     }
   ]
 }

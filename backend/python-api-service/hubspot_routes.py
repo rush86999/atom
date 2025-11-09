@@ -997,6 +997,120 @@ async def send_email_to_contacts(
         logger.error(f"Failed to send email: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Marketing Lists endpoints
+@router.get("/marketing-lists")
+async def get_marketing_lists(
+    user_id: str = Query(..., description="User ID"),
+    limit: int = Query(50, ge=1, le=100, description="Number of lists to return")
+):
+    """Get HubSpot marketing lists"""
+    try:
+        access_token, hub_id = await get_access_token_and_hub_id(user_id)
+        
+        result = await hubspot_service.get_lists(access_token, limit)
+        
+        return {
+            "ok": True,
+            "data": result,
+            "service": "hubspot",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get marketing lists: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/campaigns/{campaign_id}")
+async def update_campaign(
+    campaign_id: str,
+    campaign_data: Dict[str, Any] = Body(...),
+    user_id: str = Query(..., description="User ID")
+):
+    """Update HubSpot campaign"""
+    try:
+        access_token, hub_id = await get_access_token_and_hub_id(user_id)
+        
+        result = await hubspot_service.update_campaign(
+            campaign_id=campaign_id,
+            access_token=access_token,
+            properties=campaign_data
+        )
+        
+        return {
+            "ok": True,
+            "data": result,
+            "service": "hubspot",
+            "timestamp": datetime.utcnow().isoformat(),
+            "message": "Campaign updated successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update campaign: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/campaigns/{campaign_id}")
+async def delete_campaign(
+    campaign_id: str,
+    user_id: str = Query(..., description="User ID")
+):
+    """Delete HubSpot campaign"""
+    try:
+        access_token, hub_id = await get_access_token_and_hub_id(user_id)
+        
+        result = await hubspot_service.delete_campaign(
+            campaign_id=campaign_id,
+            access_token=access_token
+        )
+        
+        return {
+            "ok": True,
+            "data": result,
+            "service": "hubspot",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete campaign: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Email Marketing Analytics endpoints
+@router.get("/email-analytics")
+async def get_email_analytics(
+    user_id: str = Query(..., description="User ID"),
+    campaign_id: Optional[str] = Query(None, description="Campaign ID filter"),
+    date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)")
+):
+    """Get email marketing analytics"""
+    try:
+        access_token, hub_id = await get_access_token_and_hub_id(user_id)
+        
+        result = await hubspot_service.get_email_analytics(
+            access_token=access_token,
+            campaign_id=campaign_id,
+            date_from=date_from,
+            date_to=date_to
+        )
+        
+        return {
+            "ok": True,
+            "data": result,
+            "service": "hubspot",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get email analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Authentication endpoints
 @router.post("/auth/save")
 async def save_auth_data(

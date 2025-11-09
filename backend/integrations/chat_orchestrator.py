@@ -1,0 +1,491 @@
+"""
+Chat Orchestrator - Central coordinator for all ATOM features through chat interface
+
+This module provides a unified chat interface that connects all ATOM capabilities:
+- 33+ platform integrations
+- AI-powered NLP, data intelligence, and automation
+- Specialized UIs (Search, Communication, Tasks, Workflows, Scheduling)
+- Multi-agent coordination
+- Cross-platform workflow execution
+"""
+
+import logging
+import uuid
+from datetime import datetime
+from typing import Dict, List, Any, Optional, Tuple
+from enum import Enum
+import asyncio
+
+logger = logging.getLogger(__name__)
+
+
+class FeatureType(Enum):
+    """Types of ATOM features that can be accessed through chat"""
+    SEARCH = "search"
+    COMMUNICATION = "communication"
+    TASKS = "tasks"
+    WORKFLOWS = "workflows"
+    SCHEDULING = "scheduling"
+    INTEGRATIONS = "integrations"
+    AI_ANALYTICS = "ai_analytics"
+    AUTOMATION = "automation"
+    DOCUMENTS = "documents"
+    FINANCE = "finance"
+    CRM = "crm"
+    SOCIAL_MEDIA = "social_media"
+    HR = "hr"
+    ECOMMERCE = "ecommerce"
+
+
+class PlatformType(Enum):
+    """Supported platform integrations"""
+    # Communication
+    SLACK = "slack"
+    TEAMS = "teams"
+    GMAIL = "gmail"
+    OUTLOOK = "outlook"
+    ZOOM = "zoom"
+
+    # Task Management
+    ASANA = "asana"
+    NOTION = "notion"
+    TRELLO = "trello"
+    LINEAR = "linear"
+    JIRA = "jira"
+
+    # File Storage
+    GOOGLE_DRIVE = "google_drive"
+    ONEDRIVE = "onedrive"
+    DROPBOX = "dropbox"
+    BOX = "box"
+
+    # Finance
+    PLAID = "plaid"
+    QUICKBOOKS = "quickbooks"
+    XERO = "xero"
+    STRIPE = "stripe"
+
+    # CRM & Business
+    SALESFORCE = "salesforce"
+    HUBSPOT = "hubspot"
+
+    # Social Media
+    TWITTER = "twitter"
+    LINKEDIN = "linkedin"
+    INSTAGRAM = "instagram"
+    TIKTOK = "tiktok"
+
+    # Marketing
+    MAILCHIMP = "mailchimp"
+    CANVA = "canva"
+    FIGMA = "figma"
+
+    # HR
+    GREENHOUSE = "greenhouse"
+    BAMBOOHR = "bamboohr"
+
+    # E-commerce
+    SHOPIFY = "shopify"
+
+    # Other
+    ZAPIER = "zapier"
+    ZOHO = "zoho"
+    DOCUSIGN = "docusign"
+
+
+class ChatIntent(Enum):
+    """Chat intent classification"""
+    SEARCH_REQUEST = "search_request"
+    MESSAGE_SEND = "message_send"
+    TASK_MANAGEMENT = "task_management"
+    WORKFLOW_CREATION = "workflow_creation"
+    SCHEDULING = "scheduling"
+    DATA_ANALYSIS = "data_analysis"
+    AUTOMATION_TRIGGER = "automation_trigger"
+    INTEGRATION_SETUP = "integration_setup"
+    STATUS_CHECK = "status_check"
+    HELP_REQUEST = "help_request"
+    MULTI_STEP_PROCESS = "multi_step_process"
+
+
+class ChatOrchestrator:
+    """
+    Main orchestrator that connects chat interface with all ATOM features
+    """
+
+    def __init__(self):
+        self.conversation_sessions = {}
+        self.feature_handlers = {}
+        self.platform_connectors = {}
+        self.ai_engines = {}
+
+        # Initialize feature handlers
+        self._initialize_feature_handlers()
+        self._initialize_platform_connectors()
+        self._initialize_ai_engines()
+
+    def _initialize_feature_handlers(self):
+        """Initialize handlers for all ATOM features"""
+        self.feature_handlers = {
+            FeatureType.SEARCH: self._handle_search_request,
+            FeatureType.COMMUNICATION: self._handle_communication_request,
+            FeatureType.TASKS: self._handle_task_request,
+            FeatureType.WORKFLOWS: self._handle_workflow_request,
+            FeatureType.SCHEDULING: self._handle_scheduling_request,
+            FeatureType.INTEGRATIONS: self._handle_integration_request,
+            FeatureType.AI_ANALYTICS: self._handle_ai_analytics_request,
+            FeatureType.AUTOMATION: self._handle_automation_request,
+            FeatureType.DOCUMENTS: self._handle_document_request,
+            FeatureType.FINANCE: self._handle_finance_request,
+            FeatureType.CRM: self._handle_crm_request,
+            FeatureType.SOCIAL_MEDIA: self._handle_social_media_request,
+            FeatureType.HR: self._handle_hr_request,
+            FeatureType.ECOMMERCE: self._handle_ecommerce_request,
+        }
+
+    def _initialize_platform_connectors(self):
+        """Initialize platform connectors for all integrations"""
+        # This would connect to actual platform APIs
+        self.platform_connectors = {
+            platform: self._create_platform_connector(platform)
+            for platform in PlatformType
+        }
+
+    def _initialize_ai_engines(self):
+        """Initialize AI engines for NLP, data intelligence, and automation"""
+        try:
+            # Import AI engines
+            from backend.ai.nlp_engine import NaturalLanguageEngine
+            from backend.ai.data_intelligence import DataIntelligenceEngine
+            from backend.ai.automation_engine import AutomationEngine
+
+            self.ai_engines = {
+                "nlp": NaturalLanguageEngine(),
+                "data_intelligence": DataIntelligenceEngine(),
+                "automation": AutomationEngine(),
+            }
+        except ImportError as e:
+            logger.warning(f"AI engines not available: {e}")
+            self.ai_engines = {}
+
+    def _create_platform_connector(self, platform: PlatformType):
+        """Create a mock platform connector (would connect to real APIs in production)"""
+        return {
+            "connected": True,
+            "capabilities": ["search", "create", "update", "delete"],
+            "metadata": {"platform": platform.value}
+        }
+
+    async def process_chat_message(
+        self,
+        user_id: str,
+        message: str,
+        session_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Process a chat message and coordinate across all ATOM features
+
+        Args:
+            user_id: User identifier
+            message: Chat message from user
+            session_id: Conversation session ID
+            context: Additional context data
+
+        Returns:
+            Response with coordinated actions across features
+        """
+        try:
+            # Create or get session
+            session_id = session_id or str(uuid.uuid4())
+            session = self._get_or_create_session(user_id, session_id)
+
+            # Analyze intent using AI NLP
+            intent_analysis = await self._analyze_intent(message, session)
+
+            # Route to appropriate feature handlers
+            feature_responses = await self._route_to_features(
+                message, intent_analysis, session, context
+            )
+
+            # Generate coordinated response
+            response = self._generate_coordinated_response(
+                message, intent_analysis, feature_responses, session
+            )
+
+            # Update session with new context
+            self._update_session(session, message, response, intent_analysis)
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error processing chat message: {e}")
+            return self._generate_error_response(str(e), session_id)
+
+    async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
+        """Analyze user intent using AI NLP engine"""
+        try:
+            if "nlp" in self.ai_engines:
+                nlp_result = self.ai_engines["nlp"].parse_command(message)
+                return {
+                    "primary_intent": self._classify_intent(nlp_result),
+                    "confidence": nlp_result.get("confidence", 0.5),
+                    "entities": nlp_result.get("entities", []),
+                    "platforms": nlp_result.get("platforms", []),
+                    "command_type": nlp_result.get("command_type"),
+                    "raw_nlp": nlp_result
+                }
+        except Exception as e:
+            logger.warning(f"NLP analysis failed: {e}")
+
+        # Fallback intent classification
+        return self._fallback_intent_analysis(message)
+
+    def _classify_intent(self, nlp_result: Dict) -> ChatIntent:
+        """Classify intent from NLP results"""
+        command_type = nlp_result.get("command_type", "")
+        platforms = nlp_result.get("platforms", [])
+
+        # Map command types to intents
+        intent_mapping = {
+            "search": ChatIntent.SEARCH_REQUEST,
+            "create": ChatIntent.TASK_MANAGEMENT,
+            "update": ChatIntent.TASK_MANAGEMENT,
+            "schedule": ChatIntent.SCHEDULING,
+            "automate": ChatIntent.WORKFLOW_CREATION,
+        }
+
+        return intent_mapping.get(command_type, ChatIntent.SEARCH_REQUEST)
+
+    def _fallback_intent_analysis(self, message: str) -> Dict[str, Any]:
+        """Fallback intent analysis when NLP is unavailable"""
+        message_lower = message.lower()
+
+        # Simple keyword-based intent detection
+        if any(word in message_lower for word in ["find", "search", "look for", "where is"]):
+            intent = ChatIntent.SEARCH_REQUEST
+        elif any(word in message_lower for word in ["message", "email", "send", "notify"]):
+            intent = ChatIntent.MESSAGE_SEND
+        elif any(word in message_lower for word in ["task", "todo", "reminder", "due"]):
+            intent = ChatIntent.TASK_MANAGEMENT
+        elif any(word in message_lower for word in ["workflow", "automate", "automation"]):
+            intent = ChatIntent.WORKFLOW_CREATION
+        elif any(word in message_lower for word in ["schedule", "meeting", "calendar", "appointment"]):
+            intent = ChatIntent.SCHEDULING
+        else:
+            intent = ChatIntent.SEARCH_REQUEST
+
+        return {
+            "primary_intent": intent,
+            "confidence": 0.6,
+            "entities": [],
+            "platforms": [],
+            "command_type": "search"
+        }
+
+    async def _route_to_features(
+        self,
+        message: str,
+        intent_analysis: Dict[str, Any],
+        session: Dict,
+        context: Optional[Dict]
+    ) -> Dict[FeatureType, Any]:
+        """Route message to appropriate feature handlers"""
+        feature_responses = {}
+        primary_intent = intent_analysis["primary_intent"]
+
+        # Map intents to features
+        intent_to_features = {
+            ChatIntent.SEARCH_REQUEST: [FeatureType.SEARCH, FeatureType.AI_ANALYTICS],
+            ChatIntent.MESSAGE_SEND: [FeatureType.COMMUNICATION],
+            ChatIntent.TASK_MANAGEMENT: [FeatureType.TASKS, FeatureType.AUTOMATION],
+            ChatIntent.WORKFLOW_CREATION: [FeatureType.WORKFLOWS, FeatureType.AUTOMATION],
+            ChatIntent.SCHEDULING: [FeatureType.SCHEDULING],
+            ChatIntent.DATA_ANALYSIS: [FeatureType.AI_ANALYTICS, FeatureType.SEARCH],
+            ChatIntent.AUTOMATION_TRIGGER: [FeatureType.AUTOMATION, FeatureType.WORKFLOWS],
+            ChatIntent.INTEGRATION_SETUP: [FeatureType.INTEGRATIONS],
+            ChatIntent.STATUS_CHECK: [FeatureType.SEARCH, FeatureType.AI_ANALYTICS],
+            ChatIntent.HELP_REQUEST: [FeatureType.SEARCH],
+            ChatIntent.MULTI_STEP_PROCESS: list(FeatureType),  # All features for complex requests
+        }
+
+        target_features = intent_to_features.get(primary_intent, [FeatureType.SEARCH])
+
+        # Execute feature handlers
+        for feature_type in target_features:
+            if feature_type in self.feature_handlers:
+                try:
+                    response = await self.feature_handlers[feature_type](
+                        message, intent_analysis, session, context
+                    )
+                    feature_responses[feature_type] = response
+                except Exception as e:
+                    logger.error(f"Feature handler {feature_type} failed: {e}")
+                    feature_responses[feature_type] = {"error": str(e)}
+
+        return feature_responses
+
+    def _generate_coordinated_response(
+        self,
+        message: str,
+        intent_analysis: Dict[str, Any],
+        feature_responses: Dict[FeatureType, Any],
+        session: Dict
+    ) -> Dict[str, Any]:
+        """Generate coordinated response from all feature responses"""
+        # Combine results from all features
+        combined_data = {}
+        suggested_actions = []
+        ui_updates = []
+
+        for feature_type, response in feature_responses.items():
+            if response and "data" in response:
+                combined_data[feature_type.value] = response["data"]
+
+            if response and "suggested_actions" in response:
+                suggested_actions.extend(response["suggested_actions"])
+
+            if response and "ui_updates" in response:
+                ui_updates.extend(response["ui_updates"])
+
+        # Generate main response message
+        main_message = self._generate_main_message(message, intent_analysis, feature_responses)
+
+        return {
+            "success": True,
+            "message": main_message,
+            "session_id": session["id"],
+            "intent": intent_analysis["primary_intent"].value,
+            "confidence": intent_analysis["confidence"],
+            "data": combined_data,
+            "suggested_actions": suggested_actions[:5],  # Limit to top 5
+            "ui_updates": ui_updates,
+            "requires_confirmation": any(
+                resp.get("requires_confirmation", False)
+                for resp in feature_responses.values()
+            ),
+            "next_steps": self._generate_next_steps(intent_analysis, feature_responses),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    def _generate_main_message(
+        self,
+        message: str,
+        intent_analysis: Dict[str, Any],
+        feature_responses: Dict[FeatureType, Any]
+    ) -> str:
+        """Generate main response message based on feature responses"""
+        intent = intent_analysis["primary_intent"]
+
+        if intent == ChatIntent.SEARCH_REQUEST:
+            search_data = feature_responses.get(FeatureType.SEARCH, {})
+            if search_data.get("data"):
+                count = len(search_data["data"].get("results", []))
+                return f"I found {count} results for your search."
+            return "I've searched across your connected platforms."
+
+        elif intent == ChatIntent.MESSAGE_SEND:
+            comm_data = feature_responses.get(FeatureType.COMMUNICATION, {})
+            if comm_data.get("success"):
+                return "Message sent successfully."
+            return "I'll help you send that message."
+
+        elif intent == ChatIntent.TASK_MANAGEMENT:
+            task_data = feature_responses.get(FeatureType.TASKS, {})
+            if task_data.get("data"):
+                return "I've updated your tasks across all platforms."
+            return "I'll manage those tasks for you."
+
+        elif intent == ChatIntent.WORKFLOW_CREATION:
+            workflow_data = feature_responses.get(FeatureType.WORKFLOWS, {})
+            if workflow_data.get("data"):
+                return "Workflow created successfully. Ready to execute?"
+            return "I'll create that automation workflow for you."
+
+        elif intent == ChatIntent.SCHEDULING:
+            schedule_data = feature_responses.get(FeatureType.SCHEDULING, {})
+            if schedule_data.get("data"):
+                return "Schedule updated successfully."
+            return "I'll handle the scheduling for you."
+
+        return "I've processed your request across all connected platforms."
+
+    def _generate_next_steps(
+        self,
+        intent_analysis: Dict[str, Any],
+        feature_responses: Dict[FeatureType, Any]
+    ) -> List[str]:
+        """Generate suggested next steps"""
+        intent = intent_analysis["primary_intent"]
+        next_steps = []
+
+        if intent == ChatIntent.SEARCH_REQUEST:
+            next_steps.extend([
+                "Refine your search with more specific terms",
+                "Check the search results in the Search UI",
+                "Save important results for quick access"
+            ])
+
+        elif intent == ChatIntent.WORKFLOW_CREATION:
+            next_steps.extend([
+                "Review the workflow steps",
+                "Test the workflow execution",
+                "Schedule the workflow for automatic runs"
+            ])
+
+        elif intent == ChatIntent.TASK_MANAGEMENT:
+            next_steps.extend([
+                "Set up automatic task creation",
+                "Create task templates for recurring work",
+                "Coordinate tasks with your team"
+            ])
+
+        # Add general next steps
+        next_steps.extend([
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+        ])
+
+        return next_steps[:3]  # Limit to 3 next steps
+
+    # Feature handler implementations
+    async def _handle_search_request(
+        self,
+        message: str,
+        intent_analysis: Dict[str, Any],
+        session: Dict,
+        context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        """Handle search requests across all platforms"""
+        try:
+            # Use AI data intelligence for unified search
+            if "data_intelligence" in self.ai_engines:
+                search_results = self.ai_engines["data_intelligence"].search_unified_entities(
+                    message
+                )
+            else:
+                search_results = []
+
+            return {
+                "success": True,
+                "data": {
+                    "results": search_results,
+                    "query": message,
+                    "platforms_searched": intent_analysis.get("platforms", [])
+                },
+                "suggested_actions": [
+                    "Open Search UI for detailed results",
+                    "Save this search for later",
+                    "Set up alert for similar content"
+                ],
+                "ui_updates": [
+                    {"type": "search_results", "data": search_results}
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Search handler failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _handle_communication_request(
+        self,

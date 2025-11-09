@@ -244,6 +244,54 @@ if FRESHDESK_AVAILABLE and freshdesk_router:
 else:
     print("⚠️  Freshdesk integration routes not available")
 
+# Include Mailchimp integration routes if available
+try:
+    from integrations.mailchimp_routes import router as mailchimp_router
+
+    MAILCHIMP_AVAILABLE = True
+except ImportError as e:
+    print(f"Mailchimp integration not available: {e}")
+    MAILCHIMP_AVAILABLE = False
+    mailchimp_router = None
+
+if MAILCHIMP_AVAILABLE and mailchimp_router:
+    app.include_router(mailchimp_router)
+    print("✅ Mailchimp integration routes loaded")
+else:
+    print("⚠️  Mailchimp integration routes not available")
+
+# Include AI integration routes if available
+try:
+    from integrations.ai_routes import router as ai_router
+
+    AI_AVAILABLE = True
+except ImportError as e:
+    print(f"AI integration not available: {e}")
+    AI_AVAILABLE = False
+    ai_router = None
+
+if AI_AVAILABLE and ai_router:
+    app.include_router(ai_router)
+    print("✅ AI integration routes loaded")
+else:
+    print("⚠️  AI integration routes not available")
+
+# Include HubSpot integration routes if available
+try:
+    from integrations.hubspot_routes import router as hubspot_router
+
+    HUBSPOT_AVAILABLE = True
+except ImportError as e:
+    print(f"HubSpot integration not available: {e}")
+    HUBSPOT_AVAILABLE = False
+    hubspot_router = None
+
+if HUBSPOT_AVAILABLE and hubspot_router:
+    app.include_router(hubspot_router)
+    print("✅ HubSpot integration routes loaded")
+else:
+    print("⚠️  HubSpot integration routes not available")
+
 
 @app.get("/")
 async def root():

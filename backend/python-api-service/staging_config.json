@@ -1,0 +1,13 @@
+{
+  "environment": "staging",
+  "host": "0.0.0.0",
+  "port": 5059,
+  "debug": false,
+  "database_url": "postgresql://localhost:5432/atom_staging",
+  "redis_url": "redis://localhost:6379/1",
+  "log_level": "INFO",
+  "ssl_enabled": false,
+  "api_rate_limit": 1000,
+  "max_connections": 50,
+  "cache_timeout": 300
+}

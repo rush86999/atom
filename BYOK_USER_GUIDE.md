@@ -18,6 +18,8 @@ The ATOM system now supports **Bring Your Own Keys (BYOK)** - a powerful feature
 | **Anthropic Claude** | `sk-ant-...` | Advanced Reasoning | Premium |
 | **Google Gemini** | `AIza...` | Multimodal, Embeddings | 93% vs OpenAI |
 | **Azure OpenAI** | Azure Key + Endpoint | Enterprise Security | Higher cost |
+| **GLM-4.6 (Zhipu AI)** | `glm-...` | Chinese Language, Multilingual | 85-90% vs OpenAI |
+| **Kimi K2 (Moonshot AI)** | `sk-...` | Long Context, Document Analysis | 70-80% vs OpenAI |
 
 ## Getting Started
 
@@ -87,6 +89,8 @@ The system intelligently selects providers based on:
    - Complex reasoning → Anthropic Claude
    - General chat → Cost-optimized provider
    - Embeddings → Google Gemini (93% savings)
+   - Chinese language tasks → GLM-4.6 (85-90% savings)
+   - Long context/document analysis → Kimi K2 (70-80% savings)
 
 2. **Cost Priority**: Always selects the most cost-effective available provider
 

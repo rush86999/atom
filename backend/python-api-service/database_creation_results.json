@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-05T17:30:00.466820",
+  "timestamp": "2025-11-08T18:08:00.307894",
   "databases_created": [
     "atom.db",
     "integrations.db"
@@ -23,9 +23,14 @@
         "users",
         "integrations",
         "sqlite_sequence",
-        "workflows"
+        "workflows",
+        "zendesk_oauth_tokens",
+        "zendesk_user_data",
+        "hubspot_oauth_tokens",
+        "hubspot_user_data",
+        "hubspot_portal_data"
       ],
-      "size": 32768
+      "size": 81920
     },
     "integrations.db": {
       "accessible": true,

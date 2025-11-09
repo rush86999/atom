@@ -1,0 +1,47 @@
+{
+  "total_tests": 8,
+  "passed_tests": 0,
+  "failed_tests": 8,
+  "test_details": [
+    {
+      "name": "Import Slack Events Handler",
+      "status": "ERROR",
+      "error": "asyncio.run() cannot be called from a running event loop"
+    },
+    {
+      "name": "Import Enhanced Slack API",
+      "status": "ERROR",
+      "error": "asyncio.run() cannot be called from a running event loop"
+    },
+    {
+      "name": "Import Enhanced Slack Service",
+      "status": "ERROR",
+      "error": "asyncio.run() cannot be called from a running event loop"
+    },
+    {
+      "name": "Import Original Slack Service",
+      "status": "ERROR",
+      "error": "asyncio.run() cannot be called from a running event loop"
+    },
+    {
+      "name": "Import Slack OAuth Handler",
+      "status": "ERROR",
+      "error": "asyncio.run() cannot be called from a running event loop"
+    },
+    {
+      "name": "Import Slack Database Operations",
+      "status": "ERROR",
+      "error": "asyncio.run() cannot be called from a running event loop"
+    },
+    {
+      "name": "Check Environment Variables",
+      "status": "ERROR",
+      "error": "asyncio.run() cannot be called from a running event loop"
+    },
+    {
+      "name": "Check Flask App Structure",
+      "status": "ERROR",
+      "error": "asyncio.run() cannot be called from a running event loop"
+    }
+  ]
+}

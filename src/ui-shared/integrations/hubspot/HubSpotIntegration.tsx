@@ -66,7 +66,8 @@ import {
   CheckIcon,
   CloseIcon,
   RepeatIcon,
-  ExternalLinkIcon
+  ExternalLinkIcon,
+  BarChartIcon
 } from '@chakra-ui/icons';
 import { hubspotSkills } from './skills/hubspotSkills';
 
@@ -155,6 +156,7 @@ const HubSpotIntegration: React.FC = () => {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
 
   // Forms
@@ -188,11 +190,28 @@ const HubSpotIntegration: React.FC = () => {
     pipeline: 'default'
   });
 
+  const [campaignForm, setCampaignForm] = useState({
+    campaign_name: '',
+    subject: '',
+    content: '',
+    status: 'DRAFT',
+    campaign_type: 'EMAIL'
+  });
+
   // Analytics state
   const [analytics, setAnalytics] = useState({
     totalContacts: 0,
     totalCompanies: 0,
     totalDeals: 0,
+    totalCampaigns: 0
+  });
+
+  const [marketingLists, setMarketingLists] = useState<any[]>([]);
+  const [emailAnalytics, setEmailAnalytics] = useState<any>({
+    totalSent: 0,
+    openRate: 0,
+    clickRate: 0,
+    conversions: 0,
     totalRevenue: 0,
     conversionRate: 0
   });
@@ -402,7 +421,7 @@ const HubSpotIntegration: React.FC = () => {
     const colors: { [key: string]: string } = {
       appointmentscheduled: 'gray',
       qualifiedtobuy: 'blue',
-      presentation scheduled': 'purple',
+      'presentation scheduled': 'purple',
       decisionmakerboughtin: 'orange',
       contractsent: 'yellow',
       closedwon: 'green',
@@ -422,6 +441,214 @@ const HubSpotIntegration: React.FC = () => {
       currency: 'USD'
     }).format(parseFloat(amount));
   };
+
+  // Marketing handlers
+  const handleLoadMarketingLists = async () => {
+    try {
+      setLoading(true);
+      const userId = 'demo-user'; // Replace with actual user ID
+      
+      const response = await fetch(`/api/hubspot/marketing-lists?user_id=${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      
+      if (data.ok) {
+        setMarketingLists(data.data.data?.lists || []);
+      } else {
+        toast({
+          title: "Error loading marketing lists",
+          description: data.error || "Unknown error occurred",
+          status: "error",
+          duration: 3000,
+          isClosable: true
+        });
+      }
+    } catch (error) {
+      console.error('Error loading marketing lists:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to load marketing lists",
+        status: "error",
+        duration: 3000,
+        isClosable: true
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadEmailAnalytics = async () => {
+    try {
+      setLoading(true);
+      const userId = 'demo-user'; // Replace with actual user ID
+      
+      const response = await fetch(`/api/hubspot/email-analytics?user_id=${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      
+      if (data.ok) {
+        const analyticsData = data.data.data || {};
+        setEmailAnalytics({
+          totalSent: analyticsData.totalSent || 0,
+          openRate: analyticsData.openRate || 0,
+          clickRate: analyticsData.clickRate || 0,
+          conversions: analyticsData.conversions || 0
+        });
+      } else {
+        toast({
+          title: "Error loading email analytics",
+          description: data.error || "Unknown error occurred",
+          status: "error",
+          duration: 3000,
+          isClosable: true
+        });
+      }
+    } catch (error) {
+      console.error('Error loading email analytics:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to load email analytics",
+        status: "error",
+        duration: 3000,
+        isClosable: true
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateCampaign = async () => {
+    try {
+      setLoading(true);
+      const userId = 'demo-user'; // Replace with actual user ID
+      
+      const response = await fetch(`/api/hubspot/campaigns?user_id=${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(campaignForm)
+      });
+
+      const data = await response.json();
+      
+      if (data.ok) {
+        toast({
+          title: "Campaign Created",
+          description: "Marketing campaign created successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true
+        });
+        
+        // Reset form and close modal
+        setCampaignForm({
+          campaign_name: '',
+          subject: '',
+          content: '',
+          status: 'DRAFT',
+          campaign_type: 'EMAIL'
+        });
+        setIsCampaignModalOpen(false);
+        
+        // Refresh campaigns
+        await handleLoadCampaigns();
+      } else {
+        toast({
+          title: "Error creating campaign",
+          description: data.error || "Unknown error occurred",
+          status: "error",
+          duration: 3000,
+          isClosable: true
+        });
+      }
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to create campaign",
+        status: "error",
+        duration: 3000,
+        isClosable: true
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadCampaigns = async () => {
+    try {
+      setLoading(true);
+      const userId = 'demo-user'; // Replace with actual user ID
+      
+      const response = await fetch(`/api/hubspot/campaigns?user_id=${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      
+      if (data.ok) {
+        setCampaigns(data.data.data?.campaigns || []);
+      } else {
+        toast({
+          title: "Error loading campaigns",
+          description: data.error || "Unknown error occurred",
+          status: "error",
+          duration: 3000,
+          isClosable: true
+        });
+      }
+    } catch (error) {
+      console.error('Error loading campaigns:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditCampaign = (campaign: Campaign) => {
+    setEditingItem(campaign);
+    // Implementation for edit campaign
+    toast({
+      title: "Edit Campaign",
+      description: "Edit functionality coming soon",
+      status: "info",
+      duration: 3000,
+      isClosable: true
+    });
+  };
+
+  const handleViewCampaignAnalytics = (campaignId: string) => {
+    // Implementation for viewing detailed campaign analytics
+    toast({
+      title: "Campaign Analytics",
+      description: `Viewing analytics for campaign ${campaignId}`,
+      status: "info",
+      duration: 3000,
+      isClosable: true
+    });
+  };
+
+  // Load marketing data on component mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      handleLoadMarketingLists();
+      handleLoadEmailAnalytics();
+      handleLoadCampaigns();
+    }
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
@@ -553,7 +780,7 @@ const HubSpotIntegration: React.FC = () => {
               <AddIcon mr={2} /> Deals
             </Tab>
             <Tab _selected={{ color: 'orange.500', borderBottomColor: 'orange.500' }}>
-              <EmailIcon mr={2} /> Campaigns
+              <EmailIcon mr={2} /> Marketing
             </Tab>
           </TabList>
 
@@ -746,57 +973,229 @@ const HubSpotIntegration: React.FC = () => {
               </TableContainer>
             </TabPanel>
 
-            {/* Campaigns Tab */}
+            {/* Marketing Tab with Subtabs */}
             <TabPanel p={6}>
-              <VStack spacing={6}>
-                <HStack justify="space-between" w="full">
-                  <Heading size="lg">Marketing Campaigns</Heading>
-                  <Button
-                    colorScheme="orange"
-                    onClick={() => window.open('https://app.hubspot.com/marketing', '_blank')}
-                    rightIcon={<ExternalLinkIcon />}
-                  >
-                    Manage Campaigns
-                  </Button>
-                </HStack>
+              <Tabs variant="enclosed" colorScheme="orange">
+                <TabList mb={4}>
+                  <Tab _selected={{ bg: 'orange.50', borderColor: 'orange.500' }}>
+                    <EmailIcon mr={2} /> Campaigns
+                  </Tab>
+                  <Tab _selected={{ bg: 'orange.50', borderColor: 'orange.500' }}>
+                    <AddIcon mr={2} /> Lists
+                  </Tab>
+                  <Tab _selected={{ bg: 'orange.50', borderColor: 'orange.500' }}>
+                    <BarChartIcon mr={2} /> Analytics
+                  </Tab>
+                </TabList>
 
-                <SimpleGrid columns={3} spacing={6} w="full">
-                  {campaigns.map((campaign) => (
-                    <Card key={campaign.id} borderWidth={1} borderColor="gray.200">
-                      <CardBody>
-                        <VStack align="start" spacing={4}>
-                          <Heading size="sm">{campaign.name}</Heading>
-                          <HStack>
-                            <Badge colorScheme={campaign.status === 'active' ? 'green' : 'gray'}>
-                              {campaign.status}
-                            </Badge>
-                            <Badge colorScheme="orange">{campaign.type}</Badge>
-                          </HStack>
-                          <Divider />
-                          <VStack align="start" spacing={2} w="full">
-                            <HStack justify="space-between" w="full">
-                              <Text fontSize="sm" color="gray.600">Sent</Text>
-                              <Text fontWeight="bold">{campaign.metrics.sent.toLocaleString()}</Text>
-                            </HStack>
-                            <HStack justify="space-between" w="full">
-                              <Text fontSize="sm" color="gray.600">Opened</Text>
-                              <Text fontWeight="bold">{campaign.metrics.opened.toLocaleString()}</Text>
-                            </HStack>
-                            <HStack justify="space-between" w="full">
-                              <Text fontSize="sm" color="gray.600">Clicked</Text>
-                              <Text fontWeight="bold">{campaign.metrics.clicked.toLocaleString()}</Text>
-                            </HStack>
-                            <HStack justify="space-between" w="full">
-                              <Text fontSize="sm" color="gray.600">Converted</Text>
-                              <Text fontWeight="bold" color="green.500">{campaign.metrics.converted.toLocaleString()}</Text>
-                            </HStack>
-                          </VStack>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </SimpleGrid>
-              </VStack>
+                <TabPanels>
+                  {/* Campaigns Subtab */}
+                  <TabPanel>
+                    <VStack spacing={6}>
+                      <HStack justify="space-between" w="full">
+                        <Heading size="lg">Marketing Campaigns</Heading>
+                        <HStack>
+                          <Button
+                            colorScheme="orange"
+                            onClick={() => setIsCampaignModalOpen(true)}
+                            leftIcon={<AddIcon />}
+                          >
+                            Create Campaign
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => window.open('https://app.hubspot.com/marketing', '_blank')}
+                            rightIcon={<ExternalLinkIcon />}
+                          >
+                            HubSpot Marketing
+                          </Button>
+                        </HStack>
+                      </HStack>
+
+                      <SimpleGrid columns={3} spacing={6} w="full">
+                        {campaigns.map((campaign) => (
+                          <Card key={campaign.id} borderWidth={1} borderColor="gray.200">
+                            <CardBody>
+                              <VStack align="start" spacing={4}>
+                                <Heading size="sm">{campaign.name}</Heading>
+                                <HStack>
+                                  <Badge colorScheme={campaign.status === 'active' ? 'green' : 'gray'}>
+                                    {campaign.status}
+                                  </Badge>
+                                  <Badge colorScheme="orange">{campaign.type}</Badge>
+                                </HStack>
+                                <Divider />
+                                <VStack align="start" spacing={2} w="full">
+                                  <HStack justify="space-between" w="full">
+                                    <Text fontSize="sm" color="gray.600">Sent</Text>
+                                    <Text fontWeight="bold">{campaign.metrics.sent.toLocaleString()}</Text>
+                                  </HStack>
+                                  <HStack justify="space-between" w="full">
+                                    <Text fontSize="sm" color="gray.600">Opened</Text>
+                                    <Text fontWeight="bold">{campaign.metrics.opened.toLocaleString()}</Text>
+                                  </HStack>
+                                  <HStack justify="space-between" w="full">
+                                    <Text fontSize="sm" color="gray.600">Clicked</Text>
+                                    <Text fontWeight="bold">{campaign.metrics.clicked.toLocaleString()}</Text>
+                                  </HStack>
+                                  <HStack justify="space-between" w="full">
+                                    <Text fontSize="sm" color="gray.600">Converted</Text>
+                                    <Text fontWeight="bold" color="green.500">{campaign.metrics.converted.toLocaleString()}</Text>
+                                  </HStack>
+                                </VStack>
+                                <HStack spacing={2}>
+                                  <Button size="sm" variant="outline" onClick={() => handleEditCampaign(campaign)}>
+                                    Edit
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleViewCampaignAnalytics(campaign.id)}>
+                                    Analytics
+                                  </Button>
+                                </HStack>
+                              </VStack>
+                            </CardBody>
+                          </Card>
+                        ))}
+                      </SimpleGrid>
+                    </VStack>
+                  </TabPanel>
+
+                  {/* Marketing Lists Subtab */}
+                  <TabPanel>
+                    <VStack spacing={6}>
+                      <HStack justify="space-between" w="full">
+                        <Heading size="lg">Marketing Lists</Heading>
+                        <Button
+                          colorScheme="orange"
+                          onClick={() => window.open('https://app.hubspot.com/contacts/lists', '_blank')}
+                          rightIcon={<ExternalLinkIcon />}
+                        >
+                          Manage Lists
+                        </Button>
+                      </HStack>
+
+                      <TableContainer>
+                        <Table variant="simple">
+                          <Thead>
+                            <Tr>
+                              <Th>List Name</Th>
+                              <Th>Type</Th>
+                              <Th>Size</Th>
+                              <Th>Created</Th>
+                              <Th>Actions</Th>
+                            </Tr>
+                          </Thead>
+                          <Tbody>
+                            {marketingLists.map((list: any) => (
+                              <Tr key={list.id}>
+                                <Td fontWeight="medium">{list.name}</Td>
+                                <Td>
+                                  <Badge colorScheme="blue">{list.listType || 'Static'}</Badge>
+                                </Td>
+                                <Td>{list.memberCount?.toLocaleString() || 0}</Td>
+                                <Td>{new Date(list.createdAt).toLocaleDateString()}</Td>
+                                <Td>
+                                  <HStack spacing={2}>
+                                    <Button size="sm" variant="outline">View</Button>
+                                    <Button size="sm" variant="outline">Export</Button>
+                                  </HStack>
+                                </Td>
+                              </Tr>
+                            ))}
+                          </Tbody>
+                        </Table>
+                      </TableContainer>
+                    </VStack>
+                  </TabPanel>
+
+                  {/* Email Analytics Subtab */}
+                  <TabPanel>
+                    <VStack spacing={6}>
+                      <HStack justify="space-between" w="full">
+                        <Heading size="lg">Email Marketing Analytics</Heading>
+                        <Button
+                          colorScheme="orange"
+                          onClick={handleLoadEmailAnalytics}
+                          isLoading={loading}
+                        >
+                          Refresh Analytics
+                        </Button>
+                      </HStack>
+
+                      <SimpleGrid columns={4} spacing={6} w="full">
+                        <Card bg="orange.50" borderColor="orange.200">
+                          <CardBody>
+                            <VStack spacing={2}>
+                              <StatLabel>Total Sent</StatLabel>
+                              <StatNumber fontSize="2xl">{emailAnalytics.totalSent?.toLocaleString() || 0}</StatNumber>
+                              <StatHelpText>Last 30 days</StatHelpText>
+                            </VStack>
+                          </CardBody>
+                        </Card>
+
+                        <Card bg="green.50" borderColor="green.200">
+                          <CardBody>
+                            <VStack spacing={2}>
+                              <StatLabel>Open Rate</StatLabel>
+                              <StatNumber fontSize="2xl">{emailAnalytics.openRate || 0}%</StatNumber>
+                              <StatHelpText>Industry avg: 21%</StatHelpText>
+                            </VStack>
+                          </CardBody>
+                        </Card>
+
+                        <Card bg="blue.50" borderColor="blue.200">
+                          <CardBody>
+                            <VStack spacing={2}>
+                              <StatLabel>Click Rate</StatLabel>
+                              <StatNumber fontSize="2xl">{emailAnalytics.clickRate || 0}%</StatNumber>
+                              <StatHelpText>Industry avg: 2.6%</StatHelpText>
+                            </VStack>
+                          </CardBody>
+                        </Card>
+
+                        <Card bg="purple.50" borderColor="purple.200">
+                          <CardBody>
+                            <VStack spacing={2}>
+                              <StatLabel>Conversions</StatLabel>
+                              <StatNumber fontSize="2xl">{emailAnalytics.conversions?.toLocaleString() || 0}</StatNumber>
+                              <StatHelpText>Last 30 days</StatHelpText>
+                            </VStack>
+                          </CardBody>
+                        </Card>
+                      </SimpleGrid>
+
+                      <Box w="full">
+                        <Heading size="md" mb={4}>Recent Campaign Performance</Heading>
+                        <TableContainer>
+                          <Table variant="simple">
+                            <Thead>
+                              <Tr>
+                                <Th>Campaign</Th>
+                                <Th>Sent</Th>
+                                <Th>Opened</Th>
+                                <Th>Clicked</Th>
+                                <Th>Converted</Th>
+                                <Th>Revenue</Th>
+                              </Tr>
+                            </Thead>
+                            <Tbody>
+                              {campaigns.slice(0, 5).map((campaign) => (
+                                <Tr key={campaign.id}>
+                                  <Td fontWeight="medium">{campaign.name}</Td>
+                                  <Td>{campaign.metrics.sent.toLocaleString()}</Td>
+                                  <Td>{campaign.metrics.opened.toLocaleString()}</Td>
+                                  <Td>{campaign.metrics.clicked.toLocaleString()}</Td>
+                                  <Td color="green.600">{campaign.metrics.converted.toLocaleString()}</Td>
+                                  <Td>${(campaign.metrics.converted * 150).toLocaleString()}</Td>
+                                </Tr>
+                              ))}
+                            </Tbody>
+                          </Table>
+                        </TableContainer>
+                      </Box>
+                    </VStack>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
             </TabPanel>
           </TabPanels>
         </Tabs>
@@ -1011,6 +1410,76 @@ const HubSpotIntegration: React.FC = () => {
                 isLoading={loading}
               >
                 Create Deal
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Campaign Modal */}
+        <Modal isOpen={isCampaignModalOpen} onClose={() => setIsCampaignModalOpen(false)} size="lg">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Create Marketing Campaign</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel>Campaign Name</FormLabel>
+                  <Input
+                    value={campaignForm.campaign_name}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, campaign_name: e.target.value })}
+                    placeholder="Q4 Marketing Campaign"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Subject Line</FormLabel>
+                  <Input
+                    value={campaignForm.subject}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, subject: e.target.value })}
+                    placeholder="Special Offer Just for You!"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Email Content</FormLabel>
+                  <Textarea
+                    value={campaignForm.content}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, content: e.target.value })}
+                    placeholder="Enter your email content here..."
+                    rows={6}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Status</FormLabel>
+                  <Input
+                    value={campaignForm.status}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, status: e.target.value })}
+                    placeholder="DRAFT"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Campaign Type</FormLabel>
+                  <Input
+                    value={campaignForm.campaign_type}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, campaign_type: e.target.value })}
+                    placeholder="EMAIL"
+                  />
+                </FormControl>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="ghost"
+                mr={3}
+                onClick={() => setIsCampaignModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                colorScheme="orange"
+                onClick={handleCreateCampaign}
+                isLoading={loading}
+              >
+                Create Campaign
               </Button>
             </ModalFooter>
           </ModalContent>

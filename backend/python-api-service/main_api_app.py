@@ -277,7 +277,10 @@ except ImportError as e:
 
 # Import Azure OAuth handler
 try:
-    from azure_integration_register import register_azure_integration, initialize_azure_schema
+    from azure_integration_register import (
+        initialize_azure_schema,
+        register_azure_integration,
+    )
 
     AZURE_OAUTH_AVAILABLE = True
 except ImportError as e:
@@ -313,9 +316,14 @@ except ImportError as e:
 
 # Import Tableau handler
 try:
-    from tableau_handler import router as tableau_bp
     from auth_handler_tableau import get_tableau_oauth_handler
-    from db_oauth_tableau import init_tableau_oauth_table, get_user_tableau_tokens, is_tableau_token_expired, refresh_tableau_tokens
+    from db_oauth_tableau import (
+        get_user_tableau_tokens,
+        init_tableau_oauth_table,
+        is_tableau_token_expired,
+        refresh_tableau_tokens,
+    )
+    from tableau_handler import router as tableau_bp
 
     TABLEAU_OAUTH_AVAILABLE = True
 except ImportError as e:
@@ -324,20 +332,47 @@ except ImportError as e:
 
 # Import HubSpot handler
 try:
-    from hubspot_handler import router as hubspot_bp
     from auth_handler_hubspot import get_hubspot_oauth_handler
-    from db_oauth_hubspot import init_hubspot_oauth_table, get_user_hubspot_tokens, is_hubspot_token_expired, refresh_hubspot_tokens
+    from db_oauth_hubspot import (
+        get_user_hubspot_tokens,
+        init_hubspot_oauth_table,
+        is_hubspot_token_expired,
+        refresh_hubspot_tokens,
+    )
+    from hubspot_handler import router as hubspot_bp
 
     HUBSPOT_OAUTH_AVAILABLE = True
 except ImportError as e:
     HUBSPOT_OAUTH_AVAILABLE = False
     logging.warning(f"HubSpot OAuth handler not available: {e}")
 
+# Import HubSpot Flask API
+try:
+    from hubspot_flask_api import hubspot_bp as hubspot_flask_bp
+    HUBSPOT_FLASK_AVAILABLE = True
+except ImportError as e:
+    HUBSPOT_FLASK_AVAILABLE = False
+    logging.warning(f'HubSpot Flask API not available: {e}')
+
+# Import HubSpot Flask API
+try:
+    from hubspot_flask_api import hubspot_bp as hubspot_flask_bp
+
+    HUBSPOT_FLASK_AVAILABLE = True
+except ImportError as e:
+    HUBSPOT_FLASK_AVAILABLE = False
+    logging.warning(f'HubSpot Flask API not available: {e}')
+
 # Import Slack handler
 try:
-    from slack_handler import router as slack_bp
     from auth_handler_slack_new import get_slack_oauth_handler
-    from db_oauth_slack_new import init_slack_oauth_table, get_user_slack_tokens, is_slack_token_expired, refresh_slack_tokens
+    from db_oauth_slack_new import (
+        get_user_slack_tokens,
+        init_slack_oauth_table,
+        is_slack_token_expired,
+        refresh_slack_tokens,
+    )
+    from slack_handler import router as slack_bp
 
     SLACK_OAUTH_AVAILABLE = True
 except ImportError as e:
@@ -407,6 +442,36 @@ except ImportError as e:
     SLACK_INTEGRATION_AVAILABLE = False
     logging.warning(f"Slack integration routes not available: {e}")
 
+# Import User API Key management
+try:
+    from user_api_key_routes import user_api_key_bp
+
+    USER_API_KEY_AVAILABLE = True
+    logging.info("User API Key management available")
+except ImportError as e:
+    USER_API_KEY_AVAILABLE = False
+    logging.warning(f"User API Key management not available: {e}")
+
+# Import Performance Optimization
+try:
+    from performance_optimization import initialize_performance_optimization, optimizer
+    
+    PERFORMANCE_OPTIMIZATION_AVAILABLE = True
+    logging.info("Performance optimization available")
+except ImportError as e:
+    PERFORMANCE_OPTIMIZATION_AVAILABLE = False
+    logging.warning(f"Performance optimization not available: {e}")
+
+# Import Integration Health Fix
+try:
+    from integration_health_fix import register_integration_health_endpoints
+    
+    INTEGRATION_HEALTH_AVAILABLE = True
+    logging.info("Integration health fix available")
+except ImportError as e:
+    INTEGRATION_HEALTH_AVAILABLE = False
+    logging.warning(f"Integration health fix not available: {e}")
+
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv(
@@ -439,6 +504,11 @@ def create_app():
         url_prefix="/api/v1/voice",
         name="voice_integration_api_v1",
     )
+
+    # Register User API Key management if available
+    if USER_API_KEY_AVAILABLE:
+        app.register_blueprint(user_api_key_bp, name="user_api_key_management")
+        logging.info("User API Key management registered successfully")
 
     # Register Jira OAuth handler if available
     if JIRA_OAUTH_AVAILABLE:
@@ -507,15 +577,19 @@ def create_app():
         logging.info("Google Drive handlers registered successfully")
 
     # Register OneDrive blueprints
+    # Register OneDrive handlers if available
     if ONEDRIVE_AVAILABLE:
-        app.register_blueprint(
-            onedrive_auth_bp, url_prefix="/api/auth", name="onedrive_auth"
+        # Temporarily disabled to resolve endpoint conflict
+        # app.register_blueprint(
+        #     onedrive_auth_bp, url_prefix="/api/auth", name="onedrive_auth"
+        # )
+        # app.register_blueprint(onedrive_bp, url_prefix="/api", name="onedrive")
+        # app.register_blueprint(
+        #     onedrive_health_bp, url_prefix="/api", name="onedrive_health"
+        # )
+        logging.info(
+            "OneDrive handlers temporarily disabled to resolve endpoint conflict"
         )
-        app.register_blueprint(onedrive_bp, url_prefix="/api", name="onedrive")
-        app.register_blueprint(
-            onedrive_health_bp, url_prefix="/api", name="onedrive_health"
-        )
-        logging.info("OneDrive handlers registered successfully")
 
     # Register enhanced Slack API if available
     try:
@@ -538,6 +612,32 @@ def create_app():
             name="slack_integration",
         )
         logging.info("Slack integration routes registered successfully")
+
+    # Register Slack events handler if available
+    try:
+        from slack_events_handler import slack_events_bp
+
+        SLACK_EVENTS_AVAILABLE = True
+        app.register_blueprint(
+            slack_events_bp, url_prefix="", name="slack_events"
+        )
+        logging.info("Slack events handler registered successfully")
+    except ImportError as e:
+        SLACK_EVENTS_AVAILABLE = False
+        logging.warning(f"Slack events handler not available: {e}")
+
+    # Register enhanced Slack API complete if available
+    try:
+        from slack_enhanced_api_complete import slack_enhanced_api_bp
+
+        SLACK_ENHANCED_COMPLETE_AVAILABLE = True
+        app.register_blueprint(
+            slack_enhanced_api_bp, url_prefix="", name="slack_enhanced_complete"
+        )
+        logging.info("Enhanced Slack API complete registered successfully")
+    except ImportError as e:
+        SLACK_ENHANCED_COMPLETE_AVAILABLE = False
+        logging.warning(f"Enhanced Slack API complete not available: {e}")
 
     # Register enhanced Teams OAuth handler if available
     if TEAMS_OAUTH_AVAILABLE:
@@ -932,8 +1032,11 @@ def create_app():
         from discord_enhanced_api import discord_enhanced_bp
 
         DISCORD_ENHANCED_AVAILABLE = True
-        app.register_blueprint(discord_enhanced_bp, url_prefix="")
-        logging.info("Enhanced Discord API registered successfully")
+        # Temporarily disabled to resolve endpoint conflict
+        # app.register_blueprint(discord_enhanced_bp, url_prefix="")
+        logging.info(
+            "Enhanced Discord API temporarily disabled to resolve endpoint conflict"
+        )
     except ImportError as e:
         DISCORD_ENHANCED_AVAILABLE = False
         logging.warning(f"Enhanced Discord API not available: {e}")
@@ -1289,12 +1392,15 @@ def create_app():
         try:
             # Initialize Xero database schema
             import asyncio
+
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(create_xero_tokens_table(db_pool))
             loop.close()
-            
-            app.register_blueprint(xero_auth_bp, url_prefix="/api/auth", name="xero_auth")
+
+            app.register_blueprint(
+                xero_auth_bp, url_prefix="/api/auth", name="xero_auth"
+            )
             logging.info("Xero OAuth handler registered successfully")
         except Exception as e:
             logging.error(f"Failed to register Xero OAuth handler: {e}")
@@ -1302,6 +1408,7 @@ def create_app():
     # Register Xero service endpoints if available
     try:
         from xero_service import xero_bp
+
         app.register_blueprint(xero_bp, url_prefix="/api", name="xero_handler")
         logging.info("Xero service handler registered successfully")
     except ImportError as e:
@@ -1312,11 +1419,12 @@ def create_app():
         try:
             # Initialize Azure database schema
             import asyncio
+
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(initialize_azure_schema(db_pool))
             loop.close()
-            
+
             # Register Azure blueprints
             register_azure_integration(app)
             logging.info("Azure integration registered successfully")
@@ -1328,12 +1436,14 @@ def create_app():
         try:
             # Initialize Slack database schema
             import asyncio
+
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             from db_oauth_slack import create_slack_tokens_table
+
             loop.run_until_complete(create_slack_tokens_table(db_pool))
             loop.close()
-            
+
             # Register Slack blueprints
             app.register_blueprint(slack_enhanced_bp, url_prefix="")
             logging.info("Slack integration registered successfully")
@@ -1371,6 +1481,22 @@ def create_app():
             logging.info("Slack integration registered successfully")
         except Exception as e:
             logging.error(f"Failed to register Slack integration: {e}")
+
+    # Register Integration Health endpoints if available
+    if INTEGRATION_HEALTH_AVAILABLE:
+        try:
+            register_integration_health_endpoints(app)
+            logging.info("Integration health endpoints registered successfully")
+        except Exception as e:
+            logging.error(f"Failed to register integration health endpoints: {e}")
+
+    # Initialize Performance Optimization if available
+    if PERFORMANCE_OPTIMIZATION_AVAILABLE:
+        try:
+            initialize_performance_optimization(app)
+            logging.info("Performance optimization initialized successfully")
+        except Exception as e:
+            logging.error(f"Failed to initialize performance optimization: {e}")
 
     return app
 

@@ -3,13 +3,14 @@ Comprehensive Asana API Integration Service
 Builds on the successful OAuth implementation to provide full Asana functionality
 """
 
-import os
-import logging
-import requests
 import json
+import logging
+import os
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,14 @@ class AsanaService:
             "ASANA_REDIRECT_URI", "http://localhost:8000/api/auth/asana/callback"
         )
 
-        logger.info(f"AsanaService initialized with client_id: {self.client_id[:8]}...")
+        if self.client_id:
+            logger.info(
+                f"AsanaService initialized with client_id: {self.client_id[:8]}..."
+            )
+        else:
+            logger.info(
+                "AsanaService initialized without client_id - will use placeholder credentials"
+            )
 
     def _make_request(
         self,

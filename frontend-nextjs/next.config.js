@@ -6,13 +6,10 @@ const nextConfig = {
   // Enable React strict mode
   reactStrictMode: true,
 
-  // Enable SWC minification
-  swcMinify: true,
-
   // Environment variables for client-side access
   env: {
     NEXT_PUBLIC_API_BASE_URL:
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5058",
     NEXT_PUBLIC_ENVIRONMENT:
       process.env.NEXT_PUBLIC_ENVIRONMENT || "development",
     NEXT_PUBLIC_USE_REAL_SERVICES:
@@ -34,7 +31,7 @@ const nextConfig = {
       // API proxy for development
       {
         source: "/api/communication/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"}/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5058"}/:path*`,
       },
     ];
   },
@@ -87,11 +84,6 @@ const nextConfig = {
         ],
       },
     ];
-  },
-
-  // Experimental features
-  experimental: {
-    appDir: false, // Keep using pages directory for now
   },
 };
 

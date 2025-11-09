@@ -1,0 +1,14 @@
+# ATOM Platform - Additional Dependencies
+# These packages are needed for full integration support
+
+# Stripe integration
+stripe>=5.0.0
+
+# Optional enterprise features (if needed)
+# atom-enterprise-security-service>=1.0.0
+
+# Database and async support
+aiosqlite>=0.19.0
+
+# Encryption utilities
+# atom-encryption>=1.0.0

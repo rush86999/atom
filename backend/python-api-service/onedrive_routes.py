@@ -6,15 +6,16 @@ including file operations, search, and document ingestion with
 LanceDB memory system integration.
 """
 
-import os
-import logging
 import asyncio
+import logging
+import os
 import uuid
-from typing import Dict, Any, Optional, List
-from flask import Blueprint, request, jsonify, send_file
-from werkzeug.utils import secure_filename
+from typing import Any, Dict, List, Optional
+
 import requests
 from dotenv import load_dotenv
+from flask import Blueprint, jsonify, request, send_file
+from werkzeug.utils import secure_filename
 
 # Import document processing and LanceDB integration
 try:
@@ -608,35 +609,6 @@ async def ingest_document_enhanced(service: OneDriveAPIService):
         logger.error(f"Error in enhanced document ingestion: {e}")
         return jsonify(
             {"error": "Failed to ingest document into memory", "message": str(e)}
-        ), 500
-
-
-@onedrive_bp.route("/onedrive/health")
-async def health_check():
-    """Health check endpoint for OneDrive integration"""
-    try:
-        # Check if required environment variables are set
-        client_id = os.getenv("ONEDRIVE_CLIENT_ID")
-        client_secret = os.getenv("ONEDRIVE_CLIENT_SECRET")
-
-        health_status = {
-            "status": "healthy",
-            "service": "onedrive",
-            "client_id_configured": bool(client_id),
-            "client_secret_configured": bool(client_secret),
-            "timestamp": str(asyncio.get_event_loop().time()),
-        }
-
-        if not client_id or not client_secret:
-            health_status["status"] = "degraded"
-            health_status["message"] = "OneDrive OAuth credentials not configured"
-
-        return jsonify(health_status)
-
-    except Exception as e:
-        logger.error(f"Health check error: {e}")
-        return jsonify(
-            {"status": "unhealthy", "service": "onedrive", "error": str(e)}
         ), 500
 
 

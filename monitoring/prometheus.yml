@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'atom-backend'
+    static_configs:
+      - targets: ['atom-backend:8001']
+
+  - job_name: 'atom-frontend'
+    static_configs:
+      - targets: ['atom-frontend:3000']
+
+  - job_name: 'atom-oauth'
+    static_configs:
+      - targets: ['atom-oauth:5058']

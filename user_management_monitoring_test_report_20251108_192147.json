@@ -1,0 +1,60 @@
+{
+  "timestamp": "2025-11-08T19:21:47.245320",
+  "summary": {
+    "total_tests": 8,
+    "passed": 4,
+    "failed": 4,
+    "skipped": 0,
+    "success_rate": 50.0
+  },
+  "detailed_results": {
+    "test_user_creation_and_roles": {
+      "status": "failed",
+      "error": "'UserPermissionSystem' object has no attribute '_log_audit_event'"
+    },
+    "test_permission_checks": {
+      "status": "failed",
+      "error": "'UserPermissionSystem' object has no attribute '_log_audit_event'"
+    },
+    "test_custom_permissions": {
+      "status": "failed",
+      "error": "'UserPermissionSystem' object has no attribute '_log_audit_event'"
+    },
+    "test_audit_logging": {
+      "status": "failed",
+      "error": "'UserPermissionSystem' object has no attribute '_log_audit_event'"
+    },
+    "test_metrics_collection": {
+      "status": "passed",
+      "metrics_recorded": 3,
+      "counter_value": 1.0,
+      "gauge_value": 42.5
+    },
+    "test_system_health_monitoring": {
+      "status": "passed",
+      "health_status": "healthy",
+      "active_alerts": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "critical": 0
+      }
+    },
+    "test_alert_rules": {
+      "status": "passed",
+      "alert_rules_configured": 5,
+      "active_alerts_count": 0
+    },
+    "test_performance_reporting": {
+      "status": "passed",
+      "performance_data_added": true,
+      "report_generated": true
+    }
+  },
+  "recommendations": [
+    "Investigate and fix issues in test_user_creation_and_roles",
+    "Investigate and fix issues in test_permission_checks",
+    "Investigate and fix issues in test_custom_permissions",
+    "Investigate and fix issues in test_audit_logging"
+  ]
+}

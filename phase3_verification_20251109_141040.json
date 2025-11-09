@@ -1,0 +1,181 @@
+{
+  "timestamp": "2025-11-09T14:10:40.670300",
+  "services": {
+    "phase3_ai_intelligence": {
+      "service": "phase3_ai_intelligence",
+      "status": "HEALTHY",
+      "response_time": 22.098779678344727,
+      "details": {
+        "status": "healthy",
+        "version": "3.0.0-lightweight",
+        "timestamp": "2025-11-09T14:10:40.689646",
+        "features": {
+          "lightweight_ai_intelligence": true,
+          "phase3_enhanced_chat": true,
+          "sentiment_analysis": true,
+          "entity_extraction": true,
+          "intent_detection": true
+        },
+        "system_stats": {
+          "active_conversations": 5,
+          "ai_model_status": "loaded"
+        }
+      },
+      "errors": [],
+      "endpoint_checks": [
+        {
+          "endpoint": "/api/v1/ai/analyze",
+          "status_code": 405,
+          "healthy": false
+        },
+        {
+          "endpoint": "/api/v1/chat/enhanced/message",
+          "status_code": 405,
+          "healthy": false
+        }
+      ]
+    },
+    "main_chat_api": {
+      "service": "main_chat_api",
+      "status": "HEALTHY",
+      "response_time": 6.080150604248047,
+      "details": {
+        "status": "healthy",
+        "version": "2.0.0",
+        "active_connections": 0,
+        "monitored_users": 0,
+        "features": {
+          "multimodal_chat": true,
+          "voice_integration": true,
+          "analytics": true,
+          "enterprise_sso": true,
+          "enterprise_directory": true,
+          "enterprise_salesforce": true,
+          "enterprise_analytics": true,
+          "teams_integration": true,
+          "servicenow_integration": true,
+          "mfa_integration": true
+        },
+        "enterprise_sso_health": "available",
+        "enterprise_directory_health": "available",
+        "enterprise_salesforce_health": "available"
+      },
+      "errors": [],
+      "endpoint_checks": []
+    },
+    "websocket_server": {
+      "service": "websocket_server",
+      "status": "HEALTHY",
+      "response_time": 5.455970764160156,
+      "details": {
+        "status": "healthy",
+        "version": "1.0.0",
+        "server_stats": {
+          "active_connections": 0,
+          "total_users": 0,
+          "total_rooms": 0,
+          "online_users": []
+        }
+      },
+      "errors": [],
+      "endpoint_checks": []
+    },
+    "monitoring_dashboard": {
+      "service": "monitoring_dashboard",
+      "status": "UNHEALTHY",
+      "response_time": 0,
+      "details": {},
+      "errors": [
+        "HTTP 404: {\"detail\":\"Not Found\"}"
+      ]
+    },
+    "feedback_collection": {
+      "service": "feedback_collection",
+      "status": "UNAVAILABLE",
+      "response_time": 0,
+      "details": {},
+      "errors": [
+        "Connection refused - service may not be running"
+      ]
+    }
+  },
+  "functionality_tests": {
+    "ai_analysis": {
+      "total_tests": 3,
+      "passed_tests": 3,
+      "failed_tests": 0,
+      "test_details": [
+        {
+          "message": "This is amazing! I love how well this system works.",
+          "status": "PASSED",
+          "response_time": 7.22813606262207,
+          "sentiment_score": 0.7554000000000001,
+          "expected_sentiment": "positive",
+          "details": {
+            "analysis_id": "f373fcfc-4205-417b-a9d3-4505c6a661f3",
+            "intents": [
+              "question",
+              "positive_feedback"
+            ],
+            "entities": []
+          }
+        },
+        {
+          "message": "I'm really frustrated with this feature not working properly.",
+          "status": "PASSED",
+          "response_time": 7.797956466674805,
+          "sentiment_score": -0.46044999999999997,
+          "expected_sentiment": "negative",
+          "details": {
+            "analysis_id": "1ddf9264-ba5c-4bb8-866d-58f6919cd012",
+            "intents": [
+              "complaint"
+            ],
+            "entities": []
+          }
+        },
+        {
+          "message": "Can you help me find information about the API documentation?",
+          "status": "PASSED",
+          "response_time": 6.685018539428711,
+          "sentiment_score": 0.20095,
+          "expected_sentiment": "neutral",
+          "details": {
+            "analysis_id": "f55b7ab3-f1a3-4bdb-9a4d-9d3d55cde128",
+            "intents": [
+              "question",
+              "help_request",
+              "information_request"
+            ],
+            "entities": []
+          }
+        }
+      ]
+    },
+    "enhanced_chat": {
+      "status": "SUCCESS",
+      "response_time": 7.612943649291992,
+      "ai_analysis_applied": true,
+      "sentiment_detected": -0.37579999999999997,
+      "details": {
+        "conversation_id": "verification-session-1762715440",
+        "response": "I understand you're concerned about: I need help with my account settings and I'm feeling frustrated. Let me help you with that.",
+        "enhanced_suggestions": [
+          "escalate_to_human",
+          "offer_apology",
+          "acknowledge_issue",
+          "provide_solution_options",
+          "provide_help_resources",
+          "offer_guided_assistance"
+        ]
+      }
+    }
+  },
+  "overall_status": "HEALTHY",
+  "summary": {
+    "total_services": 5,
+    "healthy_services": 3,
+    "unhealthy_services": 1,
+    "unavailable_services": 1
+  }
+}

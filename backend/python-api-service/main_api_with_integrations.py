@@ -23,11 +23,38 @@ from voice_integration_api import voice_integration_api_bp
 # Import enhanced service endpoints
 try:
     from enhanced_service_endpoints import enhanced_service_bp
-
     ENHANCED_SERVICES_AVAILABLE = True
 except ImportError:
     ENHANCED_SERVICES_AVAILABLE = False
     logging.warning("Enhanced service endpoints not available")
+
+# Import enhanced health monitoring
+try:
+    from enhanced_health_endpoints import health_bp
+    HEALTH_MONITORING_AVAILABLE = True
+except ImportError:
+    HEALTH_MONITORING_AVAILABLE = False
+    logging.warning("Enhanced health monitoring not available")
+
+# Import enhanced integration routes
+try:
+    from enhanced_hubspot_routes import hubspot_bp
+    HUBSPOT_ENHANCED_AVAILABLE = True
+except ImportError:
+    HUBSPOT_ENHANCED_AVAILABLE = False
+    logging.warning("Enhanced HubSpot routes not available")
+
+# Import flask-fastapi bridge system
+try:
+    from flask_fastapi_bridge import init_integration_bridge, get_integration_bridge
+    from enhanced_integration_routes import enhanced_integrations_bp
+    from ai_error_prediction import initialize_ai_error_prediction
+    from realtime_dashboard import initialize_dashboard
+    from ai_dashboard_api import dashboard_router
+    BRIDGE_SYSTEM_AVAILABLE = True
+except ImportError:
+    BRIDGE_SYSTEM_AVAILABLE = False
+    logging.warning("Flask-FastAPI bridge system not available")
 
 app = Flask(__name__)
 app.secret_key = os.getenv(
@@ -49,6 +76,53 @@ def create_app():
     # Register enhanced services if available
     if ENHANCED_SERVICES_AVAILABLE:
         app.register_blueprint(enhanced_service_bp, url_prefix="/api/v1/services")
+        logging.info("✅ Enhanced service endpoints registered")
+    
+    # Register health monitoring if available
+    if HEALTH_MONITORING_AVAILABLE:
+        app.register_blueprint(health_bp, url_prefix="/api/v2/health")
+        logging.info("✅ Enhanced health monitoring registered")
+    
+    # Register enhanced HubSpot routes if available
+    if HUBSPOT_ENHANCED_AVAILABLE:
+        app.register_blueprint(hubspot_bp, url_prefix="/api/v2/hubspot")
+        logging.info("✅ Enhanced HubSpot routes registered")
+    
+    # Initialize bridge system if available
+    if BRIDGE_SYSTEM_AVAILABLE:
+        try:
+            bridge = init_integration_bridge(app)
+            app.register_blueprint(enhanced_integrations_bp, url_prefix="/api/enhanced")
+            logging.info("✅ Flask-FastAPI bridge system initialized")
+            
+            # Initialize AI error prediction system
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                ai_initialized = loop.run_until_complete(initialize_ai_error_prediction())
+                if ai_initialized:
+                    logging.info("✅ AI Error Prediction system initialized")
+                else:
+                    logging.warning("⚠️ AI Error Prediction system initialization failed")
+            except Exception as e:
+                logging.error(f"Failed to initialize AI Error Prediction: {e}")
+            
+            # Initialize real-time dashboard
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                dashboard_initialized = loop.run_until_complete(initialize_dashboard())
+                if dashboard_initialized:
+                    logging.info("✅ Real-time AI Dashboard initialized")
+                else:
+                    logging.warning("⚠️ Real-time AI Dashboard initialization failed")
+            except Exception as e:
+                logging.error(f"Failed to initialize AI Dashboard: {e}")
+                
+        except Exception as e:
+            logging.error(f"Failed to initialize bridge system: {e}")
 
     # Register Microsoft 365 integration routes
     try:
@@ -57,6 +131,22 @@ def create_app():
         print("✅ Microsoft 365 routes registered")
     except ImportError:
         print("⚠️ Microsoft 365 routes not available")
+
+    # Register Monday.com integration routes
+    try:
+        from monday_routes import app as monday_app
+        app.register_blueprint(monday_app, url_prefix="/api/monday")
+        print("✅ Monday.com routes registered")
+    except ImportError:
+        print("⚠️ Monday.com routes not available")
+
+    # Register Salesforce CRM integration routes
+    try:
+        from salesforce_routes import app as salesforce_app
+        app.register_blueprint(salesforce_app, url_prefix="/api/salesforce")
+        print("✅ Salesforce CRM routes registered")
+    except ImportError:
+        print("⚠️ Salesforce CRM routes not available")
 
     # Add OAuth and real service endpoints
     add_oauth_endpoints()

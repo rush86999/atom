@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-11-09T23:10:54.385850",
+  "status": {
+    "total_integrations": 32,
+    "healthy": 27,
+    "degraded": 3,
+    "unhealthy": 2,
+    "health_percentage": 84.4,
+    "average_response_time": 1.823,
+    "error_rate": 1.51,
+    "uptime": 98.89
+  },
+  "platform_version": "2.0.0",
+  "ready_for_production": false
+}

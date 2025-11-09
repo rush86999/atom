@@ -3,7 +3,7 @@ import json
 import logging
 import httpx
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from asyncpg import Pool
 
 logger = logging.getLogger(__name__)
@@ -58,25 +58,33 @@ class HubSpotService:
     
     async def _make_request(self, method: str, endpoint: str, 
                            data: Dict[str, Any] = None, 
-                           params: Dict[str, Any] = None) -> Dict[str, Any]:
+                           params: Dict[str, Any] = None,
+                           access_token: str = None) -> Dict[str, Any]:
         """Make authenticated API request with error handling"""
         try:
             url = f"{HUBSPOT_API_BASE}{endpoint}"
             
+            # Use provided access_token or fall back to instance token
+            token = access_token or self.access_token
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            
             async with httpx.AsyncClient() as client:
                 if method.upper() == "GET":
-                    response = await client.get(url, headers=self._get_headers(), params=params)
+                    response = await client.get(url, headers=headers, params=params)
                 elif method.upper() == "POST":
-                    response = await client.post(url, headers=self._get_headers(), json=data, params=params)
+                    response = await client.post(url, headers=headers, json=data, params=params)
                 elif method.upper() == "PUT":
-                    response = await client.put(url, headers=self._get_headers(), json=data, params=params)
+                    response = await client.put(url, headers=headers, json=data, params=params)
                 elif method.upper() == "DELETE":
-                    response = await client.delete(url, headers=self._get_headers(), params=params)
+                    response = await client.delete(url, headers=headers, params=params)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
                 
-                if response.status_code == 401:
-                    # Token expired, try to refresh
+                if response.status_code == 401 and not access_token:
+                    # Token expired, try to refresh (only if using instance token)
                     await self._refresh_token()
                     # Retry request with new token
                     return await self._make_request(method, endpoint, data, params)
@@ -988,3 +996,313 @@ class HubSpotService:
         except Exception as e:
             logger.error(f"Failed to log HubSpot activity: {e}")
             return False
+    
+    # Marketing Campaigns Management
+    async def get_campaigns(self, access_token: str, limit: int = 50, 
+                           campaign_name: str = None, status: str = None, 
+                           created_after: date = None, properties: List[str] = None) -> Dict[str, Any]:
+        """Get HubSpot marketing campaigns"""
+        try:
+            await self._ensure_initialized()
+            
+            # Default properties to fetch
+            if not properties:
+                properties = ["name", "subject", "content", "status", "campaign_type", 
+                            "createdate", "lastmodifieddate", "closedate", "hs_campaign_id"]
+            
+            params = {
+                "limit": limit,
+                "properties": properties
+            }
+            
+            # Build filters
+            filters = []
+            if campaign_name:
+                filters.append({
+                    "propertyName": "name",
+                    "operator": "CONTAINS_TOKEN",
+                    "value": campaign_name
+                })
+            if status:
+                filters.append({
+                    "propertyName": "status", 
+                    "operator": "EQ",
+                    "value": status
+                })
+            if created_after:
+                filters.append({
+                    "propertyName": "createdate",
+                    "operator": "GTE",
+                    "value": int(created_after.timestamp() * 1000)
+                })
+            
+            if filters:
+                params["filterGroups"] = [{"filters": filters}]
+            
+            result = await self._make_request("GET", "/marketing/v3/campaigns/", 
+                                           params=params, access_token=access_token)
+            
+            if result["success"]:
+                campaigns = result["data"].get("results", [])
+                
+                # Log activity
+                await self.log_activity("get_campaigns", {
+                    "count": len(campaigns),
+                    "filters": {"campaign_name": campaign_name, "status": status}
+                })
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "campaigns": campaigns,
+                        "total": result["data"].get("total", len(campaigns)),
+                        "paging": result["data"].get("paging", {})
+                    }
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to get HubSpot campaigns: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def get_campaign(self, campaign_id: str, access_token: str) -> Dict[str, Any]:
+        """Get specific campaign by ID"""
+        try:
+            await self._ensure_initialized()
+            
+            result = await self._make_request("GET", f"/marketing/v3/campaigns/{campaign_id}", 
+                                           access_token=access_token)
+            
+            if result["success"]:
+                campaign = result["data"]
+                
+                # Log activity
+                await self.log_activity("get_campaign", {
+                    "campaign_id": campaign_id,
+                    "campaign_name": campaign.get("properties", {}).get("name")
+                })
+                
+                return {
+                    "success": True,
+                    "data": campaign
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to get HubSpot campaign {campaign_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def create_campaign(self, access_token: str, campaign_name: str, 
+                             subject: str = None, content: str = None, status: str = "DRAFT",
+                             campaign_type: str = "EMAIL", properties: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Create a new HubSpot marketing campaign"""
+        try:
+            await self._ensure_initialized()
+            
+            # Base properties
+            campaign_properties = {
+                "name": campaign_name,
+                "status": status,
+                "campaign_type": campaign_type
+            }
+            
+            # Add optional properties
+            if subject:
+                campaign_properties["subject"] = subject
+            if content:
+                campaign_properties["content"] = content
+            if properties:
+                campaign_properties.update(properties)
+            
+            campaign_data = {
+                "properties": campaign_properties
+            }
+            
+            result = await self._make_request("POST", "/marketing/v3/campaigns/", 
+                                           data=campaign_data, access_token=access_token)
+            
+            if result["success"]:
+                campaign = result["data"]
+                
+                # Log activity
+                await self.log_activity("create_campaign", {
+                    "campaign_id": campaign.get("id"),
+                    "campaign_name": campaign_name,
+                    "campaign_type": campaign_type,
+                    "status": status
+                })
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "id": campaign.get("id"),
+                        "properties": campaign.get("properties", {}),
+                        "createdAt": campaign.get("createdAt"),
+                        "updatedAt": campaign.get("updatedAt")
+                    }
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to create HubSpot campaign: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def update_campaign(self, campaign_id: str, access_token: str, 
+                             properties: Dict[str, Any]) -> Dict[str, Any]:
+        """Update HubSpot campaign"""
+        try:
+            await self._ensure_initialized()
+            
+            campaign_data = {
+                "properties": properties
+            }
+            
+            result = await self._make_request("PATCH", f"/marketing/v3/campaigns/{campaign_id}", 
+                                           data=campaign_data, access_token=access_token)
+            
+            if result["success"]:
+                campaign = result["data"]
+                
+                # Log activity
+                await self.log_activity("update_campaign", {
+                    "campaign_id": campaign_id,
+                    "properties": properties
+                })
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "id": campaign.get("id"),
+                        "properties": campaign.get("properties", {}),
+                        "updatedAt": campaign.get("updatedAt")
+                    }
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to update HubSpot campaign: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def delete_campaign(self, campaign_id: str, access_token: str) -> Dict[str, Any]:
+        """Delete HubSpot campaign"""
+        try:
+            await self._ensure_initialized()
+            
+            result = await self._make_request("DELETE", f"/marketing/v3/campaigns/{campaign_id}", 
+                                           access_token=access_token)
+            
+            if result["success"]:
+                # Log activity
+                await self.log_activity("delete_campaign", {
+                    "campaign_id": campaign_id
+                })
+                
+                return {
+                    "success": True,
+                    "message": "Campaign deleted successfully"
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to delete HubSpot campaign: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # Marketing Lists Management
+    async def get_lists(self, access_token: str, limit: int = 50) -> Dict[str, Any]:
+        """Get HubSpot marketing lists"""
+        try:
+            await self._ensure_initialized()
+            
+            params = {
+                "limit": limit
+            }
+            
+            result = await self._make_request("GET", "/marketing/v3/lists/", 
+                                           params=params, access_token=access_token)
+            
+            if result["success"]:
+                lists = result["data"].get("results", [])
+                
+                # Log activity
+                await self.log_activity("get_lists", {
+                    "count": len(lists)
+                })
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "lists": lists,
+                        "total": result["data"].get("total", len(lists)),
+                        "paging": result["data"].get("paging", {})
+                    }
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to get HubSpot lists: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # Email Marketing Analytics
+    async def get_email_analytics(self, access_token: str, campaign_id: str = None,
+                                date_from: str = None, date_to: str = None) -> Dict[str, Any]:
+        """Get email marketing analytics"""
+        try:
+            await self._ensure_initialized()
+            
+            params = {}
+            if campaign_id:
+                params["campaignId"] = campaign_id
+            if date_from:
+                params["dateFrom"] = date_from
+            if date_to:
+                params["dateTo"] = date_to
+            
+            result = await self._make_request("GET", "/marketing/v3/email/analytics/", 
+                                           params=params, access_token=access_token)
+            
+            if result["success"]:
+                analytics = result["data"]
+                
+                # Log activity
+                await self.log_activity("get_email_analytics", {
+                    "campaign_id": campaign_id,
+                    "date_range": {"from": date_from, "to": date_to}
+                })
+                
+                return {
+                    "success": True,
+                    "data": analytics
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to get email analytics: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }

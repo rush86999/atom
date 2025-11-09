@@ -1,0 +1,71 @@
+{
+  "timestamp": "2025-11-08T18:59:53.671613",
+  "summary": {
+    "total_tests": 5,
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "success_rate": 100.0
+  },
+  "detailed_results": {
+    "test_workflow_templates": {
+      "status": "passed",
+      "workflow_id": "dc531083-09fa-457c-8aeb-e6af13d78f6b"
+    },
+    "test_conditional_workflow_execution": {
+      "status": "passed",
+      "execution_id": "e0009c9b-d6b5-4c80-8cda-dfbc32793277"
+    },
+    "test_cross_integration_search": {
+      "status": "passed",
+      "results_count": 0,
+      "metrics": {
+        "total_documents": 0,
+        "vector_dimensions": 384,
+        "search_latency_ms": 3.7429332733154297,
+        "query_throughput": 0.0,
+        "memory_usage_mb": 104.671875,
+        "cpu_usage_percent": 0.0,
+        "last_optimization": "2025-11-08T18:59:45.902027",
+        "cross_integration_searches": 1,
+        "integrations_configured": [
+          "google_drive",
+          "onedrive",
+          "notion",
+          "gmail"
+        ],
+        "tables_loaded": []
+      }
+    },
+    "test_memory_system_optimization": {
+      "status": "passed",
+      "metrics": {
+        "total_documents": 0,
+        "vector_dimensions": 384,
+        "search_latency_ms": 3.7429332733154297,
+        "query_throughput": 0.0,
+        "memory_usage_mb": 104.671875,
+        "cpu_usage_percent": 0.0,
+        "last_optimization": "2025-11-08T18:59:53.069866",
+        "cross_integration_searches": 1,
+        "integrations_configured": [
+          "google_drive",
+          "onedrive",
+          "notion",
+          "gmail"
+        ],
+        "tables_loaded": [
+          "google_drive"
+        ]
+      }
+    },
+    "test_workflow_versioning": {
+      "status": "passed",
+      "workflow_id": "d2293599-5705-4663-ab37-aa3acf3b69f4"
+    }
+  },
+  "recommendations": [
+    "All advanced features are functioning correctly",
+    "Proceed with production deployment"
+  ]
+}

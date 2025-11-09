@@ -1,0 +1,19 @@
+{
+  "metrics_endpoint": "/api/metrics",
+  "health_endpoint": "/api/health",
+  "performance_endpoint": "/api/performance",
+  "alert_thresholds": {
+    "response_time": 1.0,
+    "error_rate": 5.0,
+    "cpu_usage": 80.0,
+    "memory_usage": 85.0,
+    "disk_usage": 90.0
+  },
+  "log_destinations": {
+    "application_logs": "logs/atom-app.log",
+    "error_logs": "logs/atom-error.log",
+    "access_logs": "logs/atom-access.log"
+  },
+  "alerts_enabled": true,
+  "dashboard_enabled": true
+}

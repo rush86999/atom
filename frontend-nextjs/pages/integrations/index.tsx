@@ -241,6 +241,16 @@ const IntegrationsPage: React.FC = () => {
       color: "green",
     },
     {
+      id: "mailchimp",
+      name: "Mailchimp",
+      description: "Email marketing and automation platform",
+      category: "marketing",
+      status: "complete",
+      connected: false,
+      icon: EmailIcon,
+      color: "blue",
+    },
+    {
       id: "google-workspace",
       name: "Google Workspace",
       description:

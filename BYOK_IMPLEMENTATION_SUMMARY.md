@@ -19,7 +19,7 @@ The ATOM system now features a complete **Bring Your Own Keys (BYOK)** implement
 - **Responsive Design**: Mobile-friendly interface
 
 ### Multi-Provider Support
-- **5 AI Providers**: OpenAI, DeepSeek, Anthropic, Google Gemini, Azure OpenAI
+- **7 AI Providers**: OpenAI, DeepSeek, Anthropic, Google Gemini, Azure OpenAI, GLM-4.6, Kimi K2
 - **Intelligent Routing**: Automatic provider selection based on task type
 - **Cost Optimization**: 40-70% cost savings through provider optimization
 - **Fallback Mechanisms**: Automatic failover between providers
@@ -103,6 +103,8 @@ atom/
 | Provider | Cost Savings | Best For |
 |----------|-------------|----------|
 | **Google Gemini** | 93% vs OpenAI | Embeddings, General Tasks |
+| **GLM-4.6 (Zhipu AI)** | 85-90% vs OpenAI | Chinese Language, Multilingual Tasks |
+| **Kimi K2 (Moonshot AI)** | 70-80% vs OpenAI | Long Context, Document Analysis |
 | **DeepSeek AI** | 96-98% vs OpenAI | Code Generation |
 | **OpenAI** | Baseline | Reliable Fallback |
 | **Anthropic** | Premium | Advanced Reasoning |

@@ -252,6 +252,31 @@ const SlackIntegration: React.FC = () => {
     onClose: onMessageClose 
   } = useDisclosure();
 
+  const { 
+    isOpen: isCreateChannelOpen, 
+    onOpen: onCreateChannelOpen, 
+    onClose: onCreateChannelClose 
+  } = useDisclosure();
+
+  const { 
+    isOpen: isFileUploadOpen, 
+    onOpen: onFileUploadOpen, 
+    onClose: onFileUploadClose 
+  } = useDisclosure();
+
+  const [newChannelData, setNewChannelData] = useState({
+    name: '',
+    isPrivate: false,
+    purpose: '',
+  });
+
+  const [fileUploadData, setFileUploadData] = useState({
+    file: null as File | null,
+    channels: [] as string[],
+    title: '',
+    initialComment: '',
+  });
+
   const toast = useToast();
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
@@ -444,6 +469,109 @@ const SlackIntegration: React.FC = () => {
     }
   };
 
+  // Create channel
+  const createChannel = async () => {
+    if (!newChannelData.name.trim()) return;
+
+    try {
+      const response = await fetch("/api/integrations/slack/channels/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newChannelData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          toast({
+            title: "Channel created successfully",
+            status: "success",
+            duration: 3000,
+          });
+          setNewChannelData({ name: '', isPrivate: false, purpose: '' });
+          onCreateChannelClose();
+          await loadChannels();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to create channel:", error);
+      toast({
+        title: "Failed to create channel",
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Upload file
+  const uploadFile = async () => {
+    if (!fileUploadData.file || fileUploadData.channels.length === 0) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', fileUploadData.file);
+      formData.append('channels', fileUploadData.channels.join(','));
+      if (fileUploadData.title) formData.append('title', fileUploadData.title);
+      if (fileUploadData.initialComment) formData.append('initialComment', fileUploadData.initialComment);
+
+      const response = await fetch("/api/integrations/slack/files/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          toast({
+            title: "File uploaded successfully",
+            status: "success",
+            duration: 3000,
+          });
+          setFileUploadData({ file: null, channels: [], title: '', initialComment: '' });
+          onFileUploadClose();
+          await loadFiles();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to upload file:", error);
+      toast({
+        title: "Failed to upload file",
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Manage channel actions
+  const manageChannel = async (channelId: string, action: string) => {
+    try {
+      const response = await fetch("/api/integrations/slack/channels/manage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId, action }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          toast({
+            title: `Channel ${action} successful`,
+            status: "success",
+            duration: 3000,
+          });
+          await loadChannels();
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to ${action} channel:`, error);
+      toast({
+        title: `Failed to ${action} channel`,
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
   // Search messages
   const searchMessages = async () => {
     if (!searchQuery.trim() || !connected) return;
@@ -467,6 +595,30 @@ const SlackIntegration: React.FC = () => {
       console.error("Failed to search Slack messages:", error);
     } finally {
       setLoading((prev) => ({ ...prev, search: false }));
+    }
+  };
+
+  // Search files
+  const searchFiles = async () => {
+    if (!searchQuery.trim() || !connected) return;
+
+    try {
+      const response = await fetch("/api/integrations/slack/search/files", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: searchQuery,
+          count: 50,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // You could display file search results in a separate state
+        console.log("File search results:", data.data);
+      }
+    } catch (error) {
+      console.error("Failed to search Slack files:", error);
     }
   };
 
@@ -774,6 +926,20 @@ const SlackIntegration: React.FC = () => {
                       >
                         Refresh Channels
                       </Button>
+                      <Button
+                        colorScheme="green"
+                        leftIcon={<AddIcon />}
+                        onClick={onCreateChannelOpen}
+                      >
+                        Create Channel
+                      </Button>
+                      <Button
+                        colorScheme="blue"
+                        leftIcon={<FileIcon />}
+                        onClick={onFileUploadOpen}
+                      >
+                        Upload File
+                      </Button>
                     </HStack>
 
                     <Card>
@@ -875,6 +1041,34 @@ const SlackIntegration: React.FC = () => {
                                           >
                                             Open in Slack
                                           </MenuItem>
+                                          {!channel.is_im && (
+                                            <>
+                                              <MenuItem
+                                                icon={<AddIcon />}
+                                                onClick={() => manageChannel(channel.id, 'join')}
+                                              >
+                                                Join Channel
+                                              </MenuItem>
+                                              <MenuItem
+                                                icon={<DeleteIcon />}
+                                                onClick={() => manageChannel(channel.id, 'leave')}
+                                              >
+                                                Leave Channel
+                                              </MenuItem>
+                                              <MenuItem
+                                                icon={<FolderIcon />}
+                                                onClick={() => manageChannel(channel.id, 'archive')}
+                                              >
+                                                Archive Channel
+                                              </MenuItem>
+                                              <MenuItem
+                                                icon={<UnlockIcon />}
+                                                onClick={() => manageChannel(channel.id, 'unarchive')}
+                                              >
+                                                Unarchive Channel
+                                              </MenuItem>
+                                            </>
+                                          )}
                                         </MenuList>
                                       </Menu>
                                     </HStack>
@@ -1164,6 +1358,133 @@ const SlackIntegration: React.FC = () => {
                 disabled={!selectedChannel || !messageText.trim()}
               >
                 Send Message
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Create Channel Modal */}
+        <Modal isOpen={isCreateChannelOpen} onClose={onCreateChannelClose}>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Create Channel</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4}>
+                <FormControl>
+                  <FormLabel>Channel Name</FormLabel>
+                  <Input
+                    value={newChannelData.name}
+                    onChange={(e) => setNewChannelData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="#channel-name"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Purpose (Optional)</FormLabel>
+                  <Textarea
+                    value={newChannelData.purpose}
+                    onChange={(e) => setNewChannelData(prev => ({ ...prev, purpose: e.target.value }))}
+                    placeholder="What's this channel about?"
+                    rows={3}
+                  />
+                </FormControl>
+                <FormControl display="flex" alignItems="center">
+                  <FormLabel htmlFor="is-private" mb="0">
+                    Make Private
+                  </FormLabel>
+                  <Switch
+                    id="is-private"
+                    isChecked={newChannelData.isPrivate}
+                    onChange={(e) => setNewChannelData(prev => ({ ...prev, isPrivate: e.target.checked }))}
+                  />
+                </FormControl>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="outline" onClick={onCreateChannelClose}>
+                Cancel
+              </Button>
+              <Button
+                colorScheme="green"
+                onClick={createChannel}
+                isLoading={loading.channels}
+                disabled={!newChannelData.name.trim()}
+              >
+                Create Channel
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Upload File Modal */}
+        <Modal isOpen={isFileUploadOpen} onClose={onFileUploadClose}>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Upload File</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4}>
+                <FormControl>
+                  <FormLabel>File</FormLabel>
+                  <Input
+                    type="file"
+                    onChange={(e) => setFileUploadData(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Channels</FormLabel>
+                  <Select
+                    isMulti
+                    value={fileUploadData.channels.map(id => 
+                      channels.find(c => c.id === id)?.name
+                    ).filter(Boolean)}
+                    onChange={(selectedOptions) => {
+                      const selectedIds = selectedOptions.map((option: any) => 
+                        channels.find(c => c.name === option.value)?.id
+                      ).filter(Boolean);
+                      setFileUploadData(prev => ({ ...prev, channels: selectedIds }));
+                    }}
+                    placeholder="Select channels"
+                  >
+                    {channels
+                      .filter(c => !c.is_im && !c.is_archived)
+                      .map((channel) => (
+                        <option key={channel.id} value={channel.id}>
+                          {channel.name}
+                        </option>
+                      ))}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Title (Optional)</FormLabel>
+                  <Input
+                    value={fileUploadData.title}
+                    onChange={(e) => setFileUploadData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="File title"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Initial Comment (Optional)</FormLabel>
+                  <Textarea
+                    value={fileUploadData.initialComment}
+                    onChange={(e) => setFileUploadData(prev => ({ ...prev, initialComment: e.target.value }))}
+                    placeholder="Add a comment..."
+                    rows={3}
+                  />
+                </FormControl>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="outline" onClick={onFileUploadClose}>
+                Cancel
+              </Button>
+              <Button
+                colorScheme="blue"
+                onClick={uploadFile}
+                isLoading={loading.files}
+                disabled={!fileUploadData.file || fileUploadData.channels.length === 0}
+              >
+                Upload File
               </Button>
             </ModalFooter>
           </ModalContent>

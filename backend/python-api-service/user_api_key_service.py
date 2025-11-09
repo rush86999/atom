@@ -45,6 +45,11 @@ class UserAPIKeyService:
     def _init_database(self):
         """Initialize the SQLite database for API key storage"""
         try:
+            # Ensure data directory exists
+            db_dir = os.path.dirname(self.db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+            
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
@@ -322,6 +327,20 @@ class UserAPIKeyService:
                 from google_handler_real import GoogleGeminiServiceReal
 
                 service = GoogleGeminiServiceReal()
+                service.api_key = api_key
+                result = service.test_connection()
+
+            elif service_name == "glm_4_6":
+                from glm_46_handler_real import GLM46ServiceReal
+
+                service = GLM46ServiceReal()
+                service.api_key = api_key
+                result = service.test_connection()
+
+            elif service_name == "kimi_k2":
+                from kimi_k2_handler_real import KimiK2ServiceReal
+
+                service = KimiK2ServiceReal()
                 service.api_key = api_key
                 result = service.test_connection()
 

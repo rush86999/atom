@@ -1,0 +1,46 @@
+{
+  "export_timestamp": "2025-11-09T15:51:11.582642",
+  "user_id": "demo-user-001",
+  "total_conversations": 3,
+  "conversations": [
+    {
+      "id": "adc63c37-3b85-4e7c-ab57-173aa7b94937",
+      "user_id": "demo-user-001",
+      "session_id": "session-001",
+      "role": "user",
+      "content": "Hello, I need help with my account settings.",
+      "message_type": "text",
+      "timestamp": "2025-11-09T20:51:11.467419+00:00",
+      "metadata": {
+        "topic": "account",
+        "priority": "medium"
+      }
+    },
+    {
+      "id": "0f4b7eb8-6445-4cb3-8e66-429eaf628f9d",
+      "user_id": "demo-user-001",
+      "session_id": "session-001",
+      "role": "assistant",
+      "content": "I'd be happy to help you with your account settings. What specific issue are you experiencing?",
+      "message_type": "text",
+      "timestamp": "2025-11-09T20:51:11.467722+00:00",
+      "metadata": {
+        "topic": "account",
+        "response_type": "helpful"
+      }
+    },
+    {
+      "id": "d027c546-5cfc-40e2-a0d6-5791a0f05b89",
+      "user_id": "demo-user-001",
+      "session_id": "session-001",
+      "role": "user",
+      "content": "I can't change my password. The system says it's too weak.",
+      "message_type": "text",
+      "timestamp": "2025-11-09T20:51:11.467921+00:00",
+      "metadata": {
+        "topic": "password",
+        "issue": "validation"
+      }
+    }
+  ]
+}

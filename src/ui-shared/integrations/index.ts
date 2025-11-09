@@ -70,6 +70,19 @@ export { NextjsSkills } from './nextjs/skills/nextjsSkills';
 export { default as GitLabManager } from './gitlab/components/GitLabManager';
 export { GitLabSkills } from './gitlab/skills/gitlabSkills';
 
+// Figma Integration (Design Collaboration)
+export { FigmaManager, FigmaDesktopManager } from './figma';
+export * as FigmaTypes from './figma/types';
+
+// Microsoft 365 Integration (Enterprise Productivity)
+export { 
+  Microsoft365Manager, 
+  Microsoft365Callback, 
+  Microsoft365DesktopManager, 
+  Microsoft365DesktopCallback 
+} from './microsoft365';
+export * as Microsoft365Types from './microsoft365/types';
+
 // Asana Integration (Project Management & Productivity)
 export { default as AsanaManager } from './asana/components/AsanaManager';
 export { asanaSkills } from './asana/skills/asanaSkills';
@@ -77,6 +90,10 @@ export { asanaSkills } from './asana/skills/asanaSkills';
 // HubSpot Integration (Marketing & CRM)
 export { HubSpotIntegration } from './hubspot';
 export { hubspotSkills, hubspotSkillsEnhanced } from './hubspot/skills/hubspotSkills';
+
+// Salesforce Integration (CRM & Marketing)
+export { SalesforceManager } from './salesforce';
+export { salesforceSkills } from './salesforce/skills/salesforceSkills';
 
 // Zendesk Integration (Customer Service)
 export { ZendeskIntegration } from './zendesk';
@@ -86,6 +103,9 @@ export { zendeskSkills, zendeskSkillsEnhanced } from './zendesk/skills/zendeskSk
 export { XeroIntegration } from './xero';
 export { xeroSkills } from './xero/skills/xeroSkills';
 
+// Freshdesk Integration (Customer Service)
+export { FreshdeskIntegration } from './freshdesk';
+
 // Airtable Integration (Data Management & Productivity)
 export { AirtableDataManagementUI } from './airtable';
 export { airtableSkills } from './airtable/skills/airtableSkillsComplete';
@@ -93,6 +113,10 @@ export { airtableSkills } from './airtable/skills/airtableSkillsComplete';
 // Asana Integration (Project Management & Productivity)
 export { AsanaManager } from './asana/components/AsanaManager';
 export { asanaSkills } from './asana/skills/asanaSkills';
+
+// Monday Integration (Work OS & Project Management)
+export { MondayManager } from './monday';
+export { mondaySkills } from './monday/skills/mondaySkills';
 
 // Base Integration Template
 export * as BaseIntegration from './_template/baseIntegration';
@@ -150,25 +174,35 @@ export class AtomIntegrationFactory {
         return AsanaManager(props);
       case 'airtable':
         return AirtableDataManagementUI(props);
+      case 'monday':
+        return MondayManager(props);
       case 'microsoft365':
         return Microsoft365Manager(props);
+      case 'microsoft365':
+        return Microsoft365Manager(props);
+      case 'figma':
+        return FigmaManager(props);
       case 'linear':
         return LinearManager(props);
       case 'teams':
         return EnhancedTeamsManager(props);
       case 'hubspot':
         return HubSpotIntegration(props);
+      case 'salesforce':
+        return SalesforceManager(props);
       case 'zendesk':
         return ZendeskIntegration(props);
       case 'xero':
         return XeroIntegration(props);
+      case 'freshdesk':
+        return FreshdeskIntegration(props);
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
   }
   
   static getSupportedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'airtable', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'hubspot', 'zendesk', 'xero'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'airtable', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'microsoft365', 'figma', 'hubspot', 'zendesk', 'xero', 'freshdesk'];
   }
   
   static getIntegrationConfig(type: string): any {
@@ -201,12 +235,18 @@ export class AtomIntegrationFactory {
         return { name: 'Linear', type: 'development', category: 'development', status: 'complete' };
       case 'teams':
         return { name: 'Microsoft Teams', type: 'communication', category: 'communication', status: 'complete' };
+      case 'microsoft365':
+        return { name: 'Microsoft 365', type: 'enterprise', category: 'productivity', status: 'complete' };
+      case 'figma':
+        return { name: 'Figma', type: 'design', category: 'productivity', status: 'complete' };
       case 'hubspot':
         return { name: 'HubSpot', type: 'marketing', category: 'marketing', status: 'complete' };
       case 'zendesk':
         return { name: 'Zendesk', type: 'customer_service', category: 'customer_service', status: 'complete' };
       case 'xero':
         return { name: 'Xero', type: 'financial', category: 'financial', status: 'complete' };
+      case 'freshdesk':
+        return { name: 'Freshdesk', type: 'customer_service', category: 'customer_service', status: 'complete' };
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
@@ -216,16 +256,16 @@ export class AtomIntegrationFactory {
     return {
       storage: ['box', 'dropbox', 'gdrive'],
       communication: ['slack', 'gmail', 'teams'],
-      productivity: ['notion', 'jira', 'asana', 'airtable'],
+      productivity: ['notion', 'jira', 'asana', 'airtable', 'microsoft365', 'figma'],
       development: ['github', 'nextjs', 'gitlab', 'linear'],
       marketing: ['hubspot'],
-      customer_service: ['zendesk'],
+      customer_service: ['zendesk', 'freshdesk'],
       financial: ['xero']
     };
   }
   
   static getCompletedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'airtable', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'hubspot', 'zendesk', 'xero'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'airtable', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'microsoft365', 'figma', 'hubspot', 'zendesk', 'xero', 'freshdesk'];
   }
 }
 
@@ -252,8 +292,14 @@ export class AtomIntegrationUtils {
         return `https://vercel.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes.join(' ')}`;
       case 'gitlab':
         return `https://gitlab.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes.join(' ')}`;
+      case 'microsoft365':
+        return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes.join(' ')}&response_mode=query`;
+      case 'figma':
+        return `https://www.figma.com/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes.join(' ')}&response_type=code`;
       case 'hubspot':
         return `https://app.hubspot.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes.join(' ')}`;
+      case 'freshdesk':
+        return `https://{domain}.freshdesk.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes.join(' ')}`;
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
@@ -365,6 +411,33 @@ export class AtomIntegrationUtils {
         }
         if (!config.accessToken && !config.oauthToken) {
           errors.push('access token or OAuth token is required for Zendesk integration');
+        }
+        break;
+      case 'freshdesk':
+        if (!config.domain) {
+          errors.push('domain is required for Freshdesk integration');
+        }
+        if (!config.apiKey && !config.accessToken) {
+          errors.push('API key or access token is required for Freshdesk integration');
+        }
+        if (!config.features) {
+          errors.push('features configuration is required for Freshdesk integration');
+        }
+        break;
+      case 'microsoft365':
+        if (!config.tenantId && !config.clientId && !config.clientSecret) {
+          errors.push('tenant ID, client ID, and client secret are required for Microsoft 365 integration');
+        }
+        if (!config.scopes || !config.scopes.length) {
+          errors.push('scopes are required for Microsoft 365 integration');
+        }
+        break;
+      case 'figma':
+        if (!config.clientId && !config.clientSecret) {
+          errors.push('client ID and client secret are required for Figma integration');
+        }
+        if (!config.scopes || !config.scopes.length) {
+          errors.push('scopes are required for Figma integration');
         }
         break;
     }
@@ -496,29 +569,29 @@ export const ATOM_INTEGRATION_TYPES = {
 // Integration Statistics
 // Stats
 export const ATOM_INTEGRATION_STATS = {
-  totalIntegrations: 16,
-  completedIntegrations: 16,
+  totalIntegrations: 20,
+  completedIntegrations: 20,
   templateIntegrations: 0,
   categories: {
     storage: 3,
     communication: 3,
-    productivity: 4,
+    productivity: 7, // +1 Microsoft 365 +1 Figma
     development: 4,
-    marketing: 1,
-    customer_service: 1,
+    marketing: 2, // +1 Salesforce
+    customer_service: 2, // +1 Freshdesk
     financial: 1,
     collaboration: 0
   },
   features: {
     file_discovery: 3,
-    real_time_sync: 9,
-    metadata_extraction: 9,
+    real_time_sync: 10, // +1 Monday.com
+    metadata_extraction: 10, // +1 Monday.com
     preview_generation: 3,
-    batch_processing: 9,
+    batch_processing: 10, // +1 Monday.com
     message_discovery: 1,
-    real_time_events: 1,
+    real_time_events: 2, // +1 Monday.com
     thread_processing: 2,
-    attachment_processing: 5,
+    attachment_processing: 6, // +1 Monday.com
     user_context: 1,
     email_discovery: 1,
     contact_extraction: 2,
@@ -712,7 +785,121 @@ export const ATOM_INTEGRATION_STATS = {
     webhook_triggers: 1,
     custom_apis: 1,
     enterprise_security_airtable: 1,
-    audit_logging_airtable: 1
+    audit_logging_airtable: 1,
+    // Freshdesk specific features
+    ticket_management_freshdesk: 1,
+    customer_support_freshdesk: 1,
+    contact_management_freshdesk: 1,
+    company_management_freshdesk: 1,
+    agent_management_freshdesk: 1,
+    group_management_freshdesk: 1,
+    knowledge_base_freshdesk: 1,
+    multi_channel_support_freshdesk: 1,
+    ticket_automation_freshdesk: 1,
+    sla_management_freshdesk: 1,
+    priority_management_freshdesk: 1,
+    status_tracking_freshdesk: 1,
+    assignment_rules_freshdesk: 1,
+    escalation_workflows_freshdesk: 1,
+    customer_satisfaction_freshdesk: 1,
+    feedback_collection_freshdesk: 1,
+    reporting_analytics_freshdesk: 1,
+    custom_fields_freshdesk: 1,
+    canned_responses_freshdesk: 1,
+    time_tracking_freshdesk: 1,
+    internal_notes_freshdesk: 1,
+    collaboration_tools_freshdesk: 1,
+    email_integration_freshdesk: 1,
+    phone_integration_freshdesk: 1,
+    chat_integration_freshdesk: 1,
+    social_integration_freshdesk: 1,
+    api_access_freshdesk: 1,
+    webhook_support_freshdesk: 1,
+    mobile_support_freshdesk: 1,
+    multi_language_freshdesk: 1,
+    custom_branding_freshdesk: 1,
+    automation_rules_freshdesk: 1,
+    ticket_templates_freshdesk: 1,
+    dashboard_analytics_freshdesk: 1,
+    performance_metrics_freshdesk: 1,
+    customer_segmentation_freshdesk: 1,
+    bulk_operations_freshdesk: 1,
+    import_export_freshdesk: 1,
+    audit_logging_freshdesk: 1,
+    security_controls_freshdesk: 1,
+    role_based_access_freshdesk: 1,
+    data_privacy_freshdesk: 1,
+    gdpr_compliance_freshdesk: 1,
+    backup_restore_freshdesk: 1,
+    // Microsoft 365 specific features
+    unified_authentication_microsoft365: 1,
+    cross_service_workflows_microsoft365: 1,
+    enterprise_management_microsoft365: 1,
+    team_management_microsoft365: 1,
+    channel_operations_microsoft365: 1,
+    messaging_microsoft365: 1,
+    meetings_microsoft365: 1,
+    presence_status_microsoft365: 1,
+    email_operations_microsoft365: 1,
+    calendar_management_microsoft365: 1,
+    contact_management_microsoft365: 1,
+    task_management_microsoft365: 1,
+    file_operations_microsoft365: 1,
+    document_sharing_microsoft365: 1,
+    version_control_microsoft365: 1,
+    sync_management_microsoft365: 1,
+    site_management_microsoft365: 1,
+    content_collaboration_microsoft365: 1,
+    document_library_microsoft365: 1,
+    enterprise_search_microsoft365: 1,
+    workflow_automation_microsoft365: 1,
+    business_intelligence_microsoft365: 1,
+    custom_applications_microsoft365: 1,
+    data_integration_microsoft365: 1,
+    real_time_collaboration_microsoft365: 1,
+    advanced_analytics_microsoft365: 1,
+    security_compliance_microsoft365: 1,
+    audit_logging_microsoft365: 1,
+    api_management_microsoft365: 1,
+    rate_limiting_microsoft365: 1,
+    multi_tenant_support_microsoft365: 1,
+    conditional_access_microsoft365: 1,
+    policy_management_microsoft365: 1,
+    enterprise_governance_microsoft365: 1,
+    usage_analytics_microsoft365: 1,
+    service_health_monitoring_microsoft365: 1,
+    backup_recovery_microsoft365: 1,
+    mobile_synchronization_microsoft365: 1,
+    desktop_integration_microsoft365: 1,
+    web_application_microsoft365: 1,
+    power_automate_microsoft365: 1,
+    power_bi_microsoft365: 1,
+    power_apps_microsoft365: 1,
+    // Figma specific features
+    design_collaboration_figma: 1,
+    real_time_editing_figma: 1,
+    component_library_figma: 1,
+    design_systems_figma: 1,
+    version_control_figma: 1,
+    design_review_figma: 1,
+    prototyping_figma: 1,
+    handoff_development_figma: 1,
+    team_collaboration_figma: 1,
+    design_tokens_figma: 1,
+    style_guides_figma: 1,
+    interactive_components_figma: 1,
+    collaborative_whiteboarding_figma: 1,
+    figjam_integration_figma: 1,
+    design_inspection_figma: 1,
+    asset_management_figma: 1,
+    plugin_development_figma: 1,
+    api_access_figma: 1,
+    design_analytics_figma: 1,
+    enterprise_branding_figma: 1,
+    design_governance_figma: 1,
+    accessibility_tools_figma: 1,
+    design_templates_figma: 1,
+    design_documentation_figma: 1
   }
 } as const;
 
@@ -735,8 +922,8 @@ export default {
   NextjsDesktopManager,
   NextjsDesktopCallback,
   
-  // HubSpot Integration
-  HubSpotIntegration,
+  // Figma Integration
+  FigmaManager,
   
   // Microsoft Teams Integration
   TeamsManager,
@@ -752,6 +939,9 @@ export default {
   
   // Airtable Integration
   AirtableDataManagementUI,
+  
+  // Freshdesk Integration
+  FreshdeskIntegration,
   
   // Factory & Registry
   AtomIntegrationFactory,

@@ -58,6 +58,22 @@ AVAILABLE_AI_PROVIDERS = {
         "capabilities": ["chat", "embeddings"],
         "models": ["gpt-4", "gpt-35-turbo"],
     },
+    "glm_4_6": {
+        "name": "GLM-4.6 (Zhipu AI)",
+        "description": "Advanced Chinese language model with multilingual capabilities",
+        "acquisition_url": "https://open.bigmodel.cn/dev/api#model_list",
+        "expected_format": "glm-...",
+        "capabilities": ["chat", "embeddings", "function_calling"],
+        "models": ["glm-4.6", "glm-4", "glm-4-0520", "glm-4-air"],
+    },
+    "kimi_k2": {
+        "name": "Kimi K2 (Moonshot AI)",
+        "description": "Long-context reasoning model with 200K context window",
+        "acquisition_url": "https://platform.moonshot.cn/console/api-keys",
+        "expected_format": "sk-...",
+        "capabilities": ["chat", "long_context", "reasoning"],
+        "models": ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
+    },
 }
 
 

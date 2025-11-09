@@ -1,0 +1,67 @@
+{
+  "timestamp": "2025-11-08T19:22:41.009172",
+  "summary": {
+    "total_tests": 8,
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "success_rate": 100.0
+  },
+  "detailed_results": {
+    "test_user_creation_and_roles": {
+      "status": "passed",
+      "users_created": 3,
+      "admin_user_id": "7e0e648e-2610-496e-b586-c961d66a3d32",
+      "power_user_id": "40da3b20-b2e2-43f6-8348-6bb5955ac523",
+      "standard_user_id": "a5f8c92c-6d6f-4b69-83ef-70c51f7e345c"
+    },
+    "test_permission_checks": {
+      "status": "passed",
+      "admin_can_write": true,
+      "user_can_write": false,
+      "user_can_read": true
+    },
+    "test_custom_permissions": {
+      "status": "passed",
+      "permission_granted": true,
+      "access_verified": true,
+      "permission_revoked": true
+    },
+    "test_audit_logging": {
+      "status": "passed",
+      "total_audit_logs": 13,
+      "user_creation_logs": 9,
+      "role_assignment_logs": 2
+    },
+    "test_metrics_collection": {
+      "status": "passed",
+      "metrics_recorded": 3,
+      "counter_value": 1.0,
+      "gauge_value": 42.5
+    },
+    "test_system_health_monitoring": {
+      "status": "passed",
+      "health_status": "degraded",
+      "active_alerts": {
+        "low": 0,
+        "medium": 0,
+        "high": 1,
+        "critical": 0
+      }
+    },
+    "test_alert_rules": {
+      "status": "passed",
+      "alert_rules_configured": 5,
+      "active_alerts_count": 1
+    },
+    "test_performance_reporting": {
+      "status": "passed",
+      "performance_data_added": true,
+      "report_generated": true
+    }
+  },
+  "recommendations": [
+    "User management and monitoring systems are functioning correctly",
+    "Ready for enterprise deployment"
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "timestamp": "2025-11-09T12:58:35.696598",
+  "summary": {
+    "total_tests": 11,
+    "passed": 11,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "detailed_results": {
+    "Chat API Health Check": {
+      "test_name": "Chat API Health Check",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:30.453103",
+      "details": "Status: healthy"
+    },
+    "WebSocket Server Health Check": {
+      "test_name": "WebSocket Server Health Check",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:30.970346",
+      "details": "Status: healthy"
+    },
+    "WebSocket Connection": {
+      "test_name": "WebSocket Connection",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:31.485734",
+      "details": "Ping/pong successful"
+    },
+    "Chat Message Processing": {
+      "test_name": "Chat Message Processing",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:32.010354",
+      "details": "Response: Echo: Hello, this is a test message"
+    },
+    "User Context Management": {
+      "test_name": "User Context Management",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:32.534820",
+      "details": "Context ID: None"
+    },
+    "Room Management - Join": {
+      "test_name": "Room Management - Join",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:33.045411",
+      "details": "Joined room: test_room_001"
+    },
+    "Room Management - Leave": {
+      "test_name": "Room Management - Leave",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:33.047361",
+      "details": "Left room: test_room_001"
+    },
+    "Real-time Chat": {
+      "test_name": "Real-time Chat",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:33.588293",
+      "details": "Message successfully delivered between users"
+    },
+    "Connection Statistics": {
+      "test_name": "Connection Statistics",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:34.110519",
+      "details": "Active connections: 0"
+    },
+    "Typing Indicators": {
+      "test_name": "Typing Indicators",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:34.647026",
+      "details": "Typing indicator successfully delivered"
+    },
+    "Error Handling": {
+      "test_name": "Error Handling",
+      "success": true,
+      "timestamp": "2025-11-09T12:58:35.194615",
+      "details": "Handled invalid request with status: 422"
+    }
+  },
+  "recommendations": [
+    "All systems functioning correctly - ready for production deployment"
+  ]
+}
