@@ -19,8 +19,11 @@ export { default as ATOMGDriveDataSource } from './gdrive/components/GDriveDataS
 export * as GDriveTypes from './gdrive/types';
 
 // OneDrive Integration (File Storage) - Complete
-export { default as ATOMOneDriveDataSource } from './onedrive/components/OneDriveDataSource';
+export { default as ATOMOneDriveManager, AtomOneDriveManager } from './onedrive/OneDriveManager';
+export { default as OneDriveIntegration } from './onedrive/OneDriveIntegration';
+export { OneDriveSkillsBundle } from './onedrive/skills/oneDriveSkills';
 export * as OneDriveTypes from './onedrive/types';
+export { OneDriveUtils, createOneDriveConfig, OneDriveIntegrationMetadata } from './onedrive';
 
 // MS Teams Integration (Communication) - Complete
 export { TeamsManager, EnhancedTeamsManager, TeamsCallback, TeamsDataSource } from './teams';

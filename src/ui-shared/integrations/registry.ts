@@ -109,6 +109,94 @@ export const ATOM_INTEGRATIONS = [
       api_calls_per_hour: 10000
     }
   },
+  {
+    id: 'onedrive',
+    name: 'OneDrive',
+    description: 'Microsoft cloud storage and document management platform',
+    category: INTEGRATION_CATEGORY_STORAGE,
+    platform: 'web',
+    status: 'complete',
+    features: [
+      'file_discovery',
+      'real_time_sync',
+      'metadata_extraction',
+      'batch_processing',
+      'preview_generation',
+      'atom_ingestion',
+      'microsoft_graph_integration',
+      'resumable_upload',
+      'version_control'
+    ],
+    oauth: {
+      provider: 'microsoft',
+      scopes: [
+        'Files.ReadWrite',
+        'Sites.ReadWrite.All',
+        'User.Read',
+        'offline_access'
+      ],
+      flow: 'oauth2'
+    },
+    webhooks: [
+      'file.created',
+      'file.updated',
+      'file.deleted',
+      'folder.created',
+      'folder.updated',
+      'folder.deleted'
+    ],
+    limits: {
+      max_files: 100000,
+      max_size_per_file: '250GB',
+      api_calls_per_minute: 10000,
+      upload_chunk_size: '320KB',
+      max_concurrent_uploads: 3
+    },
+    skills: [
+      'onedrive_search_files',
+      'onedrive_upload_file',
+      'onedrive_create_folder',
+      'onedrive_sync_with_atom_memory'
+    ],
+    components: [
+      'OneDriveIntegration',
+      'OneDriveManager',
+      'OneDriveAPIClient',
+      'OneDriveSkillsBundle'
+    ],
+    dependencies: {
+      'microsoft_graph_auth': 'Required for OneDrive API access',
+      'atom_ingestion_pipeline': 'Required for ATOM memory synchronization',
+      'fernet_encryption': 'Required for secure token storage'
+    },
+    supported_file_types: [
+      'text/plain',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'video/mp4',
+      'video/quicktime',
+      'audio/mpeg',
+      'audio/wav'
+    ],
+    advanced_features: {
+      'resumable_upload': true,
+      'version_history': true,
+      'real_time_collaboration': true,
+      'offline_access': true,
+      'sharing_permissions': true,
+      'file_recovery': true,
+      'advanced_search': true
+    }
+  },
   // Communication Integrations
   {
     id: 'slack',
