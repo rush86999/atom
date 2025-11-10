@@ -279,12 +279,50 @@ class OrchestrationService:
 
     async def _handle_deletion(self, change: SourceChange):
         """Handle document deletion"""
-        # TODO: Implement document deletion from LanceDB
-        # For now, we'll log the deletion but keep the document in the index
-        # This prevents accidental data loss from source changes
-        logger.info(
-            f"Document deleted from source (keeping in index): {change.item_path}"
-        )
+        try:
+            logger.info(f"Handling document deletion for: {change.item_path}")
+            
+            # Initialize LanceDB connection if not already done
+            if not hasattr(self, 'lancedb_client'):
+                try:
+                    import lancedb
+                    self.lancedb_client = lancedb.connect("/tmp/lancedb")
+                    self.documents_table = self.lancedb_client.open_table("documents")
+                except Exception as e:
+                    logger.warning(f"LanceDB not available for deletion: {e}")
+                    # Fallback: just log the deletion
+                    logger.info(
+                        f"Document deleted from source (keeping in index): {change.item_path}"
+                    )
+                    return
+            
+            # Delete document from LanceDB
+            if hasattr(self, 'documents_table'):
+                # Delete by document ID or path
+                try:
+                    # Try to find and delete by doc_id first
+                    if change.item_id:
+                        self.documents_table.delete(f"doc_id = '{change.item_id}'")
+                        logger.info(f"Deleted document with ID {change.item_id} from LanceDB")
+                    
+                    # Also try to delete by path if ID deletion didn't work
+                    try:
+                        self.documents_table.delete(f"metadata.path = '{change.item_path}'")
+                        logger.info(f"Deleted document with path {change.item_path} from LanceDB")
+                    except:
+                        pass  # Path might not exist in metadata
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to delete document from LanceDB: {e}")
+                    # Continue with logging
+            
+            logger.info(
+                f"Document deletion processed: {change.item_path} (ID: {change.item_id})"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling document deletion for {change.item_path}: {e}")
+            # Don't raise - we don't want deletion errors to stop the sync process
 
     async def _extract_document_content(
         self, change: SourceChange

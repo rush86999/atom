@@ -402,18 +402,93 @@ class IntegrationService:
             # This would scan existing LanceDB tables and re-process documents
             # through the sync system to enable incremental updates and S3 backup
 
-            # Placeholder implementation
-            migration_stats = {
-                "documents_processed": 0,
-                "documents_migrated": 0,
-                "errors": 0,
-            }
-
-            # TODO: Implement actual migration logic
-            # 1. Scan existing LanceDB tables for user documents
-            # 2. Extract document metadata and chunks
-            # 3. Process through sync system with appropriate source URIs
-            # 4. Update sync state to prevent re-processing
+            # Scan existing LanceDB tables for user documents
+            try:
+                import lancedb
+                
+                # Connect to existing databases
+                lancedb_client = lancedb.connect("/tmp/lancedb")
+                
+                migration_stats = {
+                    "documents_processed": 0,
+                    "documents_migrated": 0,
+                    "tables_processed": 0,
+                    "errors": 0,
+                }
+                
+                # Get all table names
+                table_names = lancedb_client.table_names()
+                logger.info(f"Found {len(table_names)} tables to migrate: {table_names}")
+                
+                for table_name in table_names:
+                    try:
+                        table = lancedb_client.open_table(table_name)
+                        
+                        # Get all documents from this table
+                        documents = table.to_pandas()
+                        
+                        if len(documents) > 0:
+                            logger.info(f"Processing table {table_name}: {len(documents)} documents")
+                            migration_stats["tables_processed"] += 1
+                            
+                            # Process each document through sync system
+                            for idx, doc in documents.iterrows():
+                                try:
+                                    migration_stats["documents_processed"] += 1
+                                    
+                                    # Extract document metadata
+                                    doc_metadata = {
+                                        'original_table': table_name,
+                                        'doc_id': doc.get('doc_id', f"{table_name}_{idx}"),
+                                        'title': doc.get('title', f"Document {idx}"),
+                                        'source_type': 'lancedb_migration',
+                                        'migration_timestamp': datetime.utcnow().isoformat(),
+                                        'original_data': doc.to_dict()
+                                    }
+                                    
+                                    # Create change record for sync system
+                                    from .orchestration_service import SourceChange
+                                    change = SourceChange(
+                                        change_type='created',
+                                        item_id=doc_metadata['doc_id'],
+                                        item_path=f"migrated/{table_name}/{doc_metadata['doc_id']}",
+                                        source_type='lancedb_migration',
+                                        timestamp=doc_metadata['migration_timestamp'],
+                                        metadata=doc_metadata
+                                    )
+                                    
+                                    # Process through sync system (if available)
+                                    if hasattr(self, 'orchestration_service'):
+                                        await self.orchestration_service._handle_creation(change)
+                                        migration_stats["documents_migrated"] += 1
+                                    
+                                except Exception as doc_error:
+                                    logger.warning(f"Error processing document {idx} from {table_name}: {doc_error}")
+                                    migration_stats["errors"] += 1
+                                    continue
+                        else:
+                            logger.info(f"Table {table_name} is empty, skipping")
+                            
+                    except Exception as table_error:
+                        logger.error(f"Error processing table {table_name}: {table_error}")
+                        migration_stats["errors"] += 1
+                        continue
+                
+                # Migration summary
+                logger.info(
+                    f"LanceDB migration completed for user {user_id}: "
+                    f"Tables: {migration_stats['tables_processed']}, "
+                    f"Docs Processed: {migration_stats['documents_processed']}, "
+                    f"Docs Migrated: {migration_stats['documents_migrated']}, "
+                    f"Errors: {migration_stats['errors']}"
+                )
+                
+            except ImportError:
+                logger.warning("LanceDB not available for migration")
+                migration_stats["errors"] += 1
+            except Exception as e:
+                logger.error(f"LanceDB migration failed for user {user_id}: {e}")
+                migration_stats["errors"] += 1
 
             logger.info(
                 f"Data migration completed for user {user_id}: {migration_stats}"

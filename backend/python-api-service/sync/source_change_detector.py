@@ -384,10 +384,148 @@ class SourceChangeDetector:
         return changes
 
     async def _detect_dropbox_changes(self, config: SourceConfig) -> List[SourceChange]:
-        """Detect changes in Dropbox (placeholder implementation)"""
-        # TODO: Implement Dropbox change detection using Dropbox API
-        logger.info("Dropbox change detection not yet implemented")
-        return []
+        """Detect changes in Dropbox using Dropbox API"""
+        try:
+            import dropbox
+            from dropbox.exceptions import ApiError
+            
+            # Get Dropbox access token from config
+            access_token = config.credentials.get('access_token')
+            if not access_token:
+                logger.error("Dropbox access token not found in config")
+                return []
+            
+            # Initialize Dropbox client
+            dbx = dropbox.Dropbox(access_token)
+            
+            changes = []
+            
+            # Get current cursor or initialize
+            state_file = f"{self.state_dir}/dropbox_state.json"
+            cursor = await self._load_dropbox_cursor(state_file)
+            
+            if not cursor:
+                # First run - get initial state
+                logger.info("First Dropbox sync - getting initial file list")
+                result = dbx.files_list_folder('', recursive=True)
+                cursor = result.cursor
+                
+                # Mark all files as created
+                for entry in result.entries:
+                    if isinstance(entry, dropbox.files.FileMetadata):
+                        change = SourceChange(
+                            change_type='created',
+                            item_id=entry.id,
+                            item_path=entry.path_display,
+                            source_type='dropbox',
+                            timestamp=entry.server_modified.isoformat() if entry.server_modified else datetime.utcnow().isoformat(),
+                            metadata={
+                                'size': entry.size,
+                                'content_hash': entry.content_hash,
+                                'modified': entry.server_modified.isoformat() if entry.server_modified else None
+                            }
+                        )
+                        changes.append(change)
+                
+                # Continue if there are more files
+                while result.has_more:
+                    result = dbx.files_list_folder_continue(result.cursor)
+                    cursor = result.cursor
+                    
+                    for entry in result.entries:
+                        if isinstance(entry, dropbox.files.FileMetadata):
+                            change = SourceChange(
+                                change_type='created',
+                                item_id=entry.id,
+                                item_path=entry.path_display,
+                                source_type='dropbox',
+                                timestamp=entry.server_modified.isoformat() if entry.server_modified else datetime.utcnow().isoformat(),
+                                metadata={
+                                    'size': entry.size,
+                                    'content_hash': entry.content_hash,
+                                    'modified': entry.server_modified.isoformat() if entry.server_modified else None
+                                }
+                            )
+                            changes.append(change)
+            else:
+                # Incremental sync - get changes since last check
+                logger.info(f"Dropbox incremental sync using cursor: {cursor[:20]}...")
+                result = dbx.files_list_folder_continue(cursor)
+                
+                for entry in result.entries:
+                    if isinstance(entry, dropbox.files.DeletedMetadata):
+                        # File was deleted
+                        change = SourceChange(
+                            change_type='deleted',
+                            item_id=entry.id,
+                            item_path=entry.path_display,
+                            source_type='dropbox',
+                            timestamp=datetime.utcnow().isoformat(),
+                            metadata={'deleted': True}
+                        )
+                        changes.append(change)
+                    elif isinstance(entry, dropbox.files.FileMetadata):
+                        # File was modified or created
+                        change_type = 'modified' if entry.content_hash != getattr(entry, 'previous_hash', None) else 'created'
+                        change = SourceChange(
+                            change_type=change_type,
+                            item_id=entry.id,
+                            item_path=entry.path_display,
+                            source_type='dropbox',
+                            timestamp=entry.server_modified.isoformat() if entry.server_modified else datetime.utcnow().isoformat(),
+                            metadata={
+                                'size': entry.size,
+                                'content_hash': entry.content_hash,
+                                'modified': entry.server_modified.isoformat() if entry.server_modified else None
+                            }
+                        )
+                        changes.append(change)
+                
+                # Continue if there are more changes
+                while result.has_more:
+                    result = dbx.files_list_folder_continue(result.cursor)
+                    
+                    for entry in result.entries:
+                        if isinstance(entry, dropbox.files.DeletedMetadata):
+                            change = SourceChange(
+                                change_type='deleted',
+                                item_id=entry.id,
+                                item_path=entry.path_display,
+                                source_type='dropbox',
+                                timestamp=datetime.utcnow().isoformat(),
+                                metadata={'deleted': True}
+                            )
+                            changes.append(change)
+                        elif isinstance(entry, dropbox.files.FileMetadata):
+                            change_type = 'modified' if entry.content_hash != getattr(entry, 'previous_hash', None) else 'created'
+                            change = SourceChange(
+                                change_type=change_type,
+                                item_id=entry.id,
+                                item_path=entry.path_display,
+                                source_type='dropbox',
+                                timestamp=entry.server_modified.isoformat() if entry.server_modified else datetime.utcnow().isoformat(),
+                                metadata={
+                                    'size': entry.size,
+                                    'content_hash': entry.content_hash,
+                                    'modified': entry.server_modified.isoformat() if entry.server_modified else None
+                                }
+                            )
+                            changes.append(change)
+                
+                cursor = result.cursor
+            
+            # Save the new cursor
+            await self._save_dropbox_cursor(state_file, cursor)
+            
+            logger.info(f"Dropbox change detection complete: {len(changes)} changes found")
+            return changes
+            
+        except ImportError:
+            logger.warning("Dropbox library not available - install with 'pip install dropbox'")
+            return []
+        except Exception as e:
+            logger.error(f"Error detecting Dropbox changes: {e}")
+            return []
 
     async def _detect_google_drive_changes(
         self, config: SourceConfig
@@ -481,6 +619,36 @@ class SourceChangeDetector:
                 for key, config in self.sources.items()
             },
         }
+
+    async def _load_dropbox_cursor(self, state_file: str) -> Optional[str]:
+        """Load Dropbox cursor from state file"""
+        try:
+            if os.path.exists(state_file):
+                with open(state_file, 'r') as f:
+                    state = json.load(f)
+                    return state.get('dropbox_cursor')
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to load Dropbox cursor: {e}")
+            return None
+
+    async def _save_dropbox_cursor(self, state_file: str, cursor: str):
+        """Save Dropbox cursor to state file"""
+        try:
+            state = {}
+            if os.path.exists(state_file):
+                with open(state_file, 'r') as f:
+                    state = json.load(f)
+            
+            state['dropbox_cursor'] = cursor
+            state['last_updated'] = datetime.utcnow().isoformat()
+            
+            os.makedirs(os.path.dirname(state_file), exist_ok=True)
+            with open(state_file, 'w') as f:
+                json.dump(state, f, indent=2)
+                
+        except Exception as e:
+            logger.warning(f"Failed to save Dropbox cursor: {e}")
 
 
 # Factory function for easy detector creation

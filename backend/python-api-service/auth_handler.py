@@ -317,7 +317,28 @@ def refresh_gdrive_access_token_internal(user_id: str) -> Optional[str]:
         logger.error(f"GDrive token refresh network error for user {user_id}: {e}", exc_info=True)
         if hasattr(e, 'response') and e.response is not None and e.response.status_code in [400, 401]:
             logger.warn(f"GDrive refresh token for user {user_id} may be invalid (HTTP {e.response.status_code}). Details: {e.response.text}. User may need to re-authenticate.")
-            # TODO: Consider deleting or marking the invalid refresh token in DB.
+            # Mark invalid refresh token in database
+            try:
+                import sqlite3
+                conn = sqlite3.connect('atom.db')
+                cursor = conn.cursor()
+                
+                # Update the refresh token status to invalid
+                cursor.execute("""
+                    UPDATE user_credentials 
+                    SET status = 'invalid_refresh_token',
+                        updated_at = CURRENT_TIMESTAMP,
+                        error_message = ?
+                    WHERE user_id = ? AND provider = 'gdrive'
+                """, (f"Refresh token invalid (HTTP {e.response.status_code})", user_id))
+                
+                conn.commit()
+                conn.close()
+                
+                logger.info(f"Marked invalid GDrive refresh token for user {user_id} as invalid")
+                
+            except Exception as db_error:
+                logger.error(f"Failed to mark invalid refresh token in DB for user {user_id}: {db_error}")
         return None
     except Exception as e:
         logger.error(f"Unexpected error in GDrive token refresh for user {user_id}: {e}", exc_info=True)

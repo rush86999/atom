@@ -279,7 +279,39 @@ async def process_document_and_store(
             return {"status": "error", "message": f"Unsupported document type for processing: {processing_mime_type}", "code": "UNSUPPORTED_PROCESSING_TYPE"}
     except Exception as extraction_error:
         logger.error(f"Text extraction failed for document {document_id} (type: {processing_mime_type}): {extraction_error}", exc_info=True)
-        # TODO: Update document status in LanceDB to "failed_extraction"
+        # Update document status in LanceDB to "failed_extraction"
+        try:
+            if hasattr(self, 'lancedb_client') and hasattr(self, 'documents_table'):
+                self.documents_table.update(
+                    where=f"doc_id = '{document_id}'",
+                    values={
+                        'processing_status': 'failed_extraction',
+                        'error_message': f"Text extraction failed: {str(extraction_error)}",
+                        'updated_at': datetime.utcnow().isoformat()
+                    }
+                )
+                logger.info(f"Updated document {document_id} status to 'failed_extraction' in LanceDB")
+            else:
+                # Fallback to database update if LanceDB not available
+                import sqlite3
+                conn = sqlite3.connect('atom.db')
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    UPDATE document_processing_status 
+                    SET status = 'failed_extraction',
+                        error_message = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE document_id = ?
+                """, (f"Text extraction failed: {str(extraction_error)}", document_id))
+                
+                conn.commit()
+                conn.close()
+                logger.info(f"Updated document {document_id} status to 'failed_extraction' in database")
+                
+        except Exception as status_update_error:
+            logger.error(f"Failed to update document {document_id} status: {status_update_error}")
+            # Continue with error response - status update is secondary
         return {"status": "error", "message": f"Text extraction failed: {str(extraction_error)}", "code": "TEXT_EXTRACTION_FAILED"}
 
     # Prepare combined metadata

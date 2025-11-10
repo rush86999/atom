@@ -25,6 +25,23 @@ export { OneDriveSkillsBundle } from './onedrive/skills/oneDriveSkills';
 export * as OneDriveTypes from './onedrive/types';
 export { OneDriveUtils, createOneDriveConfig, OneDriveIntegrationMetadata } from './onedrive';
 
+// Microsoft 365 Integration (Enterprise) - Complete
+export { default as ATOMMicrosoft365Manager } from './microsoft365/components/Microsoft365Manager';
+export { Microsoft365SkillsBundle } from './microsoft365/skills/microsoft365Skills';
+export * as Microsoft365Types from './microsoft365/types';
+
+// Plaid Integration (Financial Services) - Complete
+export { default as ATOMPlaidManager } from './plaid/components/PlaidManager';
+export { PlaidSkillsBundle } from './plaid/skills/plaidSkills';
+export * as PlaidTypes from './plaid/types';
+export { PlaidUtils, createPlaidConfig, PlaidIntegrationMetadata } from './plaid';
+
+// DocuSign Integration (Legal Automation) - Complete
+export { default as ATOMDocuSignManager } from './docusign/components/DocuSignManager';
+export { DocuSignSkillsBundle } from './docusign/skills/docusignSkills';
+export * as DocuSignTypes from './docusign/types';
+export { DocuSignUtils, createDocuSignConfig, DocuSignIntegrationMetadata } from './docusign';
+
 // MS Teams Integration (Communication) - Complete
 export { TeamsManager, EnhancedTeamsManager, TeamsCallback, TeamsDataSource } from './teams';
 export { teamsSkills } from './teams/skills/teamsSkills';

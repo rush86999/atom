@@ -6,7 +6,7 @@ import { RealLLMService } from "../lib/llmUtils";
 import * as fs from "fs";
 import * as path from "path";
 
-export interface NLUResponse {
+export interface CrossPlatformIntent {
   intent: string;
   confidence: number;
   entities: Record<string, any>;
@@ -16,6 +16,21 @@ export interface NLUResponse {
   requiresConfirmation?: boolean;
   suggestedResponses?: string[];
   context?: Record<string, any>;
+  platforms: string[]; // Target platforms for this intent
+  crossPlatformAction?: boolean;
+  dataIntegration?: DataIntegrationPlan;
+}
+
+export interface DataIntegrationPlan {
+  sourcePlatforms: string[];
+  targetPlatforms: string[];
+  syncOperation: 'create' | 'update' | 'delete' | 'read' | 'sync';
+  entityMapping: Record<string, string>;
+  transformationRules: Array<{
+    source: string;
+    target: string;
+    operation: string;
+  }>;
 }
 
 export interface ConversationContext {
@@ -25,6 +40,18 @@ export interface ConversationContext {
   entities: Record<string, any>;
   workflowState?: any;
   timestamp: Date;
+  platformContext?: Record<string, any>; // Platform-specific context
+  crossPlatformHistory?: Array<{
+    platform: string;
+    action: string;
+    timestamp: Date;
+    result: any;
+  }>;
+  userPreferences?: {
+    preferredPlatforms: Record<string, string>;
+    automationLevel: 'manual' | 'semi-auto' | 'full-auto';
+    integrationPatterns: string[];
+  };
 }
 
 export interface IntentDefinition {
@@ -37,6 +64,32 @@ export interface IntentDefinition {
   workflow?: string;
   requiresConfirmation?: boolean;
   confirmationPhrases?: string[];
+  platforms?: string[]; // Target platforms for this intent
+  crossPlatform?: boolean; // Whether this intent spans multiple platforms
+  dataIntegration?: DataIntegrationPlan;
+}
+
+export interface AIInsight {
+  type: 'pattern' | 'recommendation' | 'prediction' | 'optimization';
+  confidence: number;
+  description: string;
+  suggestedAction?: string;
+  platforms?: string[];
+  estimatedImpact?: string;
+}
+
+export interface NLUMetrics {
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  averageProcessingTime: number;
+  intentDistribution: Record<string, number>;
+  serviceUsage: Record<string, number>;
+  lastRequestTime: Date | null;
+  crossPlatformSuccess: number;
+  automationPrevented: number;
+  userSatisfactionScore: number;
+  aiInsightsGenerated: number;
 }
 
 export class NLUService {
@@ -44,24 +97,26 @@ export class NLUService {
   private workflowService: WorkflowService;
   private skillService: SkillService;
   private intentDefinitions: IntentDefinition[];
+  private aiInsights: AIInsight[] = [];
 
   private configPath: string;
-  private metrics: {
-    totalRequests: number;
-    successfulRequests: number;
-    failedRequests: number;
-    averageProcessingTime: number;
-    intentDistribution: Record<string, number>;
-    serviceUsage: Record<string, number>;
-    lastRequestTime: Date | null;
-  };
+  private metrics: NLUMetrics;
   private trainingExamples: Array<{
     message: string;
     intent: string;
     entities: Record<string, any>;
     timestamp: Date;
+    platforms?: string[];
+    crossPlatform?: boolean;
   }>;
   private leadAgent: NLULeadAgent | null;
+  private platformIntegrations: Map<string, any> = new Map();
+  private dataIntegrations: Map<string, DataIntegrationPlan> = new Map();
+
+  // Production optimization properties
+  private performanceCache: Map<string, NLUResponse> = new Map();
+  private patternCache: Map<string, IntentDefinition[]> = new Map();
+  private userLearningProfiles: Map<string, any> = new Map();
 
   constructor(configPath?: string) {
     this.openaiService = new OpenAIService();
@@ -78,10 +133,142 @@ export class NLUService {
       intentDistribution: {},
       serviceUsage: {},
       lastRequestTime: null,
+      crossPlatformSuccess: 0,
+      automationPrevented: 0,
+      userSatisfactionScore: 0,
+      aiInsightsGenerated: 0,
     };
     this.trainingExamples = [];
     this.loadTrainingExamples();
     this.leadAgent = null;
+    this.initializePlatformIntegrations();
+    this.initializeDataIntegrations();
+  }
+
+  private initializePlatformIntegrations(): void {
+    // Initialize cross-platform integration mappings
+    const platformMappings = {
+      'asana': ['task_management', 'project_tracking'],
+      'slack': ['communication', 'notifications'],
+      'google_drive': ['document_storage', 'file_sharing'],
+      'gmail': ['email', 'communication'],
+      'calendar': ['scheduling', 'events'],
+      'zendesk': ['customer_support', 'ticketing'],
+      'hubspot': ['crm', 'marketing'],
+      'salesforce': ['crm', 'sales'],
+      'notion': ['documentation', 'knowledge_base'],
+      'github': ['development', 'version_control'],
+      'figma': ['design', 'collaboration'],
+      'discord': ['communication', 'community'],
+      'teams': ['communication', 'meetings'],
+      'trello': ['task_management', 'kanban'],
+      'jira': ['issue_tracking', 'project_management'],
+      'monday': ['project_management', 'workflows'],
+      'airtable': ['database', 'spreadsheets'],
+      'box': ['document_storage', 'file_sharing'],
+      'dropbox': ['file_storage', 'sync'],
+      'onedrive': ['document_storage', 'collaboration'],
+      'sharepoint': ['document_management', 'enterprise'],
+      'zoom': ['meetings', 'video_conferencing'],
+      'stripe': ['payments', 'billing'],
+      'plaid': ['banking', 'financial_data'],
+      'xero': ['accounting', 'financial'],
+      'quickbooks': ['accounting', 'invoicing'],
+      'shopify': ['ecommerce', 'inventory'],
+      'gitlab': ['development', 'ci_cd'],
+      'linear': ['issue_tracking', 'development'],
+      'bamboohr': ['hr', 'employee_management'],
+      'vscode': ['development', 'coding'],
+      'tableau': ['analytics', 'visualization'],
+      'nextjs': ['development', 'web_framework'],
+    };
+
+    for (const [platform, capabilities] of Object.entries(platformMappings)) {
+      this.platformIntegrations.set(platform, {
+        name: platform,
+        capabilities,
+        connected: false,
+        lastSync: null,
+        availableActions: this.getPlatformActions(platform),
+      });
+    }
+  }
+
+  private initializeDataIntegrations(): void {
+    // Initialize common cross-platform integration patterns
+    const integrationPatterns: DataIntegrationPlan[] = [
+      {
+        sourcePlatforms: ['gmail', 'slack'],
+        targetPlatforms: ['asana', 'trello'],
+        syncOperation: 'create',
+        entityMapping: {
+          'email_subject': 'task_name',
+          'email_body': 'task_description',
+          'sender': 'assignee',
+          'priority': 'priority',
+        },
+        transformationRules: [
+          {
+            source: 'email_contains_action_items',
+            target: 'create_task_with_assignee',
+            operation: 'extract_action_items',
+          },
+        ],
+      },
+      {
+        sourcePlatforms: ['calendar', 'zoom'],
+        targetPlatforms: ['slack', 'teams'],
+        syncOperation: 'create',
+        entityMapping: {
+          'event_title': 'message_content',
+          'start_time': 'reminder_time',
+          'attendees': 'mention_users',
+        },
+        transformationRules: [
+          {
+            source: 'meeting_scheduled',
+            target: 'send_reminder',
+            operation: 'create_meeting_reminder',
+          },
+        ],
+      },
+      {
+        sourcePlatforms: ['github', 'gitlab'],
+        targetPlatforms: ['slack', 'teams'],
+        syncOperation: 'update',
+        entityMapping: {
+          'commit_message': 'message_content',
+          'author': 'user',
+          'branch': 'project',
+        },
+        transformationRules: [
+          {
+            source: 'code_committed',
+            target: 'notification',
+            operation: 'create_commit_notification',
+          },
+        ],
+      },
+    ];
+
+    for (const pattern of integrationPatterns) {
+      const key = pattern.sourcePlatforms.join('-') + '-to-' + pattern.targetPlatforms.join('-');
+      this.dataIntegrations.set(key, pattern);
+    }
+  }
+
+  private getPlatformActions(platform: string): string[] {
+    const actionMap: Record<string, string[]> = {
+      'asana': ['create_task', 'update_task', 'assign_task', 'comment_task'],
+      'slack': ['send_message', 'create_channel', 'invite_user', 'set_status'],
+      'google_drive': ['upload_file', 'share_file', 'create_folder', 'search_docs'],
+      'gmail': ['send_email', 'search_emails', 'create_draft', 'label_email'],
+      'calendar': ['create_event', 'update_event', 'invite_attendees', 'schedule_meeting'],
+      'zendesk': ['create_ticket', 'update_ticket', 'reply_ticket', 'escalate_ticket'],
+      'hubspot': ['create_contact', 'update_deal', 'log_activity', 'create_campaign'],
+      // Add more platform actions as needed
+    };
+    return actionMap[platform] || [];
   }
 
   private loadTrainingExamples(): void {
@@ -281,6 +468,418 @@ export class NLUService {
         workflow: "workflow_execution",
       },
     ];
+  }
+
+  // Enhanced cross-platform AI methods
+  async understandCrossPlatformMessage(
+    message: string,
+    context?: ConversationContext,
+    options?: {
+      service?: "openai" | "rules" | "hybrid";
+      apiKey?: string;
+      platforms?: string[];
+    },
+  ): Promise<CrossPlatformIntent> {
+    const startTime = Date.now();
+    this.metrics.totalRequests++;
+
+    try {
+      // Check cache first for performance
+      const cacheKey = `${message}_${JSON.stringify(context || {})}_${JSON.stringify(options || {})}`;
+      if (this.performanceCache.has(cacheKey)) {
+        const cached = this.performanceCache.get(cacheKey)!;
+        console.log(`Cache hit for cross-platform intent: ${cached.intent}`);
+        return cached;
+      }
+
+      // Enhanced intent detection with cross-platform awareness
+      let response: CrossPlatformIntent;
+
+      switch (options?.service || "hybrid") {
+        case "openai":
+          response = await this.understandCrossPlatformWithAI(message, context, options);
+          break;
+        case "rules":
+          response = this.understandCrossPlatformWithRules(message, context);
+          break;
+        case "hybrid":
+        default:
+          response = await this.understandCrossPlatformHybrid(message, context, options);
+          break;
+      }
+
+      // Add AI insights for user recommendations
+      const insights = await this.generateAIInsights(message, response, context);
+      response.suggestedResponses = insights.map(i => i.description);
+
+      // Cache response for performance
+      this.performanceCache.set(cacheKey, response);
+
+      // Update metrics
+      const processingTime = Date.now() - startTime;
+      this.updateMetrics(response, processingTime, true);
+
+      return response;
+    } catch (error) {
+      console.error("Cross-platform NLU processing error:", error);
+      this.metrics.failedRequests++;
+      return this.getCrossPlatformFallbackResponse(message);
+    }
+  }
+
+  private async understandCrossPlatformWithAI(
+    message: string,
+    context?: ConversationContext,
+    options?: { apiKey?: string },
+  ): Promise<CrossPlatformIntent> {
+    // Build enhanced prompt for cross-platform understanding
+    const platformContext = context?.platformContext || {};
+    const userPreferences = context?.userPreferences || {};
+    
+    const prompt = `
+You are a cross-platform AI assistant for ATOM platform. You must understand user intent across multiple integrated platforms.
+
+AVAILABLE PLATFORMS:
+${Array.from(this.platformIntegrations.entries()).map(([name, info]) => 
+  `- ${name}: ${info.capabilities.join(', ')}`
+).join('\n')}
+
+CROSS-PLATFORM INTEGRATIONS:
+${Array.from(this.dataIntegrations.entries()).map(([key, plan]) => 
+  `- ${key}: ${plan.sourcePlatforms.join(' → ')} ${plan.syncOperation} ${plan.targetPlatforms.join(' & ')}`
+).join('\n')}
+
+USER PREFERENCES:
+${JSON.stringify(userPreferences, null, 2)}
+
+PREVIOUS CONTEXT:
+${JSON.stringify(platformContext, null, 2)}
+
+USER MESSAGE: "${message}"
+
+RESPOND WITH JSON:
+{
+  "intent": "intent_name",
+  "confidence": 0.95,
+  "entities": {"extracted": "entities"},
+  "action": "action_to_take",
+  "parameters": {"action": "parameters"},
+  "platforms": ["target", "platforms"],
+  "crossPlatformAction": true,
+  "dataIntegration": {
+    "sourcePlatforms": ["source", "platforms"],
+    "targetPlatforms": ["target", "platforms"],
+    "syncOperation": "create|update|delete|read|sync",
+    "entityMapping": {"source": "target"}
+  },
+  "requiresConfirmation": false
+}
+    `;
+
+    try {
+      const openaiResponse = await this.openaiService.generateCompletion({
+        prompt,
+        maxTokens: 1000,
+        temperature: 0.3,
+      });
+
+      const aiResult = JSON.parse(openaiResponse.content);
+      
+      return {
+        ...aiResult,
+        suggestedResponses: this.generateSuggestedResponses(aiResult.intent, aiResult.entities),
+        context: {
+          ...platformContext,
+          aiProcessed: true,
+          crossPlatformAnalysis: true,
+        },
+      };
+    } catch (error) {
+      console.error("Cross-platform AI understanding failed:", error);
+      throw error;
+    }
+  }
+
+  private understandCrossPlatformWithRules(
+    message: string,
+    context?: ConversationContext,
+  ): CrossPlatformIntent {
+    const lowerMessage = message.toLowerCase();
+    
+    // Enhanced rule-based matching with cross-platform patterns
+    for (const intent of this.intentDefinitions) {
+      if (intent.crossPlatform && intent.platforms) {
+        for (const pattern of intent.patterns) {
+          if (lowerMessage.includes(pattern.toLowerCase())) {
+            const entities = this.extractCrossPlatformEntities(lowerMessage, intent);
+            
+            return {
+              intent: intent.name,
+              confidence: 0.85,
+              entities,
+              action: intent.action,
+              parameters: entities,
+              workflow: intent.workflow,
+              platforms: intent.platforms,
+              crossPlatformAction: true,
+              dataIntegration: intent.dataIntegration,
+              requiresConfirmation: intent.requiresConfirmation || false,
+              suggestedResponses: this.generateCrossPlatformResponses(intent.name, entities),
+              context: {
+                ...context?.platformContext,
+                ruleMatched: true,
+                pattern: pattern,
+              },
+            };
+          }
+        }
+      }
+    }
+
+    // Fallback to basic intent understanding
+    const basicResponse = this.understandWithRules(message, context);
+    return {
+      ...basicResponse,
+      platforms: this.detectRelevantPlatforms(lowerMessage),
+      crossPlatformAction: this.isCrossPlatformRequest(lowerMessage),
+    };
+  }
+
+  private async understandCrossPlatformHybrid(
+    message: string,
+    context?: ConversationContext,
+    options?: { apiKey?: string },
+  ): Promise<CrossPlatformIntent> {
+    // Combine AI and rule-based approaches for best accuracy
+    
+    const ruleResponse = this.understandCrossPlatformWithRules(message, context);
+    
+    // If high confidence rule match, use it
+    if (ruleResponse.confidence > 0.9) {
+      ruleResponse.context = {
+        ...ruleResponse.context,
+        hybridMethod: 'rules_priority',
+      };
+      return ruleResponse;
+    }
+
+    // Otherwise, use AI for complex understanding
+    try {
+      const aiResponse = await this.understandCrossPlatformWithAI(message, context, options);
+      
+      // Merge AI and rule results
+      const hybridResponse: CrossPlatformIntent = {
+        ...aiResponse,
+        entities: {
+          ...ruleResponse.entities,
+          ...aiResponse.entities,
+        },
+        platforms: [
+          ...new Set([
+            ...(ruleResponse.platforms || []),
+            ...(aiResponse.platforms || [])
+          ])
+        ],
+        context: {
+          ...aiResponse.context,
+          ...ruleResponse.context,
+          hybridMethod: 'ai_enhanced',
+        },
+      };
+
+      return hybridResponse;
+    } catch (error) {
+      console.warn("AI method failed, using rules:", error);
+      ruleResponse.context = {
+        ...ruleResponse.context,
+        hybridMethod: 'rules_fallback',
+      };
+      return ruleResponse;
+    }
+  }
+
+  private extractCrossPlatformEntities(
+    message: string,
+    intent: IntentDefinition,
+  ): Record<string, any> {
+    const entities: Record<string, any> = {};
+
+    // Extract platform mentions
+    const platformNames = Array.from(this.platformIntegrations.keys());
+    for (const platform of platformNames) {
+      if (message.includes(platform)) {
+        entities.platforms = entities.platforms || [];
+        entities.platforms.push(platform);
+      }
+    }
+
+    // Extract cross-platform indicators
+    const crossPlatformKeywords = ['all platforms', 'everywhere', 'sync', 'across', 'all tools', 'cross-platform'];
+    for (const keyword of crossPlatformKeywords) {
+      if (message.includes(keyword)) {
+        entities.crossPlatform = true;
+        break;
+      }
+    }
+
+    // Extract standard entities
+    for (const entity of intent.entities) {
+      const value = this.extractEntity(message, entity);
+      if (value) {
+        entities[entity] = value;
+      }
+    }
+
+    return entities;
+  }
+
+  private generateCrossPlatformResponses(
+    intent: string,
+    entities: Record<string, any>,
+  ): string[] {
+    const platforms = entities.platforms || [];
+    const responses: string[] = [];
+
+    switch (intent) {
+      case "create_cross_platform_task":
+        if (platforms.length > 0) {
+          responses.push(`✅ Task will be created in ${platforms.join(' & ')}`);
+          responses.push(`🔄 Syncing task across ${platforms.length} platforms`);
+        } else {
+          responses.push(`📋 Create task in all connected platforms?`);
+        }
+        break;
+        
+      case "cross_platform_search":
+        responses.push(`🔍 Searching across all connected platforms...`);
+        responses.push(`📊 Unified search results will be compiled`);
+        break;
+        
+      case "automated_workflow_trigger":
+        responses.push(`⚡ Creating cross-platform automation rule...`);
+        responses.push(`🤖 Workflow will trigger automatically when conditions are met`);
+        break;
+        
+      default:
+        responses.push(`🚀 Executing cross-platform action...`);
+        responses.push(`📱 Results will be synchronized across all platforms`);
+        break;
+    }
+
+    return responses;
+  }
+
+  private async generateAIInsights(
+    message: string,
+    intent: CrossPlatformIntent,
+    context?: ConversationContext,
+  ): Promise<AIInsight[]> {
+    const insights: AIInsight[] = [];
+
+    // Pattern-based insights
+    const userHistory = context?.crossPlatformHistory || [];
+    if (userHistory.length > 5) {
+      insights.push({
+        type: 'pattern',
+        confidence: 0.8,
+        description: `I notice you frequently create cross-platform tasks. Would you like me to suggest a recurring automation?`,
+        suggestedAction: 'Create automation template',
+        estimatedImpact: 'Save 10-15 minutes per week',
+      });
+    }
+
+    // Platform optimization insights
+    if (intent.platforms && intent.platforms.length > 2) {
+      insights.push({
+        type: 'optimization',
+        confidence: 0.9,
+        description: `Consider creating a unified workspace template for your ${intent.platforms.length} most-used platforms`,
+        suggestedAction: 'Set up workspace template',
+        estimatedImpact: 'Reduce context switching by 60%',
+      });
+    }
+
+    // Predictive insights
+    if (intent.intent === 'create_cross_platform_task' && userHistory.some(h => h.action === 'create_cross_platform_task')) {
+      insights.push({
+        type: 'prediction',
+        confidence: 0.75,
+        description: `Based on your activity, you might want to create similar tasks tomorrow at 9am`,
+        platforms: intent.platforms,
+        suggestedAction: 'Schedule recurring task creation',
+      });
+    }
+
+    this.metrics.aiInsightsGenerated += insights.length;
+    this.aiInsights.push(...insights);
+
+    return insights;
+  }
+
+  private detectRelevantPlatforms(message: string): string[] {
+    const platforms: string[] = [];
+    const lowerMessage = message.toLowerCase();
+
+    for (const [platform, info] of this.platformIntegrations.entries()) {
+      if (lowerMessage.includes(platform) || 
+          info.capabilities.some(cap => lowerMessage.includes(cap))) {
+        platforms.push(platform);
+      }
+    }
+
+    return platforms.length > 0 ? platforms : ['all'];
+  }
+
+  private isCrossPlatformRequest(message: string): boolean {
+    const crossPlatformKeywords = [
+      'all platforms', 'everywhere', 'sync', 'across', 'all tools', 
+      'cross-platform', 'in all', 'each platform', 'multiple'
+    ];
+    
+    const lowerMessage = message.toLowerCase();
+    return crossPlatformKeywords.some(keyword => lowerMessage.includes(keyword));
+  }
+
+  private updateMetrics(
+    response: CrossPlatformIntent,
+    processingTime: number,
+    success: boolean,
+  ): void {
+    if (success) {
+      this.metrics.successfulRequests++;
+      this.metrics.averageProcessingTime = 
+        (this.metrics.averageProcessingTime * (this.metrics.successfulRequests - 1) + processingTime) /
+        this.metrics.successfulRequests;
+      
+      this.metrics.intentDistribution[response.intent] = 
+        (this.metrics.intentDistribution[response.intent] || 0) + 1;
+      
+      if (response.crossPlatformAction) {
+        this.metrics.crossPlatformSuccess++;
+      }
+    } else {
+      this.metrics.failedRequests++;
+    }
+    
+    this.metrics.lastRequestTime = new Date();
+  }
+
+  private getCrossPlatformFallbackResponse(message: string): CrossPlatformIntent {
+    return {
+      intent: "unknown",
+      confidence: 0.1,
+      entities: {},
+      action: "fallback",
+      parameters: {},
+      platforms: [],
+      crossPlatformAction: false,
+      suggestedResponses: [
+        "I'm not sure how to process this cross-platform request.",
+        "Could you specify which platforms you'd like to work with?",
+        "I can help with tasks across Asana, Slack, Google Drive, and more.",
+      ],
+      context: { fallback: true },
+    };
   }
 
   async understandMessage(
