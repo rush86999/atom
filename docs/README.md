@@ -427,7 +427,44 @@ cd backend && python main_api_app.py
 - **Accessibility Compliance** - WCAG 2.1 AA standards
 - **Cross-Browser Compatibility** - Responsive design validation
 
-## 📚 Documentation & Supportnn### Complete Documentationn- [📚 Full Documentation](docs/README.md) - Comprehensive platform documentationn- [🚀 Quick Start Guide](docs/GETTING_STARTED/QUICK_START.md) - Get started in minutesn- [🏗️ Architecture Guide](docs/ARCHITECTURE/SYSTEM_OVERVIEW.md) - Technical architecturen- [🔧 Integration Guide](docs/INTEGRATIONS/OVERVIEW.md) - 33+ service integrationsn- [🤖 Workflow Automation](docs/WORKFLOW_AUTOMATION/ENHANCED_WORKFLOW_GUIDE.md) - AI-powered featuresnn### Testing & Qualityn- [Comprehensive Testing Suite](tests/) - 100+ test casesn- [Quality Assurance](docs/DEVELOPMENT/TESTING_GUIDE.md) - Testing frameworkn- [Performance Benchmarks](docs/ARCHITECTURE/PERFORMANCE.md) - Performance metrics
+## 📚 Documentation & Support
+
+### Complete Documentation
+- **Integration Guides**: Step-by-step setup for all services
+- **API Reference**: Complete endpoint documentation
+- **Development Guides**: Local development environment setup
+- **Deployment Guides**: Production deployment instructions
+
+### Integration Documentation
+- **Google Drive Integration Guide**: Complete setup and usage with memory system
+- **OneDrive Integration Guide**: Microsoft Graph API integration with LanceDB
+- **BYOK System Guide**: Multi-provider AI with user API key management
+- **Workflow Automation Guide**: Natural language to automated workflows
+
+### Testing & Quality
+
+### Complete Documentation
+- **[User Guide](docs/USER_GUIDE.md)** - Feature overview and usage instructions
+- **[Technical Overview](docs/TECHNICAL_OVERVIEW.md)** - System architecture guide
+- **[API Documentation](docs/API.md)** - Backend API reference
+- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+
+### Testing & Quality
+```bash
+# Frontend testing
+cd frontend-nextjs
+npm test
+
+# Backend testing
+cd backend
+pytest
+
+# End-to-end testing
+npm run test:e2e
+```
+
+## 🔒 Security First Approach
+
 ### Data Protection
 - **End-to-End Encryption**: AES-256 encryption for data at rest and in transit
 - **OAuth 2.0 Security**: Secure authentication for all external services
