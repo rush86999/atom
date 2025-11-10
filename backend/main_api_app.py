@@ -292,6 +292,24 @@ if HUBSPOT_AVAILABLE and hubspot_router:
 else:
     print("⚠️  HubSpot integration routes not available")
 
+# Include Enhanced Workflow Automation routes if available
+try:
+    from integrations.workflow_automation_routes import (
+        router as workflow_automation_router,
+    )
+
+    WORKFLOW_AUTOMATION_AVAILABLE = True
+except ImportError as e:
+    print(f"Enhanced workflow automation integration not available: {e}")
+    WORKFLOW_AUTOMATION_AVAILABLE = False
+    workflow_automation_router = None
+
+if WORKFLOW_AUTOMATION_AVAILABLE and workflow_automation_router:
+    app.include_router(workflow_automation_router)
+    print("✅ Enhanced workflow automation routes loaded")
+else:
+    print("⚠️  Enhanced workflow automation routes not available")
+
 
 @app.get("/")
 async def root():
