@@ -48,6 +48,12 @@ export { GreenhouseSkillsBundle } from './greenhouse/skills/greenhouseSkills';
 export * as GreenhouseTypes from './greenhouse/types';
 export { GreenhouseUtils, createGreenhouseConfig, GreenhouseIntegrationMetadata } from './greenhouse';
 
+// Google Analytics 4 Integration (Web Analytics) - Complete
+export { default as ATOMGA4Manager } from './ganalytics4/components/GA4Manager';
+export { GA4SkillsBundle } from './ganalytics4/skills/ganalytics4Skills';
+export * as GA4Types from './ganalytics4/types';
+export { GA4Utils, createGA4Config, GA4IntegrationMetadata } from './ganalytics4';
+
 // MS Teams Integration (Communication) - Complete
 export { TeamsManager, EnhancedTeamsManager, TeamsCallback, TeamsDataSource } from './teams';
 export { teamsSkills } from './teams/skills/teamsSkills';

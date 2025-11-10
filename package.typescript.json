@@ -1,0 +1,118 @@
+{
+  "name": "atom-enhanced-workflows",
+  "version": "2.0.0",
+  "description": "AI-powered multistep automation workflow system with TypeScript",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn typescript-workflow-system.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rimraf dist",
+    "demo": "ts-node typescript-workflow-system.ts",
+    "demo:watch": "ts-node-dev typescript-workflow-system.ts"
+  },
+  "keywords": [
+    "automation",
+    "workflow",
+    "ai",
+    "branching",
+    "typescript",
+    "multistep",
+    "orchestration",
+    "enhanced"
+  ],
+  "author": "ATOM Platform Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "winston": "^3.10.0",
+    "uuid": "^9.0.0",
+    "lodash": "^4.17.21",
+    "axios": "^1.5.0",
+    "joi": "^17.9.2",
+    "redis": "^4.6.7",
+    "pg": "^8.11.3",
+    "socket.io": "^4.7.2",
+    "node-cron": "^3.0.2",
+    "compression": "^1.7.4",
+    "rate-limiter-flexible": "^2.4.2",
+    "jsonwebtoken": "^9.0.2",
+    "bcrypt": "^5.1.0",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.32.5",
+    "csv-parser": "^3.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.5",
+    "@types/express": "^4.17.17",
+    "@types/cors": "^2.8.13",
+    "@types/uuid": "^9.0.2",
+    "@types/lodash": "^4.14.195",
+    "@types/jest": "^29.5.3",
+    "@types/pg": "^8.10.2",
+    "@types/jsonwebtoken": "^9.0.2",
+    "@types/bcrypt": "^5.0.0",
+    "@types/multer": "^1.4.7",
+    "@types/compression": "^1.7.2",
+    "@types/node-cron": "^3.0.8",
+    "typescript": "^5.1.6",
+    "ts-node": "^10.9.1",
+    "ts-node-dev": "^2.0.0",
+    "jest": "^29.6.2",
+    "ts-jest": "^29.1.1",
+    "@typescript-eslint/eslint-plugin": "^6.2.1",
+    "@typescript-eslint/parser": "^6.2.1",
+    "eslint": "^8.46.0",
+    "rimraf": "^5.0.1",
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atom-platform/atom-enhanced-workflows.git"
+  },
+  "bugs": {
+    "url": "https://github.com/atom-platform/atom-enhanced-workflows/issues"
+  },
+  "homepage": "https://atom.ai/enhanced-workflows",
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/src", "<rootDir>/tests"],
+    "testMatch": ["**/__tests__/**/*.ts", "**/?(*.)+(spec|test).ts"],
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/**/*.d.ts",
+      "!src/index.ts"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"]
+  },
+  "eslintConfig": {
+    "parser": "@typescript-eslint/parser",
+    "plugins": ["@typescript-eslint"],
+    "extends": [
+      "eslint:recommended",
+      "@typescript-eslint/recommended"
+    ],
+    "rules": {
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/explicit-function-return-type": "warn"
+    }
+  }
+}

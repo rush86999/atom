@@ -80,7 +80,7 @@ export interface WorkflowStep {
   };
   // Enhanced AI properties
   aiConfiguration?: {
-    aiType: 'custom' | 'prebuilt' | 'workflow' | 'decision';
+    aiType: 'custom' | 'prebuilt' | 'workflow' | 'decision' | 'generate' | 'summarize' | 'classify' | 'sentiment' | 'extract' | 'translate' | 'validate' | 'transform';
     prompt: string;
     model: string;
     temperature: number;
@@ -435,13 +435,13 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
 
     // Find alternative routes
     const alternativeRoutes = Array.from(this.routes.values())
-      .filter(route => 
-        route.fromIntegration === fromIntegration && 
-        route.toIntegration === toIntegration && 
-        route.enabled &&
-        this.evaluateRouteConditions(route.conditions, data)
-      )
-      .sort((a, b) => b.priority - a.priority);
+      .filter(function(route: IntegrationRoute) { 
+        return route.fromIntegration === fromIntegration && 
+          route.toIntegration === toIntegration && 
+          route.enabled &&
+          this.evaluateRouteConditions(route.conditions, data);
+      }.bind(this))
+      .sort(function(a: IntegrationRoute, b: IntegrationRoute) { return b.priority - a.priority; });
 
     return alternativeRoutes.length > 0 ? alternativeRoutes[0] : null;
   }
@@ -604,15 +604,15 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
     retryPolicy: { maxAttempts: number; delay: number; backoffMultiplier: number },
     stepExecution: StepExecution
   ): Promise<T> {
-    let lastError: Error;
+    let lastError: Error | undefined;
     
     for (let attempt = 1; attempt <= retryPolicy.maxAttempts; attempt++) {
       try {
         return await fn();
       } catch (error) {
-        lastError = error;
+        lastError = error as Error;
         stepExecution.retryCount = attempt;
-        stepExecution.logs.push(`Attempt ${attempt} failed: ${error.message}`);
+        stepExecution.logs.push(`Attempt ${attempt} failed: ${(error as Error).message}`);
         
         if (attempt < retryPolicy.maxAttempts) {
           const delay = retryPolicy.delay * Math.pow(retryPolicy.backoffMultiplier, attempt - 1);
@@ -621,7 +621,7 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
       }
     }
     
-    throw lastError;
+    throw lastError!;
   }
 
   // Step Handlers
@@ -669,8 +669,9 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
 
     state.rateLimitRemaining--;
     
-    if (stepExecution => execution.stepExecutions.get(step.stepId)) {
-      stepExecution.metrics.integrationResponseTime = responseTime;
+    const stepExec = execution.stepExecutions.get(step.id);
+    if (stepExec) {
+      stepExec.metrics.integrationResponseTime = responseTime;
     }
 
     this.emit("integration-action-completed", { 
@@ -695,8 +696,9 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
     const result = await transformer(execution.variables, step.parameters);
     const endTime = Date.now();
     
-    if (stepExecution => execution.stepExecutions.get(step.stepId)) {
-      stepExecution.metrics.dataTransformTime = endTime - startTime;
+    const stepExec = execution.stepExecutions.get(step.id);
+    if (stepExec) {
+      stepExec.metrics.dataTransformTime = endTime - startTime;
     }
 
     return result;
@@ -762,7 +764,7 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
 
       // Handle workflow analysis
       if (aiConfig.aiType === 'workflow') {
-        prompt = this.generateWorkflowAnalysisPrompt(aiConfig.prebuiltTask, execution, inputData);
+        prompt = this.generateWorkflowAnalysisPrompt(aiConfig.prebuiltTask || '', execution, inputData);
       }
 
       // Handle decision making
@@ -819,7 +821,7 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
           selectedBranch = this.evaluateFieldCondition(
             branchConfig.fieldPath!,
             branchConfig.operator!,
-            branchConfig.value,
+            branchConfig.value || '',
             execution.variables
           );
           branchReasoning = `Field ${branchConfig.fieldPath} ${branchConfig.operator} ${branchConfig.value}`;
@@ -827,7 +829,7 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
 
         case 'expression':
           selectedBranch = this.evaluateJavaScriptExpression(
-            branchConfig.value,
+            branchConfig.value || '',
             execution.variables
           );
           branchReasoning = `Expression evaluation: ${branchConfig.value}`;
@@ -835,7 +837,7 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
 
         case 'ai':
           const aiDecision = await this.makeAIBranchDecision(
-            branchConfig.value,
+            branchConfig.value || '',
             execution.variables,
             branchConfig.branches
           );
@@ -968,20 +970,20 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
         
         switch (rule) {
           case 'uppercase':
-            formattedValue = String(value).toUpperCase();
+            formattedValue = String(value || '').toUpperCase();
             break;
           case 'lowercase':
-            formattedValue = String(value).toLowerCase();
+            formattedValue = String(value || '').toLowerCase();
             break;
           case 'date':
-            formattedValue = new Date(value).toISOString();
+            formattedValue = new Date(value || '').toISOString();
             break;
           case 'number':
-            formattedValue = Number(value);
+            formattedValue = Number(value || 0);
             break;
           default:
             if (typeof rule === 'string') {
-              formattedValue = rule.replace('{value}', String(value));
+              formattedValue = rule.replace('{value}', String(value || ''));
             }
         }
         
@@ -1080,13 +1082,13 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
         case 'lte':
           return Number(actualValue) <= Number(value);
         case 'contains':
-          return String(actualValue).includes(String(value));
+          return String(actualValue || '').includes(String(value));
         case 'not_contains':
           return !String(actualValue).includes(String(value));
         case 'starts_with':
-          return String(actualValue).startsWith(String(value));
+          return String(actualValue || '').startsWith(String(value));
         case 'ends_with':
-          return String(actualValue).endsWith(String(value));
+          return String(actualValue || '').endsWith(String(value));
         case 'is_null':
           return actualValue === null || actualValue === undefined;
         case 'is_not_null':
@@ -1105,14 +1107,17 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
   }
 
   private getNestedValue(path: string, data: Record<string, any>): any {
+    if (!path) return undefined;
     return path.split('.').reduce((current, key) => {
       return current && current[key] !== undefined ? current[key] : undefined;
     }, data);
   }
 
   private setNestedValue(path: string, value: any, data: Record<string, any>): void {
+    if (!path) return;
     const keys = path.split('.');
     const lastKey = keys.pop()!;
+    if (!lastKey) return;
     let current = data;
     
     for (const key of keys) {
@@ -1170,7 +1175,7 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
   }
 
   private async handleStepError(execution: WorkflowExecution, step: WorkflowStep, error: Error): Promise<void> {
-    const errorHandlerStep = this.workflows.get(execution.workflowId)?.steps.find(s => s.id === step.errorHandler);
+    const errorHandlerStep = this.workflows.get(execution.workflowId)?.steps.find(function(s: WorkflowStep) { return s.id === step.errorHandler; });
     if (errorHandlerStep) {
       this.logger.info(`Executing error handler for step ${step.id}: ${step.errorHandler}`);
       await this.executeStep(execution, errorHandlerStep, this.workflows.get(execution.workflowId)!);
@@ -1203,7 +1208,7 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
     // Update integration usage stats
     const integrationUsage: Record<string, { count: number; errors: number }> = {};
     for (const [stepId, stepExecution] of execution.stepExecutions) {
-      const step = this.workflows.get(execution.workflowId)?.steps.find(s => s.id === stepId);
+      const step = this.workflows.get(execution.workflowId)?.steps.find(function(s: WorkflowStep) { return s.id === stepId; });
       if (step?.integrationId) {
         if (!integrationUsage[step.integrationId]) {
           integrationUsage[step.integrationId] = { count: 0, errors: 0 };
@@ -1215,20 +1220,24 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
       }
     }
 
-    analytics.mostUsedIntegrations = Object.entries(integrationUsage).map(([integrationId, stats]) => ({
-      integrationId,
-      usageCount: stats.count,
-      successRate: (stats.count - stats.errors) / stats.count,
-    }));
+    analytics.mostUsedIntegrations = Object.entries(integrationUsage).map(function([integrationId, stats]) {
+      return {
+        integrationId: integrationId,
+        usageCount: stats.count,
+        successRate: (stats.count - stats.errors) / stats.count,
+      };
+    });
 
     // Update failure points
     analytics.commonFailurePoints = Array.from(execution.stepExecutions.entries())
-      .filter(([_, stepExecution]) => stepExecution.status === 'failed')
-      .map(([stepId, stepExecution]) => ({
-        stepId,
-        errorCount: 1,
-        lastError: stepExecution.error || 'Unknown error',
-      }));
+      .filter(function(entry) { return entry[1].status === 'failed'; })
+      .map(function(entry) {
+        return {
+          stepId: entry[0],
+          errorCount: 1,
+          lastError: entry[1].error || 'Unknown error',
+        };
+      });
 
     // Generate recommendations
     analytics.recommendations = this.generateRecommendations(analytics);
@@ -1252,8 +1261,8 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
     
     if (analytics.mostUsedIntegrations.length > 0) {
       const slowestIntegration = analytics.mostUsedIntegrations
-        .sort((a, b) => b.successRate - a.successRate)
-        .find(int => int.successRate < 0.9);
+        .sort(function(a, b) { return b.successRate - a.successRate; })
+        .find(function(int) { return int.successRate < 0.9; });
       
       if (slowestIntegration) {
         recommendations.push(`Integration ${slowestIntegration.integrationId} has low success rate (${(slowestIntegration.successRate * 100).toFixed(1)}%)`);
@@ -1287,7 +1296,7 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
       response = {
         summary: "This is a simulated AI summary of the provided content.",
         keyPoints: ["Point 1", "Point 2", "Point 3"],
-        wordCount: request.data.input_data?.toString()?.split?.(' ')?.length || 0
+        wordCount: request.data.input_data ? request.data.input_data.toString().split(' ').length : 0
       };
     } else if (request.prompt.toLowerCase().includes('classify')) {
       response = {
@@ -1562,7 +1571,7 @@ Please respond with only the branch ID that should be taken:`;
     systemUptime: number;
   } {
     const healthyIntegrations = Array.from(this.integrationStates.values())
-      .filter(state => state.isAvailable).length;
+      .filter(function(state) { return state.isAvailable; }).length;
 
     return {
       totalWorkflows: this.workflows.size,

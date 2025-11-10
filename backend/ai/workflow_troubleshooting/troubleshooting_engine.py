@@ -114,6 +114,7 @@ class WorkflowTroubleshootingEngine:
                     r"connection.*timed out",
                     r"failed to connect",
                     r"network.*unreachable",
+                    r"database.*connection.*timeout",
                 ],
                 "symptoms": [
                     "Slow response times",
@@ -144,6 +145,7 @@ class WorkflowTroubleshootingEngine:
                     r"validation.*error",
                     r"malformed.*request",
                     r"missing.*required",
+                    r"invalid.*response.*format",
                 ],
                 "symptoms": [
                     "Data format errors",
@@ -189,6 +191,7 @@ class WorkflowTroubleshootingEngine:
                     r"api.*down",
                     r"external.*service.*error",
                     r"third.*party.*failure",
+                    r"api.*call.*failed.*status.*500",
                 ],
                 "symptoms": [
                     "External API failures",
@@ -393,6 +396,10 @@ class WorkflowTroubleshootingEngine:
             elif issue.category == IssueCategory.PERFORMANCE:
                 issue.root_cause = "Resource constraints or inefficient workflow design"
                 root_causes.append(f"Performance issue: {issue.root_cause}")
+
+            elif issue.category == IssueCategory.DATA:
+                issue.root_cause = "Data format, validation, or transformation issues"
+                root_causes.append(f"Data issue: {issue.root_cause}")
 
             elif issue.category == IssueCategory.LOGIC:
                 issue.root_cause = (
