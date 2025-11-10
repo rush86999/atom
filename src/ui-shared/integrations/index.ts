@@ -42,6 +42,12 @@ export { DocuSignSkillsBundle } from './docusign/skills/docusignSkills';
 export * as DocuSignTypes from './docusign/types';
 export { DocuSignUtils, createDocuSignConfig, DocuSignIntegrationMetadata } from './docusign';
 
+// Greenhouse HR Integration (HR Management) - Complete
+export { default as ATOMGreenhouseManager } from './greenhouse/components/GreenhouseManager';
+export { GreenhouseSkillsBundle } from './greenhouse/skills/greenhouseSkills';
+export * as GreenhouseTypes from './greenhouse/types';
+export { GreenhouseUtils, createGreenhouseConfig, GreenhouseIntegrationMetadata } from './greenhouse';
+
 // MS Teams Integration (Communication) - Complete
 export { TeamsManager, EnhancedTeamsManager, TeamsCallback, TeamsDataSource } from './teams';
 export { teamsSkills } from './teams/skills/teamsSkills';

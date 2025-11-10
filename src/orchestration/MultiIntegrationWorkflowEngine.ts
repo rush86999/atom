@@ -48,7 +48,7 @@ export interface IntegrationState {
 export interface WorkflowStep {
   id: string;
   name: string;
-  type: 'integration_action' | 'data_transform' | 'condition' | 'parallel' | 'wait' | 'webhook' | 'notification';
+  type: 'integration_action' | 'data_transform' | 'condition' | 'parallel' | 'wait' | 'webhook' | 'notification' | 'ai_task' | 'advanced_branch';
   integrationId?: string;
   action?: string;
   parameters: Record<string, any>;
@@ -66,6 +66,27 @@ export interface WorkflowStep {
   };
   errorHandler?: string;
   metadata: Record<string, any>;
+  // Enhanced branch properties
+  branchConfiguration?: {
+    conditionType: 'field' | 'expression' | 'ai';
+    fieldPath?: string;
+    operator?: string;
+    value?: string;
+    branches: Array<{
+      id: string;
+      label: string;
+      condition?: any;
+    }>;
+  };
+  // Enhanced AI properties
+  aiConfiguration?: {
+    aiType: 'custom' | 'prebuilt' | 'workflow' | 'decision';
+    prompt: string;
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    prebuiltTask?: string;
+  };
 }
 
 export interface WorkflowDefinition {
@@ -258,6 +279,8 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
     this.stepHandlers.set('wait', this.handleWait.bind(this));
     this.stepHandlers.set('webhook', this.handleWebhook.bind(this));
     this.stepHandlers.set('notification', this.handleNotification.bind(this));
+    this.stepHandlers.set('ai_task', this.handleAITask.bind(this));
+    this.stepHandlers.set('advanced_branch', this.handleAdvancedBranch.bind(this));
 
     // Initialize data transformers
     this.transformers.set('map_fields', this.transformMapFields.bind(this));
@@ -716,6 +739,142 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
     };
   }
 
+  private async handleAITask(execution: WorkflowExecution, step: WorkflowStep): Promise<any> {
+    const aiConfig = step.aiConfiguration;
+    if (!aiConfig) {
+      throw new Error('AI task requires AI configuration');
+    }
+
+    try {
+      // Prepare AI request
+      const inputData = {
+        input_data: execution.variables.input_data || execution.variables,
+        context: execution.variables.context || {},
+        ...execution.variables
+      };
+
+      let prompt = aiConfig.prompt;
+      
+      // Handle prebuilt tasks
+      if (aiConfig.aiType === 'prebuilt' && aiConfig.prebuiltTask) {
+        prompt = this.enhancePrebuiltPrompt(aiConfig.prebuiltTask, inputData);
+      }
+
+      // Handle workflow analysis
+      if (aiConfig.aiType === 'workflow') {
+        prompt = this.generateWorkflowAnalysisPrompt(aiConfig.prebuiltTask, execution, inputData);
+      }
+
+      // Handle decision making
+      if (aiConfig.aiType === 'decision') {
+        prompt = this.generateDecisionPrompt(aiConfig.prompt, inputData);
+      }
+
+      // Call AI service (this would integrate with actual AI service)
+      const aiResult = await this.callAIService({
+        prompt,
+        model: aiConfig.model,
+        temperature: aiConfig.temperature,
+        maxTokens: aiConfig.maxTokens,
+        data: inputData
+      });
+
+      const result = {
+        result: aiResult.content,
+        confidence: aiResult.confidence || 0.8,
+        reasoning: aiResult.reasoning || 'AI processing completed',
+        model: aiConfig.model,
+        processedAt: new Date().toISOString(),
+        aiType: aiConfig.aiType
+      };
+
+      this.emit("ai-task-completed", { 
+        stepId: step.id,
+        aiType: aiConfig.aiType,
+        model: aiConfig.model,
+        confidence: result.confidence
+      });
+
+      return result;
+
+    } catch (error) {
+      this.logger.error(`AI task failed: ${step.id}`, error);
+      throw new Error(`AI task execution failed: ${error.message}`);
+    }
+  }
+
+  private async handleAdvancedBranch(execution: WorkflowExecution, step: WorkflowStep): Promise<any> {
+    const branchConfig = step.branchConfiguration;
+    if (!branchConfig) {
+      throw new Error('Advanced branch requires branch configuration');
+    }
+
+    try {
+      let selectedBranch: string | null = null;
+      let branchReasoning = '';
+
+      // Evaluate condition based on type
+      switch (branchConfig.conditionType) {
+        case 'field':
+          selectedBranch = this.evaluateFieldCondition(
+            branchConfig.fieldPath!,
+            branchConfig.operator!,
+            branchConfig.value,
+            execution.variables
+          );
+          branchReasoning = `Field ${branchConfig.fieldPath} ${branchConfig.operator} ${branchConfig.value}`;
+          break;
+
+        case 'expression':
+          selectedBranch = this.evaluateJavaScriptExpression(
+            branchConfig.value,
+            execution.variables
+          );
+          branchReasoning = `Expression evaluation: ${branchConfig.value}`;
+          break;
+
+        case 'ai':
+          const aiDecision = await this.makeAIBranchDecision(
+            branchConfig.value,
+            execution.variables,
+            branchConfig.branches
+          );
+          selectedBranch = aiDecision.branch;
+          branchReasoning = aiDecision.reasoning;
+          break;
+      }
+
+      // Map boolean result to branch
+      if (branchConfig.branches.length === 2 && !branchConfig.branches.find(b => b.id === selectedBranch)) {
+        selectedBranch = selectedBranch === 'true' ? branchConfig.branches[0].id : branchConfig.branches[1].id;
+      }
+
+      const result = {
+        selectedBranch,
+        branchReasoning,
+        availableBranches: branchConfig.branches.map(b => b.id),
+        conditionType: branchConfig.conditionType,
+        evaluatedAt: new Date().toISOString()
+      };
+
+      // Update execution variables with branch decision
+      execution.variables._branchDecision = result;
+      execution.variables._selectedBranch = selectedBranch;
+
+      this.emit("branch-evaluated", { 
+        stepId: step.id,
+        selectedBranch,
+        conditionType: branchConfig.conditionType
+      });
+
+      return result;
+
+    } catch (error) {
+      this.logger.error(`Advanced branch evaluation failed: ${step.id}`, error);
+      throw new Error(`Branch evaluation failed: ${error.message}`);
+    }
+  }
+
   // Data Transformers
   private async transformMapFields(data: Record<string, any>, config: Record<string, any>): Promise<any> {
     const mapping = config.mapping || {};
@@ -1102,6 +1261,196 @@ export class MultiIntegrationWorkflowEngine extends EventEmitter {
     }
     
     return recommendations;
+  }
+
+  // AI Helper Methods
+  private async callAIService(request: {
+    prompt: string;
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    data: any;
+  }): Promise<{ content: any; confidence?: number; reasoning?: string }> {
+    // This would integrate with actual AI service (OpenAI, Claude, etc.)
+    // For now, simulating AI response
+    
+    this.logger.info(`Calling AI service with model: ${request.model}`);
+    
+    // Simulate AI processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Simulate different AI responses based on context
+    let response: any;
+    let confidence = 0.8 + Math.random() * 0.2; // Random confidence between 0.8-1.0
+    
+    if (request.prompt.toLowerCase().includes('summarize')) {
+      response = {
+        summary: "This is a simulated AI summary of the provided content.",
+        keyPoints: ["Point 1", "Point 2", "Point 3"],
+        wordCount: request.data.input_data?.toString()?.split?.(' ')?.length || 0
+      };
+    } else if (request.prompt.toLowerCase().includes('classify')) {
+      response = {
+        category: "Business",
+        subcategory: "Customer Service",
+        confidence: confidence
+      };
+    } else if (request.prompt.toLowerCase().includes('sentiment')) {
+      response = {
+        sentiment: Math.random() > 0.5 ? "positive" : "neutral",
+        score: Math.random(),
+        confidence: confidence
+      };
+    } else {
+      response = {
+        result: `AI processed the input using ${request.model}`,
+        analysis: "Simulated AI analysis based on the provided context",
+        recommendations: ["Consider additional context", "Review parameters"],
+        confidence: confidence
+      };
+    }
+    
+    return {
+      content: response,
+      confidence,
+      reasoning: `Processed using ${request.model} with temperature ${request.temperature}`
+    };
+  }
+
+  private enhancePrebuiltPrompt(taskId: string, inputData: any): string {
+    const taskPrompts = {
+      summarize: `Summarize the following text in a concise manner:\n\n${JSON.stringify(inputData)}\n\nSummary:`,
+      extract: `Extract key information from the following data:\n\n${JSON.stringify(inputData)}\n\nExtracted information:`,
+      classify: `Classify the following content into appropriate categories:\n\n${JSON.stringify(inputData)}\n\nClassification:`,
+      translate: `Translate the following text:\n\n${JSON.stringify(inputData)}\n\nTranslation:`,
+      sentiment: `Analyze the sentiment of the following text (positive/negative/neutral):\n\n${JSON.stringify(inputData)}\n\nSentiment analysis:`,
+      generate: `Generate content based on the following context:\n\n${JSON.stringify(inputData)}\n\nGenerated content:`,
+      validate: `Validate the following data and identify any issues:\n\n${JSON.stringify(inputData)}\n\nValidation results:`,
+      transform: `Transform the following data according to the specified rules:\n\n${JSON.stringify(inputData)}\n\nTransformed data:`
+    };
+    
+    return taskPrompts[taskId as keyof typeof taskPrompts] || taskPrompts.summarize;
+  }
+
+  private generateWorkflowAnalysisPrompt(analysisType: string, execution: WorkflowExecution, inputData: any): string {
+    const workflowInfo = {
+      workflowId: execution.workflowId,
+      currentStep: execution.currentStep,
+      variables: execution.variables,
+      executionTime: execution.executionTime
+    };
+    
+    const analysisPrompts = {
+      optimize: `Analyze this workflow execution and suggest optimizations:\n\nWorkflow: ${JSON.stringify(workflowInfo)}\n\nOptimization recommendations:`,
+      debug: `Debug this workflow execution and identify potential issues:\n\nWorkflow: ${JSON.stringify(workflowInfo)}\n\nDebug analysis:`,
+      predict: `Based on this workflow state, predict likely outcomes:\n\nWorkflow: ${JSON.stringify(workflowInfo)}\n\nPredictions:`,
+      improve: `Suggest improvements for this workflow execution:\n\nWorkflow: ${JSON.stringify(workflowInfo)}\n\nImprovement suggestions:`
+    };
+    
+    return analysisPrompts[analysisType as keyof typeof analysisPrompts] || analysisPrompts.optimize;
+  }
+
+  private generateDecisionPrompt(criteria: string, inputData: any): string {
+    return `Make a decision based on the following criteria and data:
+
+Criteria: ${criteria}
+
+Data: ${JSON.stringify(inputData)}
+
+Please provide a decision (true/false) and your reasoning. Format your response as JSON:
+{
+  "decision": true/false,
+  "reasoning": "Your reasoning here",
+  "confidence": 0.0-1.0
+}`;
+  }
+
+  // Branch Helper Methods
+  private evaluateFieldCondition(fieldPath: string, operator: string, value: string, data: any): string {
+    const actualValue = this.getNestedValue(fieldPath, data);
+    
+    let result = false;
+    switch (operator) {
+      case 'equals':
+        result = actualValue === value;
+        break;
+      case 'not_equals':
+        result = actualValue !== value;
+        break;
+      case 'greater_than':
+        result = Number(actualValue) > Number(value);
+        break;
+      case 'less_than':
+        result = Number(actualValue) < Number(value);
+        break;
+      case 'contains':
+        result = String(actualValue).includes(String(value));
+        break;
+      case 'starts_with':
+        result = String(actualValue).startsWith(String(value));
+        break;
+      case 'ends_with':
+        result = String(actualValue).endsWith(String(value));
+        break;
+      case 'is_null':
+        result = actualValue === null || actualValue === undefined;
+        break;
+      case 'is_not_null':
+        result = actualValue !== null && actualValue !== undefined;
+        break;
+    }
+    
+    return result ? 'true' : 'false';
+  }
+
+  private evaluateJavaScriptExpression(expression: string, data: any): string {
+    try {
+      // Safe expression evaluation
+      const context = { ...data, Math, Date, String, Number, Array, Object };
+      const func = new Function(...Object.keys(context), `return ${expression}`);
+      const result = func(...Object.values(context));
+      return Boolean(result) ? 'true' : 'false';
+    } catch (error) {
+      this.logger.error(`JavaScript expression evaluation failed: ${error}`);
+      return 'false';
+    }
+  }
+
+  private async makeAIBranchDecision(prompt: string, data: any, branches: any[]): Promise<{ branch: string; reasoning: string }> {
+    const aiPrompt = `Evaluate the following data and determine which branch should be taken:
+
+Available branches:
+${branches.map(b => `- ${b.id}: ${b.label}`).join('\n')}
+
+Evaluation criteria: ${prompt}
+
+Data: ${JSON.stringify(data)}
+
+Please respond with only the branch ID that should be taken:`;
+
+    try {
+      const aiResult = await this.callAIService({
+        prompt: aiPrompt,
+        model: 'gpt-3.5-turbo',
+        temperature: 0.3,
+        maxTokens: 100,
+        data
+      });
+      
+      const selectedBranch = String(aiResult.content).trim();
+      const validBranch = branches.find(b => b.id === selectedBranch);
+      
+      return {
+        branch: validBranch ? validBranch.id : branches[0].id,
+        reasoning: `AI selected branch "${selectedBranch}" based on evaluation criteria`
+      };
+    } catch (error) {
+      this.logger.error(`AI branch decision failed: ${error}`);
+      return {
+        branch: branches[0].id,
+        reasoning: 'AI decision failed, defaulting to first branch'
+      };
+    }
   }
 
   private async startHealthMonitoring(): Promise<void> {
