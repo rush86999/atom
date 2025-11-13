@@ -46,9 +46,9 @@ import {
   ViewIcon,
   DeleteIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
 } from '@chakra-ui/icons';
 import {
@@ -416,7 +416,7 @@ export const GitHubManager: React.FC<GitHubIntegrationProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
@@ -661,7 +661,7 @@ export const GitHubManager: React.FC<GitHubIntegrationProps> = ({
           <HStack justify="space-between" w="full">
             <Button
               variant="outline"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => {
                 window.open('https://github.com/settings/applications', '_blank');
               }}

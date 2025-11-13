@@ -168,7 +168,7 @@ import {
   FiFlag,
   FiBell,
   FiMessageSquare,
-  FiFilter as FiFilterIcon
+  FiFilter as FiSearchIcon
 } from 'react-icons/fi';
 
 // Mock Airtable skills (would be imported from actual skills)
@@ -2765,7 +2765,7 @@ const ViewCard: React.FC<{
         <HStack spacing={3} fontSize="xs" color="gray.500">
           {view.filters && Object.keys(view.filters).length > 0 && (
             <HStack spacing={1}>
-              <Icon as={FiFilterIcon} boxSize={3} />
+              <Icon as={FiSearchIcon} boxSize={3} />
               <Text>Filters</Text>
             </HStack>
           )}
@@ -2804,6 +2804,6 @@ const StatCard: React.FC<{
 
 // Icon components
 const FiZapOff = (props: any) => <FiX {...props} />;
-const FiArrowUpDown = (props: any) => <FiFilterIcon {...props} />;
+const FiArrowUpDown = (props: any) => <FiSearchIcon {...props} />;
 
 export default AirtableDataManagementUI;

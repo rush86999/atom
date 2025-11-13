@@ -49,9 +49,9 @@ import {
   ViewIcon,
   DeleteIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
@@ -526,7 +526,7 @@ export const NextjsDesktopManager: React.FC<NextjsIntegrationProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
@@ -613,7 +613,7 @@ export const NextjsDesktopManager: React.FC<NextjsIntegrationProps> = ({
                 <Button
                   size="sm"
                   variant="outline"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() => openExternal('https://vercel.com/dashboard')}
                 >
                   Open Vercel Dashboard
@@ -838,7 +838,7 @@ export const NextjsDesktopManager: React.FC<NextjsIntegrationProps> = ({
           <HStack justify="space-between" w="full">
             <Button
               variant="outline"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => openExternal('https://vercel.com/dashboard')}
             >
               Open Vercel

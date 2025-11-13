@@ -462,7 +462,7 @@ export default function NotionIntegration() {
     }
   };
 
-  const getDatabaseIcon = (database: NotionDatabase) => {
+  const getHamburgerIcon = (database: NotionDatabase) => {
     switch (database.type) {
       case 'table': return <Database className="h-4 w-4 text-blue-500" />;
       case 'board': return <Layers className="h-4 w-4 text-green-500" />;
@@ -696,7 +696,7 @@ export default function NotionIntegration() {
                     <div key={database.id} className="p-3 border rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          {getDatabaseIcon(database)}
+                          {getHamburgerIcon(database)}
                           <h4 className="font-medium">{database.title}</h4>
                         </div>
                         <Badge variant="outline" className="text-xs">
@@ -778,7 +778,7 @@ export default function NotionIntegration() {
                     {databases.map((database) => (
                       <SelectItem key={database.id} value={database.id}>
                         <div className="flex items-center space-x-2">
-                          {getDatabaseIcon(database)}
+                          {getHamburgerIcon(database)}
                           <span>{database.title}</span>
                         </div>
                       </SelectItem>

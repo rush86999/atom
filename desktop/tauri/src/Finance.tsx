@@ -18,8 +18,8 @@ const AddIcon = () => <span>➕</span>;
 const MoreIcon = () => <span>⋯</span>;
 const PieChartIcon = () => <span>📊</span>;
 const ChevronRightIcon = () => <span>›</span>;
-const ArrowUpIcon = () => <span>↑</span>;
-const ArrowDownIcon = () => <span>↓</span>;
+const ChevronUpIcon = () => <span>↑</span>;
+const ChevronDownIcon = () => <span>↓</span>;
 import {
   LineChart,
   Line,

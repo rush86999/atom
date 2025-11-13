@@ -28,8 +28,8 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   ViewListIcon,
   InfoIcon,
   CopyIcon,
@@ -491,7 +491,7 @@ const TrelloDesktopCallback: React.FC<TrelloDesktopCallbackProps> = ({
                   
                   <Button
                     variant="outline"
-                    leftIcon={<ExternalLinkIcon />}
+                    leftIcon={<ArrowForwardIcon />}
                     onClick={() => {
                       window.open('https://trello.com', '_blank');
                     }}

@@ -23,9 +23,9 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   DesktopIcon,
 } from '@chakra-ui/icons';
 
@@ -280,7 +280,7 @@ export const NextjsDesktopCallback: React.FC<NextjsDesktopCallbackProps> = ({
         <Card w="500px">
           <CardBody>
             <VStack spacing={4}>
-              <Icon as={WarningIcon} w={16} h={16} color="red.500" />
+              <Icon as={WarningTwoIcon} w={16} h={16} color="red.500" />
               <Heading size="md">Authentication Failed</Heading>
               <Alert status="error">
                 <AlertIcon />
@@ -382,7 +382,7 @@ export const NextjsDesktopCallback: React.FC<NextjsDesktopCallbackProps> = ({
                 <Button
                   variant="outline"
                   onClick={openVercelDashboard}
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   w="full"
                 >
                   Open Vercel Dashboard

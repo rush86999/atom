@@ -57,18 +57,18 @@ import {
   TabPanel,
 } from "@chakra-ui/react";
 import {
-  CalendarIcon,
-  CheckCircleIcon,
-  WarningIcon,
   TimeIcon,
-  ExternalLinkIcon,
+  CheckCircleIcon,
+  WarningTwoIcon,
+  TimeIcon,
+  ArrowForwardIcon,
   AddIcon,
   SearchIcon,
   SettingsIcon,
   RepeatIcon,
   PhoneIcon,
   MoneyIcon,
-  UserIcon,
+  PersonIcon,
   BuildingIcon,
 } from "@chakra-ui/icons";
 
@@ -436,7 +436,7 @@ const SalesforceIntegration: React.FC = () => {
               {healthStatus === "healthy" ? (
                 <CheckCircleIcon mr={1} />
               ) : (
-                <WarningIcon mr={1} />
+                <WarningTwoIcon mr={1} />
               )}
               {connected ? "Connected" : "Disconnected"}
             </Badge>
@@ -467,7 +467,7 @@ const SalesforceIntegration: React.FC = () => {
                 <Button
                   colorScheme="blue"
                   size="lg"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
                     (window.location.href = "/api/integrations/salesforce/auth/start")
                   }
@@ -637,7 +637,7 @@ const SalesforceIntegration: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        leftIcon={<ExternalLinkIcon />}
+                                        leftIcon={<ArrowForwardIcon />}
                                       >
                                         View
                                       </Button>
@@ -677,7 +677,7 @@ const SalesforceIntegration: React.FC = () => {
                         ) : filteredContacts.length === 0 ? (
                           <VStack spacing={4} py={8}>
                             <Icon
-                              as={UserIcon}
+                              as={PersonIcon}
                               w={12}
                               h={12}
                               color="gray.400"
@@ -721,7 +721,7 @@ const SalesforceIntegration: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        leftIcon={<ExternalLinkIcon />}
+                                        leftIcon={<ArrowForwardIcon />}
                                       >
                                         View
                                       </Button>
@@ -818,7 +818,7 @@ const SalesforceIntegration: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        leftIcon={<ExternalLinkIcon />}
+                                        leftIcon={<ArrowForwardIcon />}
                                       >
                                         View
                                       </Button>
@@ -913,7 +913,7 @@ const SalesforceIntegration: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        leftIcon={<ExternalLinkIcon />}
+                                        leftIcon={<ArrowForwardIcon />}
                                       >
                                         View
                                       </Button>

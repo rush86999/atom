@@ -545,3 +545,134 @@ async def enhanced_workflow_status():
     }
 
     return status_info
+
+
+@router.post("/whatsapp/automate", summary="WhatsApp Business workflow automation")
+async def whatsapp_workflow_automation(request: dict):
+    """
+    Automated workflows for WhatsApp Business integration.
+    
+    Supports customer support automation, appointment reminders, 
+    marketing campaigns, and follow-up sequences.
+    """
+    try:
+        workflow_type = request.get("type")
+        parameters = request.get("parameters", {})
+        
+        if workflow_type == "customer_support":
+            # Auto-respond to common customer queries
+            result = await _handle_customer_support_automation(parameters)
+        elif workflow_type == "appointment_reminder":
+            # Send automated appointment reminders
+            result = await _handle_appointment_reminder_automation(parameters)
+        elif workflow_type == "marketing_campaign":
+            # Manage marketing message campaigns
+            result = await _handle_marketing_campaign_automation(parameters)
+        elif workflow_type == "follow_up_sequence":
+            # Handle automated follow-up sequences
+            result = await _handle_follow_up_automation(parameters)
+        else:
+            raise ValueError(f"Unsupported workflow type: {workflow_type}")
+            
+        return {
+            "success": True,
+            "workflow_type": workflow_type,
+            "result": result,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"WhatsApp workflow automation error: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+async def _handle_customer_support_automation(parameters: dict):
+    """Handle customer support automation workflows"""
+    try:
+        # Import WhatsApp integration if available
+        from .whatsapp_business_integration import whatsapp_integration
+        
+        trigger_keywords = parameters.get("trigger_keywords", ["help", "support", "issue"])
+        auto_response = parameters.get("auto_response", 
+            "Thank you for reaching out! Our support team will respond shortly.")
+        escalate_conditions = parameters.get("escalate_conditions", ["urgent", "emergency"])
+        
+        # This would integrate with the WhatsApp service to:
+        # 1. Monitor incoming messages for trigger keywords
+        # 2. Send automated responses
+        # 3. Escalate urgent issues to human agents
+        # 4. Create support tickets in integrated systems
+        
+        return {
+            "status": "configured",
+            "trigger_keywords": trigger_keywords,
+            "auto_response_enabled": True,
+            "escalation_rules": len(escalate_conditions),
+            "integration_points": ["whatsapp", "support_tickets", "notifications"]
+        }
+        
+    except ImportError:
+        logger.warning("WhatsApp integration not available for workflow automation")
+        return {"status": "unavailable", "reason": "WhatsApp integration not found"}
+
+
+async def _handle_appointment_reminder_automation(parameters: dict):
+    """Handle appointment reminder automation"""
+    try:
+        from .whatsapp_business_integration import whatsapp_integration
+        
+        reminder_intervals = parameters.get("reminder_intervals", [24, 2, 0.5])  # hours
+        template_name = parameters.get("template_name", "appointment_reminder")
+        
+        return {
+            "status": "configured",
+            "reminder_intervals": reminder_intervals,
+            "template": template_name,
+            "integration_points": ["whatsapp", "calendar", "appointments"]
+        }
+        
+    except ImportError:
+        return {"status": "unavailable", "reason": "WhatsApp integration not found"}
+
+
+async def _handle_marketing_campaign_automation(parameters: dict):
+    """Handle marketing campaign automation"""
+    try:
+        from .whatsapp_business_integration import whatsapp_integration
+        
+        campaign_type = parameters.get("campaign_type", "promotion")
+        target_audience = parameters.get("target_audience", "all_customers")
+        message_template = parameters.get("message_template", "special_offer")
+        
+        return {
+            "status": "configured",
+            "campaign_type": campaign_type,
+            "target_audience": target_audience,
+            "template": message_template,
+            "integration_points": ["whatsapp", "crm", "analytics"]
+        }
+        
+    except ImportError:
+        return {"status": "unavailable", "reason": "WhatsApp integration not found"}
+
+
+async def _handle_follow_up_automation(parameters: dict):
+    """Handle follow-up sequence automation"""
+    try:
+        from .whatsapp_business_integration import whatsapp_integration
+        
+        follow_up_delays = parameters.get("follow_up_delays", [1, 3, 7])  # days
+        follow_up_templates = parameters.get("follow_up_templates", ["follow_up_1", "follow_up_2", "follow_up_3"])
+        
+        return {
+            "status": "configured",
+            "follow_up_schedule": follow_up_delays,
+            "templates": follow_up_templates,
+            "integration_points": ["whatsapp", "crm", "sales_pipeline"]
+        }
+        
+    except ImportError:
+        return {"status": "unavailable", "reason": "WhatsApp integration not found"}

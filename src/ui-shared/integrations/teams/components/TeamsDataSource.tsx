@@ -35,11 +35,11 @@ import {
 import {
   SearchIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   ViewIcon,
   CopyIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   RepeatIcon,
 } from '@chakra-ui/icons';
 import {
@@ -316,7 +316,7 @@ export const ATOMTeamsDataSource: React.FC<ATOMTeamsDataSourceProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
@@ -529,7 +529,7 @@ export const ATOMTeamsDataSource: React.FC<ATOMTeamsDataSourceProps> = ({
 
             <Button
               colorScheme="blue"
-              leftIcon={<DownloadIcon />}
+              leftIcon={<ChevronDownIcon />}
               onClick={startIngestion}
               isDisabled={
                 !health?.connected ||

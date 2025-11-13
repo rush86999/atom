@@ -32,15 +32,15 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import {
-  CalendarIcon,
+  TimeIcon,
   TimeIcon,
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   RepeatIcon,
   AddIcon,
   ViewIcon,
-  DownloadIcon,
+  ChevronDownIcon,
 } from "@chakra-ui/icons";
 
 interface ZoomMeeting {
@@ -412,7 +412,7 @@ const ZoomIntegration: React.FC = () => {
                 </VStack>
                 <Button
                   colorScheme="blue"
-                  leftIcon={<CalendarIcon />}
+                  leftIcon={<TimeIcon />}
                   onClick={handleConnectZoom}
                 >
                   Connect Zoom Account
@@ -598,7 +598,7 @@ const ZoomIntegration: React.FC = () => {
                                 <HStack spacing={2}>
                                   <IconButton
                                     aria-label="Join meeting"
-                                    icon={<ExternalLinkIcon />}
+                                    icon={<ArrowForwardIcon />}
                                     size="sm"
                                     variant="outline"
                                     onClick={() =>
@@ -733,7 +733,7 @@ const ZoomIntegration: React.FC = () => {
                               <Td>
                                 <IconButton
                                   aria-label="Download recording"
-                                  icon={<DownloadIcon />}
+                                  icon={<ChevronDownIcon />}
                                   size="sm"
                                   variant="outline"
                                   onClick={() =>

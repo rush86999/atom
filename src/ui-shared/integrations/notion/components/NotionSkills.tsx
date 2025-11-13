@@ -32,7 +32,7 @@ import {
   CardBody,
   Icon
 } from '@chakra-ui/react';
-import { SearchIcon, PlusIcon, DatabaseIcon, DocumentIcon, CheckCircleIcon, XCircleIcon, RefreshCwIcon } from 'lucide-react';
+import { SearchIcon, PlusIcon, HamburgerIcon, DocumentIcon, CheckCircleIcon, XCircleIcon, RefreshCwIcon } from 'lucide-react';
 import { notionSkills } from '../../../skills/notionSkills';
 import { SkillContext } from '../../../types';
 
@@ -88,7 +88,7 @@ export const NotionSkills: React.FC<NotionSkillsProps> = ({ userId, onClose }) =
     {
       name: 'Databases',
       description: 'Query and manage Notion databases',
-      icon: DatabaseIcon,
+      icon: HamburgerIcon,
       skills: notionSkills.filter(skill => 
         skill.id.includes('database') || skill.id.includes('query')
       )
@@ -302,7 +302,7 @@ export const NotionSkills: React.FC<NotionSkillsProps> = ({ userId, onClose }) =
             <Card>
               <CardBody>
                 <VStack spacing={3}>
-                  <Icon as={DatabaseIcon} boxSize={6} color="green.500" />
+                  <Icon as={HamburgerIcon} boxSize={6} color="green.500" />
                   <Text fontSize="sm" fontWeight="medium">Databases</Text>
                   <Button
                     colorScheme="green"

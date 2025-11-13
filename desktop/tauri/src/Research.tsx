@@ -33,7 +33,7 @@ import {
 } from "@chakra-ui/react";
 import {
   SearchIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   StarIcon,
   AddIcon,
   FolderIcon,

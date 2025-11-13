@@ -1,0 +1,180 @@
+{
+  "version": "1.0.0",
+  "description": "File organization rules for ATOM project",
+  "rules": [
+    {
+      "pattern": "*.md",
+      "target_directory": "docs",
+      "description": "All markdown documentation files",
+      "priority": 1
+    },
+    {
+      "pattern": "*.sh",
+      "target_directory": "scripts",
+      "description": "Shell scripts and automation scripts",
+      "priority": 1
+    },
+    {
+      "pattern": "*.py",
+      "target_directory": "backend",
+      "description": "Python backend files",
+      "priority": 2,
+      "exceptions": ["test_*.py", "*_test.py"]
+    },
+    {
+      "pattern": "test_*.py",
+      "target_directory": "tests",
+      "description": "Python test files",
+      "priority": 1
+    },
+    {
+      "pattern": "*_test.py",
+      "target_directory": "tests",
+      "description": "Python test files with suffix",
+      "priority": 1
+    },
+    {
+      "pattern": "*.ts",
+      "target_directory": "frontend-nextjs",
+      "description": "TypeScript frontend files",
+      "priority": 2,
+      "exceptions": ["*.test.ts", "*.spec.ts"]
+    },
+    {
+      "pattern": "*.tsx",
+      "target_directory": "frontend-nextjs",
+      "description": "TypeScript React components",
+      "priority": 2,
+      "exceptions": ["*.test.tsx", "*.spec.tsx"]
+    },
+    {
+      "pattern": "*.js",
+      "target_directory": "frontend-nextjs",
+      "description": "JavaScript files",
+      "priority": 3,
+      "exceptions": ["*.test.js", "*.spec.js"]
+    },
+    {
+      "pattern": "*.test.*",
+      "target_directory": "tests",
+      "description": "Test files of any type",
+      "priority": 1
+    },
+    {
+      "pattern": "*.spec.*",
+      "target_directory": "tests",
+      "description": "Spec test files",
+      "priority": 1
+    },
+    {
+      "pattern": "*.json",
+      "target_directory": "config",
+      "description": "Configuration and data files",
+      "priority": 2,
+      "exceptions": [
+        "package.json",
+        "tsconfig.json",
+        "*.test.json",
+        "*_test_results.json"
+      ]
+    },
+    {
+      "pattern": "*_test_results.json",
+      "target_directory": "integration-tests",
+      "description": "Test result files",
+      "priority": 1
+    },
+    {
+      "pattern": "*.log",
+      "target_directory": "logs",
+      "description": "Log files",
+      "priority": 1
+    },
+    {
+      "pattern": "backup_*",
+      "target_directory": "backups",
+      "description": "Backup directories and files",
+      "priority": 1
+    },
+    {
+      "pattern": "*.pid",
+      "target_directory": "temp",
+      "description": "Process ID files",
+      "priority": 1
+    },
+    {
+      "pattern": "docker-compose.*",
+      "target_directory": "deployment",
+      "description": "Docker compose files",
+      "priority": 1
+    },
+    {
+      "pattern": "*.env*",
+      "target_directory": "config",
+      "description": "Environment configuration files",
+      "priority": 1
+    },
+    {
+      "pattern": "*.sql",
+      "target_directory": "data",
+      "description": "Database schema files",
+      "priority": 1
+    },
+    {
+      "pattern": "*.txt",
+      "target_directory": "docs",
+      "description": "Text documentation files",
+      "priority": 3
+    }
+  ],
+  "protected_directories": [
+    ".github",
+    ".git",
+    ".vscode",
+    "node_modules",
+    "venv",
+    ".venv",
+    "__pycache__",
+    "dist",
+    "build",
+    "target",
+    "coverage",
+    "public",
+    "assets",
+    "src",
+    "src-tauri",
+    "desktop",
+    "desktop-tauri",
+    "frontend-nextjs",
+    "backend",
+    "docs",
+    "scripts",
+    "tests",
+    "backups",
+    "logs",
+    "temp",
+    "deployment",
+    "integration-tests",
+    "config",
+    "data"
+  ],
+  "protected_files": [
+    "README.md",
+    "package.json",
+    "tsconfig.json",
+    "yarn.lock",
+    "Pipfile.lock",
+    "fly.toml",
+    ".gitignore",
+    ".gitattributes",
+    ".gitmodules",
+    "LICENSE.md",
+    ".file-organization-rules.json"
+  ],
+  "automation": {
+    "pre_commit_hook": true,
+    "scheduled_cleanup": "daily",
+    "notify_on_violations": true,
+    "auto_organize_new_files": true
+  }
+}

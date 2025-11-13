@@ -95,33 +95,33 @@ import {
   ViewIcon,
   TimeIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   AddIcon,
   DeleteIcon,
   EditIcon,
   MoreVerticalIcon,
   BellIcon,
   FileIcon,
-  UserIcon,
+  PersonIcon,
   LockIcon,
   UnlockIcon,
   StarIcon,
   LinkIcon,
   EmailIcon,
-  CalendarIcon,
-  FilterIcon,
+  TimeIcon,
+  SearchIcon,
   CloseIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   SmallCloseIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-  PlayIcon,
-  PauseIcon,
-  StopIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  ArrowForwardIcon,
+  MinusIcon,
+  CloseIcon,
   HamburgerIcon,
   PhoneIcon,
   VideoIcon,
@@ -135,7 +135,7 @@ import {
   ShareIcon,
   HandsIcon,
   RecordIcon,
-  StopIcon as StopRecordIcon,
+  CloseIcon as StopRecordIcon,
 } from '@chakra-ui/icons';
 
 // Types
@@ -1105,7 +1105,7 @@ const EnhancedTeamsManager: React.FC<EnhancedTeamsManagerProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={selectedWorkspace ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={selectedWorkspace ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {selectedWorkspace ? 'Connected' : 'No Workspace'}
             </Badge>
           </HStack>
@@ -1533,7 +1533,7 @@ const EnhancedTeamsManager: React.FC<EnhancedTeamsManagerProps> = ({
                                 <IconButton
                                   size="sm"
                                   variant="outline"
-                                  icon={<UserIcon />}
+                                  icon={<PersonIcon />}
                                   aria-label="Mention user"
                                 />
                                 <IconButton

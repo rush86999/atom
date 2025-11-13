@@ -55,23 +55,23 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   TaskIcon,
   ProjectIcon,
   SectionIcon,
-  CalendarIcon,
+  TimeIcon,
   ChevronRightIcon,
-  PlayIcon,
+  ArrowForwardIcon,
 } from '@chakra-ui/icons';
 
 interface AsanaSkillCommand {
@@ -702,7 +702,7 @@ export const AsanaSkills: React.FC<AsanaSkillsProps> = ({
                 />
                 <Button
                   colorScheme="orange"
-                  leftIcon={<PlayIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() => {
                     if (skillInput.trim()) {
                       // Find matching skill
@@ -773,9 +773,9 @@ export const AsanaSkills: React.FC<AsanaSkillsProps> = ({
                           <Icon as={
                             category === 'Tasks' ? TaskIcon :
                             category === 'Projects' ? ProjectIcon :
-                            category === 'Teams' ? UserIcon :
+                            category === 'Teams' ? PersonIcon :
                             category === 'Search' ? ViewIcon :
-                            category === 'Time' ? CalendarIcon :
+                            category === 'Time' ? TimeIcon :
                             category === 'Collaboration' ? ViewListIcon :
                             InfoIcon
                           } w={4} h={4} color="orange.500" />
@@ -818,7 +818,7 @@ export const AsanaSkills: React.FC<AsanaSkillsProps> = ({
                               <Button
                                 size="xs"
                                 colorScheme="orange"
-                                leftIcon={<PlayIcon />}
+                                leftIcon={<ArrowForwardIcon />}
                                 onClick={() => {
                                   setSelectedSkill(skill);
                                   setSkillInput(skill.example);

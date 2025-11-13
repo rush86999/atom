@@ -30,8 +30,8 @@ import {
 import {
   CodeIcon,
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   SettingsIcon,
   RepeatIcon,
 } from '@chakra-ui/icons';
@@ -107,7 +107,7 @@ export const NextjsSettings: React.FC<NextjsSettingsProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
@@ -134,7 +134,7 @@ export const NextjsSettings: React.FC<NextjsSettingsProps> = ({
             
             <HStack>
               <Button
-                leftIcon={<ExternalLinkIcon />}
+                leftIcon={<ArrowForwardIcon />}
                 variant="outline"
                 onClick={() => window.open('https://vercel.com', '_blank')}
               >

@@ -70,21 +70,21 @@ import {
   SettingsIcon,
   BellIcon,
   TimeIcon,
-  UserIcon,
+  PersonIcon,
   ChannelIcon,
   FileIcon,
   LinkIcon,
   InfoIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   EditIcon,
   DeleteIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   SmallCloseIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  FilterIcon,
+  SearchIcon,
   CloseIcon,
 } from '@chakra-ui/icons';
 
@@ -815,7 +815,7 @@ const CommunicationUI: React.FC<CommunicationUIProps> = ({
               <PopoverTrigger>
                 <IconButton
                   variant="outline"
-                  icon={<FilterIcon />}
+                  icon={<SearchIcon />}
                   aria-label="Filters"
                 />
               </PopoverTrigger>

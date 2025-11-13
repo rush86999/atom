@@ -67,10 +67,10 @@ import {
 import {
   GitlabIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   SettingsIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   AddIcon,
   ViewIcon,
   RepeatIcon,
@@ -80,11 +80,11 @@ import {
   BugIcon,
   MergeIcon,
   HistoryIcon,
-  UserIcon,
+  PersonIcon,
   GroupIcon,
-  ServerIcon,
-  ClockIcon,
-  CheckIcon,
+  SettingsIcon,
+  TimeIcon,
+  CheckCircleIcon,
   CrossIcon,
   DocumentIcon,
   FolderIcon,
@@ -454,7 +454,7 @@ const GitLabManager: React.FC<GitLabManagerProps> = ({
             <HStack justify="space-between" align="center">
               <HStack spacing={4}>
                 <Icon
-                  as={health.connected ? CheckCircleIcon : WarningIcon}
+                  as={health.connected ? CheckCircleIcon : WarningTwoIcon}
                   w={6} h={6}
                   color={health.connected ? 'green.500' : 'red.500'}
                 />
@@ -544,7 +544,7 @@ const GitLabManager: React.FC<GitLabManagerProps> = ({
                       <StatNumber color="blue.500">{allPipelines.length}</StatNumber>
                       <StatHelpText>
                         <HStack>
-                          <Icon as={CheckIcon} color="green.500" />
+                          <Icon as={CheckCircleIcon} color="green.500" />
                           <Text>{allPipelines.filter(p => p.status === 'success').length} successful</Text>
                         </HStack>
                       </StatHelpText>
@@ -743,7 +743,7 @@ const GitLabManager: React.FC<GitLabManagerProps> = ({
                         <Tr key={index}>
                           <Td>
                             <HStack>
-                              <Icon as={ClockIcon} color="orange.500" />
+                              <Icon as={TimeIcon} color="orange.500" />
                               <Text fontWeight="medium">#{pipeline.iid}</Text>
                             </HStack>
                           </Td>
@@ -923,7 +923,7 @@ const GitLabManager: React.FC<GitLabManagerProps> = ({
                           <HStack justify="space-between" w="full">
                             <HStack>
                               <Icon 
-                                as={ClockIcon} 
+                                as={TimeIcon} 
                                 color={getPipelineStatus(pipeline.status)} 
                               />
                               <VStack align="start" spacing={1}>
@@ -1101,7 +1101,7 @@ const GitLabManager: React.FC<GitLabManagerProps> = ({
                     <Text fontWeight="bold">Repository URL</Text>
                     <Button
                       variant="outline"
-                      leftIcon={<ExternalLinkIcon />}
+                      leftIcon={<ArrowForwardIcon />}
                       onClick={() => window.open(selectedProject.namespace.web_url, '_blank')}
                     >
                       Open Repository

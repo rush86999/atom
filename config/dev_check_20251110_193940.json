@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-11-10T19:39:40.458541",
+  "results": {
+    "services": {
+      "Frontend": "FAIL",
+      "Backend API": "FAIL",
+      "OAuth Server": "PASS"
+    },
+    "endpoints": {
+      "Backend Health": "FAIL",
+      "OAuth Status": "PASS",
+      "API Docs": "FAIL"
+    },
+    "registry": {
+      "Service Registry": "FAIL"
+    },
+    "workflows": {
+      "Workflow System": "WARN"
+    },
+    "byok": {
+      "BYOK System": "WARN"
+    }
+  },
+  "dev_ready": false
+}

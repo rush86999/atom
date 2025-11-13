@@ -56,7 +56,7 @@ import {
 } from "@chakra-ui/react";
 import {
   SearchIcon,
-  FilterIcon,
+  SearchIcon,
   CloseIcon,
   ChevronDownIcon,
   ChevronUpIcon,
@@ -67,14 +67,14 @@ import {
   BugIcon,
   MergeIcon,
   HistoryIcon,
-  UserIcon,
-  CalendarIcon,
+  PersonIcon,
+  TimeIcon,
   SettingsIcon,
   RepeatIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   AddIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
   SaveIcon,
 } from "@chakra-ui/icons";
 import {
@@ -836,7 +836,7 @@ const GitLabSearch: React.FC<GitLabSearchProps> = ({
           <Button
             variant="outline"
             leftIcon={
-              sort.direction === "asc" ? <ArrowUpIcon /> : <ArrowDownIcon />
+              sort.direction === "asc" ? <ChevronUpIcon /> : <ChevronDownIcon />
             }
             onClick={() => updateSort(sort.field)}
           >
@@ -845,7 +845,7 @@ const GitLabSearch: React.FC<GitLabSearchProps> = ({
 
           <Button
             variant="outline"
-            leftIcon={<FilterIcon />}
+            leftIcon={<SearchIcon />}
             rightIcon={
               showAdvancedFilters ? <ChevronUpIcon /> : <ChevronDownIcon />
             }

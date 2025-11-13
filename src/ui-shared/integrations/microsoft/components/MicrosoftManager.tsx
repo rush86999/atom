@@ -66,34 +66,34 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   DesktopIcon,
   EmailIcon,
-  CalendarIcon,
+  TimeIcon,
   FolderIcon,
   DocumentIcon,
   SearchIcon,
   ChatIcon,
   StarIcon,
-  FilterIcon,
-  DownloadIcon,
+  SearchIcon,
+  ChevronDownIcon,
   UploadIcon,
-  TrashIcon,
+  DeleteIcon,
   EditIcon as EditDocIcon,
-  SendIcon,
+  ArrowForwardIcon,
   BellIcon,
   ShareIcon,
-  ClockIcon,
+  TimeIcon,
   LinkIcon,
   ReplyIcon,
   ForwardIcon,
@@ -1049,7 +1049,7 @@ export const MicrosoftIntegrationManager: React.FC<MicrosoftIntegrationProps> = 
               </HStack>
             )}
             <HStack>
-              <Icon as={ClockIcon} />
+              <Icon as={TimeIcon} />
               <Text>
                 {new Date(event.start.dateTime || event.start.date).toLocaleString()} - 
                 {new Date(event.end.dateTime || event.end.date).toLocaleString()}
@@ -1098,7 +1098,7 @@ export const MicrosoftIntegrationManager: React.FC<MicrosoftIntegrationProps> = 
             <Button
               size="sm"
               variant="ghost"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => window.open(event.web_link, '_blank')}
             >
               Open in Calendar
@@ -1166,7 +1166,7 @@ export const MicrosoftIntegrationManager: React.FC<MicrosoftIntegrationProps> = 
             <Button
               size="sm"
               variant="ghost"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => window.open(file.web_url, '_blank')}
             >
               Open
@@ -1223,7 +1223,7 @@ export const MicrosoftIntegrationManager: React.FC<MicrosoftIntegrationProps> = 
               <Button
                 size="sm"
                 variant="ghost"
-                leftIcon={<ExternalLinkIcon />}
+                leftIcon={<ArrowForwardIcon />}
                 onClick={() => window.open(channel.web_url, '_blank')}
               >
                 Open in Teams
@@ -1355,7 +1355,7 @@ export const MicrosoftIntegrationManager: React.FC<MicrosoftIntegrationProps> = 
           </Button>
           
           <Button
-            leftIcon={<CalendarIcon />}
+            leftIcon={<TimeIcon />}
             colorScheme="purple"
             onClick={() => setCreateEventModalOpen(true)}
           >
@@ -1390,7 +1390,7 @@ export const MicrosoftIntegrationManager: React.FC<MicrosoftIntegrationProps> = 
             </Tab>
             <Tab>
               <HStack>
-                <Icon as={CalendarIcon} />
+                <Icon as={TimeIcon} />
                 <Text>Calendar ({events.length})</Text>
               </HStack>
             </Tab>
@@ -1408,7 +1408,7 @@ export const MicrosoftIntegrationManager: React.FC<MicrosoftIntegrationProps> = 
             </Tab>
             <Tab>
               <HStack>
-                <Icon as={UserIcon} />
+                <Icon as={PersonIcon} />
                 <Text>Profile</Text>
               </HStack>
             </Tab>
@@ -1448,7 +1448,7 @@ export const MicrosoftIntegrationManager: React.FC<MicrosoftIntegrationProps> = 
                 </Box>
               ) : events.length === 0 ? (
                 <Box textAlign="center" p={8}>
-                  <Icon as={CalendarIcon} fontSize="4xl" color="gray.300" mb={4} />
+                  <Icon as={TimeIcon} fontSize="4xl" color="gray.300" mb={4} />
                   <Text color="gray.500">No events found</Text>
                   <Button
                     mt={4}

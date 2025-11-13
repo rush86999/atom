@@ -24,7 +24,7 @@ import {
   RangeSliderThumb,
   Tooltip,
 } from "@chakra-ui/react";
-import { SearchIcon, DownloadIcon, StarIcon } from "@chakra-ui/icons";
+import { SearchIcon, ChevronDownIcon, StarIcon } from "@chakra-ui/icons";
 
 interface SearchResult {
   id: string;
@@ -358,7 +358,7 @@ const SearchPage: React.FC = () => {
                 <Text color="gray.600">
                   Found {results.length} results for "{query}"
                 </Text>
-                <Button variant="outline" size="sm" leftIcon={<DownloadIcon />}>
+                <Button variant="outline" size="sm" leftIcon={<ChevronDownIcon />}>
                   Export Results
                 </Button>
               </Flex>

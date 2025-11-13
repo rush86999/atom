@@ -42,7 +42,7 @@ import {
 } from "@chakra-ui/react";
 import {
   SettingsIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   CopyIcon,
   DeleteIcon,
 } from "@chakra-ui/icons";
@@ -266,7 +266,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               Settings
             </Button>
             <Button
-              leftIcon={<DownloadIcon />}
+              leftIcon={<ChevronDownIcon />}
               variant="outline"
               size="sm"
               onClick={exportChat}

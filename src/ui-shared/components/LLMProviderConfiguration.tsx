@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Key, Settings, Zap, Shield, ExternalLink, CheckCircle, AlertCircle,
-  ExternalLink as ExternalLinkIcon, Save, MessageSquare, DollarSign, Clock
+  ExternalLink as ArrowForwardIcon, Save, MessageSquare, DollarSign, Clock
 } from "lucide-react";
 
 interface LLMProvider {

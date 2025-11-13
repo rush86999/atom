@@ -13,7 +13,7 @@ import "@testing-library/jest-dom";
 // Mock the Chakra UI icons
 jest.mock("@chakra-ui/icons", () => ({
   SettingsIcon: () => "SettingsIcon",
-  DownloadIcon: () => "DownloadIcon",
+  ChevronDownIcon: () => "ChevronDownIcon",
   CopyIcon: () => "CopyIcon",
   DeleteIcon: () => "DeleteIcon",
   ArrowForwardIcon: () => "ArrowForwardIcon",

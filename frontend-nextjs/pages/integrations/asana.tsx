@@ -59,11 +59,11 @@ import {
   AvatarGroup,
 } from "@chakra-ui/react";
 import {
-  CalendarIcon,
-  CheckCircleIcon,
-  WarningIcon,
   TimeIcon,
-  ExternalLinkIcon,
+  CheckCircleIcon,
+  WarningTwoIcon,
+  TimeIcon,
+  ArrowForwardIcon,
   AddIcon,
   SearchIcon,
   SettingsIcon,
@@ -446,7 +446,7 @@ const AsanaIntegration: React.FC = () => {
               {healthStatus === "healthy" ? (
                 <CheckCircleIcon mr={1} />
               ) : (
-                <WarningIcon mr={1} />
+                <WarningTwoIcon mr={1} />
               )}
               {connected ? "Connected" : "Disconnected"}
             </Badge>
@@ -476,7 +476,7 @@ const AsanaIntegration: React.FC = () => {
                 <Button
                   colorScheme="green"
                   size="lg"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
                     (window.location.href = "/api/auth/asana/authorize")
                   }
@@ -724,7 +724,7 @@ const AsanaIntegration: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        leftIcon={<ExternalLinkIcon />}
+                                        leftIcon={<ArrowForwardIcon />}
                                         onClick={() =>
                                           window.open(
                                             task.permalink_url,
@@ -800,7 +800,7 @@ const AsanaIntegration: React.FC = () => {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    leftIcon={<ExternalLinkIcon />}
+                                    leftIcon={<ArrowForwardIcon />}
                                     onClick={() =>
                                       window.open(
                                         project.permalink_url,

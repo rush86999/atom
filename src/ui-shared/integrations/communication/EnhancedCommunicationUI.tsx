@@ -102,33 +102,33 @@ import {
   ViewIcon,
   TimeIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   AddIcon,
   DeleteIcon,
   EditIcon,
   MoreVerticalIcon,
   BellIcon,
   FileIcon,
-  UserIcon,
+  PersonIcon,
   LockIcon,
   UnlockIcon,
   StarIcon,
   LinkIcon,
   EmailIcon,
-  CalendarIcon,
-  FilterIcon,
+  TimeIcon,
+  SearchIcon,
   CloseIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   SmallCloseIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-  PlayIcon,
-  PauseIcon,
-  StopIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  ArrowForwardIcon,
+  MinusIcon,
+  CloseIcon,
   HamburgerIcon,
   PhoneIcon,
   VideoIcon,
@@ -142,7 +142,7 @@ import {
   ShareIcon,
   HandsIcon,
   RecordIcon,
-  StopIcon as StopRecordIcon,
+  CloseIcon as StopRecordIcon,
   TeamIcon,
   UsersIcon,
   MessageIcon,
@@ -152,9 +152,9 @@ import {
   BookmarkIcon,
   TagIcon,
   CopyIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   UploadIcon,
-  SendIcon,
+  ArrowForwardIcon,
   RefreshIcon,
   HistoryIcon,
   HeartIcon,
@@ -643,7 +643,7 @@ const WorkspaceCard: React.FC<{
               display="flex"
               alignItems="center"
             >
-              <Icon as={workspace.status === 'connected' ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={workspace.status === 'connected' ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {workspace.status}
             </Badge>
             
@@ -670,7 +670,7 @@ const WorkspaceCard: React.FC<{
               )}
               {workspace.capabilities.meetings && (
                 <Tooltip label="Meetings">
-                  <Icon as={<CalendarIcon />} color="gray.500" w={3} h={3} />
+                  <Icon as={<TimeIcon />} color="gray.500" w={3} h={3} />
                 </Tooltip>
               )}
             </HStack>
@@ -1236,7 +1236,7 @@ const EnhancedCommunicationUI: React.FC<EnhancedCommunicationUIProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={stats.connectedWorkspaces > 0 ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={stats.connectedWorkspaces > 0 ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {stats.connectedWorkspaces} Connected
             </Badge>
           </HStack>
@@ -1660,7 +1660,7 @@ const EnhancedCommunicationUI: React.FC<EnhancedCommunicationUIProps> = ({
                                 <IconButton
                                   size="sm"
                                   variant="outline"
-                                  icon={<UserIcon />}
+                                  icon={<PersonIcon />}
                                   aria-label="Mention user"
                                 />
                                 <IconButton

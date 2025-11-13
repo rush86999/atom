@@ -31,7 +31,7 @@ import {
   AlertTitle,
   AlertDescription,
 } from "@chakra-ui/react";
-import { AddIcon, SettingsIcon, DownloadIcon } from "@chakra-ui/icons";
+import { AddIcon, SettingsIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import HubSpotSearch, {
   HubSpotContact,
   HubSpotCompany,
@@ -392,7 +392,7 @@ const HubSpotIntegration: React.FC = () => {
             </Text>
           </VStack>
           <HStack spacing={3}>
-            <Button leftIcon={<DownloadIcon />} variant="outline" size="sm">
+            <Button leftIcon={<ChevronDownIcon />} variant="outline" size="sm">
               Export Data
             </Button>
             <Button leftIcon={<SettingsIcon />} variant="outline" size="sm">

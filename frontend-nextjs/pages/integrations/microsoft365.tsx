@@ -65,21 +65,21 @@ import {
   ChatIcon,
   MailIcon,
   FolderIcon,
-  CalendarIcon,
+  TimeIcon,
   SettingsIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   SearchIcon,
   AddIcon,
   RepeatIcon,
   PhoneIcon,
-  UserIcon,
+  PersonIcon,
   TimeIcon,
   ViewIcon,
   EditIcon,
   DeleteIcon,
   LinkIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
 } from "@chakra-ui/icons";
 
@@ -496,7 +496,7 @@ const Microsoft365Integration: React.FC = () => {
                       </>
                     ) : service.status === "error" ? (
                       <>
-                        <WarningIcon mr={2} />
+                        <WarningTwoIcon mr={2} />
                         Error
                       </>
                     ) : (
@@ -518,7 +518,7 @@ const Microsoft365Integration: React.FC = () => {
                       }
                     }}
                     leftIcon={
-                      service.status === "connected" ? <ViewIcon /> : <ExternalLinkIcon />
+                      service.status === "connected" ? <ViewIcon /> : <ArrowForwardIcon />
                     }
                   >
                     {service.status === "connected" ? "Manage" : "Connect"}
@@ -788,7 +788,7 @@ const Microsoft365Integration: React.FC = () => {
                         </VStack>
                       ) : filteredEvents.length === 0 ? (
                         <VStack spacing={4} py={8}>
-                          <Icon as={CalendarIcon} w={12} h={12} color="gray.400" />
+                          <Icon as={TimeIcon} w={12} h={12} color="gray.400" />
                           <Text color="gray.600">No upcoming events</Text>
                         </VStack>
                       ) : (
@@ -962,7 +962,7 @@ const Microsoft365Integration: React.FC = () => {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      leftIcon={<ExternalLinkIcon />}
+                                      leftIcon={<ArrowForwardIcon />}
                                       onClick={() => window.open(file.webUrl)}
                                     >
                                       Open

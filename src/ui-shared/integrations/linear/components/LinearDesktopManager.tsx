@@ -51,19 +51,19 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   DesktopIcon,
-  CalendarIcon,
+  TimeIcon,
 } from '@chakra-ui/icons';
 import {
   ATOMDataSource,
@@ -553,7 +553,7 @@ export const LinearDesktopManager: React.FC<LinearDesktopIntegrationProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
@@ -737,7 +737,7 @@ export const LinearDesktopManager: React.FC<LinearDesktopIntegrationProps> = ({
             <Button
               colorScheme="red"
               variant="outline"
-              leftIcon={<WarningIcon />}
+              leftIcon={<WarningTwoIcon />}
               onClick={disconnectLinear}
               width="full"
             >
@@ -819,7 +819,7 @@ export const LinearDesktopManager: React.FC<LinearDesktopIntegrationProps> = ({
           <HStack justify="space-between" w="full">
             <Button
               variant="outline"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => {
                 window.open('https://linear.app', '_blank');
               }}

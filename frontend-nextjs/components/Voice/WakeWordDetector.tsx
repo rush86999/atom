@@ -43,7 +43,7 @@ import {
 } from "@chakra-ui/react";
 import {
   SettingsIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   TriangleDownIcon,
   TriangleUpIcon,
   AttachmentIcon,
@@ -413,7 +413,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
               />
               {isListening ? (
                 <Button
-                  leftIcon={<StopIcon />}
+                  leftIcon={<CloseIcon />}
                   colorScheme="red"
                   size={compactView ? "sm" : "md"}
                   onClick={stopListening}
@@ -539,7 +539,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                 />
                 {selectedModel && selectedModel.fileSize > 0 && (
                   <Button
-                    leftIcon={<DownloadIcon />}
+                    leftIcon={<ChevronDownIcon />}
                     variant="outline"
                     size="sm"
                     onClick={() => handleModelDownload(selectedModel)}

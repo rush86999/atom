@@ -58,9 +58,9 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
@@ -711,7 +711,7 @@ export const NotionDesktopManager: React.FC<NotionDesktopIntegrationProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
@@ -870,7 +870,7 @@ export const NotionDesktopManager: React.FC<NotionDesktopIntegrationProps> = ({
             <Button
               colorScheme="red"
               variant="outline"
-              leftIcon={<WarningIcon />}
+              leftIcon={<WarningTwoIcon />}
               onClick={disconnectNotion}
               width="full"
             >
@@ -1093,7 +1093,7 @@ export const NotionDesktopManager: React.FC<NotionDesktopIntegrationProps> = ({
           <HStack justify="space-between" w="full">
             <Button
               variant="outline"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => {
                 window.open('https://notion.so', '_blank');
               }}

@@ -32,7 +32,7 @@ import {
   StatHelpText,
   Progress,
 } from '@chakra-ui/react';
-import { CheckCircleIcon, WarningIcon, ExternalLinkIcon, RepeatIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, WarningTwoIcon, ArrowForwardIcon, RepeatIcon } from '@chakra-ui/icons';
 
 // Types
 interface TrelloConfig {
@@ -331,7 +331,7 @@ const TrelloManager: React.FC<TrelloManagerProps> = ({
               alignItems="center"
             >
               <Icon
-                as={healthStatus === 'healthy' ? CheckCircleIcon : WarningIcon}
+                as={healthStatus === 'healthy' ? CheckCircleIcon : WarningTwoIcon}
                 mr={1}
               />
               {healthStatus === 'healthy' ? 'Healthy' : healthStatus === 'checking' ? 'Checking...' : 'Unhealthy'}
@@ -342,7 +342,7 @@ const TrelloManager: React.FC<TrelloManagerProps> = ({
               alignItems="center"
             >
               <Icon
-                as={connectionStatus.connected ? CheckCircleIcon : WarningIcon}
+                as={connectionStatus.connected ? CheckCircleIcon : WarningTwoIcon}
                 mr={1}
               />
               {connectionStatus.connected ? 'Connected' : 'Disconnected'}
@@ -375,7 +375,7 @@ const TrelloManager: React.FC<TrelloManagerProps> = ({
               onClick={startTrelloOAuth}
               isLoading={loading}
               loadingText="Connecting..."
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               size="lg"
             >
               Connect Trello Account

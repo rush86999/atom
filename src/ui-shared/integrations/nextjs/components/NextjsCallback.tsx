@@ -22,9 +22,9 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
 } from '@chakra-ui/icons';
 import { detectPlatform } from '@shared/ui-shared/integrations/_template/baseIntegration';
 
@@ -197,7 +197,7 @@ export const NextjsCallback: React.FC<NextjsCallbackProps> = ({
         <Card w="450px">
           <CardBody>
             <VStack spacing={4}>
-              <Icon as={WarningIcon} w={16} h={16} color="red.500" />
+              <Icon as={WarningTwoIcon} w={16} h={16} color="red.500" />
               <Heading size="md">Authentication Failed</Heading>
               <Alert status="error">
                 <AlertIcon />
@@ -255,7 +255,7 @@ export const NextjsCallback: React.FC<NextjsCallbackProps> = ({
                 <Button
                   colorScheme="blue"
                   onClick={redirectToApp}
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   w="full"
                 >
                   Continue to ATOM

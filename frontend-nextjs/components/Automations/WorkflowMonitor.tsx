@@ -50,7 +50,7 @@ import {
   StatHelpText,
   StatArrow
 } from '@chakra-ui/react';
-import { SearchIcon, RepeatIcon, ViewIcon, DownloadIcon, PlayIcon, StopIcon, SettingsIcon } from '@chakra-ui/icons';
+import { SearchIcon, RepeatIcon, ViewIcon, ChevronDownIcon, ArrowForwardIcon, CloseIcon, SettingsIcon } from '@chakra-ui/icons';
 
 interface WorkflowExecution {
   id: string;
@@ -514,7 +514,7 @@ const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({
                           <Tooltip label="Stop Execution">
                             <IconButton
                               aria-label="Stop execution"
-                              icon={<StopIcon />}
+                              icon={<CloseIcon />}
                               size="sm"
                               variant="ghost"
                               colorScheme="red"
@@ -543,7 +543,7 @@ const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({
                         <Tooltip label="Download Logs">
                           <IconButton
                             aria-label="Download logs"
-                            icon={<DownloadIcon />}
+                            icon={<ChevronDownIcon />}
                             size="sm"
                             variant="ghost"
                             onClick={(e) => {

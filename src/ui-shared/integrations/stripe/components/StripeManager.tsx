@@ -98,27 +98,27 @@ import {
 import {
   ViewIcon,
   EditIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   DesktopIcon,
-  CheckIcon,
+  CheckCircleIcon,
   CloseIcon,
   CommentIcon,
-  CalendarIcon,
-  ClockIcon,
+  TimeIcon,
+  TimeIcon,
   UserGroupIcon,
   TeamIcon,
   FolderIcon,
-  FilterIcon,
+  SearchIcon,
   SearchIcon,
   EditIcon as EditTaskIcon,
   DeleteIcon,
@@ -146,10 +146,10 @@ import {
   EditIcon as EditIcon2,
   LinkIcon,
   CopyIcon as CopyIcon2,
-  ExternalLinkIcon as ExternalLinkIcon2,
+  ArrowForwardIcon as ArrowForwardIcon2,
   Search2Icon,
-  FilterIcon as FilterIcon2,
-  DownloadIcon,
+  SearchIcon as SearchIcon2,
+  ChevronDownIcon,
   UploadIcon,
   RefreshIcon,
   SettingsIcon as SettingsIcon2,
@@ -1277,7 +1277,7 @@ export const StripeIntegrationManager: React.FC<StripeIntegrationProps> = ({
                 <MenuItem icon={<ViewIcon />} onClick={() => window.open(payment.receipt_url, '_blank')}>
                   View Receipt
                 </MenuItem>
-                <MenuItem icon={<ExternalLinkIcon />} onClick={() => window.open(`https://dashboard.stripe.com/payments/${payment.id}`, '_blank')}>
+                <MenuItem icon={<ArrowForwardIcon />} onClick={() => window.open(`https://dashboard.stripe.com/payments/${payment.id}`, '_blank')}>
                   View in Stripe Dashboard
                 </MenuItem>
                 {payment.status === 'succeeded' && !payment.refunded && (
@@ -1309,7 +1309,7 @@ export const StripeIntegrationManager: React.FC<StripeIntegrationProps> = ({
         <VStack align="start" spacing={3}>
           <HStack justify="space-between" w="full">
             <HStack>
-              <Icon as={UserIcon} color="blue.500" />
+              <Icon as={PersonIcon} color="blue.500" />
               <VStack align="start" spacing={0}>
                 <Heading size="sm" noOfLines={1}>
                   {customer.name || customer.email || 'Unknown Customer'}
@@ -1599,7 +1599,7 @@ export const StripeIntegrationManager: React.FC<StripeIntegrationProps> = ({
           </Button>
           
           <Button
-            leftIcon={<UserIcon />}
+            leftIcon={<PersonIcon />}
             colorScheme="purple"
             onClick={() => setCreateCustomerModalOpen(true)}
           >
@@ -1652,7 +1652,7 @@ export const StripeIntegrationManager: React.FC<StripeIntegrationProps> = ({
             </Tab>
             <Tab>
               <HStack>
-                <UserIcon />
+                <PersonIcon />
                 <Text>Customers ({customers.length})</Text>
               </HStack>
             </Tab>
@@ -1710,7 +1710,7 @@ export const StripeIntegrationManager: React.FC<StripeIntegrationProps> = ({
                 </Box>
               ) : customers.length === 0 ? (
                 <Box textAlign="center" p={8}>
-                  <UserIcon fontSize="4xl" color="gray.300" mb={4} />
+                  <PersonIcon fontSize="4xl" color="gray.300" mb={4} />
                   <Text color="gray.500">No customers found</Text>
                   <Button
                     mt={4}

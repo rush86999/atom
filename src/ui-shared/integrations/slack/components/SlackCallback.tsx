@@ -26,8 +26,8 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   ChatIcon,
   InfoIcon,
 } from '@chakra-ui/icons';
@@ -410,7 +410,7 @@ const SlackCallback: React.FC<SlackCallbackProps> = () => {
                 
                 <Button
                   variant="outline"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() => {
                     window.open(callbackData?.workspace_info?.url || 'https://slack.com', '_blank');
                   }}

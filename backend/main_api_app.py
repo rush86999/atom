@@ -1,3 +1,5 @@
+import time
+
 import uvicorn
 
 # Import our modules
@@ -6,6 +8,106 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+
+# Import memory integration routes
+try:
+    from integrations.atom_communication_memory_api import atom_memory_router
+
+    ATOM_MEMORY_AVAILABLE = True
+except ImportError as e:
+    print(f"ATOM Communication Memory API not available: {e}")
+    ATOM_MEMORY_AVAILABLE = False
+    atom_memory_router = None
+
+try:
+    from integrations.atom_communication_memory_production_api import (
+        atom_memory_production_router,
+    )
+
+    ATOM_MEMORY_PRODUCTION_AVAILABLE = True
+except ImportError as e:
+    print(f"ATOM Communication Memory Production API not available: {e}")
+    ATOM_MEMORY_PRODUCTION_AVAILABLE = False
+    atom_memory_production_router = None
+
+try:
+    from integrations.atom_communication_memory_webhooks import (
+        atom_memory_webhooks_router,
+    )
+
+    ATOM_MEMORY_WEBHOOKS_AVAILABLE = True
+except ImportError as e:
+    print(f"ATOM Communication Memory Webhooks not available: {e}")
+    ATOM_MEMORY_WEBHOOKS_AVAILABLE = False
+    atom_memory_webhooks_router = None
+
+# Import communication ingestion router
+try:
+    from integrations.atom_communication_apps_lancedb_integration import (
+        communication_ingestion_router,
+    )
+
+    COMMUNICATION_INGESTION_AVAILABLE = True
+except ImportError as e:
+    print(f"Communication ingestion router not available: {e}")
+    COMMUNICATION_INGESTION_AVAILABLE = False
+    communication_ingestion_router = None
+
+# Import enterprise modules
+try:
+    from enterprise_user_management import router as enterprise_user_router
+
+    ENTERPRISE_USER_MGMT_AVAILABLE = True
+except ImportError as e:
+    print(f"Enterprise user management not available: {e}")
+    ENTERPRISE_USER_MGMT_AVAILABLE = False
+    enterprise_user_router = None
+
+try:
+    from enterprise_security import router as enterprise_security_router
+
+    ENTERPRISE_SECURITY_AVAILABLE = True
+except ImportError as e:
+    print(f"Enterprise security not available: {e}")
+    ENTERPRISE_SECURITY_AVAILABLE = False
+    enterprise_security_router = None
+
+# Import new endpoint modules
+try:
+    from service_registry import router as service_registry_router
+
+    SERVICE_REGISTRY_AVAILABLE = True
+except ImportError as e:
+    print(f"Service registry not available: {e}")
+    SERVICE_REGISTRY_AVAILABLE = False
+    service_registry_router = None
+
+try:
+    from system_status import router as system_status_router
+
+    SYSTEM_STATUS_AVAILABLE = True
+except ImportError as e:
+    print(f"System status not available: {e}")
+    SYSTEM_STATUS_AVAILABLE = False
+    system_status_router = None
+
+try:
+    from workflow_endpoints import router as workflow_router
+
+    WORKFLOW_AVAILABLE = True
+except ImportError as e:
+    print(f"Workflow endpoints not available: {e}")
+    WORKFLOW_AVAILABLE = False
+    workflow_router = None
+
+try:
+    from byok_endpoints import router as byok_router
+
+    BYOK_AVAILABLE = True
+except ImportError as e:
+    print(f"BYOK endpoints not available: {e}")
+    BYOK_AVAILABLE = False
+    byok_router = None
 
 # Import Asana integration
 try:
@@ -180,6 +282,34 @@ if ZOOM_AVAILABLE and zoom_router:
 else:
     print("⚠️  Zoom integration routes not available")
 
+# Include ATOM Communication Memory API routes if available
+if ATOM_MEMORY_AVAILABLE and atom_memory_router:
+    app.include_router(atom_memory_router)
+    print("✅ ATOM Communication Memory API routes loaded")
+else:
+    print("⚠️  ATOM Communication Memory API routes not available")
+
+# Include ATOM Communication Memory Production API routes if available
+if ATOM_MEMORY_PRODUCTION_AVAILABLE and atom_memory_production_router:
+    app.include_router(atom_memory_production_router)
+    print("✅ ATOM Communication Memory Production API routes loaded")
+else:
+    print("⚠️  ATOM Communication Memory Production API routes not available")
+
+# Include ATOM Communication Memory Webhooks routes if available
+if ATOM_MEMORY_WEBHOOKS_AVAILABLE and atom_memory_webhooks_router:
+    app.include_router(atom_memory_webhooks_router)
+    print("✅ ATOM Communication Memory Webhooks routes loaded")
+else:
+    print("⚠️  ATOM Communication Memory Webhooks routes not available")
+
+# Include Communication Ingestion routes if available
+if COMMUNICATION_INGESTION_AVAILABLE and communication_ingestion_router:
+    app.include_router(communication_ingestion_router)
+    print("✅ Communication Ingestion routes loaded")
+else:
+    print("⚠️  Communication Ingestion routes not available")
+
 # Include Tableau integration routes if available
 try:
     from integrations.tableau_routes import router as tableau_router
@@ -212,116 +342,61 @@ if BOX_AVAILABLE and box_router:
 else:
     print("⚠️  Box integration routes not available")
 
-# Include Intercom integration routes if available
+# Include WhatsApp Business integration routes if available
 try:
-    from integrations.intercom_routes import router as intercom_router
-
-    INTERCOM_AVAILABLE = True
-except ImportError as e:
-    print(f"Intercom integration not available: {e}")
-    INTERCOM_AVAILABLE = False
-    intercom_router = None
-
-if INTERCOM_AVAILABLE and intercom_router:
-    app.include_router(intercom_router)
-    print("✅ Intercom integration routes loaded")
-else:
-    print("⚠️  Intercom integration routes not available")
-
-# Include Freshdesk integration routes if available
-try:
-    from integrations.freshdesk_routes import router as freshdesk_router
-
-    FRESHDESK_AVAILABLE = True
-except ImportError as e:
-    print(f"Freshdesk integration not available: {e}")
-    FRESHDESK_AVAILABLE = False
-    freshdesk_router = None
-
-if FRESHDESK_AVAILABLE and freshdesk_router:
-    app.include_router(freshdesk_router)
-    print("✅ Freshdesk integration routes loaded")
-else:
-    print("⚠️  Freshdesk integration routes not available")
-
-# Include Mailchimp integration routes if available
-try:
-    from integrations.mailchimp_routes import router as mailchimp_router
-
-    MAILCHIMP_AVAILABLE = True
-except ImportError as e:
-    print(f"Mailchimp integration not available: {e}")
-    MAILCHIMP_AVAILABLE = False
-    mailchimp_router = None
-
-if MAILCHIMP_AVAILABLE and mailchimp_router:
-    app.include_router(mailchimp_router)
-    print("✅ Mailchimp integration routes loaded")
-else:
-    print("⚠️  Mailchimp integration routes not available")
-
-# Include AI integration routes if available
-try:
-    from integrations.ai_routes import router as ai_router
-
-    AI_AVAILABLE = True
-except ImportError as e:
-    print(f"AI integration not available: {e}")
-    AI_AVAILABLE = False
-    ai_router = None
-
-if AI_AVAILABLE and ai_router:
-    app.include_router(ai_router)
-    print("✅ AI integration routes loaded")
-else:
-    print("⚠️  AI integration routes not available")
-
-# Include HubSpot integration routes if available
-try:
-    from integrations.hubspot_routes import router as hubspot_router
-
-    HUBSPOT_AVAILABLE = True
-except ImportError as e:
-    print(f"HubSpot integration not available: {e}")
-    HUBSPOT_AVAILABLE = False
-    hubspot_router = None
-
-if HUBSPOT_AVAILABLE and hubspot_router:
-    app.include_router(hubspot_router)
-    print("✅ HubSpot integration routes loaded")
-else:
-    print("⚠️  HubSpot integration routes not available")
-
-# Include Enhanced Workflow Automation routes if available
-try:
-    from integrations.workflow_automation_routes import (
-        router as workflow_automation_router,
+    from integrations.whatsapp_fastapi_routes import (
+        initialize_whatsapp_service,
+        register_whatsapp_routes,
     )
+    from integrations.workflow_automation_routes import router as workflow_router
 
-    WORKFLOW_AUTOMATION_AVAILABLE = True
+    WHATSAPP_AVAILABLE = True
+    print("✅ WhatsApp Business FastAPI routes imported")
 except ImportError as e:
-    print(f"Enhanced workflow automation integration not available: {e}")
-    WORKFLOW_AUTOMATION_AVAILABLE = False
-    workflow_automation_router = None
+    print(f"WhatsApp integration not available: {e}")
+    WHATSAPP_AVAILABLE = False
 
-if WORKFLOW_AUTOMATION_AVAILABLE and workflow_automation_router:
-    app.include_router(workflow_automation_router)
+# Register WhatsApp routes and initialize service
+if WHATSAPP_AVAILABLE:
+    # Register routes with FastAPI app
+    try:
+        whatsapp_routes_registered = register_whatsapp_routes(app)
+        if whatsapp_routes_registered:
+            print("✅ WhatsApp Business integration routes loaded")
+        else:
+            print("⚠️  WhatsApp Business integration routes failed to load")
+            WHATSAPP_AVAILABLE = False
+    except Exception as e:
+        print(f"⚠️  WhatsApp Business routes registration error: {e}")
+        WHATSAPP_AVAILABLE = False
+
+    # Initialize WhatsApp service
+    try:
+        whatsapp_service_initialized = initialize_whatsapp_service()
+        if whatsapp_service_initialized:
+            print("✅ WhatsApp Business service initialized")
+        else:
+            print("⚠️  WhatsApp Business service initialization failed")
+    except Exception as e:
+        print(f"⚠️  WhatsApp Business service initialization error: {e}")
+
+# Register workflow automation routes
+if workflow_router:
+    app.include_router(workflow_router, prefix="/workflows")
     print("✅ Enhanced workflow automation routes loaded")
 else:
-    print("⚠️  Enhanced workflow automation routes not available")
+    print("⚠️  Workflow automation routes not available")
 
+# Register enterprise user management routes
+if ENTERPRISE_USER_MGMT_AVAILABLE and enterprise_user_router:
+    app.include_router(enterprise_user_router, prefix="/api/v1")
+    print("✅ Enterprise user management routes loaded")
+else:
+    print("⚠️  Enterprise user management routes not available")
 
-@app.get("/")
-async def root():
-    return {"message": "ATOM API is running", "status": "operational"}
-
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "version": "1.0.0"}
-
-
-if __name__ == "__main__":
-    uvicorn.run(
-        "main_api_app:app", host="0.0.0.0", port=8000, reload=True, log_level="info"
-    )
+# Register enterprise security routes
+if ENTERPRISE_SECURITY_AVAILABLE and enterprise_security_router:
+    app.include_router(enterprise_security_router, prefix="/api/v1")
+    print("✅ Enterprise security routes loaded")
+else:
+    print("⚠️  Enterprise security routes not available")

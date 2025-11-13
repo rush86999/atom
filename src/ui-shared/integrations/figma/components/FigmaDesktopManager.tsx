@@ -59,16 +59,16 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   DesktopIcon,
   Image as ImageIcon,
@@ -561,7 +561,7 @@ export const FigmaDesktopManager: React.FC<FigmaDesktopIntegrationProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
@@ -745,7 +745,7 @@ export const FigmaDesktopManager: React.FC<FigmaDesktopIntegrationProps> = ({
             <Button
               colorScheme="red"
               variant="outline"
-              leftIcon={<WarningIcon />}
+              leftIcon={<WarningTwoIcon />}
               onClick={disconnectFigma}
               width="full"
             >
@@ -826,7 +826,7 @@ export const FigmaDesktopManager: React.FC<FigmaDesktopIntegrationProps> = ({
           <HStack justify="space-between" w="full">
             <Button
               variant="outline"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => {
                 window.open('https://www.figma.com', '_blank');
               }}

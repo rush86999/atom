@@ -23,7 +23,7 @@ import {
   Badge,
   Icon,
 } from '@chakra-ui/react';
-import { CheckCircleIcon, WarningIcon, ExternalLinkIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, WarningTwoIcon, ArrowForwardIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
 
 // Types
@@ -189,7 +189,7 @@ const TrelloCallback: React.FC = () => {
                 <Button
                   colorScheme="blue"
                   onClick={handleRetry}
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   flex={1}
                 >
                   Try Again

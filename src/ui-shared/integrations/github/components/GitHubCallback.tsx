@@ -26,8 +26,8 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   GitHubLogoIcon,
 } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
@@ -318,7 +318,7 @@ const GitHubCallback: React.FC<GitHubCallbackProps> = () => {
                 
                 <Button
                   variant="outline"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() => {
                     window.open('https://github.com/settings/applications', '_blank');
                   }}

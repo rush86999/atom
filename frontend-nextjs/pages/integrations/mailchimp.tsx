@@ -54,7 +54,7 @@ import {
 import {
   SearchIcon,
   EmailIcon,
-  CalendarIcon,
+  TimeIcon,
   AttachmentIcon,
   StarIcon,
 } from "@chakra-ui/icons";

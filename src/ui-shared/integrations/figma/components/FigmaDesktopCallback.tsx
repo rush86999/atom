@@ -29,8 +29,8 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   ViewListIcon,
   InfoIcon,
   CopyIcon,
@@ -460,7 +460,7 @@ const FigmaDesktopCallback: React.FC<FigmaDesktopCallbackProps> = ({
                   
                   <Button
                     variant="outline"
-                    leftIcon={<ExternalLinkIcon />}
+                    leftIcon={<ArrowForwardIcon />}
                     onClick={() => {
                       window.open('https://www.figma.com', '_blank');
                     }}

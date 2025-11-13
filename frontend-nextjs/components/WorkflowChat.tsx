@@ -34,16 +34,16 @@ import {
   TagCloseButton,
 } from '@chakra-ui/react';
 import {
-  SendIcon,
-  BotIcon,
-  UserIcon,
-  PlayIcon,
-  CalendarIcon,
+  ArrowForwardIcon,
+  ChatIcon,
+  PersonIcon,
+  ArrowForwardIcon,
+  TimeIcon,
   SettingsIcon,
-  CheckIcon,
-  ClockIcon,
+  CheckCircleIcon,
+  TimeIcon,
   EditIcon,
-  TrashIcon,
+  DeleteIcon,
   PlusIcon,
 } from '@chakra-ui/icons';
 
@@ -309,7 +309,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
           {!isUser && (
             <Avatar
               size="sm"
-              icon={<BotIcon />}
+              icon={<ChatIcon />}
               bg="blue.500"
               color="white"
             />
@@ -332,7 +332,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
                       </Badge>
                       {message.workflowData.isScheduled && (
                         <Badge colorScheme="purple">
-                          <ClockIcon mr={1} /> Scheduled
+                          <TimeIcon mr={1} /> Scheduled
                         </Badge>
                       )}
                     </HStack>
@@ -366,7 +366,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
           {isUser && (
             <Avatar
               size="sm"
-              icon={<UserIcon />}
+              icon={<PersonIcon />}
               bg="gray.500"
               color="white"
             />
@@ -392,15 +392,15 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
   const getActionIcon = (actionType: string) => {
     switch (actionType) {
       case 'execute':
-        return <PlayIcon />;
+        return <ArrowForwardIcon />;
       case 'schedule':
-        return <CalendarIcon />;
+        return <TimeIcon />;
       case 'edit':
         return <EditIcon />;
       case 'confirm':
-        return <CheckIcon />;
+        return <CheckCircleIcon />;
       case 'cancel':
-        return <TrashIcon />;
+        return <DeleteIcon />;
       default:
         return <SettingsIcon />;
     }
@@ -434,7 +434,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
               <HStack spacing={3} align="start">
                 <Avatar
                   size="sm"
-                  icon={<BotIcon />}
+                  icon={<ChatIcon />}
                   bg="blue.500"
                   color="white"
                 />
@@ -466,7 +466,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
           />
           <IconButton
             aria-label="Send message"
-            icon={<SendIcon />}
+            icon={<ArrowForwardIcon />}
             colorScheme="blue"
             size="lg"
             onClick={handleSendMessage}

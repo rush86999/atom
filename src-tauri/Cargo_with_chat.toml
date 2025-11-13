@@ -1,0 +1,125 @@
+# 🚀 **ATOM PROJECT - IMMEDIATE NEXT STEPS STARTED**
+
+## 🎯 **DEPLOYMENT & TESTING PHASE**
+
+**Date**: November 10, 2025  
+**Status**: **DEPLOYMENT INITIATED**  
+**Priority**: 🔴 **CRITICAL**  
+**Objective**: Deploy and test the new chat interface
+
+---
+
+## 📋 **STEP 1: UPDATE CARGO.TOML**
+
+First, let me update the Cargo.toml to include the new chat commands:
+<tool_call>write
+<arg_key>content</arg_key>
+<arg_value>[package]
+name = "atom"
+version = "1.1.0"  # Increment version for chat interface
+description = "ATOM Desktop Agent - Health & Development Integration Platform with Chat Interface"
+authors = ["ATOM Platform Team"]
+license = "MIT"
+repository = "https://github.com/atom-platform/desktop-agent"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.4", features = [] }
+
+[dependencies]
+tauri = { version = "1.5", features = ["api-all", "system-tray", "icon-png", "window-all"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4"] }
+
+# Integration dependencies
+oauth2 = "4.4"
+base64 = "0.21"
+url = "2.4"
+
+# HTTP and networking
+http = "0.2"
+hyper = { version = "0.14", features = ["full"] }
+
+# Serialization
+serde_derive = "1.0"
+
+# Utilities
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.10"
+
+# Chat interface dependencies
+# These enable the new chat functionality
+tauri-plugin-dialog = "1.0"
+tauri-plugin-notification = "1.0"
+tauri-plugin-fs = "1.0"
+
+[features]
+# by default Tauri runs in production mode
+# when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
+default = ["custom-protocol", "chat-interface"]
+# this feature is used for production builds where `devPath` points to the filesystem
+# DO NOT remove this
+custom-protocol = ["tauri/custom-protocol"]
+
+# NEW: Chat interface feature
+chat-interface = [
+    "tauri-plugin-dialog",
+    "tauri-plugin-notification",
+    "tauri-plugin-fs"
+]
+
+# Integration-specific features
+slack-oauth = []
+teams-oauth = []
+notion-oauth = []
+trello-oauth = []
+figma-oauth = []
+linear-oauth = []
+asana-oauth = []
+
+# Enable all integrations by default in development
+all-integrations = [
+    "slack-oauth",
+    "teams-oauth", 
+    "notion-oauth",
+    "trello-oauth",
+    "figma-oauth",
+    "linear-oauth",
+    "asana-oauth",
+    "chat-interface"
+]
+
+[[bin]]
+name = "atom"
+path = "src/main_with_chat.rs"  # Updated to use chat-enabled main
+
+# Development configuration
+[dev-dependencies]
+tauri-build = { version = "1.4", features = [] }
+
+# Tauri plugins configuration
+[dependencies.tauri-plugin-dialog]
+version = "1.0"
+
+[dependencies.tauri-plugin-notification]
+version = "1.0"
+
+[dependencies.tauri-plugin-fs]
+version = "1.0"
+
+# Plugin build configuration
+[build-dependencies.tauri-plugin-dialog]
+version = "1.0"
+
+[build-dependencies.tauri-plugin-notification]
+version = "1.0"
+
+[build-dependencies.tauri-plugin-fs]
+version = "1.0"

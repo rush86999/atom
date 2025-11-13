@@ -76,23 +76,23 @@ import {
   Radio,
 } from "@chakra-ui/react";
 import {
-  CloudIcon,
-  ServerIcon,
-  DatabaseIcon,
-  GlobeIcon,
+  SunIcon,
   SettingsIcon,
-  ExternalLinkIcon,
+  HamburgerIcon,
+  ArrowForwardIcon,
+  SettingsIcon,
+  ArrowForwardIcon,
   SearchIcon,
   AddIcon,
   RepeatIcon,
-  PlayIcon,
-  StopIcon,
-  PauseIcon,
+  ArrowForwardIcon,
+  CloseIcon,
+  MinusIcon,
   ViewIcon,
   EditIcon,
   DeleteIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
   FolderIcon,
   CubeIcon,
@@ -543,7 +543,7 @@ const AzureIntegration: React.FC = () => {
         {/* Header */}
         <VStack align="start" spacing={4}>
           <HStack spacing={4}>
-            <Icon as={CloudIcon} w={8} h={8} color="blue.500" />
+            <Icon as={SunIcon} w={8} h={8} color="blue.500" />
             <VStack align="start" spacing={1}>
               <Heading size="2xl">Microsoft Azure Integration</Heading>
               <Text color="gray.600" fontSize="lg">
@@ -561,7 +561,7 @@ const AzureIntegration: React.FC = () => {
               {healthStatus === "healthy" ? (
                 <CheckCircleIcon mr={1} />
               ) : (
-                <WarningIcon mr={1} />
+                <WarningTwoIcon mr={1} />
               )}
               {connected ? "Connected" : "Disconnected"}
             </Badge>
@@ -581,7 +581,7 @@ const AzureIntegration: React.FC = () => {
           <Card>
             <CardBody>
               <VStack spacing={6} py={8}>
-                <Icon as={CloudIcon} w={16} h={16} color="gray.400" />
+                <Icon as={SunIcon} w={16} h={16} color="gray.400" />
                 <VStack spacing={2}>
                   <Heading size="lg">Connect Azure</Heading>
                   <Text color="gray.600" textAlign="center">
@@ -591,7 +591,7 @@ const AzureIntegration: React.FC = () => {
                 <Button
                   colorScheme="blue"
                   size="lg"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
                     (window.location.href = "/api/integrations/azure/auth/start")
                   }
@@ -755,7 +755,7 @@ const AzureIntegration: React.FC = () => {
                                 <Tr key={vm.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon as={ServerIcon} color="blue.500" />
+                                      <Icon as={SettingsIcon} color="blue.500" />
                                       <Text fontWeight="medium">{vm.name}</Text>
                                     </HStack>
                                   </Td>
@@ -778,11 +778,11 @@ const AzureIntegration: React.FC = () => {
                                   <Td>
                                     <HStack>
                                       {vm.status === "Running" ? (
-                                        <Button size="sm" variant="outline" leftIcon={<StopIcon />}>
+                                        <Button size="sm" variant="outline" leftIcon={<CloseIcon />}>
                                           Stop
                                         </Button>
                                       ) : (
-                                        <Button size="sm" variant="outline" leftIcon={<PlayIcon />}>
+                                        <Button size="sm" variant="outline" leftIcon={<ArrowForwardIcon />}>
                                           Start
                                         </Button>
                                       )}
@@ -823,7 +823,7 @@ const AzureIntegration: React.FC = () => {
                                 <Tr key={storage.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon as={DatabaseIcon} color="blue.500" />
+                                      <Icon as={HamburgerIcon} color="blue.500" />
                                       <Text fontWeight="medium">{storage.name}</Text>
                                     </HStack>
                                   </Td>
@@ -900,7 +900,7 @@ const AzureIntegration: React.FC = () => {
                                 <Tr key={app.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon as={GlobeIcon} color="blue.500" />
+                                      <Icon as={ArrowForwardIcon} color="blue.500" />
                                       <Text fontWeight="medium">{app.name}</Text>
                                     </HStack>
                                   </Td>
@@ -923,7 +923,7 @@ const AzureIntegration: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        leftIcon={<ExternalLinkIcon />}
+                                        leftIcon={<ArrowForwardIcon />}
                                         onClick={() => window.open(`https://${app.host_names[0]}`)}
                                       >
                                         Open

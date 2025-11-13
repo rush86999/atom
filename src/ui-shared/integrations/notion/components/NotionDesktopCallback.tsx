@@ -28,8 +28,8 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   BookIcon,
   InfoIcon,
   CopyIcon,
@@ -450,7 +450,7 @@ const NotionDesktopCallback: React.FC<NotionDesktopCallbackProps> = ({
                   
                   <Button
                     variant="outline"
-                    leftIcon={<ExternalLinkIcon />}
+                    leftIcon={<ArrowForwardIcon />}
                     onClick={() => {
                       window.open(callbackData?.workspace_info?.domain ? 
                         `https://${callbackData.workspace_info.domain}.notion.so` : 

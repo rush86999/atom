@@ -62,11 +62,11 @@ import {
   SettingsIcon,
   EmailIcon,
   PhoneIcon,
-  CalendarIcon,
-  CheckIcon,
+  TimeIcon,
+  CheckCircleIcon,
   CloseIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   BarChartIcon
 } from '@chakra-ui/icons';
 import { hubspotSkills } from './skills/hubspotSkills';
@@ -678,7 +678,7 @@ const HubSpotIntegration: React.FC = () => {
                   loadingText="Connecting to HubSpot..."
                   isLoading={loading}
                 >
-                  <ExternalLinkIcon mr={2} />
+                  <ArrowForwardIcon mr={2} />
                   Connect HubSpot Account
                 </Button>
               </VStack>
@@ -730,7 +730,7 @@ const HubSpotIntegration: React.FC = () => {
             <Button
               colorScheme="orange"
               onClick={() => window.open('https://app.hubspot.com', '_blank')}
-              rightIcon={<ExternalLinkIcon />}
+              rightIcon={<ArrowForwardIcon />}
             >
               Open HubSpot
             </Button>
@@ -952,7 +952,7 @@ const HubSpotIntegration: React.FC = () => {
                         <Td>{deal.properties.pipeline || '-'}</Td>
                         <Td>
                           <HStack>
-                            <CalendarIcon color="gray.400" />
+                            <TimeIcon color="gray.400" />
                             <Text>{deal.properties.closedate ? formatDate(deal.properties.closedate) : '-'}</Text>
                           </HStack>
                         </Td>
@@ -1005,7 +1005,7 @@ const HubSpotIntegration: React.FC = () => {
                           <Button
                             variant="outline"
                             onClick={() => window.open('https://app.hubspot.com/marketing', '_blank')}
-                            rightIcon={<ExternalLinkIcon />}
+                            rightIcon={<ArrowForwardIcon />}
                           >
                             HubSpot Marketing
                           </Button>
@@ -1067,7 +1067,7 @@ const HubSpotIntegration: React.FC = () => {
                         <Button
                           colorScheme="orange"
                           onClick={() => window.open('https://app.hubspot.com/contacts/lists', '_blank')}
-                          rightIcon={<ExternalLinkIcon />}
+                          rightIcon={<ArrowForwardIcon />}
                         >
                           Manage Lists
                         </Button>
