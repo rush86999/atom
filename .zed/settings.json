@@ -1,0 +1,96 @@
+{
+  "file_organization": {
+    "enabled": true,
+    "rules_file": "config/.file-organization-rules.json",
+    "auto_organize": true,
+    "validate_on_save": true
+  },
+  "ai_assistant": {
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "organization_prompt": "Maintain ATOM project structure. Place files in: backend/, frontend-nextjs/, desktop-tauri/, docs/, scripts/, tests/, config/. Create folders only when necessary for logical organization.",
+    "temperature": 0.7
+  },
+  "theme": "Atom Dark",
+  "keybindings": "atom",
+  "formatter": {
+    "typescript": "prettier",
+    "python": "black",
+    "json": "prettier"
+  },
+  "languages": {
+    "typescript": {
+      "formatter": "prettier",
+      "lint_on_save": true
+    },
+    "python": {
+      "formatter": "black",
+      "lint_on_save": true
+    },
+    "rust": {
+      "formatter": "rustfmt",
+      "lint_on_save": true
+    }
+  },
+  "file_explorer": {
+    "auto_refresh": true,
+    "show_hidden_files": false,
+    "sort_by": "name"
+  },
+  "terminal": {
+    "working_directory": "project_root",
+    "shell": "zsh"
+  },
+  "project_structure": {
+    "protected_directories": [
+      ".git",
+      ".github",
+      ".vscode",
+      "node_modules",
+      "venv",
+      ".venv",
+      "__pycache__",
+      "dist",
+      "build",
+      "target",
+      "coverage",
+      "public",
+      "assets",
+      "src",
+      "src-tauri",
+      "desktop",
+      "desktop-tauri",
+      "frontend-nextjs",
+      "backend",
+      "docs",
+      "scripts",
+      "tests",
+      "backups",
+      "logs",
+      "temp",
+      "deployment",
+      "integration-tests",
+      "config",
+      "data"
+    ],
+    "protected_files": [
+      "README.md",
+      "package.json",
+      "tsconfig.json",
+      "yarn.lock",
+      "Pipfile.lock",
+      "fly.toml",
+      ".gitignore",
+      ".gitattributes",
+      ".gitmodules",
+      "LICENSE.md",
+      ".file-organization-rules.json",
+      ".charm"
+    ]
+  },
+  "deepseek_integration": {
+    "enabled": true,
+    "api_key": "${DEEPSEEK_API_KEY}",
+    "organization_aware": true
+  }
+}
