@@ -345,8 +345,8 @@ out
 /negative_samples
 *.npy
 /atom_wake_word_env
-backup_dead_code_*/
-.env.production.generated
+backup_dead_code_*
+backup_enhanced_*
 
 # Docker builds
 /optaplanner_build_docker/kotlin-quarkus/target
@@ -472,3 +472,68 @@ test_backend.log
 clean_backend.log
 final_working_backend.log
 
+# Organized Directory Exclusions
+# Temporary and cache directories
+temp/
+.crush/
+.cache/
+.tmp/
+.playwright-report/
+.coverage/
+__pycache__/
+.pytest_cache/
+.ropeproject/
+
+# Log files
+logs/
+*.log
+server.log
+production.log
+enhanced_integrations_deployment.log
+enhanced_integrations_validation.log
+oauth_test.log
+enterprise_ultimate_backend.log
+enterprise_working_backend.log
+unified_integration_test.log
+megascale_backend.log
+
+# Test results and reports
+integration-tests/
+test_results/
+*.test_results.json
+*_test_results.json
+*_validation_report.json
+*_optimization_results.json
+*_integration_test_report.json
+*_diagnostic_report.json
+*_verification_report.json
+*_implementation_report.json
+*_coverage_improvement_plan.json
+*_dev_check_*.json
+*_dev_metrics_*.json
+*_dev_verification_report_*.json
+*_enhanced_integrations_test_results_*.json
+*_enhanced_integrations_validation_report_*.json
+*_enhanced_intelligence_optimization_report_*.json
+*_enterprise_validation_report_*.json
+*_user_management_monitoring_test_report_*.json
+*_phase3_integration_test_*.json
+*_phase3_verification_*.json
+*_simplified_advanced_features_test_report_*.json
+*_working_demo_conversations_*.json
+
+# Process files
+*.pid
+.backend.pid
+.frontend.pid
+.oauth.pid
+server_pids.txt
+
+# Database files
+*.db
+backend/atom_data.db
+
+# Deployment and configuration
+deployment_info.txt
+current_python_files.txt
+git_python_files.txt
