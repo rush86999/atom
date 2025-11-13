@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { CommunicationsMessage } from '../types';
 import { COMMUNICATIONS_DATA } from '../data';
 import { ServiceIcon } from '../components/ServiceIcon';
+import { CommunicationAnalyzer } from '../autonomous-communication/communicationAnalyzer';
 
 const timeAgo = (date: string) => {
     const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
@@ -39,12 +40,19 @@ const MessageDetailView: React.FC<{ message: CommunicationsMessage | null }> = (
 export const CommunicationsView = () => {
     const [messages, setMessages] = useState<CommunicationsMessage[]>([]);
     const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-    
+
     // New states for filters
     const [senderFilter, setSenderFilter] = useState('');
     const [subjectFilter, setSubjectFilter] = useState('');
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'sender' | 'subject'>('date-desc');
+    const [showComposeModal, setShowComposeModal] = useState(false);
+    const [composeForm, setComposeForm] = useState({ to: '', subject: '', body: '' });
+    const [aiSummary, setAiSummary] = useState<string>('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const messagesPerPage = 10;
 
     useEffect(() => { 
         setMessages(COMMUNICATIONS_DATA);
@@ -55,30 +63,141 @@ export const CommunicationsView = () => {
         setSubjectFilter('');
         setStartDateFilter('');
         setEndDateFilter('');
+        setSearchQuery('');
+        setCurrentPage(1);
+    };
+
+    const markAsRead = (id: string) => {
+        setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, read: true, unread: false } : msg));
+    };
+
+    const markAsUnread = (id: string) => {
+        setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, read: false, unread: true } : msg));
+    };
+
+    const generateAISummary = async (message: CommunicationsMessage) => {
+        // Simple AI summary using CommunicationAnalyzer
+        const analyzer = new CommunicationAnalyzer();
+        const context = {
+            timestamp: new Date(),
+            userId: 'user123',
+            recentCommunications: [{
+                id: message.id,
+                type: 'follow-up' as any,
+                senderId: message.from.name,
+                recipientId: 'user123',
+                channel: message.platform as any,
+                timestamp: new Date(message.timestamp),
+                message: message.body,
+                status: 'sent' as any,
+                context: {},
+                priority: 'normal' as any,
+                sentimentScore: 0.5,
+                categories: [],
+                tokensUsed: 0,
+                performance: {}
+            }],
+            activeRelationships: [],
+            platformStatus: {
+                email: true,
+                slack: true,
+                teams: true,
+                discord: false,
+                linkedin: false,
+                twitter: false,
+                sms: false,
+                phone: false,
+                voicemail: false,
+                'in-person': false,
+                all: true
+            },
+            preferences: {
+                preferredChannels: {},
+                nonWorkingHours: { start: 18, end: 8 },
+                responseTimeExpectations: {},
+                autoResponseTriggers: [],
+                doNotDisturbList: [],
+                tonePreferences: {},
+                messageLengthPreference: 'medium' as 'medium',
+                emojiUsage: false
+            },
+            emotionalContext: {
+                currentMood: 'neutral' as 'neutral',
+                recentSentiment: 0,
+                factors: [],
+                lastUpdated: new Date()
+            },
+            externalFactors: {
+                isWeekend: false,
+                timeOfDay: new Date().getHours(),
+                scheduleBusy: false,
+                weather: 'sunny',
+                moodIndicators: {},
+                holidays: [],
+                events: []
+            },
+            userAvailability: {
+                busy: false,
+                nextAvailable: new Date(),
+                currentFocus: 'work'
+            }
+        };
+        const analysis = await analyzer.analyzeCommunicationPatterns(context);
+        setAiSummary(`Summary: ${message.subject} - Key points: ${analysis.recommendations.join(', ')}`);
+    };
+
+    const sendMessage = () => {
+        // Placeholder for sending message
+        alert(`Message sent to ${composeForm.to}`);
+        setShowComposeModal(false);
+        setComposeForm({ to: '', subject: '', body: '' });
     };
 
     const filteredMessages = messages.filter(message => {
         const senderMatch = senderFilter ? message.from.name.toLowerCase().includes(senderFilter.toLowerCase()) : true;
         const subjectMatch = subjectFilter ? message.subject.toLowerCase().includes(subjectFilter.toLowerCase()) : true;
-        
+        const searchMatch = searchQuery ? (
+            message.from.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            message.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            message.body.toLowerCase().includes(searchQuery.toLowerCase())
+        ) : true;
+
         const messageDate = new Date(message.timestamp);
         const startDate = startDateFilter ? new Date(startDateFilter) : null;
         if (startDate) startDate.setHours(0, 0, 0, 0); // Start of day
-        
+
         const endDate = endDateFilter ? new Date(endDateFilter) : null;
         if (endDate) endDate.setHours(23, 59, 59, 999); // End of day
 
         const dateMatch = (!startDate || messageDate >= startDate) && (!endDate || messageDate <= endDate);
-        
-        return senderMatch && subjectMatch && dateMatch;
+
+        return senderMatch && subjectMatch && dateMatch && searchMatch;
     });
 
-    useEffect(() => {
-        const currentSelectionExists = filteredMessages.some(m => m.id === selectedMessageId);
-        if (!currentSelectionExists) {
-            setSelectedMessageId(filteredMessages.length > 0 ? filteredMessages[0].id : null);
+    const sortedMessages = [...filteredMessages].sort((a, b) => {
+        switch (sortBy) {
+            case 'date-asc':
+                return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+            case 'date-desc':
+                return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+            case 'sender':
+                return a.from.name.localeCompare(b.from.name);
+            case 'subject':
+                return a.subject.localeCompare(b.subject);
+            default:
+                return 0;
         }
-    }, [selectedMessageId, filteredMessages]);
+    });
+
+    const paginatedMessages = sortedMessages.slice((currentPage - 1) * messagesPerPage, currentPage * messagesPerPage);
+    const totalPages = Math.ceil(sortedMessages.length / messagesPerPage);
+
+    useEffect(() => {
+        const currentSelectionExists = paginatedMessages.some(m => m.id === selectedMessageId);
+        if (!currentSelectionExists) {
+            setSelectedMessageId(paginatedMessages.length > 0 ? paginatedMessages[0].id : null);
+        }
+    }, [selectedMessageId, paginatedMessages]);
 
     const selectedMessage = messages.find(m => m.id === selectedMessageId) || null;
 
@@ -87,6 +206,10 @@ export const CommunicationsView = () => {
             <header className="view-header"><h1>Communications Hub</h1><p>A unified inbox for all your messages.</p></header>
 
             <div className="communications-filter-bar">
+                <div className="filter-group">
+                    <label>Search</label>
+                    <input type="text" placeholder="Search messages..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                </div>
                 <div className="filter-group">
                     <label>Sender</label>
                     <input type="text" placeholder="Filter by sender..." value={senderFilter} onChange={e => setSenderFilter(e.target.value)} />
@@ -103,28 +226,81 @@ export const CommunicationsView = () => {
                     <label>End Date</label>
                     <input type="date" value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} />
                 </div>
+                <div className="filter-group">
+                    <label>Sort By</label>
+                    <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}>
+                        <option value="date-desc">Date (Newest)</option>
+                        <option value="date-asc">Date (Oldest)</option>
+                        <option value="sender">Sender</option>
+                        <option value="subject">Subject</option>
+                    </select>
+                </div>
                 <button className="clear-filters-btn" onClick={clearFilters}>Clear</button>
+                <button className="compose-btn" onClick={() => setShowComposeModal(true)}>Compose</button>
             </div>
 
             <div className="communications-main">
                 <aside className="message-list-pane">
-                    {filteredMessages.length > 0 ? (
-                        filteredMessages.map(msg => (
-                            <MessageListItem 
-                                key={msg.id} 
-                                message={msg} 
-                                isSelected={msg.id === selectedMessageId} 
-                                onClick={() => setSelectedMessageId(msg.id)} 
-                            />
+                    {paginatedMessages.length > 0 ? (
+                        paginatedMessages.map(msg => (
+                            <div key={msg.id} className="message-list-item-wrapper">
+                                <MessageListItem
+                                    message={msg}
+                                    isSelected={msg.id === selectedMessageId}
+                                    onClick={() => setSelectedMessageId(msg.id)}
+                                />
+                                <div className="message-actions">
+                                    <input type="checkbox" checked={msg.read} onChange={() => msg.read ? markAsUnread(msg.id) : markAsRead(msg.id)} />
+                                    <label>Read</label>
+                                </div>
+                            </div>
                         ))
                     ) : (
                         <p className="no-messages-found">No messages match your filters.</p>
                     )}
+                    {totalPages > 1 && (
+                        <div className="pagination">
+                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
+                            <span>Page {currentPage} of {totalPages}</span>
+                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
+                        </div>
+                    )}
                 </aside>
                 <section className="message-detail-pane">
                     <MessageDetailView message={selectedMessage} />
+                    {selectedMessage && (
+                        <div className="ai-suggestions">
+                            <button onClick={() => generateAISummary(selectedMessage)}>Generate AI Summary</button>
+                            {aiSummary && <p>{aiSummary}</p>}
+                        </div>
+                    )}
                 </section>
             </div>
+            {showComposeModal && (
+                <div className="modal-overlay" onClick={() => setShowComposeModal(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <h2>Compose New Message</h2>
+                        <form onSubmit={e => { e.preventDefault(); sendMessage(); }}>
+                            <div className="form-group">
+                                <label>To:</label>
+                                <input type="text" value={composeForm.to} onChange={e => setComposeForm({...composeForm, to: e.target.value})} required />
+                            </div>
+                            <div className="form-group">
+                                <label>Subject:</label>
+                                <input type="text" value={composeForm.subject} onChange={e => setComposeForm({...composeForm, subject: e.target.value})} required />
+                            </div>
+                            <div className="form-group">
+                                <label>Message:</label>
+                                <textarea value={composeForm.body} onChange={e => setComposeForm({...composeForm, body: e.target.value})} required />
+                            </div>
+                            <div className="modal-actions">
+                                <button type="button" onClick={() => setShowComposeModal(false)}>Cancel</button>
+                                <button type="submit">Send</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

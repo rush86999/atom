@@ -1,1 +1,0 @@
-full contents of docs/legacy/enterprise-development.md

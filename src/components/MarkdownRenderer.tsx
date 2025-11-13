@@ -1,58 +1,33 @@
 
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 
 export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
-    // A simple markdown to JSX renderer. Note: This is a basic implementation.
-    // For a production app, a library like 'react-markdown' would be better.
-    const renderTokens = () => {
-        const tokens: React.ReactElement[] = [];
-        let inCodeBlock = false;
-        let codeBlockContent: string[] = [];
-        let codeBlockLang = '';
-
-        content.split('\n').forEach((line, index) => {
-            if (line.startsWith('```')) {
-                if (inCodeBlock) {
-                    tokens.push(<pre key={`cb-${index}`} className="md-code-block"><code>{codeBlockContent.join('\n')}</code></pre>);
-                    codeBlockContent = [];
-                    inCodeBlock = false;
-                } else {
-                    inCodeBlock = true;
-                    codeBlockLang = line.substring(3);
-                }
-                return;
-            }
-
-            if (inCodeBlock) {
-                codeBlockContent.push(line);
-                return;
-            }
-
-            if (line.startsWith('# ')) {
-                tokens.push(<h1 key={index} className="md-h1">{line.substring(2)}</h1>);
-            } else if (line.startsWith('## ')) {
-                tokens.push(<h2 key={index} className="md-h2">{line.substring(3)}</h2>);
-            } else if (line.startsWith('### ')) {
-                tokens.push(<h3 key={index} className="md-h3">{line.substring(4)}</h3>);
-            } else if (line.match(/^\s*-\s/)) {
-                 tokens.push(<li key={index} className="md-li">{line.replace(/^\s*-\s/, '')}</li>); // Should be wrapped in ul
-            } else if (line.match(/^\|.*\|$/)) {
-                 // Basic table support
-                const cells = line.split('|').filter(c => c.trim() !== '');
-                if(tokens.length > 0 && tokens[tokens.length-1].type === 'tr') {
-                     // This is a header separator line, skip for now
-                } else {
-                     // This is a very basic table row implementation
-                    tokens.push(<tr key={index}>{cells.map((c, i) => <td key={i} style={{border: '1px solid #333', padding: '0.5rem'}}>{c.trim()}</td>)}</tr>);
-                }
-            } else if (line.trim() === '') {
-                // To create paragraph breaks
-            } else {
-                tokens.push(<p key={index} className="md-p">{line}</p>);
-            }
-        });
-        return tokens;
-    };
-    
-    return <>{renderTokens()}</>;
+    return (
+        <ReactMarkdown
+            components={{
+                h1: ({ children }: any) => <h1 className="md-h1">{children}</h1>,
+                h2: ({ children }: any) => <h2 className="md-h2">{children}</h2>,
+                h3: ({ children }: any) => <h3 className="md-h3">{children}</h3>,
+                p: ({ children }: any) => <p className="md-p">{children}</p>,
+                ul: ({ children }: any) => <ul className="md-ul">{children}</ul>,
+                ol: ({ children }: any) => <ol className="md-ol">{children}</ol>,
+                li: ({ children }: any) => <li className="md-li">{children}</li>,
+                code: ({ inline, children }: any) => inline ? <code className="md-inline-code">{children}</code> : <code className="md-code">{children}</code>,
+                pre: ({ children }: any) => <pre className="md-code-block">{children}</pre>,
+                blockquote: ({ children }: any) => <blockquote className="md-blockquote">{children}</blockquote>,
+                table: ({ children }: any) => <table className="md-table">{children}</table>,
+                thead: ({ children }: any) => <thead className="md-thead">{children}</thead>,
+                tbody: ({ children }: any) => <tbody className="md-tbody">{children}</tbody>,
+                tr: ({ children }: any) => <tr className="md-tr">{children}</tr>,
+                th: ({ children }: any) => <th className="md-th">{children}</th>,
+                td: ({ children }: any) => <td className="md-td">{children}</td>,
+                a: ({ href, children }: any) => <a href={href} className="md-link" target="_blank" rel="noopener noreferrer">{children}</a>,
+                strong: ({ children }: any) => <strong className="md-strong">{children}</strong>,
+                em: ({ children }: any) => <em className="md-em">{children}</em>,
+            }}
+        >
+            {content}
+        </ReactMarkdown>
+    );
 };

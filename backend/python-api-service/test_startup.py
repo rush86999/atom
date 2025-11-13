@@ -1,3 +1,0 @@
-🚀 Starting enterprise backend...
-📊 Port: 8000
-✅ Enterprise backend ready
