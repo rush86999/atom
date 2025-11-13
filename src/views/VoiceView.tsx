@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { VoiceCommand } from '../types';
 import { VOICE_COMMANDS_DATA } from '../data';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 
 export const VoiceView = () => {
-    const [commands, setCommands] = useState<VoiceCommand[]>([]);
+    const { voiceCommands, setVoiceCommands } = useAppStore();
+    const { toast } = useToast();
+    const [commands, setCommands] = useState<VoiceCommand[]>(voiceCommands);
     const [isListening, setIsListening] = useState(false);
 
     useEffect(() => {
-        setCommands(VOICE_COMMANDS_DATA);
-    }, []);
+        if (voiceCommands.length === 0) {
+            setVoiceCommands(VOICE_COMMANDS_DATA);
+            setCommands(VOICE_COMMANDS_DATA);
+        } else {
+            setCommands(voiceCommands);
+        }
+    }, [voiceCommands, setVoiceCommands]);
 
     const toggleListening = () => {
         setIsListening(!isListening);
+        toast.info('Voice Control', isListening ? 'Voice listening stopped' : 'Voice listening started');
     };
 
     return (

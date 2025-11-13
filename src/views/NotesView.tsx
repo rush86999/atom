@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Note } from '../types';
 import { NOTES_DATA } from '../data';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 
 export const NotesView = () => {
-    const [notes, setNotes] = useState<Note[]>([]);
+    const { notes, setNotes, addNote, updateNote, deleteNote } = useAppStore();
+    const { toast } = useToast();
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
     useEffect(() => {
-        setNotes(NOTES_DATA);
-    }, []);
+        if (notes.length === 0) {
+            NOTES_DATA.forEach(note => addNote(note));
+        }
+    }, [notes.length, addNote]);
 
     const selectedNote = notes.find(note => note.id === selectedNoteId) || null;
 

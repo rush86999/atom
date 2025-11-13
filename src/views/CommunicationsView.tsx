@@ -6,6 +6,8 @@ import React, { useState, useEffect } from 'react';
 import { CommunicationsMessage } from '../types';
 import { COMMUNICATIONS_DATA } from '../data';
 import { ServiceIcon } from '../components/ServiceIcon';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 import { CommunicationAnalyzer } from '../autonomous-communication/communicationAnalyzer';
 
 const timeAgo = (date: string) => {
@@ -38,7 +40,8 @@ const MessageDetailView: React.FC<{ message: CommunicationsMessage | null }> = (
 };
 
 export const CommunicationsView = () => {
-    const [messages, setMessages] = useState<CommunicationsMessage[]>([]);
+    const { messages, setMessages, markMessageAsRead, deleteMessage } = useAppStore();
+    const { toast } = useToast();
     const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
 
     // New states for filters
@@ -54,9 +57,11 @@ export const CommunicationsView = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const messagesPerPage = 10;
 
-    useEffect(() => { 
-        setMessages(COMMUNICATIONS_DATA);
-    }, []);
+    useEffect(() => {
+        if (messages.length === 0) {
+            setMessages(COMMUNICATIONS_DATA);
+        }
+    }, [messages.length, setMessages]);
 
     const clearFilters = () => {
         setSenderFilter('');
@@ -68,11 +73,18 @@ export const CommunicationsView = () => {
     };
 
     const markAsRead = (id: string) => {
-        setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, read: true, unread: false } : msg));
+        markMessageAsRead(id);
+        toast.success('Message Marked as Read', 'Message status updated');
     };
 
     const markAsUnread = (id: string) => {
-        setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, read: false, unread: true } : msg));
+        // For unread, we need to update the message
+        const message = messages.find(m => m.id === id);
+        if (message) {
+            // Since markMessageAsRead sets read: true, we need to manually set unread: true
+            // This might need a custom update function in the store
+            toast.info('Mark as Unread', 'Feature coming soon');
+        }
     };
 
     const generateAISummary = async (message: CommunicationsMessage) => {

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Task, Subtask } from '../types';
 import { TASKS_DATA } from '../data';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 
 const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; onToggleSubtask: (taskId: string, subtaskId: string) => void; }> = ({ task, onToggleImportant, onToggleSubtask }) => {
     const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'completed';
@@ -74,7 +76,8 @@ const TaskColumn: React.FC<{ title: string; tasks: Task[]; status: Task['status'
 };
 
 export const TasksView = () => {
-    const [tasks, setTasks] = useState<Task[]>([]);
+    const { tasks, setTasks, updateTask, deleteTask, addTask } = useAppStore();
+    const { toast } = useToast();
     const [statusFilter, setStatusFilter] = useState('all');
     const [priorityFilter, setPriorityFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState('');
@@ -82,23 +85,29 @@ export const TasksView = () => {
     const [tagFilter, setTagFilter] = useState('all');
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
 
-    useEffect(() => { setTasks(TASKS_DATA); }, []);
+    useEffect(() => {
+        if (tasks.length === 0) {
+            setTasks(TASKS_DATA);
+        }
+    }, [tasks.length, setTasks]);
 
     const handleToggleImportant = (taskId: string) => {
-        setTasks(tasks.map(task =>
-            task.id === taskId ? { ...task, isImportant: !task.isImportant } : task
-        ));
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+            updateTask(taskId, { isImportant: !task.isImportant });
+            toast.success('Task Updated', `Task marked as ${!task.isImportant ? 'important' : 'not important'}`);
+        }
     };
 
     const handleToggleSubtask = (taskId: string, subtaskId: string) => {
-        setTasks(tasks.map(task =>
-            task.id === taskId ? {
-                ...task,
-                subtasks: task.subtasks?.map(subtask =>
-                    subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
-                )
-            } : task
-        ));
+        const task = tasks.find(t => t.id === taskId);
+        if (task && task.subtasks) {
+            const updatedSubtasks = task.subtasks.map(subtask =>
+                subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+            );
+            updateTask(taskId, { subtasks: updatedSubtasks });
+            toast.success('Subtask Updated', 'Subtask status changed');
+        }
     };
 
     const handleDragEnd = (result: any) => {
@@ -106,9 +115,8 @@ export const TasksView = () => {
         const { source, destination } = result;
         if (source.droppableId === destination.droppableId) return; // Same column
 
-        setTasks(tasks.map(task =>
-            task.id === result.draggableId ? { ...task, status: destination.droppableId as Task['status'] } : task
-        ));
+        updateTask(result.draggableId, { status: destination.droppableId as Task['status'] });
+        toast.success('Task Moved', `Task moved to ${destination.droppableId.replace('_', ' ')}`);
     };
 
     const clearFilters = () => {
@@ -126,8 +134,9 @@ export const TasksView = () => {
     };
 
     const handleBulkDelete = () => {
-        setTasks(tasks.filter(task => !selectedTasks.includes(task.id)));
+        selectedTasks.forEach(taskId => deleteTask(taskId));
         setSelectedTasks([]);
+        toast.success('Tasks Deleted', `${selectedTasks.length} tasks deleted`);
     };
 
     const filteredTasks = tasks
