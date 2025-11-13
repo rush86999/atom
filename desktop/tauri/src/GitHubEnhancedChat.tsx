@@ -13,12 +13,12 @@ import {
   GitHubIssueSkillParams,
   GitHubPullRequestSkillParams,
 } from "./skills/githubSkills";
-import {
-  nlpService,
-  Intent,
-  Entity,
-  SkillExecutionContext,
-} from "@shared-ai/nluService";
+// import {
+//   nlpService,
+//   Intent,
+//   Entity,
+//   SkillExecutionContext,
+// } from "@shared-ai/nluService";
 import { EventBus } from "./utils/EventBus";
 import { Logger } from "./utils/Logger";
 import "./App.css";
@@ -266,7 +266,7 @@ function GitHubEnhancedChat() {
         params.type = type;
       }
 
-      const result = await githubRepoSkill.execute(params, context);
+      const result = await (githubRepoSkill as any).execute(params, context);
 
       if (result.success && result.repositories) {
         const repoList = result.repositories
@@ -331,7 +331,7 @@ function GitHubEnhancedChat() {
         language: language,
       };
 
-      const result = await githubRepoSkill.execute(params, context);
+      const result = await (githubRepoSkill as any).execute(params, context);
 
       if (result.success) {
         return {
@@ -380,7 +380,7 @@ function GitHubEnhancedChat() {
         limit: 10,
       };
 
-      const result = await githubRepoSkill.execute(params, context);
+      const result = await (githubRepoSkill as any).execute(params, context);
 
       if (result.success && result.repositories) {
         const repoList = result.repositories
@@ -445,7 +445,7 @@ function GitHubEnhancedChat() {
         limit: typeof limit === "string" ? parseInt(limit) : limit,
       };
 
-      const result = await githubIssueSkill.execute(params, context);
+      const result = await (githubIssueSkill as any).execute(params, context);
 
       if (result.success && result.issues) {
         const issueList = result.issues
@@ -523,7 +523,7 @@ function GitHubEnhancedChat() {
             : undefined,
       };
 
-      const result = await githubIssueSkill.execute(params, context);
+      const result = await (githubIssueSkill as any).execute(params, context);
 
       if (result.success) {
         return {
@@ -578,7 +578,7 @@ function GitHubEnhancedChat() {
         limit: 10,
       };
 
-      const result = await githubIssueSkill.execute(params, context);
+      const result = await (githubIssueSkill as any).execute(params, context);
 
       if (result.success && result.issues) {
         const issueList = result.issues
@@ -646,7 +646,10 @@ function GitHubEnhancedChat() {
         limit: typeof limit === "string" ? parseInt(limit) : limit,
       };
 
-      const result = await githubPullRequestSkill.execute(params, context);
+      const result = await (githubPullRequestSkill as any).execute(
+        params,
+        context,
+      );
 
       if (result.success && result.pullRequests) {
         const prList = result.pullRequests
@@ -724,7 +727,10 @@ function GitHubEnhancedChat() {
         body: body,
       };
 
-      const result = await githubPullRequestSkill.execute(params, context);
+      const result = await (githubPullRequestSkill as any).execute(
+        params,
+        context,
+      );
 
       if (result.success) {
         return {
@@ -779,7 +785,10 @@ function GitHubEnhancedChat() {
         limit: 10,
       };
 
-      const result = await githubPullRequestSkill.execute(params, context);
+      const result = await (githubPullRequestSkill as any).execute(
+        params,
+        context,
+      );
 
       if (result.success && result.pullRequests) {
         const prList = result.pullRequests

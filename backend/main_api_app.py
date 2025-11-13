@@ -3,7 +3,7 @@ import time
 import uvicorn
 
 # Import our modules
-from api_routes import router
+from core.api_routes import router
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -55,7 +55,7 @@ except ImportError as e:
 
 # Import enterprise modules
 try:
-    from enterprise_user_management import router as enterprise_user_router
+    from core.enterprise_user_management import router as enterprise_user_router
 
     ENTERPRISE_USER_MGMT_AVAILABLE = True
 except ImportError as e:
@@ -64,7 +64,7 @@ except ImportError as e:
     enterprise_user_router = None
 
 try:
-    from enterprise_security import router as enterprise_security_router
+    from core.enterprise_security import router as enterprise_security_router
 
     ENTERPRISE_SECURITY_AVAILABLE = True
 except ImportError as e:
@@ -74,7 +74,7 @@ except ImportError as e:
 
 # Import new endpoint modules
 try:
-    from service_registry import router as service_registry_router
+    from core.service_registry import router as service_registry_router
 
     SERVICE_REGISTRY_AVAILABLE = True
 except ImportError as e:
@@ -83,7 +83,7 @@ except ImportError as e:
     service_registry_router = None
 
 try:
-    from system_status import router as system_status_router
+    from core.system_status import router as system_status_router
 
     SYSTEM_STATUS_AVAILABLE = True
 except ImportError as e:
@@ -92,7 +92,7 @@ except ImportError as e:
     system_status_router = None
 
 try:
-    from workflow_endpoints import router as workflow_router
+    from core.workflow_endpoints import router as workflow_router
 
     WORKFLOW_AVAILABLE = True
 except ImportError as e:
@@ -101,7 +101,7 @@ except ImportError as e:
     workflow_router = None
 
 try:
-    from byok_endpoints import router as byok_router
+    from core.byok_endpoints import router as byok_router
 
     BYOK_AVAILABLE = True
 except ImportError as e:
@@ -158,6 +158,46 @@ except ImportError as e:
     print(f"Dropbox integration not available: {e}")
     DROPBOX_AVAILABLE = False
     dropbox_router = None
+
+# Import Google Drive integration
+try:
+    from integrations.google_drive_routes import google_drive_router
+
+    GOOGLE_DRIVE_AVAILABLE = True
+except ImportError as e:
+    print(f"Google Drive integration not available: {e}")
+    GOOGLE_DRIVE_AVAILABLE = False
+    google_drive_router = None
+
+# Import OneDrive integration
+try:
+    from integrations.onedrive_routes import onedrive_router
+
+    ONEDRIVE_AVAILABLE = True
+except ImportError as e:
+    print(f"OneDrive integration not available: {e}")
+    ONEDRIVE_AVAILABLE = False
+    onedrive_router = None
+
+# Import Microsoft 365 integration
+try:
+    from integrations.microsoft365_routes import microsoft365_router
+
+    MICROSOFT365_AVAILABLE = True
+except ImportError as e:
+    print(f"Microsoft 365 integration not available: {e}")
+    MICROSOFT365_AVAILABLE = False
+    microsoft365_router = None
+
+# Import Box integration
+try:
+    from integrations.box_routes import router as box_router
+
+    BOX_AVAILABLE = True
+except ImportError as e:
+    print(f"Box integration not available: {e}")
+    BOX_AVAILABLE = False
+    box_router = None
 
 # Import Stripe integration
 try:
@@ -251,6 +291,34 @@ if STRIPE_AVAILABLE and stripe_router:
     print("✅ Stripe integration routes loaded")
 else:
     print("⚠️  Stripe integration routes not available")
+
+# Include Google Drive integration routes if available
+if GOOGLE_DRIVE_AVAILABLE and google_drive_router:
+    app.include_router(google_drive_router)
+    print("✅ Google Drive integration routes loaded")
+else:
+    print("⚠️  Google Drive integration routes not available")
+
+# Include OneDrive integration routes if available
+if ONEDRIVE_AVAILABLE and onedrive_router:
+    app.include_router(onedrive_router)
+    print("✅ OneDrive integration routes loaded")
+else:
+    print("⚠️  OneDrive integration routes not available")
+
+# Include Microsoft 365 integration routes if available
+if MICROSOFT365_AVAILABLE and microsoft365_router:
+    app.include_router(microsoft365_router)
+    print("✅ Microsoft 365 integration routes loaded")
+else:
+    print("⚠️  Microsoft 365 integration routes not available")
+
+# Include Box integration routes if available
+if BOX_AVAILABLE and box_router:
+    app.include_router(box_router)
+    print("✅ Box integration routes loaded")
+else:
+    print("⚠️  Box integration routes not available")
 
 # Include Salesforce integration routes if available
 if SALESFORCE_AVAILABLE and salesforce_router:

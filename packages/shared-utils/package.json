@@ -1,0 +1,24 @@
+{
+  "name": "@shared-utils/logger",
+  "version": "1.0.0",
+  "description": "Shared Utilities for Atom applications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "rimraf": "^5.0.5",
+    "@types/node": "^20.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

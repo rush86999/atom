@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { chatOrchestrationService } from "@shared-ai/ChatOrchestrationService";
-import { AuthService } from "@shared-integrations/authService";
-import { WorkflowService } from "@shared-workflows/workflowService";
-import { nluService } from "@shared-ai/nluService";
+import { ChatOrchestrationService } from "../../../src/services/ai/ChatOrchestrationService";
+import { AuthService } from "../../../src/services/integrations/authService";
+import { WorkflowService } from "../../../src/services/workflows/workflowService";
+import { nluService } from "../../../src/services/ai/nluService";
 
 /**
  * Example component demonstrating how to use shared services in the desktop app

@@ -1,0 +1,26 @@
+{
+  "name": "@shared-workflows/workflowService",
+  "version": "1.0.0",
+  "description": "Shared Workflow Service for Atom applications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@shared-utils/logger": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "rimraf": "^5.0.5",
+    "@types/node": "^20.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

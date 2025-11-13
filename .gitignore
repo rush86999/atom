@@ -5,6 +5,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 lerna-debug.log*
+*.tgz
+.yarn-integrity
 
 # Rust build artifacts
 **/target/
@@ -136,6 +138,20 @@ share/python-wheels/
 .installed-cfg
 *.egg
 MANIFEST
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+.python-version
+Pipfile.lock
+poetry.lock
+.pdm.toml
+__pypackages__/
+cython_debug/
 
 # Virtual environments
 .venv
@@ -231,19 +247,50 @@ Desktop.ini
 *.swp
 *.swo
 *~
+.zed/
 
 # Logs
 logs
 *.log
+*.log.*
+server.log
+production.log
+enhanced_integrations_deployment.log
+enhanced_integrations_validation.log
+oauth_test.log
+enterprise_ultimate_backend.log
+enterprise_working_backend.log
+unified_integration_test.log
+megascale_backend.log
+backend.log
+backend_test.log
+backend_real_test.log
+stripe_setup.log
+api_service.log
 
 # Runtime data
 pids
 *.pid
 *.seed
 *.pid.lock
+backend.pid
+api_service.pid
+server_pids.txt
 
 # Diagnostic reports
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+integration_test_report_*.json
+enhanced_integrations_test_results_*.json
+enhanced_integrations_validation_report_*.json
+enhanced_intelligence_optimization_report_*.json
+enterprise_validation_report_*.json
+user_management_monitoring_test_report_*.json
+phase3_integration_test_*.json
+phase3_verification_*.json
+simplified_advanced_features_test_report_*.json
+working_demo_conversations_*.json
+test_coverage_improvement_plan.json
+enhanced_workflow_integration_test_results.json
 
 # Grunt intermediate storage
 .grunt
@@ -347,13 +394,19 @@ out
 /atom_wake_word_env
 backup_dead_code_*
 backup_enhanced_*
+/tts_data_generator
+/wake_word_recorder
+/voice
 
 # Docker builds
 /optaplanner_build_docker/kotlin-quarkus/target
 /classification_build_docker/app/models/
+/atomic-docker
 
 # Database
 /project/postgres
+backend/atom_data.db
+*.db
 
 # Temporary and generated files
 *.log
@@ -361,18 +414,32 @@ tmp/
 *.tmp
 *.temp
 *.backup
+temp/
+.crush/
+.cache/
+.tmp/
+.playwright-report/
+.coverage/
 
 # Secrets
 secrets.json
 *.pem
 *.key
 google_client_secrets.json
+.env.production.complete
+real_credentials.env
+update_env_with_real_credentials.py
+.env.real.credentials
+.env.real*
+*.real.credentials
 
 # Backup files
 *.bak
 *.tmp
 *.backup
 *.generated
+backup/
+backups/
 
 # Lock files (should be committed for reproducibility)
 # !Pipfile.lock
@@ -388,17 +455,35 @@ google_client_secrets.json
 .pip-cache/
 .pytest_cache/
 .ropeproject/
+.charm
 
 # Aider and AI tools
 .aider*
 .aider.chat.history.md
 .aider.input.history
 .aider.tags.cache.v4/
+# Additional Enterprise System Sensitive Files
+.env.production.complete
+real_credentials.env
+update_env_with_real_credentials.py
+.env.real.credentials
+.env.real*
+*.real.credentials
+# Enterprise System Build Files
+enterprise_verification.log
+backend_final.log
+frontend_test.log
+oauth_backend.log
+production_backend.log
+test_backend.log
+clean_backend.log
+final_working_backend.log
 
 # Build and release artifacts
 **/dist/
 **/build/
 **/release/
+target/
 
 # System tools
 *.tmp
@@ -407,9 +492,26 @@ google_client_secrets.json
 *.swo
 *.swp
 *~
+uploads/
 
 # Vercel
 .vercel
+# Amplify
+amplify/\#current-cloud-backend
+amplify/.config/local-*
+amplify/logs
+amplify/mock-data
+amplify/backend/amplify-meta.json
+amplify/backend/.temp
+aws-exports.js
+awsconfiguration.json
+amplifyconfiguration.json
+amplifyconfiguration.dart
+amplify-build-config.json
+amplify-gradle-config.json
+amplifytools.xcconfig
+.secret-*
+**.sample
 
 # Amplify
 amplify/\#current-cloud-backend
@@ -432,6 +534,11 @@ amplifytools.xcconfig
 */fastlane/report.xml
 */fastlane/Preview.html
 */fastlane/screenshots
+# Bundle artifact
+*.jsbundle
+# Ruby / CocoaPods
+*/ios/Pods/
+*/vendor/bundle/
 
 # Bundle artifact
 *.jsbundle
@@ -445,6 +552,10 @@ amplifytools.xcconfig
 /negative_samples
 *.npy
 /atom_wake_word_env
+# Embedded git repositories
+frontend-nextjs/optaplanner_build_docker/
+# Coding orchestrator
+ai-coding-orchestrator/
 
 # Embedded git repositories
 frontend-nextjs/optaplanner_build_docker/
@@ -483,6 +594,12 @@ temp/
 __pycache__/
 .pytest_cache/
 .ropeproject/
+.monitoring/
+.onboarding/
+.plans/
+.protection-config/
+.test-components/
+.test_sync_state/
 
 # Log files
 logs/
@@ -496,6 +613,11 @@ enterprise_ultimate_backend.log
 enterprise_working_backend.log
 unified_integration_test.log
 megascale_backend.log
+backend.log
+backend_test.log
+backend_real_test.log
+stripe_setup.log
+api_service.log
 
 # Test results and reports
 integration-tests/
@@ -521,6 +643,8 @@ test_results/
 *_phase3_verification_*.json
 *_simplified_advanced_features_test_report_*.json
 *_working_demo_conversations_*.json
+test_coverage_improvement_plan.json
+enhanced_workflow_integration_test_results.json
 
 # Process files
 *.pid
@@ -528,12 +652,19 @@ test_results/
 .frontend.pid
 .oauth.pid
 server_pids.txt
+backend.pid
+api_service.pid
 
 # Database files
 *.db
 backend/atom_data.db
+data/
 
 # Deployment and configuration
 deployment_info.txt
 current_python_files.txt
 git_python_files.txt
+deployment/
+implementations/
+minimal-build/
+terraform/

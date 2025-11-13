@@ -1,0 +1,109 @@
+{
+  "build": {
+    "beforeBuildCommand": "",
+    "beforeDevCommand": "",
+    "devPath": "../frontend-nextjs",
+    "distDir": "../frontend-nextjs/out"
+  },
+  "package": {
+    "productName": "ATOM",
+    "version": "1.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "dialog": {
+        "all": false,
+        "open": true,
+        "save": true
+      },
+      "notification": {
+        "all": true
+      },
+      "window": {
+        "all": false,
+        "close": false,
+        "hide": false,
+        "show": false,
+        "maximize": false,
+        "minimize": false,
+        "unmaximize": false,
+        "unminimize": false,
+        "startDragging": false
+      },
+      "http": {
+        "all": false,
+        "request": true
+      },
+      "fs": {
+        "all": false,
+        "readFile": true,
+        "writeFile": true,
+        "readDir": true,
+        "copyFile": true,
+        "createDir": true,
+        "removeDir": true,
+        "removeFile": true,
+        "renameFile": true
+      },
+      "path": {
+        "all": true
+      },
+      "protocol": {
+        "all": false,
+        "asset": true,
+        "assetScope": ["../frontend-nextjs/out/**/*"]
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "DeveloperTool",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.atom.app",
+      "longDescription": "ATOM - Advanced Task Orchestration & Management",
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "",
+        "providerShortName": "Atom"
+      },
+      "resources": [],
+      "shortDescription": "ATOM Desktop App",
+      "targets": "all"
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 800,
+        "resizable": true,
+        "title": "ATOM",
+        "width": 1200,
+        "center": true,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "visible": true
+      }
+    ]
+  }
+}
