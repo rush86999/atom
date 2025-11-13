@@ -1,9 +1,7 @@
-"""
-WhatsApp WebSocket Hook
-React hook for real-time WebSocket connection to WhatsApp Business
-"""
+// WhatsApp WebSocket Hook
+// React hook for real-time WebSocket connection to WhatsApp Business
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface WebSocketMessage {
   type: string;
@@ -29,9 +27,11 @@ interface UseWhatsAppWebSocketOptions {
   pingInterval?: number;
 }
 
-export const useWhatsAppWebSocket = (options: UseWhatsAppWebSocketOptions = {}) => {
+export const useWhatsAppWebSocket = (
+  options: UseWhatsAppWebSocketOptions = {},
+) => {
   const {
-    url = 'ws://localhost:5058/ws',
+    url = "ws://localhost:5058/ws",
     autoConnect = true,
     reconnectAttempts = 5,
     reconnectDelay = 3000,
@@ -65,26 +65,28 @@ export const useWhatsAppWebSocket = (options: UseWhatsAppWebSocketOptions = {}) 
 
   // Set WebSocket state
   const setWebSocketState = useCallback((updates: Partial<WebSocketState>) => {
-    setState(prev => ({ ...prev, ...updates }));
+    setState((prev) => ({ ...prev, ...updates }));
   }, []);
 
   // Send ping message to keep connection alive
   const sendPing = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try {
-        wsRef.current.send(JSON.stringify({
-          type: 'ping',
-          timestamp: new Date().toISOString(),
-        }));
+        wsRef.current.send(
+          JSON.stringify({
+            type: "ping",
+            timestamp: new Date().toISOString(),
+          }),
+        );
       } catch (error) {
-        console.error('Error sending ping:', error);
+        console.error("Error sending ping:", error);
       }
     }
   }, []);
 
   // Handle WebSocket open
   const handleOpen = useCallback(() => {
-    console.log('WhatsApp WebSocket connected');
+    console.log("WhatsApp WebSocket connected");
     clearTimeouts();
     setWebSocketState({
       isConnected: true,
@@ -106,76 +108,84 @@ export const useWhatsAppWebSocket = (options: UseWhatsAppWebSocketOptions = {}) 
 
       // Handle specific message types
       switch (message.type) {
-        case 'pong':
+        case "pong":
           // Ping response received
           break;
-        case 'connection_status':
-          console.log('Connection status update:', message.status);
+        case "connection_status":
+          console.log("Connection status update:", message.status);
           break;
-        case 'message_status_update':
-          console.log('Message status update:', message);
+        case "message_status_update":
+          console.log("Message status update:", message);
           break;
-        case 'new_message':
-          console.log('New message received:', message);
+        case "new_message":
+          console.log("New message received:", message);
           break;
         default:
-          console.log('Unknown message type:', message.type);
+          console.log("Unknown message type:", message.type);
       }
     } catch (error) {
-      console.error('Error parsing WebSocket message:', error);
+      console.error("Error parsing WebSocket message:", error);
       setWebSocketState({
-        error: 'Error parsing WebSocket message',
+        error: "Error parsing WebSocket message",
       });
     }
   }, []);
 
   // Handle WebSocket error
-  const handleError = useCallback((error: Event) => {
-    console.error('WhatsApp WebSocket error:', error);
-    clearTimeouts();
-    setWebSocketState({
-      isConnected: false,
-      isConnecting: false,
-      error: 'WebSocket connection error',
-    });
-  }, [clearTimeouts]);
+  const handleError = useCallback(
+    (error: Event) => {
+      console.error("WhatsApp WebSocket error:", error);
+      clearTimeouts();
+      setWebSocketState({
+        isConnected: false,
+        isConnecting: false,
+        error: "WebSocket connection error",
+      });
+    },
+    [clearTimeouts],
+  );
 
   // Handle WebSocket close
-  const handleClose = useCallback((event: CloseEvent) => {
-    console.log('WhatsApp WebSocket closed:', event.code, event.reason);
-    clearTimeouts();
-    setWebSocketState(prev => ({
-      isConnected: false,
-      isConnecting: false,
-      error: `WebSocket closed: ${event.code}`,
-      connectionAttempts: prev.connectionAttempts + 1,
-    }));
+  const handleClose = useCallback(
+    (event: CloseEvent) => {
+      console.log("WhatsApp WebSocket closed:", event.code, event.reason);
+      clearTimeouts();
+      setWebSocketState((prev) => ({
+        isConnected: false,
+        isConnecting: false,
+        error: `WebSocket closed: ${event.code}`,
+        connectionAttempts: prev.connectionAttempts + 1,
+      }));
 
-    // Auto-reconnect if not manually closed
-    if (event.code !== 1000 && state.reconnectCount < reconnectAttempts) {
-      console.log(`Attempting to reconnect in ${reconnectDelay}ms (attempt ${state.reconnectCount + 1}/${reconnectAttempts})`);
-      reconnectTimeoutRef.current = setTimeout(() => {
-        setWebSocketState(prev => ({
-          reconnectCount: prev.reconnectCount + 1,
-        }));
-        connect();
-      }, reconnectDelay);
-    }
-  }, [clearTimeouts, reconnectAttempts, reconnectDelay, state.reconnectCount]);
+      // Auto-reconnect if not manually closed
+      if (event.code !== 1000 && state.reconnectCount < reconnectAttempts) {
+        console.log(
+          `Attempting to reconnect in ${reconnectDelay}ms (attempt ${state.reconnectCount + 1}/${reconnectAttempts})`,
+        );
+        reconnectTimeoutRef.current = setTimeout(() => {
+          setWebSocketState((prev) => ({
+            reconnectCount: prev.reconnectCount + 1,
+          }));
+          connect();
+        }, reconnectDelay);
+      }
+    },
+    [clearTimeouts, reconnectAttempts, reconnectDelay, state.reconnectCount],
+  );
 
   // Connect to WebSocket
   const connect = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      console.log('WebSocket already connected');
+      console.log("WebSocket already connected");
       return;
     }
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
-      console.log('WebSocket already connecting');
+      console.log("WebSocket already connecting");
       return;
     }
 
-    console.log('Connecting to WhatsApp WebSocket:', url);
+    console.log("Connecting to WhatsApp WebSocket:", url);
     setWebSocketState({
       isConnecting: true,
       error: null,
@@ -190,24 +200,24 @@ export const useWhatsAppWebSocket = (options: UseWhatsAppWebSocketOptions = {}) 
       ws.onerror = handleError;
       ws.onclose = handleClose;
     } catch (error) {
-      console.error('Error creating WebSocket:', error);
+      console.error("Error creating WebSocket:", error);
       setWebSocketState({
         isConnecting: false,
-        error: 'Failed to create WebSocket connection',
+        error: "Failed to create WebSocket connection",
       });
     }
   }, [url, handleOpen, handleMessage, handleError, handleClose]);
 
   // Disconnect from WebSocket
   const disconnect = useCallback(() => {
-    console.log('Disconnecting from WebSocket');
+    console.log("Disconnecting from WebSocket");
     clearTimeouts();
-    
+
     if (wsRef.current) {
-      wsRef.current.close(1000, 'Manual disconnect');
+      wsRef.current.close(1000, "Manual disconnect");
       wsRef.current = null;
     }
-    
+
     setWebSocketState({
       isConnected: false,
       isConnecting: false,
@@ -220,42 +230,49 @@ export const useWhatsAppWebSocket = (options: UseWhatsAppWebSocketOptions = {}) 
   const sendMessage = useCallback((message: any) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try {
-        const messageString = typeof message === 'string' ? message : JSON.stringify(message);
+        const messageString =
+          typeof message === "string" ? message : JSON.stringify(message);
         wsRef.current.send(messageString);
         return true;
       } catch (error) {
-        console.error('Error sending WebSocket message:', error);
+        console.error("Error sending WebSocket message:", error);
         setWebSocketState({
-          error: 'Failed to send WebSocket message',
+          error: "Failed to send WebSocket message",
         });
         return false;
       }
     } else {
-      console.error('WebSocket not connected');
+      console.error("WebSocket not connected");
       setWebSocketState({
-        error: 'WebSocket not connected',
+        error: "WebSocket not connected",
       });
       return false;
     }
   }, []);
 
   // Subscribe to specific events
-  const subscribeToEvents = useCallback((events: string[]) => {
-    const subscribeMessage = {
-      type: 'subscribe',
-      subscriptions: events,
-    };
-    return sendMessage(subscribeMessage);
-  }, [sendMessage]);
+  const subscribeToEvents = useCallback(
+    (events: string[]) => {
+      const subscribeMessage = {
+        type: "subscribe",
+        subscriptions: events,
+      };
+      return sendMessage(subscribeMessage);
+    },
+    [sendMessage],
+  );
 
   // Unsubscribe from events
-  const unsubscribeFromEvents = useCallback((events: string[]) => {
-    const unsubscribeMessage = {
-      type: 'unsubscribe',
-      subscriptions: events,
-    };
-    return sendMessage(unsubscribeMessage);
-  }, [sendMessage]);
+  const unsubscribeFromEvents = useCallback(
+    (events: string[]) => {
+      const unsubscribeMessage = {
+        type: "unsubscribe",
+        subscriptions: events,
+      };
+      return sendMessage(unsubscribeMessage);
+    },
+    [sendMessage],
+  );
 
   // Auto-connect when component mounts
   useEffect(() => {
@@ -274,7 +291,7 @@ export const useWhatsAppWebSocket = (options: UseWhatsAppWebSocketOptions = {}) 
     return () => {
       clearTimeouts();
       if (wsRef.current) {
-        wsRef.current.close(1000, 'Component unmount');
+        wsRef.current.close(1000, "Component unmount");
       }
     };
   }, []);

@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const path = require('path');
+const path = require("path");
 
 const nextConfig = {
   reactStrictMode: true,
@@ -12,22 +12,20 @@ const nextConfig = {
   images: {
     domains: ["localhost", "127.0.0.1", "api.slack.com", "graph.microsoft.com"],
   },
-  experimental: {
-    esmExternals: false,
-  },
+
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': path.resolve(__dirname, '.'),
-      '../../../src': path.resolve(__dirname, '../src'),
+      "@": path.resolve(__dirname, "."),
+      "../../../src": path.resolve(__dirname, "../src"),
     };
-    
+
     // Handle TypeScript files properly
     config.module.rules.push({
       test: /\.tsx?$/,
       use: [
         {
-          loader: 'ts-loader',
+          loader: "ts-loader",
           options: {
             transpileOnly: true,
           },
