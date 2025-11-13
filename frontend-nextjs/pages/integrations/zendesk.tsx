@@ -6,7 +6,7 @@
 import React from 'react';
 import { GetServerSideProps } from 'next';
 import Head from 'next/head';
-import { Layout } from '../../../components/layout/Layout';
+import { Layout } from '../../components/layout/Layout';
 import { ZendeskIntegration } from '../../../src/ui-shared/integrations/zendesk';
 
 interface ZendeskPageProps {

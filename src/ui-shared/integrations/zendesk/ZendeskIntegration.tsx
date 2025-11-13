@@ -80,7 +80,6 @@ import {
   InfoIcon,
   StarIcon,
   SearchIcon,
-  SearchIcon,
   ChevronDownIcon,
   BellIcon
 } from '@chakra-ui/icons';
