@@ -112,7 +112,7 @@ const ExampleServiceUsage: React.FC = () => {
         <pre>{nluAnalysis}</pre>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .example-service-usage {
           padding: 20px;
           max-width: 800px;

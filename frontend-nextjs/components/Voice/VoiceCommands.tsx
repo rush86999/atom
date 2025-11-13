@@ -47,7 +47,7 @@ import {
   WarningTwoIcon,
   InfoIcon,
 } from "@chakra-ui/icons";
-import { TriangleDownIcon, TriangleUpIcon } from "@chakra-ui/icons";
+import { TriangleDownIcon, TriangleUpIcon, CloseIcon, DeleteIcon } from "@chakra-ui/icons";
 
 interface VoiceCommand {
   id: string;
@@ -653,7 +653,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                     <CardBody>
                       <Flex justify="space-between" align="center">
                         <VStack align="start" spacing={1}>
-                          <Text fontWeight="medium">"{command.phrase}"</Text>
+                          <Text fontWeight="medium">&quot;{command.phrase}&quot;</Text>
                           <Text fontSize="sm" color="gray.600">
                             {command.description}
                           </Text>

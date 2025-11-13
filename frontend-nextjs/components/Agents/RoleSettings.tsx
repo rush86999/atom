@@ -554,4 +554,97 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({
 
   if (loading) {
     return (
-      <Box textAlign="center" py={8
+      <Box textAlign="center" py={8}>
+        <Spinner />
+        <Text mt={2}>Loading...</Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <VStack spacing={6} align="stretch">
+        <Card>
+          <CardHeader>
+            <HStack justifyContent="space-between" alignItems="center">
+              <Heading size="lg">Role Settings</Heading>
+              <Button 
+                leftIcon={<AddIcon />} 
+                onClick={onCreateNew}
+                colorScheme="blue"
+              >
+                Create Role
+              </Button>
+            </HStack>
+          </CardHeader>
+          <CardBody>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Name</Th>
+                  <Th>Description</Th>
+                  <Th>Capabilities</Th>
+                  <Th>Status</Th>
+                  <Th>Actions</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {roles.map((role) => (
+                  <Tr key={role.id}>
+                    <Td>{role.name}</Td>
+                    <Td>{role.description}</Td>
+                    <Td>
+                      <HStack spacing={1} flexWrap="wrap">
+                        {role.capabilities.map((cap) => (
+                          <Badge key={cap} size="sm" colorScheme="blue">
+                            {cap}
+                          </Badge>
+                        ))}
+                      </HStack>
+                    </Td>
+                    <Td>
+                      <Badge colorScheme={role.isActive ? 'green' : 'gray'}>
+                        {role.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <IconButton 
+                          icon={<EditIcon />} 
+                          size="sm" 
+                          onClick={() => onEdit(role)}
+                          aria-label="Edit role"
+                        />
+                        <IconButton 
+                          icon={<DeleteIcon />} 
+                          size="sm" 
+                          onClick={() => onDelete(role.id)}
+                          colorScheme="red"
+                          aria-label="Delete role"
+                        />
+                      </HStack>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </CardBody>
+        </Card>
+
+        {/* Role Form Modal */}
+        <Modal isOpen={isModalOpen} onClose={handleCloseModal} size="lg">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>{role ? 'Edit Role' : 'Create Role'}</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              {renderRoleForm()}
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      </VStack>
+    </Box>
+  );
+};
+
+export default RoleSettings;

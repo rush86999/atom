@@ -327,7 +327,7 @@ const TableauIntegrationPage: React.FC = () => {
                 </Button>
 
                 <Text fontSize="sm" color="gray.500" textAlign="center">
-                  You'll be redirected to Tableau to authorize access
+                  You&apos;ll be redirected to Tableau to authorize access
                 </Text>
               </VStack>
             </CardBody>
@@ -346,7 +346,7 @@ const TableauIntegrationPage: React.FC = () => {
             <ModalBody>
               <VStack spacing={4}>
                 <Text>
-                  This will connect your Tableau account to ATOM. You'll be able
+                  This will connect your Tableau account to ATOM. You&apos;ll be able
                   to:
                 </Text>
                 <VStack align="start" spacing={2}>
@@ -369,7 +369,7 @@ const TableauIntegrationPage: React.FC = () => {
                 </VStack>
                 <Alert status="info" borderRadius="md">
                   <AlertIcon />
-                  You'll be redirected to Tableau to authorize this connection.
+                  You&apos;ll be redirected to Tableau to authorize this connection.
                 </Alert>
               </VStack>
             </ModalBody>

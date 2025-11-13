@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -38,15 +38,23 @@ import {
   useToast,
   Progress,
   Tooltip,
-  Center
-} from '@chakra-ui/react';
-import { AddIcon, EditIcon, DeleteIcon, PlayIcon, StopIcon, SettingsIcon, ViewIcon } from '@chakra-ui/icons';
+  Center,
+} from "@chakra-ui/react";
+import {
+  AddIcon,
+  EditIcon,
+  DeleteIcon,
+  PlayIcon,
+  StopIcon,
+  SettingsIcon,
+  ViewIcon,
+} from "@chakra-ui/icons";
 
 interface Agent {
   id: string;
   name: string;
   role: string;
-  status: 'active' | 'inactive' | 'error';
+  status: "active" | "inactive" | "error";
   capabilities: string[];
   performance: {
     tasksCompleted: number;
@@ -62,9 +70,9 @@ interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  status: "pending" | "in_progress" | "completed" | "failed";
   assignedAgent: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority: "low" | "medium" | "high" | "critical";
   estimatedDuration: number; // in minutes
   dependencies: string[];
   createdAt: Date;
@@ -95,43 +103,58 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
   onTaskStart,
   onTaskComplete,
   showNavigation = true,
-  compactView = false
+  compactView = false,
 }) => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [view, setView] = useState<'timeline' | 'dependency' | 'status'>('timeline');
+  const [view, setView] = useState<"timeline" | "dependency" | "status">(
+    "timeline",
+  );
   const [loading, setLoading] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
-  const getStatusColor = (status: Task['status']) => {
+  const getStatusColor = (status: Task["status"]) => {
     switch (status) {
-      case 'completed': return 'green';
-      case 'in_progress': return 'blue';
-      case 'pending': return 'yellow';
-      case 'failed': return 'red';
-      default: return 'gray';
+      case "completed":
+        return "green";
+      case "in_progress":
+        return "blue";
+      case "pending":
+        return "yellow";
+      case "failed":
+        return "red";
+      default:
+        return "gray";
     }
   };
 
-  const getPriorityColor = (priority: Task['priority']) => {
+  const getPriorityColor = (priority: Task["priority"]) => {
     switch (priority) {
-      case 'critical': return 'red';
-      case 'high': return 'orange';
-      case 'medium': return 'yellow';
-      case 'low': return 'green';
-      default: return 'gray';
+      case "critical":
+        return "red";
+      case "high":
+        return "orange";
+      case "medium":
+        return "yellow";
+      case "low":
+        return "green";
+      default:
+        return "gray";
     }
   };
 
   const calculateTaskProgress = (task: Task): number => {
-    if (task.status === 'completed') return 100;
-    if (task.status === 'pending') return 0;
-    if (task.status === 'failed') return 0;
+    if (task.status === "completed") return 100;
+    if (task.status === "pending") return 0;
+    if (task.status === "failed") return 0;
 
     // For in_progress tasks, calculate based on time elapsed
     if (task.startedAt && task.estimatedDuration > 0) {
       const elapsed = Date.now() - task.startedAt.getTime();
-      const progress = Math.min((elapsed / (task.estimatedDuration * 60 * 1000)) * 100, 90);
+      const progress = Math.min(
+        (elapsed / (task.estimatedDuration * 60 * 1000)) * 100,
+        90,
+      );
       return Math.round(progress);
     }
 
@@ -139,43 +162,43 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
   };
 
   const getAgentById = (agentId: string): Agent | undefined => {
-    return agents.find(agent => agent.id === agentId);
+    return agents.find((agent) => agent.id === agentId);
   };
 
   const getTaskById = (taskId: string): Task | undefined => {
-    return tasks.find(task => task.id === taskId);
+    return tasks.find((task) => task.id === taskId);
   };
 
   const getBlockedTasks = (): Task[] => {
-    return tasks.filter(task => {
-      if (task.status !== 'pending') return false;
-      return task.dependencies.some(depId => {
+    return tasks.filter((task) => {
+      if (task.status !== "pending") return false;
+      return task.dependencies.some((depId) => {
         const depTask = getTaskById(depId);
-        return depTask && depTask.status !== 'completed';
+        return depTask && depTask.status !== "completed";
       });
     });
   };
 
   const getReadyTasks = (): Task[] => {
-    return tasks.filter(task => {
-      if (task.status !== 'pending') return false;
-      return task.dependencies.every(depId => {
+    return tasks.filter((task) => {
+      if (task.status !== "pending") return false;
+      return task.dependencies.every((depId) => {
         const depTask = getTaskById(depId);
-        return !depTask || depTask.status === 'completed';
+        return !depTask || depTask.status === "completed";
       });
     });
   };
 
-  const handleCreateTask = (taskData: Omit<Task, 'id' | 'createdAt'>) => {
+  const handleCreateTask = (taskData: Omit<Task, "id" | "createdAt">) => {
     const newTask: Task = {
       ...taskData,
       id: Date.now().toString(),
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     onTaskCreate?.(newTask);
     toast({
-      title: 'Task created',
-      status: 'success',
+      title: "Task created",
+      status: "success",
       duration: 2000,
       isClosable: true,
     });
@@ -184,8 +207,8 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
   const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
     onTaskUpdate?.(taskId, updates);
     toast({
-      title: 'Task updated',
-      status: 'success',
+      title: "Task updated",
+      status: "success",
       duration: 2000,
       isClosable: true,
     });
@@ -194,8 +217,8 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
   const handleDeleteTask = (taskId: string) => {
     onTaskDelete?.(taskId);
     toast({
-      title: 'Task deleted',
-      status: 'success',
+      title: "Task deleted",
+      status: "success",
       duration: 2000,
       isClosable: true,
     });
@@ -204,8 +227,8 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
   const handleAssignTask = (taskId: string, agentId: string) => {
     onTaskAssign?.(taskId, agentId);
     toast({
-      title: 'Task assigned',
-      status: 'success',
+      title: "Task assigned",
+      status: "success",
       duration: 2000,
       isClosable: true,
     });
@@ -214,8 +237,8 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
   const handleStartTask = (taskId: string) => {
     onTaskStart?.(taskId);
     toast({
-      title: 'Task started',
-      status: 'success',
+      title: "Task started",
+      status: "success",
       duration: 2000,
       isClosable: true,
     });
@@ -224,8 +247,8 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
   const handleCompleteTask = (taskId: string) => {
     onTaskComplete?.(taskId);
     toast({
-      title: 'Task completed',
-      status: 'success',
+      title: "Task completed",
+      status: "success",
       duration: 2000,
       isClosable: true,
     });
@@ -233,16 +256,16 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
 
   const TaskForm: React.FC<{
     task?: Task;
-    onSubmit: (data: Omit<Task, 'id' | 'createdAt'>) => void;
+    onSubmit: (data: Omit<Task, "id" | "createdAt">) => void;
     onCancel: () => void;
   }> = ({ task, onSubmit, onCancel }) => {
     const [formData, setFormData] = useState({
-      title: task?.title || '',
-      description: task?.description || '',
-      priority: task?.priority || 'medium',
+      title: task?.title || "",
+      description: task?.description || "",
+      priority: task?.priority || "medium",
       estimatedDuration: task?.estimatedDuration || 30,
-      assignedAgent: task?.assignedAgent || '',
-      dependencies: task?.dependencies?.join(', ') || ''
+      assignedAgent: task?.assignedAgent || "",
+      dependencies: task?.dependencies?.join(", ") || "",
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -250,11 +273,14 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
       onSubmit({
         title: formData.title,
         description: formData.description,
-        priority: formData.priority as Task['priority'],
+        priority: formData.priority as Task["priority"],
         estimatedDuration: formData.estimatedDuration,
         assignedAgent: formData.assignedAgent,
-        dependencies: formData.dependencies.split(',').map(id => id.trim()).filter(Boolean),
-        status: 'pending'
+        dependencies: formData.dependencies
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean),
+        status: "pending",
       });
       onCancel();
     };
@@ -266,7 +292,9 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
             <FormLabel>Task Title</FormLabel>
             <Input
               value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, title: e.target.value }))
+              }
               placeholder="Enter task title"
             />
           </FormControl>
@@ -275,7 +303,12 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
             <FormLabel>Description</FormLabel>
             <Textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Describe the task requirements"
               rows={3}
             />
@@ -286,7 +319,9 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
               <FormLabel>Priority</FormLabel>
               <Select
                 value={formData.priority}
-                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, priority: e.target.value }))
+                }
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -300,7 +335,12 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
               <Input
                 type="number"
                 value={formData.estimatedDuration}
-                onChange={(e) => setFormData(prev => ({ ...prev, estimatedDuration: parseInt(e.target.value) }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    estimatedDuration: parseInt(e.target.value),
+                  }))
+                }
                 min="1"
               />
             </FormControl>
@@ -310,10 +350,15 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
             <FormLabel>Assign to Agent</FormLabel>
             <Select
               value={formData.assignedAgent}
-              onChange={(e) => setFormData(prev => ({ ...prev, assignedAgent: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  assignedAgent: e.target.value,
+                }))
+              }
               placeholder="Select an agent"
             >
-              {agents.map(agent => (
+              {agents.map((agent) => (
                 <option key={agent.id} value={agent.id}>
                   {agent.name} ({agent.role})
                 </option>
@@ -325,7 +370,12 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
             <FormLabel>Dependencies</FormLabel>
             <Input
               value={formData.dependencies}
-              onChange={(e) => setFormData(prev => ({ ...prev, dependencies: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  dependencies: e.target.value,
+                }))
+              }
               placeholder="Task IDs separated by commas"
             />
             <Text fontSize="sm" color="gray.600" mt={1}>
@@ -338,7 +388,7 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
               Cancel
             </Button>
             <Button type="submit" colorScheme="blue">
-              {task ? 'Update Task' : 'Create Task'}
+              {task ? "Update Task" : "Create Task"}
             </Button>
           </HStack>
         </VStack>
@@ -361,26 +411,28 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
         {/* Header */}
         {showNavigation && (
           <Flex justify="space-between" align="center">
-            <Heading size={compactView ? "md" : "lg"}>Agent Coordination</Heading>
+            <Heading size={compactView ? "md" : "lg"}>
+              Agent Coordination
+            </Heading>
             <HStack spacing={2}>
               <Button
-                variant={view === 'timeline' ? 'solid' : 'outline'}
+                variant={view === "timeline" ? "solid" : "outline"}
                 size="sm"
-                onClick={() => setView('timeline')}
+                onClick={() => setView("timeline")}
               >
                 Timeline
               </Button>
               <Button
-                variant={view === 'dependency' ? 'solid' : 'outline'}
+                variant={view === "dependency" ? "solid" : "outline"}
                 size="sm"
-                onClick={() => setView('dependency')}
+                onClick={() => setView("dependency")}
               >
                 Dependencies
               </Button>
               <Button
-                variant={view === 'status' ? 'solid' : 'outline'}
+                variant={view === "status" ? "solid" : "outline"}
                 size="sm"
-                onClick={() => setView('status')}
+                onClick={() => setView("status")}
               >
                 Status
               </Button>
@@ -405,7 +457,9 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
             <Card>
               <CardBody>
                 <VStack spacing={1}>
-                  <Text fontSize="sm" color="gray.600">Total Tasks</Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Total Tasks
+                  </Text>
                   <Heading size="lg">{tasks.length}</Heading>
                 </VStack>
               </CardBody>
@@ -413,9 +467,11 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
             <Card>
               <CardBody>
                 <VStack spacing={1}>
-                  <Text fontSize="sm" color="gray.600">In Progress</Text>
+                  <Text fontSize="sm" color="gray.600">
+                    In Progress
+                  </Text>
                   <Heading size="lg" color="blue.500">
-                    {tasks.filter(t => t.status === 'in_progress').length}
+                    {tasks.filter((t) => t.status === "in_progress").length}
                   </Heading>
                 </VStack>
               </CardBody>
@@ -423,7 +479,9 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
             <Card>
               <CardBody>
                 <VStack spacing={1}>
-                  <Text fontSize="sm" color="gray.600">Ready</Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Ready
+                  </Text>
                   <Heading size="lg" color="green.500">
                     {getReadyTasks().length}
                   </Heading>
@@ -433,7 +491,9 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
             <Card>
               <CardBody>
                 <VStack spacing={1}>
-                  <Text fontSize="sm" color="gray.600">Blocked</Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Blocked
+                  </Text>
                   <Heading size="lg" color="red.500">
                     {getBlockedTasks().length}
                   </Heading>
@@ -444,14 +504,14 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
         )}
 
         {/* Main Content */}
-        {view === 'timeline' && (
+        {view === "timeline" && (
           <Card>
             <CardHeader>
               <Heading size={compactView ? "sm" : "md"}>Task Timeline</Heading>
             </CardHeader>
             <CardBody>
               <VStack spacing={4} align="stretch">
-                {tasks.map(task => {
+                {tasks.map((task) => {
                   const assignedAgent = getAgentById(task.assignedAgent);
                   const progress = calculateTaskProgress(task);
 
@@ -461,7 +521,9 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
                         <Flex justify="space-between" align="center">
                           <VStack align="start" spacing={1}>
                             <Heading size="sm">{task.title}</Heading>
-                            <Text fontSize="sm" color="gray.600">{task.description}</Text>
+                            <Text fontSize="sm" color="gray.600">
+                              {task.description}
+                            </Text>
                             {assignedAgent && (
                               <Badge colorScheme="blue">
                                 {assignedAgent.name} ({assignedAgent.role})
@@ -474,7 +536,9 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
                               <Badge colorScheme={getStatusColor(task.status)}>
                                 {task.status}
                               </Badge>
-                              <Badge colorScheme={getPriorityColor(task.priority)}>
+                              <Badge
+                                colorScheme={getPriorityColor(task.priority)}
+                              >
                                 {task.priority}
                               </Badge>
                             </HStack>
@@ -484,8 +548,11 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
                               size="sm"
                               width="200px"
                               colorScheme={
-                                task.status === 'failed' ? 'red' :
-                                task.status === 'completed' ? 'green' : 'blue'
+                                task.status === "failed"
+                                  ? "red"
+                                  : task.status === "completed"
+                                    ? "green"
+                                    : "blue"
                               }
                             />
                             <Text fontSize="xs">
@@ -502,45 +569,51 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
           </Card>
         )}
 
-        {view === 'status' && (
+        {view === "status" && (
           <SimpleGrid columns={compactView ? 1 : 2} spacing={4}>
             {/* Active Agents */}
             <Card>
               <CardHeader>
-                <Heading size={compactView ? "sm" : "md"}>Active Agents</Heading>
+                <Heading size={compactView ? "sm" : "md"}>
+                  Active Agents
+                </Heading>
               </CardHeader>
               <CardBody>
                 <VStack spacing={3} align="stretch">
-                  {agents.filter(agent => agent.status === 'active').map(agent => {
-                    const currentTask = agent.currentTask ? getTaskById(agent.currentTask.id) : null;
+                  {agents
+                    .filter((agent) => agent.status === "active")
+                    .map((agent) => {
+                      const currentTask = agent.currentTask
+                        ? getTaskById(agent.currentTask.id)
+                        : null;
 
-                    return (
-                      <Card key={agent.id} size="sm">
-                        <CardBody>
-                          <Flex justify="space-between" align="center">
-                            <VStack align="start" spacing={1}>
-                              <Heading size="sm">{agent.name}</Heading>
-                              <Badge colorScheme="blue">{agent.role}</Badge>
-                              {currentTask && (
-                                <Text fontSize="sm" color="gray.600">
-                                  Working on: {currentTask.title}
+                      return (
+                        <Card key={agent.id} size="sm">
+                          <CardBody>
+                            <Flex justify="space-between" align="center">
+                              <VStack align="start" spacing={1}>
+                                <Heading size="sm">{agent.name}</Heading>
+                                <Badge colorScheme="blue">{agent.role}</Badge>
+                                {currentTask && (
+                                  <Text fontSize="sm" color="gray.600">
+                                    Working on: {currentTask.title}
+                                  </Text>
+                                )}
+                              </VStack>
+                              <VStack align="end" spacing={1}>
+                                <Badge colorScheme="green">Active</Badge>
+                                <Text fontSize="xs">
+                                  {agent.performance.tasksCompleted} tasks
                                 </Text>
-                              )}
-                            </VStack>
-                            <VStack align="end" spacing={1}>
-                              <Badge colorScheme="green">Active</Badge>
-                              <Text fontSize="xs">
-                                {agent.performance.tasksCompleted} tasks
-                              </Text>
-                              <Text fontSize="xs">
-                                {agent.performance.successRate}% success
-                              </Text>
-                            </VStack>
-                          </Flex>
-                        </CardBody>
-                      </Card>
-                    );
-                  })}
+                                <Text fontSize="xs">
+                                  {agent.performance.successRate}% success
+                                </Text>
+                              </VStack>
+                            </Flex>
+                          </CardBody>
+                        </Card>
+                      );
+                    })}
                 </VStack>
               </CardBody>
             </Card>
@@ -552,37 +625,52 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
               </CardHeader>
               <CardBody>
                 <VStack spacing={3} align="stretch">
-                  {['pending', 'in_progress', 'completed', 'failed'].map(status => {
-                    const statusTasks = tasks.filter(t => t.status === status);
-                    if (statusTasks.length === 0) return null;
+                  {["pending", "in_progress", "completed", "failed"].map(
+                    (status) => {
+                      const statusTasks = tasks.filter(
+                        (t) => t.status === status,
+                      );
+                      if (statusTasks.length === 0) return null;
 
-                    return (
-                      <Card key={status} size="sm">
-                        <CardBody>
-                          <Flex justify="space-between" align="center">
-                            <VStack align="start" spacing={1}>
-                              <Heading size="sm">{statusTasks.length} {status.replace('_', ' ')}</Heading>
-                              <Badge colorScheme={getStatusColor(status as Task['status'])}>
-                                {status}
-                              </Badge>
-                            </VStack>
-                            <Progress
-                              value={(statusTasks.length / tasks.length) * 100}
-                              size="sm"
-                              colorScheme={getStatusColor(status as Task['status'])}
-                              width="100px"
-                            />
-                          </Flex>
-                        </CardBody>
-                      </Card>
-                    );
-                  })}
+                      return (
+                        <Card key={status} size="sm">
+                          <CardBody>
+                            <Flex justify="space-between" align="center">
+                              <VStack align="start" spacing={1}>
+                                <Heading size="sm">
+                                  {statusTasks.length}{" "}
+                                  {status.replace("_", " ")}
+                                </Heading>
+                                <Badge
+                                  colorScheme={getStatusColor(
+                                    status as Task["status"],
+                                  )}
+                                >
+                                  {status}
+                                </Badge>
+                              </VStack>
+                              <Progress
+                                value={
+                                  (statusTasks.length / tasks.length) * 100
+                                }
+                                size="sm"
+                                colorScheme={getStatusColor(
+                                  status as Task["status"],
+                                )}
+                                width="100px"
+                              />
+                            </Flex>
+                          </CardBody>
+                        </Card>
+                      );
+                    },
+                  )}
                 </VStack>
               </CardBody>
             </Card>
-          </GridItem>
-        </Grid>
-      </Box>
+          </SimpleGrid>
+        )}
+      </VStack>
     </Box>
   );
 };

@@ -559,7 +559,7 @@ const ZoomRealTimeDemo = () => {
                     <div className="text-center text-muted-foreground py-8">
                       <Radio className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No demo events sent yet</p>
-                      <p className="text-sm">Select an event type and click "Send Event" to get started</p>
+                      <p className="text-sm">Select an event type and click &quot;Send Event&quot; to get started</p>
                     </div>
                   ) : (
                     demoEvents.slice(-10).reverse().map((event) => {

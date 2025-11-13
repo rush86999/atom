@@ -16,6 +16,7 @@ import {
   ModalContent,
   ModalHeader,
   ModalBody,
+  ModalFooter,
   ModalCloseButton,
   useDisclosure,
   FormControl,
@@ -683,7 +684,7 @@ const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({
             </ModalFooter>
           </ModalContent>
         </Modal>
-      </Box>
+      </VStack>
     </Box>
   );
 };

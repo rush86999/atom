@@ -606,7 +606,7 @@ export const EnhancedZoomOAuthFlow = ({
 
           <div className="mt-3 text-center">
             <p className="text-xs text-muted-foreground">
-              By clicking "Authorize", you agree to let ATOM access your Zoom account 
+              By clicking &quot;Authorize&quot;, you agree to let ATOM access your Zoom account 
               with the selected permissions. You can revoke access at any time.
             </p>
           </div>
