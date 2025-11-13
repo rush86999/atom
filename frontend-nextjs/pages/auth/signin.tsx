@@ -119,7 +119,7 @@ export default function SignIn() {
 
           <Box mt={4} textAlign="center">
             <Text color="gray.600">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link
                 href="/auth/signup"
                 color="blue.500"

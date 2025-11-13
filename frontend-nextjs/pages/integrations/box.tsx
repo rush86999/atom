@@ -313,7 +313,7 @@ const BoxIntegrationPage: React.FC = () => {
                 </Button>
 
                 <Text fontSize="sm" color="gray.500" textAlign="center">
-                  You'll be redirected to Box to authorize access
+                  You&apos;ll be redirected to Box to authorize access
                 </Text>
               </VStack>
             </CardBody>
@@ -332,7 +332,8 @@ const BoxIntegrationPage: React.FC = () => {
             <ModalBody>
               <VStack spacing={4}>
                 <Text>
-                  This will connect your Box account to ATOM. You'll be able to:
+                  This will connect your Box account to ATOM. You&apos;ll be
+                  able to:
                 </Text>
                 <VStack align="start" spacing={2}>
                   <HStack>
@@ -354,7 +355,7 @@ const BoxIntegrationPage: React.FC = () => {
                 </VStack>
                 <Alert status="info" borderRadius="md">
                   <AlertIcon />
-                  You'll be redirected to Box to authorize this connection.
+                  You&apos;ll be redirected to Box to authorize this connection.
                 </Alert>
               </VStack>
             </ModalBody>

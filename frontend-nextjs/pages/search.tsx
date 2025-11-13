@@ -356,7 +356,7 @@ const SearchPage: React.FC = () => {
             <VStack spacing={4} align="stretch">
               <Flex justify="space-between" align="center">
                 <Text color="gray.600">
-                  Found {results.length} results for "{query}"
+                  Found {results.length} results for &quot;{query}&quot;
                 </Text>
                 <Button variant="outline" size="sm" leftIcon={<ChevronDownIcon />}>
                   Export Results
@@ -432,7 +432,7 @@ const SearchPage: React.FC = () => {
           ) : query && !loading ? (
             <Flex justify="center" align="center" height="200px">
               <Text color="gray.500" fontSize="lg">
-                No results found for "{query}"
+                No results found for &quot;{query}&quot;
               </Text>
             </Flex>
           ) : null}

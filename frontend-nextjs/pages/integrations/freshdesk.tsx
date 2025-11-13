@@ -468,7 +468,7 @@ const FreshdeskIntegrationPage: React.FC = () => {
                   onChange={(e) => setDomain(e.target.value)}
                 />
                 <Text fontSize="sm" color="gray.600" mt={1}>
-                  Your Freshdesk subdomain (e.g., "company" for
+                  Your Freshdesk subdomain (e.g., &quot;company&quot; for
                   company.freshdesk.com)
                 </Text>
               </FormControl>

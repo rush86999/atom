@@ -413,7 +413,7 @@ const IntercomIntegrationPage: React.FC = () => {
                 <Box>
                   <AlertTitle>OAuth 2.0 Required</AlertTitle>
                   <AlertDescription>
-                    You'll be redirected to Intercom to authorize access to your
+                    You&apos;ll be redirected to Intercom to authorize access to your
                     account.
                   </AlertDescription>
                 </Box>

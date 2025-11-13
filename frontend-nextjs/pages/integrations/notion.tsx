@@ -29,7 +29,8 @@ import {
   Folder,
   User,
   Eye,
-  Calendar
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
