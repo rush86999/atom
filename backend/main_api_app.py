@@ -468,3 +468,28 @@ if ENTERPRISE_SECURITY_AVAILABLE and enterprise_security_router:
     print("✅ Enterprise security routes loaded")
 else:
     print("⚠️  Enterprise security routes not available")
+
+
+# Add health endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "message": "ATOM Platform Backend is running",
+        "version": "1.0.0"
+    }
+
+# Add root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "name": "ATOM Platform",
+        "description": "Complete AI-powered automation platform",
+        "status": "running",
+        "docs": "/docs"
+    }
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=5058)
