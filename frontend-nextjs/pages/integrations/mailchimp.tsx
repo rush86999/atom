@@ -162,9 +162,12 @@ const MailchimpIntegrationPage: React.FC = () => {
   const [stats, setStats] = useState<MailchimpStats | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [selectedAudience, setSelectedAudience] = useState<MailchimpAudience | null>(null);
-  const [selectedCampaign, setSelectedCampaign] = useState<MailchimpCampaign | null>(null);
-  const [selectedContact, setSelectedContact] = useState<MailchimpContact | null>(null);
+  const [selectedAudience, setSelectedAudience] =
+    useState<MailchimpAudience | null>(null);
+  const [selectedCampaign, setSelectedCampaign] =
+    useState<MailchimpCampaign | null>(null);
+  const [selectedContact, setSelectedContact] =
+    useState<MailchimpContact | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [serverPrefix, setServerPrefix] = useState("");
 
@@ -216,21 +219,27 @@ const MailchimpIntegrationPage: React.FC = () => {
         setIsConnected(true);
 
         // Load audiences
-        const audiencesResponse = await fetch("/api/v1/mailchimp/audiences?limit=50");
+        const audiencesResponse = await fetch(
+          "/api/v1/mailchimp/audiences?limit=50",
+        );
         if (audiencesResponse.ok) {
           const audiencesData = await audiencesResponse.json();
           setAudiences(audiencesData.data || []);
         }
 
         // Load campaigns
-        const campaignsResponse = await fetch("/api/v1/mailchimp/campaigns?limit=50");
+        const campaignsResponse = await fetch(
+          "/api/v1/mailchimp/campaigns?limit=50",
+        );
         if (campaignsResponse.ok) {
           const campaignsData = await campaignsResponse.json();
           setCampaigns(campaignsData.data || []);
         }
 
         // Load automations
-        const automationsResponse = await fetch("/api/v1/mailchimp/automations");
+        const automationsResponse = await fetch(
+          "/api/v1/mailchimp/automations",
+        );
         if (automationsResponse.ok) {
           const automationsData = await automationsResponse.json();
           setAutomations(automationsData.data || []);
@@ -343,7 +352,9 @@ const MailchimpIntegrationPage: React.FC = () => {
 
   const loadAudienceContacts = async (audienceId: string) => {
     try {
-      const contactsResponse = await fetch(`/api/v1/mailchimp/contacts?audience_id=${audienceId}&limit=50`);
+      const contactsResponse = await fetch(
+        `/api/v1/mailchimp/contacts?audience_id=${audienceId}&limit=50`,
+      );
       if (contactsResponse.ok) {
         const contactsData = await contactsResponse.json();
         setContacts(contactsData.data || []);
@@ -407,7 +418,8 @@ const MailchimpIntegrationPage: React.FC = () => {
               Connect Mailchimp
             </Heading>
             <Text color="gray.600" mb={6}>
-              Connect your Mailchimp account to manage email marketing campaigns, audiences, and automations.
+              Connect your Mailchimp account to manage email marketing
+              campaigns, audiences, and automations.
             </Text>
           </Box>
 
@@ -443,7 +455,8 @@ const MailchimpIntegrationPage: React.FC = () => {
             <ModalCloseButton />
             <ModalBody>
               <Text mb={4}>
-                Connect your Mailchimp account using your API key and server prefix.
+                Connect your Mailchimp account using your API key and server
+                prefix.
               </Text>
 
               <FormControl mb={4}>
@@ -454,7 +467,8 @@ const MailchimpIntegrationPage: React.FC = () => {
                   onChange={(e) => setServerPrefix(e.target.value)}
                 />
                 <Text fontSize="sm" color="gray.600" mt={1}>
-                  Your Mailchimp server prefix (e.g., "us1" for accounts in the US)
+                  Your Mailchimp server prefix (e.g., "us1" for accounts in the
+                  US)
                 </Text>
               </FormControl>
 
@@ -476,7 +490,8 @@ const MailchimpIntegrationPage: React.FC = () => {
                 <Box>
                   <AlertTitle>API Authentication</AlertTitle>
                   <AlertDescription>
-                    Mailchimp uses API key authentication with server-specific endpoints.
+                    Mailchimp uses API key authentication with server-specific
+                    endpoints.
                   </AlertDescription>
                 </Box>
               </Alert>
@@ -536,7 +551,13 @@ const MailchimpIntegrationPage: React.FC = () => {
 
       {/* Navigation Tabs */}
       <Flex mb={6} borderBottom="1px" borderColor="gray.200">
-        {["dashboard", "audiences", "campaigns", "automations", "templates"].map((tab) => (
+        {[
+          "dashboard",
+          "audiences",
+          "campaigns",
+          "automations",
+          "templates",
+        ].map((tab) => (
           <Button
             key={tab}
             variant="ghost"
@@ -571,7 +592,9 @@ const MailchimpIntegrationPage: React.FC = () => {
               <CardBody>
                 <Stat>
                   <StatLabel>Open Rate</StatLabel>
-                  <StatNumber>{formatPercentage(stats.open_rate || 0)}</StatNumber>
+                  <StatNumber>
+                    {formatPercentage(stats.open_rate || 0)}
+                  </StatNumber>
                   <StatHelpText>
                     <StatArrow type="increase" />
                     2.1%
@@ -585,7 +608,9 @@ const MailchimpIntegrationPage: React.FC = () => {
               <CardBody>
                 <Stat>
                   <StatLabel>Click Rate</StatLabel>
-                  <StatNumber>{formatPercentage(stats.click_rate || 0)}</StatNumber>
+                  <StatNumber>
+                    {formatPercentage(stats.click_rate || 0)}
+                  </StatNumber>
                   <StatHelpText>
                     <StatArrow type="increase" />
                     1.5%
@@ -599,7 +624,9 @@ const MailchimpIntegrationPage: React.FC = () => {
               <CardBody>
                 <Stat>
                   <StatLabel>Revenue</StatLabel>
-                  <StatNumber>${(stats.revenue || 0).toLocaleString()}</StatNumber>
+                  <StatNumber>
+                    ${(stats.revenue || 0).toLocaleString()}
+                  </StatNumber>
                   <StatHelpText>
                     <StatArrow type="increase" />
                     12.8%
@@ -617,7 +644,11 @@ const MailchimpIntegrationPage: React.FC = () => {
           <CardHeader>
             <Flex justify="space-between" align="center">
               <Heading size="md">Audiences ({audiences.length})</Heading>
-              <Button colorScheme="blue" size="sm" onClick={onCreateCampaignModalOpen}>
+              <Button
+                colorScheme="blue"
+                size="sm"
+                onClick={onCreateCampaignModalOpen}
+              >
                 Create Campaign
               </Button>
             </Flex>
@@ -638,7 +669,9 @@ const MailchimpIntegrationPage: React.FC = () => {
               <Tbody>
                 {campaigns.map((campaign) => (
                   <Tr key={campaign.id}>
-                    <Td fontWeight="medium">{campaign.settings.subject_line}</Td>
+                    <Td fontWeight="medium">
+                      {campaign.settings.subject_line}
+                    </Td>
                     <Td>
                       <Badge colorScheme={getStatusColor(campaign.status)}>
                         {campaign.status}
@@ -648,7 +681,9 @@ const MailchimpIntegrationPage: React.FC = () => {
                     <Td>{campaign.recipients.list_name}</Td>
                     <Td>{formatNumber(campaign.emails_sent)}</Td>
                     <Td>
-                      {campaign.report_summary ? formatPercentage(campaign.report_summary.open_rate) : "N/A"}
+                      {campaign.report_summary
+                        ? formatPercentage(campaign.report_summary.open_rate)
+                        : "N/A"}
                     </Td>
                     <Td>
                       <Button
@@ -693,16 +728,19 @@ const MailchimpIntegrationPage: React.FC = () => {
                             {formatNumber(audience.member_count)} members
                           </Badge>
                           <Badge colorScheme="red">
-                            {formatNumber(audience.unsubscribe_count)} unsubscribed
+                            {formatNumber(audience.unsubscribe_count)}{" "}
+                            unsubscribed
                           </Badge>
                         </HStack>
                         {audience.stats && (
                           <VStack align="start" spacing={1} w="full">
                             <Text fontSize="sm">
-                              <strong>Open Rate:</strong> {formatPercentage(audience.stats.open_rate || 0)}
+                              <strong>Open Rate:</strong>{" "}
+                              {formatPercentage(audience.stats.open_rate || 0)}
                             </Text>
                             <Text fontSize="sm">
-                              <strong>Click Rate:</strong> {formatPercentage(audience.stats.click_rate || 0)}
+                              <strong>Click Rate:</strong>{" "}
+                              {formatPercentage(audience.stats.click_rate || 0)}
                             </Text>
                           </VStack>
                         )}
@@ -747,7 +785,11 @@ const MailchimpIntegrationPage: React.FC = () => {
           <CardHeader>
             <Flex justify="space-between" align="center">
               <Heading size="md">Contacts ({contacts.length})</Heading>
-              <Button colorScheme="blue" size="sm" onClick={onCreateContactModalOpen}>
+              <Button
+                colorScheme="blue"
+                size="sm"
+                onClick={onCreateContactModalOpen}
+              >
                 Add Contact
               </Button>
             </Flex>
@@ -771,7 +813,9 @@ const MailchimpIntegrationPage: React.FC = () => {
                     <Td fontWeight="medium">{contact.email_address}</Td>
                     <Td>{contact.full_name || "Unknown"}</Td>
                     <Td>
-                      <Badge colorScheme={getContactStatusColor(contact.status)}>
+                      <Badge
+                        colorScheme={getContactStatusColor(contact.status)}
+                      >
                         {contact.status}
                       </Badge>
                     </Td>
@@ -780,7 +824,11 @@ const MailchimpIntegrationPage: React.FC = () => {
                         {[...Array(5)].map((_, i) => (
                           <StarIcon
                             key={i}
-                            color={i < contact.member_rating ? "yellow.400" : "gray.300"}
+                            color={
+                              i < contact.member_rating
+                                ? "yellow.400"
+                                : "gray.300"
+                            }
                             boxSize={3}
                           />
                         ))}
@@ -791,7 +839,11 @@ const MailchimpIntegrationPage: React.FC = () => {
                         {contact.vip ? "VIP" : "Standard"}
                       </Badge>
                     </Td>
-                    <Td>{contact.last_changed ? formatDate(contact.last_changed) : "Never"}</Td>
+                    <Td>
+                      {contact.last_changed
+                        ? formatDate(contact.last_changed)
+                        : "Never"}
+                    </Td>
                     <Td>
                       <Button
                         size="sm"
@@ -834,15 +886,22 @@ const MailchimpIntegrationPage: React.FC = () => {
                           {automation.status}
                         </Badge>
                         <Text fontSize="sm">
-                          <strong>Emails Sent:</strong> {formatNumber(automation.emails_sent)}
+                          <strong>Emails Sent:</strong>{" "}
+                          {formatNumber(automation.emails_sent)}
                         </Text>
                         {automation.report_summary && (
                           <VStack align="start" spacing={1} w="full">
                             <Text fontSize="sm">
-                              <strong>Open Rate:</strong> {formatPercentage(automation.report_summary.open_rate || 0)}
+                              <strong>Open Rate:</strong>{" "}
+                              {formatPercentage(
+                                automation.report_summary.open_rate || 0,
+                              )}
                             </Text>
                             <Text fontSize="sm">
-                              <strong>Click Rate:</strong> {formatPercentage(automation.report_summary.click_rate || 0)}
+                              <strong>Click Rate:</strong>{" "}
+                              {formatPercentage(
+                                automation.report_summary.click_rate || 0,
+                              )}
                             </Text>
                           </VStack>
                         )}
@@ -877,13 +936,21 @@ const MailchimpIntegrationPage: React.FC = () => {
                           {template.category || "General"}
                         </Text>
                         <HStack spacing={2}>
-                          <Badge colorScheme={template.drag_and_drop ? "green" : "gray"}>
+                          <Badge
+                            colorScheme={
+                              template.drag_and_drop ? "green" : "gray"
+                            }
+                          >
                             {template.drag_and_drop ? "Drag & Drop" : "Code"}
                           </Badge>
-                          <Badge colorScheme={template.responsive ? "blue" : "gray"}>
+                          <Badge
+                            colorScheme={template.responsive ? "blue" : "gray"}
+                          >
                             {template.responsive ? "Responsive" : "Fixed"}
                           </Badge>
-                          <Badge colorScheme={template.active ? "green" : "red"}>
+                          <Badge
+                            colorScheme={template.active ? "green" : "red"}
+                          >
                             {template.active ? "Active" : "Inactive"}
                           </Badge>
                         </HStack>
@@ -906,7 +973,11 @@ const MailchimpIntegrationPage: React.FC = () => {
       )}
 
       {/* Audience Detail Modal */}
-      <Modal isOpen={isAudienceModalOpen} onClose={onAudienceModalClose} size="lg">
+      <Modal
+        isOpen={isAudienceModalOpen}
+        onClose={onAudienceModalClose}
+        size="lg"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Audience Details</ModalHeader>
@@ -928,7 +999,9 @@ const MailchimpIntegrationPage: React.FC = () => {
                 </Box>
                 <Box>
                   <Text fontWeight="bold">Unsubscribe Count</Text>
-                  <Text>{formatNumber(selectedAudience.unsubscribe_count)}</Text>
+                  <Text>
+                    {formatNumber(selectedAudience.unsubscribe_count)}
+                  </Text>
                 </Box>
                 <Box>
                   <Text fontWeight="bold">Contact Information</Text>
@@ -944,10 +1017,28 @@ const MailchimpIntegrationPage: React.FC = () => {
                   <Box>
                     <Text fontWeight="bold">Performance Metrics</Text>
                     <VStack align="start" spacing={1} mt={1}>
-                      <Text>Open Rate: {formatPercentage(selectedAudience.stats.open_rate || 0)}</Text>
-                      <Text>Click Rate: {formatPercentage(selectedAudience.stats.click_rate || 0)}</Text>
-                      <Text>Subscribe Rate: {formatPercentage(selectedAudience.stats.sub_rate || 0)}</Text>
-                      <Text>Unsubscribe Rate: {formatPercentage(selectedAudience.stats.unsub_rate || 0)}</Text>
+                      <Text>
+                        Open Rate:{" "}
+                        {formatPercentage(
+                          selectedAudience.stats.open_rate || 0,
+                        )}
+                      </Text>
+                      <Text>
+                        Click Rate:{" "}
+                        {formatPercentage(
+                          selectedAudience.stats.click_rate || 0,
+                        )}
+                      </Text>
+                      <Text>
+                        Subscribe Rate:{" "}
+                        {formatPercentage(selectedAudience.stats.sub_rate || 0)}
+                      </Text>
+                      <Text>
+                        Unsubscribe Rate:{" "}
+                        {formatPercentage(
+                          selectedAudience.stats.unsub_rate || 0,
+                        )}
+                      </Text>
                     </VStack>
                   </Box>
                 )}
@@ -963,7 +1054,11 @@ const MailchimpIntegrationPage: React.FC = () => {
       </Modal>
 
       {/* Campaign Detail Modal */}
-      <Modal isOpen={isCampaignModalOpen} onClose={onCampaignModalClose} size="xl">
+      <Modal
+        isOpen={isCampaignModalOpen}
+        onClose={onCampaignModalClose}
+        size="xl"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Campaign Details</ModalHeader>
@@ -1003,18 +1098,49 @@ const MailchimpIntegrationPage: React.FC = () => {
                   <Box>
                     <Text fontWeight="bold">Performance Metrics</Text>
                     <VStack align="start" spacing={1} mt={1}>
-                      <Text>Opens: {formatNumber(selectedCampaign.report_summary.opens || 0)}</Text>
-                      <Text>Unique Opens: {formatNumber(selectedCampaign.report_summary.unique_opens || 0)}</Text>
-                      <Text>Open Rate: {formatPercentage(selectedCampaign.report_summary.open_rate || 0)}</Text>
-                      <Text>Clicks: {formatNumber(selectedCampaign.report_summary.clicks || 0)}</Text>
-                      <Text>Click Rate: {formatPercentage(selectedCampaign.report_summary.click_rate || 0)}</Text>
+                      <Text>
+                        Opens:{" "}
+                        {formatNumber(
+                          selectedCampaign.report_summary.opens || 0,
+                        )}
+                      </Text>
+                      <Text>
+                        Unique Opens:{" "}
+                        {formatNumber(
+                          selectedCampaign.report_summary.unique_opens || 0,
+                        )}
+                      </Text>
+                      <Text>
+                        Open Rate:{" "}
+                        {formatPercentage(
+                          selectedCampaign.report_summary.open_rate || 0,
+                        )}
+                      </Text>
+                      <Text>
+                        Clicks:{" "}
+                        {formatNumber(
+                          selectedCampaign.report_summary.clicks || 0,
+                        )}
+                      </Text>
+                      <Text>
+                        Click Rate:{" "}
+                        {formatPercentage(
+                          selectedCampaign.report_summary.click_rate || 0,
+                        )}
+                      </Text>
                     </VStack>
                   </Box>
                 )}
                 {selectedCampaign.archive_url && (
                   <Box>
                     <Text fontWeight="bold">Archive URL</Text>
-                    <Text color="blue.500" cursor="pointer" onClick={() => window.open(selectedCampaign.archive_url, '_blank')}>
+                    <Text
+                      color="blue.500"
+                      cursor="pointer"
+                      onClick={() =>
+                        window.open(selectedCampaign.archive_url, "_blank")
+                      }
+                    >
                       View Campaign Archive
                     </Text>
                   </Box>
@@ -1031,7 +1157,11 @@ const MailchimpIntegrationPage: React.FC = () => {
       </Modal>
 
       {/* Contact Detail Modal */}
-      <Modal isOpen={isContactModalOpen} onClose={onContactModalClose} size="lg">
+      <Modal
+        isOpen={isContactModalOpen}
+        onClose={onContactModalClose}
+        size="lg"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Contact Details</ModalHeader>
@@ -1049,7 +1179,9 @@ const MailchimpIntegrationPage: React.FC = () => {
                 </Box>
                 <Box>
                   <Text fontWeight="bold">Status</Text>
-                  <Badge colorScheme={getContactStatusColor(selectedContact.status)}>
+                  <Badge
+                    colorScheme={getContactStatusColor(selectedContact.status)}
+                  >
                     {selectedContact.status}
                   </Badge>
                 </Box>
@@ -1059,7 +1191,11 @@ const MailchimpIntegrationPage: React.FC = () => {
                     {[...Array(5)].map((_, i) => (
                       <StarIcon
                         key={i}
-                        color={i < selectedContact.member_rating ? "yellow.400" : "gray.300"}
+                        color={
+                          i < selectedContact.member_rating
+                            ? "yellow.400"
+                            : "gray.300"
+                        }
                         boxSize={4}
                       />
                     ))}
@@ -1099,4 +1235,14 @@ const MailchimpIntegrationPage: React.FC = () => {
             )}
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="blue" onClick={onContact
+            <Button colorScheme="blue" onClick={onContactModalClose}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </Box>
+  );
+};
+
+export default MailchimpIntegrationPage;

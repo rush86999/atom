@@ -3,7 +3,7 @@
  * Highlight Next.js integration and all available integrations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -35,8 +35,8 @@ import {
   ListItem,
   ListIcon,
   Alert,
-  AlertIcon
-} from '@chakra-ui/react';
+  AlertIcon,
+} from "@chakra-ui/react";
 import {
   CodeIcon,
   BoxIcon,
@@ -58,8 +58,8 @@ import {
   LightningIcon,
   ShieldIcon,
   CpuIcon,
-  HamburgerIcon
-} from '@chakra-ui/icons';
+  HamburgerIcon,
+} from "@chakra-ui/icons";
 
 const ATOMIntegrationShowcase: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -68,162 +68,166 @@ const ATOMIntegrationShowcase: React.FC = () => {
     total: 9,
     healthy: 0,
     skills: 72,
-    processing: false
+    processing: false,
   });
   const [nextjsStatus, setNextjsStatus] = useState({
     connected: false,
     projects: 0,
     deployments: 0,
-    builds: 0
+    builds: 0,
   });
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const bgColor = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
 
   const integrations = [
     {
-      id: 'box',
-      name: 'Box',
-      description: 'Secure file storage and collaboration',
-      category: 'storage',
-      status: 'complete',
+      id: "box",
+      name: "Box",
+      description: "Secure file storage and collaboration",
+      category: "storage",
+      status: "complete",
       icon: BoxIcon,
-      color: 'blue'
+      color: "blue",
     },
     {
-      id: 'dropbox',
-      name: 'Dropbox',
-      description: 'Cloud storage and file sharing',
-      category: 'storage',
-      status: 'complete',
+      id: "dropbox",
+      name: "Dropbox",
+      description: "Cloud storage and file sharing",
+      category: "storage",
+      status: "complete",
       icon: DropboxIcon,
-      color: 'blue'
+      color: "blue",
     },
     {
-      id: 'gdrive',
-      name: 'Google Drive',
-      description: 'Cloud storage and document management',
-      category: 'storage',
-      status: 'complete',
+      id: "gdrive",
+      name: "Google Drive",
+      description: "Cloud storage and document management",
+      category: "storage",
+      status: "complete",
       icon: GoogleDriveIcon,
-      color: 'green'
+      color: "green",
     },
     {
-      id: 'slack',
-      name: 'Slack',
-      description: 'Team communication and collaboration',
-      category: 'communication',
-      status: 'complete',
+      id: "slack",
+      name: "Slack",
+      description: "Team communication and collaboration",
+      category: "communication",
+      status: "complete",
       icon: SlackIcon,
-      color: 'purple'
+      color: "purple",
     },
     {
-      id: 'gmail',
-      name: 'Gmail',
-      description: 'Email communication and organization',
-      category: 'communication',
-      status: 'complete',
+      id: "gmail",
+      name: "Gmail",
+      description: "Email communication and organization",
+      category: "communication",
+      status: "complete",
       icon: GmailIcon,
-      color: 'red'
+      color: "red",
     },
     {
-      id: 'notion',
-      name: 'Notion',
-      description: 'Document management and knowledge base',
-      category: 'productivity',
-      status: 'complete',
+      id: "notion",
+      name: "Notion",
+      description: "Document management and knowledge base",
+      category: "productivity",
+      status: "complete",
       icon: NotionIcon,
-      color: 'gray'
+      color: "gray",
     },
     {
-      id: 'jira',
-      name: 'Jira',
-      description: 'Project management and issue tracking',
-      category: 'productivity',
-      status: 'complete',
+      id: "jira",
+      name: "Jira",
+      description: "Project management and issue tracking",
+      category: "productivity",
+      status: "complete",
       icon: JiraIcon,
-      color: 'blue'
+      color: "blue",
     },
     {
-      id: 'github',
-      name: 'GitHub',
-      description: 'Code repository and development tools',
-      category: 'development',
-      status: 'complete',
+      id: "github",
+      name: "GitHub",
+      description: "Code repository and development tools",
+      category: "development",
+      status: "complete",
       icon: GitHubIcon,
-      color: 'black'
+      color: "black",
     },
     {
-      id: 'nextjs',
-      name: 'Next.js',
-      description: 'Vercel project management and deployment',
-      category: 'development',
-      status: 'complete',
+      id: "nextjs",
+      name: "Next.js",
+      description: "Vercel project management and deployment",
+      category: "development",
+      status: "complete",
       icon: CodeIcon,
-      color: 'black',
-      featured: true
-    }
+      color: "black",
+      featured: true,
+    },
   ];
 
   const nextjsFeatures = [
-    'Complete OAuth 2.0 authentication with Vercel',
-    'Real-time project monitoring and management',
-    'Build tracking with live status updates',
-    'Deployment automation and management',
-    'Performance analytics and insights',
-    'Environment variable management',
-    'Webhook integration for real-time updates',
-    'Cross-platform support (Web + Desktop)',
-    '8 AI skills for automation',
-    'Secure token encryption and storage'
+    "Complete OAuth 2.0 authentication with Vercel",
+    "Real-time project monitoring and management",
+    "Build tracking with live status updates",
+    "Deployment automation and management",
+    "Performance analytics and insights",
+    "Environment variable management",
+    "Webhook integration for real-time updates",
+    "Cross-platform support (Web + Desktop)",
+    "8 AI skills for automation",
+    "Secure token encryption and storage",
   ];
 
   const checkIntegrationsHealth = async () => {
     try {
-      setStats(prev => ({ ...prev, processing: true }));
+      setStats((prev) => ({ ...prev, processing: true }));
 
       const healthChecks = await Promise.all([
-        fetch('/api/integrations/box/health'),
-        fetch('/api/integrations/dropbox/health'),
-        fetch('/api/integrations/gdrive/health'),
-        fetch('/api/integrations/slack/health'),
-        fetch('/api/integrations/gmail/health'),
-        fetch('/api/integrations/notion/health'),
-        fetch('/api/integrations/jira/health'),
-        fetch('/api/integrations/github/health'),
-        fetch('/api/nextjs/health')
+        fetch("/api/integrations/box/health"),
+        fetch("/api/integrations/dropbox/health"),
+        fetch("/api/integrations/gdrive/health"),
+        fetch("/api/integrations/slack/health"),
+        fetch("/api/integrations/gmail/health"),
+        fetch("/api/integrations/notion/health"),
+        fetch("/api/integrations/jira/health"),
+        fetch("/api/integrations/github/health"),
+        fetch("/api/nextjs/health"),
       ]);
 
-      const connected = healthChecks.filter(check => check.ok).length;
-      const healthy = healthChecks.filter(check => check.ok).length;
+      const connected = healthChecks.filter((check) => check.ok).length;
+      const healthy = healthChecks.filter((check) => check.ok).length;
 
       // Check Next.js specific status
       const nextjsResponse = healthChecks[8];
-      let nextjsData = { connected: false, projects: 0, deployments: 0, builds: 0 };
+      let nextjsData = {
+        connected: false,
+        projects: 0,
+        deployments: 0,
+        builds: 0,
+      };
 
       if (nextjsResponse.ok) {
         const nextjsHealth = await nextjsResponse.json();
         nextjsData = {
-          connected: nextjsHealth.status === 'healthy',
+          connected: nextjsHealth.status === "healthy",
           projects: Math.floor(Math.random() * 10) + 1, // Demo data
           deployments: Math.floor(Math.random() * 50) + 10, // Demo data
-          builds: Math.floor(Math.random() * 100) + 20 // Demo data
+          builds: Math.floor(Math.random() * 100) + 20, // Demo data
         };
       }
 
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
         connected,
         healthy,
-        processing: false
+        processing: false,
       }));
 
       setNextjsStatus(nextjsData);
-
     } catch (error) {
-      console.error('Health check failed:', error);
-      setStats(prev => ({ ...prev, processing: false }));
+      console.error("Health check failed:", error);
+      setStats((prev) => ({ ...prev, processing: false }));
     } finally {
       setLoading(false);
     }
@@ -234,8 +238,8 @@ const ATOMIntegrationShowcase: React.FC = () => {
   };
 
   const getNextjsIntegrationStatus = () => {
-    if (nextjsStatus.connected) return 'connected';
-    return 'available';
+    if (nextjsStatus.connected) return "connected";
+    return "available";
   };
 
   const handleConnectNextjs = () => {
@@ -243,11 +247,11 @@ const ATOMIntegrationShowcase: React.FC = () => {
   };
 
   const handleViewIntegrations = () => {
-    window.location.href = '/integrations';
+    window.location.href = "/integrations";
   };
 
   const handleViewDashboard = () => {
-    window.location.href = '/dashboard';
+    window.location.href = "/dashboard";
   };
 
   useEffect(() => {
@@ -255,7 +259,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
 
     // Simulate processing
     setTimeout(() => {
-      setStats(prev => ({ ...prev, processing: true }));
+      setStats((prev) => ({ ...prev, processing: true }));
       setTimeout(() => {
         checkIntegrationsHealth();
       }, 2000);
@@ -276,18 +280,13 @@ const ATOMIntegrationShowcase: React.FC = () => {
             ATOM Integration Platform
           </Heading>
           <Text fontSize="xl" color="gray.600" maxW="800px">
-            Connect your favorite tools, automate workflows, and unlock intelligent insights
-            with our comprehensive integration ecosystem
+            Connect your favorite tools, automate workflows, and unlock
+            intelligent insights with our comprehensive integration ecosystem
           </Text>
         </VStack>
 
         {/* Featured Integration - Next.js */}
-        <Card
-          border="3px"
-          borderColor="blue.500"
-          shadow="2xl"
-          bg="blue.50"
-        >
+        <Card border="3px" borderColor="blue.500" shadow="2xl" bg="blue.50">
           <CardBody>
             <VStack spacing={8} align="stretch">
               <HStack justify="space-between" align="start">
@@ -317,9 +316,9 @@ const ATOMIntegrationShowcase: React.FC = () => {
                       Complete Vercel Project Management
                     </Text>
                     <Text color="gray.700" maxW="600px">
-                      Connect your Vercel account to manage Next.js projects, monitor deployments,
-                      track builds, and access performance analytics. Real-time updates and
-                      automation included.
+                      Connect your Vercel account to manage Next.js projects,
+                      monitor deployments, track builds, and access performance
+                      analytics. Real-time updates and automation included.
                     </Text>
                   </VStack>
 
@@ -336,7 +335,9 @@ const ATOMIntegrationShowcase: React.FC = () => {
                       variant="outline"
                       size="lg"
                       leftIcon={<ArrowForwardIcon />}
-                      onClick={() => window.location.href = '/integrations/nextjs'}
+                      onClick={() =>
+                        (window.location.href = "/integrations/nextjs")
+                      }
                     >
                       Learn More
                     </Button>
@@ -359,9 +360,14 @@ const ATOMIntegrationShowcase: React.FC = () => {
                 <Card bg="white" border="1px" borderColor="gray.200">
                   <CardBody>
                     <VStack spacing={2} align="center">
-                      <Icon as={CheckCircleIcon} w={8} h={8} color="green.500" />
+                      <Icon
+                        as={CheckCircleIcon}
+                        w={8}
+                        h={8}
+                        color="green.500"
+                      />
                       <Text fontSize="2xl" fontWeight="bold" color="green.500">
-                        {nextjsStatus.connected ? 'Connected' : 'Available'}
+                        {nextjsStatus.connected ? "Connected" : "Available"}
                       </Text>
                       <Text fontSize="sm" color="gray.600">
                         Integration Status
@@ -401,7 +407,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                 <Card bg="white" border="1px" borderColor="gray.200">
                   <CardBody>
                     <VStack spacing={2} align="center">
-                      <Icon as={LightningIcon} w={8} h={8" color="orange.500" />
+                      <Icon as={LightningIcon} w={8} h={8} color="orange.500" />
                       <Text fontSize="2xl" fontWeight="bold" color="orange.500">
                         8
                       </Text>
@@ -431,7 +437,9 @@ const ATOMIntegrationShowcase: React.FC = () => {
               <VStack spacing={4} align="stretch">
                 <Alert status="info" borderRadius="md">
                   <AlertIcon />
-                  <Text>Complete enterprise-grade Next.js/Vercel integration</Text>
+                  <Text>
+                    Complete enterprise-grade Next.js/Vercel integration
+                  </Text>
                 </Alert>
 
                 <UnorderedList spacing={3}>
@@ -456,7 +464,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                   colorScheme="blue"
                   size="lg"
                   onClick={() => {
-                    window.location.href = '/integrations/nextjs';
+                    window.location.href = "/integrations/nextjs";
                   }}
                   width="full"
                 >
@@ -499,7 +507,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                   </Text>
                 </VStack>
 
-                <VStack spacing={3" align="center">
+                <VStack spacing={3} align="center">
                   <Icon as={CpuIcon} w={10} h={10} color="purple.500" />
                   <Text fontSize="3xl" fontWeight="bold" color="purple.500">
                     {stats.skills}
@@ -509,10 +517,10 @@ const ATOMIntegrationShowcase: React.FC = () => {
                   </Text>
                 </VStack>
 
-                <VStack spacing={3" align="center">
-                  <Icon as={TimeIcon} w={10} h={10" color="orange.500" />
+                <VStack spacing={3} align="center">
+                  <Icon as={TimeIcon} w={10} h={10} color="orange.500" />
                   <Text fontSize="3xl" fontWeight="bold" color="orange.500">
-                    {stats.processing ? 'Syncing...' : 'Ready'}
+                    {stats.processing ? "Syncing..." : "Ready"}
                   </Text>
                   <Text fontSize="sm" color="gray.600" textAlign="center">
                     Data Pipeline Status
@@ -520,7 +528,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                 </VStack>
               </SimpleGrid>
 
-              <VStack spacing={3" w="full">
+              <VStack spacing={3} w="full">
                 <HStack justify="space-between" w="full">
                   <Text fontSize="lg" fontWeight="bold">
                     Connection Progress
@@ -542,7 +550,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
 
         {/* All Integrations Grid */}
         <VStack spacing={6} align="stretch">
-          <VStack spacing={3">
+          <VStack spacing={3}>
             <Heading size="xl">Available Integrations</Heading>
             <Text color="gray.600">
               Click to connect any integration to your ATOM workspace
@@ -555,7 +563,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                 key={integration.id}
                 cursor="pointer"
                 onClick={() => {
-                  if (integration.id === 'nextjs') {
+                  if (integration.id === "nextjs") {
                     handleConnectNextjs();
                   } else {
                     window.location.href = `/integrations/${integration.id}`;
@@ -565,9 +573,9 @@ const ATOMIntegrationShowcase: React.FC = () => {
                 border="1px"
                 borderColor={borderColor}
                 _hover={{
-                  shadow: 'lg',
-                  transform: 'translateY(-4px)',
-                  transition: 'all 0.3s'
+                  shadow: "lg",
+                  transform: "translateY(-4px)",
+                  transition: "all 0.3s",
                 }}
                 position="relative"
               >
@@ -590,17 +598,24 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     <HStack spacing={4}>
                       <Icon
                         as={integration.icon}
-                        w={10} h={10}
+                        w={10}
+                        h={10}
                         color={integration.color}
                       />
                       <VStack align="start" spacing={1}>
                         <Text fontWeight="bold" fontSize="lg">
                           {integration.name}
                         </Text>
-                        <Badge colorScheme={
-                          integration.id === 'nextjs' ? 'orange' :
-                          integration.status === 'complete' ? 'green' : 'gray'
-                        } size="sm">
+                        <Badge
+                          colorScheme={
+                            integration.id === "nextjs"
+                              ? "orange"
+                              : integration.status === "complete"
+                                ? "green"
+                                : "gray"
+                          }
+                          size="sm"
+                        >
                           {integration.status.toUpperCase()}
                         </Badge>
                       </VStack>
@@ -614,10 +629,14 @@ const ATOMIntegrationShowcase: React.FC = () => {
                       <Text fontSize="xs" color="gray.500">
                         Category: {integration.category}
                       </Text>
-                      {integration.id === 'nextjs' && (
+                      {integration.id === "nextjs" && (
                         <HStack>
                           <CheckCircleIcon color="green.500" w={4} h={4} />
-                          <Text fontSize="xs" color="green.500" fontWeight="bold">
+                          <Text
+                            fontSize="xs"
+                            color="green.500"
+                            fontWeight="bold"
+                          >
                             COMPLETE
                           </Text>
                         </HStack>
@@ -625,13 +644,17 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     </HStack>
 
                     <Button
-                      variant={integration.id === 'nextjs' ? 'solid' : 'outline'}
-                      colorScheme={integration.id === 'nextjs' ? 'orange' : 'gray'}
+                      variant={
+                        integration.id === "nextjs" ? "solid" : "outline"
+                      }
+                      colorScheme={
+                        integration.id === "nextjs" ? "orange" : "gray"
+                      }
                       size="sm"
                       width="full"
                       leftIcon={<ArrowRightIcon />}
                     >
-                      {integration.id === 'nextjs' ? 'Learn More' : 'Connect'}
+                      {integration.id === "nextjs" ? "Learn More" : "Connect"}
                     </Button>
                   </VStack>
                 </CardBody>
@@ -641,20 +664,24 @@ const ATOMIntegrationShowcase: React.FC = () => {
         </VStack>
 
         {/* Call to Action */}
-        <Card bg="gradient-to-r" bgGradient="linear(to-r, blue.500, purple.600)" color="white">
+        <Card
+          bg="gradient-to-r"
+          bgGradient="linear(to-r, blue.500, purple.600)"
+          color="white"
+        >
           <CardBody>
             <HStack justify="space-between" align="center">
-              <VStack align="start" spacing={3" maxW="600px">
+              <VStack align="start" spacing={3} maxW="600px">
                 <Heading size="xl" color="white">
                   Ready to Transform Your Workflow?
                 </Heading>
                 <Text color="white" fontSize="lg" opacity={0.9}>
-                  Start with Next.js integration and experience the full power of ATOM's
-                  intelligent automation and insights.
+                  Start with Next.js integration and experience the full power
+                  of ATOM&apos;s intelligent automation and insights.
                 </Text>
               </VStack>
 
-              <VStack spacing={3" align="end">
+              <VStack spacing={3} align="end">
                 <Button
                   colorScheme="white"
                   variant="solid"

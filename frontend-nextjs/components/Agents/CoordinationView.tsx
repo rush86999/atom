@@ -568,3 +568,23 @@ const CoordinationView: React.FC<CoordinationViewProps> = ({
                             </VStack>
                             <Progress
                               value={(statusTasks.length / tasks.length) * 100}
+                              size="sm"
+                              colorScheme={getStatusColor(status as Task['status'])}
+                              width="100px"
+                            />
+                          </Flex>
+                        </CardBody>
+                      </Card>
+                    );
+                  })}
+                </VStack>
+              </CardBody>
+            </Card>
+          </GridItem>
+        </Grid>
+      </Box>
+    </Box>
+  );
+};
+
+export default CoordinationView;

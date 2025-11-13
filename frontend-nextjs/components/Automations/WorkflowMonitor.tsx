@@ -576,3 +576,116 @@ const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({
           <ModalContent>
             <ModalHeader>
               <HStack spacing={3}>
+                <Heading size="md">Workflow Execution Details</Heading>
+                <Badge colorScheme="blue">ID: {selectedExecution?.id}</Badge>
+              </HStack>
+            </ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              {selectedExecution && (
+                <VStack spacing={4} align="stretch">
+                  <Card>
+                    <CardHeader>
+                      <Heading size="sm">Execution Information</Heading>
+                    </CardHeader>
+                    <CardBody>
+                      <SimpleGrid columns={2} spacing={4}>
+                        <Box>
+                          <Text fontWeight="bold">Status</Text>
+                          <Badge colorScheme={getStatusColor(selectedExecution.status)}>
+                            {selectedExecution.status}
+                          </Badge>
+                        </Box>
+                        <Box>
+                          <Text fontWeight="bold">Started</Text>
+                          <Text>{formatDate(selectedExecution.started_at)}</Text>
+                        </Box>
+                        <Box>
+                          <Text fontWeight="bold">Duration</Text>
+                          <Text>{selectedExecution.duration || 'N/A'}</Text>
+                        </Box>
+                        <Box>
+                          <Text fontWeight="bold">Workflow</Text>
+                          <Text>{selectedExecution.workflow_name}</Text>
+                        </Box>
+                      </SimpleGrid>
+                    </CardBody>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <Heading size="sm">Execution Steps</Heading>
+                    </CardHeader>
+                    <CardBody>
+                      <VStack spacing={3} align="stretch">
+                        {selectedExecution.steps?.map((step, index) => (
+                          <Card key={index} size="sm">
+                            <CardBody>
+                              <HStack justify="space-between">
+                                <VStack align="start" spacing={1}>
+                                  <Text fontWeight="medium">{step.name}</Text>
+                                  <Text fontSize="sm" color="gray.600">
+                                    {step.description}
+                                  </Text>
+                                </VStack>
+                                <Badge colorScheme={getStatusColor(step.status)}>
+                                  {step.status}
+                                </Badge>
+                              </HStack>
+                              {step.error && (
+                                <Alert status="error" mt={2} size="sm">
+                                  <AlertIcon />
+                                  <Text fontSize="sm">{step.error}</Text>
+                                </Alert>
+                              )}
+                            </CardBody>
+                          </Card>
+                        ))}
+                      </VStack>
+                    </CardBody>
+                  </Card>
+
+                  {selectedExecution.logs && selectedExecution.logs.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <Heading size="sm">Execution Logs</Heading>
+                      </CardHeader>
+                      <CardBody>
+                        <VStack spacing={2} align="stretch">
+                          {selectedExecution.logs.map((log, index) => (
+                            <HStack key={index} spacing={3}>
+                              <Text fontSize="sm" color="gray.500" minW="120px">
+                                {formatDate(log.timestamp)}
+                              </Text>
+                              <Badge
+                                colorScheme={
+                                  log.level === 'error' ? 'red' :
+                                  log.level === 'warning' ? 'orange' : 'gray'
+                                }
+                                size="sm"
+                              >
+                                {log.level}
+                              </Badge>
+                              <Text fontSize="sm" flex={1}>
+                                {log.message}
+                              </Text>
+                            </HStack>
+                          ))}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  )}
+                </VStack>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button onClick={onClose}>Close</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      </Box>
+    </Box>
+  );
+};
+
+export default WorkflowMonitor;

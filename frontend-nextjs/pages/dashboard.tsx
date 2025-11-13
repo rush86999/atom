@@ -27,6 +27,7 @@ import {
 } from "@chakra-ui/react";
 import {
   ArrowForwardIcon,
+  ArrowRightIcon,
   TimeIcon,
   SettingsIcon,
   CheckCircleIcon,
@@ -287,7 +288,7 @@ const DashboardPage: React.FC = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                rightIcon={<ArrowRightIcon />}
+                rightIcon={<ArrowForwardIcon />}
                 onClick={() => router.push("/integrations")}
               >
                 View All

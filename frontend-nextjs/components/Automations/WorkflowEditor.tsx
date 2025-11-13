@@ -589,4 +589,24 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
                       >
                         <line
                           x1={sourceNode.position.x + 50}
-                          y1
+                          y1={sourceNode.position.y + 25}
+                          x2={targetNode.position.x}
+                          y2={targetNode.position.y + 25}
+                          stroke="#4299E1"
+                          strokeWidth={2}
+                          markerEnd="url(#arrowhead)"
+                        />
+                      </svg>
+                    );
+                  })}
+                </div>
+              </div>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+export default WorkflowEditor;
