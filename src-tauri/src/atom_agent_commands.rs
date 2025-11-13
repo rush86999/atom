@@ -2,8 +2,8 @@
 // Missing command to connect existing integrations with new chat interface
 
 use serde_json::json;
-use std::collections::HashMap;
-use tauri::{AppHandle, api::notification};
+
+use tauri::{api::notification, AppHandle};
 
 /// Process message through Atom AI Agent with existing integrations
 #[tauri::command]
@@ -14,37 +14,30 @@ async fn process_atom_agent_message(
     active_integrations: Option<Vec<String>>,
 ) -> Result<serde_json::Value, String> {
     println!("🤖 Processing Atom Agent Message: {}", message);
-    
+
     let user_id = user_id.unwrap_or_else(|| "desktop-user".to_string());
     let integrations = active_integrations.unwrap_or_default();
-    
+
     // Analyze message intent and entities
     let analysis = analyze_message_intent(&message, &integrations).await?;
-    
+
     // Generate response based on intent and available integrations
-    let response = generate_agent_response(
-        &message,
-        &analysis,
-        &integrations,
-        &user_id
-    ).await?;
-    
+    let response = generate_agent_response(&message, &analysis, &integrations, &user_id).await?;
+
     // Execute integration actions if needed
-    let integration_result = execute_integration_actions(
-        &analysis,
-        &integrations,
-        app_handle.clone()
-    ).await?;
-    
+    let integration_result =
+        execute_integration_actions(&analysis, &integrations, app_handle.clone()).await?;
+
     // Show notification for important actions
     if analysis.intent == "create_task" || analysis.intent == "send_message" {
         show_agent_notification(
             app_handle.clone(),
             "Atom AI Assistant",
-            &format!("Action completed: {}", analysis.intent)
-        ).await;
+            &format!("Action completed: {}", analysis.intent),
+        )
+        .await;
     }
-    
+
     let result = json!({
         "success": true,
         "agent": "atom-ai",
@@ -60,7 +53,7 @@ async fn process_atom_agent_message(
             "timestamp": chrono::Utc::now().to_rfc3339()
         }
     });
-    
+
     println!("✅ Agent Response Generated: {}", result);
     Ok(result)
 }
@@ -79,10 +72,10 @@ struct MessageAnalysis {
 /// Analyze message intent and entities
 async fn analyze_message_intent(
     message: &str,
-    integrations: &[String]
+    integrations: &[String],
 ) -> Result<MessageAnalysis, String> {
     let start_time = std::time::Instant::now();
-    
+
     // Simple intent recognition logic (can be enhanced with LLM)
     let (intent, entities, confidence) = if message.to_lowercase().contains("slack") {
         ("check_slack_messages", vec!["slack".to_string()], 0.9)
@@ -107,7 +100,7 @@ async fn analyze_message_intent(
     } else {
         ("general_inquiry", vec![], 0.5)
     };
-    
+
     // Determine integration needed based on intent
     let integration_needed = match intent {
         "check_slack_messages" => Some("slack".to_string()),
@@ -118,9 +111,9 @@ async fn analyze_message_intent(
         "check_figma_designs" => Some("figma".to_string()),
         "get_linear_issues" => Some("linear".to_string()),
         "create_task" if integrations.contains(&"asana".to_string()) => Some("asana".to_string()),
-        _ => None
+        _ => None,
     };
-    
+
     // Determine action required
     let action_required = if intent.contains("create") {
         Some("create".to_string())
@@ -129,7 +122,7 @@ async fn analyze_message_intent(
     } else {
         None
     };
-    
+
     // Check if integration is available
     if let Some(ref integration) = integration_needed {
         if !integrations.contains(integration) {
@@ -139,20 +132,20 @@ async fn analyze_message_intent(
                 confidence,
                 integration_needed: None,
                 action_required,
-                processing_time: start_time.elapsed().as_millis(),
+                processing_time: start_time.elapsed().as_millis() as u64,
             });
         }
     }
-    
+
     let processing_time = start_time.elapsed().as_millis();
-    
+
     Ok(MessageAnalysis {
         intent: intent.to_string(),
         entities,
         confidence,
         integration_needed,
         action_required,
-        processing_time,
+        processing_time: processing_time as u64,
     })
 }
 
@@ -161,7 +154,7 @@ async fn generate_agent_response(
     message: &str,
     analysis: &MessageAnalysis,
     integrations: &[String],
-    user_id: &str
+    _user_id: &str,
 ) -> Result<String, String> {
     let response = match analysis.intent.as_str() {
         "check_slack_messages" => {
@@ -170,70 +163,71 @@ async fn generate_agent_response(
             } else {
                 "❌ Slack integration is not connected. Would you like to connect Slack to your Atom account?".to_string()
             }
-        },
-        
+        }
+
         "create_notion_document" => {
             if integrations.contains(&"notion".to_string()) {
                 format!("📝 I'll create a new Notion document for you. What would you like to title it and what content should it include?")
             } else {
                 "❌ Notion integration is not connected. Would you like to connect Notion to your Atom account?".to_string()
             }
-        },
-        
+        }
+
         "get_asana_tasks" => {
             if integrations.contains(&"asana".to_string()) {
                 format!("📋 I'll retrieve your Asana tasks for you. Let me check your current projects and tasks...")
             } else {
                 "❌ Asana integration is not connected. Would you like to connect Asana to your Atom account?".to_string()
             }
-        },
-        
+        }
+
         "check_teams_conversations" => {
             if integrations.contains(&"teams".to_string()) {
                 format!("💬 I'll check your Microsoft Teams conversations for you. Looking for recent messages and meetings...")
             } else {
                 "❌ Microsoft Teams integration is not connected. Would you like to connect Teams to your Atom account?".to_string()
             }
-        },
-        
+        }
+
         "get_trello_cards" => {
             if integrations.contains(&"trello".to_string()) {
                 format!("📋 I'll retrieve your Trello cards for you. Let me check your current boards and cards...")
             } else {
                 "❌ Trello integration is not connected. Would you like to connect Trello to your Atom account?".to_string()
             }
-        },
-        
+        }
+
         "check_figma_designs" => {
             if integrations.contains(&"figma".to_string()) {
                 format!("🎨 I'll check your Figma designs for you. Looking for recent projects and files...")
             } else {
                 "❌ Figma integration is not connected. Would you like to connect Figma to your Atom account?".to_string()
             }
-        },
-        
+        }
+
         "get_linear_issues" => {
             if integrations.contains(&"linear".to_string()) {
                 format!("🐛 I'll retrieve your Linear issues for you. Let me check your current projects and issues...")
             } else {
                 "❌ Linear integration is not connected. Would you like to connect Linear to your Atom account?".to_string()
             }
-        },
-        
+        }
+
         "create_task" => {
             if integrations.contains(&"asana".to_string()) {
                 format!("✅ I'll create a new task for you in Asana. What should the task title be and which project should it go in?")
             } else {
                 "❌ Asana integration is not connected. Would you like to connect Asana to create tasks?".to_string()
             }
-        },
-        
+        }
+
         "show_help" => {
-            format!("🤖 I'm Atom AI Assistant! I can help you manage your integrated services:
+            format!(
+                "🤖 I'm Atom AI Assistant! I can help you manage your integrated services:
 
 Available actions:
 • Check Slack messages
-• Create Notion documents  
+• Create Notion documents
 • Get Asana tasks
 • Check Teams conversations
 • Search Trello cards
@@ -243,32 +237,41 @@ Available actions:
 
 Try saying: 'Check my Slack messages' or 'Create a Notion document'
 
-Connected integrations: {}", 
+Connected integrations: {}",
                 if integrations.is_empty() {
                     "None - Connect some services to get started!"
                 } else {
-                    &integrations.join(", ")
-                })
-        },
-        
+                    let joined = integrations.join(", ");
+                    &joined
+                }
+            )
+        }
+
         "check_status" => {
             let integration_status = if integrations.is_empty() {
                 "No integrations connected"
             } else {
-                &format!("{} integrations connected: {}", integrations.len(), integrations.join(", "))
+                &format!(
+                    "{} integrations connected: {}",
+                    integrations.len(),
+                    integrations.join(", ")
+                )
             };
-            
-            format!("📊 Atom AI Status: Online
+
+            format!(
+                "📊 Atom AI Status: Online
 Agent: Ready and waiting
 Integrations: {}
 Response Time: {}ms
 
-I'm here to help you manage your connected services. What would you like to do?", integration_status, analysis.processing_time)
-        },
-        
+I'm here to help you manage your connected services. What would you like to do?",
+                integration_status, analysis.processing_time
+            )
+        }
+
         _ => {
             if integrations.is_empty() {
-                format!("👋 Welcome! I'm Atom AI Assistant. I notice you don't have any integrations connected yet. 
+                format!("👋 Welcome! I'm Atom AI Assistant. I notice you don't have any integrations connected yet.
 
 I can help you with services like Slack, Notion, Asana, Teams, Trello, Figma, and Linear.
 
@@ -280,7 +283,8 @@ To get started, try connecting one of these services and then ask me to:
 
 What would you like to do?")
             } else {
-                format!("🤔 I understand you're asking about: '{}'. 
+                format!(
+                    "🤔 I understand you're asking about: '{}'.
 
 With your connected services ({}, I can help you:
 • Check messages from Slack/Teams
@@ -289,11 +293,14 @@ With your connected services ({}, I can help you:
 • Search designs in Figma
 • Track issues in Linear
 
-Could you be more specific about what you'd like to do?", message, integrations.join(", "))
+Could you be more specific about what you'd like to do?",
+                    message,
+                    integrations.join(", ")
+                )
             }
         }
     };
-    
+
     Ok(response)
 }
 
@@ -301,10 +308,10 @@ Could you be more specific about what you'd like to do?", message, integrations.
 async fn execute_integration_actions(
     analysis: &MessageAnalysis,
     integrations: &[String],
-    app_handle: AppHandle
+    _app_handle: AppHandle,
 ) -> Result<serde_json::Value, String> {
     let mut actions = Vec::new();
-    
+
     // Execute integration-specific actions
     if let Some(ref integration) = analysis.integration_needed {
         if !integrations.contains(integration) {
@@ -313,7 +320,7 @@ async fn execute_integration_actions(
                 "error": "Integration not connected"
             }));
         }
-        
+
         match integration.as_str() {
             "slack" => {
                 // Simulate Slack action
@@ -323,8 +330,8 @@ async fn execute_integration_actions(
                     "status": "initiated",
                     "timestamp": chrono::Utc::now().to_rfc3339()
                 }));
-            },
-            
+            }
+
             "notion" => {
                 // Simulate Notion action
                 actions.push(json!({
@@ -333,8 +340,8 @@ async fn execute_integration_actions(
                     "status": "initiated",
                     "timestamp": chrono::Utc::now().to_rfc3339()
                 }));
-            },
-            
+            }
+
             "asana" => {
                 // Simulate Asana action
                 if analysis.action_required.as_ref() == Some(&"create".to_string()) {
@@ -352,8 +359,8 @@ async fn execute_integration_actions(
                         "timestamp": chrono::Utc::now().to_rfc3339()
                     }));
                 }
-            },
-            
+            }
+
             "teams" => {
                 // Simulate Teams action
                 actions.push(json!({
@@ -362,8 +369,8 @@ async fn execute_integration_actions(
                     "status": "initiated",
                     "timestamp": chrono::Utc::now().to_rfc3339()
                 }));
-            },
-            
+            }
+
             "trello" => {
                 // Simulate Trello action
                 actions.push(json!({
@@ -372,8 +379,8 @@ async fn execute_integration_actions(
                     "status": "initiated",
                     "timestamp": chrono::Utc::now().to_rfc3339()
                 }));
-            },
-            
+            }
+
             "figma" => {
                 // Simulate Figma action
                 actions.push(json!({
@@ -382,8 +389,8 @@ async fn execute_integration_actions(
                     "status": "initiated",
                     "timestamp": chrono::Utc::now().to_rfc3339()
                 }));
-            },
-            
+            }
+
             "linear" => {
                 // Simulate Linear action
                 actions.push(json!({
@@ -392,12 +399,12 @@ async fn execute_integration_actions(
                     "status": "initiated",
                     "timestamp": chrono::Utc::now().to_rfc3339()
                 }));
-            },
-            
+            }
+
             _ => {}
         }
     }
-    
+
     Ok(json!({
         "actions": actions,
         "total_actions": actions.len()
@@ -405,11 +412,7 @@ async fn execute_integration_actions(
 }
 
 /// Show notification for agent actions
-async fn show_agent_notification(
-    app_handle: AppHandle,
-    title: &str,
-    body: &str,
-) {
+async fn show_agent_notification(_app_handle: AppHandle, title: &str, body: &str) {
     match notification::Notification::new(title)
         .body(body)
         .icon("atom-logo")
@@ -422,7 +425,9 @@ async fn show_agent_notification(
 
 /// Open file dialog for chat attachments
 #[tauri::command]
-pub async fn open_file_dialog(params: Option<serde_json::Value>) -> Result<serde_json::Value, String> {
+pub async fn open_file_dialog(
+    params: Option<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
     match params {
         Some(dialog_params) => {
             match tauri::api::dialog::blocking::FileDialogBuilder::new()
@@ -435,24 +440,26 @@ pub async fn open_file_dialog(params: Option<serde_json::Value>) -> Result<serde
                 Some(path) => Ok(json!({
                     "success": true,
                     "path": path,
-                    "filename": path.split("/").last().unwrap_or("unknown")
+                    "filename": path.file_name().unwrap_or_default().to_string_lossy().to_string()
                 })),
                 None => Ok(json!({
                     "success": false,
                     "error": "No file selected"
-                }))
+                })),
             }
-        },
+        }
         None => Ok(json!({
             "success": false,
             "error": "No dialog parameters provided"
-        }))
+        })),
     }
 }
 
 /// Open chat settings
 #[tauri::command]
-pub async fn open_chat_settings(params: Option<serde_json::Value>) -> Result<serde_json::Value, String> {
+pub async fn open_chat_settings(
+    params: Option<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
     Ok(json!({
         "success": true,
         "message": "Chat settings opened"
@@ -461,7 +468,9 @@ pub async fn open_chat_settings(params: Option<serde_json::Value>) -> Result<ser
 
 /// Get chat preferences
 #[tauri::command]
-pub async fn get_chat_preferences(params: Option<serde_json::Value>) -> Result<serde_json::Value, String> {
+pub async fn get_chat_preferences(
+    params: Option<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
     Ok(json!({
         "success": true,
         "preferences": {

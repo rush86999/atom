@@ -11,7 +11,7 @@ edition = "2021"
 tauri-build = { version = "1.4", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = ["api-all", "system-tray", "icon-png", "window-all"] }
+tauri = { version = "1.5", features = ["dialog-open", "dialog-save", "fs-copy-file", "fs-create-dir", "fs-read-dir", "fs-read-file", "fs-remove-dir", "fs-remove-file", "fs-rename-file", "fs-write-file", "http-request", "notification-all", "path-all", "protocol-asset", "shell-open"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
@@ -38,7 +38,7 @@ env_logger = "0.10"
 
 [[bin]]
 name = "atom"
-path = "src/main_with_chat.rs"
+path = "src/main.rs"
 
 [dev-dependencies]
 tauri-build = { version = "1.4", features = [] }

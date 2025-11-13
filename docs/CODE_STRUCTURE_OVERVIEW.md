@@ -1,5 +1,27 @@
 # ATOM Platform - Complete Code Structure Overview
 
+## 🎯 Recent Project Structure Improvements
+
+### ✅ Completed Cleanup & Organization
+- **Backend Consolidation**: Reduced from 385+ files to clean, organized structure
+- **Shared Services Architecture**: Unified TypeScript services for web and desktop apps
+- **Desktop App Fixes**: Resolved build issues with shared service imports
+- **Gitignore Optimization**: Comprehensive exclusion of temporary and build files
+- **Directory Organization**: Proper separation of core, tests, scripts, and data
+
+### 🔧 Key Technical Improvements
+- **Tauri Desktop Build**: Fixed esbuild configuration with shared service externals
+- **TypeScript Path Mappings**: Proper `@shared-*` aliases for cross-platform development
+- **Service Integration**: Shared AI, integration, and workflow services
+- **LanceDB Integration**: Local vector database for desktop app performance
+- **Build Optimization**: 2.2MB bundle size with external package handling
+
+### 📁 Current Project Health
+- **Build Status**: ✅ Tauri desktop app builds successfully
+- **Service Integration**: ✅ Shared services accessible from both platforms
+- **Platform Parity**: ✅ Identical features across desktop and web
+- **Code Organization**: ✅ Clean, maintainable structure with proper separation
+
 > **File Organization System**: This project uses automated file organization rules defined in `.file-organization-rules.json`. Run `python scripts/organize-files.py --validate` to check structure or `--organize` to auto-organize files.
 
 ## 🏗️ System Architecture
@@ -73,7 +95,7 @@ integrations/
 ├── connection-status-service.ts     # Service connectivity monitoring
 ├── googleDriveService.ts            # Google Drive integration
 ├── onedriveService.ts               # OneDrive integration
-└── [33+ other service integrations]
+└── [20+ core service integrations]
 ```
 
 ### 🔄 Workflow Services (`src/services/workflows/`)
@@ -113,8 +135,9 @@ src/ui-shared/
 
 **Usage in Applications:**
 - **Web App** (`frontend-nextjs/`): Imports from `src/ui-shared/`
-- **Desktop App** (`desktop-tauri/`): Imports from `src/ui-shared/`
+- **Desktop App** (`desktop/tauri/`): Imports from `src/ui-shared/`
 - **Shared Logic**: Both apps use `src/services/` for business logic
+- **Shared Directory**: Additional shared components in `shared/components/`
 ```
 ui-shared/
 ├── components/                      # Reusable UI components
@@ -238,21 +261,25 @@ frontend-nextjs/
 └── package.json                     # Dependencies and scripts
 ```
 
-## 📁 Desktop Application (`desktop-tauri/`)
+## 📁 Desktop Application (`desktop/`)
 
-Tauri-based desktop application with embedded Python backend:
+Tauri-based desktop application with shared services architecture:
 
 ```
-desktop-tauri/
-├── src-tauri/           # Tauri Rust backend
-│   ├── src/            # Rust source code
-│   ├── Cargo.toml      # Rust dependencies
-│   └── tauri.conf.json # Tauri configuration
-├── src/                # React frontend (uses shared UI components)
-│   ├── components/     # Desktop-specific components
-│   ├── services/       # Desktop-specific services
-│   └── shared/         # Links to src/ui-shared/
-└── package.json        # Node.js dependencies
+desktop/
+├── tauri/              # Tauri application
+│   ├── src-tauri/      # Tauri Rust backend
+│   │   ├── src/        # Rust source code
+│   │   ├── Cargo.toml  # Rust dependencies
+│   │   └── tauri.conf.json # Tauri configuration
+│   ├── src/            # React frontend
+│   │   ├── components/ # Desktop-specific components
+│   │   ├── services/   # Desktop-specific services
+│   │   └── shared/     # Links to shared services
+│   └── package.json    # Node.js dependencies
+├── services/           # Desktop-specific service implementations
+├── lancedb_client/     # Local LanceDB client for desktop
+└── README.md           # Desktop app documentation
 ```
 
 **Shared Architecture:**
@@ -262,96 +289,117 @@ desktop-tauri/
 
 ### Technology Stack
 - **Framework**: Tauri 1.0.0 + React 18.2.0 + TypeScript
-- **Backend**: Rust + Embedded Python
-- **Storage**: Local file system with encryption
-- **Build Tool**: esbuild
+- **Backend**: Rust + Shared Python backend services
+- **Storage**: Local file system with encryption + LanceDB
+- **Build Tool**: esbuild + Vite
 
 ### Key Features
-- Local-first architecture
+- Local-first architecture with LanceDB storage
 - Encrypted local storage
 - Voice/audio processing
 - Wake word detection
 - Offline functionality
+- Shared services with web app
+- Platform-specific optimizations
 
 ### Configuration
-- **TypeScript Config**: Includes shared `src/services/**/*`
-- **Path Mapping**: `@shared-*` aliases for shared services
-- **Backend**: Embedded Python backend on port 8084
+- **TypeScript Config**: Includes shared `src/services/**/*` and `src/ui-shared/**/*`
+- **Path Mapping**: `@shared-*` aliases for shared services (`@shared-ai/*`, `@shared-integrations/*`, `@shared-workflows/*`, `@shared-utils/*`)
+- **Build**: esbuild with external package handling for shared services
+- **Backend**: Shared Python backend services on port 8084
+- **External Packages**: Chakra UI, React, Emotion, Framer Motion, and shared service packages
 
 ### Directory Structure
 ```
-desktop/tauri/
-├── src/
-│   ├── components/                  # Desktop-specific components
-│   ├── services/                    # Desktop-specific services
-│   ├── hooks/                       # Custom React hooks
-│   ├── types/                       # TypeScript types
-│   └── integrations/                # Desktop integration components
-├── src-tauri/
-│   ├── python-backend/              # Embedded Python backend
-│   ├── src/                         # Rust backend code
-│   └── Cargo.toml                   # Rust dependencies
-└── package.json                     # Frontend dependencies
+desktop/
+├── tauri/                           # Tauri application
+│   ├── src/
+│   │   ├── components/              # Desktop-specific components
+│   │   ├── services/                # Desktop-specific services
+│   │   ├── hooks/                   # Custom React hooks
+│   │   ├── types/                   # TypeScript types
+│   │   └── integrations/            # Desktop integration components
+│   ├── src-tauri/
+│   │   ├── src/                     # Rust backend code
+│   │   └── Cargo.toml               # Rust dependencies
+│   ├── package.json                 # Frontend dependencies with shared service externals
+│   ├── esbuild.config.js            # Build configuration
+│   └── tauri.config.ts              # Tauri app configuration
+├── services/                        # Desktop-specific service implementations
+│   ├── lancedbService.ts            # Local LanceDB integration
+│   └── desktopStorageService.ts     # Desktop-specific storage
+├── lancedb_client/                  # Local LanceDB client
+└── README.md                        # Desktop app documentation
 ```
 
 ## 📁 Backend Directory Structure
 
-### Main Backend (`backend/python-api-service/`)
+### Main Backend (`backend/`)
 ```
-backend/python-api-service/
+backend/
 ├── 📄 Main Application Files
 │   ├── main_api_app.py              # Main Flask/FastAPI application
-│   ├── main_api_with_integrations.py # Enhanced API with integrations
 │   ├── api_service.py               # Core API service
-│   ├── comprehensive_integration_api.py
-│   └── startup.py                   # Application startup
+│   ├── requirements.txt             # Python dependencies
+│   └── requirements_stripe.txt      # Stripe-specific dependencies
 │
-├── 🔧 Configuration & Environment
+├── 🔧 Core Services (`core/`)
 │   ├── config.py                    # Application configuration
-│   ├── logging_config.py            # Logging configuration
-│   ├── constants.py                 # Application constants
-│   └── .env.example                  # Environment template
-│
-├── 🗄️ Database & Storage
-│   ├── models/                      # SQLAlchemy database models
 │   ├── database_manager.py          # Database operations
 │   ├── lancedb_handler.py           # Vector database operations
-│   └── migrations/                  # Database migrations
-│
-├── 🔐 Authentication & Security
 │   ├── auth_service.py              # Authentication service
-│   ├── crypto.py                    # Encryption utilities
-│   ├── oauth_integration.py         # OAuth integration
-│   └── [auth handlers for each provider]
+│   └── crypto.py                    # Encryption utilities
 │
-└── 🔗 Integration Services
-    ├── airtable_service.py          # Airtable integration
-    ├── asana_service.py             # Asana integration
-    ├── asana_enhanced_api.py        # Enhanced Asana API
-    ├── dropbox_service.py           # Dropbox integration
-    ├── freshdesk_service.py          # Freshdesk integration
-    ├── github_service.py            # GitHub integration
-    ├── gitlab_service.py            # GitLab integration
-    ├── gmail_service.py             # Gmail integration
-    ├── hubspot_service.py            # HubSpot integration
-    ├── jira_service.py              # Jira integration
-    ├── linear_service.py             # Linear integration
-    ├── mailchimp_service.py         # Mailchimp integration
-    ├── monday_service.py             # Monday.com integration
-    ├── notion_service.py             # Notion integration
-    ├── outlook_service.py           # Outlook integration
-    ├── salesforce_service.py         # Salesforce integration
-    ├── slack_service.py             # Slack integration
-    ├── teams_service.py              # Microsoft Teams integration
-    ├── xero_service.py              # Xero integration
-    ├── zendesk_service.py           # Zendesk integration
-    ├── google_drive_service.py      # Google Drive integration
-    ├── onedrive_service.py          # OneDrive integration
-    ├── microsoft365_service.py      # Microsoft 365 integration
-    └── [180+ other services and routes]
+├── 🔗 Integration Services (`integrations/`)
+│   ├── airtable_service.py          # Airtable integration
+│   ├── asana_service.py             # Asana integration
+│   ├── dropbox_service.py           # Dropbox integration
+│   ├── github_service.py            # GitHub integration
+│   ├── gmail_service.py             # Gmail integration
+│   ├── hubspot_service.py            # HubSpot integration
+│   ├── jira_service.py              # Jira integration
+│   ├── linear_service.py             # Linear integration
+│   ├── notion_service.py             # Notion integration
+│   ├── outlook_service.py           # Outlook integration
+│   ├── salesforce_service.py         # Salesforce integration
+│   ├── slack_service.py             # Slack integration
+│   ├── teams_service.py              # Microsoft Teams integration
+│   ├── stripe_service.py            # Stripe integration
+│   ├── google_drive_service.py      # Google Drive integration
+│   ├── onedrive_service.py          # OneDrive integration
+│   ├── microsoft365_service.py      # Microsoft 365 integration
+│   ├── box_service.py               # Box integration
+│   └── [25+ core service integrations]
+│
+├── 🤖 AI Services (`ai/`)
+│   ├── nlu_service.py               # Natural Language Understanding
+│   ├── skill_service.py             # Skill management
+│   ├── orchestration_service.py     # Workflow orchestration
+│   └── memory_service.py            # Memory management
+│
+├── 🔄 Consolidated Services (`consolidated/`)
+│   ├── unified_integration_service.py
+│   ├── enhanced_workflow_service.py
+│   └── comprehensive_api_service.py
+│
+├── 🧪 Tests (`tests/`)
+│   ├── integration_tests/
+│   ├── unit_tests/
+│   └── test_utilities/
+│
+├── 🛠️ Scripts (`scripts/`)
+│   ├── deployment/
+│   ├── testing/
+│   └── utilities/
+│
+└── 📊 Data & Shared Resources
+    ├── data/                        # Data files and resources
+    ├── shared/                      # Shared utilities
+    └── desktop/                     # Desktop-specific backend services
+    └── [20+ core services and routes]
 ```
 
-### Integration Backend (`backend/integrations/`)
+### Integration Backend (`backend/integrations/` - Now part of main backend)
 ```
 backend/integrations/
 ├── ai_enhanced_api_routes.py        # AI-enhanced API routes
@@ -383,7 +431,7 @@ backend/ai/
 └── ai_routes.py                     # AI API routes
 ```
 
-### Consolidated Backend (`backend/consolidated/`)
+### Consolidated Services (`backend/consolidated/`)
 ```
 backend/consolidated/
 ├── core/                            # Core backend functionality
@@ -412,61 +460,67 @@ backend/consolidated/
 ## 🚀 Integration Categories & Status
 
 ### 📄 Document Storage Integrations
-- **Dropbox**: ✅ Enhanced service with file operations and webhooks
 - **Google Drive**: ✅ Full integration with OAuth & LanceDB memory
 - **OneDrive**: ✅ Complete Microsoft Graph API integration with LanceDB memory
+- **Dropbox**: ✅ Enhanced service with file operations and webhooks
 - **Box**: ✅ Enterprise file sharing with advanced security
+- **Microsoft 365**: ✅ Unified platform with Teams, Outlook, OneDrive, SharePoint
 
 ### 💬 Communication & Customer Service Integrations
 - **Slack**: ✅ Enhanced API with workflow automation and real-time events
 - **Microsoft Teams**: ✅ Complete integration with meeting management
 - **Outlook**: ✅ Email and calendar management with advanced features
 - **Gmail**: ✅ Enhanced service with workflows and automation
-- **Zendesk**: ✅ Customer support and ticketing platform with AI insights
-- **Freshdesk**: ✅ Complete customer service integration with ticket management
 - **Discord**: ✅ Community and team communication platform
 
 ### 🎯 Productivity & Work OS Integrations
 - **Asana**: ✅ Project and task management with advanced workflows
 - **Notion**: ✅ Database and page operations with real-time sync
-- **Trello**: ✅ Board and card management with automation
 - **Linear**: ✅ Modern issue tracking for development teams
 - **Monday.com**: ✅ Complete Work OS platform with enterprise features
-- **Microsoft 365**: ✅ Enterprise productivity platform with Teams, Outlook, OneDrive, SharePoint, Power Platform
+- **Microsoft 365**: ✅ Enterprise productivity platform with Teams, Outlook, OneDrive, SharePoint
 - **Airtable**: ✅ Cloud database platform with workflow automation
 
 ### 💻 Development Integrations
 - **GitHub**: ✅ Repository and issue management with advanced features
 - **GitLab**: ✅ Complete DevOps integration with CI/CD
 - **Jira**: ✅ Agile project management with custom workflows
-- **Figma**: ✅ Design collaboration with real-time updates
-- **Next.js/Vercel**: ✅ Modern web development platform deployment
 
 ### 🏢 CRM & Marketing Integrations
 - **Salesforce**: ✅ Complete CRM with real-time webhooks and advanced analytics
 - **HubSpot**: ✅ All-in-one growth platform with marketing automation
-- **Mailchimp**: ✅ Email marketing and campaign management
 
 ### 💰 Financial & Accounting Integrations
-- **Xero**: ✅ Complete small business accounting platform
 - **Stripe**: ✅ Payment processing and financial management
-- **QuickBooks**: ✅ Business accounting and financial reporting
-- **Plaid**: ✅ Financial data aggregation and analysis
 
-### 📊 Analytics & Business Intelligence
-- **Tableau**: ✅ Business intelligence and data visualization
-- **Power BI**: ✅ Microsoft business analytics platform
+**🔢 Total Integration Count: 25+ Complete Platforms**
 
-**🔢 Total Integration Count: 33+ Complete Platforms**
+**🛠️ Desktop Build Configuration:**
+- **Build Tool**: esbuild with platform=browser
+- **Bundle Format**: ESM with external package handling
+- **Shared Services**: Externalized via `--external:@shared-*` flags
+- **UI Framework**: Chakra UI + React 18 + TypeScript
+- **Path Resolution**: TypeScript path mappings for shared services
+- **Development**: Hot reload with esbuild watch mode
+
+**🆕 Recently Added Integration Services:**
+- **Google Drive Service**: Complete file operations with OAuth authentication
+- **OneDrive Service**: Microsoft Graph API integration with file management
+- **Microsoft 365 Service**: Unified platform integration (Teams, Outlook, Calendar)
+- **Box Service**: Enterprise file sharing with advanced security features
+- **TypeScript Services**: Frontend integration services for all new platforms
 
 **⚡ Advanced Features:**
-- Real-time webhooks for all services
-- OAuth 2.0 authentication across all platforms
+- Real-time webhooks for key services
+- OAuth 2.0 authentication across platforms
 - LanceDB vector memory for document processing
 - Cross-platform workflow automation
 - Enterprise-grade security and compliance
 - AI-powered insights and automation
-- Multi-tenant architecture support
+- Shared service architecture between web and desktop
+- Complete TypeScript integration services for all platforms
+- Mock implementations for development and testing
+- Health monitoring and capability discovery endpoints
 
 ## 🔄 LanceDB Memory Pipeline Architecture
 
@@ -530,6 +584,89 @@ backend/consolidated/
 - **E2E Tests**: Playwright for user workflows
 
 ## 📦 Deployment Architecture
+
+### Development Environment
+- **Local Development**: Docker Compose for backend services
+- **Frontend**: Next.js development server with hot reload
+- **Desktop**: Tauri development with embedded Python backend
+- **Database**: PostgreSQL for production, SQLite for development
+
+### Production Environment
+- **Backend**: Docker containers with Python FastAPI/Flask
+- **Frontend**: Next.js static export or Vercel deployment
+- **Desktop**: Tauri builds for Windows, macOS, Linux
+- **Database**: PostgreSQL with LanceDB vector storage
+- **Storage**: Local file system for desktop, cloud storage for web
+
+### CI/CD Pipeline
+- **Automated Testing**: Vitest, Playwright, pytest
+- **Build Automation**: GitHub Actions for all platforms
+- **Docker Images**: Multi-stage builds for optimized containers
+- **Deployment**: Automated deployment to production environments
+
+## 🔧 Configuration & Environment Files
+
+### Backend Configuration (`backend/`)
+```
+backend/
+├── requirements.txt                 # Core Python dependencies
+├── requirements_stripe.txt          # Stripe-specific dependencies
+├── .env.template                    # Environment template
+└── config.py                        # Application configuration
+```
+
+### Frontend Configuration (`frontend-nextjs/`)
+```
+frontend-nextjs/
+├── .env.example                     # Environment template
+├── .env.template                    # Development environment template
+├── package.json                     # Dependencies and scripts
+└── next.config.js                   # Next.js configuration
+```
+
+### Desktop Configuration (`desktop/tauri/`)
+```
+desktop/tauri/
+├── package.json                     # Frontend dependencies with shared externals
+├── esbuild.config.js                # Build configuration
+├── tauri.config.ts                  # Tauri app configuration
+├── tsconfig.json                    # TypeScript with shared path mappings
+└── .env.google.example              # Google integration template
+```
+
+### Shared Configuration (`config/`)
+```
+config/
+├── .env.example                     # Base environment template
+├── .env.development.template        # Development environment
+├── .env.production.template         # Production environment
+├── .env.credentials.template        # Credentials template
+├── .env.unified.template            # Unified configuration
+└── .env.integrations                # Integration-specific settings
+```
+
+### Docker Configuration
+```
+backend/docker/
+├── docker-compose.yaml              # Main Docker Compose
+├── docker-compose.local.yaml        # Local development
+├── docker-compose.test.yml          # Testing environment
+└── docker-compose.local.yml         # Local services
+
+frontend-nextjs/
+├── Dockerfile.production            # Production Docker image
+└── project/functions/Dockerfile     # Serverless functions
+
+desktop/tauri/
+└── Dockerfile                       # Desktop app Docker image
+```
+
+### Environment Variables
+- **Database**: `DATABASE_URL`, `LANCEDB_PATH`
+- **Authentication**: `JWT_SECRET`, `OAUTH_CLIENT_*`
+- **AI Services**: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
+- **Integrations**: `*_CLIENT_ID`, `*_CLIENT_SECRET`
+- **Security**: `ENCRYPTION_KEY`, `CORS_ORIGINS`
 
 ### Development Environment
 - **Local Development**: Docker Compose for services

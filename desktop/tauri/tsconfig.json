@@ -34,5 +34,6 @@
     "../../../src/ui-shared/**/*",
     "../../../src/services/**/*"
   ],
+  "exclude": ["src/__tests__/**/*", "src/**/*.test.ts", "src/**/*.spec.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

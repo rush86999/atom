@@ -3,42 +3,38 @@ Salesforce Integration Routes
 FastAPI routes for Salesforce CRM integration and enterprise workflow automation
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Body
-from typing import Dict, List, Optional, Any
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 # Import Salesforce services
 try:
     # Import Salesforce services directly from files
-    import sys
-    import os
-
-    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "python-api-service"))
-
-    from salesforce_service import (
-        get_salesforce_client,
-        list_contacts,
-        list_accounts,
-        list_opportunities,
-        create_contact,
-        create_account,
-        create_opportunity,
-        update_opportunity,
-        get_opportunity,
-        create_lead,
-    )
-    from salesforce_enhanced_api import (
-        list_salesforce_accounts,
+    from .salesforce_enhanced_api import (
         create_salesforce_account,
-        get_salesforce_account,
-        list_salesforce_contacts,
-        list_salesforce_opportunities,
-        list_salesforce_leads,
-        get_sales_pipeline_analytics,
-        get_leads_analytics,
         execute_soql_query,
+        get_leads_analytics,
+        get_sales_pipeline_analytics,
+        get_salesforce_account,
         get_salesforce_user_info,
+        list_salesforce_accounts,
+        list_salesforce_contacts,
+        list_salesforce_leads,
+        list_salesforce_opportunities,
+    )
+    from .salesforce_service import (
+        create_account,
+        create_contact,
+        create_lead,
+        create_opportunity,
+        get_opportunity,
+        get_salesforce_client,
+        list_accounts,
+        list_contacts,
+        list_opportunities,
+        update_opportunity,
     )
 
     SALESFORCE_AVAILABLE = True

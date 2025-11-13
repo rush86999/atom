@@ -3,22 +3,17 @@ Stripe Integration Routes
 FastAPI routes for Stripe payment processing and financial management
 """
 
-import stripe
-
-from fastapi import APIRouter, HTTPException, Depends, Query, Body, Request, Header
-from typing import Dict, List, Optional, Any
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import stripe
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 
 # Import Stripe services
 try:
     # Import Stripe services directly from files
-    import sys
-    import os
-
-    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "python-api-service"))
-
-    from stripe_service import stripe_service
+    from .stripe_service import stripe_service
 
     # Mock functions for testing since enhanced API expects Flask context
     async def mock_health_check():
