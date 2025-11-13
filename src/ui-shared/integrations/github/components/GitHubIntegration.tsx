@@ -65,12 +65,10 @@ import {
   GitPullRequestIcon,
   IssueIcon,
   PersonIcon,
-  TimeIcon,
   SettingsIcon,
   ChevronDownIcon,
   SearchIcon,
-  ChevronUpIcon,
-  ChevronDownIcon
+  ChevronUpIcon
 } from '@chakra-ui/icons';
 
 interface GitHubRepository {
@@ -401,13 +399,13 @@ const GitHubIntegration: React.FC = () => {
 
       toast({
         title: 'Repository created successfully',
-        status: 'success',
+        variant: 'default',
         duration: 3000,
       });
     } catch (error) {
       toast({
         title: 'Failed to create repository',
-        status: 'error',
+        variant: 'destructive',
         duration: 3000,
       });
     }
@@ -592,4 +590,4 @@ const GitHubIntegration: React.FC = () => {
                 <Tab>Repositories</Tab>
                 <Tab>Issues</Tab>
                 <Tab>Pull Requests</Tab>
-                <Tab>Analytics
+                <Tab>Analytics</Tab>

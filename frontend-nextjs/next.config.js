@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
   eslint: {
@@ -10,28 +12,24 @@ const nextConfig = {
   images: {
     domains: ["localhost", "127.0.0.1", "api.slack.com", "graph.microsoft.com"],
   },
+  experimental: {
+    esmExternals: false,
+  },
   webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-
-    // Transpile shared UI components from src directory
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, '.'),
+      '../../../src': path.resolve(__dirname, '../src'),
+    };
+    
+    // Handle TypeScript files properly
     config.module.rules.push({
-      test: /\.(ts|tsx)$/,
-      include: [
-        path.resolve(__dirname, "../src/ui-shared"),
-        path.resolve(__dirname, "../src"),
-      ],
+      test: /\.tsx?$/,
       use: [
         {
-          loader: "babel-loader",
+          loader: 'ts-loader',
           options: {
-            presets: ["next/babel"],
+            transpileOnly: true,
           },
         },
       ],
@@ -39,8 +37,6 @@ const nextConfig = {
 
     return config;
   },
-  transpilePackages: ["../src/ui-shared", "../src"],
 };
 
-const path = require("path");
 module.exports = nextConfig;

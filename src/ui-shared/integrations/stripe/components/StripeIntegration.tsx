@@ -65,12 +65,10 @@ import {
   PlusSquareIcon,
   DollarIcon,
   PersonIcon,
-  TimeIcon,
   SettingsIcon,
   ChevronDownIcon,
   SearchIcon,
-  ChevronUpIcon,
-  ChevronDownIcon
+  ChevronUpIcon
 } from '@chakra-ui/icons';
 
 interface StripePayment {

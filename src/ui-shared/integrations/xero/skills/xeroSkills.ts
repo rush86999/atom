@@ -358,8 +358,13 @@ export interface XeroListOptions {
 }
 
 class XeroSkills {
-  private readonly baseUrl = '/api/integrations/xero';
-  private readonly authUrl = '/auth/xero';
+  private readonly baseUrl: string;
+  private readonly authUrl: string;
+
+  constructor() {
+    this.baseUrl = '/api/integrations/xero';
+    this.authUrl = '/auth/xero';
+  }
 
   // Authentication methods
   async getStoredTokens(): Promise<XeroTokens | null> {

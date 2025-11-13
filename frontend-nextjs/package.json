@@ -20,8 +20,8 @@
     "@apollo/client": "^3.7.10",
     "@azure/msal-node": "^3.8.2",
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
-    "@chakra-ui/icons": "^2.0.18",
-    "@chakra-ui/react": "^2.5.1",
+    "@chakra-ui/icons": "^2.2.4",
+    "@chakra-ui/react": "^2.10.9",
     "@emotion/cache": "^11.10.5",
     "@emotion/react": "^11.10.6",
     "@emotion/server": "^11.10.0",
@@ -37,7 +37,9 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.48.0",
     "@opentelemetry/sdk-metrics": "^1.21.0",
     "@opentelemetry/sdk-node": "^0.48.0",
+    "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.0.6",
     "@react-native-picker/picker": "^2.4.8",
     "@rneui/base": "^4.0.0-rc.7",
@@ -120,6 +122,7 @@
     "supertokens-web-js": "^0.7.3",
     "tailwind-merge": "^1.14.0",
     "technicalindicators": "^3.1.0",
+    "ts-loader": "^9.5.4",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
