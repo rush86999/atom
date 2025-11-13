@@ -86,7 +86,6 @@ export class CommunicationScheduler extends EventEmitter {
       if (communication.retryCount < this.retryPolicy.maxRetries) {
         await this.scheduleRetry(communication);
       } else {
-        communication.status = 'failed';
         this.executionHistory.push(communication);
         super.emit('execution-failed', { communication, error });
       }
@@ -159,7 +158,9 @@ export class CommunicationScheduler extends EventEmitter {
     };
 
     const weight = priorityWeightMap[communication.priority] || 0.5;
-    const adjustedTime = new Date(time.getTime() * weight);
+    const delay = Math.max(0, time.getTime() - Date.now());
+    const adjustedDelay = delay * weight;
+    const adjustedTime = new Date(Date.now() + adjustedDelay);
     return adjustedTime;
   }
 
@@ -183,14 +184,14 @@ export class CommunicationScheduler extends EventEmitter {
     communication: AutonomousCommunications
   ): Promise<Date> {
     // Different channels have different optimal times
-    const channelTimeMap = {
+    const channelTimeMap: Record<string, Date> = {
       'email': time,
       'slack': time,
       'teams': new Date(time.getTime() + 2 * 60 * 60 * 1000), // 2 hours later for teams
       'sms': new Date(time.getTime() + (time.getHours() < 10 ? 3 : 0) * 60 * 60 * 1000),
       'phone': new Date(time.getTime() + (time.getHours() < 11 ? 4 : 0) * 60 * 60 * 1000)
     };
-+
+
     return channelTimeMap[communication.channel] || time;
   }
 
@@ -213,35 +214,62 @@ export class CommunicationScheduler extends EventEmitter {
       const nextMonday = new Date(time);
       nextMonday.setDate(time.getDate() + ((7 - day) % 7) + 1);
       nextMonday.setHours(9, 0, 0, 0);
-+      return nextMonday;
-+    }
-+    return time;
+      return nextMonday;
+    }
+    return time;
   }
 
   private generateId(): string {
-+    return `comm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `comm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
   public async cancelScheduledCommunication(id: string): Promise<void> {
-++    const communication = this.queuedCommunications.get(id);
-++    if (!communication) {
-++      throw new Error(`Communication ${id} not found`);
-++    }
-++
-++    const timeout = this.scheduledTimeouts.get(id);
-++    if (timeout) {
-++      clearTimeout(timeout);
-++      this.scheduledTimeouts.delete(id);
-++    }
-++
-++    this.queuedCommunications.delete(id);
-++    this.emit('canceled', communication);
-++  }
-++
-++  public getScheduledCommunications(): ScheduledCommunication[] {
-++    return Array.from(this.queuedCommunications.values());
-++  }
-++
-++  public getExecutionHistory(): ScheduledCommunication[] {
-++    return [...this.executionHistory];
-++  }
+    const communication = this.queuedCommunications.get(id);
+    if (!communication) {
+      throw new Error(`Communication ${id} not found`);
+    }
+
+    const timeout = this.scheduledTimeouts.get(id);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.scheduledTimeouts.delete(id);
+    }
+
+    this.queuedCommunications.delete(id);
+    this.emit('canceled', communication);
+  }
+
+  public getScheduledCommunications(): ScheduledCommunication[] {
+    return Array.from(this.queuedCommunications.values());
+  }
+
+  public getExecutionHistory(): ScheduledCommunication[] {
+    return [...this.executionHistory];
+  }
+
+  public async updateScheduledTime(id: string, newTime: Date): Promise<void> {
+    const communication = this.queuedCommunications.get(id);
+    if (!communication) {
+      throw new Error(`Communication ${id} not found`);
+    }
+
+    // Apply scheduling rules to the new time
+    const processedTime = await this.applySchedulingRules(newTime, communication);
+
+    // Clear existing timeout
+    const existingTimeout = this.scheduledTimeouts.get(id);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      this.scheduledTimeouts.delete(id);
+    }
+
+    // Update the scheduled time
+    communication.scheduledFor = processedTime;
+
+    // Reschedule the execution
+    await this.scheduleExecution(communication);
+
+    // Emit update event
+    this.emit('updated', communication);
+  }
+}
