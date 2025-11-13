@@ -5,6 +5,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, Budget } from '../types';
 import { TRANSACTIONS_DATA, BUDGETS_DATA } from '../data';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 
 const COLORS: Record<string, string> = {
     groceries: 'var(--accent-blue)',
@@ -107,15 +109,17 @@ const WeeklyCashFlowChart: React.FC<{ transactions: Transaction[] }> = ({ transa
 };
 
 export const FinancesView = () => {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const { transactions, setTransactions, addTransaction } = useAppStore();
+    const { toast } = useToast();
     const [budgets, setBudgets] = useState<Budget[]>([]);
     const [filter, setFilter] = useState('');
 
     useEffect(() => {
-        // In a real app, you'd fetch this data.
-        setTransactions(TRANSACTIONS_DATA);
+        if (transactions.length === 0) {
+            TRANSACTIONS_DATA.forEach(transaction => addTransaction(transaction));
+        }
         setBudgets(BUDGETS_DATA);
-    }, []);
+    }, [transactions.length, addTransaction]);
 
     const filteredTransactions = transactions.filter(t =>
         t.description.toLowerCase().includes(filter.toLowerCase())

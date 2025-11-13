@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # Main API service
+  api:
+    build: .
+    ports:
+      - '3001:3001'
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://atom_user:atom_password@db:5432/atom_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - JWT_SECRET_KEY=jwt-dev-secret-key-change-in-production
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health/status']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=atom_db
+      - POSTGRES_USER=atom_user
+      - POSTGRES_PASSWORD=atom_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - '5432:5432'
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U atom_user -d atom_db']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching and WebSocket
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery worker for background tasks
+  celery-worker:
+    build: .
+    command: celery -A app.celery worker --loglevel=info
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://atom_user:atom_password@db:5432/atom_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+      - api
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  # Celery beat for scheduled tasks
+  celery-beat:
+    build: .
+    command: celery -A app.celery beat --loglevel=info
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://atom_user:atom_password@db:5432/atom_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+      - api
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@atom.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - '5050:80'
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - '8081:8081'
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    driver: bridge

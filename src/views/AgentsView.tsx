@@ -1,24 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Agent, AgentLog } from '../types';
 import { AGENTS_DATA, AGENT_LOGS_DATA } from '../data';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 
 export const AgentsView = () => {
-    const [agents, setAgents] = useState<Agent[]>([]);
+    const { agents, setAgents, updateAgent } = useAppStore();
+    const { toast } = useToast();
     const [logs] = useState<AgentLog[]>(AGENT_LOGS_DATA);
     const [showConfigModal, setShowConfigModal] = useState(false);
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
     const [expandedLogs, setExpandedLogs] = useState(false);
 
     useEffect(() => {
-        setAgents(AGENTS_DATA);
-    }, []);
+        if (agents.length === 0) {
+            setAgents(AGENTS_DATA);
+        }
+    }, [agents.length, setAgents]);
 
     const handleToggleAgent = (agentId: string) => {
-        setAgents(agents.map(agent =>
-            agent.id === agentId
-                ? { ...agent, status: agent.status === 'online' ? 'offline' : 'online' }
-                : agent
-        ));
+        const agent = agents.find(a => a.id === agentId);
+        if (agent) {
+            const newStatus = agent.status === 'online' ? 'offline' : 'online';
+            updateAgent(agentId, { status: newStatus });
+            toast.success('Agent Status Updated', `${agent.name} is now ${newStatus}`);
+        }
     };
 
     const openConfigModal = (agent: Agent) => {

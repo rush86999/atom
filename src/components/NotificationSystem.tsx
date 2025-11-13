@@ -129,6 +129,7 @@ export const useToast = () => {
   );
 
   return {
+    toast,
     success: (title: string, message?: string) => toast('success', title, message),
     error: (title: string, message?: string) => toast('error', title, message),
     warning: (title: string, message?: string) => toast('warning', title, message),

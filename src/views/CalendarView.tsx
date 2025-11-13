@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calendar as CalendarIcon,
@@ -16,6 +16,7 @@ import { useAppStore } from '../store';
 import { AdvancedModal, ConfirmModal } from '../components/AdvancedModal';
 import { useToast } from '../components/NotificationSystem';
 
+
 interface CalendarEvent {
   id: string;
   title: string;
@@ -29,7 +30,7 @@ interface CalendarEvent {
 }
 
 const CalendarView: React.FC = () => {
-  const { calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = useAppStore();
+  const { calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, setCalendarEvents } = useAppStore();
   const { toast } = useToast();
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -38,6 +39,35 @@ const CalendarView: React.FC = () => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
+  // Initialize with sample data if empty
+  useEffect(() => {
+    if (calendarEvents.length === 0) {
+      const sampleEvents: CalendarEvent[] = [
+        {
+          id: '1',
+          title: 'Team Meeting',
+          description: 'Weekly team sync',
+          startTime: new Date().toISOString(),
+          endTime: new Date(Date.now() + 3600000).toISOString(),
+          location: 'Conference Room A',
+          attendees: ['john@example.com', 'jane@example.com'],
+          type: 'meeting',
+          color: 'blue'
+        },
+        {
+          id: '2',
+          title: 'Project Review',
+          description: 'Review project progress',
+          startTime: new Date(Date.now() + 86400000).toISOString(),
+          endTime: new Date(Date.now() + 86400000 + 7200000).toISOString(),
+          type: 'task',
+          color: 'green'
+        }
+      ];
+      setCalendarEvents(sampleEvents);
+    }
+  }, [calendarEvents.length, setCalendarEvents]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);

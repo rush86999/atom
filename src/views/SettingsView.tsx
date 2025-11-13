@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, IntegrationConfig, AdvancedSettings } from '../types';
 import { USER_PROFILE_DATA, LANGUAGES, TIMEZONES, INTEGRATION_CONFIGS_DATA } from '../data';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 
 export const SettingsView = () => {
-    const [profile, setProfile] = useState<UserProfile>(USER_PROFILE_DATA);
+    const { userProfile, setUserProfile, integrations, setIntegrations, updateIntegration } = useAppStore();
+    const { toast } = useToast();
+    const [profile, setProfile] = useState<UserProfile>(userProfile || USER_PROFILE_DATA);
     const [hasChanges, setHasChanges] = useState(false);
     const [activeTab, setActiveTab] = useState('profile');
-    const [integrations, setIntegrations] = useState<IntegrationConfig[]>(INTEGRATION_CONFIGS_DATA);
     const [showExportModal, setShowExportModal] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [newPassword, setNewPassword] = useState('');
@@ -17,9 +20,9 @@ export const SettingsView = () => {
     };
 
     const handleSave = () => {
-        // In a real app, you'd save to a backend
+        setUserProfile(profile);
         setHasChanges(false);
-        alert('Settings saved!');
+        toast.success('Settings Saved', 'Your profile settings have been updated');
     };
 
     const handleThemeChange = (theme: 'light' | 'dark') => {
@@ -45,9 +48,11 @@ export const SettingsView = () => {
     };
 
     const handleIntegrationToggle = (id: string) => {
-        setIntegrations(integrations.map(int =>
-            int.id === id ? { ...int, connected: !int.connected } : int
-        ));
+        const integration = integrations.find(int => int.id === id);
+        if (integration) {
+            updateIntegration(id, { connected: !integration.connected });
+            toast.success('Integration Updated', `${integration.displayName} ${!integration.connected ? 'connected' : 'disconnected'}`);
+        }
     };
 
     const handleAdvancedChange = (section: keyof AdvancedSettings, field: string, value: any) => {

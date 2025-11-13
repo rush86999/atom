@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Integration } from '../types';
 import { INTEGRATIONS_DATA } from '../data';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 
 export const IntegrationsView = () => {
-    const [integrations, setIntegrations] = useState<Integration[]>([]);
+    const { integrations, setIntegrations, updateIntegration } = useAppStore();
+    const { toast } = useToast();
 
     useEffect(() => {
-        setIntegrations(INTEGRATIONS_DATA);
-    }, []);
+        if (integrations.length === 0) {
+            setIntegrations(INTEGRATIONS_DATA);
+        }
+    }, [integrations.length, setIntegrations]);
 
     const categories = [...new Set(integrations.map(int => int.category))];
 
@@ -47,7 +52,13 @@ export const IntegrationsView = () => {
                                         <p>Connect your {integration.displayName} account to enable seamless integration.</p>
                                     </div>
                                     <div className="integration-card-footer">
-                                        <button className={`integration-button ${integration.connected ? 'disconnect' : 'connect'}`}>
+                                        <button
+                                            className={`integration-button ${integration.connected ? 'disconnect' : 'connect'}`}
+                                            onClick={() => {
+                                                updateIntegration(integration.id, { connected: !integration.connected });
+                                                toast.success('Integration Updated', `${integration.displayName} ${!integration.connected ? 'connected' : 'disconnected'}`);
+                                            }}
+                                        >
                                             {integration.connected ? 'Disconnect' : 'Connect'}
                                         </button>
                                     </div>

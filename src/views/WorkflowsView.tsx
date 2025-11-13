@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Workflow } from '../types';
 import { WORKFLOWS_DATA } from '../data';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 
 export const WorkflowsView = () => {
-    const [workflows, setWorkflows] = useState<Workflow[]>([]);
+    const { workflows, setWorkflows, addWorkflow, updateWorkflow, deleteWorkflow } = useAppStore();
+    const { toast } = useToast();
 
     useEffect(() => {
-        setWorkflows(WORKFLOWS_DATA);
-    }, []);
+        if (workflows.length === 0) {
+            WORKFLOWS_DATA.forEach(workflow => addWorkflow(workflow));
+        }
+    }, [workflows.length, addWorkflow]);
 
     return (
         <div className="workflows-view">

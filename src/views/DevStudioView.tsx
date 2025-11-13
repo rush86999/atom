@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { DevProject } from '../types';
 import { DEV_PROJECT_DATA } from '../data';
+import { useAppStore } from '../store';
+import { useToast } from '../components/NotificationSystem';
 
 export const DevStudioView = () => {
-    const [project, setProject] = useState<DevProject>(DEV_PROJECT_DATA);
+    const { devProjects, setDevProjects } = useAppStore();
+    const { toast } = useToast();
+    const [project, setProject] = useState<DevProject>(devProjects.length > 0 ? devProjects[0] : DEV_PROJECT_DATA);
+
+    useEffect(() => {
+        if (devProjects.length === 0) {
+            setDevProjects([DEV_PROJECT_DATA]);
+        }
+    }, [devProjects.length, setDevProjects]);
 
     return (
         <div className="dev-studio-view">
