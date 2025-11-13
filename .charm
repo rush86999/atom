@@ -1,5 +1,7 @@
 # Charm CLI Configuration for ATOM Project
-# This file enables vibe coding with Charm CLI tools
+# This file enables vibe coding with Charm CLI tools and DeepSeek API with Zed IDE
+# IMPORTANT: Maintain organized structure - prefer existing directories
+# Folders can be created when no other option exists for logical organization
 
 [project]
 name = "ATOM"
@@ -8,10 +10,25 @@ version = "1.0.0"
 language = "typescript,python"
 framework = "nextjs,tauri,fastapi"
 
+# ORGANIZATION RULES - DO NOT VIOLATE
+# - Keep root directory clean (only README.md and .charm allowed)
+# - All code files must be in appropriate subdirectories
+# - Use organize-files.py to maintain structure
+# - Never create new files in root directory
+organization_rules = "flexible"
+folder_creation = "allowed_when_necessary"
+
 [environment]
 node_version = "18"
 python_version = "3.11"
 rust_version = "1.70"
+
+# File organization enforcement
+organization_script = "scripts/organize-files.py"
+organization_rules = "config/.file-organization-rules.json"
+organization_maintained = true
+deepseek_api_key = "${DEEPSEEK_API_KEY}"
+zed_ide_integration = true
 
 [commands]
 # Development commands
@@ -20,6 +37,14 @@ build = "npm run build && python -m py_compile backend/main_api_app.py"
 test = "npm test && python -m pytest tests/"
 lint = "npm run lint && flake8 backend/"
 format = "npm run format && black backend/ && isort backend/"
+
+# Organization enforcement commands
+organize = "python scripts/organize-files.py --organize"
+validate-org = "python scripts/organize-files.py --validate"
+clean-root = "find . -maxdepth 1 -type f \\( -name '*.py' -o -name '*.js' -o -name '*.json' -o -name '*.md' -o -name '*.sh' \\) -not -name 'README.md' -not -name '.charm' -exec mv {} backend/ \\; && python scripts/organize-files.py --organize"
+validate-organization = "python scripts/organize-files.py --validate"
+organize-files = "python scripts/organize-files.py --organize"
+deepseek-chat = "curl -X POST https://api.deepseek.com/chat/completions -H 'Content-Type: application/json' -H 'Authorization: Bearer ${DEEPSEEK_API_KEY}' -d"
 
 # Backend commands
 backend = "cd backend && python main_api_app.py"
@@ -35,7 +60,6 @@ desktop-build = "cd desktop-tauri && npm run tauri build"
 
 # Integration commands
 integrations = "python scripts/organize-files.py --validate"
-organize = "python scripts/organize-files.py --organize"
 validate = "python scripts/organize-files.py --validate"
 
 # Deployment commands
@@ -68,25 +92,68 @@ model = "glm-4.6"
 temperature = 0.7
 context_window = 8000
 
+# ORGANIZATION CONSTRAINTS FOR AI ASSISTANT
+# - Prefer existing directories for file placement
+# - Create new folders only when necessary for logical organization
+# - Always place files in appropriate subdirectories:
+#   - Python files → backend/
+#   - TypeScript files → frontend-nextjs/ or src/
+#   - Documentation → docs/
+#   - Scripts → scripts/
+#   - Tests → tests/
+#   - Config → config/
+#   - New features → create feature-specific subdirectories when needed
+# - Use organize-files.py after creating new files
+# - Run validate-org command before committing
+organization_prompt = "Maintain organized project structure. Prefer existing directories: backend/, frontend-nextjs/, desktop-tauri/, docs/, scripts/, tests/, config/. Create new folders only when necessary for logical organization of new features or components."
+
 [workflows]
 # Common development workflows
 start-dev = ["frontend", "backend"]
 start-full = ["frontend", "backend", "desktop"]
 test-all = ["test", "lint"]
 deploy-prep = ["test", "build", "organize"]
+pre-commit = ["validate-org", "organize", "test", "lint"]
+validate-organization = ["validate-organization"]
 
 [files]
 # Important files for context
 include = [
   "README.md",
+  ".charm",
   "package.json",
   "tsconfig.json",
   "backend/main_api_app.py",
   "frontend-nextjs/package.json",
   "desktop-tauri/package.json",
   "config/.file-organization-rules.json",
-  "scripts/organize-files.py"
+  "scripts/organize-files.py",
+  ".gitignore"
 ]
+
+# File creation rules for AI assistant
+create_rules = {
+  "python": "backend/",
+  "typescript": "frontend-nextjs/",
+  "javascript": "frontend-nextjs/",
+  "react": "frontend-nextjs/",
+  "markdown": "docs/",
+  "shell": "scripts/",
+  "json": "config/",
+  "yaml": "config/",
+  "docker": "deployment/",
+  "rust": "desktop-tauri/src-tauri/",
+  "css": "frontend-nextjs/styles/",
+  "sql": "data/"
+}
+
+# Folder creation guidelines
+folder_creation_rules = {
+  "allowed_for": ["new_features", "major_components", "logical_grouping"],
+  "prefer_existing": true,
+  "naming_convention": "kebab-case",
+  "max_depth": 3
+}
 
 exclude = [
   "node_modules/",
@@ -99,3 +166,26 @@ exclude = [
   "build/",
   "target/"
 ]
+
+[deepseek]
+# DeepSeek API configuration for Zed IDE integration
+api_key = "${DEEPSEEK_API_KEY}"
+model = "deepseek-chat"
+temperature = 0.7
+max_tokens = 4096
+context_window = 128000
+
+[zed]
+# Zed IDE integration settings
+theme = "atom-dark"
+keybindings = "atom"
+file_organization = "enabled"
+auto_organize = true
+deepseek_integration = true
+
+[tools]
+# Development tools integration
+charm_cli = true
+deepseek_api = true
+zed_ide = true
+organization_system = true
