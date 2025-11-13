@@ -182,7 +182,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
   const checkIntegrationsHealth = async () => {
     try {
       setStats(prev => ({ ...prev, processing: true }));
-      
+
       const healthChecks = await Promise.all([
         fetch('/api/integrations/box/health'),
         fetch('/api/integrations/dropbox/health'),
@@ -201,7 +201,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
       // Check Next.js specific status
       const nextjsResponse = healthChecks[8];
       let nextjsData = { connected: false, projects: 0, deployments: 0, builds: 0 };
-      
+
       if (nextjsResponse.ok) {
         const nextjsHealth = await nextjsResponse.json();
         nextjsData = {
@@ -252,7 +252,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
 
   useEffect(() => {
     checkIntegrationsHealth();
-    
+
     // Simulate processing
     setTimeout(() => {
       setStats(prev => ({ ...prev, processing: true }));
@@ -276,15 +276,15 @@ const ATOMIntegrationShowcase: React.FC = () => {
             ATOM Integration Platform
           </Heading>
           <Text fontSize="xl" color="gray.600" maxW="800px">
-            Connect your favorite tools, automate workflows, and unlock intelligent insights 
+            Connect your favorite tools, automate workflows, and unlock intelligent insights
             with our comprehensive integration ecosystem
           </Text>
         </VStack>
 
         {/* Featured Integration - Next.js */}
-        <Card 
-          border="3px" 
-          borderColor="blue.500" 
+        <Card
+          border="3px"
+          borderColor="blue.500"
           shadow="2xl"
           bg="blue.50"
         >
@@ -311,18 +311,18 @@ const ATOMIntegrationShowcase: React.FC = () => {
                       </HStack>
                     </VStack>
                   </HStack>
-                  
+
                   <VStack align="start" spacing={2}>
                     <Text fontSize="lg" fontWeight="bold" color="blue.700">
                       Complete Vercel Project Management
                     </Text>
                     <Text color="gray.700" maxW="600px">
-                      Connect your Vercel account to manage Next.js projects, monitor deployments, 
-                      track builds, and access performance analytics. Real-time updates and 
+                      Connect your Vercel account to manage Next.js projects, monitor deployments,
+                      track builds, and access performance analytics. Real-time updates and
                       automation included.
                     </Text>
                   </VStack>
-                  
+
                   <HStack spacing={4}>
                     <Button
                       colorScheme="blue"
@@ -342,7 +342,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     </Button>
                   </HStack>
                 </VStack>
-                
+
                 <VStack spacing={4} align="center">
                   <Icon as={ShieldIcon} w={16} h={16} color="blue.500" />
                   <Text fontSize="lg" fontWeight="bold" color="blue.700">
@@ -353,7 +353,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                   </Badge>
                 </VStack>
               </HStack>
-              
+
               {/* Next.js Stats */}
               <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6}>
                 <Card bg="white" border="1px" borderColor="gray.200">
@@ -369,7 +369,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     </VStack>
                   </CardBody>
                 </Card>
-                
+
                 <Card bg="white" border="1px" borderColor="gray.200">
                   <CardBody>
                     <VStack spacing={2} align="center">
@@ -383,11 +383,11 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     </VStack>
                   </CardBody>
                 </Card>
-                
+
                 <Card bg="white" border="1px" borderColor="gray.200">
                   <CardBody>
                     <VStack spacing={2} align="center">
-                      <Icon as={RocketIcon} w={8} h={8" color="purple.500" />
+                      <Icon as={RocketIcon} w={8} h={8} color="purple.500" />
                       <Text fontSize="2xl" fontWeight="bold" color="purple.500">
                         {nextjsStatus.deployments}+
                       </Text>
@@ -397,7 +397,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     </VStack>
                   </CardBody>
                 </Card>
-                
+
                 <Card bg="white" border="1px" borderColor="gray.200">
                   <CardBody>
                     <VStack spacing={2} align="center">
@@ -433,7 +433,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                   <AlertIcon />
                   <Text>Complete enterprise-grade Next.js/Vercel integration</Text>
                 </Alert>
-                
+
                 <UnorderedList spacing={3}>
                   {nextjsFeatures.map((feature, index) => (
                     <ListItem key={index} fontSize="md">
@@ -442,16 +442,16 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     </ListItem>
                   ))}
                 </UnorderedList>
-                
+
                 <Divider />
-                
+
                 <HStack justify="space-between">
                   <Text fontWeight="bold">Status:</Text>
                   <Badge colorScheme="green" variant="solid">
                     Production Ready
                   </Badge>
                 </HStack>
-                
+
                 <Button
                   colorScheme="blue"
                   size="lg"
@@ -477,7 +477,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                   Comprehensive connectivity across your favorite tools
                 </Text>
               </VStack>
-              
+
               <SimpleGrid columns={{ base: 1, md: 4 }} spacing={6}>
                 <VStack spacing={3} align="center">
                   <Icon as={CheckCircleIcon} w={10} h={10} color="blue.500" />
@@ -488,7 +488,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     of {stats.total} Integrations Connected
                   </Text>
                 </VStack>
-                
+
                 <VStack spacing={3} align="center">
                   <Icon as={StarIcon} w={10} h={10} color="green.500" />
                   <Text fontSize="3xl" fontWeight="bold" color="green.500">
@@ -498,7 +498,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     Healthy Services
                   </Text>
                 </VStack>
-                
+
                 <VStack spacing={3" align="center">
                   <Icon as={CpuIcon} w={10} h={10} color="purple.500" />
                   <Text fontSize="3xl" fontWeight="bold" color="purple.500">
@@ -508,7 +508,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     AI Skills Available
                   </Text>
                 </VStack>
-                
+
                 <VStack spacing={3" align="center">
                   <Icon as={TimeIcon} w={10} h={10" color="orange.500" />
                   <Text fontSize="3xl" fontWeight="bold" color="orange.500">
@@ -519,7 +519,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                   </Text>
                 </VStack>
               </SimpleGrid>
-              
+
               <VStack spacing={3" w="full">
                 <HStack justify="space-between" w="full">
                   <Text fontSize="lg" fontWeight="bold">
@@ -548,7 +548,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
               Click to connect any integration to your ATOM workspace
             </Text>
           </VStack>
-          
+
           <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
             {integrations.map((integration) => (
               <Card
@@ -584,13 +584,13 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     FEATURED
                   </Badge>
                 )}
-                
+
                 <CardBody>
                   <VStack spacing={4} align="start">
                     <HStack spacing={4}>
-                      <Icon 
-                        as={integration.icon} 
-                        w={10} h={10} 
+                      <Icon
+                        as={integration.icon}
+                        w={10} h={10}
                         color={integration.color}
                       />
                       <VStack align="start" spacing={1}>
@@ -605,11 +605,11 @@ const ATOMIntegrationShowcase: React.FC = () => {
                         </Badge>
                       </VStack>
                     </HStack>
-                    
+
                     <Text color="gray.600" fontSize="sm">
                       {integration.description}
                     </Text>
-                    
+
                     <HStack justify="space-between" w="full">
                       <Text fontSize="xs" color="gray.500">
                         Category: {integration.category}
@@ -623,7 +623,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                         </HStack>
                       )}
                     </HStack>
-                    
+
                     <Button
                       variant={integration.id === 'nextjs' ? 'solid' : 'outline'}
                       colorScheme={integration.id === 'nextjs' ? 'orange' : 'gray'}
@@ -649,11 +649,11 @@ const ATOMIntegrationShowcase: React.FC = () => {
                   Ready to Transform Your Workflow?
                 </Heading>
                 <Text color="white" fontSize="lg" opacity={0.9}>
-                  Start with Next.js integration and experience the full power of ATOM's 
+                  Start with Next.js integration and experience the full power of ATOM's
                   intelligent automation and insights.
                 </Text>
               </VStack>
-              
+
               <VStack spacing={3" align="end">
                 <Button
                   colorScheme="white"
