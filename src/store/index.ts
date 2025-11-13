@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { devtools, persist, subscribeWithSelector } from 'zustand/middleware';
+import { getPerformanceMonitor } from '../utils/performance';
 import {
   UserProfile,
   Agent,
@@ -45,6 +46,9 @@ interface AppState {
   addTask: (task: Task) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
+  // Optimistic updates
+  optimisticUpdateTask: (id: string, updates: Partial<Task>) => void;
+  revertOptimisticUpdate: (id: string, originalTask: Task) => void;
 
   // Calendar events
   calendarEvents: CalendarEvent[];
@@ -190,8 +194,9 @@ interface Notification {
 
 export const useAppStore = create<AppState>()(
   devtools(
-    persist(
-      (set, get) => ({
+    subscribeWithSelector(
+      persist(
+        (set, get) => ({
         // Current view
         currentView: 'dashboard',
         setCurrentView: (view) => set({ currentView: view }),
@@ -220,6 +225,17 @@ export const useAppStore = create<AppState>()(
         })),
         deleteTask: (id) => set((state) => ({
           tasks: state.tasks.filter(task => task.id !== id)
+        })),
+        // Optimistic updates
+        optimisticUpdateTask: (id, updates) => set((state) => ({
+          tasks: state.tasks.map(task =>
+            task.id === id ? { ...task, ...updates, _optimistic: true } : task
+          )
+        })),
+        revertOptimisticUpdate: (id, originalTask) => set((state) => ({
+          tasks: state.tasks.map(task =>
+            task.id === id ? { ...originalTask, _optimistic: false } : task
+          )
         })),
 
         // Calendar events
@@ -455,6 +471,44 @@ export const useAppStore = create<AppState>()(
       name: 'Atom App Store',
     }
   )
+);
+
+// Performance monitoring subscription
+useAppStore.subscribe(
+  (state) => state.tasks,
+  (tasks) => {
+    console.log(`Tasks count: ${tasks.length}`);
+  }
+);
+
+useAppStore.subscribe(
+  (state) => state.agents,
+  (agents) => {
+    console.log(`Agents count: ${agents.length}`);
+  }
+);
+
+// Cache invalidation on state changes
+useAppStore.subscribe(
+  (state) => state.tasks,
+  () => {
+    // Invalidate task-related cache when tasks change
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const keys = Object.keys(localStorage).filter(key => key.startsWith('cache_tasks_'));
+      keys.forEach(key => localStorage.removeItem(key));
+    }
+  }
+);
+
+useAppStore.subscribe(
+  (state) => state.agents,
+  () => {
+    // Invalidate agent-related cache when agents change
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const keys = Object.keys(localStorage).filter(key => key.startsWith('cache_agents_'));
+      keys.forEach(key => localStorage.removeItem(key));
+    }
+  }
 );
 
 // Selectors for computed state

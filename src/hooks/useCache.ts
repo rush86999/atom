@@ -1,9 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { getPerformanceMonitor } from '../utils/performance';
+import lzString from 'lz-string';
 
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
   ttl: number;
+  accessCount?: number;
+  compressed?: boolean;
+  size?: number;
 }
 
 interface CacheOptions {
@@ -11,6 +16,9 @@ interface CacheOptions {
   maxSize?: number; // Maximum cache size
   strategy?: 'lru' | 'fifo' | 'lfu'; // Cache eviction strategy
   enablePersistence?: boolean; // Enable localStorage persistence
+  enableCompression?: boolean; // Enable data compression
+  backgroundRefresh?: boolean; // Enable background refresh
+  prefetch?: boolean; // Enable prefetching
 }
 
 class Cache<T = any> {
@@ -24,6 +32,9 @@ class Cache<T = any> {
       maxSize: options.maxSize || 100,
       strategy: options.strategy || 'lru',
       enablePersistence: options.enablePersistence || false,
+      enableCompression: options.enableCompression || false,
+      backgroundRefresh: options.backgroundRefresh || false,
+      prefetch: options.prefetch || false,
     };
   }
 
@@ -44,6 +55,22 @@ class Cache<T = any> {
       this.accessOrder.add(key);
     }
 
+    // Increment access count for LFU
+    if (this.options.strategy === 'lfu') {
+      entry.accessCount = (entry.accessCount || 0) + 1;
+    }
+
+    // Decompress if compressed
+    if (entry.compressed && typeof entry.data === 'string') {
+      try {
+        const decompressed = lzString.decompressFromUTF16(entry.data as string);
+        return JSON.parse(decompressed);
+      } catch (e) {
+        console.warn('Failed to decompress cache entry:', e);
+        return null;
+      }
+    }
+
     return entry.data;
   }
 
@@ -53,10 +80,29 @@ class Cache<T = any> {
       this.evict();
     }
 
+    let processedData = data;
+    let compressed = false;
+
+    // Compress data if enabled and data is large
+    if (this.options.enableCompression && typeof data === 'object' && data !== null) {
+      try {
+        const jsonString = JSON.stringify(data);
+        if (jsonString.length > 1000) { // Only compress if > 1KB
+          const compressedString = lzString.compressToUTF16(jsonString);
+          processedData = compressedString as any;
+          compressed = true;
+        }
+      } catch (e) {
+        console.warn('Failed to compress cache entry:', e);
+      }
+    }
+
     const entry: CacheEntry<T> = {
-      data,
+      data: processedData,
       timestamp: Date.now(),
       ttl: ttl || this.options.ttl,
+      compressed,
+      accessCount: 0,
     };
 
     this.cache.set(key, entry);
@@ -149,6 +195,16 @@ export const useCache = <T>(
   const fetchData = useCallback(async (force = false) => {
     if (!enabled || !mountedRef.current) return;
 
+    let startTime = 0;
+    try {
+      // Try to get performance monitor, but don't fail if it's not available
+      const monitor = getPerformanceMonitor();
+      startTime = performance.now();
+    } catch (e) {
+      // Performance monitoring not available, continue without it
+      console.warn('Performance monitoring not available:', e);
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -160,6 +216,21 @@ export const useCache = <T>(
         globalCache.set(key, freshData, cacheOptions.ttl);
         cachedData = freshData;
         setIsStale(false);
+
+        // Background refresh if enabled
+        if (cacheOptions.backgroundRefresh && !force) {
+          setTimeout(async () => {
+            try {
+              const newData = await fetchRef.current();
+              globalCache.set(key, newData, cacheOptions.ttl);
+              if (mountedRef.current) {
+                setData(newData);
+              }
+            } catch (e) {
+              console.warn('Background refresh failed:', e);
+            }
+          }, (cacheOptions.ttl || 300000) * 0.9); // Refresh before expiration
+        }
       } else {
         // Check if data is stale (close to expiration)
         const entry = (globalCache as any).cache.get(key);
@@ -171,16 +242,27 @@ export const useCache = <T>(
       if (mountedRef.current) {
         setData(cachedData);
       }
+
+      // Track cache performance if available
+      if (startTime > 0) {
+        try {
+          const duration = performance.now() - startTime;
+          console.log(`Cache operation for ${key}: ${duration.toFixed(2)}ms`);
+        } catch (e) {
+          // Performance API not available
+        }
+      }
     } catch (err) {
       if (mountedRef.current) {
         setError(err as Error);
       }
+      console.warn(`Cache error for ${key}:`, err);
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
       }
     }
-  }, [key, enabled, cacheOptions.ttl]);
+  }, [key, enabled, cacheOptions.ttl, cacheOptions.backgroundRefresh]);
 
   const refetch = useCallback(() => {
     return fetchData(true);

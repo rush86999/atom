@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, startTransition } from 'react';
+import React, { useEffect, Suspense, startTransition, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeProvider';
@@ -9,6 +9,8 @@ import { useRealtimeSync } from './hooks/useWebSocket';
 import { useVoiceCommands } from './components/VoiceCommandInterface';
 import { useAppStore } from './store';
 import { View } from './types';
+import { initializePerformanceMonitoring, getPerformanceMonitor } from './utils/performance';
+import { measureRenderTime } from './utils/performance';
 
 // Lazy-loaded Views for performance
 const DashboardView = React.lazy(() => import('./views/DashboardView').then(module => ({ default: module.DashboardView })));
@@ -37,19 +39,40 @@ const LoadingFallback = () => (
   </div>
 );
 
-// Create a client
+// Create a client with advanced configuration
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 3,
+      retry: (failureCount, error) => {
+        // Exponential backoff with jitter
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      networkMode: 'online',
+    },
+    mutations: {
+      retry: 1,
+      networkMode: 'online',
     },
   },
+});
+
+// Initialize performance monitoring
+initializePerformanceMonitoring({
+  enableWebVitals: true,
+  enableCustomMetrics: true,
+  sampleRate: 0.1, // 10% sampling for performance
 });
 
 function AppContent() {
   const { currentView, setCurrentView } = useAppStore();
   const [voiceInterfaceOpen, setVoiceInterfaceOpen] = React.useState(false);
+
+  // Performance monitoring for AppContent
+  const renderTimer = useMemo(() => measureRenderTime('AppContent'), []);
 
   // Initialize real-time sync
   useRealtimeSync();
@@ -57,9 +80,30 @@ function AppContent() {
   // Voice commands
   const { processCommand } = useVoiceCommands();
 
-  const handleVoiceCommand = (command: string, confidence: number) => {
-    processCommand(command, confidence);
-  };
+  const handleVoiceCommand = useCallback((command: string, confidence: number) => {
+    const monitor = getPerformanceMonitor();
+    monitor.timeFunction('voice_command_processing', () => {
+      processCommand(command, confidence);
+    });
+  }, [processCommand]);
+
+  // Memoize view components to prevent unnecessary re-renders
+  const memoizedViews = useMemo(() => ({
+    dashboard: <DashboardView />,
+    chat: <ChatView />,
+    agents: <AgentsView />,
+    voice: <VoiceView />,
+    calendar: <CalendarView />,
+    tasks: <TasksView />,
+    notes: <NotesView />,
+    communications: <CommunicationsView />,
+    integrations: <IntegrationsView />,
+    workflows: <WorkflowsView />,
+    finances: <FinancesView />,
+    settings: <SettingsView />,
+    dev: <DevStudioView />,
+    docs: <DocsView />,
+  }), []);
 
   // Keyboard shortcuts with startTransition for non-urgent updates
   useEffect(() => {
@@ -87,48 +131,24 @@ function AppContent() {
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [setCurrentView]);
 
-  const renderCurrentView = () => {
-    const viewComponent = (() => {
-      switch (currentView) {
-        case 'dashboard':
-          return <DashboardView />;
-        case 'chat':
-          return <ChatView />;
-        case 'agents':
-          return <AgentsView />;
-        case 'voice':
-          return <VoiceView />;
-        case 'calendar':
-          return <CalendarView />;
-        case 'tasks':
-          return <TasksView />;
-        case 'notes':
-          return <NotesView />;
-        case 'communications':
-          return <CommunicationsView />;
-        case 'integrations':
-          return <IntegrationsView />;
-        case 'workflows':
-          return <WorkflowsView />;
-        case 'finances':
-          return <FinancesView />;
-        case 'settings':
-          return <SettingsView />;
-        case 'dev':
-          return <DevStudioView />;
-        case 'docs':
-          return <DocsView />;
-        default:
-          return <DashboardView />;
-      }
-    })();
+  const renderCurrentView = useCallback(() => {
+    const monitor = getPerformanceMonitor();
+    const viewTimer = measureRenderTime(`View_${currentView}`);
+
+    viewTimer.start();
 
     return (
       <Suspense fallback={<LoadingFallback />}>
-        {viewComponent}
+        {memoizedViews[currentView] || memoizedViews.dashboard}
       </Suspense>
     );
-  };
+  }, [currentView, memoizedViews]);
+
+  // Start render timer
+  useEffect(() => {
+    renderTimer.start();
+    return () => renderTimer.end();
+  }, [renderTimer]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
