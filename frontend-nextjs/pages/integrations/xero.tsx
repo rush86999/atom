@@ -3,15 +3,15 @@
  * Next.js page for Xero small business accounting integration
  */
 
-import React from 'react';
-import { GetServerSideProps } from 'next';
-import Head from 'next/head';
-import { Layout } from '../../components/layout/Layout';
-import { XeroIntegration } from '../../../src/ui-shared/integrations/xero';
+import React from "react";
+import { GetServerSideProps } from "next";
+import Head from "next/head";
+import { Layout } from "../../components/layout/Layout";
+// import { XeroIntegration } from '../../../src/ui-shared/integrations/xero';
 
 interface XeroPageProps {
   initialConfig?: {
-    environment: 'production' | 'sandbox';
+    environment: "production" | "sandbox";
   };
 }
 
@@ -20,22 +20,34 @@ const XeroPage: React.FC<XeroPageProps> = ({ initialConfig }) => {
     <>
       <Head>
         <title>Xero Integration | ATOM</title>
-        <meta name="description" content="Complete small business accounting and financial management through Xero integration" />
+        <meta
+          name="description"
+          content="Complete small business accounting and financial management through Xero integration"
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
-        
+
         {/* Open Graph */}
         <meta property="og:title" content="Xero Integration | ATOM" />
-        <meta property="og:description" content="Complete small business accounting and financial management through Xero integration" />
+        <meta
+          property="og:description"
+          content="Complete small business accounting and financial management through Xero integration"
+        />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="/images/integrations/xero-og.jpg" />
-        
+
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Xero Integration | ATOM" />
-        <meta name="twitter:description" content="Complete small business accounting and financial management through Xero integration" />
-        <meta name="twitter:image" content="/images/integrations/xero-twitter.jpg" />
-        
+        <meta
+          name="twitter:description"
+          content="Complete small business accounting and financial management through Xero integration"
+        />
+        <meta
+          name="twitter:image"
+          content="/images/integrations/xero-twitter.jpg"
+        />
+
         {/* Xero Brand Colors */}
         <meta name="theme-color" content="#1EE5D8" />
         <style>{`
@@ -50,26 +62,45 @@ const XeroPage: React.FC<XeroPageProps> = ({ initialConfig }) => {
         `}</style>
       </Head>
 
-      <Layout 
+      <Layout
         title="Xero Integration"
         description="Complete small business accounting and financial management through Xero integration"
       >
-        <XeroIntegration />
+        {/* <XeroIntegration /> */}
+        <div style={{ padding: "2rem", textAlign: "center" }}>
+          <h2
+            style={{
+              fontSize: "1.5rem",
+              fontWeight: "bold",
+              marginBottom: "1rem",
+            }}
+          >
+            Xero Integration
+          </h2>
+          <p style={{ color: "#6B7280" }}>
+            Xero integration is temporarily unavailable. Please check back
+            later.
+          </p>
+        </div>
       </Layout>
     </>
   );
 };
 
-export const getServerSideProps: GetServerSideProps<XeroPageProps> = async ({ req }) => {
+export const getServerSideProps: GetServerSideProps<XeroPageProps> = async ({
+  req,
+}) => {
   // Get initial configuration from server-side
   const initialConfig = {
-    environment: (process.env.XERO_ENVIRONMENT as 'production' | 'sandbox') || 'production'
+    environment:
+      (process.env.XERO_ENVIRONMENT as "production" | "sandbox") ||
+      "production",
   };
 
   return {
     props: {
-      initialConfig
-    }
+      initialConfig,
+    },
   };
 };
 
