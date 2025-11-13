@@ -78,15 +78,15 @@ import {
   AddIcon,
   EditIcon,
   DeleteIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   ViewIcon,
   RepeatIcon,
   SettingsIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
   TimeIcon,
-  CalendarIcon,
+  TimeIcon,
   NotesIcon,
   SheetIcon,
   SlidesIcon,
@@ -94,7 +94,7 @@ import {
   TaskIcon,
   FolderIcon,
   ShareIcon,
-  DownloadIcon,
+  ChevronDownIcon,
 } from "@chakra-ui/icons";
 
 interface GoogleDocument {
@@ -551,7 +551,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
               {healthStatus === "healthy" ? (
                 <CheckCircleIcon mr={1} />
               ) : (
-                <WarningIcon mr={1} />
+                <WarningTwoIcon mr={1} />
               )}
               {connected ? "Connected" : "Disconnected"}
             </Badge>
@@ -581,7 +581,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                 <Button
                   colorScheme="orange"
                   size="lg"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
                     (window.location.href = "/api/integrations/google-drive/auth")
                   }

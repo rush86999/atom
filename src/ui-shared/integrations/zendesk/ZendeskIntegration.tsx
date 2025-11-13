@@ -71,17 +71,17 @@ import {
   EmailIcon,
   ChatIcon,
   PhoneIcon,
-  CheckIcon,
+  CheckCircleIcon,
   CloseIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   TimeIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
   StarIcon,
   SearchIcon,
-  FilterIcon,
-  DownloadIcon,
+  SearchIcon,
+  ChevronDownIcon,
   BellIcon
 } from '@chakra-ui/icons';
 import { zendeskSkills } from './skills/zendeskSkills';
@@ -537,7 +537,7 @@ const ZendeskIntegration: React.FC = () => {
                   loadingText="Connecting to Zendesk..."
                   isLoading={loading}
                 >
-                  <ExternalLinkIcon mr={2} />
+                  <ArrowForwardIcon mr={2} />
                   Connect Zendesk Account
                 </Button>
               </VStack>
@@ -589,7 +589,7 @@ const ZendeskIntegration: React.FC = () => {
             <Button
               colorScheme="red"
               onClick={() => window.open(`https://${config.subdomain}.zendesk.com`, '_blank')}
-              rightIcon={<ExternalLinkIcon />}
+              rightIcon={<ArrowForwardIcon />}
             >
               Open Zendesk
             </Button>

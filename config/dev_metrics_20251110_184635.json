@@ -1,0 +1,126 @@
+{
+  "timestamp": "2025-11-10T18:46:35.278126",
+  "development_score": 47.07988980716253,
+  "service_health": {
+    "frontend": {
+      "status": "unhealthy",
+      "error": "HTTPConnectionPool(host='localhost', port=3000): Read timed out. (read timeout=5)",
+      "last_check": "2025-11-10T18:46:35.143808"
+    },
+    "backend": {
+      "status": "healthy",
+      "response_time": 0.014310121536254883,
+      "status_code": 200,
+      "last_check": "2025-11-10T18:46:35.158181"
+    },
+    "oauth": {
+      "status": "healthy",
+      "response_time": 0.009926319122314453,
+      "status_code": 200,
+      "last_check": "2025-11-10T18:46:35.168145"
+    }
+  },
+  "api_endpoints": {
+    "Service Registry": {
+      "status": "working",
+      "status_code": 200,
+      "url": "http://localhost:8000/api/services/registry",
+      "last_check": "2025-11-10T18:46:35.177469"
+    },
+    "BYOK Providers": {
+      "status": "working",
+      "status_code": 200,
+      "url": "http://localhost:8000/api/ai/providers",
+      "last_check": "2025-11-10T18:46:35.211835"
+    },
+    "Workflow Templates": {
+      "status": "working",
+      "status_code": 200,
+      "url": "http://localhost:8000/api/workflows/templates",
+      "last_check": "2025-11-10T18:46:35.219457"
+    },
+    "OAuth Status": {
+      "status": "working",
+      "status_code": 200,
+      "url": "http://localhost:5058/api/auth/oauth-status",
+      "last_check": "2025-11-10T18:46:35.227818"
+    },
+    "API Documentation": {
+      "status": "working",
+      "status_code": 200,
+      "url": "http://localhost:8000/docs",
+      "last_check": "2025-11-10T18:46:35.237233"
+    },
+    "System Status": {
+      "status": "broken",
+      "status_code": 404,
+      "url": "http://localhost:8000/api/system/status",
+      "last_check": "2025-11-10T18:46:35.244545"
+    }
+  },
+  "development_progress": {
+    "core_endpoints": {
+      "total": 15,
+      "completed": 5,
+      "endpoints": [
+        "/health",
+        "/api/services/registry",
+        "/api/ai/providers",
+        "/api/workflows/templates",
+        "/api/auth/oauth-status",
+        "/docs",
+        "/api/system/status",
+        "/api/workflows/execute",
+        "/api/ai/optimize-cost",
+        "/api/services/{service_id}",
+        "/api/workflows/templates/{template_id}",
+        "/api/ai/providers/{provider_id}",
+        "/api/auth/services",
+        "/healthz",
+        "/api/health"
+      ]
+    },
+    "service_integrations": {
+      "total": 33,
+      "connected": 6,
+      "services": [
+        "slack",
+        "gmail",
+        "google_calendar",
+        "github",
+        "asana",
+        "notion"
+      ]
+    },
+    "byok_system": {
+      "providers_configured": 5,
+      "total_providers": 5,
+      "cost_optimization": true
+    },
+    "workflow_system": {
+      "templates_available": 3,
+      "workflows_executed": 0,
+      "automation_ready": true
+    }
+  },
+  "recent_errors": [
+    {
+      "service": "frontend",
+      "error": "HTTPConnectionPool(host='localhost', port=3000): Read timed out. (read timeout=5)",
+      "timestamp": "2025-11-10T18:46:35.143855",
+      "type": "health_check_failed"
+    }
+  ],
+  "performance_samples": [
+    {
+      "service": "backend",
+      "response_time": 0.014310121536254883,
+      "timestamp": "2025-11-10T18:46:35.158205"
+    },
+    {
+      "service": "oauth",
+      "response_time": 0.009926319122314453,
+      "timestamp": "2025-11-10T18:46:35.168170"
+    }
+  ]
+}

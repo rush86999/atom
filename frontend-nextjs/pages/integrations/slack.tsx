@@ -80,24 +80,24 @@ import {
   AddIcon,
   EditIcon,
   DeleteIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   ViewIcon,
   RepeatIcon,
   SettingsIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
   TimeIcon,
-  CalendarIcon,
+  TimeIcon,
   FileIcon,
   FolderIcon,
   ShareIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   RefreshIcon,
-  UserIcon,
+  PersonIcon,
   UsersIcon,
   ActivityIcon,
-  ClockIcon,
+  TimeIcon,
   LightningIcon,
   PaperAirplaneIcon,
   PhoneIcon,
@@ -107,11 +107,11 @@ import {
   LockIcon,
   UnlockIcon,
   CodeIcon,
-  ServerIcon,
+  SettingsIcon,
   PinIcon,
   ReactionsIcon,
   ThreadIcon,
-  BotIcon,
+  ChatIcon,
   ChannelIcon,
   MessageIcon,
 } from "@chakra-ui/icons";
@@ -691,7 +691,7 @@ const SlackIntegration: React.FC = () => {
               {healthStatus === "healthy" ? (
                 <CheckCircleIcon mr={1} />
               ) : (
-                <WarningIcon mr={1} />
+                <WarningTwoIcon mr={1} />
               )}
               {connected ? "Connected" : "Disconnected"}
             </Badge>
@@ -728,7 +728,7 @@ const SlackIntegration: React.FC = () => {
                 <Button
                   colorScheme="purple"
                   size="lg"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() => window.open("/api/integrations/slack/auth/start")}
                 >
                   Connect Slack Workspace
@@ -842,7 +842,7 @@ const SlackIntegration: React.FC = () => {
                                       </VStack>
                                       {user.is_bot && (
                                         <Tag size="sm" colorScheme="orange">
-                                          <BotIcon mr={1} />
+                                          <ChatIcon mr={1} />
                                           Bot
                                         </Tag>
                                       )}
@@ -896,7 +896,7 @@ const SlackIntegration: React.FC = () => {
                                       />
                                       <MenuList>
                                         <MenuItem
-                                          icon={<ExternalLinkIcon />}
+                                          icon={<ArrowForwardIcon />}
                                           onClick={() => window.open(`https://slack.com/app_redirect?channel=${user.id}`, "_blank")}
                                         >
                                           Open Profile
@@ -962,7 +962,7 @@ const SlackIntegration: React.FC = () => {
                                   <Td>
                                     <HStack spacing={3}>
                                       <Icon
-                                        as={channel.is_im ? UserIcon : channel.is_private ? LockIcon : HashtagIcon}
+                                        as={channel.is_im ? PersonIcon : channel.is_private ? LockIcon : HashtagIcon}
                                         color={channel.is_im ? "blue" : channel.is_private ? "yellow" : "green"}
                                       />
                                       <VStack align="start" spacing={0}>
@@ -1036,7 +1036,7 @@ const SlackIntegration: React.FC = () => {
                                         />
                                         <MenuList>
                                           <MenuItem
-                                            icon={<ExternalLinkIcon />}
+                                            icon={<ArrowForwardIcon />}
                                             onClick={() => window.open(`https://slack.com/app_redirect?channel=${channel.id}`, "_blank")}
                                           >
                                             Open in Slack
@@ -1219,7 +1219,7 @@ const SlackIntegration: React.FC = () => {
                                     <Button
                                       size="sm"
                                       colorScheme="blue"
-                                      leftIcon={<ExternalLinkIcon />}
+                                      leftIcon={<ArrowForwardIcon />}
                                       onClick={() => window.open(file.permalink, "_blank")}
                                     >
                                       Open
@@ -1228,7 +1228,7 @@ const SlackIntegration: React.FC = () => {
                                       <Button
                                         size="sm"
                                         colorScheme="green"
-                                        leftIcon={<DownloadIcon />}
+                                        leftIcon={<ChevronDownIcon />}
                                         onClick={() => window.open(file.url_private_download, "_blank")}
                                       >
                                         Download

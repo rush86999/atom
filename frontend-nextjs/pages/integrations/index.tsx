@@ -35,16 +35,16 @@ import {
   JiraIcon,
   GitHubIcon,
   CodeIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   DollarIcon,
-  CalendarIcon,
+  TimeIcon,
   CreditCardIcon,
   StarIcon,
   BuildingIcon,
-  CloudIcon,
+  SunIcon,
   ViewIcon,
 } from "@chakra-ui/icons";
 
@@ -187,7 +187,7 @@ const IntegrationsPage: React.FC = () => {
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: CalendarIcon,
+      icon: TimeIcon,
       color: "blue",
     },
     {
@@ -197,7 +197,7 @@ const IntegrationsPage: React.FC = () => {
       category: "finance",
       status: "complete",
       connected: false,
-      icon: CalendarIcon,
+      icon: TimeIcon,
       color: "green",
     },
     {
@@ -278,7 +278,7 @@ const IntegrationsPage: React.FC = () => {
       category: "cloud",
       status: "complete",
       connected: false,
-      icon: CloudIcon,
+      icon: SunIcon,
       color: "blue",
     },
     {
@@ -299,7 +299,7 @@ const IntegrationsPage: React.FC = () => {
       category: "communication",
       status: "complete",
       connected: false,
-      icon: CalendarIcon,
+      icon: TimeIcon,
       color: "blue",
     },
     {
@@ -309,7 +309,7 @@ const IntegrationsPage: React.FC = () => {
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: CalendarIcon,
+      icon: TimeIcon,
       color: "green",
     },
     {
@@ -339,7 +339,7 @@ const IntegrationsPage: React.FC = () => {
       category: "support",
       status: "complete",
       connected: false,
-      icon: CalendarIcon,
+      icon: TimeIcon,
       color: "red",
     },
     {
@@ -444,9 +444,9 @@ const IntegrationsPage: React.FC = () => {
       case "healthy":
         return <CheckCircleIcon color="green.500" />;
       case "warning":
-        return <WarningIcon color="yellow.500" />;
+        return <WarningTwoIcon color="yellow.500" />;
       case "error":
-        return <WarningIcon color="red.500" />;
+        return <WarningTwoIcon color="red.500" />;
       default:
         return <TimeIcon color="gray.500" />;
     }
@@ -637,7 +637,7 @@ const IntegrationsPage: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    leftIcon={<ExternalLinkIcon />}
+                    leftIcon={<ArrowForwardIcon />}
                     width="full"
                   >
                     {integration.connected ? "Manage" : "Connect"}
@@ -653,7 +653,7 @@ const IntegrationsPage: React.FC = () => {
           <Card>
             <CardBody>
               <VStack spacing={4}>
-                <Icon as={WarningIcon} w={12} h={12} color="gray.400" />
+                <Icon as={WarningTwoIcon} w={12} h={12} color="gray.400" />
                 <Text color="gray.600" textAlign="center">
                   No integrations found in this category
                 </Text>

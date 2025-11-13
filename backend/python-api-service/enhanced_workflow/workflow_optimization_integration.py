@@ -6,15 +6,17 @@ and the main backend API, including performance analysis, bottleneck detection,
 and intelligent optimization recommendations.
 """
 
-import logging
-import sys
-import os
 import asyncio
-from typing import Any, Dict, List, Optional
+import logging
+import os
+import sys
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 # Add parent directory to path to import enhanced modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +38,14 @@ class WorkflowOptimizationIntegration:
             # Initialize performance baselines
             self.performance_baselines = self._initialize_performance_baselines()
 
-            logger.info("Enhanced workflow optimization system initialized successfully")
+            logger.info(
+                "Enhanced workflow optimization system initialized successfully"
+            )
 
         except Exception as e:
-            logger.warning(f"Enhanced optimization system initialization failed: {str(e)}")
+            logger.warning(
+                f"Enhanced optimization system initialization failed: {str(e)}"
+            )
             logger.info("Falling back to basic optimization system")
             self._initialize_basic_optimization_system()
 
@@ -48,32 +54,52 @@ class WorkflowOptimizationIntegration:
         return {
             "performance": {
                 "description": "Optimize for maximum execution speed",
-                "strategies": ["parallel_execution", "caching", "batch_processing", "resource_optimization"],
+                "strategies": [
+                    "parallel_execution",
+                    "caching",
+                    "batch_processing",
+                    "resource_optimization",
+                ],
                 "priority": "high",
                 "expected_improvement": 0.4,  # 40% improvement
-                "complexity": "medium"
+                "complexity": "medium",
             },
             "cost": {
                 "description": "Optimize for minimum operational cost",
-                "strategies": ["service_selection", "batch_processing", "rate_limiting", "caching"],
+                "strategies": [
+                    "service_selection",
+                    "batch_processing",
+                    "rate_limiting",
+                    "caching",
+                ],
                 "priority": "medium",
                 "expected_improvement": 0.3,  # 30% cost reduction
-                "complexity": "medium"
+                "complexity": "medium",
             },
             "reliability": {
                 "description": "Optimize for maximum reliability and error handling",
-                "strategies": ["retry_policies", "circuit_breaker", "fallback_mechanisms", "monitoring"],
+                "strategies": [
+                    "retry_policies",
+                    "circuit_breaker",
+                    "fallback_mechanisms",
+                    "monitoring",
+                ],
                 "priority": "high",
                 "expected_improvement": 0.5,  # 50% reliability improvement
-                "complexity": "high"
+                "complexity": "high",
             },
             "hybrid": {
                 "description": "Balanced optimization across multiple dimensions",
-                "strategies": ["balanced_parallelization", "smart_caching", "adaptive_retry", "cost_aware_scheduling"],
+                "strategies": [
+                    "balanced_parallelization",
+                    "smart_caching",
+                    "adaptive_retry",
+                    "cost_aware_scheduling",
+                ],
                 "priority": "medium",
                 "expected_improvement": 0.25,  # 25% overall improvement
-                "complexity": "high"
-            }
+                "complexity": "high",
+            },
         }
 
     def _initialize_performance_baselines(self) -> Dict[str, Dict[str, Any]]:
@@ -83,26 +109,26 @@ class WorkflowOptimizationIntegration:
                 "avg_execution_time": 5.0,  # seconds
                 "avg_cost_per_execution": 0.02,  # dollars
                 "success_rate": 0.95,
-                "error_rate": 0.05
+                "error_rate": 0.05,
             },
             "data_processing_workflow": {
                 "avg_execution_time": 30.0,  # seconds
                 "avg_cost_per_execution": 0.15,  # dollars
                 "success_rate": 0.85,
-                "error_rate": 0.15
+                "error_rate": 0.15,
             },
             "analytics_workflow": {
                 "avg_execution_time": 60.0,  # seconds
                 "avg_cost_per_execution": 0.25,  # dollars
                 "success_rate": 0.90,
-                "error_rate": 0.10
+                "error_rate": 0.10,
             },
             "synchronization_workflow": {
                 "avg_execution_time": 45.0,  # seconds
                 "avg_cost_per_execution": 0.18,  # dollars
                 "success_rate": 0.88,
-                "error_rate": 0.12
-            }
+                "error_rate": 0.12,
+            },
         }
 
     def _initialize_basic_optimization_system(self):
@@ -110,25 +136,29 @@ class WorkflowOptimizationIntegration:
         self.optimization_patterns = {
             "basic": {
                 "strategies": ["parallel_execution", "caching"],
-                "expected_improvement": 0.15
+                "expected_improvement": 0.15,
             }
         }
         self.performance_baselines = {
             "basic": {
                 "avg_execution_time": 30.0,
                 "avg_cost_per_execution": 0.10,
-                "success_rate": 0.90
+                "success_rate": 0.90,
             }
         }
 
-    async def analyze_workflow_performance(self, workflow: Dict[str, Any], strategy: str = "performance") -> Dict[str, Any]:
+    async def analyze_workflow_performance(
+        self, workflow: Dict[str, Any], strategy: str = "performance"
+    ) -> Dict[str, Any]:
         """Analyze workflow performance with enhanced optimization capabilities"""
         try:
             # Enhanced performance analysis
             performance_metrics = await self._calculate_performance_metrics(workflow)
 
             # Bottleneck identification
-            bottlenecks = await self._identify_bottlenecks(workflow, performance_metrics)
+            bottlenecks = await self._identify_bottlenecks(
+                workflow, performance_metrics
+            )
 
             # Optimization recommendations
             recommendations = await self._generate_optimization_recommendations(
@@ -148,14 +178,16 @@ class WorkflowOptimizationIntegration:
                 "optimization_potential": optimization_potential,
                 "analysis_timestamp": self._get_current_timestamp(),
                 "strategy_applied": strategy,
-                "enhanced_optimization": True
+                "enhanced_optimization": True,
             }
 
         except Exception as e:
             logger.error(f"Enhanced workflow optimization analysis failed: {str(e)}")
             return await self._fallback_optimization_analysis(workflow)
 
-    async def _calculate_performance_metrics(self, workflow: Dict[str, Any]) -> Dict[str, Any]:
+    async def _calculate_performance_metrics(
+        self, workflow: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Calculate comprehensive performance metrics"""
         steps = workflow.get("steps", [])
         services = workflow.get("services", [])
@@ -183,8 +215,10 @@ class WorkflowOptimizationIntegration:
             "estimated_cost": estimated_cost,
             "complexity_score": complexity_score,
             "reliability_score": reliability_score,
-            "parallelization_potential": await self._calculate_parallelization_potential(steps),
-            "caching_opportunities": await self._identify_caching_opportunities(steps)
+            "parallelization_potential": await self._calculate_parallelization_potential(
+                steps
+            ),
+            "caching_opportunities": await self._identify_caching_opportunities(steps),
         }
 
     async def _estimate_execution_time(self, steps: List[Dict[str, Any]]) -> float:
@@ -205,31 +239,19 @@ class WorkflowOptimizationIntegration:
         """Get estimated execution time for a specific service action"""
         # Service execution time baselines (in seconds)
         execution_times = {
-            "gmail": {
-                "send_email": 2.0,
-                "read_email": 1.0,
-                "search_emails": 3.0
-            },
+            "gmail": {"send_email": 2.0, "read_email": 1.0, "search_emails": 3.0},
             "slack": {
                 "send_message": 1.0,
                 "create_channel": 2.0,
-                "search_messages": 2.0
+                "search_messages": 2.0,
             },
             "google_calendar": {
                 "create_event": 3.0,
                 "list_events": 2.0,
-                "update_event": 2.0
+                "update_event": 2.0,
             },
-            "asana": {
-                "create_task": 2.0,
-                "update_task": 1.5,
-                "list_projects": 2.0
-            },
-            "github": {
-                "create_repo": 4.0,
-                "create_issue": 2.0,
-                "search_code": 5.0
-            }
+            "asana": {"create_task": 2.0, "update_task": 1.5, "list_projects": 2.0},
+            "github": {"create_repo": 4.0, "create_issue": 2.0, "search_code": 5.0},
         }
 
         return execution_times.get(service, {}).get(action, 3.0)  # Default 3 seconds
@@ -255,28 +277,28 @@ class WorkflowOptimizationIntegration:
             "gmail": {
                 "send_email": 0.001,
                 "read_email": 0.0005,
-                "search_emails": 0.002
+                "search_emails": 0.002,
             },
             "slack": {
                 "send_message": 0.0001,
                 "create_channel": 0.0005,
-                "search_messages": 0.0003
+                "search_messages": 0.0003,
             },
             "google_calendar": {
                 "create_event": 0.0005,
                 "list_events": 0.0002,
-                "update_event": 0.0003
+                "update_event": 0.0003,
             },
             "asana": {
                 "create_task": 0.001,
                 "update_task": 0.0005,
-                "list_projects": 0.0008
+                "list_projects": 0.0008,
             },
             "github": {
                 "create_repo": 0.005,
                 "create_issue": 0.001,
-                "search_code": 0.003
-            }
+                "search_code": 0.003,
+            },
         }
 
         return execution_costs.get(service, {}).get(action, 0.002)  # Default $0.002
@@ -314,11 +336,13 @@ class WorkflowOptimizationIntegration:
             "asana": 0.94,
             "github": 0.96,
             "salesforce": 0.92,
-            "hubspot": 0.91
+            "hubspot": 0.91,
         }
         return reliability_scores.get(service, 0.90)  # Default 90% reliability
 
-    async def _calculate_parallelization_potential(self, steps: List[Dict[str, Any]]) -> float:
+    async def _calculate_parallelization_potential(
+        self, steps: List[Dict[str, Any]]
+    ) -> float:
         """Calculate potential for parallel execution"""
         if len(steps) <= 1:
             return 0.0
@@ -340,12 +364,14 @@ class WorkflowOptimizationIntegration:
         non_parallelizable_actions = [
             "update_task",  # Might depend on previous task creation
             "send_followup_email",  # Depends on previous email
-            "update_calendar_event"  # Depends on event creation
+            "update_calendar_event",  # Depends on event creation
         ]
 
         return action not in non_parallelizable_actions
 
-    async def _identify_caching_opportunities(self, steps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _identify_caching_opportunities(
+        self, steps: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Identify opportunities for caching"""
         caching_opportunities = []
 
@@ -354,21 +380,30 @@ class WorkflowOptimizationIntegration:
             action = step.get("action", "")
 
             if await self._is_step_cacheable(service, action):
-                caching_opportunities.append({
-                    "step_id": step.get("id", ""),
-                    "service": service,
-                    "action": action,
-                    "cache_duration": await self._get_recommended_cache_duration(service, action),
-                    "estimated_savings": await self._calculate_cache_savings(step)
-                })
+                caching_opportunities.append(
+                    {
+                        "step_id": step.get("id", ""),
+                        "service": service,
+                        "action": action,
+                        "cache_duration": await self._get_recommended_cache_duration(
+                            service, action
+                        ),
+                        "estimated_savings": await self._calculate_cache_savings(step),
+                    }
+                )
 
         return caching_opportunities
 
     async def _is_step_cacheable(self, service: str, action: str) -> bool:
         """Check if a step's result can be cached"""
         cacheable_actions = [
-            "search_emails", "list_events", "list_projects", "search_code",
-            "get_report", "analyze_data", "search_messages"
+            "search_emails",
+            "list_events",
+            "list_projects",
+            "search_code",
+            "get_report",
+            "analyze_data",
+            "search_messages",
         ]
         return action in cacheable_actions
 
@@ -376,10 +411,10 @@ class WorkflowOptimizationIntegration:
         """Get recommended cache duration in seconds"""
         cache_durations = {
             "search_emails": 300,  # 5 minutes
-            "list_events": 600,    # 10 minutes
-            "list_projects": 1800, # 30 minutes
-            "search_code": 900,    # 15 minutes
-            "get_report": 3600     # 1 hour
+            "list_events": 600,  # 10 minutes
+            "list_projects": 1800,  # 30 minutes
+            "search_code": 900,  # 15 minutes
+            "get_report": 3600,  # 1 hour
         }
         return cache_durations.get(action, 300)  # Default 5 minutes
 
@@ -389,18 +424,24 @@ class WorkflowOptimizationIntegration:
         action = step.get("action", "")
 
         # Estimated time savings from caching (seconds)
-        time_savings = await self._get_step_execution_time(service, action) * 0.8  # 80% time reduction
+        time_savings = (
+            await self._get_step_execution_time(service, action) * 0.8
+        )  # 80% time reduction
 
         # Estimated cost savings from caching (dollars)
-        cost_savings = await self._get_step_execution_cost(service, action) * 0.9  # 90% cost reduction
+        cost_savings = (
+            await self._get_step_execution_cost(service, action) * 0.9
+        )  # 90% cost reduction
 
         return {
             "time_savings": time_savings,
             "cost_savings": cost_savings,
-            "total_savings": time_savings + cost_savings * 100  # Weighted combination
+            "total_savings": time_savings + cost_savings * 100,  # Weighted combination
         }
 
-    async def _identify_bottlenecks(self, workflow: Dict[str, Any], metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _identify_bottlenecks(
+        self, workflow: Dict[str, Any], metrics: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """Identify performance bottlenecks in the workflow"""
         bottlenecks = []
         steps = workflow.get("steps", [])
@@ -408,15 +449,17 @@ class WorkflowOptimizationIntegration:
         for step in steps:
             step_metrics = await self._analyze_step_performance(step)
             if step_metrics.get("is_bottleneck", False):
-                bottlenecks.append({
-                    "step_id": step.get("id", ""),
-                    "service": step.get("service", ""),
-                    "action": step.get("action", ""),
-                    "bottleneck_type": step_metrics.get("bottleneck_type", ""),
-                    "severity": step_metrics.get("severity", "medium"),
-                    "impact": step_metrics.get("impact", 0.0),
-                    "recommendation": step_metrics.get("recommendation", "")
-                })
+                bottlenecks.append(
+                    {
+                        "step_id": step.get("id", ""),
+                        "service": step.get("service", ""),
+                        "action": step.get("action", ""),
+                        "bottleneck_type": step_metrics.get("bottleneck_type", ""),
+                        "severity": step_metrics.get("severity", "medium"),
+                        "impact": step_metrics.get("impact", 0.0),
+                        "recommendation": step_metrics.get("recommendation", ""),
+                    }
+                )
 
         return bottlenecks
 
@@ -452,4 +495,307 @@ class WorkflowOptimizationIntegration:
         return {
             "is_bottleneck": is_bottleneck,
             "bottleneck_type": bottleneck_type,
-            "sever
+            "severity": severity,
+            "impact": impact,
+            "recommendation": recommendation,
+            "step_time": step_time,
+            "step_cost": step_cost,
+        }
+
+    async def _generate_optimization_recommendations(
+        self, workflow: Dict[str, Any], bottlenecks: List[Dict[str, Any]], strategy: str
+    ) -> List[Dict[str, Any]]:
+        """Generate optimization recommendations based on bottlenecks and strategy"""
+        recommendations = []
+
+        # Strategy-specific recommendations
+        if strategy == "performance":
+            recommendations.extend(
+                await self._generate_performance_recommendations(workflow, bottlenecks)
+            )
+        elif strategy == "cost":
+            recommendations.extend(
+                await self._generate_cost_recommendations(workflow, bottlenecks)
+            )
+        elif strategy == "reliability":
+            recommendations.extend(
+                await self._generate_reliability_recommendations(workflow, bottlenecks)
+            )
+        else:  # hybrid
+            recommendations.extend(
+                await self._generate_hybrid_recommendations(workflow, bottlenecks)
+            )
+
+        return recommendations
+
+    async def _generate_performance_recommendations(
+        self, workflow: Dict[str, Any], bottlenecks: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Generate performance optimization recommendations"""
+        recommendations = []
+
+        # Parallel execution recommendations
+        parallelization_potential = await self._calculate_parallelization_potential(
+            workflow.get("steps", [])
+        )
+        if parallelization_potential > 0.3:
+            recommendations.append(
+                {
+                    "type": "parallel_execution",
+                    "description": "Enable parallel execution for independent steps",
+                    "impact": "high",
+                    "estimated_improvement": parallelization_potential * 0.4,
+                    "implementation_effort": "medium",
+                }
+            )
+
+        # Caching recommendations
+        caching_opportunities = await self._identify_caching_opportunities(
+            workflow.get("steps", [])
+        )
+        if caching_opportunities:
+            recommendations.append(
+                {
+                    "type": "caching",
+                    "description": f"Implement caching for {len(caching_opportunities)} steps",
+                    "impact": "medium",
+                    "estimated_improvement": 0.3,
+                    "implementation_effort": "low",
+                }
+            )
+
+        # Bottleneck-specific recommendations
+        for bottleneck in bottlenecks:
+            if bottleneck.get("bottleneck_type") == "execution_time":
+                recommendations.append(
+                    {
+                        "type": "bottleneck_optimization",
+                        "description": f"Optimize slow step: {bottleneck.get('service', '')}.{bottleneck.get('action', '')}",
+                        "impact": "high",
+                        "estimated_improvement": 0.5,
+                        "implementation_effort": "medium",
+                    }
+                )
+
+        return recommendations
+
+    async def _generate_cost_recommendations(
+        self, workflow: Dict[str, Any], bottlenecks: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Generate cost optimization recommendations"""
+        recommendations = []
+
+        # Service selection recommendations
+        expensive_services = await self._identify_expensive_services(workflow)
+        if expensive_services:
+            recommendations.append(
+                {
+                    "type": "service_optimization",
+                    "description": f"Consider alternative services for {len(expensive_services)} expensive operations",
+                    "impact": "medium",
+                    "estimated_improvement": 0.25,
+                    "implementation_effort": "medium",
+                }
+            )
+
+        # Batch processing recommendations
+        batchable_operations = await self._identify_batchable_operations(workflow)
+        if batchable_operations:
+            recommendations.append(
+                {
+                    "type": "batch_processing",
+                    "description": f"Batch {len(batchable_operations)} operations to reduce API calls",
+                    "impact": "medium",
+                    "estimated_improvement": 0.15,
+                    "implementation_effort": "low",
+                }
+            )
+
+        return recommendations
+
+    async def _generate_reliability_recommendations(
+        self, workflow: Dict[str, Any], bottlenecks: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Generate reliability optimization recommendations"""
+        recommendations = []
+
+        # Retry mechanism recommendations
+        unreliable_services = await self._identify_unreliable_services(workflow)
+        if unreliable_services:
+            recommendations.append(
+                {
+                    "type": "retry_mechanism",
+                    "description": f"Add retry logic for {len(unreliable_services)} unreliable services",
+                    "impact": "high",
+                    "estimated_improvement": 0.4,
+                    "implementation_effort": "low",
+                }
+            )
+
+        # Fallback recommendations
+        critical_steps = await self._identify_critical_steps(workflow)
+        if critical_steps:
+            recommendations.append(
+                {
+                    "type": "fallback_mechanism",
+                    "description": f"Add fallback mechanisms for {len(critical_steps)} critical steps",
+                    "impact": "high",
+                    "estimated_improvement": 0.3,
+                    "implementation_effort": "medium",
+                }
+            )
+
+        return recommendations
+
+    async def _generate_hybrid_recommendations(
+        self, workflow: Dict[str, Any], bottlenecks: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Generate hybrid optimization recommendations"""
+        recommendations = []
+
+        # Combine recommendations from different strategies
+        performance_recs = await self._generate_performance_recommendations(
+            workflow, bottlenecks
+        )
+        cost_recs = await self._generate_cost_recommendations(workflow, bottlenecks)
+        reliability_recs = await self._generate_reliability_recommendations(
+            workflow, bottlenecks
+        )
+
+        recommendations.extend(performance_recs[:2])  # Top 2 performance
+        recommendations.extend(cost_recs[:1])  # Top 1 cost
+        recommendations.extend(reliability_recs[:2])  # Top 2 reliability
+
+        return recommendations
+
+    async def _identify_expensive_services(
+        self, workflow: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Identify expensive services in workflow"""
+        expensive_services = []
+        steps = workflow.get("steps", [])
+
+        for step in steps:
+            service = step.get("service", "")
+            action = step.get("action", "")
+            cost = await self._get_step_execution_cost(service, action)
+
+            if cost > 0.01:  # Services costing more than $0.01 per execution
+                expensive_services.append(
+                    {
+                        "service": service,
+                        "action": action,
+                        "cost": cost,
+                        "step_id": step.get("id", ""),
+                    }
+                )
+
+        return expensive_services
+
+    async def _identify_batchable_operations(
+        self, workflow: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Identify operations that can be batched"""
+        batchable_operations = []
+        steps = workflow.get("steps", [])
+
+        batchable_actions = [
+            "send_email",
+            "send_message",
+            "create_task",
+            "update_record",
+        ]
+
+        for step in steps:
+            action = step.get("action", "")
+            if action in batchable_actions:
+                batchable_operations.append(
+                    {
+                        "step_id": step.get("id", ""),
+                        "service": step.get("service", ""),
+                        "action": action,
+                        "batch_size": 10,  # Default batch size
+                    }
+                )
+
+        return batchable_operations
+
+    async def _identify_unreliable_services(
+        self, workflow: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Identify unreliable services in workflow"""
+        unreliable_services = []
+        steps = workflow.get("steps", [])
+
+        # Service reliability scores (lower means less reliable)
+        reliability_scores = {
+            "external_api": 0.85,
+            "third_party_service": 0.88,
+            "unstable_service": 0.80,
+        }
+
+        for step in steps:
+            service = step.get("service", "")
+            reliability = await self._get_service_reliability(service)
+
+            if reliability < 0.90:  # Services with reliability below 90%
+                unreliable_services.append(
+                    {
+                        "service": service,
+                        "action": step.get("action", ""),
+                        "reliability": reliability,
+                        "step_id": step.get("id", ""),
+                    }
+                )
+
+        return unreliable_services
+
+    async def _identify_critical_steps(
+        self, workflow: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Identify critical steps that need fallback mechanisms"""
+        critical_steps = []
+        steps = workflow.get("steps", [])
+
+        critical_actions = [
+            "send_notification",
+            "create_record",
+            "update_database",
+            "process_payment",
+        ]
+
+        for step in steps:
+            action = step.get("action", "")
+            if action in critical_actions:
+                critical_steps.append(
+                    {
+                        "step_id": step.get("id", ""),
+                        "service": step.get("service", ""),
+                        "action": action,
+                        "criticality": "high",
+                    }
+                )
+
+        return critical_steps
+
+    async def _fallback_optimization_analysis(
+        self, workflow: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Fallback optimization analysis when enhanced system fails"""
+        return {
+            "success": True,
+            "estimated_execution_time": 30.0,
+            "estimated_cost": 0.10,
+            "bottlenecks": [],
+            "recommendations": [],
+            "optimization_potential": 0.15,
+            "analysis_timestamp": self._get_current_timestamp(),
+            "enhanced_optimization": False,
+            "fallback_used": True,
+        }
+
+    def _get_current_timestamp(self) -> str:
+        """Get current timestamp for analysis"""
+        from datetime import datetime
+
+        return datetime.now().isoformat()

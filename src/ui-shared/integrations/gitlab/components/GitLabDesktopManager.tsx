@@ -78,10 +78,10 @@ import {
 import {
   GitlabIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   SettingsIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   AddIcon,
   ViewIcon,
   RepeatIcon,
@@ -91,11 +91,11 @@ import {
   BugIcon,
   MergeIcon,
   HistoryIcon,
-  UserIcon,
+  PersonIcon,
   GroupIcon,
-  ServerIcon,
-  ClockIcon,
-  CheckIcon,
+  SettingsIcon,
+  TimeIcon,
+  CheckCircleIcon,
   CrossIcon,
   DocumentIcon,
   FolderIcon,
@@ -105,10 +105,10 @@ import {
   NotificationIcon,
   StarIcon,
   EditIcon,
-  TrashIcon,
-  FilterIcon,
+  DeleteIcon,
   SearchIcon,
-  DownloadIcon,
+  SearchIcon,
+  ChevronDownIcon,
   UploadIcon
 } from '@chakra-ui/icons';
 import {
@@ -555,7 +555,7 @@ const GitLabDesktopManager: React.FC<GitLabDesktopManagerProps> = ({
             <IconButton
               variant="outline"
               aria-label="Clear cache"
-              icon={<TrashIcon />}
+              icon={<DeleteIcon />}
               onClick={clearCache}
             />
             <IconButton
@@ -599,7 +599,7 @@ const GitLabDesktopManager: React.FC<GitLabDesktopManagerProps> = ({
             <HStack justify="space-between" align="center">
               <HStack spacing={4}>
                 <Icon
-                  as={health.connected ? CheckCircleIcon : WarningIcon}
+                  as={health.connected ? CheckCircleIcon : WarningTwoIcon}
                   w={6} h={6}
                   color={health.connected ? 'green.500' : 'red.500'}
                 />
@@ -707,7 +707,7 @@ const GitLabDesktopManager: React.FC<GitLabDesktopManagerProps> = ({
                       <StatNumber color="blue.500">{allPipelines.length}</StatNumber>
                       <StatHelpText>
                         <HStack>
-                          <Icon as={CheckIcon} color="green.500" />
+                          <Icon as={CheckCircleIcon} color="green.500" />
                           <Text>{allPipelines.filter(p => p.status === 'success').length} successful</Text>
                         </HStack>
                       </StatHelpText>
@@ -750,7 +750,7 @@ const GitLabDesktopManager: React.FC<GitLabDesktopManagerProps> = ({
                 <HStack justify="space-between">
                   <Text fontWeight="bold" fontSize="lg">Desktop Activity</Text>
                   <HStack>
-                    <Icon as={ClockIcon} color="blue.500" />
+                    <Icon as={TimeIcon} color="blue.500" />
                     <Text fontSize="sm" color="gray.600">
                       Last sync: {GitLabUtils.getRelativeTime(new Date().toISOString())}
                     </Text>
@@ -773,7 +773,7 @@ const GitLabDesktopManager: React.FC<GitLabDesktopManagerProps> = ({
                               <Button
                                 size="xs"
                                 variant="outline"
-                                leftIcon={<ExternalLinkIcon />}
+                                leftIcon={<ArrowForwardIcon />}
                                 onClick={() => openProjectInBrowser(project)}
                               >
                                 Open
@@ -802,7 +802,7 @@ const GitLabDesktopManager: React.FC<GitLabDesktopManagerProps> = ({
                     <IconButton
                       size="sm"
                       aria-label="Filter projects"
-                      icon={<FilterIcon />}
+                      icon={<SearchIcon />}
                       onClick={onFilterOpen}
                     />
                     <Input
@@ -911,7 +911,7 @@ const GitLabDesktopManager: React.FC<GitLabDesktopManagerProps> = ({
                         <Tr key={index}>
                           <Td>
                             <HStack>
-                              <Icon as={ClockIcon} color="orange.500" />
+                              <Icon as={TimeIcon} color="orange.500" />
                               <Text fontWeight="medium">#{pipeline.iid}</Text>
                             </HStack>
                           </Td>

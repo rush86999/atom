@@ -24,9 +24,9 @@ import {
 } from "@chakra-ui/react";
 import {
   AddIcon,
-  CalendarIcon,
+  TimeIcon,
   ChatIcon,
-  CheckIcon,
+  CheckCircleIcon,
   TimeIcon,
   ViewIcon,
   SettingsIcon,
@@ -273,7 +273,7 @@ const Dashboard: React.FC = () => {
                 <Card>
                   <CardBody>
                     <VStack align="center">
-                      <CalendarIcon boxSize={6} color="blue.500" />
+                      <TimeIcon boxSize={6} color="blue.500" />
                       <Text fontSize="2xl" fontWeight="bold">
                         {data.stats.upcomingEvents}
                       </Text>
@@ -306,7 +306,7 @@ const Dashboard: React.FC = () => {
                 <Card>
                   <CardBody>
                     <VStack align="center">
-                      <CheckIcon boxSize={6} color="purple.500" />
+                      <CheckCircleIcon boxSize={6} color="purple.500" />
                       <Text fontSize="2xl" fontWeight="bold">
                         {data.stats.completedTasks}
                       </Text>
@@ -383,7 +383,7 @@ const Dashboard: React.FC = () => {
                     </CardBody>
                     <CardFooter>
                       <Button
-                        leftIcon={<CalendarIcon />}
+                        leftIcon={<TimeIcon />}
                         variant="outline"
                         size="sm"
                         w="full"
@@ -466,7 +466,7 @@ const Dashboard: React.FC = () => {
                               {task.status !== "completed" && (
                                 <IconButton
                                   aria-label="Complete task"
-                                  icon={<CheckIcon />}
+                                  icon={<CheckCircleIcon />}
                                   size="sm"
                                   colorScheme="green"
                                   onClick={() => handleCompleteTask(task.id)}

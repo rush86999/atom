@@ -57,14 +57,14 @@ import {
 import {
   SearchIcon,
   AddIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   ViewIcon,
   EditIcon,
   SettingsIcon,
-  ExternalLinkIcon,
-  CalendarIcon,
+  ArrowForwardIcon,
+  TimeIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
 } from "@chakra-ui/icons";
 
 // Types
@@ -655,7 +655,7 @@ const TableauIntegrationPage: React.FC = () => {
                           <Tooltip label="Download Workbook">
                             <IconButton
                               aria-label="Download workbook"
-                              icon={<DownloadIcon />}
+                              icon={<ChevronDownIcon />}
                               size="sm"
                               variant="ghost"
                             />
@@ -787,7 +787,7 @@ const TableauIntegrationPage: React.FC = () => {
                           <Tooltip label="Share View">
                             <IconButton
                               aria-label="Share view"
-                              icon={<ExternalLinkIcon />}
+                              icon={<ArrowForwardIcon />}
                               size="sm"
                               variant="ghost"
                             />

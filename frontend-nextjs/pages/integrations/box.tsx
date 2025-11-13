@@ -56,14 +56,14 @@ import {
 import {
   SearchIcon,
   AddIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   ViewIcon,
   EditIcon,
   FolderIcon,
   FileIcon,
   SettingsIcon,
-  ExternalLinkIcon,
-  CalendarIcon,
+  ArrowForwardIcon,
+  TimeIcon,
   CheckCircleIcon,
 } from "@chakra-ui/icons";
 
@@ -562,7 +562,7 @@ const BoxIntegrationPage: React.FC = () => {
                                 <Tooltip label="Download File">
                                   <IconButton
                                     aria-label="Download file"
-                                    icon={<DownloadIcon />}
+                                    icon={<ChevronDownIcon />}
                                     size="sm"
                                     variant="ghost"
                                   />
@@ -664,7 +664,7 @@ const BoxIntegrationPage: React.FC = () => {
                           <Tooltip label="Download File">
                             <IconButton
                               aria-label="Download file"
-                              icon={<DownloadIcon />}
+                              icon={<ChevronDownIcon />}
                               size="sm"
                               variant="ghost"
                             />
@@ -673,7 +673,7 @@ const BoxIntegrationPage: React.FC = () => {
                             <Tooltip label="Share Link">
                               <IconButton
                                 aria-label="Share file"
-                                icon={<ExternalLinkIcon />}
+                                icon={<ArrowForwardIcon />}
                                 size="sm"
                                 variant="ghost"
                                 onClick={() =>

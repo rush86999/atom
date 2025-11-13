@@ -80,25 +80,25 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   CloseIcon,
   DeleteIcon,
   ChatIcon,
   SearchIcon,
-  FilterIcon,
+  SearchIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  ClockIcon,
+  TimeIcon,
   GitBranchIcon,
   TriangleUpIcon,
   TriangleDownIcon,
@@ -591,7 +591,7 @@ export const LinearManager: React.FC<LinearManagerProps> = ({
                                     
                                     {issue.assignee && (
                                       <HStack>
-                                        <Icon as={UserIcon} w={3} h={3} />
+                                        <Icon as={PersonIcon} w={3} h={3} />
                                         <Text>{issue.assignee.name}</Text>
                                       </HStack>
                                     )}
@@ -616,7 +616,7 @@ export const LinearManager: React.FC<LinearManagerProps> = ({
                                     <MenuItem icon={<ViewIcon />}>View Details</MenuItem>
                                     <MenuItem icon={<EditIcon />}>Edit Issue</MenuItem>
                                     <MenuItem 
-                                      icon={<ExternalLinkIcon />}
+                                      icon={<ArrowForwardIcon />}
                                       onClick={() => window.open(issue.url, '_blank')}
                                     >
                                       Open in Linear

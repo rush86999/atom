@@ -85,7 +85,7 @@ import {
 } from '@chakra-ui/react';
 import {
   SearchIcon,
-  FilterIcon,
+  SearchIcon,
   CloseIcon,
   ChevronDownIcon,
   ChevronUpIcon,
@@ -93,21 +93,21 @@ import {
   StarIcon,
   SettingsIcon,
   RepeatIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   AddIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
   HistoryIcon,
   BookmarkIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   BellIcon,
-  GlobeIcon,
+  ArrowForwardIcon,
   FolderIcon,
   CodeIcon,
   BugIcon,
   DocumentIcon,
-  CalendarIcon,
-  UserIcon,
+  TimeIcon,
+  PersonIcon,
   ChatIcon,
   EmailIcon,
   BoxIcon,
@@ -119,7 +119,7 @@ import {
   GitlabIcon,
   SlackIcon,
   EditIcon,
-  TrashIcon,
+  DeleteIcon,
   ViewIcon,
   InfoIcon,
   CopyIcon,
@@ -219,7 +219,7 @@ const typeIcons = {
   task: EditIcon,
   document: DocumentIcon,
   project: FolderIcon,
-  user: UserIcon
+  user: PersonIcon
 };
 
 const typeColors = {
@@ -694,7 +694,7 @@ const AtomSearch: React.FC<AtomSearchProps> = ({
               <IconButton
                 variant="outline"
                 aria-label="Filters"
-                icon={<FilterIcon />}
+                icon={<SearchIcon />}
                 onClick={onFilterDrawerOpen}
               />
             )}
@@ -759,7 +759,7 @@ const AtomSearch: React.FC<AtomSearchProps> = ({
 
                 <Button
                   variant="outline"
-                  leftIcon={sort.direction === 'asc' ? <ArrowUpIcon /> : <ArrowDownIcon />}
+                  leftIcon={sort.direction === 'asc' ? <ChevronUpIcon /> : <ChevronDownIcon />}
                   onClick={() => updateSort(sort.field)}
                 >
                   {sort.direction === 'asc' ? 'Ascending' : 'Descending'}
@@ -769,7 +769,7 @@ const AtomSearch: React.FC<AtomSearchProps> = ({
               <HStack spacing={4}>
                 <Button
                   variant="outline"
-                  leftIcon={<FilterIcon />}
+                  leftIcon={<SearchIcon />}
                   rightIcon={<ChevronDownIcon />}
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 >
@@ -997,7 +997,7 @@ const AtomSearch: React.FC<AtomSearchProps> = ({
             <DrawerCloseButton />
             <DrawerHeader>
               <HStack>
-                <Icon as={FilterIcon} />
+                <Icon as={SearchIcon} />
                 <Text>Search Filters</Text>
               </HStack>
             </DrawerHeader>

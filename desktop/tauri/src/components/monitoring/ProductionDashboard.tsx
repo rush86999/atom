@@ -43,10 +43,10 @@ import {
 import {
   TimeIcon,
   ViewIcon,
-  WarningIcon,
+  WarningTwoIcon,
   CheckCircleIcon,
   RepeatIcon,
-  ExternalLinkIcon
+  ArrowForwardIcon
 } from '@chakra-ui/icons';
 import { outlookMonitoringService, MonitoringMetrics, HealthCheck } from '../monitoring/outlookMonitoring';
 
@@ -235,7 +235,7 @@ export const ProductionDashboard: React.FC = () => {
             <Tooltip label="Open logs">
               <IconButton
                 aria-label="Logs"
-                icon={<ExternalLinkIcon />}
+                icon={<ArrowForwardIcon />}
                 onClick={() => window.open('/logs', '_blank')}
                 variant="ghost"
               />

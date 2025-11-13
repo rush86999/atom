@@ -26,11 +26,11 @@ import {
   Progress,
 } from "@chakra-ui/react";
 import {
-  ExternalLinkIcon,
-  CalendarIcon,
+  ArrowForwardIcon,
+  TimeIcon,
   SettingsIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
 } from "@chakra-ui/icons";
 import { useRouter } from "next/router";
@@ -50,19 +50,19 @@ const DashboardPage: React.FC = () => {
   const borderColor = useColorModeValue("gray.200", "gray.700");
 
   const integrationIcons = {
-    box: CalendarIcon,
-    dropbox: CalendarIcon,
-    gdrive: CalendarIcon,
-    slack: CalendarIcon,
-    gmail: CalendarIcon,
-    notion: CalendarIcon,
-    jira: CalendarIcon,
-    github: CalendarIcon,
-    nextjs: CalendarIcon,
-    stripe: CalendarIcon,
-    linear: CalendarIcon,
-    outlook: CalendarIcon,
-    asana: CalendarIcon,
+    box: TimeIcon,
+    dropbox: TimeIcon,
+    gdrive: TimeIcon,
+    slack: TimeIcon,
+    gmail: TimeIcon,
+    notion: TimeIcon,
+    jira: TimeIcon,
+    github: TimeIcon,
+    nextjs: TimeIcon,
+    stripe: TimeIcon,
+    linear: TimeIcon,
+    outlook: TimeIcon,
+    asana: TimeIcon,
   };
 
   const checkIntegrationsHealth = async () => {
@@ -146,9 +146,9 @@ const DashboardPage: React.FC = () => {
       case "healthy":
         return <CheckCircleIcon color="green.500" />;
       case "warning":
-        return <WarningIcon color="yellow.500" />;
+        return <WarningTwoIcon color="yellow.500" />;
       case "error":
-        return <WarningIcon color="red.500" />;
+        return <WarningTwoIcon color="red.500" />;
       default:
         return <TimeIcon color="gray.500" />;
     }
@@ -347,7 +347,7 @@ const DashboardPage: React.FC = () => {
                         {integration.connected ? (
                           <CheckCircleIcon color="green.500" w={4} h={4} />
                         ) : (
-                          <WarningIcon color="red.500" w={4} h={4} />
+                          <WarningTwoIcon color="red.500" w={4} h={4} />
                         )}
                       </HStack>
                     </VStack>
@@ -386,7 +386,7 @@ const DashboardPage: React.FC = () => {
             <VStack spacing={4} align="stretch">
               <HStack justify="space-between">
                 <HStack>
-                  <Icon as={CalendarIcon} w={4} h={4} color="gray.800" />
+                  <Icon as={TimeIcon} w={4} h={4} color="gray.800" />
                   <Text>Next.js integration connected</Text>
                 </HStack>
                 <Text fontSize="sm" color="gray.500">
@@ -396,7 +396,7 @@ const DashboardPage: React.FC = () => {
 
               <HStack justify="space-between">
                 <HStack>
-                  <Icon as={CalendarIcon} w={4} h={4} color="black" />
+                  <Icon as={TimeIcon} w={4} h={4} color="black" />
                   <Text>GitHub repositories synced</Text>
                 </HStack>
                 <Text fontSize="sm" color="gray.500">
@@ -406,7 +406,7 @@ const DashboardPage: React.FC = () => {
 
               <HStack justify="space-between">
                 <HStack>
-                  <Icon as={CalendarIcon} w={4} h={4} color="purple.500" />
+                  <Icon as={TimeIcon} w={4} h={4} color="purple.500" />
                   <Text>Slack channels updated</Text>
                 </HStack>
                 <Text fontSize="sm" color="gray.500">

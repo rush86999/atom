@@ -62,27 +62,27 @@ import {
 import {
   ViewIcon,
   EditIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   DesktopIcon,
-  CheckIcon,
+  CheckCircleIcon,
   CloseIcon,
   CommentIcon,
-  CalendarIcon,
-  ClockIcon,
+  TimeIcon,
+  TimeIcon,
   UserGroupIcon,
   TeamIcon,
   FolderIcon,
-  FilterIcon,
+  SearchIcon,
   SearchIcon,
   EditIcon as EditTaskIcon,
   DeleteIcon,
@@ -1093,7 +1093,7 @@ export const AsanaIntegrationManager: React.FC<AsanaIntegrationProps> = ({
             </Tab>
             <Tab>
               <HStack>
-                <UserIcon />
+                <PersonIcon />
                 <Text>Profile</Text>
               </HStack>
             </Tab>

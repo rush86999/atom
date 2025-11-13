@@ -47,9 +47,9 @@ import {
   NotionIcon,
   JiraIcon,
   GitHubIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   ArrowRightIcon,
   RocketIcon,
@@ -58,7 +58,7 @@ import {
   LightningIcon,
   ShieldIcon,
   CpuIcon,
-  DatabaseIcon
+  HamburgerIcon
 } from '@chakra-ui/icons';
 
 const ATOMIntegrationShowcase: React.FC = () => {
@@ -270,7 +270,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
           <HStack justify="center" spacing={4}>
             <Icon as={StarIcon} w={8} h={8} color="yellow.500" />
             <Icon as={CpuIcon} w={8} h={8} color="blue.500" />
-            <Icon as={DatabaseIcon} w={8} h={8} color="green.500" />
+            <Icon as={HamburgerIcon} w={8} h={8} color="green.500" />
           </HStack>
           <Heading size="4xl" fontWeight="bold" color="gray.800">
             ATOM Integration Platform
@@ -335,7 +335,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                     <Button
                       variant="outline"
                       size="lg"
-                      leftIcon={<ExternalLinkIcon />}
+                      leftIcon={<ArrowForwardIcon />}
                       onClick={() => window.location.href = '/integrations/nextjs'}
                     >
                       Learn More
@@ -669,7 +669,7 @@ const ATOMIntegrationShowcase: React.FC = () => {
                   colorScheme="white"
                   variant="outline"
                   size="md"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={handleViewIntegrations}
                 >
                   View All Integrations

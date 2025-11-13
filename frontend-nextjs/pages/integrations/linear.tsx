@@ -57,11 +57,11 @@ import {
   TabPanel,
 } from "@chakra-ui/react";
 import {
-  CalendarIcon,
-  CheckCircleIcon,
-  WarningIcon,
   TimeIcon,
-  ExternalLinkIcon,
+  CheckCircleIcon,
+  WarningTwoIcon,
+  TimeIcon,
+  ArrowForwardIcon,
   AddIcon,
   SearchIcon,
   SettingsIcon,
@@ -399,7 +399,7 @@ const LinearIntegration: React.FC = () => {
         {/* Header */}
         <VStack align="start" spacing={4}>
           <HStack spacing={4}>
-            <Icon as={CalendarIcon} w={8} h={8} color="blue.500" />
+            <Icon as={TimeIcon} w={8} h={8} color="blue.500" />
             <VStack align="start" spacing={1}>
               <Heading size="2xl">Linear Integration</Heading>
               <Text color="gray.600" fontSize="lg">
@@ -417,7 +417,7 @@ const LinearIntegration: React.FC = () => {
               {healthStatus === "healthy" ? (
                 <CheckCircleIcon mr={1} />
               ) : (
-                <WarningIcon mr={1} />
+                <WarningTwoIcon mr={1} />
               )}
               {connected ? "Connected" : "Disconnected"}
             </Badge>
@@ -437,7 +437,7 @@ const LinearIntegration: React.FC = () => {
           <Card>
             <CardBody>
               <VStack spacing={6} py={8}>
-                <Icon as={CalendarIcon} w={16} h={16} color="gray.400" />
+                <Icon as={TimeIcon} w={16} h={16} color="gray.400" />
                 <VStack spacing={2}>
                   <Heading size="lg">Connect Linear</Heading>
                   <Text color="gray.600" textAlign="center">
@@ -448,7 +448,7 @@ const LinearIntegration: React.FC = () => {
                 <Button
                   colorScheme="blue"
                   size="lg"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
                     (window.location.href = "/api/integrations/linear/auth/start")
                   }
@@ -590,7 +590,7 @@ const LinearIntegration: React.FC = () => {
                         ) : filteredIssues.length === 0 ? (
                           <VStack spacing={4} py={8}>
                             <Icon
-                              as={CalendarIcon}
+                              as={TimeIcon}
                               w={12}
                               h={12}
                               color="gray.400"
@@ -670,7 +670,7 @@ const LinearIntegration: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        leftIcon={<ExternalLinkIcon />}
+                                        leftIcon={<ArrowForwardIcon />}
                                         onClick={() =>
                                           window.open(issue.url, "_blank")
                                         }

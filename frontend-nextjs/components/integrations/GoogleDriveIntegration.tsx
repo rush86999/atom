@@ -22,7 +22,7 @@ import {
   BreadcrumbLink,
   useToast,
 } from '@chakra-ui/react';
-import { ChevronRightIcon, DownloadIcon, ExternalLinkIcon, RepeatIcon } from '@chakra-ui/icons';
+import { ChevronRightIcon, ChevronDownIcon, ArrowForwardIcon, RepeatIcon } from '@chakra-ui/icons';
 
 interface GoogleDriveFile {
   id: string;
@@ -399,7 +399,7 @@ const GoogleDriveIntegration: React.FC = () => {
                             {!file.isFolder && file.webViewLink && (
                               <IconButton
                                 aria-label="Open in Google Drive"
-                                icon={<ExternalLinkIcon />}
+                                icon={<ArrowForwardIcon />}
                                 size="sm"
                                 variant="ghost"
                                 onClick={(e) => {
@@ -411,7 +411,7 @@ const GoogleDriveIntegration: React.FC = () => {
                             {!file.isFolder && (
                               <IconButton
                                 aria-label="Ingest file"
-                                icon={<DownloadIcon />}
+                                icon={<ChevronDownIcon />}
                                 size="sm"
                                 variant="ghost"
                                 onClick={(e) => {

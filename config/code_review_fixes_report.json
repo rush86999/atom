@@ -1,0 +1,106 @@
+{
+  "execution_summary": {
+    "start_time": "2025-11-11T18:59:58.110852",
+    "end_time": "2025-11-11T19:05:35.217343",
+    "execution_time_seconds": 337.10641,
+    "total_fixes_attempted": 12,
+    "completed_fixes": 10,
+    "failed_fixes": 1,
+    "warning_fixes": 1,
+    "success_rate": 83.33333333333334
+  },
+  "fix_details": [
+    {
+      "timestamp": "2025-11-11T18:59:58.111063",
+      "category": "Security",
+      "description": "Enhanced security headers in backend",
+      "status": "completed",
+      "details": "Added comprehensive security headers middleware"
+    },
+    {
+      "timestamp": "2025-11-11T18:59:58.111111",
+      "category": "Security",
+      "description": "Updated CORS configuration",
+      "status": "completed",
+      "details": "Restricted origins and methods for better security"
+    },
+    {
+      "timestamp": "2025-11-11T18:59:58.248604",
+      "category": "Security",
+      "description": "Dependency security audit",
+      "status": "failed",
+      "details": "  File \"/Users/rushiparikh/projects/atom/atom/scripts/cleanup_dependencies.py\", line 208\n    f\"echo '  - Frontend packages removed: {len(self.unused_dependencies[\\\"frontend\\\"])}'\",\n                                                                                          ^\nSyntaxError: f-string expression part cannot include a backslash\n"
+    },
+    {
+      "timestamp": "2025-11-11T18:59:58.249002",
+      "category": "Code Quality",
+      "description": "Standardized logging utilities",
+      "status": "completed",
+      "details": "Created structured logging framework"
+    },
+    {
+      "timestamp": "2025-11-11T18:59:58.249101",
+      "category": "Code Quality",
+      "description": "Integration base class",
+      "status": "completed",
+      "details": "Created base class to reduce code duplication"
+    },
+    {
+      "timestamp": "2025-11-11T18:59:58.249191",
+      "category": "Code Quality",
+      "description": "Performance optimization utilities",
+      "status": "completed",
+      "details": "Added caching, memoization, and monitoring"
+    },
+    {
+      "timestamp": "2025-11-11T18:59:58.250082",
+      "category": "Code Quality",
+      "description": "Backend logging standardization",
+      "status": "completed",
+      "details": "Updated backend to use structured logging"
+    },
+    {
+      "timestamp": "2025-11-11T19:05:35.214426",
+      "category": "Testing",
+      "description": "Test coverage enhancement",
+      "status": "completed",
+      "details": "Generated missing test cases and improvement plan"
+    },
+    {
+      "timestamp": "2025-11-11T19:05:35.216200",
+      "category": "Testing",
+      "description": "Created basic test for shared/logging_utils.py",
+      "status": "completed",
+      "details": ""
+    },
+    {
+      "timestamp": "2025-11-11T19:05:35.216638",
+      "category": "Testing",
+      "description": "Created basic test for shared/integration_base.py",
+      "status": "completed",
+      "details": ""
+    },
+    {
+      "timestamp": "2025-11-11T19:05:35.216746",
+      "category": "Performance",
+      "description": "Performance monitoring utilities",
+      "status": "completed",
+      "details": "Added caching, metrics collection, and optimization tools"
+    },
+    {
+      "timestamp": "2025-11-11T19:05:35.217210",
+      "category": "Performance",
+      "description": "Frontend bundle analysis",
+      "status": "warning",
+      "details": "Large dependency tree (145 packages) - consider optimization"
+    }
+  ],
+  "next_steps": [
+    "\ud83d\udd34 Review and manually fix failed automation tasks",
+    "\ud83d\udd34 Address security issues immediately",
+    "\ud83d\udfe2 Run dependency cleanup script: ./cleanup_dependencies.sh",
+    "\ud83d\udfe2 Review generated test files and implement actual test logic",
+    "\ud83d\udfe2 Monitor application performance with new utilities",
+    "\ud83d\udfe2 Schedule regular code quality audits"
+  ]
+}

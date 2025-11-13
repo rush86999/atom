@@ -59,15 +59,15 @@ import {
   InputLeftElement,
   SearchIcon,
   PersonIcon,
-  CalendarIcon,
   TimeIcon,
-  CheckIcon,
+  TimeIcon,
+  CheckCircleIcon,
   CloseIcon,
   EditIcon,
   DeleteIcon,
   SettingsIcon,
   InfoIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   Select
 } from '@chakra-ui/react';
 
@@ -372,7 +372,7 @@ const BambooHRIntegration: React.FC = () => {
           <Button
             variant="outline"
             onClick={() => window.open(`https://${config.subdomain}.bamboohr.com`, '_blank')}
-            rightIcon={<ExternalLinkIcon />}
+            rightIcon={<ArrowForwardIcon />}
           >
             Open BambooHR
           </Button>
@@ -427,7 +427,7 @@ const BambooHRIntegration: React.FC = () => {
               <PersonIcon mr={2} /> Employees
             </Tab>
             <Tab _selected={{ color: 'orange.500', borderBottomColor: 'orange.500' }}>
-              <CalendarIcon mr={2} /> Time Off
+              <TimeIcon mr={2} /> Time Off
             </Tab>
             <Tab _selected={{ color: 'orange.500', borderBottomColor: 'orange.500' }}>
               <SettingsIcon mr={2} /> Company

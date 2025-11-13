@@ -101,27 +101,27 @@ import {
 import {
   ViewIcon,
   EditIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   DesktopIcon,
-  CheckIcon,
+  CheckCircleIcon,
   CloseIcon,
   CommentIcon,
-  CalendarIcon,
-  ClockIcon,
+  TimeIcon,
+  TimeIcon,
   UserGroupIcon,
   TeamIcon,
   FolderIcon,
-  FilterIcon,
+  SearchIcon,
   SearchIcon,
   EditIcon as EditTaskIcon,
   DeleteIcon,
@@ -149,10 +149,10 @@ import {
   EditIcon as EditIcon2,
   LinkIcon,
   CopyIcon as CopyIcon2,
-  ExternalLinkIcon as ExternalLinkIcon2,
+  ArrowForwardIcon as ArrowForwardIcon2,
   Search2Icon,
-  FilterIcon as FilterIcon2,
-  DownloadIcon,
+  SearchIcon as SearchIcon2,
+  ChevronDownIcon,
   UploadIcon,
   RefreshIcon,
   SettingsIcon as SettingsIcon2,
@@ -1455,7 +1455,7 @@ export const ShopifyIntegrationManager: React.FC<ShopifyIntegrationProps> = ({
         <VStack align="start" spacing={3}>
           <HStack justify="space-between" w="full">
             <HStack>
-              <Icon as={UserIcon} color="purple.500" />
+              <Icon as={PersonIcon} color="purple.500" />
               <VStack align="start" spacing={0}>
                 <Heading size="sm" noOfLines={1}>
                   {customer.first_name} {customer.last_name}
@@ -1586,7 +1586,7 @@ export const ShopifyIntegrationManager: React.FC<ShopifyIntegrationProps> = ({
           </Button>
           
           <Button
-            leftIcon={<UserIcon />}
+            leftIcon={<PersonIcon />}
             colorScheme="green"
             onClick={() => setCreateCustomerModalOpen(true)}
           >
@@ -1637,7 +1637,7 @@ export const ShopifyIntegrationManager: React.FC<ShopifyIntegrationProps> = ({
             </Tab>
             <Tab>
               <HStack>
-                <UserIcon />
+                <PersonIcon />
                 <Text>Customers ({customers.length})</Text>
               </HStack>
             </Tab>
@@ -1708,7 +1708,7 @@ export const ShopifyIntegrationManager: React.FC<ShopifyIntegrationProps> = ({
                 </Box>
               ) : customers.length === 0 ? (
                 <Box textAlign="center" p={8}>
-                  <UserIcon fontSize="4xl" color="gray.300" mb={4} />
+                  <PersonIcon fontSize="4xl" color="gray.300" mb={4} />
                   <Text color="gray.500">No customers found</Text>
                   <Button
                     mt={4}

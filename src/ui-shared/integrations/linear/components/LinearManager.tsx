@@ -58,19 +58,19 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   DesktopIcon,
-  CalendarIcon,
+  TimeIcon,
   ChevronRightIcon,
 } from '@chakra-ui/icons';
 import {
@@ -766,7 +766,7 @@ export const LinearManager: React.FC<LinearIntegrationProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
@@ -920,7 +920,7 @@ export const LinearManager: React.FC<LinearIntegrationProps> = ({
                             <Button
                               size="sm"
                               variant="outline"
-                              leftIcon={<ExternalLinkIcon />}
+                              leftIcon={<ArrowForwardIcon />}
                               onClick={() => {
                                 window.open(issue.url, '_blank');
                               }}
@@ -1046,7 +1046,7 @@ export const LinearManager: React.FC<LinearIntegrationProps> = ({
                             <HStack justify="space-between" align="start">
                               <VStack align="start" spacing={2}>
                                 <HStack>
-                                  <Icon as={CalendarIcon} w={4} h={4} color="blue" />
+                                  <Icon as={TimeIcon} w={4} h={4} color="blue" />
                                   <Text fontWeight="medium">{cycle.name}</Text>
                                   <Badge size="sm" colorScheme="purple">
                                     Cycle #{cycle.number}
@@ -1235,7 +1235,7 @@ export const LinearManager: React.FC<LinearIntegrationProps> = ({
           <HStack justify="space-between" w="full">
             <Button
               variant="outline"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => {
                 window.open('https://linear.app', '_blank');
               }}

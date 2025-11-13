@@ -32,7 +32,7 @@ import {
   StatHelpText,
   Progress,
 } from '@chakra-ui/react';
-import { CheckCircleIcon, WarningIcon, ExternalLinkIcon, RepeatIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, WarningTwoIcon, ArrowForwardIcon, RepeatIcon } from '@chakra-ui/icons';
 
 // Types
 interface NotionConfig {
@@ -325,7 +325,7 @@ const NotionManager: React.FC<NotionManagerProps> = ({
               alignItems="center"
             >
               <Icon
-                as={healthStatus === 'healthy' ? CheckCircleIcon : WarningIcon}
+                as={healthStatus === 'healthy' ? CheckCircleIcon : WarningTwoIcon}
                 mr={1}
               />
               {healthStatus === 'healthy' ? 'Healthy' : healthStatus === 'checking' ? 'Checking...' : 'Unhealthy'}
@@ -336,7 +336,7 @@ const NotionManager: React.FC<NotionManagerProps> = ({
               alignItems="center"
             >
               <Icon
-                as={connectionStatus.connected ? CheckCircleIcon : WarningIcon}
+                as={connectionStatus.connected ? CheckCircleIcon : WarningTwoIcon}
                 mr={1}
               />
               {connectionStatus.connected ? 'Connected' : 'Disconnected'}
@@ -369,7 +369,7 @@ const NotionManager: React.FC<NotionManagerProps> = ({
               onClick={startNotionOAuth}
               isLoading={loading}
               loadingText="Connecting..."
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               size="lg"
             >
               Connect Notion Workspace

@@ -39,7 +39,7 @@ import {
 } from '@chakra-ui/react';
 import {
   AddIcon,
-  CalendarIcon,
+  TimeIcon,
   EditIcon,
   DeleteIcon,
   TimeIcon,

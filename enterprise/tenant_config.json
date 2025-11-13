@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2025-11-12T14:45:03.721674",
+  "multi_tenant": {
+    "enabled": true,
+    "isolation_level": "workspace",
+    "resource_limits": {
+      "max_users_per_workspace": 1000,
+      "max_teams_per_workspace": 100,
+      "max_workflows_per_workspace": 5000,
+      "storage_quota_gb": 100
+    },
+    "billing": {
+      "plan_tiers": [
+        "starter",
+        "professional",
+        "enterprise"
+      ],
+      "metered_billing": true,
+      "trial_period_days": 30
+    }
+  },
+  "user_management": {
+    "roles": [
+      "super_admin",
+      "workspace_admin",
+      "team_lead",
+      "member",
+      "guest"
+    ],
+    "permission_granularity": "resource_level",
+    "sso_integration": true
+  }
+}

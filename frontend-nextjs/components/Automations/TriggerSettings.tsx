@@ -50,7 +50,7 @@ import {
   RadioGroup,
   Stack
 } from '@chakra-ui/react';
-import { AddIcon, EditIcon, DeleteIcon, CopyIcon, CalendarIcon, TimeIcon } from '@chakra-ui/icons';
+import { AddIcon, EditIcon, DeleteIcon, CopyIcon, TimeIcon, TimeIcon } from '@chakra-ui/icons';
 
 interface TriggerDefinition {
   id: string;

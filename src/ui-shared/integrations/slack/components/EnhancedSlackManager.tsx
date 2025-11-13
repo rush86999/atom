@@ -88,34 +88,34 @@ import {
   ViewIcon,
   TimeIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   AddIcon,
   DeleteIcon,
   EditIcon,
   MoreVerticalIcon,
   BellIcon,
   FileIcon,
-  UserIcon,
+  PersonIcon,
   ChannelIcon,
   LockIcon,
   UnlockIcon,
   StarIcon,
   LinkIcon,
   EmailIcon,
-  CalendarIcon,
-  FilterIcon,
+  TimeIcon,
+  SearchIcon,
   CloseIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   SmallCloseIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-  PlayIcon,
-  PauseIcon,
-  StopIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  ArrowForwardIcon,
+  MinusIcon,
+  CloseIcon,
   HamburgerIcon,
 } from '@chakra-ui/icons';
 
@@ -646,7 +646,7 @@ const WorkflowAutomation: React.FC<{
                 <HStack spacing={2}>
                   <Button
                     size="sm"
-                    leftIcon={<PlayIcon />}
+                    leftIcon={<ArrowForwardIcon />}
                     onClick={() => onExecuteWorkflow(workflow.id)}
                     isDisabled={!workflow.active}
                   >
@@ -1250,7 +1250,7 @@ const EnhancedSlackManager: React.FC<EnhancedSlackManagerProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={selectedWorkspace ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={selectedWorkspace ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {selectedWorkspace ? 'Connected' : 'No Workspace'}
             </Badge>
           </HStack>
@@ -1298,7 +1298,7 @@ const EnhancedSlackManager: React.FC<EnhancedSlackManagerProps> = ({
             <StatLabel>Workflows</StatLabel>
             <StatNumber>{stats.activeWorkflows}</StatNumber>
             <StatHelpText>
-              <Icon as={PlayIcon} color="green.500" mr={1} />
+              <Icon as={ArrowForwardIcon} color="green.500" mr={1} />
               Active
             </StatHelpText>
           </Stat>
@@ -1403,7 +1403,7 @@ const EnhancedSlackManager: React.FC<EnhancedSlackManagerProps> = ({
                 </Tab>
                 <Tab>
                   <HStack>
-                    <PlayIcon />
+                    <ArrowForwardIcon />
                     <Text display={{ base: 'none', md: 'inline' }}>Workflows</Text>
                   </HStack>
                 </Tab>
@@ -1487,7 +1487,7 @@ const EnhancedSlackManager: React.FC<EnhancedSlackManagerProps> = ({
                             Connect Workspace
                           </Button>
                           <Button
-                            leftIcon={<PlayIcon />}
+                            leftIcon={<ArrowForwardIcon />}
                             colorScheme="green"
                             onClick={startIngestion}
                             isDisabled={!selectedWorkspace || ingestionStatus.running}
@@ -1645,7 +1645,7 @@ const EnhancedSlackManager: React.FC<EnhancedSlackManagerProps> = ({
                                 <IconButton
                                   size="sm"
                                   variant="outline"
-                                  icon={<UserIcon />}
+                                  icon={<PersonIcon />}
                                   aria-label="Mention user"
                                 />
                               </HStack>

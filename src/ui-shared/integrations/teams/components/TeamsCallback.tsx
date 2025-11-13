@@ -26,8 +26,8 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   ChatIcon,
 } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
@@ -351,7 +351,7 @@ const TeamsCallback: React.FC<TeamsCallbackProps> = () => {
                 
                 <Button
                   variant="outline"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() => {
                     window.open('https://teams.microsoft.com', '_blank');
                   }}

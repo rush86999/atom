@@ -51,19 +51,19 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   DesktopIcon,
-  CalendarIcon,
+  TimeIcon,
   ChevronRightIcon,
   ProjectIcon,
   TaskIcon,
@@ -555,7 +555,7 @@ export const AsanaDesktopManager: React.FC<AsanaDesktopIntegrationProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
@@ -741,7 +741,7 @@ export const AsanaDesktopManager: React.FC<AsanaDesktopIntegrationProps> = ({
             <Button
               colorScheme="red"
               variant="outline"
-              leftIcon={<WarningIcon />}
+              leftIcon={<WarningTwoIcon />}
               onClick={disconnectAsana}
               width="full"
             >
@@ -824,7 +824,7 @@ export const AsanaDesktopManager: React.FC<AsanaDesktopIntegrationProps> = ({
           <HStack justify="space-between" w="full">
             <Button
               variant="outline"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => {
                 window.open('https://app.asana.com', '_blank');
               }}

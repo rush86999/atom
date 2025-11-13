@@ -118,7 +118,7 @@ import {
 } from '@chakra-ui/react';
 import {
   SearchIcon,
-  FilterIcon,
+  SearchIcon,
   CloseIcon,
   ChevronDownIcon,
   ChevronUpIcon,
@@ -126,21 +126,21 @@ import {
   StarIcon,
   SettingsIcon,
   RepeatIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   AddIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
   HistoryIcon,
   BookmarkIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   BellIcon,
-  GlobeIcon,
+  ArrowForwardIcon,
   FolderIcon,
   CodeIcon,
   BugIcon,
   DocumentIcon,
-  CalendarIcon,
-  UserIcon,
+  TimeIcon,
+  PersonIcon,
   ChatIcon,
   EmailIcon,
   BoxIcon,
@@ -152,7 +152,7 @@ import {
   GitlabIcon,
   SlackIcon,
   EditIcon,
-  TrashIcon,
+  DeleteIcon,
   ViewIcon,
   InfoIcon,
   CopyIcon,
@@ -171,13 +171,13 @@ import {
   CommandIcon,
   PlusIcon,
   SmallCloseIcon,
-  CheckIcon,
-  WarningIcon,
+  CheckCircleIcon,
+  WarningTwoIcon,
   QuestionIcon,
   DragHandleIcon,
   LockIcon,
   UnlockIcon,
-  ClockIcon,
+  TimeIcon,
   CalendarDaysIcon,
   FilterOffIcon,
   FunnelIcon,
@@ -692,7 +692,7 @@ const AtomUnifiedSearch: React.FC<AtomUnifiedSearchProps> = ({
       gdrive: GoogleDriveIcon,
       local_files: DesktopIcon,
       system_emails: EmailIcon,
-      system_contacts: UserIcon
+      system_contacts: PersonIcon
     };
     return icons[source] || DocumentIcon;
   };
@@ -723,10 +723,10 @@ const AtomUnifiedSearch: React.FC<AtomUnifiedSearchProps> = ({
       issue: BugIcon,
       commit: CodeIcon,
       message: ChatIcon,
-      task: CheckIcon,
+      task: CheckCircleIcon,
       document: DocumentIcon,
       project: FolderIcon,
-      user: UserIcon
+      user: PersonIcon
     };
     return icons[type] || DocumentIcon;
   };
@@ -1453,7 +1453,7 @@ const AtomUnifiedSearch: React.FC<AtomUnifiedSearchProps> = ({
 
               <Button
                 variant="outline"
-                leftIcon={sort.direction === 'asc' ? <ArrowUpIcon /> : <ArrowDownIcon />}
+                leftIcon={sort.direction === 'asc' ? <ChevronUpIcon /> : <ChevronDownIcon />}
                 onClick={() => updateSort(sort.field)}
                 size={isMobile ? 'sm' : 'md'}
               >
@@ -1464,7 +1464,7 @@ const AtomUnifiedSearch: React.FC<AtomUnifiedSearchProps> = ({
             <HStack spacing={4}>
               <Button
                 variant="outline"
-                leftIcon={<FilterIcon />}
+                leftIcon={<SearchIcon />}
                 rightIcon={showAdvancedFilters ? <ChevronUpIcon /> : <ChevronDownIcon />}
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 size={isMobile ? 'sm' : 'md'}
@@ -1670,15 +1670,15 @@ const AtomUnifiedSearch: React.FC<AtomUnifiedSearchProps> = ({
                 </MenuButton>
                 <MenuList>
                   <MenuItem onClick={() => exportResults('json')}>
-                    <DownloadIcon mr={2} />
+                    <ChevronDownIcon mr={2} />
                     Export JSON
                   </MenuItem>
                   <MenuItem onClick={() => exportResults('csv')}>
-                    <DownloadIcon mr={2} />
+                    <ChevronDownIcon mr={2} />
                     Export CSV
                   </MenuItem>
                   <MenuItem onClick={() => exportResults('html')}>
-                    <DownloadIcon mr={2} />
+                    <ChevronDownIcon mr={2} />
                     Export HTML
                   </MenuItem>
                   <MenuItem onClick={shareResults}>
@@ -1936,7 +1936,7 @@ const AtomUnifiedSearch: React.FC<AtomUnifiedSearchProps> = ({
                           size="sm"
                           variant="ghost"
                           aria-label="Delete saved search"
-                          icon={<TrashIcon />}
+                          icon={<DeleteIcon />}
                           onClick={(e) => {
                             e.stopPropagation();
                             // Handle delete

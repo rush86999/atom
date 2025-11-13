@@ -52,25 +52,26 @@ import {
   Select,
 } from "@chakra-ui/react";
 import {
-  CheckIcon,
+  CheckCircleIcon,
   CloseIcon,
   SettingsIcon,
-  CalendarIcon,
+  TimeIcon,
   ChatIcon,
   EmailIcon,
   AttachmentIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   ViewIcon,
   EditIcon,
   DeleteIcon,
   AddIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   LockIcon,
   UnlockIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
 } from "@chakra-ui/icons";
+import { Icon } from "@chakra-ui/react";
 
 interface ServiceConnection {
   id: string;
@@ -287,6 +288,26 @@ const ServiceIntegrationDashboard: React.FC = () => {
       icon: "crm",
       description: "Customer relationship management and sales automation",
     },
+    {
+      id: "whatsapp_business",
+      name: "WhatsApp Business",
+      type: "communication",
+      status: "pending",
+      capabilities: [
+        "send_messages",
+        "receive_messages",
+        "template_messages",
+        "media_messages",
+        "customer_support",
+        "auto_responses",
+        "message_analytics",
+        "conversation_management",
+        "contact_management",
+        "webhook_integration"
+      ],
+      icon: "chat",
+      description: "Customer communication through WhatsApp Business API",
+    },
   ];
 
   useEffect(() => {
@@ -497,17 +518,21 @@ const ServiceIntegrationDashboard: React.FC = () => {
     const iconProps = { boxSize: 6, color: getStatusColor(service.status) };
     switch (service.icon) {
       case "calendar":
-        return <CalendarIcon {...iconProps} />;
+        return <TimeIcon {...iconProps} />;
       case "email":
         return <EmailIcon {...iconProps} />;
       case "tasks":
-        return <CheckIcon {...iconProps} />;
+        return <CheckCircleIcon {...iconProps} />;
       case "document":
         return <AttachmentIcon {...iconProps} />;
       case "storage":
-        return <DownloadIcon {...iconProps} />;
+        return <ChevronDownIcon {...iconProps} />;
       case "chat":
         return <ChatIcon {...iconProps} />;
+      case "video":
+        return <Icon viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></Icon>;
+      case "crm":
+        return <Icon viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></Icon>;
       case "code":
         return <ViewIcon {...iconProps} />;
       default:
@@ -810,7 +835,7 @@ const ServiceIntegrationDashboard: React.FC = () => {
                       ) : (
                         <Button
                           size="sm"
-                          leftIcon={<CheckIcon />}
+                          leftIcon={<CheckCircleIcon />}
                           colorScheme="green"
                           w="full"
                           isLoading={syncing}

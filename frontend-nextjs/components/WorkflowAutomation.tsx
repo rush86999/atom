@@ -62,19 +62,19 @@ import {
 } from "@chakra-ui/react";
 import {
   AddIcon,
-  CheckIcon,
+  CheckCircleIcon,
   CloseIcon,
   EditIcon,
   DeleteIcon,
   ViewIcon,
   ArrowForwardIcon,
   SettingsIcon,
-  CalendarIcon,
+  TimeIcon,
   TimeIcon,
   ChatIcon,
   EmailIcon,
   AttachmentIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   RepeatIcon,
 } from "@chakra-ui/icons";
 
@@ -326,9 +326,9 @@ const WorkflowAutomation: React.FC = () => {
     const iconProps = { boxSize: 4, mr: 2 };
     switch (service) {
       case "calendar":
-        return <CalendarIcon {...iconProps} color="blue.500" />;
+        return <TimeIcon {...iconProps} color="blue.500" />;
       case "tasks":
-        return <CheckIcon {...iconProps} color="green.500" />;
+        return <CheckCircleIcon {...iconProps} color="green.500" />;
       case "messages":
         return <ChatIcon {...iconProps} color="purple.500" />;
       case "email":
@@ -342,7 +342,7 @@ const WorkflowAutomation: React.FC = () => {
       case "notion":
         return <ViewIcon {...iconProps} color="gray.500" />;
       case "dropbox":
-        return <DownloadIcon {...iconProps} color="blue.500" />;
+        return <ChevronDownIcon {...iconProps} color="blue.500" />;
       default:
         return <SettingsIcon {...iconProps} color="gray.500" />;
     }

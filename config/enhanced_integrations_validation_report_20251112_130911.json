@@ -1,0 +1,136 @@
+{
+  "timestamp": "2025-11-12T13:09:10.751016",
+  "systems": {
+    "enhanced_workflow": {
+      "status": "PASS",
+      "tests_passed": 5,
+      "total_tests": 5,
+      "details": {
+        "import_success": true,
+        "api_initialization": true,
+        "intelligence_analysis": true,
+        "monitoring_system": true,
+        "optimization_system": true
+      },
+      "success_rate": 100.0
+    },
+    "ai_intelligence": {
+      "status": "FAIL",
+      "tests_passed": 1,
+      "total_tests": 4,
+      "details": {
+        "test_case_1": {
+          "input": "Send slack message when github PR is created",
+          "detected_services": [],
+          "expected_services": [
+            "slack",
+            "github"
+          ],
+          "status": "FAIL"
+        },
+        "test_case_2": {
+          "input": "Create asana task from gmail email",
+          "detected_services": [],
+          "expected_services": [
+            "asana",
+            "gmail"
+          ],
+          "status": "FAIL"
+        },
+        "test_case_3": {
+          "input": "Update google calendar when trello card is moved",
+          "detected_services": [],
+          "expected_services": [
+            "google_calendar",
+            "trello"
+          ],
+          "status": "FAIL"
+        },
+        "workflow_generation": true
+      },
+      "success_rate": 25.0
+    },
+    "enhanced_monitoring": {
+      "status": "PASS",
+      "tests_passed": 7,
+      "total_tests": 8,
+      "details": {
+        "monitoring_start": true,
+        "metric_execution_time": true,
+        "metric_success_rate": true,
+        "metric_error_rate": true,
+        "metric_cost": true,
+        "metric_latency": true,
+        "health_monitoring": false,
+        "metrics_retrieval": true,
+        "monitoring_stop": true
+      },
+      "success_rate": 87.5
+    },
+    "performance_optimization": {
+      "status": "PASS",
+      "tests_passed": 5,
+      "total_tests": 5,
+      "details": {
+        "strategy_performance": {
+          "estimated_time": 30.0,
+          "estimated_cost": 0.1,
+          "bottlenecks": 0,
+          "recommendations": 0,
+          "optimization_potential": 0.15
+        },
+        "strategy_cost": {
+          "estimated_time": 30.0,
+          "estimated_cost": 0.1,
+          "bottlenecks": 0,
+          "recommendations": 0,
+          "optimization_potential": 0.15
+        },
+        "strategy_reliability": {
+          "estimated_time": 30.0,
+          "estimated_cost": 0.1,
+          "bottlenecks": 0,
+          "recommendations": 0,
+          "optimization_potential": 0.15
+        },
+        "strategy_hybrid": {
+          "estimated_time": 30.0,
+          "estimated_cost": 0.1,
+          "bottlenecks": 0,
+          "recommendations": 0,
+          "optimization_potential": 0.15
+        },
+        "optimization_framework": true
+      },
+      "success_rate": 100.0
+    },
+    "cross_service_intelligence": {
+      "status": "FAIL",
+      "tests_passed": 1,
+      "total_tests": 2,
+      "details": {
+        "multi_service_detection": {
+          "detected_services": [],
+          "expected_services": [
+            "slack",
+            "github",
+            "asana"
+          ],
+          "status": "FAIL"
+        },
+        "cross_service_optimization": {
+          "estimated_time": 30.0,
+          "estimated_cost": 0.1,
+          "bottlenecks": 0,
+          "recommendations": 0,
+          "optimization_potential": 0.15
+        }
+      },
+      "success_rate": 50.0
+    }
+  },
+  "overall_status": "WARNING",
+  "success_rate": 79.16666666666666,
+  "total_tests": 24,
+  "passed_tests": 19
+}

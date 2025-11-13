@@ -29,13 +29,13 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   ViewListIcon,
   InfoIcon,
   CopyIcon,
   DesktopIcon,
-  CalendarIcon,
+  TimeIcon,
   ProjectIcon,
   TaskIcon,
 } from '@chakra-ui/icons';
@@ -452,7 +452,7 @@ const AsanaDesktopCallback: React.FC<AsanaDesktopCallbackProps> = ({
                   
                   <Button
                     variant="outline"
-                    leftIcon={<ExternalLinkIcon />}
+                    leftIcon={<ArrowForwardIcon />}
                     onClick={() => {
                       window.open('https://app.asana.com', '_blank');
                     }}

@@ -77,31 +77,31 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   ChatIcon,
   TaskIcon,
-  CalendarIcon,
+  TimeIcon,
   ChevronRightIcon,
-  PlayIcon,
+  ArrowForwardIcon,
   SearchIcon,
-  FilterIcon,
+  SearchIcon,
   CloseIcon,
   PlusIcon,
   DeleteIcon,
   EditIcon as EditTaskIcon,
   BellIcon,
   BellSlashIcon,
-  ClockIcon,
+  TimeIcon,
   WarningTwoIcon,
   CheckCircleIcon as TaskCompleteIcon,
 } from '@chakra-ui/icons';
@@ -602,9 +602,9 @@ export const ATOMAgentTaskUI: React.FC<ATOMAgentTaskUIProps> = ({
   const getStatusIcon = (status: Task['status']) => {
     switch (status) {
       case 'todo': return <TimeIcon />;
-      case 'in_progress': return <PlayIcon />;
+      case 'in_progress': return <ArrowForwardIcon />;
       case 'completed': return <CheckCircleIcon />;
-      case 'blocked': return <WarningIcon />;
+      case 'blocked': return <WarningTwoIcon />;
       default: return <TimeIcon />;
     }
   };
@@ -760,7 +760,7 @@ export const ATOMAgentTaskUI: React.FC<ATOMAgentTaskUIProps> = ({
               <HStack key={integration}>
                 <Icon 
                   as={
-                    integration === 'trello' ? ExternalLinkIcon :
+                    integration === 'trello' ? ArrowForwardIcon :
                     integration === 'asana' ? TaskIcon :
                     SettingsIcon
                   } 
@@ -857,7 +857,7 @@ export const ATOMAgentTaskUI: React.FC<ATOMAgentTaskUIProps> = ({
 
                         {task.assignee && (
                           <HStack>
-                            <Icon as={UserIcon} w={3} h={3} color="gray.500" />
+                            <Icon as={PersonIcon} w={3} h={3} color="gray.500" />
                             <Text fontSize="xs" color="gray.600">
                               {task.assignee.name}
                             </Text>
@@ -866,7 +866,7 @@ export const ATOMAgentTaskUI: React.FC<ATOMAgentTaskUIProps> = ({
 
                         {task.dueDate && (
                           <HStack>
-                            <Icon as={CalendarIcon} w={3} h={3} color="gray.500" />
+                            <Icon as={TimeIcon} w={3} h={3} color="gray.500" />
                             <Text 
                               fontSize="xs" 
                               color={
@@ -956,7 +956,7 @@ export const ATOMAgentTaskUI: React.FC<ATOMAgentTaskUIProps> = ({
                             </MenuItem>
                             {task.url && (
                               <MenuItem 
-                                icon={<ExternalLinkIcon />}
+                                icon={<ArrowForwardIcon />}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   window.open(task.url, '_blank');
@@ -967,7 +967,7 @@ export const ATOMAgentTaskUI: React.FC<ATOMAgentTaskUIProps> = ({
                             )}
                             {task.status !== 'in_progress' && (
                               <MenuItem 
-                                icon={<PlayIcon />}
+                                icon={<ArrowForwardIcon />}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   updateTaskStatus(task, 'in_progress');
@@ -1171,7 +1171,7 @@ export const ATOMAgentTaskUI: React.FC<ATOMAgentTaskUIProps> = ({
                   <HStack>
                     <Icon 
                       as={
-                        selectedTask.source === 'trello' ? ExternalLinkIcon :
+                        selectedTask.source === 'trello' ? ArrowForwardIcon :
                         selectedTask.source === 'asana' ? TaskIcon :
                         SettingsIcon
                       } 
@@ -1197,7 +1197,7 @@ export const ATOMAgentTaskUI: React.FC<ATOMAgentTaskUIProps> = ({
               <HStack>
                 {selectedTask?.url && (
                   <Button
-                    leftIcon={<ExternalLinkIcon />}
+                    leftIcon={<ArrowForwardIcon />}
                     variant="outline"
                     onClick={() => window.open(selectedTask.url, '_blank')}
                   >

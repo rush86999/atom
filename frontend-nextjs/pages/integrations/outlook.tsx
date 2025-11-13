@@ -60,11 +60,11 @@ import {
   AvatarGroup,
 } from "@chakra-ui/react";
 import {
-  CalendarIcon,
-  CheckCircleIcon,
-  WarningIcon,
   TimeIcon,
-  ExternalLinkIcon,
+  CheckCircleIcon,
+  WarningTwoIcon,
+  TimeIcon,
+  ArrowForwardIcon,
   AddIcon,
   SearchIcon,
   SettingsIcon,
@@ -488,7 +488,7 @@ const OutlookIntegration: React.FC = () => {
               {healthStatus === "healthy" ? (
                 <CheckCircleIcon mr={1} />
               ) : (
-                <WarningIcon mr={1} />
+                <WarningTwoIcon mr={1} />
               )}
               {connected ? "Connected" : "Disconnected"}
             </Badge>
@@ -524,7 +524,7 @@ const OutlookIntegration: React.FC = () => {
                 <Button
                   colorScheme="blue"
                   size="lg"
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
                     (window.location.href = "/api/auth/outlook/authorize")
                   }
@@ -749,7 +749,7 @@ const OutlookIntegration: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        leftIcon={<ExternalLinkIcon />}
+                                        leftIcon={<ArrowForwardIcon />}
                                         onClick={() =>
                                           window.open(email.webLink, "_blank")
                                         }
@@ -791,7 +791,7 @@ const OutlookIntegration: React.FC = () => {
                                   {event.location && (
                                     <HStack spacing={1}>
                                       <Icon
-                                        as={CalendarIcon}
+                                        as={TimeIcon}
                                         w={3}
                                         h={3}
                                         color="gray.500"
@@ -939,7 +939,7 @@ const OutlookIntegration: React.FC = () => {
                                   {task.dueDateTime && (
                                     <HStack spacing={1}>
                                       <Icon
-                                        as={CalendarIcon}
+                                        as={TimeIcon}
                                         w={3}
                                         h={3}
                                         color="gray.500"

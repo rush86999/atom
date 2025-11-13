@@ -29,13 +29,13 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
-  ExternalLinkIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   ViewListIcon,
   InfoIcon,
   CopyIcon,
   DesktopIcon,
-  CalendarIcon,
+  TimeIcon,
 } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
 
@@ -463,7 +463,7 @@ const LinearDesktopCallback: React.FC<LinearDesktopCallbackProps> = ({
                   
                   <Button
                     variant="outline"
-                    leftIcon={<ExternalLinkIcon />}
+                    leftIcon={<ArrowForwardIcon />}
                     onClick={() => {
                       window.open('https://linear.app', '_blank');
                     }}

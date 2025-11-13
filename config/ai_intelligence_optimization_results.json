@@ -1,0 +1,550 @@
+{
+  "timestamp": "2025-11-12T13:24:16.272389",
+  "service_detection": {
+    "timestamp": "2025-11-12T13:24:15.712880",
+    "test_cases": [
+      {
+        "test_id": 1,
+        "input": "Send slack message when github PR is created",
+        "expected_services": [
+          "slack",
+          "github"
+        ],
+        "detected_services": [
+          "github",
+          "slack",
+          "gmail",
+          "whatsapp"
+        ],
+        "confidence_scores": [
+          0.8075,
+          0.7650000000000001,
+          0.42749999999999994,
+          0.31499999999999995
+        ],
+        "missing_services": [],
+        "extra_services": [
+          "whatsapp",
+          "gmail"
+        ],
+        "passed": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "github",
+              "confidence": 0.8075,
+              "detected_keywords": [
+                "github"
+              ],
+              "suggested_actions": [
+                "Use github to create_issue",
+                "Use github to create_pr"
+              ]
+            },
+            {
+              "service_name": "slack",
+              "confidence": 0.7650000000000001,
+              "detected_keywords": [
+                "slack",
+                "message"
+              ],
+              "suggested_actions": [
+                "Send message via slack",
+                "Use slack to create_channel"
+              ]
+            },
+            {
+              "service_name": "gmail",
+              "confidence": 0.42749999999999994,
+              "detected_keywords": [
+                "message"
+              ],
+              "suggested_actions": [
+                "Send message via gmail"
+              ]
+            },
+            {
+              "service_name": "whatsapp",
+              "confidence": 0.31499999999999995,
+              "detected_keywords": [
+                "message"
+              ],
+              "suggested_actions": [
+                "Send message via whatsapp"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "test_id": 2,
+        "input": "Create asana task from gmail email",
+        "expected_services": [
+          "asana",
+          "gmail"
+        ],
+        "detected_services": [
+          "asana",
+          "outlook"
+        ],
+        "confidence_scores": [
+          0.7650000000000001,
+          0.38249999999999995
+        ],
+        "missing_services": [
+          "gmail"
+        ],
+        "extra_services": [
+          "outlook"
+        ],
+        "passed": false,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "asana",
+              "confidence": 0.7650000000000001,
+              "detected_keywords": [
+                "asana",
+                "task"
+              ],
+              "suggested_actions": [
+                "Create item in asana",
+                "Use asana to create_task"
+              ]
+            },
+            {
+              "service_name": "outlook",
+              "confidence": 0.38249999999999995,
+              "detected_keywords": [
+                "email"
+              ],
+              "suggested_actions": []
+            }
+          ]
+        }
+      },
+      {
+        "test_id": 3,
+        "input": "Update google calendar when trello card is moved",
+        "expected_services": [
+          "google_calendar",
+          "trello"
+        ],
+        "detected_services": [
+          "trello",
+          "google_calendar",
+          "outlook"
+        ],
+        "confidence_scores": [
+          0.935,
+          0.855,
+          0.38249999999999995
+        ],
+        "missing_services": [],
+        "extra_services": [
+          "outlook"
+        ],
+        "passed": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "trello",
+              "confidence": 0.935,
+              "detected_keywords": [
+                "trello",
+                "card"
+              ],
+              "suggested_actions": [
+                "Update existing item in trello"
+              ]
+            },
+            {
+              "service_name": "google_calendar",
+              "confidence": 0.855,
+              "detected_keywords": [
+                "calendar"
+              ],
+              "suggested_actions": [
+                "Update existing item in google_calendar"
+              ]
+            },
+            {
+              "service_name": "outlook",
+              "confidence": 0.38249999999999995,
+              "detected_keywords": [
+                "calendar"
+              ],
+              "suggested_actions": []
+            }
+          ]
+        }
+      },
+      {
+        "test_id": 4,
+        "input": "Upload file to dropbox and notify on slack",
+        "expected_services": [
+          "dropbox",
+          "slack"
+        ],
+        "detected_services": [
+          "dropbox",
+          "slack"
+        ],
+        "confidence_scores": [
+          0.8533333333333334,
+          0.63
+        ],
+        "missing_services": [],
+        "extra_services": [],
+        "passed": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "dropbox",
+              "confidence": 0.8533333333333334,
+              "detected_keywords": [
+                "dropbox",
+                "file",
+                "upload"
+              ],
+              "suggested_actions": [
+                "Upload file to dropbox"
+              ]
+            },
+            {
+              "service_name": "slack",
+              "confidence": 0.63,
+              "detected_keywords": [
+                "slack"
+              ],
+              "suggested_actions": [
+                "Send message via slack"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "test_id": 5,
+        "input": "Create stripe invoice from salesforce opportunity",
+        "expected_services": [
+          "stripe",
+          "salesforce"
+        ],
+        "detected_services": [
+          "salesforce",
+          "stripe"
+        ],
+        "confidence_scores": [
+          0.935,
+          0.8
+        ],
+        "missing_services": [],
+        "extra_services": [],
+        "passed": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "salesforce",
+              "confidence": 0.935,
+              "detected_keywords": [
+                "salesforce",
+                "opportunity"
+              ],
+              "suggested_actions": [
+                "Use salesforce to create_lead",
+                "Use salesforce to create_opportunity"
+              ]
+            },
+            {
+              "service_name": "stripe",
+              "confidence": 0.8,
+              "detected_keywords": [
+                "stripe",
+                "invoice",
+                "stripe invoice"
+              ],
+              "suggested_actions": [
+                "Use stripe to create_invoice"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "test_id": 6,
+        "input": "Schedule zoom meeting from google calendar event",
+        "expected_services": [
+          "zoom",
+          "google_calendar"
+        ],
+        "detected_services": [
+          "google_calendar",
+          "zoom",
+          "outlook"
+        ],
+        "confidence_scores": [
+          1.0,
+          0.9375,
+          0.51
+        ],
+        "missing_services": [],
+        "extra_services": [
+          "outlook"
+        ],
+        "passed": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "google_calendar",
+              "confidence": 1.0,
+              "detected_keywords": [
+                "calendar",
+                "meeting",
+                "schedule",
+                "event"
+              ],
+              "suggested_actions": []
+            },
+            {
+              "service_name": "zoom",
+              "confidence": 0.9375,
+              "detected_keywords": [
+                "zoom",
+                "meeting",
+                "zoom meeting"
+              ],
+              "suggested_actions": []
+            },
+            {
+              "service_name": "outlook",
+              "confidence": 0.51,
+              "detected_keywords": [
+                "calendar",
+                "meeting"
+              ],
+              "suggested_actions": []
+            }
+          ]
+        }
+      },
+      {
+        "test_id": 7,
+        "input": "Send whatsapp message for urgent notifications",
+        "expected_services": [
+          "whatsapp"
+        ],
+        "detected_services": [
+          "whatsapp",
+          "slack",
+          "gmail"
+        ],
+        "confidence_scores": [
+          0.7,
+          0.54,
+          0.42749999999999994
+        ],
+        "missing_services": [],
+        "extra_services": [
+          "slack",
+          "gmail"
+        ],
+        "passed": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "whatsapp",
+              "confidence": 0.7,
+              "detected_keywords": [
+                "whatsapp",
+                "message",
+                "whatsapp message"
+              ],
+              "suggested_actions": [
+                "Send message via whatsapp"
+              ]
+            },
+            {
+              "service_name": "slack",
+              "confidence": 0.54,
+              "detected_keywords": [
+                "notification",
+                "message"
+              ],
+              "suggested_actions": [
+                "Send message via slack"
+              ]
+            },
+            {
+              "service_name": "gmail",
+              "confidence": 0.42749999999999994,
+              "detected_keywords": [
+                "message"
+              ],
+              "suggested_actions": [
+                "Send message via gmail"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "test_id": 8,
+        "input": "Generate tableau report from github data",
+        "expected_services": [
+          "tableau",
+          "github"
+        ],
+        "detected_services": [
+          "github",
+          "tableau"
+        ],
+        "confidence_scores": [
+          0.8075,
+          0.75
+        ],
+        "missing_services": [],
+        "extra_services": [],
+        "passed": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "github",
+              "confidence": 0.8075,
+              "detected_keywords": [
+                "github"
+              ],
+              "suggested_actions": []
+            },
+            {
+              "service_name": "tableau",
+              "confidence": 0.75,
+              "detected_keywords": [
+                "tableau",
+                "report",
+                "tableau report"
+              ],
+              "suggested_actions": []
+            }
+          ]
+        }
+      }
+    ],
+    "summary": {
+      "total_tests": 8,
+      "passed_tests": 7,
+      "success_rate": 87.5
+    }
+  },
+  "cross_service_intelligence": {
+    "timestamp": "2025-11-12T13:24:16.225095",
+    "test_cases": [
+      {
+        "test_id": 1,
+        "input": "When github PR is created, send slack message and create asana task",
+        "detected_services": [
+          "github",
+          "slack",
+          "asana",
+          "gmail",
+          "whatsapp"
+        ],
+        "services_count": 5,
+        "workflow_generation_success": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "github",
+              "confidence": 0.8075,
+              "context": "general"
+            },
+            {
+              "service_name": "slack",
+              "confidence": 0.7650000000000001,
+              "context": "general"
+            },
+            {
+              "service_name": "asana",
+              "confidence": 0.7650000000000001,
+              "context": "general"
+            },
+            {
+              "service_name": "gmail",
+              "confidence": 0.42749999999999994,
+              "context": "general"
+            },
+            {
+              "service_name": "whatsapp",
+              "confidence": 0.31499999999999995,
+              "context": "general"
+            }
+          ]
+        }
+      },
+      {
+        "test_id": 2,
+        "input": "Sync google calendar with outlook and notify on slack",
+        "detected_services": [
+          "outlook",
+          "slack"
+        ],
+        "services_count": 2,
+        "workflow_generation_success": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "outlook",
+              "confidence": 0.7225,
+              "context": "general"
+            },
+            {
+              "service_name": "slack",
+              "confidence": 0.63,
+              "context": "general"
+            }
+          ]
+        }
+      },
+      {
+        "test_id": 3,
+        "input": "Create salesforce lead from gmail, add to asana, and notify team",
+        "detected_services": [
+          "salesforce",
+          "asana",
+          "gmail"
+        ],
+        "services_count": 3,
+        "workflow_generation_success": true,
+        "details": {
+          "detected_services_full": [
+            {
+              "service_name": "salesforce",
+              "confidence": 0.935,
+              "context": "collaborative"
+            },
+            {
+              "service_name": "asana",
+              "confidence": 0.63,
+              "context": "collaborative"
+            },
+            {
+              "service_name": "gmail",
+              "confidence": 0.5225,
+              "context": "collaborative"
+            }
+          ]
+        }
+      }
+    ],
+    "summary": {
+      "total_tests": 3,
+      "successful_analyses": 3,
+      "average_services_detected": 3.3333333333333335
+    }
+  },
+  "overall_assessment": {
+    "service_detection_success_rate": 87.5,
+    "cross_service_success_rate": 100.0,
+    "improvement_status": "EXCELLENT"
+  }
+}

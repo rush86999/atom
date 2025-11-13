@@ -1,0 +1,112 @@
+{
+  "timestamp": "2025-11-10T18:32:07.261343",
+  "environment": "development",
+  "tests": {
+    "Frontend Health": {
+      "status": "FAIL",
+      "timestamp": "2025-11-10T18:32:17.317902",
+      "details": {
+        "error": "HTTPConnectionPool(host='localhost', port=3000): Read timed out. (read timeout=10)"
+      }
+    },
+    "Backend Health": {
+      "status": "PASS",
+      "timestamp": "2025-11-10T18:32:17.326693",
+      "details": {
+        "response_time": 0.00546,
+        "status": "healthy"
+      }
+    },
+    "OAuth Health": {
+      "status": "PASS",
+      "timestamp": "2025-11-10T18:32:17.339181",
+      "details": {
+        "response_time": 0.008511,
+        "service": "atom-python-api-oauth-simple"
+      }
+    },
+    "API: System Status": {
+      "status": "FAIL",
+      "timestamp": "2025-11-10T18:32:17.349086",
+      "details": {
+        "status_code": 404,
+        "endpoint": "/api/system/status"
+      }
+    },
+    "API: Service Registry": {
+      "status": "FAIL",
+      "timestamp": "2025-11-10T18:32:17.357918",
+      "details": {
+        "status_code": 404,
+        "endpoint": "/api/services/registry"
+      }
+    },
+    "API: OAuth Status": {
+      "status": "PASS",
+      "timestamp": "2025-11-10T18:32:17.392345",
+      "details": {
+        "response_time": 0.030156,
+        "endpoint": "/api/auth/oauth-status"
+      }
+    },
+    "Service Registry": {
+      "status": "FAIL",
+      "timestamp": "2025-11-10T18:32:17.406251",
+      "details": {
+        "status_code": 404
+      }
+    },
+    "Workflow: Workflow Templates": {
+      "status": "FAIL",
+      "timestamp": "2025-11-10T18:32:17.418066",
+      "details": {
+        "status_code": 404,
+        "endpoint": "/api/workflows/templates"
+      }
+    },
+    "Workflow: Workflow Execution": {
+      "status": "FAIL",
+      "timestamp": "2025-11-10T18:32:17.427805",
+      "details": {
+        "status_code": 404,
+        "endpoint": "/api/workflows/execute"
+      }
+    },
+    "BYOK Providers": {
+      "status": "FAIL",
+      "timestamp": "2025-11-10T18:32:17.439238",
+      "details": {
+        "status_code": 404
+      }
+    },
+    "Performance: Backend Health": {
+      "status": "PASS",
+      "timestamp": "2025-11-10T18:32:17.453250",
+      "details": {
+        "response_time": "0.014s"
+      }
+    },
+    "Performance: Service Registry": {
+      "status": "FAIL",
+      "timestamp": "2025-11-10T18:32:17.491741",
+      "details": {
+        "status_code": 404,
+        "response_time": "0.038s"
+      }
+    },
+    "Performance: OAuth Health": {
+      "status": "PASS",
+      "timestamp": "2025-11-10T18:32:17.498795",
+      "details": {
+        "response_time": "0.007s"
+      }
+    }
+  },
+  "summary": {
+    "total_tests": 13,
+    "passed": 5,
+    "failed": 8,
+    "warnings": 0,
+    "success_rate": "38.5%"
+  }
+}

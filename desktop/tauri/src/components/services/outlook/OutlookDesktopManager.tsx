@@ -21,9 +21,9 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import {
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
 } from "@chakra-ui/icons";
 
 interface OutlookConnectionStatus {
@@ -323,7 +323,7 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
           </Alert>
         ) : status.error ? (
           <Alert status="error" borderRadius="md">
-            <AlertIcon as={WarningIcon} />
+            <AlertIcon as={WarningTwoIcon} />
             <Box>
               <Text fontWeight="bold">Connection Error</Text>
               <Text fontSize="sm">{status.error}</Text>
@@ -409,7 +409,7 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
               <Tooltip label="Open in browser">
                 <IconButton
                   aria-label="Open OAuth URL"
-                  icon={<ExternalLinkIcon />}
+                  icon={<ArrowForwardIcon />}
                   size="sm"
                   onClick={() => window.open(oauthUrl, "_blank")}
                 />

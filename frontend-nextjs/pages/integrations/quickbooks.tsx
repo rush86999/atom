@@ -64,9 +64,9 @@ import {
 import {
   CreditCardIcon,
   DollarIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   SearchIcon,
   AddIcon,
@@ -325,7 +325,7 @@ const QuickBooksIntegrationPage: React.FC = () => {
                   size="lg"
                   onClick={handleConnect}
                   isLoading={connecting}
-                  leftIcon={<ExternalLinkIcon />}
+                  leftIcon={<ArrowForwardIcon />}
                 >
                   Connect QuickBooks
                 </Button>

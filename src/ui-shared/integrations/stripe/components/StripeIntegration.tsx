@@ -59,18 +59,18 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   PlusSquareIcon,
   DollarIcon,
-  UserIcon,
-  CalendarIcon,
+  PersonIcon,
+  TimeIcon,
   SettingsIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   SearchIcon,
-  ArrowUpIcon,
-  ArrowDownIcon
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@chakra-ui/icons';
 
 interface StripePayment {

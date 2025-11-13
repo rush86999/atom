@@ -64,12 +64,12 @@ import {
 } from '@chakra-ui/react';
 import {
   SearchIcon,
-  FilterIcon,
+  SearchIcon,
   CloseIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   SettingsIcon,
-  DatabaseIcon,
+  HamburgerIcon,
   CpuIcon,
   BrainIcon,
   ZapIcon,
@@ -80,11 +80,11 @@ import {
   HistoryIcon,
   BookmarkIcon,
   ShareIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   RefreshIcon,
   InfoIcon,
-  CheckIcon,
-  WarningIcon,
+  CheckCircleIcon,
+  WarningTwoIcon,
   EditIcon
 } from '@chakra-ui/icons';
 
@@ -377,7 +377,7 @@ const AtomVectorSearch: React.FC<AtomVectorSearchProps> = ({
             <HStack>
               {result.author && (
                 <HStack>
-                  <Icon as={UserIcon} w={4} h={4} color="gray.500" />
+                  <Icon as={PersonIcon} w={4} h={4} color="gray.500" />
                   <Text fontSize="sm" color="gray.600">
                     {result.author.name}
                   </Text>
@@ -832,7 +832,7 @@ const AtomVectorSearch: React.FC<AtomVectorSearchProps> = ({
               <Card>
                 <CardHeader>
                   <Heading size="md" display="flex" alignItems="center" gap={2}>
-                    <DatabaseIcon color="purple.500" />
+                    <HamburgerIcon color="purple.500" />
                     LanceDB Configuration
                   </Heading>
                 </CardHeader>
@@ -1006,7 +1006,7 @@ const AtomVectorSearch: React.FC<AtomVectorSearchProps> = ({
               <Card>
                 <CardHeader>
                   <Heading size="md" display="flex" alignItems="center" gap={2}>
-                    <CheckIcon color="green.500" />
+                    <CheckCircleIcon color="green.500" />
                     System Status
                   </Heading>
                 </CardHeader>
@@ -1058,7 +1058,7 @@ const AtomVectorSearch: React.FC<AtomVectorSearchProps> = ({
                       </Button>
                       
                       <Button
-                        leftIcon={<DownloadIcon />}
+                        leftIcon={<ChevronDownIcon />}
                         variant="outline"
                         onClick={() => {
                           // Export configuration

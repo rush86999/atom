@@ -77,24 +77,24 @@ import {
   SearchIcon,
   TimeIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   AddIcon,
   DeleteIcon,
   EditIcon,
   MoreVerticalIcon,
   BellIcon,
   FileIcon,
-  UserIcon,
+  PersonIcon,
   ChannelIcon,
   LockIcon,
   UnlockIcon,
   StarIcon,
   LinkIcon,
   EmailIcon,
-  CalendarIcon,
+  TimeIcon,
 } from '@chakra-ui/icons';
 
 interface SlackIntegrationProps {
@@ -766,7 +766,7 @@ const SlackIntegrationManager: React.FC<SlackIntegrationProps> = ({
         <StatLabel>Users</StatLabel>
         <StatNumber>{data.users.length}</StatNumber>
         <StatHelpText>
-          <Icon as={UserIcon} color="purple.500" mr={1} />
+          <Icon as={PersonIcon} color="purple.500" mr={1} />
           Active
         </StatHelpText>
       </Stat>
@@ -851,7 +851,7 @@ const SlackIntegrationManager: React.FC<SlackIntegrationProps> = ({
                           View Channels
                         </MenuItem>
                         <MenuItem
-                          icon={<UserIcon />}
+                          icon={<PersonIcon />}
                           onClick={() => {
                             setState(prev => ({ ...prev, selectedWorkspace: workspace }));
                             fetchUsers(workspace.id);
@@ -895,7 +895,7 @@ const SlackIntegrationManager: React.FC<SlackIntegrationProps> = ({
                       <Text>{data.channels.filter(c => c.workspace_id === workspace.id).length} channels</Text>
                     </HStack>
                     <HStack>
-                      <UserIcon />
+                      <PersonIcon />
                       <Text>{data.users.filter(u => (u as any).workspace_id === workspace.id).length} users</Text>
                     </HStack>
                   </HStack>
@@ -1177,13 +1177,13 @@ const SlackIntegrationManager: React.FC<SlackIntegrationProps> = ({
               display="flex"
               alignItems="center"
             >
-              <Icon as={state.health?.connected ? CheckCircleIcon : WarningIcon} mr={1} />
+              <Icon as={state.health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
               {state.health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
               size="sm"
               variant="outline"
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               onClick={() => window.open('https://slack.com', '_blank')}
             >
               Open Slack

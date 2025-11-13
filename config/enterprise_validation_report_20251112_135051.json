@@ -1,0 +1,93 @@
+{
+  "timestamp": "2025-11-12T13:50:48.903652",
+  "test_suite": "Enterprise Features",
+  "results": {
+    "multi_tenant": {
+      "tests": [
+        {
+          "test": "create_workspace",
+          "status": "PASS",
+          "details": "Created workspace: Test Enterprise Corp"
+        },
+        {
+          "test": "create_users",
+          "status": "PASS",
+          "details": "Created UserRole.WORKSPACE_ADMIN and UserRole.MEMBER users"
+        },
+        {
+          "test": "create_team",
+          "status": "PASS",
+          "details": "Created team: Engineering Team"
+        },
+        {
+          "test": "add_user_to_team",
+          "status": "PASS",
+          "details": "Successfully added user to team"
+        },
+        {
+          "test": "workspace_statistics",
+          "status": "PASS",
+          "details": "Found 2 users and 1 teams"
+        }
+      ],
+      "passed": 5,
+      "failed": 0,
+      "total": 5
+    },
+    "security": {
+      "tests": [
+        {
+          "test": "audit_event_logging",
+          "status": "FAIL",
+          "error": "2 validation errors for AuditEvent\nevent_id\n  Field required [type=missing, input_value={'event_type': <EventType...tempt', 'success': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.5/v/missing\ntimestamp\n  Field required [type=missing, input_value={'event_type': <EventType...tempt', 'success': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.5/v/missing"
+        },
+        {
+          "test": "security_alert_generation",
+          "status": "FAIL",
+          "error": "2 validation errors for AuditEvent\nevent_id\n  Field required [type=missing, input_value={'event_type': <EventType... 'suspicious_activity'}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.5/v/missing\ntimestamp\n  Field required [type=missing, input_value={'event_type': <EventType... 'suspicious_activity'}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.5/v/missing"
+        },
+        {
+          "test": "rate_limiting",
+          "status": "PASS",
+          "details": "Rate limiting working correctly"
+        },
+        {
+          "test": "compliance_status",
+          "status": "PASS",
+          "details": "Compliance rate: 83.33%"
+        },
+        {
+          "test": "security_statistics",
+          "status": "PASS",
+          "details": "Found 1 alerts and 0 audit events"
+        }
+      ],
+      "passed": 3,
+      "failed": 2,
+      "total": 5
+    },
+    "integration": {
+      "tests": [
+        {
+          "test": "user_audit_integration",
+          "status": "FAIL",
+          "error": "2 validation errors for AuditEvent\nevent_id\n  Field required [type=missing, input_value={'event_type': <EventType...ation', 'success': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.5/v/missing\ntimestamp\n  Field required [type=missing, input_value={'event_type': <EventType...ation', 'success': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.5/v/missing"
+        },
+        {
+          "test": "suspicious_activity_alerts",
+          "status": "FAIL",
+          "error": "2 validation errors for AuditEvent\nevent_id\n  Field required [type=missing, input_value={'event_type': <EventType...empt', 'success': False}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.5/v/missing\ntimestamp\n  Field required [type=missing, input_value={'event_type': <EventType...empt', 'success': False}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.5/v/missing"
+        }
+      ],
+      "passed": 0,
+      "failed": 2,
+      "total": 2
+    }
+  },
+  "summary": {
+    "total_tests": 12,
+    "passed_tests": 8,
+    "failed_tests": 4,
+    "success_rate": 66.66666666666666
+  }
+}

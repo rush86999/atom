@@ -24,8 +24,8 @@ import {
 } from "@chakra-ui/react";
 import {
   ChevronRightIcon,
-  DownloadIcon,
-  ExternalLinkIcon,
+  ChevronDownIcon,
+  ArrowForwardIcon,
   RepeatIcon,
 } from "@chakra-ui/icons";
 
@@ -405,7 +405,7 @@ const OneDriveIntegration: React.FC = () => {
                             {!file.is_folder && file.web_url && (
                               <IconButton
                                 aria-label="Open in OneDrive"
-                                icon={<ExternalLinkIcon />}
+                                icon={<ArrowForwardIcon />}
                                 size="sm"
                                 variant="ghost"
                                 onClick={(e) => {
@@ -417,7 +417,7 @@ const OneDriveIntegration: React.FC = () => {
                             {!file.is_folder && (
                               <IconButton
                                 aria-label="Ingest file"
-                                icon={<DownloadIcon />}
+                                icon={<ChevronDownIcon />}
                                 size="sm"
                                 variant="ghost"
                                 onClick={(e) => {

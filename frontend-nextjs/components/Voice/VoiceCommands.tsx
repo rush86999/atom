@@ -44,7 +44,7 @@ import {
 import {
   SettingsIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
 } from "@chakra-ui/icons";
 import { TriangleDownIcon, TriangleUpIcon } from "@chakra-ui/icons";
@@ -547,7 +547,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
               </Button>
               {isListening ? (
                 <Button
-                  leftIcon={<StopIcon />}
+                  leftIcon={<CloseIcon />}
                   colorScheme="red"
                   size={compactView ? "sm" : "md"}
                   onClick={stopListening}
@@ -676,7 +676,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                               command.enabled ? (
                                 <CheckCircleIcon />
                               ) : (
-                                <WarningIcon />
+                                <WarningTwoIcon />
                               )
                             }
                             size="sm"

@@ -55,22 +55,22 @@ import {
 } from '@chakra-ui/react';
 import {
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   PlusSquareIcon,
   StarIcon,
   ForkIcon,
   CodeIcon,
   GitPullRequestIcon,
   IssueIcon,
-  UserIcon,
-  CalendarIcon,
+  PersonIcon,
+  TimeIcon,
   SettingsIcon,
-  DownloadIcon,
+  ChevronDownIcon,
   SearchIcon,
-  ArrowUpIcon,
-  ArrowDownIcon
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@chakra-ui/icons';
 
 interface GitHubRepository {

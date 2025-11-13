@@ -73,18 +73,18 @@ import {
   SettingsIcon,
   EmailIcon,
   PhoneIcon,
-  CheckIcon,
+  CheckCircleIcon,
   CloseIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   TimeIcon,
-  WarningIcon,
+  WarningTwoIcon,
   InfoIcon,
   StarIcon,
   SearchIcon,
-  FilterIcon,
-  DownloadIcon,
-  CalendarIcon,
+  SearchIcon,
+  ChevronDownIcon,
+  TimeIcon,
   DollarIcon,
   DocumentIcon,
   TrendingUpIcon,
@@ -676,7 +676,7 @@ const XeroIntegration: React.FC = () => {
                   isLoading={loading}
                   _hover={{ bg: '#0291C7' }}
                 >
-                  <ExternalLinkIcon mr={2} />
+                  <ArrowForwardIcon mr={2} />
                   Connect Xero Account
                 </Button>
               </VStack>
@@ -729,7 +729,7 @@ const XeroIntegration: React.FC = () => {
               bg="#03B0F9"
               color="white"
               onClick={() => window.open('https://go.xero.com/', '_blank')}
-              rightIcon={<ExternalLinkIcon />}
+              rightIcon={<ArrowForwardIcon />}
               _hover={{ bg: '#0291C7' }}
             >
               Open Xero
@@ -891,7 +891,7 @@ const XeroIntegration: React.FC = () => {
                               <MenuList>
                                 <MenuItem icon={<ViewIcon />}>View Details</MenuItem>
                                 <MenuItem icon={<EditIcon />}>Edit Invoice</MenuItem>
-                                <MenuItem icon={<DownloadIcon />}>Download PDF</MenuItem>
+                                <MenuItem icon={<ChevronDownIcon />}>Download PDF</MenuItem>
                                 <MenuItem icon={<EmailIcon />}>Send Invoice</MenuItem>
                                 <MenuItem icon={<DeleteIcon />}>Delete Invoice</MenuItem>
                               </MenuList>

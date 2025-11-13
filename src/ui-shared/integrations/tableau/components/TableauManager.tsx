@@ -83,27 +83,27 @@ import {
 import {
   ViewIcon,
   EditIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   DesktopIcon,
-  CheckIcon,
+  CheckCircleIcon,
   CloseIcon,
   CommentIcon,
-  CalendarIcon,
-  ClockIcon,
+  TimeIcon,
+  TimeIcon,
   UserGroupIcon,
   TeamIcon,
   FolderIcon,
-  FilterIcon,
+  SearchIcon,
   SearchIcon,
   EditIcon as EditTaskIcon,
   DeleteIcon,
@@ -112,12 +112,12 @@ import {
   RepeatIcon,
   BarChartIcon,
   DashboardIcon,
-  DatabaseIcon,
+  HamburgerIcon,
   RefreshIcon,
-  DownloadIcon,
-  EmbedIcon,
-  PlayIcon,
-  PauseIcon,
+  ChevronDownIcon,
+  CopyIcon,
+  ArrowForwardIcon,
+  MinusIcon,
   SettingsIcon as SettingsIcon2,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -1152,7 +1152,7 @@ export const TableauIntegrationManager: React.FC<TableauIntegrationProps> = ({
                 <MenuItem icon={<ViewIcon />} onClick={() => window.open(workbook.webpage_url, '_blank')}>
                   View Workbook
                 </MenuItem>
-                <MenuItem icon={<EmbedIcon />} onClick={() => onCopy(workbook.embed_code)}>
+                <MenuItem icon={<CopyIcon />} onClick={() => onCopy(workbook.embed_code)}>
                   Copy Embed Code
                 </MenuItem>
                 {workbook.refreshable && (
@@ -1167,7 +1167,7 @@ export const TableauIntegrationManager: React.FC<TableauIntegrationProps> = ({
                     Refresh Extracts
                   </MenuItem>
                 )}
-                <MenuItem icon={<DownloadIcon />} onClick={() => window.open(workbook.download_url, '_blank')}>
+                <MenuItem icon={<ChevronDownIcon />} onClick={() => window.open(workbook.download_url, '_blank')}>
                   Download
                 </MenuItem>
                 <MenuDivider />
@@ -1188,7 +1188,7 @@ export const TableauIntegrationManager: React.FC<TableauIntegrationProps> = ({
         <VStack align="start" spacing={3}>
           <HStack justify="space-between" w="full">
             <HStack>
-              <Icon as={DatabaseIcon} color="green.500" />
+              <Icon as={HamburgerIcon} color="green.500" />
               <VStack align="start" spacing={0}>
                 <Heading size="sm" noOfLines={1}>
                   <Link href={datasource.webpage_url} target="_blank" color="blue.600">
@@ -1332,7 +1332,7 @@ export const TableauIntegrationManager: React.FC<TableauIntegrationProps> = ({
                 <MenuItem icon={<ViewIcon />} onClick={() => window.open(view.view_url, '_blank')}>
                   View Dashboard
                 </MenuItem>
-                <MenuItem icon={<EmbedIcon />} onClick={() => {
+                <MenuItem icon={<CopyIcon />} onClick={() => {
                   setEmbedForm({
                     view_id: view.id,
                     width: '1200',
@@ -1471,7 +1471,7 @@ export const TableauIntegrationManager: React.FC<TableauIntegrationProps> = ({
           </Button>
           
           <Button
-            leftIcon={<DatabaseIcon />}
+            leftIcon={<HamburgerIcon />}
             colorScheme="green"
             onClick={() => setCreateDatasourceModalOpen(true)}
           >
@@ -1516,7 +1516,7 @@ export const TableauIntegrationManager: React.FC<TableauIntegrationProps> = ({
             </Tab>
             <Tab>
               <HStack>
-                <DatabaseIcon />
+                <HamburgerIcon />
                 <Text>Datasources ({datasources.length})</Text>
               </HStack>
             </Tab>
@@ -1534,7 +1534,7 @@ export const TableauIntegrationManager: React.FC<TableauIntegrationProps> = ({
             </Tab>
             <Tab>
               <HStack>
-                <UserIcon />
+                <PersonIcon />
                 <Text>Profile</Text>
               </HStack>
             </Tab>
@@ -1574,7 +1574,7 @@ export const TableauIntegrationManager: React.FC<TableauIntegrationProps> = ({
                 </Box>
               ) : datasources.length === 0 ? (
                 <Box textAlign="center" p={8}>
-                  <DatabaseIcon fontSize="4xl" color="gray.300" mb={4} />
+                  <HamburgerIcon fontSize="4xl" color="gray.300" mb={4} />
                   <Text color="gray.500">No datasources found</Text>
                   <Button
                     mt={4}

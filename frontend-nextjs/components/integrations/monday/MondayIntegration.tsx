@@ -50,7 +50,7 @@ import {
   IconButton,
   Tooltip
 } from '@chakra-ui/react';
-import { AddIcon, ExternalLinkIcon, RepeatIcon, SearchIcon } from '@chakra-ui/icons';
+import { AddIcon, ArrowForwardIcon, RepeatIcon, SearchIcon } from '@chakra-ui/icons';
 
 interface MondayBoard {
   id: string;
@@ -360,7 +360,7 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
             <Button
               colorScheme="blue"
               onClick={handleConnect}
-              leftIcon={<ExternalLinkIcon />}
+              leftIcon={<ArrowForwardIcon />}
               size="lg"
             >
               Connect Monday.com

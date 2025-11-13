@@ -46,10 +46,10 @@ import {
 } from "@chakra-ui/react";
 import {
   AddIcon,
-  CalendarIcon,
+  TimeIcon,
   EditIcon,
   DeleteIcon,
-  CheckIcon,
+  CheckCircleIcon,
   TimeIcon,
   ViewIcon,
   ChevronLeftIcon,
@@ -872,7 +872,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                                   )}
                                   <IconButton
                                     aria-label="Complete task"
-                                    icon={<CheckIcon />}
+                                    icon={<CheckCircleIcon />}
                                     size="xs"
                                     colorScheme="green"
                                     variant="ghost"

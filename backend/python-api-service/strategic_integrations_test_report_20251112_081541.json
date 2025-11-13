@@ -1,0 +1,67 @@
+{
+  "test_suite": "Strategic Integrations",
+  "timestamp": "2025-11-12T08:15:41.513868",
+  "duration_seconds": 0.524042,
+  "summary": {
+    "total_tests": 9,
+    "passed_tests": 6,
+    "failed_tests": 3,
+    "success_rate": 66.66666666666666
+  },
+  "results": [
+    {
+      "test_name": "Strategic Framework",
+      "success": false,
+      "message": "Framework test failed: unexpected indent (strategic_integrations_framework.py, line 635)",
+      "timestamp": "2025-11-12T08:15:40.998567"
+    },
+    {
+      "test_name": "GitLab Integration Initialization",
+      "success": true,
+      "message": "GitLab integration initialized successfully",
+      "timestamp": "2025-11-12T08:15:41.498294"
+    },
+    {
+      "test_name": "Project Retrieval",
+      "success": true,
+      "message": "Retrieved 2 GitLab projects",
+      "timestamp": "2025-11-12T08:15:41.498359"
+    },
+    {
+      "test_name": "Pipeline Retrieval",
+      "success": true,
+      "message": "Retrieved 2 pipelines for project 12345",
+      "timestamp": "2025-11-12T08:15:41.498417"
+    },
+    {
+      "test_name": "Job Retrieval",
+      "success": true,
+      "message": "Retrieved 2 jobs for pipeline 1001",
+      "timestamp": "2025-11-12T08:15:41.498472"
+    },
+    {
+      "test_name": "Pipeline Triggering",
+      "success": true,
+      "message": "Successfully triggered pipeline 1003",
+      "timestamp": "2025-11-12T08:15:41.498529"
+    },
+    {
+      "test_name": "Metrics Calculation",
+      "success": true,
+      "message": "Calculated metrics for pipeline 1001",
+      "timestamp": "2025-11-12T08:15:41.498595"
+    },
+    {
+      "test_name": "Integration Prioritization",
+      "success": false,
+      "message": "Prioritization test failed: unexpected indent (strategic_integrations_framework.py, line 635)",
+      "timestamp": "2025-11-12T08:15:41.506577"
+    },
+    {
+      "test_name": "ROI Analysis",
+      "success": false,
+      "message": "ROI analysis test failed: unexpected indent (strategic_integrations_framework.py, line 635)",
+      "timestamp": "2025-11-12T08:15:41.512741"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "timestamp": "2025-11-12T13:51:41.607420",
+  "test_suite": "Enterprise Features",
+  "results": {
+    "multi_tenant": {
+      "tests": [
+        {
+          "test": "create_workspace",
+          "status": "PASS",
+          "details": "Created workspace: Test Enterprise Corp"
+        },
+        {
+          "test": "create_users",
+          "status": "PASS",
+          "details": "Created UserRole.WORKSPACE_ADMIN and UserRole.MEMBER users"
+        },
+        {
+          "test": "create_team",
+          "status": "PASS",
+          "details": "Created team: Engineering Team"
+        },
+        {
+          "test": "add_user_to_team",
+          "status": "PASS",
+          "details": "Successfully added user to team"
+        },
+        {
+          "test": "workspace_statistics",
+          "status": "PASS",
+          "details": "Found 2 users and 1 teams"
+        }
+      ],
+      "passed": 5,
+      "failed": 0,
+      "total": 5
+    },
+    "security": {
+      "tests": [
+        {
+          "test": "audit_event_logging",
+          "status": "PASS",
+          "details": "Logged audit event: c5a89d03-b058-4f52-bab0-e9156527c5dc"
+        },
+        {
+          "test": "security_alert_generation",
+          "status": "PASS",
+          "details": "Generated security alert: 42858f80-a249-4d9b-ae10-f0df281d3fcc"
+        },
+        {
+          "test": "rate_limiting",
+          "status": "PASS",
+          "details": "Rate limiting working correctly"
+        },
+        {
+          "test": "compliance_status",
+          "status": "PASS",
+          "details": "Compliance rate: 83.33%"
+        },
+        {
+          "test": "security_statistics",
+          "status": "PASS",
+          "details": "Found 1 alerts and 2 audit events"
+        }
+      ],
+      "passed": 5,
+      "failed": 0,
+      "total": 5
+    },
+    "integration": {
+      "tests": [
+        {
+          "test": "user_audit_integration",
+          "status": "PASS",
+          "details": "User activity audit integration working"
+        },
+        {
+          "test": "suspicious_activity_alerts",
+          "status": "PASS",
+          "details": "No suspicious activity alerts (may be expected)"
+        }
+      ],
+      "passed": 2,
+      "failed": 0,
+      "total": 2
+    }
+  },
+  "summary": {
+    "total_tests": 12,
+    "passed_tests": 12,
+    "failed_tests": 0,
+    "success_rate": 100.0
+  }
+}

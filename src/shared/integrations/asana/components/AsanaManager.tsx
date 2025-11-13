@@ -74,26 +74,26 @@ import {
   ViewIcon,
   EditIcon,
   RepeatIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   TimeIcon,
   AddIcon,
   SettingsIcon,
   InfoIcon,
   ViewListIcon,
   ArchiveIcon,
-  UserIcon,
+  PersonIcon,
   CopyIcon,
   CloseIcon,
   DeleteIcon,
   ChatIcon,
   SearchIcon,
-  FilterIcon,
-  CalendarIcon,
+  SearchIcon,
+  TimeIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  ClockIcon,
+  TimeIcon,
 } from '@chakra-ui/icons';
 
 import { 
@@ -479,14 +479,14 @@ export const AsanaManager: React.FC<AsanaManagerProps> = ({
                                   <HStack spacing={4} fontSize="xs" color="gray.500">
                                     {task.assignee && (
                                       <HStack>
-                                        <UserIcon w={3} h={3} />
+                                        <PersonIcon w={3} h={3} />
                                         <Text>{task.assignee.name}</Text>
                                       </HStack>
                                     )}
                                     
                                     {task.due_on && (
                                       <HStack>
-                                        <CalendarIcon w={3} h={3} />
+                                        <TimeIcon w={3} h={3} />
                                         <Text>{new Date(task.due_on).toLocaleDateString()}</Text>
                                       </HStack>
                                     )}
@@ -511,7 +511,7 @@ export const AsanaManager: React.FC<AsanaManagerProps> = ({
                                     <MenuItem icon={<EditIcon />}>Edit Task</MenuItem>
                                     {task.url && (
                                       <MenuItem 
-                                        icon={<ExternalLinkIcon />}
+                                        icon={<ArrowForwardIcon />}
                                         onClick={() => window.open(task.url, '_blank')}
                                       >
                                         Open in Asana

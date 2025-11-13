@@ -53,10 +53,10 @@ import {
 } from "@chakra-ui/react";
 import {
   AddIcon,
-  CalendarIcon,
+  TimeIcon,
   EditIcon,
   DeleteIcon,
-  CheckIcon,
+  CheckCircleIcon,
   TimeIcon,
   ViewIcon,
   ChevronLeftIcon,
@@ -67,10 +67,10 @@ import {
   SearchIcon,
   EmailIcon,
   PhoneIcon,
-  ExternalLinkIcon,
+  ArrowForwardIcon,
   RepeatIcon,
   CopyIcon,
-  DownloadIcon,
+  ChevronDownIcon,
 } from "@chakra-ui/icons";
 
 export interface Message {
@@ -725,7 +725,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
                       <Text>{attachment}</Text>
                       <IconButton
                         aria-label="Download attachment"
-                        icon={<DownloadIcon />}
+                        icon={<ChevronDownIcon />}
                         size="sm"
                         variant="ghost"
                       />

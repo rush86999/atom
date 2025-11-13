@@ -1,0 +1,108 @@
+{
+  "name": "WhatsApp Business",
+  "id": "whatsapp_business",
+  "description": "Connect with customers through WhatsApp Business API for messaging, customer support, and automated communication workflows.",
+  "type": "communication",
+  "capabilities": [
+    "send_messages",
+    "receive_messages", 
+    "template_messages",
+    "media_messages",
+    "customer_support",
+    "auto_responses",
+    "message_analytics",
+    "conversation_management",
+    "contact_management",
+    "webhook_integration"
+  ],
+  "icon": "whatsapp",
+  "version": "1.0.0",
+  "category": "Customer Communication",
+  "status": "active",
+  "authentication": {
+    "type": "oauth2_api_key",
+    "required_fields": [
+      "access_token",
+      "phone_number_id", 
+      "webhook_verify_token"
+    ],
+    "setup_url": "https://developers.facebook.com/docs/whatsapp/business-api"
+  },
+  "api_endpoints": [
+    "/api/whatsapp/health",
+    "/api/whatsapp/send",
+    "/api/whatsapp/conversations",
+    "/api/whatsapp/messages/{whatsapp_id}",
+    "/api/whatsapp/templates",
+    "/api/whatsapp/analytics",
+    "/api/whatsapp/webhook"
+  ],
+  "features": {
+    "messaging": {
+      "text_messages": true,
+      "media_messages": true,
+      "template_messages": true,
+      "interactive_messages": true,
+      "message_history": true
+    },
+    "automation": {
+      "auto_responses": true,
+      "appointment_reminders": true,
+      "marketing_campaigns": true,
+      "follow_up_sequences": true,
+      "customer_support_workflows": true
+    },
+    "analytics": {
+      "message_statistics": true,
+      "conversation_analytics": true,
+      "customer_growth_tracking": true,
+      "engagement_metrics": true
+    },
+    "integrations": {
+      "calendar_sync": true,
+      "crm_integration": true,
+      "support_ticket_creation": true,
+      "workflow_engine": true
+    }
+  },
+  "configuration": {
+    "business_hours": {
+      "enabled": true,
+      "start_time": "09:00",
+      "end_time": "18:00",
+      "timezone": "UTC"
+    },
+    "auto_reply": {
+      "enabled": false,
+      "message": "Thank you for your message. We'll get back to you soon."
+    },
+    "templates": {
+      "auto_approval": false,
+      "category_validation": true
+    },
+    "webhooks": {
+      "message_events": true,
+      "delivery_receipts": true,
+      "read_receipts": true
+    }
+  },
+  "pricing": {
+    "model": "per_message",
+    "details": {
+      "template_messages": "Free for user-initiated conversations",
+      "business_initiated": "Varies by country",
+      "marketing_messages": "Higher cost category"
+    }
+  },
+  "limitations": {
+    "message_retention": "30_days",
+    "template_approval_time": "1-2_business_days",
+    "rate_limits": "50_messages_per_second",
+    "file_size_limit": "100MB"
+  },
+  "documentation": {
+    "setup_guide": "/docs/integrations/whatsapp-setup",
+    "api_reference": "/docs/integrations/whatsapp-api",
+    "troubleshooting": "/docs/integrations/whatsapp-troubleshooting"
+  }
+}

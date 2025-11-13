@@ -24,7 +24,7 @@ import {
 import {
   GitlabIcon,
   CheckCircleIcon,
-  WarningIcon,
+  WarningTwoIcon,
   ArrowForwardIcon,
   RefreshIcon
 } from '@chakra-ui/icons';
@@ -159,7 +159,7 @@ const GitLabCallback: React.FC = () => {
       case 'success':
         return <CheckCircleIcon w={16} h={16} color="green.500" />;
       case 'error':
-        return <WarningIcon w={16} h={16} color="red.500" />;
+        return <WarningTwoIcon w={16} h={16} color="red.500" />;
       default:
         return <GitlabIcon w={16} h={16} color="orange.500" />;
     }

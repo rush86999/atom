@@ -430,41 +430,30 @@ cd backend && python main_api_app.py
 ## 📚 Documentation & Support
 
 ### Complete Documentation
-- **Integration Guides**: Step-by-step setup for all services
-- **API Reference**: Complete endpoint documentation
-- **Development Guides**: Local development environment setup
-- **Deployment Guides**: Production deployment instructions
+- [📚 Full Documentation](docs/README.md) - Comprehensive platform documentation
+- [🚀 Quick Start Guide](docs/GETTING_STARTED/QUICK_START.md) - Get started in minutes
+- [🏗️ Architecture Guide](docs/ARCHITECTURE/SYSTEM_OVERVIEW.md) - Technical architecture
+- [🔧 Integration Guide](docs/INTEGRATIONS/OVERVIEW.md) - 33+ service integrations
+- [🤖 Workflow Automation](docs/WORKFLOW_AUTOMATION/ENHANCED_WORKFLOW_GUIDE.md) - AI-powered features
 
-### Integration Documentation
-- **Google Drive Integration Guide**: Complete setup and usage with memory system
-- **OneDrive Integration Guide**: Microsoft Graph API integration with LanceDB
-- **BYOK System Guide**: Multi-provider AI with user API key management
-- **Workflow Automation Guide**: Natural language to automated workflows
+### File Organization System
+The project includes an automated file organization system to maintain clean structure:
+- **Rules-based Organization**: Files are automatically categorized based on `.file-organization-rules.json`
+- **Automation Script**: Use `python scripts/organize-files.py` to organize files
+- **Git Integration**: Optional pre-commit hooks for automatic organization
+- **Validation**: Run `--validate` to check structure compliance
 
-### Testing & Quality
-
-### Complete Documentation
-- **[User Guide](docs/USER_GUIDE.md)** - Feature overview and usage instructions
-- **[Technical Overview](docs/TECHNICAL_OVERVIEW.md)** - System architecture guide
-- **[API Documentation](docs/API.md)** - Backend API reference
-- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Production deployment instructions
-
-### Testing & Quality
+**Quick Commands:**
 ```bash
-# Frontend testing
-cd frontend-nextjs
-npm test
-
-# Backend testing
-cd backend
-pytest
-
-# End-to-end testing
-npm run test:e2e
+python scripts/organize-files.py --validate    # Check current structure
+python scripts/organize-files.py --organize    # Auto-organize files
+python scripts/organize-files.py --dry-run     # Preview changes
 ```
 
-## 🔒 Security First Approach
-
+### Testing & Quality
+- [Comprehensive Testing Suite](tests/) - 100+ test cases
+- [Quality Assurance](docs/DEVELOPMENT/TESTING_GUIDE.md) - Testing framework
+- [Performance Benchmarks](docs/ARCHITECTURE/PERFORMANCE.md) - Performance metrics
 ### Data Protection
 - **End-to-End Encryption**: AES-256 encryption for data at rest and in transit
 - **OAuth 2.0 Security**: Secure authentication for all external services
