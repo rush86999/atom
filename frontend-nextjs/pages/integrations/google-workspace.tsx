@@ -3,7 +3,7 @@
  * Complete Google Workspace productivity suite integration
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -86,7 +86,6 @@ import {
   WarningTwoIcon,
   InfoIcon,
   TimeIcon,
-  TimeIcon,
   NotesIcon,
   SheetIcon,
   SlidesIcon,
@@ -156,7 +155,9 @@ const GoogleWorkspaceIntegration: React.FC = () => {
   const [tasks, setTasks] = useState<GoogleTask[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [connected, setConnected] = useState(false);
-  const [healthStatus, setHealthStatus] = useState<"healthy" | "error" | "unknown">("unknown");
+  const [healthStatus, setHealthStatus] = useState<
+    "healthy" | "error" | "unknown"
+  >("unknown");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedService, setSelectedService] = useState("all");
   const [loading, setLoading] = useState({
@@ -178,9 +179,21 @@ const GoogleWorkspaceIntegration: React.FC = () => {
   const [taskListId, setTaskListId] = useState("");
   const [taskDue, setTaskDue] = useState("");
 
-  const { isOpen: isDocOpen, onOpen: onDocOpen, onClose: onDocClose } = useDisclosure();
-  const { isOpen: isNoteOpen, onOpen: onNoteOpen, onClose: onNoteClose } = useDisclosure();
-  const { isOpen: isTaskOpen, onOpen: onTaskOpen, onClose: onTaskClose } = useDisclosure();
+  const {
+    isOpen: isDocOpen,
+    onOpen: onDocOpen,
+    onClose: onDocClose,
+  } = useDisclosure();
+  const {
+    isOpen: isNoteOpen,
+    onOpen: onNoteOpen,
+    onClose: onNoteClose,
+  } = useDisclosure();
+  const {
+    isOpen: isTaskOpen,
+    onOpen: onTaskOpen,
+    onClose: onTaskClose,
+  } = useDisclosure();
 
   const toast = useToast();
   const bgColor = useColorModeValue("white", "gray.800");
@@ -236,14 +249,17 @@ const GoogleWorkspaceIntegration: React.FC = () => {
 
     setLoading((prev) => ({ ...prev, notes: true }));
     try {
-      const response = await fetch("/api/integrations/google-workspace/keep/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: searchQuery || undefined,
-          page_size: 100,
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/google-workspace/keep/notes",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: searchQuery || undefined,
+            page_size: 100,
+          }),
+        },
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -288,14 +304,17 @@ const GoogleWorkspaceIntegration: React.FC = () => {
 
     setLoading((prev) => ({ ...prev, create: true }));
     try {
-      const response = await fetch("/api/integrations/google-workspace/docs/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: documentTitle,
-          content: documentContent,
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/google-workspace/docs/create",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: documentTitle,
+            content: documentContent,
+          }),
+        },
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -329,15 +348,18 @@ const GoogleWorkspaceIntegration: React.FC = () => {
 
     setLoading((prev) => ({ ...prev, create: true }));
     try {
-      const response = await fetch("/api/integrations/google-workspace/keep/notes/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: noteTitle,
-          content: noteContent,
-          color: noteColor,
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/google-workspace/keep/notes/create",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: noteTitle,
+            content: noteContent,
+            color: noteColor,
+          }),
+        },
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -371,16 +393,19 @@ const GoogleWorkspaceIntegration: React.FC = () => {
 
     setLoading((prev) => ({ ...prev, create: true }));
     try {
-      const response = await fetch("/api/integrations/google-workspace/tasks/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_list_id: taskListId,
-          title: taskTitle,
-          notes: taskNotes,
-          due: taskDue || undefined,
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/google-workspace/tasks/create",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task_list_id: taskListId,
+            title: taskTitle,
+            notes: taskNotes,
+            due: taskDue || undefined,
+          }),
+        },
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -426,7 +451,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
               query: searchQuery,
               scope: "all",
             }),
-          })
+          }),
         );
       }
 
@@ -438,7 +463,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
             body: JSON.stringify({
               query: searchQuery,
             }),
-          })
+          }),
         );
       }
 
@@ -450,7 +475,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
             body: JSON.stringify({
               query: searchQuery,
             }),
-          })
+          }),
         );
       }
 
@@ -490,9 +515,12 @@ const GoogleWorkspaceIntegration: React.FC = () => {
   }, [connected]);
 
   const getServiceIcon = (type: string, mimeType?: string) => {
-    if (mimeType?.includes("document") || type === "document") return DocumentIcon;
-    if (mimeType?.includes("spreadsheet") || type === "spreadsheet") return SheetIcon;
-    if (mimeType?.includes("presentation") || type === "presentation") return SlidesIcon;
+    if (mimeType?.includes("document") || type === "document")
+      return DocumentIcon;
+    if (mimeType?.includes("spreadsheet") || type === "spreadsheet")
+      return SheetIcon;
+    if (mimeType?.includes("presentation") || type === "presentation")
+      return SlidesIcon;
     if (type === "note") return NotesIcon;
     if (type === "task") return TaskIcon;
     return FolderIcon;
@@ -500,15 +528,19 @@ const GoogleWorkspaceIntegration: React.FC = () => {
 
   const getServiceColor = (type: string, mimeType?: string) => {
     if (mimeType?.includes("document") || type === "document") return "blue";
-    if (mimeType?.includes("spreadsheet") || type === "spreadsheet") return "green";
-    if (mimeType?.includes("presentation") || type === "presentation") return "orange";
+    if (mimeType?.includes("spreadsheet") || type === "spreadsheet")
+      return "green";
+    if (mimeType?.includes("presentation") || type === "presentation")
+      return "orange";
     if (type === "note") return "yellow";
     if (type === "task") return "purple";
     return "gray";
   };
 
   const formatDate = (timestamp: string | number): string => {
-    return new Date(typeof timestamp === 'number' ? timestamp * 1000 : timestamp).toLocaleString();
+    return new Date(
+      typeof timestamp === "number" ? timestamp * 1000 : timestamp,
+    ).toLocaleString();
   };
 
   const formatFileSize = (bytes: string): string => {
@@ -524,8 +556,8 @@ const GoogleWorkspaceIntegration: React.FC = () => {
   const totalDocs = documents.length;
   const totalNotes = notes.length;
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.isCompleted).length;
-  const pendingTasks = tasks.filter(t => !t.isCompleted).length;
+  const completedTasks = tasks.filter((t) => t.isCompleted).length;
+  const pendingTasks = tasks.filter((t) => !t.isCompleted).length;
 
   return (
     <Box minH="100vh" bg={bgColor} p={6}>
@@ -575,7 +607,8 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                 <VStack spacing={2}>
                   <Heading size="lg">Connect Google Workspace</Heading>
                   <Text color="gray.600" textAlign="center">
-                    Connect your Google account to access Docs, Sheets, Slides, Keep, and Tasks
+                    Connect your Google account to access Docs, Sheets, Slides,
+                    Keep, and Tasks
                   </Text>
                 </VStack>
                 <Button
@@ -583,7 +616,8 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                   size="lg"
                   leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
-                    (window.location.href = "/api/integrations/google-drive/auth")
+                    (window.location.href =
+                      "/api/integrations/google-drive/auth")
                   }
                 >
                   Connect Google Account
@@ -698,10 +732,22 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                 <Tr key={doc.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon as={getServiceIcon(doc.type, doc.mimeType)} 
-                                           color={getServiceColor(doc.type, doc.mimeType) + ".500"} />
+                                      <Icon
+                                        as={getServiceIcon(
+                                          doc.type,
+                                          doc.mimeType,
+                                        )}
+                                        color={
+                                          getServiceColor(
+                                            doc.type,
+                                            doc.mimeType,
+                                          ) + ".500"
+                                        }
+                                      />
                                       <VStack align="start" spacing={0}>
-                                        <Text fontWeight="medium">{doc.name}</Text>
+                                        <Text fontWeight="medium">
+                                          {doc.name}
+                                        </Text>
                                         <Text fontSize="sm" color="gray.600">
                                           {doc.size && formatFileSize(doc.size)}
                                         </Text>
@@ -709,7 +755,13 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                     </HStack>
                                   </Td>
                                   <Td>
-                                    <Badge colorScheme={getServiceColor(doc.type, doc.mimeType)} size="sm">
+                                    <Badge
+                                      colorScheme={getServiceColor(
+                                        doc.type,
+                                        doc.mimeType,
+                                      )}
+                                      size="sm"
+                                    >
                                       <TagLabel>{doc.type}</TagLabel>
                                     </Badge>
                                   </Td>
@@ -717,7 +769,9 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                     <Text fontSize="sm">{doc.owner}</Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{formatDate(doc.modified)}</Text>
+                                    <Text fontSize="sm">
+                                      {formatDate(doc.modified)}
+                                    </Text>
                                   </Td>
                                   <Td>
                                     <HStack>
@@ -725,7 +779,9 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                         size="sm"
                                         variant="outline"
                                         leftIcon={<ViewIcon />}
-                                        onClick={() => window.open(doc.webViewLink)}
+                                        onClick={() =>
+                                          window.open(doc.webViewLink)
+                                        }
                                       >
                                         Open
                                       </Button>
@@ -772,9 +828,19 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                       <CardBody>
                         <VStack spacing={4} align="stretch">
                           {notes.map((note) => (
-                            <Box key={note.id} p={4} borderWidth="1px" borderRadius="md">
+                            <Box
+                              key={note.id}
+                              p={4}
+                              borderWidth="1px"
+                              borderRadius="md"
+                            >
                               <HStack spacing={3} mb={2}>
-                                <Box w="4" h="4" rounded="full" bg={note.color.toLowerCase()} />
+                                <Box
+                                  w="4"
+                                  h="4"
+                                  rounded="full"
+                                  bg={note.color.toLowerCase()}
+                                />
                                 <VStack align="start" spacing={0}>
                                   <Text fontWeight="medium">{note.title}</Text>
                                   <Text fontSize="sm" color="gray.600">
@@ -786,13 +852,19 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                   <Icon as={SettingsIcon} color="gray.500" />
                                 )}
                               </HStack>
-                              
-                              <Text mb={2} noOfLines={3}>{note.content}</Text>
-                              
+
+                              <Text mb={2} noOfLines={3}>
+                                {note.content}
+                              </Text>
+
                               {note.labels && note.labels.length > 0 && (
                                 <HStack>
                                   {note.labels.map((label, index) => (
-                                    <Tag key={index} size="sm" colorScheme="blue">
+                                    <Tag
+                                      key={index}
+                                      size="sm"
+                                      colorScheme="blue"
+                                    >
                                       <TagLabel>{label}</TagLabel>
                                     </Tag>
                                   ))}
@@ -840,15 +912,31 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                       <CardBody>
                         <VStack spacing={4} align="stretch">
                           {tasks.map((task) => (
-                            <Box key={task.id} p={4} borderWidth="1px" borderRadius="md">
+                            <Box
+                              key={task.id}
+                              p={4}
+                              borderWidth="1px"
+                              borderRadius="md"
+                            >
                               <HStack spacing={3} mb={2}>
                                 <Checkbox isChecked={task.isCompleted} />
                                 <VStack align="start" spacing={0}>
-                                  <Text fontWeight={task.isCompleted ? "line-through" : "medium"}>
+                                  <Text
+                                    fontWeight={
+                                      task.isCompleted
+                                        ? "line-through"
+                                        : "medium"
+                                    }
+                                  >
                                     {task.title}
                                   </Text>
                                   {task.due && (
-                                    <Text fontSize="sm" color={task.isOverdue ? "red.500" : "gray.600"}>
+                                    <Text
+                                      fontSize="sm"
+                                      color={
+                                        task.isOverdue ? "red.500" : "gray.600"
+                                      }
+                                    >
                                       Due: {formatDate(task.due)}
                                     </Text>
                                   )}
@@ -860,9 +948,13 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                   </Badge>
                                 )}
                               </HStack>
-                              
+
                               {task.notes && (
-                                <Text fontSize="sm" color="gray.600" noOfLines={2}>
+                                <Text
+                                  fontSize="sm"
+                                  color="gray.600"
+                                  noOfLines={2}
+                                >
                                   {task.notes}
                                 </Text>
                               )}
@@ -895,7 +987,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         leftElement={<SearchIcon />}
                         onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             e.preventDefault();
                             searchWorkspace();
                           }
@@ -917,34 +1009,59 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                           {searchResults.map((result, index) => (
                             <Box key={index}>
                               <Heading size="sm" mb={4}>
-                                {result.service.charAt(0).toUpperCase() + result.service.slice(1)} ({result.total} results)
+                                {result.service.charAt(0).toUpperCase() +
+                                  result.service.slice(1)}{" "}
+                                ({result.total} results)
                               </Heading>
-                              
+
                               <VStack spacing={2} align="stretch">
-                                {result.data.map((item: any, itemIndex: number) => (
-                                  <Box key={itemIndex} p={3} borderWidth="1px" borderRadius="md">
-                                    <HStack spacing={3}>
-                                      <Icon as={getServiceIcon(item.type)} 
-                                           color={getServiceColor(item.type) + ".500"} />
-                                      <VStack align="start" spacing={0}>
-                                        <Text fontWeight="medium">{item.title || item.name}</Text>
-                                        <Text fontSize="sm" color="gray.600">
-                                          {item.content ? item.content.substring(0, 100) + "..." : ""}
-                                        </Text>
-                                      </VStack>
-                                    </HStack>
-                                  </Box>
-                                ))}
+                                {result.data.map(
+                                  (item: any, itemIndex: number) => (
+                                    <Box
+                                      key={itemIndex}
+                                      p={3}
+                                      borderWidth="1px"
+                                      borderRadius="md"
+                                    >
+                                      <HStack spacing={3}>
+                                        <Icon
+                                          as={getServiceIcon(item.type)}
+                                          color={
+                                            getServiceColor(item.type) + ".500"
+                                          }
+                                        />
+                                        <VStack align="start" spacing={0}>
+                                          <Text fontWeight="medium">
+                                            {item.title || item.name}
+                                          </Text>
+                                          <Text fontSize="sm" color="gray.600">
+                                            {item.content
+                                              ? item.content.substring(0, 100) +
+                                                "..."
+                                              : ""}
+                                          </Text>
+                                        </VStack>
+                                      </HStack>
+                                    </Box>
+                                  ),
+                                )}
                               </VStack>
-                              
+
                               {index < searchResults.length - 1 && <Divider />}
                             </Box>
                           ))}
-                          
+
                           {searchResults.length === 0 && searchQuery && (
                             <VStack spacing={4} py={8}>
-                              <Icon as={SearchIcon} w={12} h={12} color="gray.400" />
-                              <Text color="gray.600">No search results found</Text>
+                              <Icon
+                                as={SearchIcon}
+                                w={12}
+                                h={12}
+                                color="gray.400"
+                              />
+                              <Text color="gray.600">
+                                No search results found
+                              </Text>
                             </VStack>
                           )}
                         </VStack>

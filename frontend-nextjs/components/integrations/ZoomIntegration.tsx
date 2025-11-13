@@ -33,7 +33,6 @@ import {
 } from "@chakra-ui/react";
 import {
   TimeIcon,
-  TimeIcon,
   CheckCircleIcon,
   WarningTwoIcon,
   ArrowForwardIcon,

@@ -32,7 +32,6 @@ import {
   SettingsIcon,
   CheckCircleIcon,
   WarningTwoIcon,
-  TimeIcon,
 } from "@chakra-ui/icons";
 import { useRouter } from "next/router";
 

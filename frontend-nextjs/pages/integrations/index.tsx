@@ -40,7 +40,6 @@ import {
   WarningTwoIcon,
   TimeIcon,
   DollarIcon,
-  TimeIcon,
   CreditCardIcon,
   StarIcon,
   BuildingIcon,

@@ -3,71 +3,57 @@
  * Dedicated page for Next.js/Vercel integration
  */
 
-import React, { useState } from 'react';
-import dynamic from 'next/dynamic';
-
-// Dynamically import the NextjsManager component
-const NextjsManager = dynamic(
-  () => import('../../../../src/ui-shared/integrations/nextjs/components/NextjsManager'),
-  { 
-    ssr: false,
-    loading: () => (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
-      }}>
-        <div>Loading Next.js Integration...</div>
-      </div>
-    )
-  }
-);
+import React from "react";
+import {
+  Box,
+  Container,
+  Heading,
+  Text,
+  VStack,
+  useColorModeValue,
+} from "@chakra-ui/react";
 
 const NextjsIntegrationPage: React.FC = () => {
-  const [atomIngestionPipeline, setAtomIngestionPipeline] = useState<any>(null);
-  const [userId, setUserId] = useState<string>('demo-user');
-
-  const handleConfigurationChange = (config: any) => {
-    console.log('Configuration changed:', config);
-  };
-
-  const handleIngestionComplete = (result: any) => {
-    console.log('Ingestion complete:', result);
-  };
-
-  const handleError = (error: Error) => {
-    console.error('Integration error:', error);
-  };
-
-  // Mock ATOM ingestion pipeline for demo
-  React.useEffect(() => {
-    const mockPipeline = {
-      executeSkill: async (skill: string, params: any) => {
-        console.log(`Executing skill: ${skill}`, params);
-        return {
-          success: true,
-          data: { message: `${skill} executed successfully` }
-        };
-      },
-      registerIntegration: async (integration: any) => {
-        console.log('Registering integration:', integration);
-        return { success: true };
-      }
-    };
-    setAtomIngestionPipeline(mockPipeline);
-  }, []);
+  const bgColor = useColorModeValue("gray.50", "gray.900");
+  const textColor = useColorModeValue("gray.800", "gray.100");
 
   return (
-    <div style={{ minHeight: '100vh' }}>
-      <NextjsManager
-        atomIngestionPipeline={atomIngestionPipeline}
-        onConfigurationChange={handleConfigurationChange}
-        onIngestionComplete={handleIngestionComplete}
-        onError={handleError}
-        userId={userId}
-      />
-    </div>
+    <Box bg={bgColor} minH="100vh" py={8}>
+      <Container maxW="container.xl">
+        <VStack spacing={8} align="center" textAlign="center">
+          <Heading as="h1" size="2xl" color={textColor}>
+            Next.js Integration
+          </Heading>
+          <Text fontSize="xl" color="gray.600" maxW="2xl">
+            Next.js and Vercel integration is coming soon. This page will allow
+            you to:
+          </Text>
+
+          <Box
+            bg="white"
+            borderRadius="lg"
+            boxShadow="sm"
+            p={8}
+            borderWidth="1px"
+            borderColor="gray.200"
+            maxW="2xl"
+            w="full"
+          >
+            <VStack spacing={4} align="start">
+              <Text>• Deploy and manage Next.js applications</Text>
+              <Text>• Monitor Vercel deployments and performance</Text>
+              <Text>• Configure environment variables and domains</Text>
+              <Text>• View build logs and analytics</Text>
+              <Text>• Integrate with CI/CD pipelines</Text>
+            </VStack>
+          </Box>
+
+          <Text color="gray.500" fontSize="sm">
+            Check back soon for updates on Next.js integration features.
+          </Text>
+        </VStack>
+      </Container>
+    </Box>
   );
 };
 

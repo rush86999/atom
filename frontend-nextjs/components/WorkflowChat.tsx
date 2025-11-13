@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -32,24 +32,21 @@ import {
   Tag,
   TagLabel,
   TagCloseButton,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 import {
   ArrowForwardIcon,
   ChatIcon,
   PersonIcon,
-  ArrowForwardIcon,
-  TimeIcon,
   SettingsIcon,
   CheckCircleIcon,
-  TimeIcon,
   EditIcon,
   DeleteIcon,
   PlusIcon,
-} from '@chakra-ui/icons';
+} from "@chakra-ui/icons";
 
 interface ChatMessage {
   id: string;
-  type: 'user' | 'assistant' | 'system';
+  type: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   workflowData?: {
@@ -63,7 +60,7 @@ interface ChatMessage {
 }
 
 interface ChatAction {
-  type: 'execute' | 'schedule' | 'edit' | 'confirm' | 'cancel';
+  type: "execute" | "schedule" | "edit" | "confirm" | "cancel";
   label: string;
   workflowId?: string;
   data?: any;
@@ -76,14 +73,14 @@ interface WorkflowChatProps {
 }
 
 const WorkflowChat: React.FC<WorkflowChatProps> = ({
-  userId = 'anonymous',
+  userId = "anonymous",
   onWorkflowCreated,
   onWorkflowExecuted,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null);
@@ -92,18 +89,21 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
   // Initialize with welcome message
   useEffect(() => {
     const welcomeMessage: ChatMessage = {
-      id: 'welcome',
-      type: 'assistant',
-      content: 'Hi! I can help you create automated workflows. Tell me what you\'d like to automate, for example: "Create a workflow that sends me an email when I receive a calendar invitation" or "Automate my task creation from emails".',
+      id: "welcome",
+      type: "assistant",
+      content:
+        'Hi! I can help you create automated workflows. Tell me what you\'d like to automate, for example: "Create a workflow that sends me an email when I receive a calendar invitation" or "Automate my task creation from emails".',
       timestamp: new Date(),
     };
     setMessages([welcomeMessage]);
-    setSessionId(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+    setSessionId(
+      `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    );
   }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSendMessage = async () => {
@@ -111,27 +111,27 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
 
     const userMessage: ChatMessage = {
       id: `user_${Date.now()}`,
-      type: 'user',
+      type: "user",
       content: inputMessage,
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
+    setMessages((prev) => [...prev, userMessage]);
+    setInputMessage("");
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/workflow-agent/chat', {
-        method: 'POST',
+      const response = await fetch("/api/workflow-agent/chat", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           message: inputMessage,
           user_id: userId,
           session_id: sessionId,
-          conversation_history: messages.slice(-10).map(msg => ({
-            role: msg.type === 'user' ? 'user' : 'assistant',
+          conversation_history: messages.slice(-10).map((msg) => ({
+            role: msg.type === "user" ? "user" : "assistant",
             content: msg.content,
           })),
         }),
@@ -142,45 +142,48 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
       if (data.success) {
         const assistantMessage: ChatMessage = {
           id: `assistant_${Date.now()}`,
-          type: 'assistant',
+          type: "assistant",
           content: data.response.message,
           timestamp: new Date(),
-          workflowData: data.response.workflow_id ? {
-            workflowId: data.response.workflow_id,
-            workflowName: data.response.workflow_name,
-            stepsCount: data.response.steps_count,
-            isScheduled: data.response.is_scheduled,
-            requiresConfirmation: data.response.requires_confirmation,
-          } : undefined,
+          workflowData: data.response.workflow_id
+            ? {
+                workflowId: data.response.workflow_id,
+                workflowName: data.response.workflow_name,
+                stepsCount: data.response.steps_count,
+                isScheduled: data.response.is_scheduled,
+                requiresConfirmation: data.response.requires_confirmation,
+              }
+            : undefined,
           actions: data.response.actions || [],
         };
 
-        setMessages(prev => [...prev, assistantMessage]);
+        setMessages((prev) => [...prev, assistantMessage]);
 
         // Call callback if workflow was created
         if (data.response.workflow_id && onWorkflowCreated) {
           onWorkflowCreated(data.response.workflow_id);
         }
       } else {
-        throw new Error(data.error || 'Failed to process message');
+        throw new Error(data.error || "Failed to process message");
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to process your message. Please try again.',
-        status: 'error',
+        title: "Error",
+        description: "Failed to process your message. Please try again.",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
 
       const errorMessage: ChatMessage = {
         id: `error_${Date.now()}`,
-        type: 'assistant',
-        content: 'Sorry, I encountered an error while processing your request. Please try again.',
+        type: "assistant",
+        content:
+          "Sorry, I encountered an error while processing your request. Please try again.",
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -188,19 +191,19 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
 
   const handleActionClick = async (action: ChatAction) => {
     switch (action.type) {
-      case 'execute':
+      case "execute":
         await executeWorkflow(action.workflowId!);
         break;
-      case 'schedule':
+      case "schedule":
         await scheduleWorkflow(action.workflowId!);
         break;
-      case 'edit':
+      case "edit":
         await editWorkflow(action.workflowId!);
         break;
-      case 'confirm':
+      case "confirm":
         await confirmWorkflow(action.workflowId!);
         break;
-      case 'cancel':
+      case "cancel":
         await cancelWorkflow(action.workflowId!);
         break;
     }
@@ -208,10 +211,10 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
 
   const executeWorkflow = async (workflowId: string) => {
     try {
-      const response = await fetch('/api/workflow-agent/execute-generated', {
-        method: 'POST',
+      const response = await fetch("/api/workflow-agent/execute-generated", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           workflow_id: workflowId,
@@ -223,9 +226,9 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
 
       if (data.success) {
         toast({
-          title: 'Workflow Started',
+          title: "Workflow Started",
           description: `Execution ${data.execution_id} has started`,
-          status: 'success',
+          status: "success",
           duration: 3000,
           isClosable: true,
         });
@@ -237,20 +240,20 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
         // Add execution confirmation message
         const executionMessage: ChatMessage = {
           id: `execution_${Date.now()}`,
-          type: 'assistant',
+          type: "assistant",
           content: `Workflow execution started! You can monitor the progress in the Workflow Automation tab.`,
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, executionMessage]);
+        setMessages((prev) => [...prev, executionMessage]);
       } else {
-        throw new Error(data.error || 'Failed to execute workflow');
+        throw new Error(data.error || "Failed to execute workflow");
       }
     } catch (error) {
-      console.error('Error executing workflow:', error);
+      console.error("Error executing workflow:", error);
       toast({
-        title: 'Execution Failed',
-        description: 'Failed to start workflow execution',
-        status: 'error',
+        title: "Execution Failed",
+        description: "Failed to start workflow execution",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
@@ -265,9 +268,9 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
 
   const editWorkflow = async (workflowId: string) => {
     toast({
-      title: 'Edit Workflow',
-      description: 'Opening workflow editor...',
-      status: 'info',
+      title: "Edit Workflow",
+      description: "Opening workflow editor...",
+      status: "info",
       duration: 2000,
       isClosable: true,
     });
@@ -280,43 +283,38 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
 
   const cancelWorkflow = async (workflowId: string) => {
     toast({
-      title: 'Workflow Cancelled',
-      description: 'The workflow creation was cancelled',
-      status: 'info',
+      title: "Workflow Cancelled",
+      description: "The workflow creation was cancelled",
+      status: "info",
       duration: 2000,
       isClosable: true,
     });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
   const renderMessage = (message: ChatMessage) => {
-    const isUser = message.type === 'user';
+    const isUser = message.type === "user";
 
     return (
       <Box
         key={message.id}
-        alignSelf={isUser ? 'flex-end' : 'flex-start'}
+        alignSelf={isUser ? "flex-end" : "flex-start"}
         maxW="80%"
         mb={4}
       >
         <HStack spacing={3} align="start">
           {!isUser && (
-            <Avatar
-              size="sm"
-              icon={<ChatIcon />}
-              bg="blue.500"
-              color="white"
-            />
+            <Avatar size="sm" icon={<ChatIcon />} bg="blue.500" color="white" />
           )}
           <Card
-            bg={isUser ? 'blue.500' : 'gray.100'}
-            color={isUser ? 'white' : 'gray.800'}
+            bg={isUser ? "blue.500" : "gray.100"}
+            color={isUser ? "white" : "gray.800"}
             borderRadius="lg"
             boxShadow="sm"
           >
@@ -324,7 +322,12 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
               <Text whiteSpace="pre-wrap">{message.content}</Text>
 
               {message.workflowData && (
-                <Box mt={3} p={3} bg={isUser ? 'blue.600' : 'white'} borderRadius="md">
+                <Box
+                  mt={3}
+                  p={3}
+                  bg={isUser ? "blue.600" : "white"}
+                  borderRadius="md"
+                >
                   <VStack align="start" spacing={2}>
                     <HStack>
                       <Badge colorScheme="green">
@@ -351,8 +354,8 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
                     <Button
                       key={index}
                       size="sm"
-                      variant={action.type === 'execute' ? 'solid' : 'outline'}
-                      colorScheme={action.type === 'execute' ? 'green' : 'blue'}
+                      variant={action.type === "execute" ? "solid" : "outline"}
+                      colorScheme={action.type === "execute" ? "green" : "blue"}
                       leftIcon={getActionIcon(action.type)}
                       onClick={() => handleActionClick(action)}
                     >
@@ -376,13 +379,13 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
           fontSize="xs"
           color="gray.500"
           mt={1}
-          textAlign={isUser ? 'right' : 'left'}
+          textAlign={isUser ? "right" : "left"}
           ml={isUser ? 0 : 12}
           mr={isUser ? 12 : 0}
         >
           {message.timestamp.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
+            hour: "2-digit",
+            minute: "2-digit",
           })}
         </Text>
       </Box>
@@ -391,15 +394,15 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
 
   const getActionIcon = (actionType: string) => {
     switch (actionType) {
-      case 'execute':
+      case "execute":
         return <ArrowForwardIcon />;
-      case 'schedule':
+      case "schedule":
         return <TimeIcon />;
-      case 'edit':
+      case "edit":
         return <EditIcon />;
-      case 'confirm':
+      case "confirm":
         return <CheckCircleIcon />;
-      case 'cancel':
+      case "cancel":
         return <DeleteIcon />;
       default:
         return <SettingsIcon />;
@@ -407,7 +410,14 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
   };
 
   return (
-    <Box h="600px" display="flex" flexDirection="column" bg="white" borderRadius="lg" boxShadow="md">
+    <Box
+      h="600px"
+      display="flex"
+      flexDirection="column"
+      bg="white"
+      borderRadius="lg"
+      boxShadow="md"
+    >
       {/* Chat Header */}
       <Box p={4} borderBottom="1px" borderColor="gray.200">
         <HStack justify="space-between">
@@ -475,7 +485,8 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
           />
         </HStack>
         <Text fontSize="xs" color="gray.500" mt={2} textAlign="center">
-          Examples: &quot;When I get an email from boss, create a task in Asana&quot; or &quot;Schedule weekly report generation&quot;
+          Examples: &quot;When I get an email from boss, create a task in
+          Asana&quot; or &quot;Schedule weekly report generation&quot;
         </Text>
       </Box>
 
@@ -492,13 +503,12 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
                 <Box>
                   <AlertTitle>Scheduling Feature</AlertTitle>
                   <AlertDescription>
-                    Workflow scheduling is coming soon! For now, you can execute workflows manually.
+                    Workflow scheduling is coming soon! For now, you can execute
+                    workflows manually.
                   </AlertDescription>
                 </Box>
               </Alert>
-              <Text>
-                Would you like to execute this workflow now instead?
-              </Text>
+              <Text>Would you like to execute this workflow now instead?</Text>
             </VStack>
           </ModalBody>
           <ModalFooter>

@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, VStack, Heading, Text } from "@chakra-ui/react";
-import HubSpotIntegration from "../../../components/integrations/hubspot/HubSpotIntegration";
+import HubSpotIntegration from "../../components/integrations/hubspot/HubSpotIntegration";
 
 const HubSpotIntegrationPage: React.FC = () => {
   return (

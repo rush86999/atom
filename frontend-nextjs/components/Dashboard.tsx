@@ -27,7 +27,6 @@ import {
   TimeIcon,
   ChatIcon,
   CheckCircleIcon,
-  TimeIcon,
   ViewIcon,
   SettingsIcon,
   RepeatIcon,

@@ -50,7 +50,6 @@ import {
   EditIcon,
   DeleteIcon,
   CheckCircleIcon,
-  TimeIcon,
   ViewIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
