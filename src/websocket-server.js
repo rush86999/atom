@@ -352,7 +352,7 @@ app.get("/status/:projectId", (req, res) => {
 app.use("/builds", express.static(path.join(__dirname, "..", "builds")));
 
 // Real localhost server
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 server.listen(PORT, () => {
   console.log(`🚀 WebSocket server running on http://localhost:${PORT}`);
   console.log(`📡 WebSocket endpoint: ws://localhost:${PORT}`);

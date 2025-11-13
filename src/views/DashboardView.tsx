@@ -440,9 +440,9 @@ export const DashboardView = () => {
                             <h3 id="quick-actions-title">Quick Actions</h3>
                             <button onClick={() => setShowTaskModal(true)} aria-label="Create new task">+ New Task</button>
                             <button onClick={() => setShowNoteModal(true)} aria-label="Create new note">+ New Note</button>
-                            <button aria-label="Schedule meeting">Schedule Meeting</button>
-                            <button aria-label="Send quick message">Send Quick Message</button>
-                            <button aria-label="Start workflow">Start Workflow</button>
+                            <button onClick={() => setCurrentView('calendar')} aria-label="Schedule meeting">Schedule Meeting</button>
+                            <button onClick={() => setCurrentView('communications')} aria-label="Send quick message">Send Quick Message</button>
+                            <button onClick={() => setCurrentView('workflows')} aria-label="Start workflow">Start Workflow</button>
                         </div>
                     );
                 default: return null;

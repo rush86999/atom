@@ -97,6 +97,10 @@ export class AutonomousCommunicationOrchestrator extends EventEmitter {
     }
   }
 
+  public async sendImmediateCommunication(communication: AutonomousCommunications): Promise<void> {
+    await this.executeCommunications([communication]);
+  }
+
   private async executeCommunications(communications: AutonomousCommunications[]): Promise<void> {
     for (const communication of communications) {
       try {
@@ -191,7 +195,7 @@ export class AutonomousCommunicationOrchestrator extends EventEmitter {
     await this.executeCommunications([communication]);
   }
 
-  private async loadHistoricalContext(): Promise<void> {
+  public async loadHistoricalContext(): Promise<void> {
     await this.memory.loadAll();
     await this.relationshipTracker.loadAll();
   }

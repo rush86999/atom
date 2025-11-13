@@ -84,12 +84,12 @@ class GitHubRepositoryInitializer {
             export: 'next export'
           },
           dependencies: {
-            next: '^14.0.0',
-            react: '^18.2.0',
-            react-dom: '^18.2.0',
-            tailwindcss: '^3.3.0',
-            autoprefixer: '^10.4.0',
-            postcss: '^8.4.0'
+            "next": "^14.0.0",
+            "react": "^18.2.0",
+            "react-dom": "^18.2.0",
+            "tailwindcss": "^3.3.0",
+            "autoprefixer": "^10.4.0",
+            "postcss": "^8.4.0"
           }
         }, null, 2)
       },
