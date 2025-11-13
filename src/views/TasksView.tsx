@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Task } from '../types';
+import { Task, Subtask } from '../types';
 import { TASKS_DATA } from '../data';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
-const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; }> = ({ task, onToggleImportant }) => {
+const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; onToggleSubtask: (taskId: string, subtaskId: string) => void; }> = ({ task, onToggleImportant, onToggleSubtask }) => {
     const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'completed';
     return (
         <div className={`task-card ${task.isImportant ? 'important' : ''}`}>
@@ -10,6 +11,25 @@ const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; 
             <div className="task-card-content">
                 <h4>{task.title}</h4>
                 <p>{task.description}</p>
+                {task.tags && task.tags.length > 0 && (
+                    <div className="task-tags">
+                        {task.tags.map(tag => <span key={tag} className="tag">{tag}</span>)}
+                    </div>
+                )}
+                {task.subtasks && task.subtasks.length > 0 && (
+                    <div className="subtasks">
+                        {task.subtasks.map(subtask => (
+                            <label key={subtask.id} className="subtask-item">
+                                <input
+                                    type="checkbox"
+                                    checked={subtask.completed}
+                                    onChange={() => onToggleSubtask(task.id, subtask.id)}
+                                />
+                                {subtask.title}
+                            </label>
+                        ))}
+                    </div>
+                )}
             </div>
             <div className="task-card-footer">
                 <div className={`task-due-date ${isOverdue ? 'overdue' : ''}`}>
@@ -28,13 +48,28 @@ const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; 
     );
 };
 
-const TaskColumn: React.FC<{ title: string; tasks: Task[]; status: Task['status']; onToggleImportant: (id: string) => void; }> = ({ title, tasks, status, onToggleImportant }) => {
+const TaskColumn: React.FC<{ title: string; tasks: Task[]; status: Task['status']; onToggleImportant: (id: string) => void; onToggleSubtask: (taskId: string, subtaskId: string) => void; }> = ({ title, tasks, status, onToggleImportant, onToggleSubtask }) => {
     const columnTasks = tasks.filter(t => t.status === status);
     return (
-        <div className="task-column">
-            <div className="column-header"><h3>{title}</h3><span className="task-count">{columnTasks.length}</span></div>
-            <div className="column-body">{columnTasks.map(task => <TaskCard key={task.id} task={task} onToggleImportant={onToggleImportant} />)}</div>
-        </div>
+        <Droppable droppableId={status}>
+            {(provided) => (
+                <div className="task-column" ref={provided.innerRef} {...provided.droppableProps}>
+                    <div className="column-header"><h3>{title}</h3><span className="task-count">{columnTasks.length}</span></div>
+                    <div className="column-body">
+                        {columnTasks.map((task, index) => (
+                            <Draggable key={task.id} draggableId={task.id} index={index}>
+                                {(provided) => (
+                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
+                                        <TaskCard task={task} onToggleImportant={onToggleImportant} onToggleSubtask={onToggleSubtask} />
+                                    </div>
+                                )}
+                            </Draggable>
+                        ))}
+                        {provided.placeholder}
+                    </div>
+                </div>
+            )}
+        </Droppable>
     );
 };
 
@@ -43,12 +78,36 @@ export const TasksView = () => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [priorityFilter, setPriorityFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState('');
+    const [assigneeFilter, setAssigneeFilter] = useState('all');
+    const [tagFilter, setTagFilter] = useState('all');
+    const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
 
     useEffect(() => { setTasks(TASKS_DATA); }, []);
 
     const handleToggleImportant = (taskId: string) => {
-        setTasks(tasks.map(task => 
+        setTasks(tasks.map(task =>
             task.id === taskId ? { ...task, isImportant: !task.isImportant } : task
+        ));
+    };
+
+    const handleToggleSubtask = (taskId: string, subtaskId: string) => {
+        setTasks(tasks.map(task =>
+            task.id === taskId ? {
+                ...task,
+                subtasks: task.subtasks?.map(subtask =>
+                    subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+                )
+            } : task
+        ));
+    };
+
+    const handleDragEnd = (result: any) => {
+        if (!result.destination) return;
+        const { source, destination } = result;
+        if (source.droppableId === destination.droppableId) return; // Same column
+
+        setTasks(tasks.map(task =>
+            task.id === result.draggableId ? { ...task, status: destination.droppableId as Task['status'] } : task
         ));
     };
 
@@ -56,15 +115,29 @@ export const TasksView = () => {
         setStatusFilter('all');
         setPriorityFilter('all');
         setDateFilter('');
+        setAssigneeFilter('all');
+        setTagFilter('all');
+    };
+
+    const handleSelectTask = (taskId: string) => {
+        setSelectedTasks(prev =>
+            prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+        );
+    };
+
+    const handleBulkDelete = () => {
+        setTasks(tasks.filter(task => !selectedTasks.includes(task.id)));
+        setSelectedTasks([]);
     };
 
     const filteredTasks = tasks
         .filter(task => priorityFilter === 'all' || task.priority === priorityFilter)
+        .filter(task => assigneeFilter === 'all' || task.assignee === assigneeFilter)
+        .filter(task => tagFilter === 'all' || task.tags?.includes(tagFilter))
         .filter(task => {
             if (!dateFilter) return true;
             const taskDate = new Date(task.dueDate);
             const filterDate = new Date(dateFilter);
-            // Compare year, month, and day, ignoring time
             return taskDate.getFullYear() === filterDate.getFullYear() &&
                    taskDate.getMonth() === filterDate.getMonth() &&
                    taskDate.getDate() === filterDate.getDate();
@@ -72,6 +145,8 @@ export const TasksView = () => {
 
     const statuses: Task['status'][] = ['pending', 'in_progress', 'completed'];
     const columnsToRender = statusFilter === 'all' ? statuses : [statusFilter as Task['status']];
+    const uniqueAssignees = Array.from(new Set(tasks.map(t => t.assignee).filter(Boolean)));
+    const uniqueTags = Array.from(new Set(tasks.flatMap(t => t.tags || [])));
 
     return (
         <div className="tasks-view">
@@ -101,23 +176,47 @@ export const TasksView = () => {
                     </select>
                 </div>
                 <div className="filter-group">
+                    <label htmlFor="assignee-filter">Assignee</label>
+                    <select id="assignee-filter" value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}>
+                        <option value="all">All</option>
+                        {uniqueAssignees.map(assignee => <option key={assignee} value={assignee}>{assignee}</option>)}
+                    </select>
+                </div>
+                <div className="filter-group">
+                    <label htmlFor="tag-filter">Tag</label>
+                    <select id="tag-filter" value={tagFilter} onChange={e => setTagFilter(e.target.value)}>
+                        <option value="all">All</option>
+                        {uniqueTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
+                    </select>
+                </div>
+                <div className="filter-group">
                     <label htmlFor="date-filter">Due Date</label>
                     <input type="date" id="date-filter" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
                 </div>
                 <button className="clear-filters-btn" onClick={clearFilters}>Clear</button>
             </div>
 
-            <div className={`tasks-board cols-${columnsToRender.length}`}>
-                {columnsToRender.map(status => (
-                    <TaskColumn 
-                        key={status}
-                        title={status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                        tasks={filteredTasks}
-                        status={status}
-                        onToggleImportant={handleToggleImportant}
-                    />
-                ))}
-            </div>
+            {selectedTasks.length > 0 && (
+                <div className="bulk-actions">
+                    <span>{selectedTasks.length} selected</span>
+                    <button onClick={handleBulkDelete}>Delete Selected</button>
+                </div>
+            )}
+
+            <DragDropContext onDragEnd={handleDragEnd}>
+                <div className={`tasks-board cols-${columnsToRender.length}`}>
+                    {columnsToRender.map(status => (
+                        <TaskColumn
+                            key={status}
+                            title={status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                            tasks={filteredTasks}
+                            status={status}
+                            onToggleImportant={handleToggleImportant}
+                            onToggleSubtask={handleToggleSubtask}
+                        />
+                    ))}
+                </div>
+            </DragDropContext>
         </div>
     );
 };

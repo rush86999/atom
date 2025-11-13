@@ -1,1 +1,0 @@
-full contents of docs/DEVELOPMENT_MASTER_PLAN.md

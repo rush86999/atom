@@ -16,7 +16,8 @@ export type View =
   | 'workflows'
   | 'finances'
   | 'settings'
-  | 'dev';
+  | 'dev'
+  | 'docs';
 
 export interface ChatMessage {
   id: string;
@@ -46,6 +47,12 @@ export interface CalendarEvent {
   color: 'blue' | 'green' | 'red' | 'purple' | 'orange';
 }
 
+export interface Subtask {
+    id: string;
+    title: string;
+    completed: boolean;
+}
+
 export interface Task {
     id: string;
     title: string;
@@ -54,6 +61,9 @@ export interface Task {
     priority: 'low' | 'medium' | 'high' | 'critical';
     dueDate: string; // ISO string
     isImportant?: boolean;
+    assignee?: string;
+    tags?: string[];
+    subtasks?: Subtask[];
 }
 
 export interface Note {
@@ -78,6 +88,7 @@ export interface CommunicationsMessage {
     body: string;
     timestamp: string; // ISO string
     unread: boolean;
+    read: boolean; // New field for read status
 }
 
 export interface Integration {
@@ -125,11 +136,48 @@ export interface UserProfile {
     preferences: {
         language: string;
         timezone: string;
+        theme: 'light' | 'dark';
         notifications: {
             email: boolean;
             push: boolean;
+            channels: {
+                tasks: boolean;
+                calendar: boolean;
+                communications: boolean;
+            };
         }
-    }
+    };
+    advancedSettings?: AdvancedSettings;
+}
+
+export interface WidgetConfig {
+    id: string;
+    title: string;
+    visible: boolean;
+    position: number;
+}
+
+export interface AdvancedSettings {
+    security: {
+        twoFactorEnabled: boolean;
+        passwordLastChanged: string; // ISO string
+        sessionTimeout: number; // minutes
+    };
+    apiKeys: {
+        openai: string;
+        google: string;
+        github: string;
+    };
+    privacy: {
+        dataSharing: boolean;
+        analytics: boolean;
+        crashReports: boolean;
+    };
+    customization: {
+        dashboardLayout: 'grid' | 'list';
+        widgetOrder: string[];
+        widgets: WidgetConfig[];
+    };
 }
 
 export interface VoiceCommand {
@@ -137,6 +185,9 @@ export interface VoiceCommand {
     phrase: string;
     description: string;
     enabled: boolean;
+    usageCount?: number;
+    lastUsed?: string; // ISO string
+    averageConfidence?: number;
 }
 
 export interface DevProject {
@@ -156,9 +207,109 @@ export interface DevMetrics {
     rebuildTime: number;
 }
 
-// FIX: Add missing DocContent type export.
 export interface DocContent {
     id: string;
     title: string;
     content: string;
+}
+
+export interface WeatherData {
+    location: string;
+    temperature: number;
+    condition: string;
+    humidity: number;
+    windSpeed: number;
+    icon: string;
+}
+
+export interface NewsItem {
+    id: string;
+    title: string;
+    summary: string;
+    source: string;
+    publishedAt: string; // ISO string
+    url: string;
+}
+
+export interface HealthMetrics {
+    steps: number;
+    sleepHours: number;
+    heartRate: number;
+    caloriesBurned: number;
+}
+
+export interface AgentLog {
+    id: string;
+    timestamp: string; // ISO string
+    level: 'info' | 'warning' | 'error';
+    message: string;
+}
+
+export interface IntegrationConfig {
+    id: string;
+    name: string;
+    connected: boolean;
+    config: Record<string, any>;
+}
+
+export interface CollaborationSession {
+    id: string;
+    taskId: string;
+    participants: string[];
+    activeUsers: string[];
+    lastActivity: string; // ISO string
+}
+
+export interface TaskSuggestion {
+    id: string;
+    taskId: string;
+    suggestion: string;
+    confidence: number;
+    type: 'priority' | 'deadline' | 'assignee' | 'subtask';
+    createdAt: string; // ISO string
+}
+
+export interface AnalyticsMetric {
+    id: string;
+    name: string;
+    value: number;
+    change: number;
+    trend: 'up' | 'down' | 'stable';
+    period: string;
+}
+
+export interface VoiceTranscription {
+    id: string;
+    noteId: string;
+    audioUrl: string;
+    transcription: string;
+    confidence: number;
+    language: string;
+    duration: number;
+    createdAt: string; // ISO string
+}
+
+export interface SearchResult {
+    id: string;
+    type: 'task' | 'note' | 'message' | 'agent';
+    title: string;
+    content: string;
+    relevance: number;
+    metadata: Record<string, any>;
+}
+
+export interface NotificationPreference {
+    id: string;
+    type: 'task_due' | 'message_received' | 'agent_action' | 'system_update';
+    enabled: boolean;
+    channels: ('email' | 'push' | 'in_app')[];
+    frequency: 'immediate' | 'hourly' | 'daily' | 'weekly';
+}
+
+export interface PerformanceMetric {
+    id: string;
+    component: string;
+    metric: string;
+    value: number;
+    timestamp: string; // ISO string
 }

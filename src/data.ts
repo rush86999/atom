@@ -2,11 +2,10 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-// FIX: Add DocContent to the list of imported types.
-import { Agent, CalendarEvent, Task, CommunicationsMessage, Integration, Workflow, UserProfile, VoiceCommand, DevProject, Note, Transaction, Budget, DocContent } from './types';
+import { Agent, CalendarEvent, Task, CommunicationsMessage, Integration, Workflow, UserProfile, VoiceCommand, DevProject, Note, Transaction, Budget, DocContent, NewsItem, HealthMetrics, AgentLog, IntegrationConfig } from './types';
 
 export const AGENTS_DATA: Agent[] = [
-    { id: 'agent-1', name: 'Scheduler', role: 'calendar_management', status: 'online', capabilities: ['schedule_meeting', 'find_availablity', 'send_invites'], performance: { tasksCompleted: 132, successRate: 98, avgResponseTime: 450 } },
+    { id: 'agent-1', name: 'Scheduler', role: 'calendar_management', status: 'online', capabilities: ['schedule_meeting', 'find_availability', 'send_invites'], performance: { tasksCompleted: 132, successRate: 98, avgResponseTime: 450 } },
     { id: 'agent-2', name: 'Researcher', role: 'information_retrieval', status: 'online', capabilities: ['web_search', 'summarize_document', 'fact_checking'], performance: { tasksCompleted: 89, successRate: 95, avgResponseTime: 1200 } },
     { id: 'agent-3', name: 'Communicator', role: 'email_and_messaging', status: 'busy', capabilities: ['draft_email', 'reply_to_message', 'set_reminder'], performance: { tasksCompleted: 215, successRate: 99, avgResponseTime: 300 } },
     { id: 'agent-4', name: 'Coder', role: 'software_development', status: 'offline', capabilities: ['write_code', 'debug_error', 'refactor_component'], performance: { tasksCompleted: 45, successRate: 92, avgResponseTime: 2500 } },
@@ -34,18 +33,18 @@ export const getCalendarEventsForMonth = (year: number, month: number): Calendar
 };
 
 export const TASKS_DATA: Task[] = [
-    { id: 'task-1', title: 'Finalize Q3 report', description: 'Compile all department data and create the final presentation slides.', status: 'in_progress', priority: 'critical', dueDate: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString(), isImportant: true },
-    { id: 'task-2', title: 'Prepare for client demo', description: 'Set up the demo environment and run through the presentation script.', status: 'pending', priority: 'high', dueDate: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString(), isImportant: false },
-    { id: 'task-3', title: 'Review PR #245', description: 'Check the new authentication flow implementation.', status: 'pending', priority: 'medium', dueDate: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(), isImportant: false },
-    { id: 'task-4', title: 'Submit expense report', description: 'Upload receipts for last week\'s travel.', status: 'completed', priority: 'low', dueDate: new Date(new Date().setDate(new Date().getDate() - 3)).toISOString(), isImportant: false },
-    { id: 'task-5', title: 'Onboard new hire', description: 'Walk through the codebase and project structure.', status: 'in_progress', priority: 'high', dueDate: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(), isImportant: true },
+    { id: 'task-1', title: 'Finalize Q3 report', description: 'Compile all department data and create the final presentation slides.', status: 'in_progress', priority: 'critical', dueDate: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString(), isImportant: true, assignee: 'Alex Doe', tags: ['work', 'reports'], subtasks: [{ id: 'sub-1', title: 'Gather data', completed: true }, { id: 'sub-2', title: 'Create slides', completed: false }] },
+    { id: 'task-2', title: 'Prepare for client demo', description: 'Set up the demo environment and run through the presentation script.', status: 'pending', priority: 'high', dueDate: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString(), isImportant: false, assignee: 'Alex Doe', tags: ['work', 'demo'], subtasks: [] },
+    { id: 'task-3', title: 'Review PR #245', description: 'Check the new authentication flow implementation.', status: 'pending', priority: 'medium', dueDate: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(), isImportant: false, assignee: 'Alex Doe', tags: ['work', 'code'], subtasks: [] },
+    { id: 'task-4', title: 'Submit expense report', description: 'Upload receipts for last week\'s travel.', status: 'completed', priority: 'low', dueDate: new Date(new Date().setDate(new Date().getDate() - 3)).toISOString(), isImportant: false, assignee: 'Alex Doe', tags: ['work', 'finance'], subtasks: [] },
+    { id: 'task-5', title: 'Onboard new hire', description: 'Walk through the codebase and project structure.', status: 'in_progress', priority: 'high', dueDate: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(), isImportant: true, assignee: 'Alex Doe', tags: ['work', 'hr'], subtasks: [{ id: 'sub-3', title: 'Introduce to team', completed: true }, { id: 'sub-4', title: 'Show codebase', completed: false }] },
 ];
 
 export const COMMUNICATIONS_DATA: CommunicationsMessage[] = [
-    { id: 'msg-1', platform: 'gmail', from: { name: 'Sarah Lee' }, subject: 'Re: Project Alpha Update', preview: 'Thanks for the update! The new designs look great. I have a few questions about...', timestamp: new Date(new Date().setHours(new Date().getHours() - 1)).toISOString(), unread: true, body: 'Full body of the email from Sarah Lee.' },
-    { id: 'msg-2', platform: 'slack', from: { name: 'John Doe' }, subject: '#general', preview: 'Hey team, just a reminder about the all-hands meeting tomorrow at 10 AM.', timestamp: new Date(new Date().setHours(new Date().getHours() - 3)).toISOString(), unread: false, body: 'Full body of the slack message from John Doe.' },
-    { id: 'msg-3', platform: 'teams', from: { name: 'Marketing Team' }, subject: 'Q4 Campaign Ideas', preview: 'Let\'s brainstorm some ideas for the upcoming holiday campaign. Please add your thoughts to the doc.', timestamp: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), unread: false, body: 'Full body of the teams message.' },
-    { id: 'msg-4', platform: 'gmail', from: { name: 'Support' }, subject: 'Your ticket has been updated', preview: 'The issue you reported has been resolved. Please let us know if you have any other questions.', timestamp: new Date().toISOString(), unread: true, body: 'Full body of the support email.' },
+    { id: 'msg-1', platform: 'gmail', from: { name: 'Sarah Lee' }, subject: 'Re: Project Alpha Update', preview: 'Thanks for the update! The new designs look great. I have a few questions about...', timestamp: new Date(new Date().setHours(new Date().getHours() - 1)).toISOString(), unread: true, read: false, body: 'Full body of the email from Sarah Lee.' },
+    { id: 'msg-2', platform: 'slack', from: { name: 'John Doe' }, subject: '#general', preview: 'Hey team, just a reminder about the all-hands meeting tomorrow at 10 AM.', timestamp: new Date(new Date().setHours(new Date().getHours() - 3)).toISOString(), unread: false, read: true, body: 'Full body of the slack message from John Doe.' },
+    { id: 'msg-3', platform: 'teams', from: { name: 'Marketing Team' }, subject: 'Q4 Campaign Ideas', preview: 'Let\'s brainstorm some ideas for the upcoming holiday campaign. Please add your thoughts to the doc.', timestamp: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), unread: false, read: true, body: 'Full body of the teams message.' },
+    { id: 'msg-4', platform: 'gmail', from: { name: 'Support' }, subject: 'Your ticket has been updated', preview: 'The issue you reported has been resolved. Please let us know if you have any other questions.', timestamp: new Date().toISOString(), unread: true, read: false, body: 'Full body of the support email.' },
 ];
 
 export const INTEGRATIONS_DATA: Integration[] = [
@@ -100,10 +99,49 @@ export const USER_PROFILE_DATA: UserProfile = {
     preferences: {
         language: 'en-US',
         timezone: 'America/New_York',
+        theme: 'light',
         notifications: {
             email: true,
             push: false,
+            channels: {
+                tasks: true,
+                calendar: true,
+                communications: false,
+            }
         }
+    },
+    advancedSettings: {
+        security: {
+            twoFactorEnabled: false,
+            passwordLastChanged: new Date(new Date().setMonth(new Date().getMonth() - 3)).toISOString(),
+            sessionTimeout: 30,
+        },
+        apiKeys: {
+            openai: '',
+            google: '',
+            github: '',
+        },
+        privacy: {
+            dataSharing: true,
+            analytics: true,
+            crashReports: false,
+        },
+        customization: {
+            dashboardLayout: 'grid',
+            widgetOrder: ['schedule', 'tasks', 'inbox', 'finance', 'weather', 'news', 'health', 'clock'],
+            widgets: [
+                { id: 'schedule', title: 'Today\'s Schedule', visible: true, position: 0 },
+                { id: 'tasks', title: 'Priority Tasks', visible: true, position: 1 },
+                { id: 'inbox', title: 'Inbox Summary', visible: true, position: 2 },
+                { id: 'finance', title: 'Financial Snapshot', visible: true, position: 3 },
+                { id: 'weather', title: 'Current Weather', visible: true, position: 4 },
+                { id: 'news', title: 'Latest News', visible: true, position: 5 },
+                { id: 'health', title: 'Today\'s Health', visible: true, position: 6 },
+                { id: 'productivity', title: 'Productivity Overview', visible: true, position: 7 },
+                { id: 'clock', title: 'Current Time', visible: true, position: 8 },
+                { id: 'quick-actions', title: 'Quick Actions', visible: true, position: 9 },
+            ],
+        },
     }
 };
 export const LANGUAGES = [{ code: 'en-US', name: 'English (United States)' }, { code: 'es-ES', name: 'Español (España)' }];
@@ -151,17 +189,16 @@ export const BUDGETS_DATA: Budget[] = [
     { id: 'budget-4', category: 'Transportation', amount: 80, spent: 75.00 },
 ];
 
-// FIX: Add missing DOCS_DATA export for the documentation view.
 export const DOCS_DATA: DocContent[] = [
-    { 
-        id: 'doc-getting-started', 
-        title: 'Getting Started', 
-        content: '# Welcome to Atom\n\nThis is your personal AI assistant dashboard. Here you can manage all aspects of your digital life from a single, unified interface.\n\n## Core Features\n\n- **AI Chat:** Converse with Atom to manage tasks, schedules, and more.\n- **Integrations:** Connect your favorite services like Gmail, Slack, and Google Calendar.\n- **Workflows:** Automate repetitive tasks across your connected services.' 
+    {
+        id: 'doc-getting-started',
+        title: 'Getting Started',
+        content: '# Welcome to Atom\n\nThis is your personal AI assistant dashboard. Here you can manage all aspects of your digital life from a single, unified interface.\n\n## Core Features\n\n- **AI Chat:** Converse with Atom to manage tasks, schedules, and more.\n- **Integrations:** Connect your favorite services like Gmail, Slack, and Google Calendar.\n- **Workflows:** Automate repetitive tasks across your connected services.'
     },
-    { 
-        id: 'doc-api-ref', 
-        title: 'API Reference', 
-        content: '## Chat API\n\nThe chat API allows you to programmatically interact with the Atom AI assistant.\n\n### Endpoint\n`POST /api/chat`\n\n### Request Body\n```json\n{\n  "message": "Your message here",\n  "sessionId": "optional-session-id"\n}\n```\n\n### Response\n```json\n{\n  "response": "Atom\'s reply to your message."\n}\n```' 
+    {
+        id: 'doc-api-ref',
+        title: 'API Reference',
+        content: '## Chat API\n\nThe chat API allows you to programmatically interact with the Atom AI assistant.\n\n### Endpoint\n`POST /api/chat`\n\n### Request Body\n```json\n{\n  "message": "Your message here",\n  "sessionId": "optional-session-id"\n}\n```\n\n### Response\n```json\n{\n  "response": "Atom\'s reply to your message."\n}\n```'
     },
     {
         id: 'doc-integrations',
@@ -173,4 +210,38 @@ export const DOCS_DATA: DocContent[] = [
         title: 'Workflow Automation',
         content: '# Creating a Workflow\n\nWorkflows are simple "if this, then that" rules.\n\n- **Trigger:** An event that starts the workflow (e.g., "New email in Gmail").\n- **Action:** The task to perform (e.g., "Send a message to a Slack channel").\n\nYou can create new workflows from the **Workflows** tab.'
     }
+];
+
+export const WEATHER_DATA = {
+    location: 'New York, NY',
+    temperature: 72,
+    condition: 'Sunny',
+    humidity: 45,
+    windSpeed: 8,
+    icon: 'sunny'
+};
+
+export const NEWS_DATA: NewsItem[] = [
+    { id: 'news-1', title: 'AI Breakthrough in Natural Language Processing', summary: 'New model achieves 99% accuracy in understanding context.', source: 'TechCrunch', publishedAt: new Date(new Date().setHours(new Date().getHours() - 2)).toISOString(), url: 'https://techcrunch.com/ai-breakthrough' },
+    { id: 'news-2', title: 'Stock Market Rises on Positive Economic Data', summary: 'Dow Jones up 1.5% following strong jobs report.', source: 'Bloomberg', publishedAt: new Date(new Date().setHours(new Date().getHours() - 4)).toISOString(), url: 'https://bloomberg.com/stock-market' },
+    { id: 'news-3', title: 'New Space Mission Launches Successfully', summary: 'NASA\'s Artemis II mission reaches orbit without issues.', source: 'NASA News', publishedAt: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), url: 'https://nasa.gov/artemis' },
+];
+
+export const HEALTH_DATA: HealthMetrics = {
+    steps: 8500,
+    sleepHours: 7.5,
+    heartRate: 72,
+    caloriesBurned: 2100,
+};
+
+export const AGENT_LOGS_DATA: AgentLog[] = [
+    { id: 'log-1', timestamp: new Date(new Date().setMinutes(new Date().getMinutes() - 5)).toISOString(), level: 'info', message: 'Scheduler agent processed meeting request.' },
+    { id: 'log-2', timestamp: new Date(new Date().setMinutes(new Date().getMinutes() - 15)).toISOString(), level: 'warning', message: 'Researcher agent encountered rate limit on web search.' },
+    { id: 'log-3', timestamp: new Date(new Date().setHours(new Date().getHours() - 1)).toISOString(), level: 'error', message: 'Communicator agent failed to send email due to authentication error.' },
+];
+
+export const INTEGRATION_CONFIGS_DATA: IntegrationConfig[] = [
+    { id: 'config-gmail', name: 'Gmail', connected: true, config: { email: 'alex.doe@example.com' } },
+    { id: 'config-slack', name: 'Slack', connected: true, config: { workspace: 'myworkspace', token: 'xoxb-...' } },
+    { id: 'config-github', name: 'GitHub', connected: true, config: { username: 'alexdoe', token: 'ghp_...' } },
 ];

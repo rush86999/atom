@@ -1322,9 +1322,28 @@ h3 { margin-bottom: 1.5rem; }
 
 /* Dashboard View */
 .dashboard-view { padding: 0; overflow-y: auto; }
-.dashboard-grid { padding: 2rem; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto; gap: 1.5rem; }
+.dashboard-grid { padding: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); grid-template-rows: auto; gap: 1.5rem; }
 .dashboard-card { background-color: var(--surface-dark); border-radius: 8px; padding: 1.5rem; }
 .dashboard-card h3 { margin-bottom: 1.5rem; }
+.dashboard-widget { cursor: grab; }
+.dashboard-widget.dragging { opacity: 0.5; }
+.loading-spinner { text-align: center; padding: 1rem; color: var(--text-muted-dark); }
+.error-message { color: var(--accent-red); padding: 0.5rem; border: 1px solid var(--accent-red); border-radius: 4px; margin-bottom: 1rem; }
+.error-banner { background-color: var(--accent-red); color: white; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; text-align: center; }
+.widget-settings-btn { background: transparent; border: 1px solid var(--border-dark); color: var(--text-dark); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; margin-left: auto; }
+.widget-settings-btn:hover { background-color: var(--surface-dark); }
+.widget-settings-list { display: flex; flex-direction: column; gap: 1rem; }
+.widget-setting-item { display: flex; align-items: center; gap: 0.5rem; }
+.widget-setting-item label { cursor: pointer; }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .dashboard-grid { grid-template-columns: 1fr; padding: 1rem; gap: 1rem; }
+    .dashboard-card { padding: 1rem; }
+    .view-header { padding: 1rem; }
+    .view-header h1 { font-size: 1.5rem; }
+    .sidebar { width: 200px; }
+}
 
 .daily-briefing-card {
     grid-column: span 2;

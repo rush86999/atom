@@ -1,20 +1,47 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DocContent } from '../types';
 import { DOCS_DATA } from '../data';
-import { MarkdownRenderer } from '../components/MarkdownRenderer';
 
 export const DocsView = () => {
-    const [docs] = useState<DocContent[]>(DOCS_DATA.filter(d => d.content && d.content.trim() !== ''));
-    const [selectedDocId, setSelectedDocId] = useState<string>(docs[0]?.id || '');
-    const selectedDoc = docs.find(d => d.id === selectedDocId);
+    const [docs, setDocs] = useState<DocContent[]>([]);
+    const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+
+    useEffect(() => {
+        setDocs(DOCS_DATA);
+        if (DOCS_DATA.length > 0) {
+            setSelectedDocId(DOCS_DATA[0].id);
+        }
+    }, []);
+
+    const selectedDoc = docs.find(doc => doc.id === selectedDocId) || null;
+
     return (
         <div className="docs-view">
-             <header className="view-header"><h1>Documentation</h1><p>Browse project documentation.</p></header>
+            <header className="view-header">
+                <h1>Documentation</h1>
+                <p>Learn how to use Atom effectively.</p>
+            </header>
             <div className="docs-main">
-                <aside className="doc-list-pane">{docs.map(doc => (<div key={doc.id} className={`doc-list-item ${doc.id === selectedDocId ? 'active' : ''}`} onClick={() => setSelectedDocId(doc.id)}>{doc.title}</div>))}</aside>
-                <main className="doc-content-pane">{selectedDoc ? (<MarkdownRenderer content={selectedDoc.content} />) : (<p>Select a document.</p>)}</main>
+                <aside className="docs-nav">
+                    {docs.map(doc => (
+                        <button key={doc.id} className={`docs-nav-item ${selectedDocId === doc.id ? 'active' : ''}`} onClick={() => setSelectedDocId(doc.id)}>
+                            {doc.title}
+                        </button>
+                    ))}
+                </aside>
+                <section className="docs-content">
+                    {selectedDoc ? (
+                        <div className="doc-content">
+                            <h1>{selectedDoc.title}</h1>
+                            <div dangerouslySetInnerHTML={{ __html: selectedDoc.content.replace(/\n/g, '<br />') }} />
+                        </div>
+                    ) : (
+                        <div className="doc-placeholder">
+                            <p>Select a document to view.</p>
+                        </div>
+                    )}
+                </section>
             </div>
         </div>
-    )
+    );
 };
