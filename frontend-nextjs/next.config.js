@@ -19,8 +19,28 @@ const nextConfig = {
         tls: false,
       };
     }
+
+    // Transpile shared UI components from src directory
+    config.module.rules.push({
+      test: /\.(ts|tsx)$/,
+      include: [
+        path.resolve(__dirname, "../src/ui-shared"),
+        path.resolve(__dirname, "../src"),
+      ],
+      use: [
+        {
+          loader: "babel-loader",
+          options: {
+            presets: ["next/babel"],
+          },
+        },
+      ],
+    });
+
     return config;
   },
+  transpilePackages: ["../src/ui-shared", "../src"],
 };
 
+const path = require("path");
 module.exports = nextConfig;
