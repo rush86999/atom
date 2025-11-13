@@ -1,0 +1,101 @@
+# Charm CLI Configuration for ATOM Project
+# This file enables vibe coding with Charm CLI tools
+
+[project]
+name = "ATOM"
+description = "Advanced Task Orchestration & Management Platform"
+version = "1.0.0"
+language = "typescript,python"
+framework = "nextjs,tauri,fastapi"
+
+[environment]
+node_version = "18"
+python_version = "3.11"
+rust_version = "1.70"
+
+[commands]
+# Development commands
+dev = "npm run dev"
+build = "npm run build && python -m py_compile backend/main_api_app.py"
+test = "npm test && python -m pytest tests/"
+lint = "npm run lint && flake8 backend/"
+format = "npm run format && black backend/ && isort backend/"
+
+# Backend commands
+backend = "cd backend && python main_api_app.py"
+backend-dev = "cd backend && python -m flask run --port=5000"
+
+# Frontend commands
+frontend = "cd frontend-nextjs && npm run dev"
+frontend-build = "cd frontend-nextjs && npm run build"
+
+# Desktop commands
+desktop = "cd desktop-tauri && npm run tauri dev"
+desktop-build = "cd desktop-tauri && npm run tauri build"
+
+# Integration commands
+integrations = "python scripts/organize-files.py --validate"
+organize = "python scripts/organize-files.py --organize"
+validate = "python scripts/organize-files.py --validate"
+
+# Deployment commands
+deploy = "./scripts/deploy_production.sh"
+docker = "docker-compose -f deployment/docker-compose.production.yml up -d"
+
+# Database commands
+db-migrate = "cd backend && alembic upgrade head"
+db-reset = "cd backend && python scripts/reset_database.py"
+
+[shortcuts]
+# Quick file navigation
+b = "backend/"
+f = "frontend-nextjs/"
+d = "desktop-tauri/"
+s = "scripts/"
+t = "tests/"
+c = "config/"
+
+# Quick commands
+rb = "backend"
+rf = "frontend"
+rd = "desktop"
+org = "organize"
+val = "validate"
+
+[ai]
+# AI coding assistant configuration
+model = "glm-4.6"
+temperature = 0.7
+context_window = 8000
+
+[workflows]
+# Common development workflows
+start-dev = ["frontend", "backend"]
+start-full = ["frontend", "backend", "desktop"]
+test-all = ["test", "lint"]
+deploy-prep = ["test", "build", "organize"]
+
+[files]
+# Important files for context
+include = [
+  "README.md",
+  "package.json",
+  "tsconfig.json",
+  "backend/main_api_app.py",
+  "frontend-nextjs/package.json",
+  "desktop-tauri/package.json",
+  "config/.file-organization-rules.json",
+  "scripts/organize-files.py"
+]
+
+exclude = [
+  "node_modules/",
+  "venv/",
+  ".git/",
+  "logs/",
+  "temp/",
+  "backups/",
+  "dist/",
+  "build/",
+  "target/"
+]

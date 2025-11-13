@@ -156,7 +156,10 @@
     "deployment",
     "integration-tests",
     "config",
-    "data"
+    "data",
+    "backend",
+    "frontend-nextjs",
+    "desktop-tauri"
   ],
   "protected_files": [
     "README.md",
@@ -169,7 +172,8 @@
     ".gitattributes",
     ".gitmodules",
     "LICENSE.md",
-    ".file-organization-rules.json"
+    ".file-organization-rules.json",
+    ".charm"
   ],
   "automation": {
     "pre_commit_hook": true,
