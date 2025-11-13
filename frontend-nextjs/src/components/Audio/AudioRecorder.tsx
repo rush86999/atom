@@ -207,7 +207,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
         <div className="processing-status">Processing audio...</div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .audio-recorder {
           padding: 1rem;
           border: 1px solid #e1e5e9;

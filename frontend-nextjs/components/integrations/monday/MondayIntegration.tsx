@@ -617,7 +617,7 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
                 <Card>
                   <CardHeader>
                     <Heading size="sm">
-                      {searchResults.length} search results for "{searchQuery}"
+                      {searchResults.length} search results for &quot;{searchQuery}&quot;
                     </Heading>
                   </CardHeader>
                   <CardBody>
@@ -626,4 +626,35 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
                         <Tr>
                           <Th>Item</Th>
                           <Th>Board</Th>
-                          <Th>Status
+                          <Th>Status</Th>
+                        </Tr>
+                      </Thead>
+                      <Tbody>
+                        {searchResults.map(result => (
+                          <Tr key={result.id}>
+                            <Td>{result.name}</Td>
+                            <Td>{result.board?.name || 'Unknown'}</Td>
+                            <Td>
+                              <Badge colorScheme={
+                                result.status === 'Done' ? 'green' :
+                                result.status === 'Working on it' ? 'blue' : 'gray'
+                              }>
+                                {result.status}
+                              </Badge>
+                            </Td>
+                          </Tr>
+                        ))}
+                      </Tbody>
+                    </Table>
+                  </CardBody>
+                </Card>
+              )}
+            </VStack>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </Box>
+  );
+};
+
+export default MondayIntegration;

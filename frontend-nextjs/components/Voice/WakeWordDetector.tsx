@@ -47,6 +47,7 @@ import {
   TriangleDownIcon,
   TriangleUpIcon,
   AttachmentIcon,
+  CloseIcon,
 } from "@chakra-ui/icons";
 
 interface WakeWordDetection {

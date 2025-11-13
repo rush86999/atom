@@ -3,7 +3,7 @@
  * Production-ready component with advanced features
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   VStack,
@@ -73,7 +73,7 @@ import {
   Flex,
   Grid,
   useBreakpointValue,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 import {
   ChatIcon,
   PhoneIcon,
@@ -101,7 +101,7 @@ import {
   CalendarIcon,
   LockIcon,
   UnlockIcon,
-} from '@chakra-ui/icons';
+} from "@chakra-ui/icons";
 
 // Enhanced interfaces
 interface WhatsAppServiceMetrics {
@@ -155,34 +155,35 @@ interface BusinessProfile {
 const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [serviceMetrics, setServiceMetrics] = useState<WhatsAppServiceMetrics | null>(null);
+  const [serviceMetrics, setServiceMetrics] =
+    useState<WhatsAppServiceMetrics | null>(null);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [isConfigured, setIsConfigured] = useState(false);
 
   // Batch messaging state
-  const [batchRecipients, setBatchRecipients] = useState('');
-  const [batchMessage, setBatchMessage] = useState('');
+  const [batchRecipients, setBatchRecipients] = useState("");
+  const [batchMessage, setBatchMessage] = useState("");
   const [batchDelay, setBatchDelay] = useState(1);
   const [isBatchSending, setIsBatchSending] = useState(false);
 
   // Search state
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
-    query: '',
-    status: '',
-    date_from: '',
-    date_to: '',
+    query: "",
+    status: "",
+    date_from: "",
+    date_to: "",
   });
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
   // Business profile state
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile>({
-    name: '',
-    description: '',
-    email: '',
-    website: '',
+    name: "",
+    description: "",
+    email: "",
+    website: "",
   });
 
   // Advanced configuration
@@ -191,8 +192,8 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
     message_retention_days: 30,
     auto_reply_enabled: false,
     business_hours_enabled: true,
-    business_hours_start: '09:00',
-    business_hours_end: '18:00',
+    business_hours_start: "09:00",
+    business_hours_end: "18:00",
     webhook_security_enabled: true,
     analytics_tracking_enabled: true,
   });
@@ -226,37 +227,38 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
   // Initialize service
   const initializeService = useCallback(async () => {
     try {
-      const response = await fetch('/api/whatsapp/service/initialize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/whatsapp/service/initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         setIsConfigured(true);
         toast({
-          title: 'Service Initialized',
-          description: 'WhatsApp Business service has been initialized successfully',
-          status: 'success',
+          title: "Service Initialized",
+          description:
+            "WhatsApp Business service has been initialized successfully",
+          status: "success",
           duration: 3000,
         });
       } else {
         toast({
-          title: 'Initialization Failed',
-          description: result.error || 'Failed to initialize service',
-          status: 'error',
+          title: "Initialization Failed",
+          description: result.error || "Failed to initialize service",
+          status: "error",
           duration: 5000,
         });
       }
-      
+
       return result.success;
     } catch (error) {
-      console.error('Error initializing service:', error);
+      console.error("Error initializing service:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to initialize WhatsApp service',
-        status: 'error',
+        title: "Error",
+        description: "Failed to initialize WhatsApp service",
+        status: "error",
         duration: 5000,
       });
       return false;
@@ -266,27 +268,34 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
   // Fetch service metrics
   const fetchServiceMetrics = useCallback(async () => {
     try {
-      const response = await fetch('/api/whatsapp/service/metrics');
+      const response = await fetch("/api/whatsapp/service/metrics");
       const data = await response.json();
-      
+
       if (data.success || data.service_id) {
         setServiceMetrics(data);
-        setIsConnected(data.status === 'healthy' || data.status === 'connected');
+        setIsConnected(
+          data.status === "healthy" || data.status === "connected",
+        );
         return data;
       }
     } catch (error) {
-      console.error('Error fetching metrics:', error);
+      console.error("Error fetching metrics:", error);
     }
     return null;
   }, []);
 
   // Search conversations
   const searchConversations = useCallback(async () => {
-    if (!searchFilters.query && !searchFilters.status && !searchFilters.date_from && !searchFilters.date_to) {
+    if (
+      !searchFilters.query &&
+      !searchFilters.status &&
+      !searchFilters.date_from &&
+      !searchFilters.date_to
+    ) {
       toast({
-        title: 'Search Criteria Required',
-        description: 'Please provide at least one search parameter',
-        status: 'warning',
+        title: "Search Criteria Required",
+        description: "Please provide at least one search parameter",
+        status: "warning",
         duration: 3000,
       });
       return;
@@ -295,31 +304,33 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
     setIsSearching(true);
     try {
       const params = new URLSearchParams(searchFilters as any).toString();
-      const response = await fetch(`/api/whatsapp/conversations/search?${params}`);
+      const response = await fetch(
+        `/api/whatsapp/conversations/search?${params}`,
+      );
       const data = await response.json();
-      
+
       if (data.success) {
         setSearchResults(data.conversations);
         toast({
-          title: 'Search Complete',
+          title: "Search Complete",
           description: `Found ${data.pagination.total} conversations`,
-          status: 'success',
+          status: "success",
           duration: 3000,
         });
       } else {
         toast({
-          title: 'Search Failed',
-          description: data.error || 'Failed to search conversations',
-          status: 'error',
+          title: "Search Failed",
+          description: data.error || "Failed to search conversations",
+          status: "error",
           duration: 3000,
         });
       }
     } catch (error) {
-      console.error('Error searching conversations:', error);
+      console.error("Error searching conversations:", error);
       toast({
-        title: 'Search Error',
-        description: 'An error occurred while searching',
-        status: 'error',
+        title: "Search Error",
+        description: "An error occurred while searching",
+        status: "error",
         duration: 3000,
       });
     } finally {
@@ -331,24 +342,24 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
   const sendBatchMessages = useCallback(async () => {
     if (!batchRecipients || !batchMessage) {
       toast({
-        title: 'Validation Error',
-        description: 'Recipients and message are required',
-        status: 'error',
+        title: "Validation Error",
+        description: "Recipients and message are required",
+        status: "error",
         duration: 3000,
       });
       return;
     }
 
     const recipients = batchRecipients
-      .split('\n')
-      .map(r => r.trim())
-      .filter(r => r);
+      .split("\n")
+      .map((r) => r.trim())
+      .filter((r) => r);
 
     if (recipients.length === 0) {
       toast({
-        title: 'Validation Error',
-        description: 'At least one valid recipient is required',
-        status: 'error',
+        title: "Validation Error",
+        description: "At least one valid recipient is required",
+        status: "error",
         duration: 3000,
       });
       return;
@@ -356,9 +367,9 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
 
     if (recipients.length > 100) {
       toast({
-        title: 'Validation Error',
-        description: 'Maximum 100 recipients allowed per batch',
-        status: 'error',
+        title: "Validation Error",
+        description: "Maximum 100 recipients allowed per batch",
+        status: "error",
         duration: 3000,
       });
       return;
@@ -366,43 +377,43 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
 
     setIsBatchSending(true);
     try {
-      const response = await fetch('/api/whatsapp/send/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/whatsapp/send/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recipients,
           message: { body: batchMessage },
-          type: 'text',
+          type: "text",
           delay_between_messages: batchDelay,
         } as BatchMessageRequest),
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         toast({
-          title: 'Batch Sent Successfully',
+          title: "Batch Sent Successfully",
           description: `Sent ${result.success_count}/${result.total_recipients} messages (${result.success_rate.toFixed(1)}% success rate)`,
-          status: 'success',
+          status: "success",
           duration: 5000,
         });
         onBatchModalClose();
-        setBatchRecipients('');
-        setBatchMessage('');
+        setBatchRecipients("");
+        setBatchMessage("");
       } else {
         toast({
-          title: 'Batch Send Failed',
-          description: result.error || 'Failed to send batch messages',
-          status: 'error',
+          title: "Batch Send Failed",
+          description: result.error || "Failed to send batch messages",
+          status: "error",
           duration: 5000,
         });
       }
     } catch (error) {
-      console.error('Error sending batch:', error);
+      console.error("Error sending batch:", error);
       toast({
-        title: 'Send Error',
-        description: 'An error occurred while sending batch messages',
-        status: 'error',
+        title: "Send Error",
+        description: "An error occurred while sending batch messages",
+        status: "error",
         duration: 5000,
       });
     } finally {
@@ -413,96 +424,106 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
   // Update business profile
   const updateBusinessProfile = useCallback(async () => {
     try {
-      const response = await fetch('/api/whatsapp/configuration/business-profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          business_profile: businessProfile,
-        }),
-      });
+      const response = await fetch(
+        "/api/whatsapp/configuration/business-profile",
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            business_profile: businessProfile,
+          }),
+        },
+      );
 
       const result = await response.json();
-      
+
       if (result.success) {
         toast({
-          title: 'Profile Updated',
-          description: 'Business profile has been updated successfully',
-          status: 'success',
+          title: "Profile Updated",
+          description: "Business profile has been updated successfully",
+          status: "success",
           duration: 3000,
         });
         onProfileClose();
       } else {
         toast({
-          title: 'Update Failed',
-          description: result.error || 'Failed to update business profile',
-          status: 'error',
+          title: "Update Failed",
+          description: result.error || "Failed to update business profile",
+          status: "error",
           duration: 3000,
         });
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error("Error updating profile:", error);
       toast({
-        title: 'Update Error',
-        description: 'An error occurred while updating profile',
-        status: 'error',
+        title: "Update Error",
+        description: "An error occurred while updating profile",
+        status: "error",
         duration: 3000,
       });
     }
   }, [businessProfile, onProfileClose, toast]);
 
   // Export analytics
-  const exportAnalytics = useCallback(async (format: string = 'json') => {
-    try {
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
-      const response = await fetch(
-        `/api/whatsapp/analytics/export?format=${format}&start_date=${startDate}&end_date=${endDate}`
-      );
-      
-      if (format === 'csv' && response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `whatsapp_analytics_${startDate}_${endDate}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        const data = await response.json();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `whatsapp_analytics_${startDate}_${endDate}.json`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+  const exportAnalytics = useCallback(
+    async (format: string = "json") => {
+      try {
+        const endDate = new Date().toISOString().split("T")[0];
+        const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0];
+
+        const response = await fetch(
+          `/api/whatsapp/analytics/export?format=${format}&start_date=${startDate}&end_date=${endDate}`,
+        );
+
+        if (format === "csv" && response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `whatsapp_analytics_${startDate}_${endDate}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          const data = await response.json();
+          const blob = new Blob([JSON.stringify(data, null, 2)], {
+            type: "application/json",
+          });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `whatsapp_analytics_${startDate}_${endDate}.json`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
+
+        toast({
+          title: "Export Complete",
+          description: `Analytics exported as ${format.toUpperCase()}`,
+          status: "success",
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error("Error exporting analytics:", error);
+        toast({
+          title: "Export Error",
+          description: "Failed to export analytics data",
+          status: "error",
+          duration: 3000,
+        });
       }
-      
-      toast({
-        title: 'Export Complete',
-        description: `Analytics exported as ${format.toUpperCase()}`,
-        status: 'success',
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('Error exporting analytics:', error);
-      toast({
-        title: 'Export Error',
-        description: 'Failed to export analytics data',
-        status: 'error',
-        duration: 3000,
-      });
-    }
-  }, [toast]);
+    },
+    [toast],
+  );
 
   useEffect(() => {
     fetchServiceMetrics();
-    
+
     // Set up periodic health checks
     const interval = setInterval(fetchServiceMetrics, 60000); // Every minute
     return () => clearInterval(interval);
@@ -510,11 +531,11 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
 
   // Calculate health score color
   const healthScoreColor = useMemo(() => {
-    if (!serviceMetrics) return 'gray';
+    if (!serviceMetrics) return "gray";
     const score = serviceMetrics.health_metrics.uptime_percentage;
-    if (score >= 95) return 'green';
-    if (score >= 90) return 'yellow';
-    return 'red';
+    if (score >= 95) return "green";
+    if (score >= 90) return "yellow";
+    return "red";
   }, [serviceMetrics]);
 
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -540,18 +561,18 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
             Production-ready customer communication platform
           </Text>
         </VStack>
-        
+
         <HStack flexWrap="wrap" spacing={2}>
           <Badge
-            colorScheme={isConnected ? 'green' : 'red'}
+            colorScheme={isConnected ? "green" : "red"}
             px={3}
             py={1}
             borderRadius="full"
             fontSize="sm"
           >
-            {isConnected ? 'Connected' : 'Disconnected'}
+            {isConnected ? "Connected" : "Disconnected"}
           </Badge>
-          
+
           {!isConfigured && (
             <Button
               leftIcon={<SettingsIcon />}
@@ -562,7 +583,7 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
               Initialize
             </Button>
           )}
-          
+
           <Button
             leftIcon={<PlusSquareIcon />}
             colorScheme="green"
@@ -572,16 +593,16 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
           >
             Batch Send
           </Button>
-          
+
           <Button
             leftIcon={<BarChartIcon />}
             variant="outline"
-            onClick={() => exportAnalytics('json')}
+            onClick={() => exportAnalytics("json")}
             size="sm"
           >
             Export
           </Button>
-          
+
           <Button
             leftIcon={<SettingsIcon />}
             variant="outline"
@@ -600,53 +621,65 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
             <HStack justify="space-between">
               <Heading size="md">Service Health</Heading>
               <Badge colorScheme={healthScoreColor} fontSize="sm">
-                {serviceMetrics.health_metrics.uptime_percentage.toFixed(1)}% Uptime
+                {serviceMetrics.health_metrics.uptime_percentage.toFixed(1)}%
+                Uptime
               </Badge>
             </HStack>
           </CardHeader>
           <CardBody>
             <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
               <Stat>
-                <StatLabel>Status</Stat>
+                <StatLabel>Status</StatLabel>
                 <StatNumber>
-                  <Badge colorScheme={serviceMetrics.status === 'healthy' ? 'green' : 'red'}>
+                  <Badge
+                    colorScheme={
+                      serviceMetrics.status === "healthy" ? "green" : "red"
+                    }
+                  >
                     {serviceMetrics.status}
                   </Badge>
                 </StatNumber>
               </Stat>
-              
+
               <Stat>
-                <StatLabel>Success Rate</Stat>
+                <StatLabel>Success Rate</StatLabel>
                 <StatNumber>
-                  {serviceMetrics.health_metrics.message_success_rate.toFixed(1)}%
+                  {serviceMetrics.health_metrics.message_success_rate.toFixed(
+                    1,
+                  )}
+                  %
                 </StatNumber>
               </Stat>
-              
+
               <Stat>
-                <StatLabel>Active Conversations</Stat>
+                <StatLabel>Active Conversations</StatLabel>
                 <StatNumber>
                   {serviceMetrics.performance.active_conversations}
                 </StatNumber>
               </Stat>
-              
+
               <Stat>
-                <StatLabel>Avg Response Time</Stat>
+                <StatLabel>Avg Response Time</StatLabel>
                 <StatNumber>
                   {serviceMetrics.performance.average_response_time.toFixed(1)}m
                 </StatNumber>
               </Stat>
             </SimpleGrid>
-            
+
             <Divider my={4} />
-            
+
             <HStack justify="space-between" align="center">
               <VStack align="start" spacing={1}>
-                <Text fontSize="sm" color="gray.600">Last Health Check</Text>
+                <Text fontSize="sm" color="gray.600">
+                  Last Health Check
+                </Text>
                 <Text fontSize="sm" fontWeight="medium">
-                  {new Date(serviceMetrics.health_metrics.last_health_check).toLocaleString()}
+                  {new Date(
+                    serviceMetrics.health_metrics.last_health_check,
+                  ).toLocaleString()}
                 </Text>
               </VStack>
-              
+
               <HStack spacing={2}>
                 <Button
                   leftIcon={<RepeatIcon />}
@@ -656,7 +689,7 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                 >
                   Refresh
                 </Button>
-                
+
                 <Button
                   leftIcon={<ExternalLinkIcon />}
                   variant="outline"
@@ -691,44 +724,58 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                 <CardBody>
                   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                     <VStack align="start">
-                      <Heading size="sm" mb={2}>Message Statistics</Heading>
-                      {serviceMetrics?.analytics?.message_statistics?.map((stat: any, index: number) => (
-                        <HStack key={index} justify="space-between" w="full">
-                          <Text fontSize="sm">{stat.direction} {stat.message_type}</Text>
-                          <Text fontSize="sm" fontWeight="bold">{stat.count}</Text>
-                        </HStack>
-                      ))}
+                      <Heading size="sm" mb={2}>
+                        Message Statistics
+                      </Heading>
+                      {serviceMetrics?.analytics?.message_statistics?.map(
+                        (stat: any, index: number) => (
+                          <HStack key={index} justify="space-between" w="full">
+                            <Text fontSize="sm">
+                              {stat.direction} {stat.message_type}
+                            </Text>
+                            <Text fontSize="sm" fontWeight="bold">
+                              {stat.count}
+                            </Text>
+                          </HStack>
+                        ),
+                      )}
                     </VStack>
-                    
+
                     <VStack align="start">
-                      <Heading size="sm" mb={2}>Peak Usage Hours</Heading>
-                      {serviceMetrics?.performance?.peak_hours?.map((hour: string, index: number) => (
-                        <Tag key={index} colorScheme="blue" size="sm">
-                          {hour}
-                        </Tag>
-                      ))}
+                      <Heading size="sm" mb={2}>
+                        Peak Usage Hours
+                      </Heading>
+                      {serviceMetrics?.performance?.peak_hours?.map(
+                        (hour: string, index: number) => (
+                          <Tag key={index} colorScheme="blue" size="sm">
+                            {hour}
+                          </Tag>
+                        ),
+                      )}
                     </VStack>
                   </SimpleGrid>
                 </CardBody>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <Heading size="md">Top Templates</Heading>
                 </CardHeader>
                 <CardBody>
                   <VStack align="start" spacing={2}>
-                    {serviceMetrics?.performance?.top_templates?.map((template: string, index: number) => (
-                      <HStack key={index} justify="space-between" w="full">
-                        <Text fontSize="sm">{template}</Text>
-                        <Progress
-                          value={(3 - index) * 33}
-                          size="sm"
-                          w="200px"
-                          colorScheme="green"
-                        />
-                      </HStack>
-                    ))}
+                    {serviceMetrics?.performance?.top_templates?.map(
+                      (template: string, index: number) => (
+                        <HStack key={index} justify="space-between" w="full">
+                          <Text fontSize="sm">{template}</Text>
+                          <Progress
+                            value={(3 - index) * 33}
+                            size="sm"
+                            w="200px"
+                            colorScheme="green"
+                          />
+                        </HStack>
+                      ),
+                    )}
                   </VStack>
                 </CardBody>
               </Card>
@@ -749,19 +796,23 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                   Refresh
                 </Button>
               </HStack>
-              
+
               {!isConnected ? (
                 <Alert status="warning">
                   <AlertIcon />
                   <Box>
-                    <AlertTitle>Service Not Connected</AlertName>
+                    <AlertTitle>Service Not Connected</AlertTitle>
                     <AlertDescription>
-                      WhatsApp Business service is not connected. Please check your configuration.
+                      WhatsApp Business service is not connected. Please check
+                      your configuration.
                     </AlertDescription>
                   </Box>
                 </Alert>
               ) : (
-                <Grid templateColumns="repeat(auto-fill, minmax(400px, 1fr))" gap={4}>
+                <Grid
+                  templateColumns="repeat(auto-fill, minmax(400px, 1fr))"
+                  gap={4}
+                >
                   {conversations.map((conversation: any) => (
                     <Card key={conversation.id} cursor="pointer">
                       <CardBody>
@@ -781,13 +832,15 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                             {conversation.status}
                           </Badge>
                         </HStack>
-                        
+
                         <HStack justify="space-between" mt={3}>
                           <Text fontSize="sm" color="gray.500">
                             {conversation.message_count || 0} messages
                           </Text>
                           <Text fontSize="sm" color="gray.500">
-                            {new Date(conversation.last_message_at).toLocaleDateString()}
+                            {new Date(
+                              conversation.last_message_at,
+                            ).toLocaleDateString()}
                           </Text>
                         </HStack>
                       </CardBody>
@@ -812,15 +865,25 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                       <Input
                         placeholder="Name or phone number"
                         value={searchFilters.query}
-                        onChange={(e) => setSearchFilters({...searchFilters, query: e.target.value})}
+                        onChange={(e) =>
+                          setSearchFilters({
+                            ...searchFilters,
+                            query: e.target.value,
+                          })
+                        }
                       />
                     </FormControl>
-                    
+
                     <FormControl>
                       <FormLabel>Status</FormLabel>
                       <Select
                         value={searchFilters.status}
-                        onChange={(e) => setSearchFilters({...searchFilters, status: e.target.value})}
+                        onChange={(e) =>
+                          setSearchFilters({
+                            ...searchFilters,
+                            status: e.target.value,
+                          })
+                        }
                       >
                         <option value="">All Statuses</option>
                         <option value="active">Active</option>
@@ -828,26 +891,36 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                         <option value="pending">Pending</option>
                       </Select>
                     </FormControl>
-                    
+
                     <FormControl>
                       <FormLabel>From Date</FormLabel>
                       <Input
                         type="date"
                         value={searchFilters.date_from}
-                        onChange={(e) => setSearchFilters({...searchFilters, date_from: e.target.value})}
+                        onChange={(e) =>
+                          setSearchFilters({
+                            ...searchFilters,
+                            date_from: e.target.value,
+                          })
+                        }
                       />
                     </FormControl>
-                    
+
                     <FormControl>
                       <FormLabel>To Date</FormLabel>
                       <Input
                         type="date"
                         value={searchFilters.date_to}
-                        onChange={(e) => setSearchFilters({...searchFilters, date_to: e.target.value})}
+                        onChange={(e) =>
+                          setSearchFilters({
+                            ...searchFilters,
+                            date_to: e.target.value,
+                          })
+                        }
                       />
                     </FormControl>
                   </SimpleGrid>
-                  
+
                   <HStack justify="space-between">
                     <Button
                       leftIcon={<SearchIcon />}
@@ -857,16 +930,16 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                     >
                       Search
                     </Button>
-                    
+
                     <Button
                       leftIcon={<RepeatIcon />}
                       variant="outline"
                       onClick={() => {
                         setSearchFilters({
-                          query: '',
-                          status: '',
-                          date_from: '',
-                          date_to: '',
+                          query: "",
+                          status: "",
+                          date_from: "",
+                          date_to: "",
                         });
                         setSearchResults([]);
                       }}
@@ -877,11 +950,13 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                 </VStack>
               </CardBody>
             </Card>
-            
+
             {searchResults.length > 0 && (
               <Card mt={4}>
                 <CardHeader>
-                  <Heading size="md">Search Results ({searchResults.length})</Heading>
+                  <Heading size="md">
+                    Search Results ({searchResults.length})
+                  </Heading>
                 </CardHeader>
                 <CardBody>
                   <VStack spacing={2} align="stretch">
@@ -902,11 +977,13 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                             {result.phone_number}
                           </Text>
                         </VStack>
-                        
+
                         <VStack align="end" spacing={0}>
                           <Badge colorScheme="green">{result.status}</Badge>
                           <Text fontSize="sm" color="gray.500">
-                            {new Date(result.last_message_at).toLocaleDateString()}
+                            {new Date(
+                              result.last_message_at,
+                            ).toLocaleDateString()}
                           </Text>
                         </VStack>
                       </HStack>
@@ -929,7 +1006,7 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                         leftIcon={<DownloadIcon />}
                         variant="outline"
                         size="sm"
-                        onClick={() => exportAnalytics('csv')}
+                        onClick={() => exportAnalytics("csv")}
                       >
                         Export CSV
                       </Button>
@@ -937,7 +1014,7 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                         leftIcon={<DownloadIcon />}
                         variant="outline"
                         size="sm"
-                        onClick={() => exportAnalytics('json')}
+                        onClick={() => exportAnalytics("json")}
                       >
                         Export JSON
                       </Button>
@@ -949,29 +1026,33 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                     <Stat>
                       <StatLabel>Total Conversations</StatLabel>
                       <StatNumber>
-                        {serviceMetrics?.analytics?.conversation_statistics?.total_conversations || 0}
+                        {serviceMetrics?.analytics?.conversation_statistics
+                          ?.total_conversations || 0}
                       </StatNumber>
                     </Stat>
                     <Stat>
                       <StatLabel>Active Conversations</StatLabel>
                       <StatNumber color="green.500">
-                        {serviceMetrics?.analytics?.conversation_statistics?.active_conversations || 0}
+                        {serviceMetrics?.analytics?.conversation_statistics
+                          ?.active_conversations || 0}
                       </StatNumber>
                     </Stat>
                     <Stat>
                       <StatLabel>Messages Sent</StatLabel>
                       <StatNumber>
                         {serviceMetrics?.analytics?.message_statistics
-                          ?.filter((m: any) => m.direction === 'outbound')
-                          ?.reduce((sum: number, m: any) => sum + m.count, 0) || 0}
+                          ?.filter((m: any) => m.direction === "outbound")
+                          ?.reduce((sum: number, m: any) => sum + m.count, 0) ||
+                          0}
                       </StatNumber>
                     </Stat>
                     <Stat>
                       <StatLabel>Messages Received</StatLabel>
                       <StatNumber>
                         {serviceMetrics?.analytics?.message_statistics
-                          ?.filter((m: any) => m.direction === 'inbound')
-                          ?.reduce((sum: number, m: any) => sum + m.count, 0) || 0}
+                          ?.filter((m: any) => m.direction === "inbound")
+                          ?.reduce((sum: number, m: any) => sum + m.count, 0) ||
+                          0}
                       </StatNumber>
                     </Stat>
                   </StatGroup>
@@ -1002,7 +1083,7 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                   Maximum 100 recipients per batch
                 </Text>
               </FormControl>
-              
+
               <FormControl isRequired>
                 <FormLabel>Message</FormLabel>
                 <Textarea
@@ -1012,7 +1093,7 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                   rows={4}
                 />
               </FormControl>
-              
+
               <FormControl>
                 <FormLabel>Delay Between Messages (seconds)</FormLabel>
                 <NumberInput
@@ -1028,11 +1109,11 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                   </NumberInputStepper>
                 </NumberInput>
               </FormControl>
-              
+
               <Alert status="info">
                 <AlertIcon />
                 <Text fontSize="sm">
-                  Messages will be sent sequentially to avoid rate limiting. 
+                  Messages will be sent sequentially to avoid rate limiting.
                   Large batches may take several minutes to complete.
                 </Text>
               </Alert>
@@ -1065,42 +1146,67 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                 <FormLabel>Business Name</FormLabel>
                 <Input
                   value={businessProfile.name}
-                  onChange={(e) => setBusinessProfile({...businessProfile, name: e.target.value})}
+                  onChange={(e) =>
+                    setBusinessProfile({
+                      ...businessProfile,
+                      name: e.target.value,
+                    })
+                  }
                 />
               </FormControl>
-              
+
               <FormControl isRequired>
                 <FormLabel>Description</FormLabel>
                 <Textarea
                   value={businessProfile.description}
-                  onChange={(e) => setBusinessProfile({...businessProfile, description: e.target.value})}
+                  onChange={(e) =>
+                    setBusinessProfile({
+                      ...businessProfile,
+                      description: e.target.value,
+                    })
+                  }
                   rows={3}
                 />
               </FormControl>
-              
+
               <FormControl isRequired>
                 <FormLabel>Email</FormLabel>
                 <Input
                   type="email"
                   value={businessProfile.email}
-                  onChange={(e) => setBusinessProfile({...businessProfile, email: e.target.value})}
+                  onChange={(e) =>
+                    setBusinessProfile({
+                      ...businessProfile,
+                      email: e.target.value,
+                    })
+                  }
                 />
               </FormControl>
-              
+
               <FormControl>
                 <FormLabel>Website</FormLabel>
                 <Input
                   type="url"
                   value={businessProfile.website}
-                  onChange={(e) => setBusinessProfile({...businessProfile, website: e.target.value})}
+                  onChange={(e) =>
+                    setBusinessProfile({
+                      ...businessProfile,
+                      website: e.target.value,
+                    })
+                  }
                 />
               </FormControl>
-              
+
               <FormControl>
                 <FormLabel>Address</FormLabel>
                 <Input
-                  value={businessProfile.address || ''}
-                  onChange={(e) => setBusinessProfile({...businessProfile, address: e.target.value})}
+                  value={businessProfile.address || ""}
+                  onChange={(e) =>
+                    setBusinessProfile({
+                      ...businessProfile,
+                      address: e.target.value,
+                    })
+                  }
                 />
               </FormControl>
             </VStack>
@@ -1117,7 +1223,11 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
       </Modal>
 
       {/* Advanced Configuration Modal */}
-      <Modal isOpen={isAdvancedConfigOpen} onClose={onAdvancedConfigClose} size="lg">
+      <Modal
+        isOpen={isAdvancedConfigOpen}
+        onClose={onAdvancedConfigClose}
+        size="lg"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Advanced Configuration</ModalHeader>
@@ -1128,23 +1238,27 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                 <FormLabel mb="0">Rate Limiting</FormLabel>
                 <Switch
                   isChecked={advancedConfig.rate_limiting_enabled}
-                  onChange={(e) => setAdvancedConfig({
-                    ...advancedConfig,
-                    rate_limiting_enabled: e.target.checked
-                  })}
+                  onChange={(e) =>
+                    setAdvancedConfig({
+                      ...advancedConfig,
+                      rate_limiting_enabled: e.target.checked,
+                    })
+                  }
                 />
               </FormControl>
-              
+
               <FormControl>
                 <FormLabel>Message Retention Days</FormLabel>
                 <NumberInput
                   min={1}
                   max={365}
                   value={advancedConfig.message_retention_days}
-                  onChange={(value) => setAdvancedConfig({
-                    ...advancedConfig,
-                    message_retention_days: Number(value)
-                  })}
+                  onChange={(value) =>
+                    setAdvancedConfig({
+                      ...advancedConfig,
+                      message_retention_days: Number(value),
+                    })
+                  }
                 >
                   <NumberInputField />
                   <NumberInputStepper>
@@ -1153,29 +1267,33 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                   </NumberInputStepper>
                 </NumberInput>
               </FormControl>
-              
+
               <FormControl display="flex" alignItems="center">
                 <FormLabel mb="0">Auto Reply</FormLabel>
                 <Switch
                   isChecked={advancedConfig.auto_reply_enabled}
-                  onChange={(e) => setAdvancedConfig({
-                    ...advancedConfig,
-                    auto_reply_enabled: e.target.checked
-                  })}
+                  onChange={(e) =>
+                    setAdvancedConfig({
+                      ...advancedConfig,
+                      auto_reply_enabled: e.target.checked,
+                    })
+                  }
                 />
               </FormControl>
-              
+
               <FormControl display="flex" alignItems="center">
                 <FormLabel mb="0">Business Hours</FormLabel>
                 <Switch
                   isChecked={advancedConfig.business_hours_enabled}
-                  onChange={(e) => setAdvancedConfig({
-                    ...advancedConfig,
-                    business_hours_enabled: e.target.checked
-                  })}
+                  onChange={(e) =>
+                    setAdvancedConfig({
+                      ...advancedConfig,
+                      business_hours_enabled: e.target.checked,
+                    })
+                  }
                 />
               </FormControl>
-              
+
               {advancedConfig.business_hours_enabled && (
                 <SimpleGrid columns={2} spacing={4}>
                   <FormControl>
@@ -1183,46 +1301,54 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
                     <Input
                       type="time"
                       value={advancedConfig.business_hours_start}
-                      onChange={(e) => setAdvancedConfig({
-                        ...advancedConfig,
-                        business_hours_start: e.target.value
-                      })}
+                      onChange={(e) =>
+                        setAdvancedConfig({
+                          ...advancedConfig,
+                          business_hours_start: e.target.value,
+                        })
+                      }
                     />
                   </FormControl>
-                  
+
                   <FormControl>
                     <FormLabel>End Time</FormLabel>
                     <Input
                       type="time"
                       value={advancedConfig.business_hours_end}
-                      onChange={(e) => setAdvancedConfig({
-                        ...advancedConfig,
-                        business_hours_end: e.target.value
-                      })}
+                      onChange={(e) =>
+                        setAdvancedConfig({
+                          ...advancedConfig,
+                          business_hours_end: e.target.value,
+                        })
+                      }
                     />
                   </FormControl>
                 </SimpleGrid>
               )}
-              
+
               <FormControl display="flex" alignItems="center">
                 <FormLabel mb="0">Webhook Security</FormLabel>
                 <Switch
                   isChecked={advancedConfig.webhook_security_enabled}
-                  onChange={(e) => setAdvancedConfig({
-                    ...advancedConfig,
-                    webhook_security_enabled: e.target.checked
-                  })}
+                  onChange={(e) =>
+                    setAdvancedConfig({
+                      ...advancedConfig,
+                      webhook_security_enabled: e.target.checked,
+                    })
+                  }
                 />
               </FormControl>
-              
+
               <FormControl display="flex" alignItems="center">
                 <FormLabel mb="0">Analytics Tracking</FormLabel>
                 <Switch
                   isChecked={advancedConfig.analytics_tracking_enabled}
-                  onChange={(e) => setAdvancedConfig({
-                    ...advancedConfig,
-                    analytics_tracking_enabled: e.target.checked
-                  })}
+                  onChange={(e) =>
+                    setAdvancedConfig({
+                      ...advancedConfig,
+                      analytics_tracking_enabled: e.target.checked,
+                    })
+                  }
                 />
               </FormControl>
             </VStack>
@@ -1231,9 +1357,7 @@ const EnhancedWhatsAppBusinessIntegration: React.FC = () => {
             <Button variant="ghost" mr={3} onClick={onAdvancedConfigClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue">
-              Save Configuration
-            </Button>
+            <Button colorScheme="blue">Save Configuration</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

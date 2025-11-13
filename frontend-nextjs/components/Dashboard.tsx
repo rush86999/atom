@@ -334,7 +334,7 @@ const Dashboard: React.FC = () => {
                   <Card>
                     <CardHeader>
                       <HStack justify="space-between">
-                        <Heading size="md">Today's Calendar</Heading>
+                        <Heading size="md">Today&apos;s Calendar</Heading>
                         <Badge colorScheme="blue">
                           {data.calendar.length} events
                         </Badge>

@@ -314,13 +314,13 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
   };
 
   const NodePropertiesPanel: React.FC = () => {
-    if (!selectedNode) return null;
-
     const [formData, setFormData] = useState({
-      title: selectedNode.title,
-      description: selectedNode.description,
-      ...selectedNode.config
+      title: selectedNode?.title || '',
+      description: selectedNode?.description || '',
+      ...selectedNode?.config
     });
+
+    if (!selectedNode) return null;
 
     const handleSave = () => {
       handleUpdateNode(selectedNode.id, {
@@ -600,11 +600,11 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
                     );
                   })}
                 </div>
-              </div>
-            </Box>
-          </Box>
-        </Box>
-      </Box>
+              </Box>
+            </Flex>
+          </CardBody>
+        </Card>
+      </VStack>
     </Box>
   );
 };

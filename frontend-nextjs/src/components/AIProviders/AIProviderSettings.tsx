@@ -352,7 +352,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
           ))}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .ai-provider-settings {
           max-width: 1200px;
           margin: 0 auto;

@@ -467,7 +467,7 @@ const MailchimpIntegrationPage: React.FC = () => {
                   onChange={(e) => setServerPrefix(e.target.value)}
                 />
                 <Text fontSize="sm" color="gray.600" mt={1}>
-                  Your Mailchimp server prefix (e.g., "us1" for accounts in the
+                  Your Mailchimp server prefix (e.g., &quot;us1&quot; for accounts in the
                   US)
                 </Text>
               </FormControl>

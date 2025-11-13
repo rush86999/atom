@@ -475,7 +475,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
           />
         </HStack>
         <Text fontSize="xs" color="gray.500" mt={2} textAlign="center">
-          Examples: "When I get an email from boss, create a task in Asana" or "Schedule weekly report generation"
+          Examples: &quot;When I get an email from boss, create a task in Asana&quot; or &quot;Schedule weekly report generation&quot;
         </Text>
       </Box>
 

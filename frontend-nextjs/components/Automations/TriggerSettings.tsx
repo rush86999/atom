@@ -50,7 +50,7 @@ import {
   RadioGroup,
   Stack
 } from '@chakra-ui/react';
-import { AddIcon, EditIcon, DeleteIcon, CopyIcon, TimeIcon, TimeIcon } from '@chakra-ui/icons';
+import { AddIcon, EditIcon, DeleteIcon, CopyIcon, TimeIcon } from '@chakra-ui/icons';
 
 interface TriggerDefinition {
   id: string;
@@ -259,6 +259,112 @@ const TriggerSettings: React.FC<TriggerSettingsProps> = ({
       default: return '⚡';
     }
   };
+
+  return (
+    <Box p={compactView ? 2 : 6}>
+      <VStack spacing={compactView ? 3 : 6} align="stretch">
+        {/* Header */}
+        {showNavigation && (
+          <Flex justify="space-between" align="center">
+            <Heading size={compactView ? "md" : "lg"}>Trigger Settings</Heading>
+            <Button
+              leftIcon={<AddIcon />}
+              colorScheme="blue"
+              size={compactView ? "sm" : "md"}
+              onClick={() => {
+                setSelectedTrigger(null);
+                onOpen();
+              }}
+            >
+              New Trigger
+            </Button>
+          </Flex>
+        )}
+
+        {/* Triggers List */}
+        <Card>
+          <CardHeader>
+            <Heading size={compactView ? "sm" : "md"}>Triggers</Heading>
+          </CardHeader>
+          <CardBody>
+            <VStack spacing={4} align="stretch">
+              {triggers.map(trigger => (
+                <Card key={trigger.id} size="sm">
+                  <CardBody>
+                    <Flex justify="space-between" align="center">
+                      <VStack align="start" spacing={1}>
+                        <Heading size="sm">{trigger.name}</Heading>
+                        <Text fontSize="sm" color="gray.600">{trigger.description}</Text>
+                        <HStack spacing={2}>
+                          <Badge colorScheme={getTriggerTypeColor(trigger.type)}>
+                            {trigger.type}
+                          </Badge>
+                          <Badge colorScheme={trigger.enabled ? 'green' : 'gray'}>
+                            {trigger.enabled ? 'Enabled' : 'Disabled'}
+                          </Badge>
+                        </HStack>
+                      </VStack>
+                      <HStack spacing={2}>
+                        <IconButton
+                          aria-label="Edit trigger"
+                          icon={<EditIcon />}
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTrigger(trigger);
+                            onOpen();
+                          }}
+                        />
+                        <IconButton
+                          aria-label="Duplicate trigger"
+                          icon={<CopyIcon />}
+                          size="sm"
+                          onClick={() => handleDuplicateTrigger(trigger.id)}
+                        />
+                        <IconButton
+                          aria-label="Delete trigger"
+                          icon={<DeleteIcon />}
+                          size="sm"
+                          colorScheme="red"
+                          onClick={() => handleDeleteTrigger(trigger.id)}
+                        />
+                      </HStack>
+                    </Flex>
+                  </CardBody>
+                </Card>
+              ))}
+            </VStack>
+          </CardBody>
+        </Card>
+      </VStack>
+
+      {/* Trigger Form Modal */}
+      {isOpen && (
+        <Modal isOpen={isOpen} onClose={onClose} size="xl">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>
+              {selectedTrigger ? 'Edit Trigger' : 'Create New Trigger'}
+            </ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <TriggerForm
+                trigger={selectedTrigger}
+                onSubmit={(data) => {
+                  if (selectedTrigger) {
+                    handleUpdateTrigger(selectedTrigger.id, data);
+                  } else {
+                    handleCreateTrigger(data);
+                  }
+                }}
+                onCancel={onClose}
+              />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
+    </Box>
+  );
+};
 
   const TriggerForm: React.FC<{
     trigger?: TriggerDefinition;
@@ -581,4 +687,178 @@ const TriggerSettings: React.FC<TriggerSettingsProps> = ({
                             </HStack>
                           </VStack>
                           <IconButton
-                            aria-label
+                            aria-label="Remove condition"
+                            icon={<DeleteIcon />}
+                            size="sm"
+                            colorScheme="red"
+                            onClick={() => handleRemoveCondition(condition.id)}
+                          />
+                        </Flex>
+                      </CardBody>
+                    </Card>
+                  ))}
+                </VStack>
+              </AccordionPanel>
+            </AccordionItem>
+          </Accordion>
+
+          {/* Actions */}
+          <Card>
+              <CardHeader>
+                <HStack justify="space-between">
+                  <Heading size="md">Actions</Heading>
+                  <Button
+                    leftIcon={<AddIcon />}
+                    size="sm"
+                    onClick={handleAddAction}
+                  >
+                    Add Action
+                  </Button>
+                </HStack>
+              </CardHeader>
+              <CardBody>
+                <VStack spacing={4} align="stretch">
+                  {formData.actions.map(action => (
+                    <Card key={action.id} size="sm">
+                      <CardBody>
+                        <Flex justify="space-between" align="center">
+                          <VStack align="start" spacing={1}>
+                            <Text fontWeight="medium">{action.type}</Text>
+                            <Text color="gray.600">{action.config}</Text>
+                          </VStack>
+                          <IconButton
+                            aria-label="Remove action"
+                            icon={<DeleteIcon />}
+                            size="sm"
+                            colorScheme="red"
+                            onClick={() => handleRemoveAction(action.id)}
+                          />
+                        </Flex>
+                      </CardBody>
+                    </Card>
+                  ))}
+                </VStack>
+              </CardBody>
+            </Card>
+          </VStack>
+
+          <HStack spacing={3} mt={6}>
+            <Button onClick={onCancel} variant="outline">
+              Cancel
+            </Button>
+            <Button onClick={handleSaveTrigger} colorScheme="blue">
+              Save Trigger
+            </Button>
+          </HStack>
+        </form>
+      </Box>
+    );
+  };
+
+  return (
+    <Box p={compactView ? 2 : 6}>
+      <VStack spacing={compactView ? 3 : 6} align="stretch">
+        {/* Header */}
+        {showNavigation && (
+          <Flex justify="space-between" align="center">
+            <Heading size={compactView ? "md" : "lg"}>Trigger Settings</Heading>
+            <Button
+              leftIcon={<AddIcon />}
+              colorScheme="blue"
+              size={compactView ? "sm" : "md"}
+              onClick={() => {
+                setSelectedTrigger(null);
+                onOpen();
+              }}
+            >
+              New Trigger
+            </Button>
+          </Flex>
+        )}
+
+        {/* Triggers List */}
+        <Card>
+          <CardHeader>
+            <Heading size={compactView ? "sm" : "md"}>Triggers</Heading>
+          </CardHeader>
+          <CardBody>
+            <VStack spacing={4} align="stretch">
+              {triggers.map(trigger => (
+                <Card key={trigger.id} size="sm">
+                  <CardBody>
+                    <Flex justify="space-between" align="center">
+                      <VStack align="start" spacing={1}>
+                        <Heading size="sm">{trigger.name}</Heading>
+                        <Text fontSize="sm" color="gray.600">{trigger.description}</Text>
+                        <HStack spacing={2}>
+                          <Badge colorScheme={getTriggerTypeColor(trigger.type)}>
+                            {trigger.type}
+                          </Badge>
+                          <Badge colorScheme={trigger.enabled ? 'green' : 'gray'}>
+                            {trigger.enabled ? 'Enabled' : 'Disabled'}
+                          </Badge>
+                        </HStack>
+                      </VStack>
+                      <HStack spacing={2}>
+                        <IconButton
+                          aria-label="Edit trigger"
+                          icon={<EditIcon />}
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTrigger(trigger);
+                            onOpen();
+                          }}
+                        />
+                        <IconButton
+                          aria-label="Duplicate trigger"
+                          icon={<CopyIcon />}
+                          size="sm"
+                          onClick={() => handleDuplicateTrigger(trigger.id)}
+                        />
+                        <IconButton
+                          aria-label="Delete trigger"
+                          icon={<DeleteIcon />}
+                          size="sm"
+                          colorScheme="red"
+                          onClick={() => handleDeleteTrigger(trigger.id)}
+                        />
+                      </HStack>
+                    </Flex>
+                  </CardBody>
+                </Card>
+              ))}
+            </VStack>
+          </CardBody>
+        </Card>
+      </VStack>
+
+      {/* Trigger Form Modal */}
+      {isOpen && (
+        <Modal isOpen={isOpen} onClose={onClose} size="xl">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>
+              {selectedTrigger ? 'Edit Trigger' : 'Create New Trigger'}
+            </ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <TriggerForm
+                trigger={selectedTrigger}
+                onSubmit={(data) => {
+                  if (selectedTrigger) {
+                    handleUpdateTrigger(selectedTrigger.id, data);
+                  } else {
+                    handleCreateTrigger(data);
+                  }
+                }}
+                onCancel={onClose}
+              />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
+    </Box>
+  );
+};
+
+export default TriggerSettings;
