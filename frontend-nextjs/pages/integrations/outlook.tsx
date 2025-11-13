@@ -63,7 +63,6 @@ import {
   TimeIcon,
   CheckCircleIcon,
   WarningTwoIcon,
-  TimeIcon,
   ArrowForwardIcon,
   AddIcon,
   SearchIcon,

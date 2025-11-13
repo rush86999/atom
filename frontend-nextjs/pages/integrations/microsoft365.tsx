@@ -3,7 +3,7 @@
  * Unified Microsoft productivity suite integration
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -73,7 +73,6 @@ import {
   RepeatIcon,
   PhoneIcon,
   PersonIcon,
-  TimeIcon,
   ViewIcon,
   EditIcon,
   DeleteIcon,
@@ -215,24 +214,24 @@ const Microsoft365Integration: React.FC = () => {
   // Check all services health
   const checkAllServices = async () => {
     setLoading((prev) => ({ ...prev, services: true }));
-    
+
     const serviceHealthChecks = services.map(async (service) => {
       const health = await checkServiceHealth(service);
       return { name: service.name, health };
     });
 
     const healthResults = await Promise.all(serviceHealthChecks);
-    
+
     setServices((prev) =>
       prev.map((service) => {
         const healthResult = healthResults.find(
-          (result) => result.name === service.name
+          (result) => result.name === service.name,
         );
         return {
           ...service,
           status: healthResult?.health || "error",
         };
-      })
+      }),
     );
 
     setLoading((prev) => ({ ...prev, services: false }));
@@ -244,14 +243,17 @@ const Microsoft365Integration: React.FC = () => {
 
     setLoading((prev) => ({ ...prev, emails: true }));
     try {
-      const response = await fetch("/api/integrations/microsoft/outlook/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "current",
-          limit: 25,
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/microsoft/outlook/messages",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: "current",
+            limit: 25,
+          }),
+        },
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -319,15 +321,18 @@ const Microsoft365Integration: React.FC = () => {
 
     setLoading((prev) => ({ ...prev, events: true }));
     try {
-      const response = await fetch("/api/integrations/microsoft/calendar/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "current",
-          limit: 25,
-          startDate: new Date().toISOString(),
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/microsoft/calendar/events",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: "current",
+            limit: 25,
+            startDate: new Date().toISOString(),
+          }),
+        },
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -341,31 +346,37 @@ const Microsoft365Integration: React.FC = () => {
   };
 
   // Filter data based on search
-  const filteredEmails = emails.filter((email) =>
-    email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    email.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    email.body.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredEmails = emails.filter(
+    (email) =>
+      email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.body.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const filteredMessages = messages.filter((message) =>
-    message.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    message.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    message.teamName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMessages = messages.filter(
+    (message) =>
+      message.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      message.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      message.teamName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const filteredFiles = files.filter((file) =>
-    file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    file.type.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredFiles = files.filter(
+    (file) =>
+      file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      file.type.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const filteredEvents = events.filter((event) =>
-    event.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.organizer.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredEvents = events.filter(
+    (event) =>
+      event.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.organizer.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Stats calculations
-  const connectedServices = services.filter((s) => s.status === "connected").length;
+  const connectedServices = services.filter(
+    (s) => s.status === "connected",
+  ).length;
   const totalEmails = emails.length;
   const unreadEmails = emails.filter((e) => !e.isRead).length;
   const totalMessages = messages.length;
@@ -509,7 +520,9 @@ const Microsoft365Integration: React.FC = () => {
 
                   <Button
                     w="100%"
-                    colorScheme={service.status === "connected" ? "gray" : service.color}
+                    colorScheme={
+                      service.status === "connected" ? "gray" : service.color
+                    }
                     onClick={() => {
                       if (service.status !== "connected") {
                         window.location.href = `/integrations/${service.name}`;
@@ -518,7 +531,11 @@ const Microsoft365Integration: React.FC = () => {
                       }
                     }}
                     leftIcon={
-                      service.status === "connected" ? <ViewIcon /> : <ArrowForwardIcon />
+                      service.status === "connected" ? (
+                        <ViewIcon />
+                      ) : (
+                        <ArrowForwardIcon />
+                      )
                     }
                   >
                     {service.status === "connected" ? "Manage" : "Connect"}
@@ -582,8 +599,12 @@ const Microsoft365Integration: React.FC = () => {
                   <Tab>Calendar</Tab>
                 </>
               )}
-              {services.find((s) => s.name === "teams")?.connected && <Tab>Teams</Tab>}
-              {services.find((s) => s.name === "onedrive")?.connected && <Tab>OneDrive</Tab>}
+              {services.find((s) => s.name === "teams")?.connected && (
+                <Tab>Teams</Tab>
+              )}
+              {services.find((s) => s.name === "onedrive")?.connected && (
+                <Tab>OneDrive</Tab>
+              )}
             </TabList>
 
             <TabPanels>
@@ -593,7 +614,8 @@ const Microsoft365Integration: React.FC = () => {
                   <Alert status="info">
                     <InfoIcon />
                     <Text>
-                      Microsoft 365 services are connected and synchronized. Click on individual service tabs to manage specific data.
+                      Microsoft 365 services are connected and synchronized.
+                      Click on individual service tabs to manage specific data.
                     </Text>
                   </Alert>
 
@@ -611,7 +633,8 @@ const Microsoft365Integration: React.FC = () => {
                                   {email.subject}
                                 </Text>
                                 <Text fontSize="sm" color="gray.600">
-                                  {email.from} • {formatDate(email.receivedTime)}
+                                  {email.from} •{" "}
+                                  {formatDate(email.receivedTime)}
                                 </Text>
                               </Box>
                             ))}
@@ -633,7 +656,8 @@ const Microsoft365Integration: React.FC = () => {
                                   {message.teamName} • {message.channelName}
                                 </Text>
                                 <Text fontSize="sm" color="gray.600">
-                                  {message.from} • {formatDate(message.timestamp)}
+                                  {message.from} •{" "}
+                                  {formatDate(message.timestamp)}
                                 </Text>
                               </Box>
                             ))}
@@ -658,7 +682,8 @@ const Microsoft365Integration: React.FC = () => {
                                   </Text>
                                 </HStack>
                                 <Text fontSize="sm" color="gray.600">
-                                  {formatFileSize(file.size)} • {formatDate(file.modifiedTime)}
+                                  {formatFileSize(file.size)} •{" "}
+                                  {formatDate(file.modifiedTime)}
                                 </Text>
                               </Box>
                             ))}
@@ -680,7 +705,8 @@ const Microsoft365Integration: React.FC = () => {
                                   {event.subject}
                                 </Text>
                                 <Text fontSize="sm" color="gray.600">
-                                  {formatDate(event.startTime)} • {event.location}
+                                  {formatDate(event.startTime)} •{" "}
+                                  {event.location}
                                 </Text>
                               </Box>
                             ))}
@@ -736,13 +762,20 @@ const Microsoft365Integration: React.FC = () => {
                                   <Td>
                                     <VStack align="start" spacing={1}>
                                       <Text
-                                        fontWeight={email.isRead ? "normal" : "bold"}
+                                        fontWeight={
+                                          email.isRead ? "normal" : "bold"
+                                        }
                                         noOfLines={1}
                                       >
                                         {email.subject}
                                       </Text>
                                       {email.hasAttachments && (
-                                        <Icon as={LinkIcon} w={3} h={3} color="gray.500" />
+                                        <Icon
+                                          as={LinkIcon}
+                                          w={3}
+                                          h={3}
+                                          color="gray.500"
+                                        />
                                       )}
                                     </VStack>
                                   </Td>
@@ -750,14 +783,20 @@ const Microsoft365Integration: React.FC = () => {
                                     <Text fontSize="sm">{email.from}</Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{formatDate(email.receivedTime)}</Text>
+                                    <Text fontSize="sm">
+                                      {formatDate(email.receivedTime)}
+                                    </Text>
                                   </Td>
                                   <Td>
                                     <Tag
-                                      colorScheme={getImportanceColor(email.importance)}
+                                      colorScheme={getImportanceColor(
+                                        email.importance,
+                                      )}
                                       size="sm"
                                     >
-                                      <TagLabel>{email.importance || "Normal"}</TagLabel>
+                                      <TagLabel>
+                                        {email.importance || "Normal"}
+                                      </TagLabel>
                                     </Tag>
                                   </Td>
                                   <Td>
@@ -808,16 +847,24 @@ const Microsoft365Integration: React.FC = () => {
                               {filteredEvents.map((event) => (
                                 <Tr key={event.id}>
                                   <Td>
-                                    <Text fontWeight="medium">{event.subject}</Text>
+                                    <Text fontWeight="medium">
+                                      {event.subject}
+                                    </Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{formatDate(event.startTime)}</Text>
+                                    <Text fontSize="sm">
+                                      {formatDate(event.startTime)}
+                                    </Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{formatDate(event.endTime)}</Text>
+                                    <Text fontSize="sm">
+                                      {formatDate(event.endTime)}
+                                    </Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{event.location || "N/A"}</Text>
+                                    <Text fontSize="sm">
+                                      {event.location || "N/A"}
+                                    </Text>
                                   </Td>
                                   <Td>
                                     <Text fontSize="sm">{event.organizer}</Text>
@@ -880,7 +927,9 @@ const Microsoft365Integration: React.FC = () => {
                                     <Text fontSize="sm">{message.from}</Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{formatDate(message.timestamp)}</Text>
+                                    <Text fontSize="sm">
+                                      {formatDate(message.timestamp)}
+                                    </Text>
                                   </Td>
                                   <Td>
                                     <Button size="sm" variant="outline">
@@ -910,7 +959,12 @@ const Microsoft365Integration: React.FC = () => {
                         </VStack>
                       ) : filteredFiles.length === 0 ? (
                         <VStack spacing={4} py={8}>
-                          <Icon as={FolderIcon} w={12} h={12} color="gray.400" />
+                          <Icon
+                            as={FolderIcon}
+                            w={12}
+                            h={12}
+                            color="gray.400"
+                          />
                           <Text color="gray.600">No files found</Text>
                         </VStack>
                       ) : (
@@ -931,8 +985,13 @@ const Microsoft365Integration: React.FC = () => {
                                 <Tr key={file.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon as={FolderIcon} color="orange.500" />
-                                      <Text fontWeight="medium">{file.name}</Text>
+                                      <Icon
+                                        as={FolderIcon}
+                                        color="orange.500"
+                                      />
+                                      <Text fontWeight="medium">
+                                        {file.name}
+                                      </Text>
                                     </HStack>
                                   </Td>
                                   <Td>
@@ -941,10 +1000,14 @@ const Microsoft365Integration: React.FC = () => {
                                     </Badge>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{formatFileSize(file.size)}</Text>
+                                    <Text fontSize="sm">
+                                      {formatFileSize(file.size)}
+                                    </Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{formatDate(file.modifiedTime)}</Text>
+                                    <Text fontSize="sm">
+                                      {formatDate(file.modifiedTime)}
+                                    </Text>
                                   </Td>
                                   <Td>
                                     <Badge

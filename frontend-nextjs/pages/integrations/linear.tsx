@@ -60,7 +60,6 @@ import {
   TimeIcon,
   CheckCircleIcon,
   WarningTwoIcon,
-  TimeIcon,
   ArrowForwardIcon,
   AddIcon,
   SearchIcon,
@@ -450,7 +449,8 @@ const LinearIntegration: React.FC = () => {
                   size="lg"
                   leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
-                    (window.location.href = "/api/integrations/linear/auth/start")
+                    (window.location.href =
+                      "/api/integrations/linear/auth/start")
                   }
                 >
                   Connect Linear Account

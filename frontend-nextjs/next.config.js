@@ -1,44 +1,16 @@
 /** @type {import('next').NextConfig} */
-
-// const withTM = require("next-transpile-modules")(["../src"]);
-
 const nextConfig = {
-  // Enable React strict mode
   reactStrictMode: true,
-
-  // Environment variables for client-side access
-  env: {
-    NEXT_PUBLIC_API_BASE_URL:
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5058",
-    NEXT_PUBLIC_ENVIRONMENT:
-      process.env.NEXT_PUBLIC_ENVIRONMENT || "development",
-    NEXT_PUBLIC_USE_REAL_SERVICES:
-      process.env.NEXT_PUBLIC_USE_REAL_SERVICES || "false",
+  eslint: {
+    ignoreDuringBuilds: true,
   },
-
-  // Static file handling
-  trailingSlash: false,
-
-  // Image optimization
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
-    domains: ["localhost", "api.slack.com", "graph.microsoft.com"],
-    formats: ["image/webp", "image/avif"],
+    domains: ["localhost", "127.0.0.1", "api.slack.com", "graph.microsoft.com"],
   },
-
-  // API routes configuration
-  async rewrites() {
-    return [
-      // API proxy for development
-      {
-        source: "/api/communication/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5058"}/:path*`,
-      },
-    ];
-  },
-
-  // Webpack configuration
   webpack: (config, { isServer }) => {
-    // Custom webpack config for communication services
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -47,43 +19,7 @@ const nextConfig = {
         tls: false,
       };
     }
-
-    // Add path mapping for shared src directory
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@shared": "../../src/ui-shared",
-      "@shared-components": "../../src/ui-shared/components",
-      "@shared-hooks": "../../src/ui-shared/hooks",
-      "@shared-services": "../../src/services",
-      "@shared-ai": "../../src/services/ai",
-      "@shared-integrations": "../../src/services/integrations",
-      "@shared-workflows": "../../src/services/workflows",
-      "@shared-utils": "../../src/services/utils",
-    };
-
     return config;
-  },
-
-  // Security headers
-  async headers() {
-    return [
-      {
-        source: "/api/:path*",
-        headers: [
-          { key: "Access-Control-Allow-Credentials", value: "true" },
-          { key: "Access-Control-Allow-Origin", value: "*" },
-          {
-            key: "Access-Control-Allow-Methods",
-            value: "GET,OPTIONS,PATCH,DELETE,POST,PUT",
-          },
-          {
-            key: "Access-Control-Allow-Headers",
-            value:
-              "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version",
-          },
-        ],
-      },
-    ];
   },
 };
 

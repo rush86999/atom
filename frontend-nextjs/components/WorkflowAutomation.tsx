@@ -70,7 +70,6 @@ import {
   ArrowForwardIcon,
   SettingsIcon,
   TimeIcon,
-  TimeIcon,
   ChatIcon,
   EmailIcon,
   AttachmentIcon,

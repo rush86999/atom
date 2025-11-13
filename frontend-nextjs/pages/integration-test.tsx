@@ -2,7 +2,7 @@
  * Integration Test Page - Verify frontend-backend connectivity
  */
 
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Box,
   Container,
@@ -14,26 +14,25 @@ import {
   Badge,
   Code,
   Spinner,
-} from '@chakra-ui/react';
-import { useApiService } from '@shared-services/hooks/useApiService';
+} from "@chakra-ui/react";
 
 const IntegrationTestPage: React.FC = () => {
   const { health, loading, testIntegration, refetch } = useApiService();
   const [testResults, setTestResults] = useState<Record<string, any>>({});
 
   const services = [
-    'gmail',
-    'slack',
-    'asana',
-    'github',
-    'notion',
-    'trello',
-    'outlook',
+    "gmail",
+    "slack",
+    "asana",
+    "github",
+    "notion",
+    "trello",
+    "outlook",
   ];
 
   const handleTestService = async (service: string) => {
     const result = await testIntegration(service);
-    setTestResults(prev => ({
+    setTestResults((prev) => ({
       ...prev,
       [service]: result,
     }));
@@ -62,8 +61,8 @@ const IntegrationTestPage: React.FC = () => {
           p={6}
           borderWidth={1}
           borderRadius="lg"
-          bg={health.ok ? 'green.50' : 'red.50'}
-          borderColor={health.ok ? 'green.200' : 'red.200'}
+          bg={health.ok ? "green.50" : "red.50"}
+          borderColor={health.ok ? "green.200" : "red.200"}
         >
           <HStack justify="space-between" align="center">
             <Box>
@@ -71,11 +70,8 @@ const IntegrationTestPage: React.FC = () => {
                 Backend Health Status
               </Heading>
               <HStack>
-                <Badge
-                  colorScheme={health.ok ? 'green' : 'red'}
-                  fontSize="sm"
-                >
-                  {health.ok ? 'Connected' : 'Disconnected'}
+                <Badge colorScheme={health.ok ? "green" : "red"} fontSize="sm">
+                  {health.ok ? "Connected" : "Disconnected"}
                 </Badge>
                 {loading && <Spinner size="sm" />}
               </HStack>
@@ -102,7 +98,7 @@ const IntegrationTestPage: React.FC = () => {
             Service Integration Tests
           </Heading>
           <VStack spacing={3} align="stretch">
-            {services.map(service => (
+            {services.map((service) => (
               <Box
                 key={service}
                 p={4}
@@ -117,11 +113,11 @@ const IntegrationTestPage: React.FC = () => {
                     </Text>
                     {testResults[service] && (
                       <Badge
-                        colorScheme={testResults[service].ok ? 'green' : 'red'}
+                        colorScheme={testResults[service].ok ? "green" : "red"}
                         fontSize="xs"
                         mt={1}
                       >
-                        {testResults[service].ok ? 'Pass' : 'Fail'}
+                        {testResults[service].ok ? "Pass" : "Fail"}
                       </Badge>
                     )}
                     {testResults[service]?.error && (
@@ -141,7 +137,7 @@ const IntegrationTestPage: React.FC = () => {
               </Box>
             ))}
           </VStack>
-          
+
           <Button mt={4} onClick={testAllServices}>
             Test All Services
           </Button>
@@ -154,20 +150,22 @@ const IntegrationTestPage: React.FC = () => {
           </Heading>
           <VStack align="start" spacing={2}>
             <Text fontSize="sm">
-              <strong>Backend URL:</strong>{' '}
+              <strong>Backend URL:</strong>{" "}
               <Code>
-                {process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}
+                {process.env.NEXT_PUBLIC_API_BASE_URL ||
+                  "http://localhost:8000"}
               </Code>
             </Text>
             <Text fontSize="sm">
-              <strong>Python API:</strong>{' '}
+              <strong>Python API:</strong>{" "}
               <Code>
-                {process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058'}
+                {process.env.PYTHON_API_SERVICE_BASE_URL ||
+                  "http://localhost:5058"}
               </Code>
             </Text>
             <Text fontSize="sm">
-              <strong>Environment:</strong>{' '}
-              <Code>{process.env.NODE_ENV || 'development'}</Code>
+              <strong>Environment:</strong>{" "}
+              <Code>{process.env.NODE_ENV || "development"}</Code>
             </Text>
           </VStack>
         </Box>

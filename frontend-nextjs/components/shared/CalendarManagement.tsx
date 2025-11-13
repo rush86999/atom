@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Heading,
@@ -36,17 +36,16 @@ import {
   Divider,
   Alert,
   AlertIcon,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 import {
   AddIcon,
   TimeIcon,
   EditIcon,
   DeleteIcon,
-  TimeIcon,
   ViewIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-} from '@chakra-ui/icons';
+} from "@chakra-ui/icons";
 
 export interface CalendarEvent {
   id: string;
@@ -56,18 +55,18 @@ export interface CalendarEvent {
   end: Date;
   location?: string;
   attendees?: string[];
-  status: 'confirmed' | 'tentative' | 'cancelled';
+  status: "confirmed" | "tentative" | "cancelled";
   recurring?: {
-    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    frequency: "daily" | "weekly" | "monthly" | "yearly";
     interval: number;
     endDate?: Date;
   };
-  platform: 'google' | 'outlook' | 'local';
+  platform: "google" | "outlook" | "local";
   color?: string;
 }
 
 export interface CalendarView {
-  type: 'day' | 'week' | 'month';
+  type: "day" | "week" | "month";
   currentDate: Date;
 }
 
@@ -95,10 +94,15 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
   compactView = false,
 }) => {
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
-  const [view, setView] = useState<CalendarView>({ type: 'week', currentDate: new Date() });
+  const [view, setView] = useState<CalendarView>({
+    type: "week",
+    currentDate: new Date(),
+  });
   const [loading, setLoading] = useState(false);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null,
+  );
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
@@ -114,9 +118,14 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
         const event1 = events[i];
         const event2 = events[j];
         if (event1.start < event2.end && event1.end > event2.start) {
-          const overlapStart = new Date(Math.max(event1.start.getTime(), event2.start.getTime()));
-          const overlapEnd = new Date(Math.min(event1.end.getTime(), event2.end.getTime()));
-          const overlapMinutes = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60);
+          const overlapStart = new Date(
+            Math.max(event1.start.getTime(), event2.start.getTime()),
+          );
+          const overlapEnd = new Date(
+            Math.min(event1.end.getTime(), event2.end.getTime()),
+          );
+          const overlapMinutes =
+            (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60);
           conflicts.push({ event1, event2, overlapMinutes });
         }
       }
@@ -128,67 +137,76 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
     setConflicts(detectConflicts(events));
   }, [events]);
 
-  const handleCreateEvent = (eventData: Omit<CalendarEvent, 'id'>) => {
+  const handleCreateEvent = (eventData: Omit<CalendarEvent, "id">) => {
     const newEvent: CalendarEvent = {
       ...eventData,
       id: Date.now().toString(),
     };
-    setEvents(prev => [...prev, newEvent]);
+    setEvents((prev) => [...prev, newEvent]);
     onEventCreate?.(newEvent);
     toast({
-      title: 'Event created',
-      status: 'success',
+      title: "Event created",
+      status: "success",
       duration: 2000,
       isClosable: true,
     });
   };
 
-  const handleUpdateEvent = (eventId: string, updates: Partial<CalendarEvent>) => {
-    setEvents(prev => prev.map(event =>
-      event.id === eventId ? { ...event, ...updates } : event
-    ));
+  const handleUpdateEvent = (
+    eventId: string,
+    updates: Partial<CalendarEvent>,
+  ) => {
+    setEvents((prev) =>
+      prev.map((event) =>
+        event.id === eventId ? { ...event, ...updates } : event,
+      ),
+    );
     onEventUpdate?.(eventId, updates);
     toast({
-      title: 'Event updated',
-      status: 'success',
+      title: "Event updated",
+      status: "success",
       duration: 2000,
       isClosable: true,
     });
   };
 
   const handleDeleteEvent = (eventId: string) => {
-    setEvents(prev => prev.filter(event => event.id !== eventId));
+    setEvents((prev) => prev.filter((event) => event.id !== eventId));
     onEventDelete?.(eventId);
     toast({
-      title: 'Event deleted',
-      status: 'success',
+      title: "Event deleted",
+      status: "success",
       duration: 2000,
       isClosable: true,
     });
   };
 
-  const navigateDate = (direction: 'prev' | 'next') => {
+  const navigateDate = (direction: "prev" | "next") => {
     const newDate = new Date(view.currentDate);
-    if (view.type === 'day') {
-      newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
-    } else if (view.type === 'week') {
-      newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+    if (view.type === "day") {
+      newDate.setDate(newDate.getDate() + (direction === "next" ? 1 : -1));
+    } else if (view.type === "week") {
+      newDate.setDate(newDate.getDate() + (direction === "next" ? 7 : -7));
     } else {
-      newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
+      newDate.setMonth(newDate.getMonth() + (direction === "next" ? 1 : -1));
     }
-    setView(prev => ({ ...prev, currentDate: newDate }));
+    setView((prev) => ({ ...prev, currentDate: newDate }));
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    return date.toLocaleDateString([], {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   const getEventsForDate = (date: Date) => {
-    return events.filter(event => {
+    return events.filter((event) => {
       const eventDate = new Date(event.start);
       return eventDate.toDateString() === date.toDateString();
     });
@@ -196,18 +214,18 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
 
   const EventForm: React.FC<{
     event?: CalendarEvent;
-    onSubmit: (data: Omit<CalendarEvent, 'id'>) => void;
+    onSubmit: (data: Omit<CalendarEvent, "id">) => void;
     onCancel: () => void;
   }> = ({ event, onSubmit, onCancel }) => {
     const [formData, setFormData] = useState({
-      title: event?.title || '',
-      description: event?.description || '',
-      start: event?.start.toISOString().slice(0, 16) || '',
-      end: event?.end.toISOString().slice(0, 16) || '',
-      location: event?.location || '',
-      status: event?.status || 'confirmed',
-      platform: event?.platform || 'google',
-      color: event?.color || '#3182CE',
+      title: event?.title || "",
+      description: event?.description || "",
+      start: event?.start.toISOString().slice(0, 16) || "",
+      end: event?.end.toISOString().slice(0, 16) || "",
+      location: event?.location || "",
+      status: event?.status || "confirmed",
+      platform: event?.platform || "google",
+      color: event?.color || "#3182CE",
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -218,8 +236,8 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
         start: new Date(formData.start),
         end: new Date(formData.end),
         location: formData.location,
-        status: formData.status as 'confirmed' | 'tentative' | 'cancelled',
-        platform: formData.platform as 'google' | 'outlook' | 'local',
+        status: formData.status as "confirmed" | "tentative" | "cancelled",
+        platform: formData.platform as "google" | "outlook" | "local",
         color: formData.color,
       });
       onCancel();
@@ -232,7 +250,9 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
             <FormLabel>Title</FormLabel>
             <Input
               value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, title: e.target.value }))
+              }
               placeholder="Event title"
             />
           </FormControl>
@@ -241,7 +261,12 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
             <FormLabel>Description</FormLabel>
             <Textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Event description"
             />
           </FormControl>
@@ -252,7 +277,9 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
               <Input
                 type="datetime-local"
                 value={formData.start}
-                onChange={(e) => setFormData(prev => ({ ...prev, start: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, start: e.target.value }))
+                }
               />
             </FormControl>
 
@@ -261,7 +288,9 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
               <Input
                 type="datetime-local"
                 value={formData.end}
-                onChange={(e) => setFormData(prev => ({ ...prev, end: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, end: e.target.value }))
+                }
               />
             </FormControl>
           </SimpleGrid>
@@ -270,7 +299,9 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
             <FormLabel>Location</FormLabel>
             <Input
               value={formData.location}
-              onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, location: e.target.value }))
+              }
               placeholder="Event location"
             />
           </FormControl>
@@ -280,7 +311,9 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
               <FormLabel>Status</FormLabel>
               <Select
                 value={formData.status}
-                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, status: e.target.value }))
+                }
               >
                 <option value="confirmed">Confirmed</option>
                 <option value="tentative">Tentative</option>
@@ -292,7 +325,9 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
               <FormLabel>Platform</FormLabel>
               <Select
                 value={formData.platform}
-                onChange={(e) => setFormData(prev => ({ ...prev, platform: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, platform: e.target.value }))
+                }
               >
                 <option value="google">Google Calendar</option>
                 <option value="outlook">Outlook Calendar</option>
@@ -306,7 +341,9 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
             <Input
               type="color"
               value={formData.color}
-              onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, color: e.target.value }))
+              }
             />
           </FormControl>
 
@@ -315,7 +352,7 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
               Cancel
             </Button>
             <Button type="submit" colorScheme="blue">
-              {event ? 'Update Event' : 'Create Event'}
+              {event ? "Update Event" : "Create Event"}
             </Button>
           </HStack>
         </VStack>
@@ -338,7 +375,9 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
         {/* Header */}
         {showNavigation && (
           <Flex justify="space-between" align="center">
-            <Heading size={compactView ? "md" : "lg"}>Calendar Management</Heading>
+            <Heading size={compactView ? "md" : "lg"}>
+              Calendar Management
+            </Heading>
             <Button
               leftIcon={<AddIcon />}
               colorScheme="blue"
@@ -361,22 +400,28 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
                 <HStack spacing={2}>
                   <Button
                     size="sm"
-                    variant={view.type === 'day' ? 'solid' : 'outline'}
-                    onClick={() => setView(prev => ({ ...prev, type: 'day' }))}
+                    variant={view.type === "day" ? "solid" : "outline"}
+                    onClick={() =>
+                      setView((prev) => ({ ...prev, type: "day" }))
+                    }
                   >
                     Day
                   </Button>
                   <Button
                     size="sm"
-                    variant={view.type === 'week' ? 'solid' : 'outline'}
-                    onClick={() => setView(prev => ({ ...prev, type: 'week' }))}
+                    variant={view.type === "week" ? "solid" : "outline"}
+                    onClick={() =>
+                      setView((prev) => ({ ...prev, type: "week" }))
+                    }
                   >
                     Week
                   </Button>
                   <Button
                     size="sm"
-                    variant={view.type === 'month' ? 'solid' : 'outline'}
-                    onClick={() => setView(prev => ({ ...prev, type: 'month' }))}
+                    variant={view.type === "month" ? "solid" : "outline"}
+                    onClick={() =>
+                      setView((prev) => ({ ...prev, type: "month" }))
+                    }
                   >
                     Month
                   </Button>
@@ -387,20 +432,25 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
                     aria-label="Previous"
                     icon={<ChevronLeftIcon />}
                     size="sm"
-                    onClick={() => navigateDate('prev')}
+                    onClick={() => navigateDate("prev")}
                   />
-                  <Text fontWeight="bold" minWidth="150px" textAlign="center" fontSize="sm">
+                  <Text
+                    fontWeight="bold"
+                    minWidth="150px"
+                    textAlign="center"
+                    fontSize="sm"
+                  >
                     {view.currentDate.toLocaleDateString([], {
-                      month: 'long',
-                      year: 'numeric',
-                      ...(view.type === 'week' && { day: 'numeric' })
+                      month: "long",
+                      year: "numeric",
+                      ...(view.type === "week" && { day: "numeric" }),
                     })}
                   </Text>
                   <IconButton
                     aria-label="Next"
                     icon={<ChevronRightIcon />}
                     size="sm"
-                    onClick={() => navigateDate('next')}
+                    onClick={() => navigateDate("next")}
                   />
                 </HStack>
               </Flex>
@@ -412,7 +462,8 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
         {conflicts.length > 0 && (
           <Alert status="warning" size="sm">
             <AlertIcon />
-            Found {conflicts.length} scheduling conflict{conflicts.length > 1 ? 's' : ''}
+            Found {conflicts.length} scheduling conflict
+            {conflicts.length > 1 ? "s" : ""}
           </Alert>
         )}
 
@@ -422,7 +473,7 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
             <Heading size={compactView ? "sm" : "md"}>Schedule</Heading>
           </CardHeader>
           <CardBody>
-            {view.type === 'week' && (
+            {view.type === "week" && (
               <SimpleGrid columns={7} spacing={2}>
                 {Array.from({ length: 7 }).map((_, index) => {
                   const date = new Date(view.currentDate);
@@ -435,7 +486,7 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
                         {formatDate(date)}
                       </Text>
                       <VStack spacing={1} align="stretch">
-                        {dayEvents.map(event => (
+                        {dayEvents.map((event) => (
                           <Box
                             key={event.id}
                             p={1}
@@ -452,9 +503,15 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
                               {event.title}
                             </Text>
                             <Text fontSize="2xs">
-                              {formatTime(event.start)} - {formatTime(event.end)}
+                              {formatTime(event.start)} -{" "}
+                              {formatTime(event.end)}
                             </Text>
-                            <Badge colorScheme={event.platform === 'google' ? 'blue' : 'green'} size="xs">
+                            <Badge
+                              colorScheme={
+                                event.platform === "google" ? "blue" : "green"
+                              }
+                              size="xs"
+                            >
                               {event.platform}
                             </Badge>
                           </Box>
@@ -476,10 +533,10 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
           <CardBody>
             <VStack spacing={2} align="stretch">
               {events
-                .filter(event => event.start > new Date())
+                .filter((event) => event.start > new Date())
                 .sort((a, b) => a.start.getTime() - b.start.getTime())
                 .slice(0, compactView ? 3 : 5)
-                .map(event => (
+                .map((event) => (
                   <Flex
                     key={event.id}
                     justify="space-between"
@@ -494,16 +551,25 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
                     }}
                   >
                     <Box>
-                      <Text fontWeight="bold" fontSize={compactView ? "sm" : "md"}>
+                      <Text
+                        fontWeight="bold"
+                        fontSize={compactView ? "sm" : "md"}
+                      >
                         {event.title}
                       </Text>
-                      <Text fontSize={compactView ? "xs" : "sm"} color="gray.600">
-                        {formatDate(event.start)} • {formatTime(event.start)} - {formatTime(event.end)}
+                      <Text
+                        fontSize={compactView ? "xs" : "sm"}
+                        color="gray.600"
+                      >
+                        {formatDate(event.start)} • {formatTime(event.start)} -{" "}
+                        {formatTime(event.end)}
                       </Text>
                     </Box>
                     <HStack>
                       <Badge
-                        colorScheme={event.status === 'confirmed' ? 'green' : 'yellow'}
+                        colorScheme={
+                          event.status === "confirmed" ? "green" : "yellow"
+                        }
                         size={compactView ? "sm" : "md"}
                       >
                         {event.status}
@@ -543,7 +609,7 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>
-            {selectedEvent ? 'Edit Event' : 'Create New Event'}
+            {selectedEvent ? "Edit Event" : "Create New Event"}
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
