@@ -2,7 +2,8 @@
 
 # 🚀 Atom - Advanced Task Orchestration & Management
 
-![Atom Platform](https://via.placeholder.com/800x400/3B82F6/FFFFFF?text=Atom+-+Production+Ready)
+![WhatsApp Video 2025-11-04 at 12 23 11 AM](https://github.com/user-attachments/assets/398de2e3-4ea6-487c-93ae-9600a66598fc)
+
 
 **Automate your workflows by talking to an AI — and let it remember, search, and handle tasks like a real assistant.**
 
