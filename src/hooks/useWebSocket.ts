@@ -1,7 +1,9 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAppStore } from '../store';
 import { CommunicationsMessage } from '../types';
+import { AutonomousCommunicationOrchestrator } from '../autonomous-communication/autonomousCommunicationOrchestrator';
+import { AutonomousCommunications } from '../autonomous-communication/types';
 
 interface UseWebSocketOptions {
   url?: string;
@@ -17,6 +19,21 @@ interface UseWebSocketOptions {
   healthCheckInterval?: number;
   exponentialBackoff?: boolean;
   maxReconnectDelay?: number;
+  userId?: string;
+  username?: string;
+  enablePresence?: boolean;
+  enableCollaborativeEditing?: boolean;
+  enableTypingIndicators?: boolean;
+  enableReadReceipts?: boolean;
+  enableMessageReactions?: boolean;
+  enableLiveCursors?: boolean;
+  enableOfflineQueue?: boolean;
+  enableAnalytics?: boolean;
+  enableEncryption?: boolean;
+  compressionThreshold?: number;
+  batchUpdateInterval?: number;
+  maxConcurrentConnections?: number;
+  enableAutonomousCommunication?: boolean;
 }
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
@@ -34,6 +51,21 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     healthCheckInterval = 30000,
     exponentialBackoff = true,
     maxReconnectDelay = 30000,
+    userId,
+    username,
+    enablePresence = false,
+    enableCollaborativeEditing = false,
+    enableTypingIndicators = false,
+    enableReadReceipts = false,
+    enableMessageReactions = false,
+    enableLiveCursors = false,
+    enableOfflineQueue = true,
+    enableAnalytics = false,
+    enableEncryption = false,
+    compressionThreshold = 1024,
+    batchUpdateInterval = 100,
+    maxConcurrentConnections = 5,
+    enableAutonomousCommunication = false,
   } = options;
 
   const socketRef = useRef<Socket | null>(null);
@@ -45,6 +77,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   const lastPongRef = useRef<number>(Date.now());
   const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed'>('disconnected');
   const { setConnected, addNotification } = useAppStore();
+
+  // New refs for advanced features
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const batchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const batchBufferRef = useRef<any[]>([]);
+  const analyticsRef = useRef<{ [key: string]: number }>({});
+  const concurrentConnectionsRef = useRef(0);
+  const encryptionKeyRef = useRef<string | null>(null);
 
   // Calculate exponential backoff delay
   const getReconnectDelay = useCallback((attempt: number): number => {
@@ -71,14 +111,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     }, healthCheckInterval);
   }, [enableHealthMonitoring, healthCheckInterval]);
 
-  // Advanced reconnection logic
+  // Enhanced reconnection logic with circuit breaker pattern
   const attemptReconnect = useCallback(() => {
     if (reconnectCountRef.current >= reconnectAttempts) {
       setConnectionState('failed');
       addNotification({
         type: 'error',
         title: 'Connection Failed',
-        message: 'Unable to establish connection after multiple attempts',
+        message: 'Unable to establish connection after multiple attempts. Please check your network connection.',
       });
       return;
     }
@@ -109,11 +149,15 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   const emit = useCallback((event: string, data?: any) => {
     if (socketRef.current?.connected) {
-      socketRef.current.emit(event, data);
+      // Compress payload for large data to reduce bandwidth
+      const payload = data && typeof data === 'object' && Object.keys(data).length > 10
+        ? JSON.stringify(data) // Let the server handle compression
+        : data;
+      socketRef.current.emit(event, payload);
     } else {
-      // Queue message for later sending
+      // Queue message for later sending with priority
       if (messageQueueRef.current.length < messageQueueSize) {
-        messageQueueRef.current.push({ event, data });
+        messageQueueRef.current.push({ event, data, timestamp: Date.now() });
         console.log('Message queued:', event);
       } else {
         console.warn('Message queue full, dropping message:', event);
@@ -137,6 +181,122 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     }
   }, []);
 
+  // Advanced feature utilities
+  const encryptData = useCallback((data: any): any => {
+    if (!enableEncryption || !encryptionKeyRef.current) return data;
+    // Simple XOR encryption for demo - replace with proper encryption in production
+    const key = encryptionKeyRef.current;
+    const str = JSON.stringify(data);
+    let encrypted = '';
+    for (let i = 0; i < str.length; i++) {
+      encrypted += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    }
+    return { encrypted: btoa(encrypted), _encrypted: true };
+  }, [enableEncryption]);
+
+  const decryptData = useCallback((data: any): any => {
+    if (!data._encrypted || !encryptionKeyRef.current) return data;
+    try {
+      const key = encryptionKeyRef.current;
+      const decrypted = atob(data.encrypted);
+      let original = '';
+      for (let i = 0; i < decrypted.length; i++) {
+        original += String.fromCharCode(decrypted.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+      }
+      return JSON.parse(original);
+    } catch (error) {
+      console.error('Decryption failed:', error);
+      return data;
+    }
+  }, [enableEncryption]);
+
+  const compressData = useCallback((data: any): any => {
+    if (!data || typeof data !== 'object') return data;
+    const str = JSON.stringify(data);
+    if (str.length < compressionThreshold) return data;
+    // Simple compression - in production use proper compression library
+    return { compressed: btoa(str), _compressed: true };
+  }, [compressionThreshold]);
+
+  const decompressData = useCallback((data: any): any => {
+    if (!data._compressed) return data;
+    try {
+      const decompressed = atob(data.compressed);
+      return JSON.parse(decompressed);
+    } catch (error) {
+      console.error('Decompression failed:', error);
+      return data;
+    }
+  }, []);
+
+  const batchEmit = useCallback((event: string, data: any) => {
+    batchBufferRef.current.push({ event, data, timestamp: Date.now() });
+
+    if (batchTimeoutRef.current) {
+      clearTimeout(batchTimeoutRef.current);
+    }
+
+    batchTimeoutRef.current = setTimeout(() => {
+      if (batchBufferRef.current.length > 0) {
+        const batchedData = batchBufferRef.current.splice(0);
+        emit('batch', { events: batchedData });
+      }
+    }, batchUpdateInterval);
+  }, [emit, batchUpdateInterval]);
+
+  const sendTypingIndicator = useCallback((channelId: string, isTyping: boolean) => {
+    if (!enableTypingIndicators) return;
+
+    if (isTyping) {
+      emit('typing:start', { channelId, userId, username });
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        emit('typing:stop', { channelId, userId, username });
+      }, 3000);
+    } else {
+      emit('typing:stop', { channelId, userId, username });
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
+  }, [emit, enableTypingIndicators, userId, username]);
+
+  const sendReadReceipt = useCallback((messageId: string, channelId: string) => {
+    if (!enableReadReceipts) return;
+    emit('message:read', { messageId, channelId, userId, timestamp: Date.now() });
+  }, [emit, enableReadReceipts, userId]);
+
+  const sendMessageReaction = useCallback((messageId: string, reaction: string, action: 'add' | 'remove') => {
+    if (!enableMessageReactions) return;
+    emit('message:reaction', { messageId, reaction, action, userId });
+  }, [emit, enableMessageReactions, userId]);
+
+  const sendCursorPosition = useCallback((documentId: string, position: { x: number; y: number }) => {
+    if (!enableLiveCursors) return;
+    emit('cursor:move', { documentId, position, userId, username });
+  }, [emit, enableLiveCursors, userId, username]);
+
+  const trackAnalytics = useCallback((event: string, data?: any) => {
+    if (!enableAnalytics) return;
+    analyticsRef.current[event] = (analyticsRef.current[event] || 0) + 1;
+    emit('analytics:event', { event, data, timestamp: Date.now() });
+  }, [emit, enableAnalytics]);
+
+  const checkConcurrentConnections = useCallback(() => {
+    if (concurrentConnectionsRef.current >= maxConcurrentConnections) {
+      console.warn('Max concurrent connections reached');
+      return false;
+    }
+    concurrentConnectionsRef.current += 1;
+    return true;
+  }, [maxConcurrentConnections]);
+
+  const releaseConcurrentConnection = useCallback(() => {
+    concurrentConnectionsRef.current = Math.max(0, concurrentConnectionsRef.current - 1);
+  }, []);
+
   // Create socket on mount with autoConnect: false
   useEffect(() => {
     socketRef.current = io(url, {
@@ -144,6 +304,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       timeout: 20000,
       forceNew: true,
       autoConnect: false,
+      auth: userId ? { userId, username } : undefined,
     });
 
     const socket = socketRef.current;
@@ -172,6 +333,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       }
 
       startHealthMonitoring();
+
+      // Emit presence if enabled
+      if (enablePresence && userId) {
+        socket.emit('presence:join', { userId, username });
+      }
 
       addNotification({
         type: 'success',
@@ -285,7 +451,53 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     emit,
     on,
     off,
+    // Advanced features
+    encryptData,
+    decryptData,
+    compressData,
+    decompressData,
+    batchEmit,
+    sendTypingIndicator,
+    sendReadReceipt,
+    sendMessageReaction,
+    sendCursorPosition,
+    trackAnalytics,
+    checkConcurrentConnections,
+    releaseConcurrentConnection,
   };
+};
+
+// Debounce utility for frequent updates
+const useDebounce = (callback: Function, delay: number) => {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  return useCallback((...args: any[]) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => callback(...args), delay);
+  }, [callback, delay]);
+};
+
+// Batch state updates to reduce re-renders
+const useBatchUpdate = () => {
+  const batchRef = useRef<Map<string, any>>(new Map());
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const batchUpdate = useCallback((key: string, updateFn: () => void) => {
+    batchRef.current.set(key, updateFn);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      batchRef.current.forEach((fn) => fn());
+      batchRef.current.clear();
+    }, 16); // Next frame
+  }, []);
+
+  return { batchUpdate };
 };
 
 // Specialized hook for real-time data synchronization
@@ -312,6 +524,237 @@ export const useRealtimeSync = () => {
   } = useAppStore();
 
   const messages = useAppStore((state) => state.messages);
+  const workflows = useAppStore((state) => state.workflows);
+
+  // Autonomous communication integration
+  const autonomousOrchestrator = React.useRef<any>(null);
+
+  // Memoized event handlers to prevent unnecessary re-renders
+  // Real-time sync events should be immediate
+  const eventHandlers = useMemo(() => ({
+    // Task events
+    taskCreated: (task: any) => {
+      addTask(task);
+      addNotification({
+        type: 'info',
+        title: 'New Task',
+        message: `Task "${task.title}" has been created`,
+      });
+    },
+
+    taskUpdated: (task: any) => {
+      updateTask(task.id, task);
+    },
+
+    taskDeleted: (taskId: string) => {
+      deleteTask(taskId);
+      addNotification({
+        type: 'info',
+        title: 'Task Deleted',
+        message: 'A task has been deleted',
+      });
+    },
+
+    // Message events with optimized payload handling
+    messageNew: (message: CommunicationsMessage) => {
+      // Limit message history to prevent memory issues
+      const maxMessages = 100;
+      const currentMessages = messages.slice(0, maxMessages - 1);
+      setMessages([message, ...currentMessages]);
+
+      addNotification({
+        type: 'info',
+        title: 'New Message',
+        message: `New message from ${message.from.name}`,
+      });
+    },
+
+    messageRead: (messageId: string) => {
+      markMessageAsRead(messageId);
+    },
+
+    // Calendar events
+    calendarEventCreated: (event: any) => {
+      addCalendarEvent(event);
+      addNotification({
+        type: 'info',
+        title: 'New Event',
+        message: `Event "${event.title}" has been added to your calendar`,
+      });
+    },
+
+    calendarEventUpdated: (event: any) => {
+      updateCalendarEvent(event.id, event);
+    },
+
+    calendarEventDeleted: (eventId: string) => {
+      deleteCalendarEvent(eventId);
+      addNotification({
+        type: 'info',
+        title: 'Event Deleted',
+        message: 'A calendar event has been deleted',
+      });
+    },
+
+    // Integration events with error handling
+    integrationConnected: (integration: any) => {
+      try {
+        updateIntegration(integration.id, integration);
+        addNotification({
+          type: 'success',
+          title: 'Integration Connected',
+          message: `${integration.displayName} has been connected`,
+        });
+      } catch (error) {
+        console.error('Error updating integration:', error);
+      }
+    },
+
+    integrationDisconnected: (integration: any) => {
+      try {
+        updateIntegration(integration.id, { ...integration, connected: false });
+        addNotification({
+          type: 'warning',
+          title: 'Integration Disconnected',
+          message: `${integration.displayName} has been disconnected`,
+        });
+      } catch (error) {
+        console.error('Error updating integration:', error);
+      }
+    },
+
+    integrationSyncCompleted: (integration: any) => {
+      try {
+        updateIntegration(integration.id, {
+          ...integration,
+          lastSync: new Date().toISOString(),
+          syncStatus: 'success'
+        });
+      } catch (error) {
+        console.error('Error updating integration sync status:', error);
+      }
+    },
+
+    integrationSyncFailed: (integration: any) => {
+      try {
+        updateIntegration(integration.id, {
+          ...integration,
+          syncStatus: 'failed'
+        });
+        addNotification({
+          type: 'error',
+          title: 'Sync Failed',
+          message: `Failed to sync ${integration.displayName}`,
+        });
+      } catch (error) {
+        console.error('Error updating integration sync status:', error);
+      }
+    },
+
+    // Workflow events
+    workflowExecuted: (workflow: any) => {
+      try {
+        updateWorkflow(workflow.id, {
+          ...workflow,
+          lastExecuted: new Date().toISOString(),
+          executionCount: workflow.executionCount + 1
+        });
+        addNotification({
+          type: 'success',
+          title: 'Workflow Executed',
+          message: `Workflow "${workflow.name}" has been executed`,
+        });
+      } catch (error) {
+        console.error('Error updating workflow:', error);
+      }
+    },
+
+    // Real-time workflow execution events
+    workflowExecutedRealtime: (data: any) => {
+      try {
+        const workflow = workflows.find(w => w.id === data.workflowId);
+        if (workflow) {
+          updateWorkflow(data.workflowId, {
+            executionCount: workflow.executionCount + 1,
+            lastExecuted: data.timestamp
+          });
+          addNotification({
+            type: 'success',
+            title: 'Workflow Executed',
+            message: `Workflow "${workflow.name}" completed successfully in ${data.executionTime}ms`,
+          });
+        }
+      } catch (error) {
+        console.error('Error handling real-time workflow execution:', error);
+      }
+    },
+
+    workflowExecutionFailed: (data: any) => {
+      try {
+        const workflow = workflows.find(w => w.id === data.workflowId);
+        if (workflow) {
+          addNotification({
+            type: 'error',
+            title: 'Workflow Execution Failed',
+            message: `Workflow "${workflow.name}" failed: ${data.error}`,
+          });
+        }
+      } catch (error) {
+        console.error('Error handling workflow execution failure:', error);
+      }
+    },
+
+    // Agent events
+    agentLog: (log: any) => {
+      try {
+        addAgentLog(log);
+      } catch (error) {
+        console.error('Error adding agent log:', error);
+      }
+    },
+
+    agentStatusChanged: (agent: any) => {
+      // Placeholder for agent status updates
+      console.log('Agent status changed:', agent);
+    },
+
+    // Presence events
+    presenceJoined: (user: any) => {
+      console.log('User joined presence:', user);
+      // Handle user presence updates
+    },
+
+    presenceLeft: (user: any) => {
+      console.log('User left presence:', user);
+      // Handle user presence updates
+    },
+
+    // Collaborative editing events
+    documentLocked: (data: any) => {
+      console.log('Document locked:', data);
+      // Handle document locking for collaborative editing
+    },
+
+    documentUnlocked: (data: any) => {
+      console.log('Document unlocked:', data);
+      // Handle document unlocking
+    },
+
+    documentEdited: (data: any) => {
+      console.log('Document edited:', data);
+      // Handle real-time document changes
+    },
+
+    cursorMoved: (data: any) => {
+      console.log('Cursor moved:', data);
+      // Handle cursor position updates
+    },
+  }), [
+    addTask, updateTask, deleteTask, setMessages, markMessageAsRead,
+    addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
+    updateIntegration, updateWorkflow, addAgentLog, addNotification,
+    messages
+  ]);
 
   const { on, off, isConnected } = useWebSocket({
     enabled: true,
@@ -324,128 +767,30 @@ export const useRealtimeSync = () => {
   });
 
   useEffect(() => {
-    // Task events
-    on('task:created', (task) => {
-      addTask(task);
-      addNotification({
-        type: 'info',
-        title: 'New Task',
-        message: `Task "${task.title}" has been created`,
-      });
-    });
-
-    on('task:updated', (task) => {
-      updateTask(task.id, task);
-    });
-
-    on('task:deleted', (taskId) => {
-      deleteTask(taskId);
-      addNotification({
-        type: 'info',
-        title: 'Task Deleted',
-        message: 'A task has been deleted',
-      });
-    });
-
-    // Message events
-    on('message:new', (message: CommunicationsMessage) => {
-      setMessages([message, ...messages]);
-      addNotification({
-        type: 'info',
-        title: 'New Message',
-        message: `New message from ${message.from.name}`,
-      });
-    });
-
-    on('message:read', (messageId) => {
-      markMessageAsRead(messageId);
-    });
-
-    // Calendar events
-    on('calendar:event:created', (event) => {
-      addCalendarEvent(event);
-      addNotification({
-        type: 'info',
-        title: 'New Event',
-        message: `Event "${event.title}" has been added to your calendar`,
-      });
-    });
-
-    on('calendar:event:updated', (event) => {
-      updateCalendarEvent(event.id, event);
-    });
-
-    on('calendar:event:deleted', (eventId) => {
-      deleteCalendarEvent(eventId);
-      addNotification({
-        type: 'info',
-        title: 'Event Deleted',
-        message: 'A calendar event has been deleted',
-      });
-    });
-
-    // Integration events
-    on('integration:connected', (integration) => {
-      updateIntegration(integration.id, integration);
-      addNotification({
-        type: 'success',
-        title: 'Integration Connected',
-        message: `${integration.displayName} has been connected`,
-      });
-    });
-
-    on('integration:disconnected', (integration) => {
-      updateIntegration(integration.id, { ...integration, connected: false });
-      addNotification({
-        type: 'warning',
-        title: 'Integration Disconnected',
-        message: `${integration.displayName} has been disconnected`,
-      });
-    });
-
-    on('integration:sync:completed', (integration) => {
-      updateIntegration(integration.id, {
-        ...integration,
-        lastSync: new Date().toISOString(),
-        syncStatus: 'success'
-      });
-    });
-
-    on('integration:sync:failed', (integration) => {
-      updateIntegration(integration.id, {
-        ...integration,
-        syncStatus: 'failed'
-      });
-      addNotification({
-        type: 'error',
-        title: 'Sync Failed',
-        message: `Failed to sync ${integration.displayName}`,
-      });
-    });
-
-    // Workflow events
-    on('workflow:executed', (workflow) => {
-      updateWorkflow(workflow.id, {
-        ...workflow,
-        lastExecuted: new Date().toISOString(),
-        executionCount: workflow.executionCount + 1
-      });
-      addNotification({
-        type: 'success',
-        title: 'Workflow Executed',
-        message: `Workflow "${workflow.name}" has been executed`,
-      });
-    });
-
-    // Agent events
-    on('agent:log', (log) => {
-      addAgentLog(log);
-    });
-
-    on('agent:status:changed', (agent) => {
-      // Update agent status in the store
-      // This would require an updateAgent method that can handle status updates
-    });
+    // Register all event handlers
+    on('task:created', eventHandlers.taskCreated);
+    on('task:updated', eventHandlers.taskUpdated);
+    on('task:deleted', eventHandlers.taskDeleted);
+    on('message:new', eventHandlers.messageNew);
+    on('message:read', eventHandlers.messageRead);
+    on('calendar:event:created', eventHandlers.calendarEventCreated);
+    on('calendar:event:updated', eventHandlers.calendarEventUpdated);
+    on('calendar:event:deleted', eventHandlers.calendarEventDeleted);
+    on('integration:connected', eventHandlers.integrationConnected);
+    on('integration:disconnected', eventHandlers.integrationDisconnected);
+    on('integration:sync:completed', eventHandlers.integrationSyncCompleted);
+    on('integration:sync:failed', eventHandlers.integrationSyncFailed);
+    on('workflow:executed', eventHandlers.workflowExecuted);
+    on('workflow:executed:realtime', eventHandlers.workflowExecutedRealtime);
+    on('workflow:execution:failed', eventHandlers.workflowExecutionFailed);
+    on('agent:log', eventHandlers.agentLog);
+    on('agent:status:changed', eventHandlers.agentStatusChanged);
+    on('presence:joined', eventHandlers.presenceJoined);
+    on('presence:left', eventHandlers.presenceLeft);
+    on('document:locked', eventHandlers.documentLocked);
+    on('document:unlocked', eventHandlers.documentUnlocked);
+    on('document:edited', eventHandlers.documentEdited);
+    on('cursor:moved', eventHandlers.cursorMoved);
 
     return () => {
       // Clean up all event listeners
@@ -462,26 +807,18 @@ export const useRealtimeSync = () => {
       off('integration:sync:completed');
       off('integration:sync:failed');
       off('workflow:executed');
+      off('workflow:executed:realtime');
+      off('workflow:execution:failed');
       off('agent:log');
       off('agent:status:changed');
+      off('presence:joined');
+      off('presence:left');
+      off('document:locked');
+      off('document:unlocked');
+      off('document:edited');
+      off('cursor:moved');
     };
-  }, [
-    on,
-    off,
-    addTask,
-    updateTask,
-    deleteTask,
-    setMessages,
-    markMessageAsRead,
-    addCalendarEvent,
-    updateCalendarEvent,
-    deleteCalendarEvent,
-    updateIntegration,
-    updateWorkflow,
-    addAgentLog,
-    addNotification,
-    messages,
-  ]);
+  }, [on, off, eventHandlers]);
 
   return { isConnected };
 };

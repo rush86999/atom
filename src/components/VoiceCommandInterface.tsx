@@ -405,8 +405,9 @@ export const VoiceCommandInterface: React.FC<VoiceCommandInterfaceProps> = ({
                 </h4>
                 <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
                   <p>• "Create a new task"</p>
-                  <p>• "Show me today's events"</p>
-                  <p>• "Check my messages"</p>
+                  <p>• "Schedule a meeting"</p>
+                  <p>• "Send a message"</p>
+                  <p>• "Start a workflow"</p>
                   <p>• "Open dashboard"</p>
                 </div>
               </div>
@@ -457,13 +458,24 @@ export const useVoiceCommands = () => {
           description: '',
           status: 'pending',
           priority: 'medium',
-          assignee: '',
           dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         });
         toast.success('Task Created', `Created task: ${title}`);
       } else {
         toast.warning('Task Creation', 'Please specify a task title');
       }
+    }
+
+    // Quick Actions commands
+    else if (cmd.includes('schedule meeting') || cmd.includes('schedule a meeting')) {
+      setCurrentView('calendar');
+      toast.success('Quick Action', 'Switched to Calendar to schedule a meeting');
+    } else if (cmd.includes('send message') || cmd.includes('send quick message')) {
+      setCurrentView('communications');
+      toast.success('Quick Action', 'Switched to Communications to send a message');
+    } else if (cmd.includes('start workflow') || cmd.includes('run workflow')) {
+      setCurrentView('workflows');
+      toast.success('Quick Action', 'Switched to Workflows to start a workflow');
     }
 
     // Search commands
