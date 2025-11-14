@@ -59,6 +59,7 @@ import {
   Spinner,
   Alert,
   AlertIcon,
+  TableContainer,
 } from "@chakra-ui/react";
 import {
   SunIcon,
@@ -74,9 +75,8 @@ import {
   EditIcon,
   DeleteIcon,
   ChatIcon,
-  CloudIcon,
-  ServerIcon,
-  DatabaseIcon,
+  SettingsIcon as ServerIcon,
+  ListIcon as DatabaseIcon,
   SettingsIcon as Settings,
 } from "@chakra-ui/icons";
 
@@ -138,9 +138,15 @@ interface AzureSubscription {
 }
 
 const AzureIntegration: React.FC = () => {
-  const [resourceGroups, setResourceGroups] = useState<AzureResourceGroup[]>([]);
-  const [virtualMachines, setVirtualMachines] = useState<AzureVirtualMachine[]>([]);
-  const [storageAccounts, setStorageAccounts] = useState<AzureStorageAccount[]>([]);
+  const [resourceGroups, setResourceGroups] = useState<AzureResourceGroup[]>(
+    [],
+  );
+  const [virtualMachines, setVirtualMachines] = useState<AzureVirtualMachine[]>(
+    [],
+  );
+  const [storageAccounts, setStorageAccounts] = useState<AzureStorageAccount[]>(
+    [],
+  );
   const [appServices, setAppServices] = useState<AzureAppService[]>([]);
   const [subscriptions, setSubscriptions] = useState<AzureSubscription[]>([]);
   const [connected, setConnected] = useState(false);
@@ -336,15 +342,18 @@ const AzureIntegration: React.FC = () => {
   // Create resources
   const createVirtualMachine = async () => {
     try {
-      const response = await fetch("/api/integrations/azure/virtual-machines/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...vmForm,
-          user_id: "current",
-          subscription_id: selectedSubscription,
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/azure/virtual-machines/create",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...vmForm,
+            user_id: "current",
+            subscription_id: selectedSubscription,
+          }),
+        },
+      );
 
       if (response.ok) {
         toast({
@@ -381,15 +390,18 @@ const AzureIntegration: React.FC = () => {
 
   const deployAppService = async () => {
     try {
-      const response = await fetch("/api/integrations/azure/app-services/deploy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...appForm,
-          user_id: "current",
-          subscription_id: selectedSubscription,
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/azure/app-services/deploy",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...appForm,
+            user_id: "current",
+            subscription_id: selectedSubscription,
+          }),
+        },
+      );
 
       if (response.ok) {
         toast({
@@ -423,15 +435,18 @@ const AzureIntegration: React.FC = () => {
 
   const createStorageAccount = async () => {
     try {
-      const response = await fetch("/api/integrations/azure/storage-accounts/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...storageForm,
-          user_id: "current",
-          subscription_id: selectedSubscription,
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/azure/storage-accounts/create",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...storageForm,
+            user_id: "current",
+            subscription_id: selectedSubscription,
+          }),
+        },
+      );
 
       if (response.ok) {
         toast({
@@ -472,7 +487,9 @@ const AzureIntegration: React.FC = () => {
   const filteredStorage = storageAccounts.filter(
     (storage) =>
       storage.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      storage.resource_group.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      storage.resource_group
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
       storage.tier.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
@@ -497,7 +514,7 @@ const AzureIntegration: React.FC = () => {
 
   useEffect(() => {
     checkConnection();
-  }, []);
+  }, [checkConnection]);
 
   useEffect(() => {
     if (connected && selectedSubscription) {
@@ -506,7 +523,15 @@ const AzureIntegration: React.FC = () => {
       loadStorageAccounts();
       loadAppServices();
     }
-  }, [connected, selectedSubscription, selectedResourceGroup]);
+  }, [
+    connected,
+    selectedSubscription,
+    selectedResourceGroup,
+    loadResourceGroups,
+    loadVirtualMachines,
+    loadStorageAccounts,
+    loadAppServices,
+  ]);
 
   const getStatusColor = (status: string): string => {
     switch (status?.toLowerCase()) {
@@ -702,7 +727,7 @@ const AzureIntegration: React.FC = () => {
                         placeholder="Search VMs..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                       <Spacer />
                       <Button
@@ -760,11 +785,17 @@ const AzureIntegration: React.FC = () => {
                                     </Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{vm.public_ip || "N/A"}</Text>
+                                    <Text fontSize="sm">
+                                      {vm.public_ip || "N/A"}
+                                    </Text>
                                   </Td>
                                   <Td>
                                     <HStack>
-                                      <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        leftIcon={<ViewIcon />}
+                                      >
                                         Details
                                       </Button>
                                     </HStack>
@@ -802,7 +833,7 @@ const AzureIntegration: React.FC = () => {
                         placeholder="Search apps..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                       <Spacer />
                       <Button
@@ -834,7 +865,10 @@ const AzureIntegration: React.FC = () => {
                                 <Tr key={app.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon as={SettingsIcon} color="blue.500" />
+                                      <Icon
+                                        as={SettingsIcon}
+                                        color="blue.500"
+                                      />
                                       <Text fontWeight="medium">
                                         {app.name}
                                       </Text>
@@ -863,7 +897,9 @@ const AzureIntegration: React.FC = () => {
                                   </Td>
                                   <Td>
                                     <Badge
-                                      colorScheme={app.https_only ? "green" : "red"}
+                                      colorScheme={
+                                        app.https_only ? "green" : "red"
+                                      }
                                       size="sm"
                                     >
                                       {app.https_only ? "Enabled" : "Disabled"}
@@ -871,7 +907,11 @@ const AzureIntegration: React.FC = () => {
                                   </Td>
                                   <Td>
                                     <HStack>
-                                      <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        leftIcon={<ViewIcon />}
+                                      >
                                         Details
                                       </Button>
                                       <Button
@@ -920,7 +960,7 @@ const AzureIntegration: React.FC = () => {
                         placeholder="Search storage..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                       <Spacer />
                       <Button
@@ -952,7 +992,10 @@ const AzureIntegration: React.FC = () => {
                                 <Tr key={storage.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon as={DatabaseIcon} color="blue.500" />
+                                      <Icon
+                                        as={DatabaseIcon}
+                                        color="blue.500"
+                                      />
                                       <Text fontWeight="medium">
                                         {storage.name}
                                       </Text>
@@ -980,11 +1023,17 @@ const AzureIntegration: React.FC = () => {
                                     </Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">{storage.location}</Text>
+                                    <Text fontSize="sm">
+                                      {storage.location}
+                                    </Text>
                                   </Td>
                                   <Td>
                                     <HStack>
-                                      <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        leftIcon={<ViewIcon />}
+                                      >
                                         Details
                                       </Button>
                                     </HStack>
@@ -1007,7 +1056,7 @@ const AzureIntegration: React.FC = () => {
                         placeholder="Search resource groups..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                     </HStack>
 
@@ -1025,37 +1074,50 @@ const AzureIntegration: React.FC = () => {
                             </Thead>
                             <Tbody>
                               {resourceGroups
-                                .filter(rg =>
-                                  rg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                  rg.location.toLowerCase().includes(searchQuery.toLowerCase())
+                                .filter(
+                                  (rg) =>
+                                    rg.name
+                                      .toLowerCase()
+                                      .includes(searchQuery.toLowerCase()) ||
+                                    rg.location
+                                      .toLowerCase()
+                                      .includes(searchQuery.toLowerCase()),
                                 )
                                 .map((rg) => (
-                                <Tr key={rg.id}>
-                                  <Td>
-                                    <HStack>
-                                      <Icon as={CloudIcon} color="blue.500" />
-                                      <Text fontWeight="medium">{rg.name}</Text>
-                                    </HStack>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">{rg.location}</Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {formatDate(rg.created_at)}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <HStack wrap="wrap">
-                                      {Object.entries(rg.tags).map(([key, value]) => (
-                                        <Tag key={key} size="sm" colorScheme="gray">
-                                          {key}: {value}
-                                        </Tag>
-                                      ))}
-                                    </HStack>
-                                  </Td>
-                                </Tr>
-                              ))}
+                                  <Tr key={rg.id}>
+                                    <Td>
+                                      <HStack>
+                                        <Icon as={SunIcon} color="blue.500" />
+                                        <Text fontWeight="medium">
+                                          {rg.name}
+                                        </Text>
+                                      </HStack>
+                                    </Td>
+                                    <Td>
+                                      <Text fontSize="sm">{rg.location}</Text>
+                                    </Td>
+                                    <Td>
+                                      <Text fontSize="sm">
+                                        {formatDate(rg.created_at)}
+                                      </Text>
+                                    </Td>
+                                    <Td>
+                                      <HStack wrap="wrap">
+                                        {Object.entries(rg.tags).map(
+                                          ([key, value]) => (
+                                            <Tag
+                                              key={key}
+                                              size="sm"
+                                              colorScheme="gray"
+                                            >
+                                              {key}: {value}
+                                            </Tag>
+                                          ),
+                                        )}
+                                      </HStack>
+                                    </Td>
+                                  </Tr>
+                                ))}
                             </Tbody>
                           </Table>
                         </TableContainer>

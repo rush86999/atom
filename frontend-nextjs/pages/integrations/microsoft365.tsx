@@ -73,7 +73,7 @@ import {
   ChatIcon,
   EmailIcon,
   CalendarIcon,
-  FileIcon,
+  AttachmentIcon,
 } from "@chakra-ui/icons";
 
 interface Microsoft365User {
@@ -267,7 +267,12 @@ interface Microsoft365Team {
   createdDateTime: string;
   updatedDateTime: string;
   classification?: string;
-  specialization: "none" | "educationStandard" | "educationClass" | "educationProfessionalLearning" | "educationStaff";
+  specialization:
+    | "none"
+    | "educationStandard"
+    | "educationClass"
+    | "educationProfessionalLearning"
+    | "educationStaff";
   visibility: "public" | "private";
   webUrl: string;
   internalId: string;
@@ -422,7 +427,7 @@ const Microsoft365Integration: React.FC = () => {
           user_id: "current",
           start_date: new Date().toISOString(),
           end_date: new Date(
-            Date.now() + 7 * 24 * 60 * 60 * 1000
+            Date.now() + 7 * 24 * 60 * 60 * 1000,
           ).toISOString(),
           limit: 50,
         }),
@@ -520,21 +525,30 @@ const Microsoft365Integration: React.FC = () => {
     if (!newEmail.to || !newEmail.subject || !newEmail.body) return;
 
     try {
-      const response = await fetch("/api/integrations/microsoft365/emails/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "current",
-          to: newEmail.to.split(",").map(email => ({ address: email.trim() })),
-          subject: newEmail.subject,
-          body: {
-            contentType: "text",
-            content: newEmail.body,
-          },
-          importance: newEmail.importance,
-          cc: newEmail.cc ? newEmail.cc.split(",").map(email => ({ address: email.trim() })) : [],
-        }),
-      });
+      const response = await fetch(
+        "/api/integrations/microsoft365/emails/send",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: "current",
+            to: newEmail.to
+              .split(",")
+              .map((email) => ({ address: email.trim() })),
+            subject: newEmail.subject,
+            body: {
+              contentType: "text",
+              content: newEmail.body,
+            },
+            importance: newEmail.importance,
+            cc: newEmail.cc
+              ? newEmail.cc
+                  .split(",")
+                  .map((email) => ({ address: email.trim() }))
+              : [],
+          }),
+        },
+      );
 
       if (response.ok) {
         toast({
@@ -544,7 +558,13 @@ const Microsoft365Integration: React.FC = () => {
           duration: 3000,
         });
         onEmailClose();
-        setNewEmail({ to: "", subject: "", body: "", importance: "normal", cc: "" });
+        setNewEmail({
+          to: "",
+          subject: "",
+          body: "",
+          importance: "normal",
+          cc: "",
+        });
         loadEmails();
       }
     } catch (error) {
@@ -562,36 +582,39 @@ const Microsoft365Integration: React.FC = () => {
     if (!newEvent.subject || !newEvent.startTime || !newEvent.endTime) return;
 
     try {
-      const response = await fetch("/api/integrations/microsoft365/calendars/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "current",
-          subject: newEvent.subject,
-          body: {
-            contentType: "text",
-            content: newEvent.body,
-          },
-          start: {
-            dateTime: newEvent.startTime,
-            timeZone: "UTC",
-          },
-          end: {
-            dateTime: newEvent.endTime,
-            timeZone: "UTC",
-          },
-          location: {
-            displayName: newEvent.location,
-          },
-          attendees: newEvent.attendees.map(email => ({
-            type: "required",
-            emailAddress: {
-              address: email,
-              name: email.split("@")[0],
+      const response = await fetch(
+        "/api/integrations/microsoft365/calendars/create",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: "current",
+            subject: newEvent.subject,
+            body: {
+              contentType: "text",
+              content: newEvent.body,
             },
-          })),
-        }),
-      });
+            start: {
+              dateTime: newEvent.startTime,
+              timeZone: "UTC",
+            },
+            end: {
+              dateTime: newEvent.endTime,
+              timeZone: "UTC",
+            },
+            location: {
+              displayName: newEvent.location,
+            },
+            attendees: newEvent.attendees.map((email) => ({
+              type: "required",
+              emailAddress: {
+                address: email,
+                name: email.split("@")[0],
+              },
+            })),
+          }),
+        },
+      );
 
       if (response.ok) {
         toast({
@@ -601,7 +624,14 @@ const Microsoft365Integration: React.FC = () => {
           duration: 3000,
         });
         onCalendarClose();
-        setNewEvent({ subject: "", body: "", startTime: "", endTime: "", location: "", attendees: [] });
+        setNewEvent({
+          subject: "",
+          body: "",
+          startTime: "",
+          endTime: "",
+          location: "",
+          attendees: [],
+        });
         loadCalendars();
       }
     } catch (error) {
@@ -619,47 +649,57 @@ const Microsoft365Integration: React.FC = () => {
   const filteredEmails = emails.filter(
     (email) =>
       email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.sender.emailAddress.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.sender.emailAddress.address.toLowerCase().includes(searchQuery.toLowerCase())
+      email.sender.emailAddress.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      email.sender.emailAddress.address
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()),
   );
 
   const filteredCalendars = calendars.filter(
     (calendar) =>
       calendar.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      calendar.location?.displayName.toLowerCase().includes(searchQuery.toLowerCase())
+      calendar.location?.displayName
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()),
   );
 
-  const filteredFiles = files.filter(
-    (file) =>
-      file.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredFiles = files.filter((file) =>
+    file.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const filteredUsers = users.filter(
     (user) =>
       user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.userPrincipalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (user.mail && user.mail.toLowerCase().includes(searchQuery.toLowerCase()))
+      user.userPrincipalName
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      (user.mail &&
+        user.mail.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   const filteredTeams = teams.filter(
     (team) =>
       team.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      team.description.toLowerCase().includes(searchQuery.toLowerCase())
+      team.description.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Stats calculations
   const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.accountEnabled).length;
+  const activeUsers = users.filter((u) => u.accountEnabled).length;
   const totalEmails = emails.length;
-  const unreadEmails = emails.filter(e => !e.isRead).length;
+  const unreadEmails = emails.filter((e) => !e.isRead).length;
   const totalEvents = calendars.length;
-  const upcomingEvents = calendars.filter(e => new Date(e.start.dateTime) > new Date()).length;
+  const upcomingEvents = calendars.filter(
+    (e) => new Date(e.start.dateTime) > new Date(),
+  ).length;
   const totalFiles = files.length;
   const totalTeams = teams.length;
 
   useEffect(() => {
     checkConnection();
-  }, []);
+  }, [checkConnection]);
 
   useEffect(() => {
     if (connected) {
@@ -670,7 +710,15 @@ const Microsoft365Integration: React.FC = () => {
       loadFiles();
       loadTeams();
     }
-  }, [connected]);
+  }, [
+    connected,
+    loadUserProfile,
+    loadUsers,
+    loadCalendars,
+    loadEmails,
+    loadFiles,
+    loadTeams,
+  ]);
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleString();
@@ -698,15 +746,18 @@ const Microsoft365Integration: React.FC = () => {
   };
 
   const getFileIcon = (mimeType: string): any => {
-    if (mimeType.startsWith("image/")) return FileIcon;
-    if (mimeType.startsWith("video/")) return FileIcon;
-    if (mimeType.startsWith("audio/")) return FileIcon;
-    if (mimeType.includes("pdf")) return FileIcon;
-    if (mimeType.includes("word")) return FileIcon;
-    if (mimeType.includes("excel") || mimeType.includes("spreadsheet")) return FileIcon;
-    if (mimeType.includes("powerpoint") || mimeType.includes("presentation")) return FileIcon;
-    if (mimeType.includes("zip") || mimeType.includes("rar")) return FileIcon;
-    return FileIcon;
+    if (mimeType.startsWith("image/")) return AttachmentIcon;
+    if (mimeType.startsWith("video/")) return AttachmentIcon;
+    if (mimeType.startsWith("audio/")) return AttachmentIcon;
+    if (mimeType.includes("pdf")) return AttachmentIcon;
+    if (mimeType.includes("word")) return AttachmentIcon;
+    if (mimeType.includes("excel") || mimeType.includes("spreadsheet"))
+      return AttachmentIcon;
+    if (mimeType.includes("powerpoint") || mimeType.includes("presentation"))
+      return AttachmentIcon;
+    if (mimeType.includes("zip") || mimeType.includes("rar"))
+      return AttachmentIcon;
+    return AttachmentIcon;
   };
 
   return (
@@ -769,7 +820,8 @@ const Microsoft365Integration: React.FC = () => {
                 <VStack spacing={2}>
                   <Heading size="lg">Connect Microsoft 365</Heading>
                   <Text color="gray.600" textAlign="center">
-                    Connect your Microsoft 365 account to access Teams, Outlook, and OneDrive
+                    Connect your Microsoft 365 account to access Teams, Outlook,
+                    and OneDrive
                   </Text>
                 </VStack>
                 <Button
@@ -848,7 +900,7 @@ const Microsoft365Integration: React.FC = () => {
                         placeholder="Search emails..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                       <Spacer />
                       <Button
@@ -874,9 +926,16 @@ const Microsoft365Integration: React.FC = () => {
                                 borderRadius="md"
                                 _hover={{ bg: "gray.50" }}
                                 cursor="pointer"
-                                onClick={() => window.open(email.webLink, "_blank")}
+                                onClick={() =>
+                                  window.open(email.webLink, "_blank")
+                                }
                               >
-                                <Icon as={EmailIcon} w={6} h={6} color="blue.500" />
+                                <Icon
+                                  as={EmailIcon}
+                                  w={6}
+                                  h={6}
+                                  color="blue.500"
+                                />
                                 <VStack align="start" spacing={1} flex={1}>
                                   <HStack justify="space-between" width="100%">
                                     <Text fontWeight="bold">
@@ -888,13 +947,19 @@ const Microsoft365Integration: React.FC = () => {
                                           New
                                         </Tag>
                                       )}
-                                      <Tag colorScheme={getImportanceColor(email.importance)} size="sm">
+                                      <Tag
+                                        colorScheme={getImportanceColor(
+                                          email.importance,
+                                        )}
+                                        size="sm"
+                                      >
                                         {email.importance}
                                       </Tag>
                                     </HStack>
                                   </HStack>
                                   <Text fontSize="sm" color="gray.600">
-                                    From: {email.sender.emailAddress.name} ({email.sender.emailAddress.address})
+                                    From: {email.sender.emailAddress.name} (
+                                    {email.sender.emailAddress.address})
                                   </Text>
                                   <Text fontSize="xs" color="gray.500">
                                     {formatDate(email.receivedDateTime)}
@@ -922,7 +987,7 @@ const Microsoft365Integration: React.FC = () => {
                         placeholder="Search calendar events..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                       <Spacer />
                       <Button
@@ -942,7 +1007,12 @@ const Microsoft365Integration: React.FC = () => {
                           <Card key={event.id}>
                             <CardBody>
                               <HStack spacing={4} align="start">
-                                <Icon as={CalendarIcon} w={6} h={6} color="green.500" />
+                                <Icon
+                                  as={CalendarIcon}
+                                  w={6}
+                                  h={6}
+                                  color="green.500"
+                                />
                                 <VStack align="start" spacing={2} flex={1}>
                                   <HStack justify="space-between" width="100%">
                                     <Text fontWeight="bold">
@@ -964,7 +1034,8 @@ const Microsoft365Integration: React.FC = () => {
                                   )}
                                   <HStack spacing={4}>
                                     <Text fontSize="sm" color="gray.500">
-                                      📅 {formatDate(event.start.dateTime)} - {formatDate(event.end.dateTime)}
+                                      📅 {formatDate(event.start.dateTime)} -{" "}
+                                      {formatDate(event.end.dateTime)}
                                     </Text>
                                   </HStack>
                                   {event.location && (
@@ -972,20 +1043,29 @@ const Microsoft365Integration: React.FC = () => {
                                       📍 {event.location.displayName}
                                     </Text>
                                   )}
-                                  {event.attendees && event.attendees.length > 0 && (
-                                    <HStack wrap="wrap">
-                                      {event.attendees.slice(0, 3).map((attendee) => (
-                                        <Tag key={attendee.emailAddress.address} size="sm" colorScheme="gray">
-                                          {attendee.emailAddress.name}
-                                        </Tag>
-                                      ))}
-                                      {event.attendees.length > 3 && (
-                                        <Tag size="sm" colorScheme="gray">
-                                          +{event.attendees.length - 3} more
-                                        </Tag>
-                                      )}
-                                    </HStack>
-                                  )}
+                                  {event.attendees &&
+                                    event.attendees.length > 0 && (
+                                      <HStack wrap="wrap">
+                                        {event.attendees
+                                          .slice(0, 3)
+                                          .map((attendee) => (
+                                            <Tag
+                                              key={
+                                                attendee.emailAddress.address
+                                              }
+                                              size="sm"
+                                              colorScheme="gray"
+                                            >
+                                              {attendee.emailAddress.name}
+                                            </Tag>
+                                          ))}
+                                        {event.attendees.length > 3 && (
+                                          <Tag size="sm" colorScheme="gray">
+                                            +{event.attendees.length - 3} more
+                                          </Tag>
+                                        )}
+                                      </HStack>
+                                    )}
                                 </VStack>
                               </HStack>
                             </CardBody>
@@ -1004,7 +1084,7 @@ const Microsoft365Integration: React.FC = () => {
                         placeholder="Search files..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                     </HStack>
 
@@ -1022,7 +1102,9 @@ const Microsoft365Integration: React.FC = () => {
                                 borderRadius="md"
                                 _hover={{ bg: "gray.50" }}
                                 cursor="pointer"
-                                onClick={() => window.open(file.webUrl, "_blank")}
+                                onClick={() =>
+                                  window.open(file.webUrl, "_blank")
+                                }
                               >
                                 <Icon
                                   as={getFileIcon(file.file?.mimeType || "")}
@@ -1058,7 +1140,7 @@ const Microsoft365Integration: React.FC = () => {
                         placeholder="Search teams..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                     </HStack>
 
@@ -1076,14 +1158,30 @@ const Microsoft365Integration: React.FC = () => {
                                 borderRadius="md"
                                 _hover={{ bg: "gray.50" }}
                                 cursor="pointer"
-                                onClick={() => window.open(team.webUrl, "_blank")}
+                                onClick={() =>
+                                  window.open(team.webUrl, "_blank")
+                                }
                               >
-                                <Icon as={ChatIcon} w={6} h={6} color="purple.500" />
+                                <Icon
+                                  as={ChatIcon}
+                                  w={6}
+                                  h={6}
+                                  color="purple.500"
+                                />
                                 <VStack align="start" spacing={1} flex={1}>
                                   <HStack justify="space-between" width="100%">
-                                    <Text fontWeight="bold">{team.displayName}</Text>
+                                    <Text fontWeight="bold">
+                                      {team.displayName}
+                                    </Text>
                                     <HStack>
-                                      <Tag colorScheme={team.visibility === "private" ? "gray" : "green"} size="sm">
+                                      <Tag
+                                        colorScheme={
+                                          team.visibility === "private"
+                                            ? "gray"
+                                            : "green"
+                                        }
+                                        size="sm"
+                                      >
                                         {team.visibility}
                                       </Tag>
                                       {team.isArchived && (
@@ -1098,7 +1196,8 @@ const Microsoft365Integration: React.FC = () => {
                                   </Text>
                                   <HStack spacing={4}>
                                     <Text fontSize="xs" color="gray.500">
-                                      Created: {formatDate(team.createdDateTime)}
+                                      Created:{" "}
+                                      {formatDate(team.createdDateTime)}
                                     </Text>
                                     {team.channels && (
                                       <Text fontSize="xs" color="gray.500">
@@ -1124,7 +1223,7 @@ const Microsoft365Integration: React.FC = () => {
                         placeholder="Search users..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                     </HStack>
 
@@ -1145,9 +1244,18 @@ const Microsoft365Integration: React.FC = () => {
                                 <Avatar name={user.displayName} />
                                 <VStack align="start" spacing={1} flex={1}>
                                   <HStack>
-                                    <Text fontWeight="bold">{user.displayName}</Text>
-                                    <Tag colorScheme={user.accountEnabled ? "green" : "red"} size="sm">
-                                      {user.accountEnabled ? "Active" : "Inactive"}
+                                    <Text fontWeight="bold">
+                                      {user.displayName}
+                                    </Text>
+                                    <Tag
+                                      colorScheme={
+                                        user.accountEnabled ? "green" : "red"
+                                      }
+                                      size="sm"
+                                    >
+                                      {user.accountEnabled
+                                        ? "Active"
+                                        : "Inactive"}
                                     </Tag>
                                   </HStack>
                                   <Text fontSize="sm" color="gray.600">
@@ -1252,7 +1360,10 @@ const Microsoft365Integration: React.FC = () => {
                         onChange={(e) =>
                           setNewEmail({
                             ...newEmail,
-                            importance: e.target.value as "low" | "normal" | "high",
+                            importance: e.target.value as
+                              | "low"
+                              | "normal"
+                              | "high",
                           })
                         }
                       >
@@ -1270,7 +1381,9 @@ const Microsoft365Integration: React.FC = () => {
                   <Button
                     colorScheme="blue"
                     onClick={sendEmail}
-                    disabled={!newEmail.to || !newEmail.subject || !newEmail.body}
+                    disabled={
+                      !newEmail.to || !newEmail.subject || !newEmail.body
+                    }
                   >
                     Send Email
                   </Button>
@@ -1365,7 +1478,10 @@ const Microsoft365Integration: React.FC = () => {
                         onChange={(e) =>
                           setNewEvent({
                             ...newEvent,
-                            attendees: e.target.value.split(",").map(s => s.trim()).filter(s => s),
+                            attendees: e.target.value
+                              .split(",")
+                              .map((s) => s.trim())
+                              .filter((s) => s),
                           })
                         }
                       />
@@ -1379,7 +1495,11 @@ const Microsoft365Integration: React.FC = () => {
                   <Button
                     colorScheme="blue"
                     onClick={createCalendarEvent}
-                    disabled={!newEvent.subject || !newEvent.startTime || !newEvent.endTime}
+                    disabled={
+                      !newEvent.subject ||
+                      !newEvent.startTime ||
+                      !newEvent.endTime
+                    }
                   >
                     Create Event
                   </Button>

@@ -57,6 +57,7 @@ import {
   TabPanel,
   Avatar,
   Spinner,
+  Link,
 } from "@chakra-ui/react";
 import {
   SettingsIcon,
@@ -68,10 +69,11 @@ import {
   DeleteIcon,
   ViewIcon,
   SearchIcon,
-  DatabaseIcon,
-  FileIcon,
-  FolderIcon,
-  UserIcon,
+  ArrowForwardIcon,
+  ListIcon as DatabaseIcon,
+  AttachmentIcon as FileIcon,
+  ViewIcon as FolderIcon,
+  GenericAvatarIcon as UserIcon,
   TimeIcon,
 } from "@chakra-ui/icons";
 
@@ -245,10 +247,13 @@ const NotionIntegration: React.FC = () => {
         body: JSON.stringify({
           user_id: "current",
           database_id: databaseId,
-          filter: selectedFilter !== "all" ? {
-            property: "status",
-            select: { equals: selectedFilter }
-          } : undefined,
+          filter:
+            selectedFilter !== "all"
+              ? {
+                  property: "status",
+                  select: { equals: selectedFilter },
+                }
+              : undefined,
           limit: 100,
         }),
       });
@@ -358,7 +363,9 @@ const NotionIntegration: React.FC = () => {
           user_id: "current",
           parent: {
             type: pageForm.parent_type,
-            [pageForm.parent_type === "database_id" ? "database_id" : "page_id"]: pageForm.parent_id,
+            [pageForm.parent_type === "database_id"
+              ? "database_id"
+              : "page_id"]: pageForm.parent_id,
           },
           properties: {
             title: {
@@ -406,26 +413,31 @@ const NotionIntegration: React.FC = () => {
 
   const createDatabase = async () => {
     try {
-      const response = await fetch("/api/integrations/notion/databases/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "current",
-          parent: {
-            type: databaseForm.parent_type,
-            [databaseForm.parent_type === "page_id" ? "page_id" : "workspace"]: databaseForm.parent_id,
-          },
-          title: [
-            {
-              text: {
-                content: databaseForm.title,
-              },
+      const response = await fetch(
+        "/api/integrations/notion/databases/create",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: "current",
+            parent: {
+              type: databaseForm.parent_type,
+              [databaseForm.parent_type === "page_id"
+                ? "page_id"
+                : "workspace"]: databaseForm.parent_id,
             },
-          ],
-          properties: databaseForm.properties,
-          is_inline: databaseForm.is_inline,
-        }),
-      });
+            title: [
+              {
+                text: {
+                  content: databaseForm.title,
+                },
+              },
+            ],
+            properties: databaseForm.properties,
+            is_inline: databaseForm.is_inline,
+          }),
+        },
+      );
 
       if (response.ok) {
         toast({
@@ -456,25 +468,25 @@ const NotionIntegration: React.FC = () => {
   };
 
   // Filter data based on search
-  const filteredDatabases = databases.filter(
-    (db) =>
-      db.title[0]?.text.content.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredDatabases = databases.filter((db) =>
+    db.title[0]?.text.content.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const filteredPages = pages.filter(
-    (page) =>
-      page.properties.title?.title[0]?.text.content.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredPages = pages.filter((page) =>
+    page.properties.title?.title[0]?.text.content
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase()),
   );
 
   // Stats calculations
   const totalDatabases = databases.length;
   const totalPages = pages.length;
   const totalUsers = users.length;
-  const activePages = pages.filter(p => !p.archived).length;
+  const activePages = pages.filter((p) => !p.archived).length;
 
   useEffect(() => {
     checkConnection();
-  }, []);
+  }, [checkConnection]);
 
   useEffect(() => {
     if (connected) {
@@ -487,7 +499,7 @@ const NotionIntegration: React.FC = () => {
     if (selectedDatabase) {
       loadPages(selectedDatabase);
     }
-  }, [selectedDatabase, selectedFilter]);
+  }, [selectedDatabase, selectedFilter, loadPages]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -495,7 +507,7 @@ const NotionIntegration: React.FC = () => {
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery, selectedFilter]);
+  }, [searchQuery, selectedFilter, searchNotion]);
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleString();
@@ -585,7 +597,8 @@ const NotionIntegration: React.FC = () => {
                 <VStack spacing={2}>
                   <Heading size="lg">Connect Notion</Heading>
                   <Text color="gray.600" textAlign="center">
-                    Connect your Notion workspace to start managing documents and databases
+                    Connect your Notion workspace to start managing documents
+                    and databases
                   </Text>
                 </VStack>
                 <Button
@@ -663,7 +676,7 @@ const NotionIntegration: React.FC = () => {
                         placeholder="Search databases..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                       <Spacer />
                       <Button
@@ -683,14 +696,21 @@ const NotionIntegration: React.FC = () => {
                           <Card
                             key={db.id}
                             cursor="pointer"
-                            _hover={{ shadow: "md", transform: "translateY(-2px)" }}
+                            _hover={{
+                              shadow: "md",
+                              transform: "translateY(-2px)",
+                            }}
                             transition="all 0.2s"
                             onClick={() => {
                               setSelectedDatabase(db.id);
                               loadPages(db.id);
                             }}
                             borderWidth="1px"
-                            borderColor={selectedDatabase === db.id ? "blue.500" : borderColor}
+                            borderColor={
+                              selectedDatabase === db.id
+                                ? "blue.500"
+                                : borderColor
+                            }
                           >
                             <CardHeader>
                               <VStack align="start" spacing={2}>
@@ -703,7 +723,8 @@ const NotionIntegration: React.FC = () => {
                                   )}
                                 </HStack>
                                 <Text fontSize="sm" color="gray.600">
-                                  {db.description[0]?.text.content || "No description"}
+                                  {db.description[0]?.text.content ||
+                                    "No description"}
                                 </Text>
                               </VStack>
                             </CardHeader>
@@ -713,7 +734,12 @@ const NotionIntegration: React.FC = () => {
                                   <Tag colorScheme="blue" size="sm">
                                     Database
                                   </Tag>
-                                  <Tag colorScheme={db.is_inline ? "green" : "gray"} size="sm">
+                                  <Tag
+                                    colorScheme={
+                                      db.is_inline ? "green" : "gray"
+                                    }
+                                    size="sm"
+                                  >
                                     {db.is_inline ? "Inline" : "Full Page"}
                                   </Tag>
                                 </HStack>
@@ -724,7 +750,11 @@ const NotionIntegration: React.FC = () => {
                                   Modified: {formatDate(db.last_edited_time)}
                                 </Text>
                                 <Link href={db.url} isExternal>
-                                  <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    leftIcon={<ViewIcon />}
+                                  >
                                     Open in Notion
                                   </Button>
                                 </Link>
@@ -771,7 +801,7 @@ const NotionIntegration: React.FC = () => {
                         placeholder="Search pages..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                       <Spacer />
                       <Button
@@ -802,7 +832,9 @@ const NotionIntegration: React.FC = () => {
                                       </Link>
                                       {page.properties.status?.select && (
                                         <Tag
-                                          colorScheme={getStatusColor(page.properties.status.select.name)}
+                                          colorScheme={getStatusColor(
+                                            page.properties.status.select.name,
+                                          )}
                                           size="sm"
                                         >
                                           {page.properties.status.select.name}
@@ -813,39 +845,51 @@ const NotionIntegration: React.FC = () => {
                                       {formatDate(page.last_edited_time)}
                                     </Text>
                                   </HStack>
-                                  
+
                                   <HStack spacing={4}>
                                     {page.properties.priority?.select && (
                                       <Tag
-                                        colorScheme={getPriorityColor(page.properties.priority.select.name)}
+                                        colorScheme={getPriorityColor(
+                                          page.properties.priority.select.name,
+                                        )}
                                         size="sm"
                                       >
-                                        Priority: {page.properties.priority.select.name}
+                                        Priority:{" "}
+                                        {page.properties.priority.select.name}
                                       </Tag>
                                     )}
                                     {page.properties.due_date?.date && (
                                       <Tag colorScheme="blue" size="sm">
-                                        Due: {new Date(page.properties.due_date.date.start).toLocaleDateString()}
+                                        Due:{" "}
+                                        {new Date(
+                                          page.properties.due_date.date.start,
+                                        ).toLocaleDateString()}
                                       </Tag>
                                     )}
                                   </HStack>
-                                  
+
                                   {page.properties.tags?.multi_select && (
                                     <HStack wrap="wrap">
-                                      {page.properties.tags.multi_select.map((tag) => (
-                                        <Tag
-                                          key={tag.name}
-                                          size="sm"
-                                          colorScheme="gray"
-                                        >
-                                          {tag.name}
-                                        </Tag>
-                                      ))}
+                                      {page.properties.tags.multi_select.map(
+                                        (tag) => (
+                                          <Tag
+                                            key={tag.name}
+                                            size="sm"
+                                            colorScheme="gray"
+                                          >
+                                            {tag.name}
+                                          </Tag>
+                                        ),
+                                      )}
                                     </HStack>
                                   )}
 
                                   <Link href={page.url} isExternal>
-                                    <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      leftIcon={<ViewIcon />}
+                                    >
                                       Open in Notion
                                     </Button>
                                   </Link>
@@ -881,7 +925,7 @@ const NotionIntegration: React.FC = () => {
                         placeholder="Search all content..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                         onKeyPress={(e) => {
                           if (e.key === "Enter") {
                             searchNotion();
@@ -899,7 +943,11 @@ const NotionIntegration: React.FC = () => {
                             <CardBody>
                               <HStack spacing={4} align="start">
                                 <Icon
-                                  as={result.object === "database" ? DatabaseIcon : FileIcon}
+                                  as={
+                                    result.object === "database"
+                                      ? DatabaseIcon
+                                      : FileIcon
+                                  }
                                   color="blue.500"
                                   w={6}
                                   h={6}
@@ -916,10 +964,15 @@ const NotionIntegration: React.FC = () => {
                                     </Tag>
                                   </HStack>
                                   <Text fontSize="xs" color="gray.500">
-                                    Modified: {formatDate(result.last_edited_time)}
+                                    Modified:{" "}
+                                    {formatDate(result.last_edited_time)}
                                   </Text>
                                   <Link href={result.url} isExternal>
-                                    <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      leftIcon={<ViewIcon />}
+                                    >
                                       Open in Notion
                                     </Button>
                                   </Link>
@@ -930,7 +983,7 @@ const NotionIntegration: React.FC = () => {
                         ))
                       ) : searchQuery ? (
                         <Text color="gray.500" textAlign="center" py={8}>
-                          No results found for "{searchQuery}"
+                          No results found for &ldquo;{searchQuery}&rdquo;
                         </Text>
                       ) : (
                         <Text color="gray.500" textAlign="center" py={8}>
@@ -949,7 +1002,7 @@ const NotionIntegration: React.FC = () => {
                         placeholder="Search users..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
+                        leftAddon={<SearchIcon />}
                       />
                     </HStack>
 
@@ -957,37 +1010,51 @@ const NotionIntegration: React.FC = () => {
                       {loading.users ? (
                         <Spinner size="xl" />
                       ) : (
-                        users.filter(user =>
-                          user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          user.person?.email?.toLowerCase().includes(searchQuery.toLowerCase())
-                        ).map((user) => (
-                          <Card key={user.id}>
-                            <CardBody>
-                              <HStack spacing={4}>
-                                <Avatar
-                                  src={user.avatar_url}
-                                  name={user.name}
-                                  size="lg"
-                                />
-                                <VStack align="start" spacing={1} flex={1}>
-                                  <Text fontWeight="bold">
-                                    {user.name || "Unknown"}
-                                  </Text>
-                                  {user.person?.email && (
-                                    <Text fontSize="sm" color="gray.600">
-                                      {user.person.email}
+                        users
+                          .filter(
+                            (user) =>
+                              user.name
+                                ?.toLowerCase()
+                                .includes(searchQuery.toLowerCase()) ||
+                              user.person?.email
+                                ?.toLowerCase()
+                                .includes(searchQuery.toLowerCase()),
+                          )
+                          .map((user) => (
+                            <Card key={user.id}>
+                              <CardBody>
+                                <HStack spacing={4}>
+                                  <Avatar
+                                    src={user.avatar_url}
+                                    name={user.name}
+                                    size="lg"
+                                  />
+                                  <VStack align="start" spacing={1} flex={1}>
+                                    <Text fontWeight="bold">
+                                      {user.name || "Unknown"}
                                     </Text>
-                                  )}
-                                  <HStack spacing={2}>
-                                    <Tag colorScheme={user.type === "person" ? "green" : "blue"} size="sm">
-                                      {user.type}
-                                    </Tag>
-                                  </HStack>
-                                </VStack>
-                              </HStack>
-                            </CardBody>
-                          </Card>
-                        ))
+                                    {user.person?.email && (
+                                      <Text fontSize="sm" color="gray.600">
+                                        {user.person.email}
+                                      </Text>
+                                    )}
+                                    <HStack spacing={2}>
+                                      <Tag
+                                        colorScheme={
+                                          user.type === "person"
+                                            ? "green"
+                                            : "blue"
+                                        }
+                                        size="sm"
+                                      >
+                                        {user.type}
+                                      </Tag>
+                                    </HStack>
+                                  </VStack>
+                                </HStack>
+                              </CardBody>
+                            </Card>
+                          ))
                       )}
                     </SimpleGrid>
                   </VStack>
@@ -1044,24 +1111,28 @@ const NotionIntegration: React.FC = () => {
                       <FormLabel>Initial Content</FormLabel>
                       <Textarea
                         placeholder="Optional initial content..."
-                        value={pageForm.children?.[0]?.text?.[0]?.text?.content || ""}
+                        value={
+                          pageForm.children?.[0]?.text?.[0]?.text?.content || ""
+                        }
                         onChange={(e) =>
                           setPageForm({
                             ...pageForm,
-                            children: e.target.value ? [
-                              {
-                                object: "block",
-                                type: "paragraph",
-                                paragraph: {
-                                  text: [
-                                    {
-                                      type: "text",
-                                      text: { content: e.target.value },
+                            children: e.target.value
+                              ? [
+                                  {
+                                    object: "block",
+                                    type: "paragraph",
+                                    paragraph: {
+                                      text: [
+                                        {
+                                          type: "text",
+                                          text: { content: e.target.value },
+                                        },
+                                      ],
                                     },
-                                  ],
-                                },
-                              },
-                            ] : [],
+                                  },
+                                ]
+                              : [],
                           })
                         }
                         rows={4}
