@@ -626,6 +626,77 @@ const IntegrationsPage: React.FC = () => {
           </CardBody>
         </Card>
 
+        {/* Health Monitoring */}
+        <Card>
+          <CardBody>
+            <VStack spacing={4} align="stretch">
+              <HStack justify="space-between">
+                <VStack align="start" spacing={1}>
+                  <Text fontWeight="bold" fontSize="xl">
+                    Integration Health
+                  </Text>
+                  <Text color="gray.600" fontSize="sm">
+                    Monitor real-time status of all integrations
+                  </Text>
+                </VStack>
+                <Button
+                  colorScheme="blue"
+                  leftIcon={<ExternalLinkIcon />}
+                  onClick={() =>
+                    (window.location.href = "/integrations/health")
+                  }
+                >
+                  View Health Dashboard
+                </Button>
+              </HStack>
+
+              <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4}>
+                <Box textAlign="center">
+                  <Text fontSize="2xl" fontWeight="bold" color="green.500">
+                    {integrations.filter((i) => i.health === "healthy").length}
+                  </Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Healthy
+                  </Text>
+                </Box>
+                <Box textAlign="center">
+                  <Text fontSize="2xl" fontWeight="bold" color="yellow.500">
+                    {integrations.filter((i) => i.health === "warning").length}
+                  </Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Warnings
+                  </Text>
+                </Box>
+                <Box textAlign="center">
+                  <Text fontSize="2xl" fontWeight="bold" color="red.500">
+                    {integrations.filter((i) => i.health === "error").length}
+                  </Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Errors
+                  </Text>
+                </Box>
+                <Box textAlign="center">
+                  <Text fontSize="2xl" fontWeight="bold" color="gray.500">
+                    {
+                      integrations.filter(
+                        (i) => !i.health || i.health === "unknown",
+                      ).length
+                    }
+                  </Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Unknown
+                  </Text>
+                </Box>
+              </SimpleGrid>
+
+              <Text fontSize="sm" color="gray.600" textAlign="center">
+                Click "View Health Dashboard" for detailed monitoring and
+                auto-refresh
+              </Text>
+            </VStack>
+          </CardBody>
+        </Card>
+
         {/* Categories Filter */}
         <HStack spacing={4} wrap="wrap">
           {categories.map((category) => (

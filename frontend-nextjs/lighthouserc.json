@@ -1,0 +1,49 @@
+# Lighthouse CI Configuration for Performance Monitoring
+ci:
+  collect:
+    # Number of runs for each URL
+    numberOfRuns: 3
+    # Add local development URLs
+    url:
+      - http://localhost:3000
+      - http://localhost:3000/dashboard
+      - http://localhost:3000/integrations
+      - http://localhost:3000/search
+      - http://localhost:3000/health
+    # Collect settings
+    startServerCommand: npm run dev
+    startServerReadyPattern: 'ready on http://localhost:3000'
+    startServerReadyTimeout: 30000
+  # Server settings for uploading results
+  upload:
+    target: temporary-public-storage
+    uploadUrlMap: '[outputUrl]'
+  assert:
+    # Performance assertions
+    assertions:
+      'categories:performance': ['warn', {minScore: 0.8}]
+      'categories:accessibility': ['error', {minScore: 0.9}]
+      'categories:best-practices': ['warn', {minScore: 0.8}]
+      'categories:seo': ['warn', {minScore: 0.8}]
+  # Build settings
+  server:
+    # Use the same port as the development server
+    port: 3000
+  # Automatically use production build settings
+  run: {
+    # Using Chrome with proper settings
+    chromePath: 'chrome'
+  }
+  
+# Development server configuration
+server:
+  port: 3000
+  host: 'localhost'
+
+# Configuration for local development
+lighthouserc:
+  extends: './lighthouserc.production.json'
+  ci:
+    collect:
+      url:
+        - http://localhost:3000

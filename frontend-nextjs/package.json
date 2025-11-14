@@ -14,7 +14,19 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "analyze": "ANALYZE=true npm run build",
+    "lighthouse": "lhci autorun --upload.target=temporary-public-storage",
+    "lighthouse:ci": "lhci autorun",
+    "test:ci": "jest --ci --watchAll=false --coverage --passWithNoTests",
+    "type-check": "tsc --noEmit",
+    "docker:build": "docker build -t atom:latest .",
+    "docker:run": "docker run -p 3000:3000 atom:latest",
+    "k8s:deploy": "kubectl apply -f k8s/",
+    "k8s:status": "kubectl get pods -l app=atom",
+    "predeploy": "npm run test:ci && npm run type-check",
+    "deploy": "npm run predeploy && npm run build && npm run k8s:deploy",
+    "prod:start": "NODE_ENV=production next start"
   },
   "dependencies": {
     "@apollo/client": "^3.7.10",
@@ -71,6 +83,7 @@
     "graphql-ws": "^5.12.0",
     "gray-matter": "^4.0.3",
     "intuit-oauth": "^4.2.1",
+    "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.553.0",
     "marked": "^4.2.12",
