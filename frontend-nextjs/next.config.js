@@ -1,6 +1,4 @@
 /** @type {import('next').NextConfig} */
-const path = require("path");
-
 const nextConfig = {
   reactStrictMode: true,
   eslint: {
@@ -12,28 +10,9 @@ const nextConfig = {
   images: {
     domains: ["localhost", "127.0.0.1", "api.slack.com", "graph.microsoft.com"],
   },
-
-  webpack: (config, { isServer }) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@": path.resolve(__dirname, "."),
-      "../../../src": path.resolve(__dirname, "../src"),
-    };
-
-    // Handle TypeScript files properly
-    config.module.rules.push({
-      test: /\.tsx?$/,
-      use: [
-        {
-          loader: "ts-loader",
-          options: {
-            transpileOnly: true,
-          },
-        },
-      ],
-    });
-
-    return config;
+  transpilePackages: ["@chakra-ui/react", "@chakra-ui/icons", "@ark-ui/react"],
+  experimental: {
+    externalDir: true,
   },
 };
 

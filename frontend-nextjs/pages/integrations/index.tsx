@@ -18,33 +18,45 @@ import {
   Icon,
   useToast,
   SimpleGrid,
-  Progress,
   Divider,
   useColorModeValue,
-  Stack,
-  Flex,
-  Spacer,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatGroup,
 } from "@chakra-ui/react";
 import {
-  BoxIcon,
-  DropboxIcon,
-  GoogleDriveIcon,
-  SlackIcon,
-  GmailIcon,
-  NotionIcon,
-  JiraIcon,
-  GitHubIcon,
-  CodeIcon,
-  ArrowForwardIcon,
+  // Core Chakra Icons that exist
+  TimeIcon,
   CheckCircleIcon,
   WarningTwoIcon,
-  TimeIcon,
-  DollarIcon,
-  CreditCardIcon,
+  ArrowForwardIcon,
+  AddIcon,
+  SearchIcon,
+  SettingsIcon,
+  RepeatIcon,
   StarIcon,
   BuildingIcon,
   SunIcon,
   ViewIcon,
+  // Special icons for specific integrations
+  EmailIcon,
+  ChatIcon,
+  EditIcon,
+  PhoneIcon,
+  ExternalLinkIcon,
+  InfoIcon,
+  LockIcon,
+  UnlockIcon,
+  DownloadIcon,
+  UploadIcon,
 } from "@chakra-ui/icons";
 
 interface Integration {
@@ -58,6 +70,7 @@ interface Integration {
   color: string;
   lastSync?: string;
   health?: "healthy" | "warning" | "error";
+  documentation?: string;
 }
 
 const IntegrationsPage: React.FC = () => {
@@ -69,136 +82,248 @@ const IntegrationsPage: React.FC = () => {
   const borderColor = useColorModeValue("gray.200", "gray.700");
 
   const integrationList: Integration[] = [
+    // Storage & File Management
     {
       id: "box",
       name: "Box",
-      description: "Secure file storage and collaboration",
+      description: "Secure file storage and collaboration platform",
       category: "storage",
       status: "complete",
       connected: false,
       icon: BoxIcon,
       color: "blue",
+      documentation: "https://developer.box.com/",
     },
     {
       id: "dropbox",
       name: "Dropbox",
-      description: "Cloud storage and file sharing",
+      description: "Cloud storage and file sharing service",
       category: "storage",
       status: "complete",
       connected: false,
-      icon: DropboxIcon,
+      icon: DownloadIcon,
       color: "blue",
+      documentation: "https://www.dropbox.com/developers/documentation",
     },
     {
       id: "gdrive",
       name: "Google Drive",
-      description: "Cloud storage and document management",
+      description: "Cloud storage and document management platform",
       category: "storage",
       status: "complete",
       connected: false,
-      icon: GoogleDriveIcon,
+      icon: ViewIcon,
       color: "green",
+      documentation: "https://developers.google.com/drive",
     },
+    {
+      id: "onedrive",
+      name: "OneDrive",
+      description: "Microsoft cloud storage and file synchronization service",
+      category: "storage",
+      status: "complete",
+      connected: false,
+      icon: DownloadIcon,
+      color: "blue",
+      documentation: "https://docs.microsoft.com/en-us/graph/api/resources/onedrive",
+    },
+
+    // Communication & Collaboration
     {
       id: "slack",
       name: "Slack",
-      description: "Team communication and collaboration",
+      description: "Team communication and collaboration platform",
       category: "communication",
       status: "complete",
       connected: false,
-      icon: SlackIcon,
+      icon: ChatIcon,
       color: "purple",
+      documentation: "https://api.slack.com/",
+    },
+    {
+      id: "teams",
+      name: "Microsoft Teams",
+      description: "Team messaging and collaboration platform",
+      category: "communication",
+      status: "complete",
+      connected: false,
+      icon: ChatIcon,
+      color: "purple",
+      documentation: "https://docs.microsoft.com/en-us/microsoftteams/platform/overview",
     },
     {
       id: "gmail",
       name: "Gmail",
-      description: "Email communication and organization",
+      description: "Email communication and organization platform",
       category: "communication",
       status: "complete",
       connected: false,
-      icon: GmailIcon,
+      icon: EmailIcon,
       color: "red",
+      documentation: "https://developers.google.com/gmail/api",
     },
+    {
+      id: "outlook",
+      name: "Outlook",
+      description: "Email, calendar, and contact management service",
+      category: "communication",
+      status: "complete",
+      connected: false,
+      icon: EmailIcon,
+      color: "blue",
+      documentation: "https://docs.microsoft.com/en-us/graph/api/resources/outlook",
+    },
+
+    // Productivity & Project Management
     {
       id: "notion",
       name: "Notion",
-      description: "Document management and knowledge base",
+      description: "Document management and knowledge base platform",
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: NotionIcon,
+      icon: EditIcon,
       color: "gray",
+      documentation: "https://developers.notion.com/",
     },
     {
       id: "jira",
       name: "Jira",
-      description: "Project management and issue tracking",
+      description: "Project management and issue tracking platform",
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: JiraIcon,
+      icon: SettingsIcon,
       color: "blue",
+      documentation: "https://developer.atlassian.com/cloud/jira/platform/rest/v3/",
     },
     {
-      id: "github",
-      name: "GitHub",
-      description: "Code repository and development tools",
-      category: "development",
+      id: "trello",
+      name: "Trello",
+      description: "Project management and task tracking tool",
+      category: "productivity",
       status: "complete",
       connected: false,
-      icon: GitHubIcon,
-      color: "black",
+      icon: ViewIcon,
+      color: "blue",
+      documentation: "https://developer.atlassian.com/cloud/trello/rest/api-group/",
     },
     {
-      id: "gitlab",
-      name: "GitLab",
-      description: "DevOps platform and code repository",
-      category: "development",
+      id: "asana",
+      name: "Asana",
+      description: "Project management and task tracking platform",
+      category: "productivity",
       status: "complete",
       connected: false,
-      icon: CodeIcon,
-      color: "orange",
-    },
-    {
-      id: "nextjs",
-      name: "Next.js",
-      description: "Vercel project management and deployment",
-      category: "development",
-      status: "complete",
-      connected: false,
-      icon: CodeIcon,
-      color: "black",
-    },
-    {
-      id: "stripe",
-      name: "Stripe",
-      description: "Payment processing and financial management",
-      category: "finance",
-      status: "complete",
-      connected: false,
-      icon: DollarIcon,
+      icon: SettingsIcon,
       color: "green",
+      documentation: "https://developers.asana.com/docs",
     },
     {
       id: "linear",
       name: "Linear",
-      description: "Issue tracking and project management",
+      description: "Issue tracking and project management platform",
       category: "productivity",
       status: "complete",
       connected: false,
       icon: TimeIcon,
       color: "blue",
+      documentation: "https://developers.linear.app/",
+    },
+    {
+      id: "google-workspace",
+      name: "Google Workspace",
+      description: "Complete productivity suite (Docs, Sheets, Slides, Keep, Tasks)",
+      category: "productivity",
+      status: "complete",
+      connected: false,
+      icon: EditIcon,
+      color: "orange",
+      documentation: "https://developers.google.com/workspace",
+    },
+    {
+      id: "microsoft365",
+      name: "Microsoft 365",
+      description: "Complete productivity suite with Teams, Outlook, and OneDrive",
+      category: "productivity",
+      status: "complete",
+      connected: false,
+      icon: SettingsIcon,
+      color: "blue",
+      documentation: "https://learn.microsoft.com/en-us/graph/overview",
+    },
+
+    // Development & Code Management
+    {
+      id: "github",
+      name: "GitHub",
+      description: "Code repository and development platform",
+      category: "development",
+      status: "complete",
+      connected: false,
+      icon: ViewIcon,
+      color: "black",
+      documentation: "https://docs.github.com/en/rest",
+    },
+    {
+      id: "gitlab",
+      name: "GitLab",
+      description: "DevOps platform and code repository management",
+      category: "development",
+      status: "complete",
+      connected: false,
+      icon: ViewIcon,
+      color: "orange",
+      documentation: "https://docs.gitlab.com/ee/api/",
+    },
+    {
+      id: "nextjs",
+      name: "Next.js",
+      description: "Vercel project management and deployment platform",
+      category: "development",
+      status: "complete",
+      connected: false,
+      icon: SettingsIcon,
+      color: "black",
+      documentation: "https://vercel.com/docs/api",
+    },
+
+    // Finance & Accounting
+    {
+      id: "stripe",
+      name: "Stripe",
+      description: "Payment processing and financial management platform",
+      category: "finance",
+      status: "complete",
+      connected: false,
+      icon: StarIcon,
+      color: "green",
+      documentation: "https://stripe.com/docs/api",
     },
     {
       id: "xero",
       name: "Xero",
-      description: "Accounting and financial management",
+      description: "Accounting and financial management platform",
       category: "finance",
       status: "complete",
       connected: false,
       icon: TimeIcon,
       color: "green",
+      documentation: "https://developer.xero.com/",
     },
+    {
+      id: "quickbooks",
+      name: "QuickBooks",
+      description: "Financial management and accounting platform",
+      category: "finance",
+      status: "complete",
+      connected: false,
+      icon: TimeIcon,
+      color: "green",
+      documentation: "https://developer.intuit.com/app/developer/qbo/docs/api",
+    },
+
+    // CRM & Sales
     {
       id: "salesforce",
       name: "Salesforce",
@@ -208,26 +333,31 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: BuildingIcon,
       color: "blue",
+      documentation: "https://developer.salesforce.com/docs/api",
     },
     {
-      id: "slack",
-      name: "Slack",
-      description: "Team messaging and collaboration platform",
-      category: "communication",
+      id: "hubspot",
+      name: "HubSpot",
+      description: "Marketing automation and CRM platform",
+      category: "crm",
       status: "complete",
       connected: false,
-      icon: ChatIcon,
-      color: "purple",
+      icon: StarIcon,
+      color: "orange",
+      documentation: "https://developers.hubspot.com/",
     },
+
+    // Customer Support
     {
       id: "intercom",
       name: "Intercom",
       description: "Customer communication and support platform",
-      category: "communication",
+      category: "support",
       status: "complete",
       connected: false,
       icon: ChatIcon,
       color: "green",
+      documentation: "https://developers.intercom.com/intercom-api-reference/reference",
     },
     {
       id: "freshdesk",
@@ -238,7 +368,21 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: ChatIcon,
       color: "green",
+      documentation: "https://developers.freshdesk.com/api/",
     },
+    {
+      id: "zendesk",
+      name: "Zendesk",
+      description: "Customer support and help desk platform",
+      category: "support",
+      status: "complete",
+      connected: false,
+      icon: ChatIcon,
+      color: "red",
+      documentation: "https://developer.zendesk.com/api_reference/",
+    },
+
+    // Marketing & Automation
     {
       id: "mailchimp",
       name: "Mailchimp",
@@ -248,18 +392,10 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: EmailIcon,
       color: "blue",
+      documentation: "https://mailchimp.com/developer/marketing/",
     },
-    {
-      id: "google-workspace",
-      name: "Google Workspace",
-      description:
-        "Complete productivity suite (Docs, Sheets, Slides, Keep, Tasks)",
-      category: "productivity",
-      status: "complete",
-      connected: false,
-      icon: DocumentIcon,
-      color: "orange",
-    },
+
+    // Analytics & Business Intelligence
     {
       id: "tableau",
       name: "Tableau",
@@ -267,9 +403,12 @@ const IntegrationsPage: React.FC = () => {
       category: "analytics",
       status: "complete",
       connected: false,
-      icon: BarChartIcon,
+      icon: ViewIcon,
       color: "purple",
+      documentation: "https://help.tableau.com/current/api/en-us/api.htm",
     },
+
+    // Cloud & Infrastructure
     {
       id: "azure",
       name: "Microsoft Azure",
@@ -279,77 +418,7 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: SunIcon,
       color: "blue",
-    },
-    {
-      id: "microsoft365",
-      name: "Microsoft 365",
-      description:
-        "Complete productivity suite with Teams, Outlook, and OneDrive",
-      category: "productivity",
-      status: "complete",
-      connected: false,
-      icon: SettingsIcon,
-      color: "blue",
-    },
-    {
-      id: "outlook",
-      name: "Outlook",
-      description: "Email, calendar, and contact management",
-      category: "communication",
-      status: "complete",
-      connected: false,
-      icon: TimeIcon,
-      color: "blue",
-    },
-    {
-      id: "asana",
-      name: "Asana",
-      description: "Project management and task tracking",
-      category: "productivity",
-      status: "complete",
-      connected: false,
-      icon: TimeIcon,
-      color: "green",
-    },
-    {
-      id: "quickbooks",
-      name: "QuickBooks",
-      description: "Financial management and accounting",
-      category: "finance",
-      status: "complete",
-      connected: false,
-      icon: CreditCardIcon,
-      color: "green",
-    },
-    {
-      id: "hubspot",
-      name: "HubSpot",
-      description: "Marketing automation and CRM platform",
-      category: "marketing",
-      status: "complete",
-      connected: false,
-      icon: CreditCardIcon,
-      color: "orange",
-    },
-    {
-      id: "zendesk",
-      name: "Zendesk",
-      description: "Customer support and help desk platform",
-      category: "support",
-      status: "complete",
-      connected: false,
-      icon: TimeIcon,
-      color: "red",
-    },
-    {
-      id: "tableau",
-      name: "Tableau",
-      description: "Business intelligence and analytics platform",
-      category: "analytics",
-      status: "complete",
-      connected: false,
-      icon: ViewIcon,
-      color: "blue",
+      documentation: "https://docs.microsoft.com/en-us/rest/api/azure/",
     },
   ];
 
@@ -378,9 +447,14 @@ const IntegrationsPage: React.FC = () => {
       count: integrationList.filter((i) => i.category === "development").length,
     },
     {
-      id: "marketing",
-      name: "Marketing",
-      count: integrationList.filter((i) => i.category === "marketing").length,
+      id: "finance",
+      name: "Finance",
+      count: integrationList.filter((i) => i.category === "finance").length,
+    },
+    {
+      id: "crm",
+      name: "CRM",
+      count: integrationList.filter((i) => i.category === "crm").length,
     },
     {
       id: "support",
@@ -388,9 +462,19 @@ const IntegrationsPage: React.FC = () => {
       count: integrationList.filter((i) => i.category === "support").length,
     },
     {
-      id: "finance",
-      name: "Finance",
-      count: integrationList.filter((i) => i.category === "finance").length,
+      id: "marketing",
+      name: "Marketing",
+      count: integrationList.filter((i) => i.category === "marketing").length,
+    },
+    {
+      id: "analytics",
+      name: "Analytics",
+      count: integrationList.filter((i) => i.category === "analytics").length,
+    },
+    {
+      id: "cloud",
+      name: "Cloud",
+      count: integrationList.filter((i) => i.category === "cloud").length,
     },
   ];
 
@@ -417,7 +501,7 @@ const IntegrationsPage: React.FC = () => {
         fetch("/api/integrations/salesforce/health"),
         fetch("/api/integrations/microsoft365/health"),
         fetch("/api/integrations/azure/health"),
-        fetch("/api/integrations/slack/health"),
+        fetch("/api/integrations/teams/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {
@@ -449,16 +533,6 @@ const IntegrationsPage: React.FC = () => {
       default:
         return <TimeIcon color="gray.500" />;
     }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const colorScheme =
-      status === "healthy" ? "green" : status === "warning" ? "yellow" : "red";
-    return (
-      <Badge colorScheme={colorScheme} display="flex" alignItems="center">
-        {status}
-      </Badge>
-    );
   };
 
   const handleIntegrationClick = (integration: Integration) => {
@@ -493,10 +567,10 @@ const IntegrationsPage: React.FC = () => {
 
   return (
     <Box minH="100vh" bg={bgColor} p={6}>
-      <VStack spacing={8} align="stretch" maxW="1200px" mx="auto">
+      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
         {/* Header */}
         <VStack align="start" spacing={2}>
-          <Heading size="2xl">ATOM Integrations</Heading>
+          <Heading size="2xl">ATOM Integrations Hub</Heading>
           <Text color="gray.600" fontSize="lg">
             Connect your favorite tools and services to ATOM Agent
           </Text>

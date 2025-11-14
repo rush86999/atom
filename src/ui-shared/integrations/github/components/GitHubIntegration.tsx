@@ -55,16 +55,14 @@ import {
 } from "@chakra-ui/react";
 import {
   CheckCircleIcon,
-  WarningTwoIcon,
+  WarningIcon,
   TimeIcon,
   ArrowForwardIcon,
   PlusSquareIcon,
   StarIcon,
-  ForkIcon,
-  CodeIcon,
-  GitPullRequestIcon,
-  IssueIcon,
-  PersonIcon,
+  ArrowUpDownIcon,
+  ReactIcon,
+  UserIcon,
   SettingsIcon,
   ChevronDownIcon,
   SearchIcon,
@@ -676,11 +674,11 @@ const GitHubIntegration: React.FC = () => {
                                   </Text>
                                 </HStack>
                                 <HStack spacing={1}>
-                                  <ForkIcon />
+                                  <ArrowUpDownIcon />
                                   <Text fontSize="sm">{repo.forks_count}</Text>
                                 </HStack>
                                 <HStack spacing={1}>
-                                  <IssueIcon />
+                                  <WarningIcon />
                                   <Text fontSize="sm">
                                     {repo.open_issues_count}
                                   </Text>

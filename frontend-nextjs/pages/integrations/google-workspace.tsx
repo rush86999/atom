@@ -21,25 +21,16 @@ import {
   Divider,
   useColorModeValue,
   Stack,
+  Flex,
   Spacer,
-  Progress,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatGroup,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
+  Input,
+  Select,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
-  TableContainer,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -49,135 +40,173 @@ import {
   ModalCloseButton,
   FormControl,
   FormLabel,
-  Input,
   Textarea,
   useDisclosure,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatGroup,
   Tag,
   TagLabel,
-  Flex,
-  Grid,
-  GridItem,
-  Alert,
-  AlertIcon,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
   Avatar,
-  Image,
-  IconButton,
-  Tooltip,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  CheckboxGroup,
-  Checkbox,
-  Select,
+  Spinner,
 } from "@chakra-ui/react";
 import {
-  DocumentIcon,
-  Icon as ChakraIcon,
-  SearchIcon,
-  AddIcon,
   EditIcon,
-  DeleteIcon,
-  ArrowForwardIcon,
-  ViewIcon,
-  RepeatIcon,
-  SettingsIcon,
   CheckCircleIcon,
   WarningTwoIcon,
-  InfoIcon,
+  ArrowForwardIcon,
+  AddIcon,
+  SearchIcon,
+  SettingsIcon,
+  RepeatIcon,
   TimeIcon,
-  NotesIcon,
-  SheetIcon,
-  SlidesIcon,
+  StarIcon,
+  ViewIcon,
+  EmailIcon,
   ChatIcon,
-  TaskIcon,
-  FolderIcon,
-  ShareIcon,
-  ChevronDownIcon,
+  CalendarIcon,
 } from "@chakra-ui/icons";
 
-interface GoogleDocument {
+interface GoogleDoc {
   id: string;
   name: string;
-  type: string;
   mimeType: string;
-  created: string;
-  modified: string;
-  webViewLink: string;
-  owner: string;
-  ownerEmail: string;
-  thumbnail: string;
-  shared: boolean;
+  createdTime: string;
+  modifiedTime: string;
   size: string;
-  version: string;
-  contentLength: number;
-  documentId: string;
-  slideCount: number;
-  sheetCount: number;
-  notesCount: number;
-  tasksCount: number;
+  webViewLink: string;
+  webContentLink: string;
+  owners: Array<{
+    displayName: string;
+    email: string;
+    photoLink: string;
+  }>;
+  permissions: Array<{
+    id: string;
+    type: string;
+    role: string;
+    emailAddress?: string;
+    displayName?: string;
+  }>;
+  capabilities: {
+    canEdit: boolean;
+    canComment: boolean;
+    canView: boolean;
+    canCopy: boolean;
+  };
+  thumbnailLink?: string;
 }
 
-interface GoogleNote {
+interface GoogleSheet {
   id: string;
-  title: string;
-  content: string;
-  color: string;
-  labels: string[];
+  name: string;
+  createdTime: string;
+  modifiedTime: string;
+  size: string;
+  webViewLink: string;
+  webContentLink: string;
+  owners: Array<{
+    displayName: string;
+    email: string;
+    photoLink: string;
+  }>;
+  sheets: Array<{
+    properties: {
+      sheetId: number;
+      title: string;
+      index: number;
+      sheetType: string;
+      gridProperties: {
+        rowCount: number;
+        columnCount: number;
+      };
+    };
+  }>;
+  spreadsheetId: string;
+  spreadsheetUrl: string;
+}
+
+interface GoogleEvent {
+  id: string;
+  summary: string;
+  description?: string;
+  location?: string;
+  start: {
+    dateTime: string;
+    timeZone?: string;
+  };
+  end: {
+    dateTime: string;
+    timeZone?: string;
+  };
+  attendees?: Array<{
+    email: string;
+    displayName?: string;
+    responseStatus: string;
+  }>;
+  organizer: {
+    email: string;
+    displayName?: string;
+  };
   created: string;
-  modified: string;
-  archived: boolean;
-  pinned: boolean;
-  reminder?: string;
-  checklistItems?: string[];
-  attachments?: any[];
+  updated: string;
+  recurringEventId?: string;
+  visibility: string;
+  transparency: string;
+  status: string;
+  kind: string;
 }
 
-interface GoogleTask {
+interface GoogleEmail {
   id: string;
-  title: string;
-  notes?: string;
-  status: string;
-  due?: string;
-  position: string;
-  parent?: string;
-  taskListId: string;
-  taskListTitle: string;
-  isCompleted: boolean;
-  hasNotes: boolean;
-  hasDueDate: boolean;
-  isOverdue: boolean;
+  threadId: string;
+  labelIds: string[];
+  snippet: string;
+  internalDate: string;
+  payload: {
+    headers: Array<{
+      name: string;
+      value: string;
+    }>;
+    mimeType: string;
+    parts?: Array<{
+      mimeType: string;
+      body?: {
+        data: string;
+        size: number;
+      };
+    }>;
+  };
+  sizeEstimate: number;
+  raw: string;
+  historyId: string;
 }
 
 const GoogleWorkspaceIntegration: React.FC = () => {
-  const [documents, setDocuments] = useState<GoogleDocument[]>([]);
-  const [notes, setNotes] = useState<GoogleNote[]>([]);
-  const [tasks, setTasks] = useState<GoogleTask[]>([]);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [docs, setDocs] = useState<GoogleDoc[]>([]);
+  const [sheets, setSheets] = useState<GoogleSheet[]>([]);
+  const [events, setEvents] = useState<GoogleEvent[]>([]);
+  const [emails, setEmails] = useState<GoogleEmail[]>([]);
   const [connected, setConnected] = useState(false);
   const [healthStatus, setHealthStatus] = useState<
     "healthy" | "error" | "unknown"
   >("unknown");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedService, setSelectedService] = useState("all");
+  const [selectedFolder, setSelectedFolder] = useState("");
   const [loading, setLoading] = useState({
     docs: false,
-    notes: false,
-    tasks: false,
-    search: false,
-    create: false,
+    sheets: false,
+    events: false,
+    emails: false,
   });
-
-  // Document/Note/Task creation states
-  const [documentTitle, setDocumentTitle] = useState("");
-  const [documentContent, setDocumentContent] = useState("");
-  const [noteTitle, setNoteTitle] = useState("");
-  const [noteContent, setNoteContent] = useState("");
-  const [noteColor, setNoteColor] = useState("DEFAULT");
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskNotes, setTaskNotes] = useState("");
-  const [taskListId, setTaskListId] = useState("");
-  const [taskDue, setTaskDue] = useState("");
 
   const {
     isOpen: isDocOpen,
@@ -185,15 +214,25 @@ const GoogleWorkspaceIntegration: React.FC = () => {
     onClose: onDocClose,
   } = useDisclosure();
   const {
-    isOpen: isNoteOpen,
-    onOpen: onNoteOpen,
-    onClose: onNoteClose,
+    isOpen: isEventOpen,
+    onOpen: onEventOpen,
+    onClose: onEventClose,
   } = useDisclosure();
-  const {
-    isOpen: isTaskOpen,
-    onOpen: onTaskOpen,
-    onClose: onTaskClose,
-  } = useDisclosure();
+
+  const [newDoc, setNewDoc] = useState({
+    title: "",
+    type: "document",
+    folder: "",
+  });
+
+  const [newEvent, setNewEvent] = useState({
+    summary: "",
+    description: "",
+    location: "",
+    startTime: "",
+    endTime: "",
+    attendees: [] as string[],
+  });
 
   const toast = useToast();
   const bgColor = useColorModeValue("white", "gray.800");
@@ -206,6 +245,10 @@ const GoogleWorkspaceIntegration: React.FC = () => {
       if (response.ok) {
         setConnected(true);
         setHealthStatus("healthy");
+        loadDocs();
+        loadSheets();
+        loadEvents();
+        loadEmails();
       } else {
         setConnected(false);
         setHealthStatus("error");
@@ -217,290 +260,221 @@ const GoogleWorkspaceIntegration: React.FC = () => {
     }
   };
 
-  // Load documents
-  const loadDocuments = async () => {
-    if (!connected) return;
-
+  // Load Google Workspace data
+  const loadDocs = async () => {
     setLoading((prev) => ({ ...prev, docs: true }));
     try {
       const response = await fetch("/api/integrations/google-workspace/docs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: searchQuery || undefined,
-          page_size: 100,
+          user_id: "current",
+          limit: 50,
+          folder: selectedFolder,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setDocuments(data.data || []);
+        setDocs(data.data?.files || []);
       }
     } catch (error) {
       console.error("Failed to load documents:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load documents from Google Workspace",
+        status: "error",
+        duration: 3000,
+      });
     } finally {
       setLoading((prev) => ({ ...prev, docs: false }));
     }
   };
 
-  // Load notes
-  const loadNotes = async () => {
-    if (!connected) return;
-
-    setLoading((prev) => ({ ...prev, notes: true }));
+  const loadSheets = async () => {
+    setLoading((prev) => ({ ...prev, sheets: true }));
     try {
-      const response = await fetch(
-        "/api/integrations/google-workspace/keep/notes",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: searchQuery || undefined,
-            page_size: 100,
-          }),
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setNotes(data.data || []);
-      }
-    } catch (error) {
-      console.error("Failed to load notes:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, notes: false }));
-    }
-  };
-
-  // Load tasks
-  const loadTasks = async () => {
-    if (!connected) return;
-
-    setLoading((prev) => ({ ...prev, tasks: true }));
-    try {
-      const response = await fetch("/api/integrations/google-workspace/tasks", {
+      const response = await fetch("/api/integrations/google-workspace/sheets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          task_list_id: taskListId || undefined,
-          max_results: 100,
+          user_id: "current",
+          limit: 50,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setTasks(data.data || []);
+        setSheets(data.data?.files || []);
       }
     } catch (error) {
-      console.error("Failed to load tasks:", error);
+      console.error("Failed to load sheets:", error);
     } finally {
-      setLoading((prev) => ({ ...prev, tasks: false }));
+      setLoading((prev) => ({ ...prev, sheets: false }));
     }
   };
 
-  // Create document
-  const createDocument = async () => {
-    if (!documentTitle.trim()) return;
-
-    setLoading((prev) => ({ ...prev, create: true }));
+  const loadEvents = async () => {
+    setLoading((prev) => ({ ...prev, events: true }));
     try {
-      const response = await fetch(
-        "/api/integrations/google-workspace/docs/create",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: documentTitle,
-            content: documentContent,
-          }),
-        },
-      );
+      const response = await fetch("/api/integrations/google-workspace/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          limit: 50,
+          start_date: new Date().toISOString(),
+          end_date: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+        }),
+      });
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
-          toast({
-            title: "Document created",
-            status: "success",
-            duration: 3000,
-          });
-          setDocumentTitle("");
-          setDocumentContent("");
-          onDocClose();
-          await loadDocuments();
-        }
+        setEvents(data.data?.events || []);
+      }
+    } catch (error) {
+      console.error("Failed to load events:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, events: false }));
+    }
+  };
+
+  const loadEmails = async () => {
+    setLoading((prev) => ({ ...prev, emails: true }));
+    try {
+      const response = await fetch("/api/integrations/google-workspace/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          limit: 50,
+          label_ids: ["INBOX"],
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEmails(data.data?.messages || []);
+      }
+    } catch (error) {
+      console.error("Failed to load emails:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, emails: false }));
+    }
+  };
+
+  const createDoc = async () => {
+    if (!newDoc.title) return;
+
+    try {
+      const response = await fetch("/api/integrations/google-workspace/docs/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          title: newDoc.title,
+          type: newDoc.type,
+          folder: newDoc.folder,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `${newDoc.type} created successfully`,
+          status: "success",
+          duration: 3000,
+        });
+        onDocClose();
+        setNewDoc({ title: "", type: "document", folder: "" });
+        loadDocs();
       }
     } catch (error) {
       console.error("Failed to create document:", error);
       toast({
-        title: "Failed to create document",
+        title: "Error",
+        description: "Failed to create document",
         status: "error",
         duration: 3000,
       });
-    } finally {
-      setLoading((prev) => ({ ...prev, create: false }));
     }
   };
 
-  // Create note
-  const createNote = async () => {
-    if (!noteTitle.trim()) return;
+  const createEvent = async () => {
+    if (!newEvent.summary || !newEvent.startTime || !newEvent.endTime) return;
 
-    setLoading((prev) => ({ ...prev, create: true }));
     try {
-      const response = await fetch(
-        "/api/integrations/google-workspace/keep/notes/create",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: noteTitle,
-            content: noteContent,
-            color: noteColor,
-          }),
-        },
-      );
+      const response = await fetch("/api/integrations/google-workspace/events/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          summary: newEvent.summary,
+          description: newEvent.description,
+          location: newEvent.location,
+          start: { dateTime: newEvent.startTime },
+          end: { dateTime: newEvent.endTime },
+          attendees: newEvent.attendees.map(email => ({ email })),
+        }),
+      });
 
       if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          toast({
-            title: "Note created",
-            status: "success",
-            duration: 3000,
-          });
-          setNoteTitle("");
-          setNoteContent("");
-          onNoteClose();
-          await loadNotes();
-        }
+        toast({
+          title: "Success",
+          description: "Event created successfully",
+          status: "success",
+          duration: 3000,
+        });
+        onEventClose();
+        setNewEvent({
+          summary: "",
+          description: "",
+          location: "",
+          startTime: "",
+          endTime: "",
+          attendees: [],
+        });
+        loadEvents();
       }
     } catch (error) {
-      console.error("Failed to create note:", error);
+      console.error("Failed to create event:", error);
       toast({
-        title: "Failed to create note",
+        title: "Error",
+        description: "Failed to create event",
         status: "error",
         duration: 3000,
       });
-    } finally {
-      setLoading((prev) => ({ ...prev, create: false }));
     }
   };
 
-  // Create task
-  const createTask = async () => {
-    if (!taskTitle.trim() || !taskListId) return;
+  // Filter data based on search
+  const filteredDocs = docs.filter(
+    (doc) =>
+      doc.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    setLoading((prev) => ({ ...prev, create: true }));
-    try {
-      const response = await fetch(
-        "/api/integrations/google-workspace/tasks/create",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            task_list_id: taskListId,
-            title: taskTitle,
-            notes: taskNotes,
-            due: taskDue || undefined,
-          }),
-        },
-      );
+  const filteredSheets = sheets.filter(
+    (sheet) =>
+      sheet.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          toast({
-            title: "Task created",
-            status: "success",
-            duration: 3000,
-          });
-          setTaskTitle("");
-          setTaskNotes("");
-          setTaskDue("");
-          onTaskClose();
-          await loadTasks();
-        }
-      }
-    } catch (error) {
-      console.error("Failed to create task:", error);
-      toast({
-        title: "Failed to create task",
-        status: "error",
-        duration: 3000,
-      });
-    } finally {
-      setLoading((prev) => ({ ...prev, create: false }));
-    }
-  };
+  const filteredEvents = events.filter(
+    (event) =>
+      event.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.location?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  // Search across Google Workspace
-  const searchWorkspace = async () => {
-    if (!searchQuery.trim() || !connected) return;
-
-    setLoading((prev) => ({ ...prev, search: true }));
-    try {
-      const searchPromises = [];
-
-      if (selectedService === "all" || selectedService === "docs") {
-        searchPromises.push(
-          fetch("/api/integrations/google-workspace/docs/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              query: searchQuery,
-              scope: "all",
-            }),
-          }),
-        );
-      }
-
-      if (selectedService === "all" || selectedService === "keep") {
-        searchPromises.push(
-          fetch("/api/integrations/google-workspace/keep/notes/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              query: searchQuery,
-            }),
-          }),
-        );
-      }
-
-      if (selectedService === "all" || selectedService === "tasks") {
-        searchPromises.push(
-          fetch("/api/integrations/google-workspace/tasks/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              query: searchQuery,
-            }),
-          }),
-        );
-      }
-
-      const results = await Promise.all(searchPromises);
-      const searchResultsData = [];
-
-      results.forEach((response, index) => {
-        const service = index === 0 ? "docs" : index === 1 ? "keep" : "tasks";
-        if (response.ok) {
-          const data = response.json();
-          searchResultsData.push({
-            service,
-            data: data.data || [],
-            total: data.total || 0,
-          });
-        }
-      });
-
-      setSearchResults(searchResultsData);
-    } catch (error) {
-      console.error("Failed to search workspace:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, search: false }));
-    }
-  };
+  // Stats calculations
+  const totalDocs = docs.length;
+  const totalSheets = sheets.length;
+  const totalEvents = events.length;
+  const totalEmails = emails.length;
+  const upcomingEvents = events.filter(
+    (event) => new Date(event.start.dateTime) > new Date()
+  ).length;
 
   useEffect(() => {
     checkConnection();
@@ -508,56 +482,59 @@ const GoogleWorkspaceIntegration: React.FC = () => {
 
   useEffect(() => {
     if (connected) {
-      loadDocuments();
-      loadNotes();
-      loadTasks();
+      loadDocs();
+      loadSheets();
+      loadEvents();
+      loadEmails();
     }
   }, [connected]);
 
-  const getServiceIcon = (type: string, mimeType?: string) => {
-    if (mimeType?.includes("document") || type === "document")
-      return DocumentIcon;
-    if (mimeType?.includes("spreadsheet") || type === "spreadsheet")
-      return SheetIcon;
-    if (mimeType?.includes("presentation") || type === "presentation")
-      return SlidesIcon;
-    if (type === "note") return NotesIcon;
-    if (type === "task") return TaskIcon;
-    return FolderIcon;
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleString();
   };
 
-  const getServiceColor = (type: string, mimeType?: string) => {
-    if (mimeType?.includes("document") || type === "document") return "blue";
-    if (mimeType?.includes("spreadsheet") || type === "spreadsheet")
+  const getMimeTypeIcon = (mimeType: string): any => {
+    if (mimeType === "application/vnd.google-apps.document") {
+      return EditIcon;
+    } else if (mimeType === "application/vnd.google-apps.spreadsheet") {
+      return SettingsIcon;
+    } else if (mimeType === "application/vnd.google-apps.presentation") {
+      return ViewIcon;
+    } else if (mimeType === "application/pdf") {
+      return ViewIcon;
+    } else {
+      return TimeIcon;
+    }
+  };
+
+  const getMimeTypeColor = (mimeType: string): string => {
+    if (mimeType === "application/vnd.google-apps.document") {
+      return "blue";
+    } else if (mimeType === "application/vnd.google-apps.spreadsheet") {
       return "green";
-    if (mimeType?.includes("presentation") || type === "presentation")
+    } else if (mimeType === "application/vnd.google-apps.presentation") {
       return "orange";
-    if (type === "note") return "yellow";
-    if (type === "task") return "purple";
-    return "gray";
+    } else if (mimeType === "application/pdf") {
+      return "red";
+    } else {
+      return "gray";
+    }
   };
 
-  const formatDate = (timestamp: string | number): string => {
-    return new Date(
-      typeof timestamp === "number" ? timestamp * 1000 : timestamp,
-    ).toLocaleString();
+  const getResponseStatusColor = (status: string): string => {
+    switch (status) {
+      case "accepted":
+        return "green";
+      case "tentative":
+        return "yellow";
+      case "declined":
+        return "red";
+      case "needsAction":
+        return "gray";
+      default:
+        return "gray";
+    }
   };
-
-  const formatFileSize = (bytes: string): string => {
-    const size = parseInt(bytes);
-    if (size === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(size) / Math.log(k));
-    return parseFloat((size / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  // Stats calculations
-  const totalDocs = documents.length;
-  const totalNotes = notes.length;
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((t) => t.isCompleted).length;
-  const pendingTasks = tasks.filter((t) => !t.isCompleted).length;
 
   return (
     <Box minH="100vh" bg={bgColor} p={6}>
@@ -565,11 +542,11 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         {/* Header */}
         <VStack align="start" spacing={4}>
           <HStack spacing={4}>
-            <Icon as={DocumentIcon} w={8} h={8} color="orange.500" />
+            <Icon as={EditIcon} w={8} h={8} color="blue.500" />
             <VStack align="start" spacing={1}>
               <Heading size="2xl">Google Workspace Integration</Heading>
               <Text color="gray.600" fontSize="lg">
-                Complete productivity suite integration
+                Complete productivity suite (Docs, Sheets, Slides, Keep, Tasks)
               </Text>
             </VStack>
           </HStack>
@@ -603,24 +580,24 @@ const GoogleWorkspaceIntegration: React.FC = () => {
           <Card>
             <CardBody>
               <VStack spacing={6} py={8}>
-                <Icon as={DocumentIcon} w={16} h={16} color="gray.400" />
+                <Icon as={EditIcon} w={16} h={16} color="gray.400" />
                 <VStack spacing={2}>
                   <Heading size="lg">Connect Google Workspace</Heading>
                   <Text color="gray.600" textAlign="center">
-                    Connect your Google account to access Docs, Sheets, Slides,
-                    Keep, and Tasks
+                    Connect your Google Workspace account to start managing documents,
+                    spreadsheets, calendars, and emails
                   </Text>
                 </VStack>
                 <Button
-                  colorScheme="orange"
+                  colorScheme="blue"
                   size="lg"
                   leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
                     (window.location.href =
-                      "/api/integrations/google-drive/auth")
+                      "/api/integrations/google-workspace/auth/start")
                   }
                 >
-                  Connect Google Account
+                  Connect Google Workspace
                 </Button>
               </VStack>
             </CardBody>
@@ -629,49 +606,40 @@ const GoogleWorkspaceIntegration: React.FC = () => {
           // Connected State
           <>
             {/* Services Overview */}
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 5 }} spacing={6}>
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
               <Card>
                 <CardBody>
                   <Stat>
                     <StatLabel>Documents</StatLabel>
                     <StatNumber>{totalDocs}</StatNumber>
-                    <StatHelpText>Docs, Sheets, Slides</StatHelpText>
+                    <StatHelpText>Google Docs files</StatHelpText>
                   </Stat>
                 </CardBody>
               </Card>
               <Card>
                 <CardBody>
                   <Stat>
-                    <StatLabel>Notes</StatLabel>
-                    <StatNumber>{totalNotes}</StatNumber>
-                    <StatHelpText>Google Keep notes</StatHelpText>
+                    <StatLabel>Spreadsheets</StatLabel>
+                    <StatNumber>{totalSheets}</StatNumber>
+                    <StatHelpText>Google Sheets files</StatHelpText>
                   </Stat>
                 </CardBody>
               </Card>
               <Card>
                 <CardBody>
                   <Stat>
-                    <StatLabel>Tasks</StatLabel>
-                    <StatNumber>{totalTasks}</StatNumber>
-                    <StatHelpText>All task lists</StatHelpText>
+                    <StatLabel>Events</StatLabel>
+                    <StatNumber>{upcomingEvents}</StatNumber>
+                    <StatHelpText>{totalEvents} total</StatHelpText>
                   </Stat>
                 </CardBody>
               </Card>
               <Card>
                 <CardBody>
                   <Stat>
-                    <StatLabel>Completed</StatLabel>
-                    <StatNumber>{completedTasks}</StatNumber>
-                    <StatHelpText>Tasks completed</StatHelpText>
-                  </Stat>
-                </CardBody>
-              </Card>
-              <Card>
-                <CardBody>
-                  <Stat>
-                    <StatLabel>Pending</StatLabel>
-                    <StatNumber>{pendingTasks}</StatNumber>
-                    <StatHelpText>Tasks pending</StatHelpText>
+                    <StatLabel>Emails</StatLabel>
+                    <StatNumber>{totalEmails}</StatNumber>
+                    <StatHelpText>In Gmail</StatHelpText>
                   </Stat>
                 </CardBody>
               </Card>
@@ -681,9 +649,9 @@ const GoogleWorkspaceIntegration: React.FC = () => {
             <Tabs variant="enclosed">
               <TabList>
                 <Tab>Documents</Tab>
-                <Tab>Notes</Tab>
-                <Tab>Tasks</Tab>
-                <Tab>Search</Tab>
+                <Tab>Spreadsheets</Tab>
+                <Tab>Calendar</Tab>
+                <Tab>Gmail</Tab>
               </TabList>
 
               <TabPanels>
@@ -697,372 +665,253 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         leftElement={<SearchIcon />}
                       />
+                      <Spacer />
                       <Button
-                        colorScheme="orange"
+                        colorScheme="blue"
                         leftIcon={<AddIcon />}
                         onClick={onDocOpen}
                       >
-                        New Document
-                      </Button>
-                      <Button
-                        colorScheme="orange"
-                        leftIcon={<RepeatIcon />}
-                        onClick={loadDocuments}
-                        isLoading={loading.docs}
-                      >
-                        Refresh
-                      </Button>
-                    </HStack>
-
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Name</Th>
-                                <Th>Type</Th>
-                                <Th>Owner</Th>
-                                <Th>Modified</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {documents.map((doc) => (
-                                <Tr key={doc.id}>
-                                  <Td>
-                                    <HStack>
-                                      <Icon
-                                        as={getServiceIcon(
-                                          doc.type,
-                                          doc.mimeType,
-                                        )}
-                                        color={
-                                          getServiceColor(
-                                            doc.type,
-                                            doc.mimeType,
-                                          ) + ".500"
-                                        }
-                                      />
-                                      <VStack align="start" spacing={0}>
-                                        <Text fontWeight="medium">
-                                          {doc.name}
-                                        </Text>
-                                        <Text fontSize="sm" color="gray.600">
-                                          {doc.size && formatFileSize(doc.size)}
-                                        </Text>
-                                      </VStack>
-                                    </HStack>
-                                  </Td>
-                                  <Td>
-                                    <Badge
-                                      colorScheme={getServiceColor(
-                                        doc.type,
-                                        doc.mimeType,
-                                      )}
-                                      size="sm"
-                                    >
-                                      <TagLabel>{doc.type}</TagLabel>
-                                    </Badge>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">{doc.owner}</Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {formatDate(doc.modified)}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <HStack>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        leftIcon={<ViewIcon />}
-                                        onClick={() =>
-                                          window.open(doc.webViewLink)
-                                        }
-                                      >
-                                        Open
-                                      </Button>
-                                    </HStack>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
-                {/* Notes Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <HStack spacing={4}>
-                      <Input
-                        placeholder="Search notes..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
-                      />
-                      <Button
-                        colorScheme="orange"
-                        leftIcon={<AddIcon />}
-                        onClick={onNoteOpen}
-                      >
-                        New Note
-                      </Button>
-                      <Button
-                        colorScheme="orange"
-                        leftIcon={<RepeatIcon />}
-                        onClick={loadNotes}
-                        isLoading={loading.notes}
-                      >
-                        Refresh
+                        Create Document
                       </Button>
                     </HStack>
 
                     <Card>
                       <CardBody>
                         <VStack spacing={4} align="stretch">
-                          {notes.map((note) => (
-                            <Box
-                              key={note.id}
-                              p={4}
-                              borderWidth="1px"
-                              borderRadius="md"
-                            >
-                              <HStack spacing={3} mb={2}>
-                                <Box
-                                  w="4"
-                                  h="4"
-                                  rounded="full"
-                                  bg={note.color.toLowerCase()}
+                          {loading.docs ? (
+                            <Spinner size="xl" />
+                          ) : (
+                            filteredDocs.map((doc) => (
+                              <HStack
+                                key={doc.id}
+                                p={4}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                _hover={{ bg: "gray.50" }}
+                                cursor="pointer"
+                                onClick={() => window.open(doc.webViewLink, "_blank")}
+                              >
+                                <Icon
+                                  as={getMimeTypeIcon(doc.mimeType)}
+                                  w={6}
+                                  h={6}
+                                  color={getMimeTypeColor(doc.mimeType)}
                                 />
-                                <VStack align="start" spacing={0}>
-                                  <Text fontWeight="medium">{note.title}</Text>
-                                  <Text fontSize="sm" color="gray.600">
-                                    {formatDate(note.modified)}
-                                  </Text>
-                                </VStack>
-                                <Spacer />
-                                {note.pinned && (
-                                  <Icon as={SettingsIcon} color="gray.500" />
-                                )}
-                              </HStack>
-
-                              <Text mb={2} noOfLines={3}>
-                                {note.content}
-                              </Text>
-
-                              {note.labels && note.labels.length > 0 && (
-                                <HStack>
-                                  {note.labels.map((label, index) => (
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <Text fontWeight="bold">{doc.name}</Text>
+                                  <HStack>
                                     <Tag
-                                      key={index}
+                                      colorScheme={getMimeTypeColor(doc.mimeType)}
                                       size="sm"
-                                      colorScheme="blue"
                                     >
-                                      <TagLabel>{label}</TagLabel>
+                                      {doc.mimeType.includes("document")
+                                        ? "Document"
+                                        : doc.mimeType.includes("spreadsheet")
+                                          ? "Spreadsheet"
+                                          : doc.mimeType.includes("presentation")
+                                            ? "Presentation"
+                                            : "File"}
                                     </Tag>
-                                  ))}
-                                </HStack>
-                              )}
-                            </Box>
-                          ))}
+                                    <Text fontSize="xs" color="gray.500">
+                                      {formatDate(doc.modifiedTime)}
+                                    </Text>
+                                  </HStack>
+                                  {doc.owners.length > 0 && (
+                                    <HStack>
+                                      <Avatar
+                                        src={doc.owners[0]?.photoLink}
+                                        name={doc.owners[0]?.displayName}
+                                        size="xs"
+                                      />
+                                      <Text fontSize="xs" color="gray.500">
+                                        {doc.owners[0]?.displayName}
+                                      </Text>
+                                    </HStack>
+                                  )}
+                                </VStack>
+                                <ArrowForwardIcon color="gray.400" />
+                              </HStack>
+                            ))
+                          )}
                         </VStack>
                       </CardBody>
                     </Card>
                   </VStack>
                 </TabPanel>
 
-                {/* Tasks Tab */}
+                {/* Spreadsheets Tab */}
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
-                      <Select
-                        placeholder="All task lists"
-                        value={taskListId}
-                        onChange={(e) => setTaskListId(e.target.value)}
-                        width="200px"
-                      >
-                        <option value="">All Task Lists</option>
-                        {/* Add task list options here */}
-                      </Select>
-                      <Button
-                        colorScheme="orange"
-                        leftIcon={<AddIcon />}
-                        onClick={onTaskOpen}
-                      >
-                        New Task
-                      </Button>
-                      <Button
-                        colorScheme="orange"
-                        leftIcon={<RepeatIcon />}
-                        onClick={loadTasks}
-                        isLoading={loading.tasks}
-                      >
-                        Refresh
-                      </Button>
+                      <Input
+                        placeholder="Search spreadsheets..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
                     </HStack>
 
                     <Card>
                       <CardBody>
                         <VStack spacing={4} align="stretch">
-                          {tasks.map((task) => (
-                            <Box
-                              key={task.id}
-                              p={4}
-                              borderWidth="1px"
-                              borderRadius="md"
-                            >
-                              <HStack spacing={3} mb={2}>
-                                <Checkbox isChecked={task.isCompleted} />
-                                <VStack align="start" spacing={0}>
-                                  <Text
-                                    fontWeight={
-                                      task.isCompleted
-                                        ? "line-through"
-                                        : "medium"
-                                    }
-                                  >
-                                    {task.title}
-                                  </Text>
-                                  {task.due && (
-                                    <Text
-                                      fontSize="sm"
-                                      color={
-                                        task.isOverdue ? "red.500" : "gray.600"
-                                      }
-                                    >
-                                      Due: {formatDate(task.due)}
+                          {loading.sheets ? (
+                            <Spinner size="xl" />
+                          ) : (
+                            filteredSheets.map((sheet) => (
+                              <HStack
+                                key={sheet.id}
+                                p={4}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                _hover={{ bg: "gray.50" }}
+                                cursor="pointer"
+                                onClick={() => window.open(sheet.webViewLink, "_blank")}
+                              >
+                                <Icon as={SettingsIcon} w={6} h={6} color="green.500" />
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <Text fontWeight="bold">{sheet.name}</Text>
+                                  <HStack>
+                                    <Tag colorScheme="green" size="sm">
+                                      Spreadsheet
+                                    </Tag>
+                                    <Text fontSize="xs" color="gray.500">
+                                      {formatDate(sheet.modifiedTime)}
+                                    </Text>
+                                  </HStack>
+                                  {sheet.sheets.length > 0 && (
+                                    <Text fontSize="xs" color="gray.500">
+                                      {sheet.sheets.length} sheets
                                     </Text>
                                   )}
                                 </VStack>
-                                <Spacer />
-                                {task.isOverdue && (
-                                  <Badge colorScheme="red" size="sm">
-                                    Overdue
-                                  </Badge>
-                                )}
+                                <ArrowForwardIcon color="gray.400" />
                               </HStack>
-
-                              {task.notes && (
-                                <Text
-                                  fontSize="sm"
-                                  color="gray.600"
-                                  noOfLines={2}
-                                >
-                                  {task.notes}
-                                </Text>
-                              )}
-                            </Box>
-                          ))}
+                            ))
+                          )}
                         </VStack>
                       </CardBody>
                     </Card>
                   </VStack>
                 </TabPanel>
 
-                {/* Search Tab */}
+                {/* Calendar Tab */}
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
-                      <Select
-                        placeholder="Search all services"
-                        value={selectedService}
-                        onChange={(e) => setSelectedService(e.target.value)}
-                        width="200px"
-                      >
-                        <option value="all">All Services</option>
-                        <option value="docs">Documents</option>
-                        <option value="keep">Notes</option>
-                        <option value="tasks">Tasks</option>
-                      </Select>
                       <Input
-                        placeholder="Search workspace..."
+                        placeholder="Search events..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         leftElement={<SearchIcon />}
-                        onKeyPress={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            searchWorkspace();
-                          }
-                        }}
                       />
+                      <Spacer />
                       <Button
-                        colorScheme="orange"
-                        onClick={searchWorkspace}
-                        isLoading={loading.search}
-                        disabled={!searchQuery.trim()}
+                        colorScheme="blue"
+                        leftIcon={<AddIcon />}
+                        onClick={onEventOpen}
                       >
-                        Search
+                        Create Event
                       </Button>
+                    </HStack>
+
+                    <VStack spacing={4} align="stretch">
+                      {loading.events ? (
+                        <Spinner size="xl" />
+                      ) : (
+                        filteredEvents.map((event) => (
+                          <Card key={event.id}>
+                            <CardBody>
+                              <HStack spacing={4} align="start">
+                                <Icon as={CalendarIcon} w={6} h={6} color="blue.500" />
+                                <VStack align="start" spacing={2} flex={1}>
+                                  <Text fontWeight="bold">{event.summary}</Text>
+                                  {event.description && (
+                                    <Text fontSize="sm" color="gray.600">
+                                      {event.description}
+                                    </Text>
+                                  )}
+                                  <HStack>
+                                    <Text fontSize="sm" color="gray.500">
+                                      {formatDate(event.start.dateTime)} -{" "}
+                                      {formatDate(event.end.dateTime)}
+                                    </Text>
+                                  </HStack>
+                                  {event.location && (
+                                    <Text fontSize="sm" color="gray.500">
+                                      📍 {event.location}
+                                    </Text>
+                                  )}
+                                  {event.attendees && event.attendees.length > 0 && (
+                                    <HStack wrap="wrap">
+                                      {event.attendees.map((attendee) => (
+                                        <Tag
+                                          key={attendee.email}
+                                          colorScheme={getResponseStatusColor(
+                                            attendee.responseStatus
+                                          )}
+                                          size="sm"
+                                        >
+                                          {attendee.displayName || attendee.email}
+                                        </Tag>
+                                      ))}
+                                    </HStack>
+                                  )}
+                                </VStack>
+                              </HStack>
+                            </CardBody>
+                          </Card>
+                        ))
+                      )}
+                    </VStack>
+                  </VStack>
+                </TabPanel>
+
+                {/* Gmail Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search emails..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
                     </HStack>
 
                     <Card>
                       <CardBody>
-                        <VStack spacing={6} align="stretch">
-                          {searchResults.map((result, index) => (
-                            <Box key={index}>
-                              <Heading size="sm" mb={4}>
-                                {result.service.charAt(0).toUpperCase() +
-                                  result.service.slice(1)}{" "}
-                                ({result.total} results)
-                              </Heading>
-
-                              <VStack spacing={2} align="stretch">
-                                {result.data.map(
-                                  (item: any, itemIndex: number) => (
-                                    <Box
-                                      key={itemIndex}
-                                      p={3}
-                                      borderWidth="1px"
-                                      borderRadius="md"
-                                    >
-                                      <HStack spacing={3}>
-                                        <Icon
-                                          as={getServiceIcon(item.type)}
-                                          color={
-                                            getServiceColor(item.type) + ".500"
-                                          }
-                                        />
-                                        <VStack align="start" spacing={0}>
-                                          <Text fontWeight="medium">
-                                            {item.title || item.name}
-                                          </Text>
-                                          <Text fontSize="sm" color="gray.600">
-                                            {item.content
-                                              ? item.content.substring(0, 100) +
-                                                "..."
-                                              : ""}
-                                          </Text>
-                                        </VStack>
-                                      </HStack>
-                                    </Box>
-                                  ),
-                                )}
-                              </VStack>
-
-                              {index < searchResults.length - 1 && <Divider />}
-                            </Box>
-                          ))}
-
-                          {searchResults.length === 0 && searchQuery && (
-                            <VStack spacing={4} py={8}>
-                              <Icon
-                                as={SearchIcon}
-                                w={12}
-                                h={12}
-                                color="gray.400"
-                              />
-                              <Text color="gray.600">
-                                No search results found
-                              </Text>
-                            </VStack>
+                        <VStack spacing={4} align="stretch">
+                          {loading.emails ? (
+                            <Spinner size="xl" />
+                          ) : (
+                            emails.map((email) => (
+                              <Card key={email.id}>
+                                <CardBody>
+                                  <HStack spacing={4} align="start">
+                                    <Icon as={EmailIcon} w={6} h={6} color="red.500" />
+                                    <VStack align="start" spacing={2} flex={1}>
+                                      <Text fontWeight="bold" fontSize="sm">
+                                        {email.payload.headers.find(
+                                          (h) => h.name === "Subject"
+                                        )?.value || "No Subject"}
+                                      </Text>
+                                      <Text fontSize="sm" color="gray.600">
+                                        From:{" "}
+                                        {email.payload.headers.find(
+                                          (h) => h.name === "From"
+                                        )?.value}
+                                      </Text>
+                                      <Text fontSize="xs" color="gray.500">
+                                        {formatDate(email.internalDate)}
+                                      </Text>
+                                      <Text fontSize="sm" color="gray.600">
+                                        {email.snippet}
+                                      </Text>
+                                    </VStack>
+                                  </HStack>
+                                </CardBody>
+                              </Card>
+                            ))
                           )}
                         </VStack>
                       </CardBody>
@@ -1071,171 +920,162 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                 </TabPanel>
               </TabPanels>
             </Tabs>
+
+            {/* Create Document Modal */}
+            <Modal isOpen={isDocOpen} onClose={onDocClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Create Document</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>Title</FormLabel>
+                      <Input
+                        placeholder="Enter document title"
+                        value={newDoc.title}
+                        onChange={(e) =>
+                          setNewDoc({
+                            ...newDoc,
+                            title: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Type</FormLabel>
+                      <Select
+                        value={newDoc.type}
+                        onChange={(e) =>
+                          setNewDoc({
+                            ...newDoc,
+                            type: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="document">Document</option>
+                        <option value="spreadsheet">Spreadsheet</option>
+                        <option value="presentation">Presentation</option>
+                      </Select>
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onDocClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="blue"
+                    onClick={createDoc}
+                    disabled={!newDoc.title}
+                  >
+                    Create
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+
+            {/* Create Event Modal */}
+            <Modal isOpen={isEventOpen} onClose={onEventClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Create Event</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>Summary</FormLabel>
+                      <Input
+                        placeholder="Event title"
+                        value={newEvent.summary}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            summary: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Description</FormLabel>
+                      <Textarea
+                        placeholder="Event description"
+                        value={newEvent.description}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            description: e.target.value,
+                          })
+                        }
+                        rows={3}
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Location</FormLabel>
+                      <Input
+                        placeholder="Event location"
+                        value={newEvent.location}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            location: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Start Time</FormLabel>
+                      <Input
+                        type="datetime-local"
+                        value={newEvent.startTime}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            startTime: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>End Time</FormLabel>
+                      <Input
+                        type="datetime-local"
+                        value={newEvent.endTime}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            endTime: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onEventClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="blue"
+                    onClick={createEvent}
+                    disabled={
+                      !newEvent.summary ||
+                      !newEvent.startTime ||
+                      !newEvent.endTime
+                    }
+                  >
+                    Create Event
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
           </>
         )}
-
-        {/* Create Document Modal */}
-        <Modal isOpen={isDocOpen} onClose={onDocClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Create New Document</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>Title</FormLabel>
-                  <Input
-                    value={documentTitle}
-                    onChange={(e) => setDocumentTitle(e.target.value)}
-                    placeholder="Document title"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Content</FormLabel>
-                  <Textarea
-                    value={documentContent}
-                    onChange={(e) => setDocumentContent(e.target.value)}
-                    placeholder="Document content (optional)"
-                    rows={6}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="outline" onClick={onDocClose}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="orange"
-                onClick={createDocument}
-                isLoading={loading.create}
-                disabled={!documentTitle.trim()}
-              >
-                Create Document
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-
-        {/* Create Note Modal */}
-        <Modal isOpen={isNoteOpen} onClose={onNoteClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Create New Note</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>Title</FormLabel>
-                  <Input
-                    value={noteTitle}
-                    onChange={(e) => setNoteTitle(e.target.value)}
-                    placeholder="Note title"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Content</FormLabel>
-                  <Textarea
-                    value={noteContent}
-                    onChange={(e) => setNoteContent(e.target.value)}
-                    placeholder="Note content"
-                    rows={6}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Color</FormLabel>
-                  <Select
-                    value={noteColor}
-                    onChange={(e) => setNoteColor(e.target.value)}
-                  >
-                    <option value="DEFAULT">Default</option>
-                    <option value="RED">Red</option>
-                    <option value="ORANGE">Orange</option>
-                    <option value="YELLOW">Yellow</option>
-                    <option value="GREEN">Green</option>
-                    <option value="BLUE">Blue</option>
-                    <option value="PURPLE">Purple</option>
-                  </Select>
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="outline" onClick={onNoteClose}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="orange"
-                onClick={createNote}
-                isLoading={loading.create}
-                disabled={!noteTitle.trim()}
-              >
-                Create Note
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-
-        {/* Create Task Modal */}
-        <Modal isOpen={isTaskOpen} onClose={onTaskClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Create New Task</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>Task List</FormLabel>
-                  <Select
-                    value={taskListId}
-                    onChange={(e) => setTaskListId(e.target.value)}
-                    placeholder="Select task list"
-                  >
-                    <option value="">Select a task list</option>
-                    {/* Add task list options here */}
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Title</FormLabel>
-                  <Input
-                    value={taskTitle}
-                    onChange={(e) => setTaskTitle(e.target.value)}
-                    placeholder="Task title"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Notes</FormLabel>
-                  <Textarea
-                    value={taskNotes}
-                    onChange={(e) => setTaskNotes(e.target.value)}
-                    placeholder="Task notes (optional)"
-                    rows={3}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Due Date</FormLabel>
-                  <Input
-                    type="datetime-local"
-                    value={taskDue}
-                    onChange={(e) => setTaskDue(e.target.value)}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="outline" onClick={onTaskClose}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="orange"
-                onClick={createTask}
-                isLoading={loading.create}
-                disabled={!taskTitle.trim() || !taskListId}
-              >
-                Create Task
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
       </VStack>
     </Box>
   );

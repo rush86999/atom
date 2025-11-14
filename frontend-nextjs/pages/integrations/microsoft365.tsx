@@ -1,6 +1,6 @@
 /**
  * Microsoft 365 Integration Page
- * Unified Microsoft productivity suite integration
+ * Complete Microsoft 365 productivity suite integration
  */
 
 import React, { useState, useEffect } from "react";
@@ -21,25 +21,16 @@ import {
   Divider,
   useColorModeValue,
   Stack,
+  Flex,
   Spacer,
-  Progress,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatGroup,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
+  Input,
+  Select,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
-  TableContainer,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -49,211 +40,417 @@ import {
   ModalCloseButton,
   FormControl,
   FormLabel,
-  Input,
   Textarea,
   useDisclosure,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatGroup,
   Tag,
   TagLabel,
-  Flex,
-  Grid,
-  GridItem,
-  Alert,
-  AlertIcon,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
   Avatar,
+  Spinner,
 } from "@chakra-ui/react";
 import {
-  ChatIcon,
-  MailIcon,
-  FolderIcon,
-  TimeIcon,
   SettingsIcon,
-  ArrowForwardIcon,
-  SearchIcon,
-  AddIcon,
-  RepeatIcon,
-  PhoneIcon,
-  PersonIcon,
-  ViewIcon,
-  EditIcon,
-  DeleteIcon,
-  LinkIcon,
   CheckCircleIcon,
   WarningTwoIcon,
-  InfoIcon,
+  ArrowForwardIcon,
+  AddIcon,
+  SearchIcon,
+  RepeatIcon,
+  TimeIcon,
+  StarIcon,
+  ViewIcon,
+  EditIcon,
+  ChatIcon,
+  EmailIcon,
+  CalendarIcon,
+  FileIcon,
 } from "@chakra-ui/icons";
 
-interface M365Service {
+interface Microsoft365User {
+  id: string;
+  displayName: string;
+  givenName: string;
+  surname: string;
+  userPrincipalName: string;
+  jobTitle?: string;
+  mail?: string;
+  mobilePhone?: string;
+  officeLocation?: string;
+  department?: string;
+  businessPhones: string[];
+  accountEnabled: boolean;
+}
+
+interface Microsoft365Calendar {
+  id: string;
+  subject: string;
+  body?: {
+    contentType: string;
+    content: string;
+  };
+  start: {
+    dateTime: string;
+    timeZone: string;
+  };
+  end: {
+    dateTime: string;
+    timeZone: string;
+  };
+  location?: {
+    displayName: string;
+    address?: {
+      street: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      countryOrRegion: string;
+    };
+  };
+  attendees?: Array<{
+    type: string;
+    status: {
+      response: string;
+      time: string;
+    };
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  }>;
+  organizer: {
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  };
+  isOnlineMeeting: boolean;
+  onlineMeetingUrl?: string;
+  createdDateTime: string;
+  lastModifiedDateTime: string;
+  recurrence?: any;
+}
+
+interface Microsoft365Email {
+  id: string;
+  subject: string;
+  body: {
+    contentType: string;
+    content: string;
+  };
+  sender: {
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  };
+  from: {
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  };
+  toRecipients: Array<{
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  }>;
+  ccRecipients?: Array<{
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  }>;
+  bccRecipients?: Array<{
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  }>;
+  receivedDateTime: string;
+  sentDateTime: string;
+  hasAttachments: boolean;
+  attachments?: Array<{
+    id: string;
+    contentType: string;
+    name: string;
+    size: number;
+    isInline: boolean;
+  }>;
+  importance: "low" | "normal" | "high";
+  isRead: boolean;
+  isDraft: boolean;
+  categories: string[];
+  conversationId: string;
+  webLink: string;
+}
+
+interface Microsoft365File {
+  id: string;
   name: string;
+  size: number;
+  file?: {
+    mimeType: string;
+    hashes: {
+      sha1Hash: string;
+      quickXorHash: string;
+    };
+  };
+  folder?: {
+    childCount: number;
+    view: {
+      sortBy: string;
+      sortOrder: string;
+    };
+  };
+  createdDateTime: string;
+  lastModifiedDateTime: string;
+  parentReference: {
+    driveId: string;
+    driveType: string;
+    id: string;
+    name: string;
+    path: string;
+  };
+  webUrl: string;
+  createdBy?: {
+    application?: {
+      displayName: string;
+      id: string;
+    };
+    device?: {
+      displayName: string;
+      id: string;
+    };
+    user?: {
+      displayName: string;
+      id: string;
+    };
+  };
+  lastModifiedBy?: {
+    application?: {
+      displayName: string;
+      id: string;
+    };
+    device?: {
+      displayName: string;
+      id: string;
+    };
+    user?: {
+      displayName: string;
+      id: string;
+    };
+  };
+  sharePointIds?: {
+    webUrl: string;
+    siteId: string;
+    siteUrl: string;
+    listId: string;
+    listItemId: string;
+  }[];
+}
+
+interface Microsoft365Team {
+  id: string;
   displayName: string;
   description: string;
-  status: "connected" | "disconnected" | "error";
-  icon: any;
-  color: string;
-  endpoint: string;
-  healthEndpoint: string;
-}
-
-interface OutlookEmail {
-  id: string;
-  subject: string;
-  from: string;
-  fromEmail: string;
-  to: string;
-  body: string;
-  receivedTime: string;
-  isRead: boolean;
-  hasAttachments: boolean;
-  importance: string;
-}
-
-interface TeamsMessage {
-  id: string;
-  teamName: string;
-  channelName: string;
-  from: string;
-  fromEmail: string;
-  content: string;
-  messageType: string;
-  timestamp: string;
-  replyCount: number;
-  hasAttachments: boolean;
-}
-
-interface OneDriveFile {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  modifiedTime: string;
-  parentPath: string;
-  sharingStatus: string;
+  createdDateTime: string;
+  updatedDateTime: string;
+  classification?: string;
+  specialization: "none" | "educationStandard" | "educationClass" | "educationProfessionalLearning" | "educationStaff";
+  visibility: "public" | "private";
   webUrl: string;
-}
-
-interface CalendarEvent {
-  id: string;
-  subject: string;
-  startTime: string;
-  endTime: string;
-  isAllDay: boolean;
-  location: string;
-  organizer: string;
-  attendees: string[];
-  status: string;
-  importance: string;
+  internalId: string;
+  isArchived: boolean;
+  members?: Array<{
+    displayName: string;
+    id: string;
+    roles: string[];
+  }>;
+  channels?: Array<{
+    id: string;
+    displayName: string;
+    description: string;
+    isFavoriteByDefault: boolean;
+    membershipType: string;
+    createdDateTime: string;
+    lastModifiedDateTime: string;
+  }>;
 }
 
 const Microsoft365Integration: React.FC = () => {
-  const [services, setServices] = useState<M365Service[]>([
-    {
-      name: "outlook",
-      displayName: "Outlook",
-      description: "Email, calendar, and contacts",
-      status: "disconnected",
-      icon: MailIcon,
-      color: "blue",
-      endpoint: "/integrations/outlook",
-      healthEndpoint: "/api/integrations/microsoft/health",
-    },
-    {
-      name: "teams",
-      displayName: "Teams",
-      description: "Team collaboration and meetings",
-      status: "disconnected",
-      icon: ChatIcon,
-      color: "purple",
-      endpoint: "/integrations/teams",
-      healthEndpoint: "/api/integrations/teams/health",
-    },
-    {
-      name: "onedrive",
-      displayName: "OneDrive",
-      description: "Cloud storage and file sharing",
-      status: "disconnected",
-      icon: FolderIcon,
-      color: "orange",
-      endpoint: "/integrations/onedrive",
-      healthEndpoint: "/api/onedrive/health",
-    },
-  ]);
-
-  const [emails, setEmails] = useState<OutlookEmail[]>([]);
-  const [messages, setMessages] = useState<TeamsMessage[]>([]);
-  const [files, setFiles] = useState<OneDriveFile[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [users, setUsers] = useState<Microsoft365User[]>([]);
+  const [calendars, setCalendars] = useState<Microsoft365Calendar[]>([]);
+  const [emails, setEmails] = useState<Microsoft365Email[]>([]);
+  const [files, setFiles] = useState<Microsoft365File[]>([]);
+  const [teams, setTeams] = useState<Microsoft365Team[]>([]);
+  const [userProfile, setUserProfile] = useState<Microsoft365User | null>(null);
   const [loading, setLoading] = useState({
+    users: false,
+    calendars: false,
     emails: false,
-    messages: false,
     files: false,
-    events: false,
-    services: false,
+    teams: false,
+    profile: false,
   });
+  const [connected, setConnected] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<
+    "healthy" | "error" | "unknown"
+  >("unknown");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedService, setSelectedService] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState("");
 
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isEmailOpen,
+    onOpen: onEmailOpen,
+    onClose: onEmailClose,
+  } = useDisclosure();
+  const {
+    isOpen: isCalendarOpen,
+    onOpen: onCalendarOpen,
+    onClose: onCalendarClose,
+  } = useDisclosure();
+
+  const [newEmail, setNewEmail] = useState({
+    to: "",
+    subject: "",
+    body: "",
+    importance: "normal" as "low" | "normal" | "high",
+    cc: "",
+  });
+
+  const [newEvent, setNewEvent] = useState({
+    subject: "",
+    body: "",
+    startTime: "",
+    endTime: "",
+    location: "",
+    attendees: [] as string[],
+  });
+
   const toast = useToast();
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
 
-  // Check service health
-  const checkServiceHealth = async (service: M365Service) => {
+  // Check connection status
+  const checkConnection = async () => {
     try {
-      const response = await fetch(service.healthEndpoint);
+      const response = await fetch("/api/integrations/microsoft365/health");
       if (response.ok) {
-        return "connected";
+        setConnected(true);
+        setHealthStatus("healthy");
+        loadUserProfile();
+        loadUsers();
+        loadCalendars();
+        loadEmails();
+        loadFiles();
+        loadTeams();
       } else {
-        return "error";
+        setConnected(false);
+        setHealthStatus("error");
       }
     } catch (error) {
-      console.error(`Health check failed for ${service.name}:`, error);
-      return "error";
+      console.error("Health check failed:", error);
+      setConnected(false);
+      setHealthStatus("error");
     }
   };
 
-  // Check all services health
-  const checkAllServices = async () => {
-    setLoading((prev) => ({ ...prev, services: true }));
+  // Load Microsoft 365 data
+  const loadUserProfile = async () => {
+    setLoading((prev) => ({ ...prev, profile: true }));
+    try {
+      const response = await fetch("/api/integrations/microsoft365/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+        }),
+      });
 
-    const serviceHealthChecks = services.map(async (service) => {
-      const health = await checkServiceHealth(service);
-      return { name: service.name, health };
-    });
-
-    const healthResults = await Promise.all(serviceHealthChecks);
-
-    setServices((prev) =>
-      prev.map((service) => {
-        const healthResult = healthResults.find(
-          (result) => result.name === service.name,
-        );
-        return {
-          ...service,
-          status: healthResult?.health || "error",
-        };
-      }),
-    );
-
-    setLoading((prev) => ({ ...prev, services: false }));
+      if (response.ok) {
+        const data = await response.json();
+        setUserProfile(data.data?.profile || null);
+      }
+    } catch (error) {
+      console.error("Failed to load user profile:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, profile: false }));
+    }
   };
 
-  // Load data for services
-  const loadEmails = async () => {
-    if (!services.find((s) => s.name === "outlook")?.connected) return;
+  const loadUsers = async () => {
+    setLoading((prev) => ({ ...prev, users: true }));
+    try {
+      const response = await fetch("/api/integrations/microsoft365/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          limit: 100,
+        }),
+      });
 
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.data?.users || []);
+      }
+    } catch (error) {
+      console.error("Failed to load users:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, users: false }));
+    }
+  };
+
+  const loadCalendars = async () => {
+    setLoading((prev) => ({ ...prev, calendars: true }));
+    try {
+      const response = await fetch("/api/integrations/microsoft365/calendars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          start_date: new Date().toISOString(),
+          end_date: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          limit: 50,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCalendars(data.data?.events || []);
+      }
+    } catch (error) {
+      console.error("Failed to load calendars:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, calendars: false }));
+    }
+  };
+
+  const loadEmails = async () => {
     setLoading((prev) => ({ ...prev, emails: true }));
     try {
-      const response = await fetch(
-        "/api/integrations/microsoft/outlook/messages",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: "current",
-            limit: 25,
-          }),
-        },
-      );
+      const response = await fetch("/api/integrations/microsoft365/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          limit: 50,
+          folder: "inbox",
+        }),
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -261,42 +458,45 @@ const Microsoft365Integration: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to load emails:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load emails from Microsoft 365",
+        status: "error",
+        duration: 3000,
+      });
     } finally {
       setLoading((prev) => ({ ...prev, emails: false }));
     }
   };
 
-  const loadTeamsMessages = async () => {
-    if (!services.find((s) => s.name === "teams")?.connected) return;
-
-    setLoading((prev) => ({ ...prev, messages: true }));
+  const loadFiles = async () => {
+    setLoading((prev) => ({ ...prev, files: true }));
     try {
-      const response = await fetch("/api/integrations/teams/messages", {
+      const response = await fetch("/api/integrations/microsoft365/files", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "current",
-          limit: 25,
+          limit: 100,
+          folder: selectedFolder,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setMessages(data.data?.messages || []);
+        setFiles(data.data?.files || []);
       }
     } catch (error) {
-      console.error("Failed to load Teams messages:", error);
+      console.error("Failed to load files:", error);
     } finally {
-      setLoading((prev) => ({ ...prev, messages: false }));
+      setLoading((prev) => ({ ...prev, files: false }));
     }
   };
 
-  const loadOneDriveFiles = async () => {
-    if (!services.find((s) => s.name === "onedrive")?.connected) return;
-
-    setLoading((prev) => ({ ...prev, files: true }));
+  const loadTeams = async () => {
+    setLoading((prev) => ({ ...prev, teams: true }));
     try {
-      const response = await fetch("/api/onedrive/files", {
+      const response = await fetch("/api/integrations/microsoft365/teams", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -307,41 +507,111 @@ const Microsoft365Integration: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setFiles(data.data?.files || []);
+        setTeams(data.data?.teams || []);
       }
     } catch (error) {
-      console.error("Failed to load OneDrive files:", error);
+      console.error("Failed to load teams:", error);
     } finally {
-      setLoading((prev) => ({ ...prev, files: false }));
+      setLoading((prev) => ({ ...prev, teams: false }));
     }
   };
 
-  const loadCalendarEvents = async () => {
-    if (!services.find((s) => s.name === "outlook")?.connected) return;
+  const sendEmail = async () => {
+    if (!newEmail.to || !newEmail.subject || !newEmail.body) return;
 
-    setLoading((prev) => ({ ...prev, events: true }));
     try {
-      const response = await fetch(
-        "/api/integrations/microsoft/calendar/events",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: "current",
-            limit: 25,
-            startDate: new Date().toISOString(),
-          }),
-        },
-      );
+      const response = await fetch("/api/integrations/microsoft365/emails/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          to: newEmail.to.split(",").map(email => ({ address: email.trim() })),
+          subject: newEmail.subject,
+          body: {
+            contentType: "text",
+            content: newEmail.body,
+          },
+          importance: newEmail.importance,
+          cc: newEmail.cc ? newEmail.cc.split(",").map(email => ({ address: email.trim() })) : [],
+        }),
+      });
 
       if (response.ok) {
-        const data = await response.json();
-        setEvents(data.data?.events || []);
+        toast({
+          title: "Success",
+          description: "Email sent successfully",
+          status: "success",
+          duration: 3000,
+        });
+        onEmailClose();
+        setNewEmail({ to: "", subject: "", body: "", importance: "normal", cc: "" });
+        loadEmails();
       }
     } catch (error) {
-      console.error("Failed to load calendar events:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, events: false }));
+      console.error("Failed to send email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send email",
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
+  const createCalendarEvent = async () => {
+    if (!newEvent.subject || !newEvent.startTime || !newEvent.endTime) return;
+
+    try {
+      const response = await fetch("/api/integrations/microsoft365/calendars/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          subject: newEvent.subject,
+          body: {
+            contentType: "text",
+            content: newEvent.body,
+          },
+          start: {
+            dateTime: newEvent.startTime,
+            timeZone: "UTC",
+          },
+          end: {
+            dateTime: newEvent.endTime,
+            timeZone: "UTC",
+          },
+          location: {
+            displayName: newEvent.location,
+          },
+          attendees: newEvent.attendees.map(email => ({
+            type: "required",
+            emailAddress: {
+              address: email,
+              name: email.split("@")[0],
+            },
+          })),
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Calendar event created successfully",
+          status: "success",
+          duration: 3000,
+        });
+        onCalendarClose();
+        setNewEvent({ subject: "", body: "", startTime: "", endTime: "", location: "", attendees: [] });
+        loadCalendars();
+      }
+    } catch (error) {
+      console.error("Failed to create calendar event:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create calendar event",
+        status: "error",
+        duration: 3000,
+      });
     }
   };
 
@@ -349,89 +619,94 @@ const Microsoft365Integration: React.FC = () => {
   const filteredEmails = emails.filter(
     (email) =>
       email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.body.toLowerCase().includes(searchQuery.toLowerCase()),
+      email.sender.emailAddress.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.sender.emailAddress.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredMessages = messages.filter(
-    (message) =>
-      message.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      message.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      message.teamName.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredCalendars = calendars.filter(
+    (calendar) =>
+      calendar.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      calendar.location?.displayName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredFiles = files.filter(
     (file) =>
-      file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      file.type.toLowerCase().includes(searchQuery.toLowerCase()),
+      file.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredEvents = events.filter(
-    (event) =>
-      event.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.organizer.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredUsers = users.filter(
+    (user) =>
+      user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.userPrincipalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (user.mail && user.mail.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const filteredTeams = teams.filter(
+    (team) =>
+      team.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      team.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Stats calculations
-  const connectedServices = services.filter(
-    (s) => s.status === "connected",
-  ).length;
+  const totalUsers = users.length;
+  const activeUsers = users.filter(u => u.accountEnabled).length;
   const totalEmails = emails.length;
-  const unreadEmails = emails.filter((e) => !e.isRead).length;
-  const totalMessages = messages.length;
+  const unreadEmails = emails.filter(e => !e.isRead).length;
+  const totalEvents = calendars.length;
+  const upcomingEvents = calendars.filter(e => new Date(e.start.dateTime) > new Date()).length;
   const totalFiles = files.length;
-  const totalEvents = events.length;
+  const totalTeams = teams.length;
 
   useEffect(() => {
-    checkAllServices();
+    checkConnection();
   }, []);
 
   useEffect(() => {
-    if (connectedServices > 0) {
+    if (connected) {
+      loadUserProfile();
+      loadUsers();
+      loadCalendars();
       loadEmails();
-      loadTeamsMessages();
-      loadOneDriveFiles();
-      loadCalendarEvents();
+      loadFiles();
+      loadTeams();
     }
-  }, [connectedServices]);
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
+  }, [connected]);
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleString();
   };
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case "connected":
-        return "green";
-      case "disconnected":
-        return "gray";
-      case "error":
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const getImportanceColor = (importance: string): string => {
+    switch (importance) {
+      case "high":
         return "red";
+      case "normal":
+        return "yellow";
+      case "low":
+        return "blue";
       default:
         return "gray";
     }
   };
 
-  const getImportanceColor = (importance: string): string => {
-    switch (importance?.toLowerCase()) {
-      case "high":
-        return "red";
-      case "normal":
-        return "blue";
-      case "low":
-        return "gray";
-      default:
-        return "gray";
-    }
+  const getFileIcon = (mimeType: string): any => {
+    if (mimeType.startsWith("image/")) return FileIcon;
+    if (mimeType.startsWith("video/")) return FileIcon;
+    if (mimeType.startsWith("audio/")) return FileIcon;
+    if (mimeType.includes("pdf")) return FileIcon;
+    if (mimeType.includes("word")) return FileIcon;
+    if (mimeType.includes("excel") || mimeType.includes("spreadsheet")) return FileIcon;
+    if (mimeType.includes("powerpoint") || mimeType.includes("presentation")) return FileIcon;
+    if (mimeType.includes("zip") || mimeType.includes("rar")) return FileIcon;
+    return FileIcon;
   };
 
   return (
@@ -440,609 +715,678 @@ const Microsoft365Integration: React.FC = () => {
         {/* Header */}
         <VStack align="start" spacing={4}>
           <HStack spacing={4}>
-            <Icon as={SettingsIcon} w={8} h={8} color="blue.500" />
+            <Icon as={SettingsIcon} w={8} h={8} color="#0078D4" />
             <VStack align="start" spacing={1}>
               <Heading size="2xl">Microsoft 365 Integration</Heading>
               <Text color="gray.600" fontSize="lg">
-                Complete productivity suite integration
+                Complete productivity suite with Teams, Outlook, and OneDrive
               </Text>
             </VStack>
           </HStack>
 
           <HStack spacing={4}>
-            <Badge colorScheme="blue" fontSize="md" px={3} py={1}>
-              {connectedServices}/{services.length} Services Connected
+            <Badge
+              colorScheme={healthStatus === "healthy" ? "green" : "red"}
+              display="flex"
+              alignItems="center"
+            >
+              {healthStatus === "healthy" ? (
+                <CheckCircleIcon mr={1} />
+              ) : (
+                <WarningTwoIcon mr={1} />
+              )}
+              {connected ? "Connected" : "Disconnected"}
             </Badge>
             <Button
               variant="outline"
               size="sm"
               leftIcon={<RepeatIcon />}
-              onClick={checkAllServices}
-              isLoading={loading.services}
+              onClick={checkConnection}
             >
-              Check Status
+              Refresh Status
             </Button>
           </HStack>
+
+          {userProfile && (
+            <HStack spacing={4}>
+              <Avatar name={userProfile.displayName} />
+              <VStack align="start" spacing={0}>
+                <Text fontWeight="bold">{userProfile.displayName}</Text>
+                <Text fontSize="sm" color="gray.600">
+                  {userProfile.jobTitle || userProfile.userPrincipalName}
+                </Text>
+              </VStack>
+            </HStack>
+          )}
         </VStack>
 
-        {/* Services Overview */}
-        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
-          {services.map((service) => (
-            <Card
-              key={service.name}
-              bg={bgColor}
-              borderWidth="1px"
-              borderColor={borderColor}
-            >
-              <CardHeader>
-                <VStack spacing={3}>
-                  <Icon
-                    as={service.icon}
-                    w={12}
-                    h={12}
-                    color={`${service.color}.500`}
-                  />
-                  <VStack spacing={1} align="start">
-                    <Heading size="md">{service.displayName}</Heading>
-                    <Text color="gray.600" fontSize="sm" textAlign="center">
-                      {service.description}
-                    </Text>
-                  </VStack>
+        {!connected ? (
+          // Connection Required State
+          <Card>
+            <CardBody>
+              <VStack spacing={6} py={8}>
+                <Icon as={SettingsIcon} w={16} h={16} color="gray.400" />
+                <VStack spacing={2}>
+                  <Heading size="lg">Connect Microsoft 365</Heading>
+                  <Text color="gray.600" textAlign="center">
+                    Connect your Microsoft 365 account to access Teams, Outlook, and OneDrive
+                  </Text>
                 </VStack>
-              </CardHeader>
-              <CardBody>
-                <VStack spacing={4}>
-                  <Badge
-                    colorScheme={getStatusColor(service.status)}
-                    w="100%"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    py={2}
-                  >
-                    {service.status === "connected" ? (
-                      <>
-                        <CheckCircleIcon mr={2} />
-                        Connected
-                      </>
-                    ) : service.status === "error" ? (
-                      <>
-                        <WarningTwoIcon mr={2} />
-                        Error
-                      </>
-                    ) : (
-                      <>
-                        <InfoIcon mr={2} />
-                        Not Connected
-                      </>
-                    )}
-                  </Badge>
+                <Button
+                  colorScheme="blue"
+                  size="lg"
+                  leftIcon={<ArrowForwardIcon />}
+                  onClick={() =>
+                    (window.location.href =
+                      "/api/integrations/microsoft365/auth/start")
+                  }
+                >
+                  Connect Microsoft 365 Account
+                </Button>
+              </VStack>
+            </CardBody>
+          </Card>
+        ) : (
+          // Connected State
+          <>
+            {/* Services Overview */}
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Users</StatLabel>
+                    <StatNumber>{totalUsers}</StatNumber>
+                    <StatHelpText>{activeUsers} active</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Emails</StatLabel>
+                    <StatNumber>{totalEmails}</StatNumber>
+                    <StatHelpText>{unreadEmails} unread</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Calendar Events</StatLabel>
+                    <StatNumber>{upcomingEvents}</StatNumber>
+                    <StatHelpText>{totalEvents} total</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Files</StatLabel>
+                    <StatNumber>{totalFiles}</StatNumber>
+                    <StatHelpText>OneDrive</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+            </SimpleGrid>
 
-                  <Button
-                    w="100%"
-                    colorScheme={
-                      service.status === "connected" ? "gray" : service.color
-                    }
-                    onClick={() => {
-                      if (service.status !== "connected") {
-                        window.location.href = `/integrations/${service.name}`;
-                      } else {
-                        window.location.href = `/integrations/${service.name}`;
-                      }
-                    }}
-                    leftIcon={
-                      service.status === "connected" ? (
-                        <ViewIcon />
-                      ) : (
-                        <ArrowForwardIcon />
-                      )
-                    }
-                  >
-                    {service.status === "connected" ? "Manage" : "Connect"}
-                  </Button>
-                </VStack>
-              </CardBody>
-            </Card>
-          ))}
-        </SimpleGrid>
-
-        {/* Unified Stats */}
-        {connectedServices > 0 && (
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Emails</StatLabel>
-                  <StatNumber>{totalEmails}</StatNumber>
-                  <StatHelpText>{unreadEmails} unread</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Teams Messages</StatLabel>
-                  <StatNumber>{totalMessages}</StatNumber>
-                  <StatHelpText>Recent activity</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>OneDrive Files</StatLabel>
-                  <StatNumber>{totalFiles}</StatNumber>
-                  <StatHelpText>Cloud storage</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Calendar Events</StatLabel>
-                  <StatNumber>{totalEvents}</StatNumber>
-                  <StatHelpText>Upcoming</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-          </SimpleGrid>
-        )}
-
-        {/* Unified Data View */}
-        {connectedServices > 0 && (
-          <Tabs variant="enclosed">
-            <TabList>
-              <Tab>Overview</Tab>
-              {services.find((s) => s.name === "outlook")?.connected && (
-                <>
-                  <Tab>Email</Tab>
-                  <Tab>Calendar</Tab>
-                </>
-              )}
-              {services.find((s) => s.name === "teams")?.connected && (
-                <Tab>Teams</Tab>
-              )}
-              {services.find((s) => s.name === "onedrive")?.connected && (
+            {/* Main Content Tabs */}
+            <Tabs variant="enclosed">
+              <TabList>
+                <Tab>Outlook</Tab>
+                <Tab>Calendar</Tab>
                 <Tab>OneDrive</Tab>
-              )}
-            </TabList>
+                <Tab>Teams</Tab>
+                <Tab>Users</Tab>
+              </TabList>
 
-            <TabPanels>
-              {/* Overview Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <Alert status="info">
-                    <InfoIcon />
-                    <Text>
-                      Microsoft 365 services are connected and synchronized.
-                      Click on individual service tabs to manage specific data.
-                    </Text>
-                  </Alert>
-
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    {totalEmails > 0 && (
-                      <Card>
-                        <CardHeader>
-                          <Heading size="sm">Recent Emails</Heading>
-                        </CardHeader>
-                        <CardBody>
-                          <VStack spacing={3} align="start">
-                            {emails.slice(0, 3).map((email) => (
-                              <Box key={email.id} w="100%">
-                                <Text fontWeight="medium" noOfLines={1}>
-                                  {email.subject}
-                                </Text>
-                                <Text fontSize="sm" color="gray.600">
-                                  {email.from} •{" "}
-                                  {formatDate(email.receivedTime)}
-                                </Text>
-                              </Box>
-                            ))}
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    )}
-
-                    {totalMessages > 0 && (
-                      <Card>
-                        <CardHeader>
-                          <Heading size="sm">Teams Activity</Heading>
-                        </CardHeader>
-                        <CardBody>
-                          <VStack spacing={3} align="start">
-                            {messages.slice(0, 3).map((message) => (
-                              <Box key={message.id} w="100%">
-                                <Text fontWeight="medium" noOfLines={1}>
-                                  {message.teamName} • {message.channelName}
-                                </Text>
-                                <Text fontSize="sm" color="gray.600">
-                                  {message.from} •{" "}
-                                  {formatDate(message.timestamp)}
-                                </Text>
-                              </Box>
-                            ))}
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    )}
-
-                    {totalFiles > 0 && (
-                      <Card>
-                        <CardHeader>
-                          <Heading size="sm">Recent Files</Heading>
-                        </CardHeader>
-                        <CardBody>
-                          <VStack spacing={3} align="start">
-                            {files.slice(0, 3).map((file) => (
-                              <Box key={file.id} w="100%">
-                                <HStack>
-                                  <Icon as={FolderIcon} color="orange.500" />
-                                  <Text fontWeight="medium" noOfLines={1}>
-                                    {file.name}
-                                  </Text>
-                                </HStack>
-                                <Text fontSize="sm" color="gray.600">
-                                  {formatFileSize(file.size)} •{" "}
-                                  {formatDate(file.modifiedTime)}
-                                </Text>
-                              </Box>
-                            ))}
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    )}
-
-                    {totalEvents > 0 && (
-                      <Card>
-                        <CardHeader>
-                          <Heading size="sm">Upcoming Events</Heading>
-                        </CardHeader>
-                        <CardBody>
-                          <VStack spacing={3} align="start">
-                            {events.slice(0, 3).map((event) => (
-                              <Box key={event.id} w="100%">
-                                <Text fontWeight="medium" noOfLines={1}>
-                                  {event.subject}
-                                </Text>
-                                <Text fontSize="sm" color="gray.600">
-                                  {formatDate(event.startTime)} •{" "}
-                                  {event.location}
-                                </Text>
-                              </Box>
-                            ))}
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    )}
-                  </SimpleGrid>
-                </VStack>
-              </TabPanel>
-
-              {/* Email Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <Card>
-                    <CardBody>
+              <TabPanels>
+                {/* Outlook Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
                       <Input
                         placeholder="Search emails..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         leftElement={<SearchIcon />}
                       />
-                    </CardBody>
-                  </Card>
+                      <Spacer />
+                      <Button
+                        colorScheme="blue"
+                        leftIcon={<AddIcon />}
+                        onClick={onEmailOpen}
+                      >
+                        Compose Email
+                      </Button>
+                    </HStack>
 
-                  <Card>
-                    <CardBody>
-                      {loading.emails ? (
-                        <VStack spacing={4} py={8}>
-                          <Text>Loading emails...</Text>
-                          <Progress size="sm" isIndeterminate width="100%" />
-                        </VStack>
-                      ) : filteredEmails.length === 0 ? (
-                        <VStack spacing={4} py={8}>
-                          <Icon as={MailIcon} w={12} h={12} color="gray.400" />
-                          <Text color="gray.600">No emails found</Text>
-                        </VStack>
-                      ) : (
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Subject</Th>
-                                <Th>From</Th>
-                                <Th>Received</Th>
-                                <Th>Importance</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {filteredEmails.map((email) => (
-                                <Tr key={email.id}>
-                                  <Td>
-                                    <VStack align="start" spacing={1}>
-                                      <Text
-                                        fontWeight={
-                                          email.isRead ? "normal" : "bold"
-                                        }
-                                        noOfLines={1}
-                                      >
-                                        {email.subject}
-                                      </Text>
-                                      {email.hasAttachments && (
-                                        <Icon
-                                          as={LinkIcon}
-                                          w={3}
-                                          h={3}
-                                          color="gray.500"
-                                        />
-                                      )}
-                                    </VStack>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">{email.from}</Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {formatDate(email.receivedTime)}
+                    <Card>
+                      <CardBody>
+                        <VStack spacing={4} align="stretch">
+                          {loading.emails ? (
+                            <Spinner size="xl" />
+                          ) : (
+                            filteredEmails.map((email) => (
+                              <HStack
+                                key={email.id}
+                                p={4}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                _hover={{ bg: "gray.50" }}
+                                cursor="pointer"
+                                onClick={() => window.open(email.webLink, "_blank")}
+                              >
+                                <Icon as={EmailIcon} w={6} h={6} color="blue.500" />
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <HStack justify="space-between" width="100%">
+                                    <Text fontWeight="bold">
+                                      {email.subject}
                                     </Text>
-                                  </Td>
-                                  <Td>
-                                    <Tag
-                                      colorScheme={getImportanceColor(
-                                        email.importance,
+                                    <HStack>
+                                      {!email.isRead && (
+                                        <Tag colorScheme="blue" size="sm">
+                                          New
+                                        </Tag>
                                       )}
-                                      size="sm"
-                                    >
-                                      <TagLabel>
-                                        {email.importance || "Normal"}
-                                      </TagLabel>
+                                      <Tag colorScheme={getImportanceColor(email.importance)} size="sm">
+                                        {email.importance}
+                                      </Tag>
+                                    </HStack>
+                                  </HStack>
+                                  <Text fontSize="sm" color="gray.600">
+                                    From: {email.sender.emailAddress.name} ({email.sender.emailAddress.address})
+                                  </Text>
+                                  <Text fontSize="xs" color="gray.500">
+                                    {formatDate(email.receivedDateTime)}
+                                  </Text>
+                                  {email.hasAttachments && (
+                                    <Tag colorScheme="orange" size="sm">
+                                      📎 Has attachments
                                     </Tag>
-                                  </Td>
-                                  <Td>
-                                    <Button size="sm" variant="outline">
-                                      View
-                                    </Button>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      )}
-                    </CardBody>
-                  </Card>
-                </VStack>
-              </TabPanel>
+                                  )}
+                                </VStack>
+                              </HStack>
+                            ))
+                          )}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
 
-              {/* Calendar Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <Card>
-                    <CardBody>
-                      {loading.events ? (
-                        <VStack spacing={4} py={8}>
-                          <Text>Loading calendar events...</Text>
-                          <Progress size="sm" isIndeterminate width="100%" />
-                        </VStack>
-                      ) : filteredEvents.length === 0 ? (
-                        <VStack spacing={4} py={8}>
-                          <Icon as={TimeIcon} w={12} h={12} color="gray.400" />
-                          <Text color="gray.600">No upcoming events</Text>
-                        </VStack>
+                {/* Calendar Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search calendar events..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                      <Spacer />
+                      <Button
+                        colorScheme="blue"
+                        leftIcon={<AddIcon />}
+                        onClick={onCalendarOpen}
+                      >
+                        Create Event
+                      </Button>
+                    </HStack>
+
+                    <VStack spacing={4} align="stretch">
+                      {loading.calendars ? (
+                        <Spinner size="xl" />
                       ) : (
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Subject</Th>
-                                <Th>Start</Th>
-                                <Th>End</Th>
-                                <Th>Location</Th>
-                                <Th>Organizer</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {filteredEvents.map((event) => (
-                                <Tr key={event.id}>
-                                  <Td>
-                                    <Text fontWeight="medium">
+                        filteredCalendars.map((event) => (
+                          <Card key={event.id}>
+                            <CardBody>
+                              <HStack spacing={4} align="start">
+                                <Icon as={CalendarIcon} w={6} h={6} color="green.500" />
+                                <VStack align="start" spacing={2} flex={1}>
+                                  <HStack justify="space-between" width="100%">
+                                    <Text fontWeight="bold">
                                       {event.subject}
                                     </Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {formatDate(event.startTime)}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {formatDate(event.endTime)}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {event.location || "N/A"}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">{event.organizer}</Text>
-                                  </Td>
-                                  <Td>
-                                    <Button size="sm" variant="outline">
-                                      View
-                                    </Button>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      )}
-                    </CardBody>
-                  </Card>
-                </VStack>
-              </TabPanel>
-
-              {/* Teams Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <Card>
-                    <CardBody>
-                      {loading.messages ? (
-                        <VStack spacing={4} py={8}>
-                          <Text>Loading Teams messages...</Text>
-                          <Progress size="sm" isIndeterminate width="100%" />
-                        </VStack>
-                      ) : filteredMessages.length === 0 ? (
-                        <VStack spacing={4} py={8}>
-                          <Icon as={ChatIcon} w={12} h={12} color="gray.400" />
-                          <Text color="gray.600">No messages found</Text>
-                        </VStack>
-                      ) : (
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Message</Th>
-                                <Th>Team/Channel</Th>
-                                <Th>From</Th>
-                                <Th>Time</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {filteredMessages.map((message) => (
-                                <Tr key={message.id}>
-                                  <Td>
-                                    <Text noOfLines={2}>{message.content}</Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {message.teamName}/{message.channelName}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">{message.from}</Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {formatDate(message.timestamp)}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <Button size="sm" variant="outline">
-                                      View
-                                    </Button>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      )}
-                    </CardBody>
-                  </Card>
-                </VStack>
-              </TabPanel>
-
-              {/* OneDrive Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <Card>
-                    <CardBody>
-                      {loading.files ? (
-                        <VStack spacing={4} py={8}>
-                          <Text>Loading OneDrive files...</Text>
-                          <Progress size="sm" isIndeterminate width="100%" />
-                        </VStack>
-                      ) : filteredFiles.length === 0 ? (
-                        <VStack spacing={4} py={8}>
-                          <Icon
-                            as={FolderIcon}
-                            w={12}
-                            h={12}
-                            color="gray.400"
-                          />
-                          <Text color="gray.600">No files found</Text>
-                        </VStack>
-                      ) : (
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Name</Th>
-                                <Th>Type</Th>
-                                <Th>Size</Th>
-                                <Th>Modified</Th>
-                                <Th>Sharing</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {filteredFiles.map((file) => (
-                                <Tr key={file.id}>
-                                  <Td>
                                     <HStack>
-                                      <Icon
-                                        as={FolderIcon}
-                                        color="orange.500"
-                                      />
-                                      <Text fontWeight="medium">
-                                        {file.name}
-                                      </Text>
+                                      {event.isOnlineMeeting && (
+                                        <Tag colorScheme="blue" size="sm">
+                                          📹 Online Meeting
+                                        </Tag>
+                                      )}
                                     </HStack>
-                                  </Td>
-                                  <Td>
-                                    <Badge colorScheme="blue" size="sm">
-                                      {file.type}
-                                    </Badge>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
+                                  </HStack>
+                                  {event.body && (
+                                    <Text fontSize="sm" color="gray.600">
+                                      {event.body.content.substring(0, 200)}
+                                      {event.body.content.length > 200 && "..."}
+                                    </Text>
+                                  )}
+                                  <HStack spacing={4}>
+                                    <Text fontSize="sm" color="gray.500">
+                                      📅 {formatDate(event.start.dateTime)} - {formatDate(event.end.dateTime)}
+                                    </Text>
+                                  </HStack>
+                                  {event.location && (
+                                    <Text fontSize="sm" color="gray.500">
+                                      📍 {event.location.displayName}
+                                    </Text>
+                                  )}
+                                  {event.attendees && event.attendees.length > 0 && (
+                                    <HStack wrap="wrap">
+                                      {event.attendees.slice(0, 3).map((attendee) => (
+                                        <Tag key={attendee.emailAddress.address} size="sm" colorScheme="gray">
+                                          {attendee.emailAddress.name}
+                                        </Tag>
+                                      ))}
+                                      {event.attendees.length > 3 && (
+                                        <Tag size="sm" colorScheme="gray">
+                                          +{event.attendees.length - 3} more
+                                        </Tag>
+                                      )}
+                                    </HStack>
+                                  )}
+                                </VStack>
+                              </HStack>
+                            </CardBody>
+                          </Card>
+                        ))
+                      )}
+                    </VStack>
+                  </VStack>
+                </TabPanel>
+
+                {/* OneDrive Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search files..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                    </HStack>
+
+                    <Card>
+                      <CardBody>
+                        <VStack spacing={4} align="stretch">
+                          {loading.files ? (
+                            <Spinner size="xl" />
+                          ) : (
+                            filteredFiles.map((file) => (
+                              <HStack
+                                key={file.id}
+                                p={4}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                _hover={{ bg: "gray.50" }}
+                                cursor="pointer"
+                                onClick={() => window.open(file.webUrl, "_blank")}
+                              >
+                                <Icon
+                                  as={getFileIcon(file.file?.mimeType || "")}
+                                  w={6}
+                                  h={6}
+                                  color="blue.500"
+                                />
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <Text fontWeight="bold">{file.name}</Text>
+                                  <HStack>
+                                    <Text fontSize="xs" color="gray.500">
                                       {formatFileSize(file.size)}
                                     </Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {formatDate(file.modifiedTime)}
+                                    <Text fontSize="xs" color="gray.500">
+                                      • {formatDate(file.lastModifiedDateTime)}
                                     </Text>
-                                  </Td>
-                                  <Td>
-                                    <Badge
-                                      colorScheme={
-                                        file.sharingStatus === "shared"
-                                          ? "green"
-                                          : "gray"
-                                      }
-                                      size="sm"
-                                    >
-                                      {file.sharingStatus}
-                                    </Badge>
-                                  </Td>
-                                  <Td>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      leftIcon={<ArrowForwardIcon />}
-                                      onClick={() => window.open(file.webUrl)}
-                                    >
-                                      Open
-                                    </Button>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      )}
-                    </CardBody>
-                  </Card>
-                </VStack>
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
+                                  </HStack>
+                                </VStack>
+                              </HStack>
+                            ))
+                          )}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+
+                {/* Teams Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search teams..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                    </HStack>
+
+                    <Card>
+                      <CardBody>
+                        <VStack spacing={4} align="stretch">
+                          {loading.teams ? (
+                            <Spinner size="xl" />
+                          ) : (
+                            filteredTeams.map((team) => (
+                              <HStack
+                                key={team.id}
+                                p={4}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                _hover={{ bg: "gray.50" }}
+                                cursor="pointer"
+                                onClick={() => window.open(team.webUrl, "_blank")}
+                              >
+                                <Icon as={ChatIcon} w={6} h={6} color="purple.500" />
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <HStack justify="space-between" width="100%">
+                                    <Text fontWeight="bold">{team.displayName}</Text>
+                                    <HStack>
+                                      <Tag colorScheme={team.visibility === "private" ? "gray" : "green"} size="sm">
+                                        {team.visibility}
+                                      </Tag>
+                                      {team.isArchived && (
+                                        <Tag colorScheme="red" size="sm">
+                                          Archived
+                                        </Tag>
+                                      )}
+                                    </HStack>
+                                  </HStack>
+                                  <Text fontSize="sm" color="gray.600">
+                                    {team.description}
+                                  </Text>
+                                  <HStack spacing={4}>
+                                    <Text fontSize="xs" color="gray.500">
+                                      Created: {formatDate(team.createdDateTime)}
+                                    </Text>
+                                    {team.channels && (
+                                      <Text fontSize="xs" color="gray.500">
+                                        {team.channels.length} channels
+                                      </Text>
+                                    )}
+                                  </HStack>
+                                </VStack>
+                              </HStack>
+                            ))
+                          )}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+
+                {/* Users Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search users..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                    </HStack>
+
+                    <Card>
+                      <CardBody>
+                        <VStack spacing={4} align="stretch">
+                          {loading.users ? (
+                            <Spinner size="xl" />
+                          ) : (
+                            filteredUsers.map((user) => (
+                              <HStack
+                                key={user.id}
+                                p={4}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                _hover={{ bg: "gray.50" }}
+                              >
+                                <Avatar name={user.displayName} />
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <HStack>
+                                    <Text fontWeight="bold">{user.displayName}</Text>
+                                    <Tag colorScheme={user.accountEnabled ? "green" : "red"} size="sm">
+                                      {user.accountEnabled ? "Active" : "Inactive"}
+                                    </Tag>
+                                  </HStack>
+                                  <Text fontSize="sm" color="gray.600">
+                                    {user.userPrincipalName}
+                                  </Text>
+                                  {user.jobTitle && (
+                                    <Text fontSize="sm" color="gray.500">
+                                      {user.jobTitle}
+                                    </Text>
+                                  )}
+                                  {user.department && (
+                                    <Text fontSize="xs" color="gray.500">
+                                      {user.department}
+                                    </Text>
+                                  )}
+                                  {user.officeLocation && (
+                                    <Text fontSize="xs" color="gray.500">
+                                      📍 {user.officeLocation}
+                                    </Text>
+                                  )}
+                                </VStack>
+                              </HStack>
+                            ))
+                          )}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+
+            {/* Compose Email Modal */}
+            <Modal isOpen={isEmailOpen} onClose={onEmailClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Compose Email</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>To</FormLabel>
+                      <Input
+                        placeholder="recipient@example.com, recipient2@example.com"
+                        value={newEmail.to}
+                        onChange={(e) =>
+                          setNewEmail({
+                            ...newEmail,
+                            to: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Cc</FormLabel>
+                      <Input
+                        placeholder="cc@example.com"
+                        value={newEmail.cc}
+                        onChange={(e) =>
+                          setNewEmail({
+                            ...newEmail,
+                            cc: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Subject</FormLabel>
+                      <Input
+                        placeholder="Email subject"
+                        value={newEmail.subject}
+                        onChange={(e) =>
+                          setNewEmail({
+                            ...newEmail,
+                            subject: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Message</FormLabel>
+                      <Textarea
+                        placeholder="Your message..."
+                        value={newEmail.body}
+                        onChange={(e) =>
+                          setNewEmail({
+                            ...newEmail,
+                            body: e.target.value,
+                          })
+                        }
+                        rows={6}
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Importance</FormLabel>
+                      <Select
+                        value={newEmail.importance}
+                        onChange={(e) =>
+                          setNewEmail({
+                            ...newEmail,
+                            importance: e.target.value as "low" | "normal" | "high",
+                          })
+                        }
+                      >
+                        <option value="low">Low</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                      </Select>
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onEmailClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="blue"
+                    onClick={sendEmail}
+                    disabled={!newEmail.to || !newEmail.subject || !newEmail.body}
+                  >
+                    Send Email
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+
+            {/* Create Event Modal */}
+            <Modal isOpen={isCalendarOpen} onClose={onCalendarClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Create Calendar Event</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>Subject</FormLabel>
+                      <Input
+                        placeholder="Event subject"
+                        value={newEvent.subject}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            subject: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Description</FormLabel>
+                      <Textarea
+                        placeholder="Event description"
+                        value={newEvent.body}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            body: e.target.value,
+                          })
+                        }
+                        rows={4}
+                      />
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Start Time</FormLabel>
+                      <Input
+                        type="datetime-local"
+                        value={newEvent.startTime}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            startTime: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>End Time</FormLabel>
+                      <Input
+                        type="datetime-local"
+                        value={newEvent.endTime}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            endTime: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Location</FormLabel>
+                      <Input
+                        placeholder="Event location"
+                        value={newEvent.location}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            location: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Attendees</FormLabel>
+                      <Input
+                        placeholder="attendee@example.com, attendee2@example.com"
+                        value={newEvent.attendees.join(", ")}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            attendees: e.target.value.split(",").map(s => s.trim()).filter(s => s),
+                          })
+                        }
+                      />
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onCalendarClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="blue"
+                    onClick={createCalendarEvent}
+                    disabled={!newEvent.subject || !newEvent.startTime || !newEvent.endTime}
+                  >
+                    Create Event
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+          </>
         )}
       </VStack>
     </Box>

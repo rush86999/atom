@@ -1,1318 +1,1175 @@
 /**
  * Jira Integration Page
- * Complete Jira integration with comprehensive project management and issue tracking features
+ * Complete Jira project management and issue tracking integration
  */
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import {
   Box,
-  Card,
-  CardHeader,
-  CardBody,
-  Heading,
+  VStack,
+  HStack,
+  Text,
   Button,
+  Heading,
+  Card,
+  CardBody,
+  CardHeader,
+  Badge,
+  Icon,
+  useToast,
+  SimpleGrid,
+  Divider,
+  useColorModeValue,
+  Stack,
+  Flex,
+  Spacer,
   Input,
+  Select,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
   FormLabel,
   Textarea,
+  useDisclosure,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatGroup,
+  Tag,
+  TagLabel,
   Tabs,
   TabList,
   TabPanels,
   Tab,
   TabPanel,
-  Badge,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  Select,
-  VStack,
-  HStack,
-  Text,
+  Avatar,
+  AvatarGroup,
   Spinner,
-  IconButton,
-  useToast,
-  useColorModeValue,
 } from "@chakra-ui/react";
 import {
-  SettingsIcon,
+  ChatIcon,
   CheckCircleIcon,
-  WarningIcon,
-  RepeatIcon,
+  WarningTwoIcon,
+  ArrowForwardIcon,
   AddIcon,
+  SearchIcon,
+  SettingsIcon,
+  RepeatIcon,
+  TimeIcon,
+  StarIcon,
+  ViewIcon,
   EditIcon,
   DeleteIcon,
-  ViewIcon,
-  SearchIcon,
   CalendarIcon,
-  TimeIcon,
-  ArrowForwardIcon,
-  Bug,
-  Star,
-  Clock,
-  User,
-  MessageSquare,
-  Tag,
-  Flag,
-  ChevronRight,
-  Filter,
 } from "@chakra-ui/icons";
 
 interface JiraProject {
   id: string;
   key: string;
   name: string;
-  description: string;
-  projectType: string;
+  projectTypeKey: string;
   lead: {
-    accountId: string;
     displayName: string;
+    emailAddress: string;
+    avatarUrls: {
+      "48x48": string;
+      "24x24": string;
+    };
   };
   url: string;
-  avatarUrls: {
-    "48x48": string;
-    "24x24": string;
-  };
-  projectCategory: {
-    id: string;
-    name: string;
-    description: string;
-  };
-  style: string;
+  description?: string;
   isPrivate: boolean;
+  archived: boolean;
   issueTypes: Array<{
     id: string;
     name: string;
+    description: string;
     iconUrl: string;
-    description: string;
-  }>;
-  components: Array<{
-    id: string;
-    name: string;
-    description: string;
   }>;
 }
 
 interface JiraIssue {
   id: string;
   key: string;
-  summary: string;
-  description: string;
-  issueType: {
-    id: string;
-    name: string;
-    iconUrl: string;
-    description: string;
-  };
-  status: {
-    id: string;
-    name: string;
-    statusCategory: {
-      id: number;
+  fields: {
+    summary: string;
+    description?: string;
+    status: {
+      name: string;
+      statusCategory: {
+        colorName: string;
+      };
+    };
+    priority: {
+      name: string;
+      iconUrl: string;
+    };
+    assignee?: {
+      displayName: string;
+      emailAddress: string;
+      avatarUrls: {
+        "48x48": string;
+        "24x24": string;
+      };
+    };
+    reporter: {
+      displayName: string;
+      emailAddress: string;
+      avatarUrls: {
+        "48x48": string;
+        "24x24": string;
+      };
+    };
+    created: string;
+    updated: string;
+    resolution?: string;
+    resolutiondate?: string;
+    issuetype: {
+      name: string;
+      iconUrl: string;
+    };
+    project: {
       key: string;
-      colorName: string;
+      name: string;
+    };
+    components?: Array<{
+      id: string;
+      name: string;
+    }>;
+    fixVersions?: Array<{
+      id: string;
+      name: string;
+    }>;
+    labels?: string[];
+    timeoriginalestimate?: number;
+    timeestimate?: number;
+    timespent?: number;
+    aggregateprogress?: {
+      progress: number;
+      total: number;
     };
   };
-  priority: {
-    id: string;
-    name: string;
-    statusColor: string;
-  };
-  assignee: {
-    accountId: string;
-    displayName: string;
-    emailAddress?: string;
-  };
-  reporter: {
-    accountId: string;
-    displayName: string;
-    emailAddress?: string;
-  };
-  project: {
-    id: string;
-    key: string;
-    name: string;
-  };
-  created: string;
-  updated: string;
-  dueDate: string;
-  resolutionDate: string;
-  components: Array<{
-    id: string;
-    name: string;
-  }>;
-  labels: string[];
-  fixVersions: Array<{
-    id: string;
-    name: string;
-  }>;
-  versions: Array<{
-    id: string;
-    name: string;
-  }>;
-  environment: string;
-  timeEstimate: number;
-  timeSpent: number;
-  watches: number;
-  comments: any[];
 }
 
 interface JiraUser {
   accountId: string;
+  accountType: string;
+  active: boolean;
   displayName: string;
   emailAddress?: string;
-  active: boolean;
-  timeZone: string;
-  locale: string;
   avatarUrls: {
     "48x48": string;
     "24x24": string;
+    "16x16": string;
   };
+  timeZone?: string;
+  locale?: string;
 }
 
 interface JiraSprint {
   id: number;
-  name: string;
   state: string;
-  startDate: string;
-  endDate: string;
-  completeDate: string;
+  name: string;
+  startDate?: string;
+  endDate?: string;
+  completeDate?: string;
   originBoardId: number;
-  goal: string;
+  goal?: string;
+  issues: Array<{
+    id: string;
+    key: string;
+    fields: {
+      summary: string;
+      status: {
+        name: string;
+      };
+      assignee?: {
+        displayName: string;
+        avatarUrls: {
+          "48x48": string;
+        };
+      };
+    };
+  }>;
 }
 
-interface JiraStatus {
-  service: string;
-  status: "healthy" | "degraded" | "error" | "unavailable";
-  timestamp: string;
-  components: {
-    service?: { status: string; message: string };
-    configuration?: { status: string; client_id_configured: boolean };
-    database?: { status: string; message: string };
-    api?: { status: string; rate_limit_remaining: number };
-  };
-}
-
-export default function JiraIntegration() {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState("demo-user");
-  const [status, setStatus] = useState<JiraStatus | null>(null);
-  const [userInfo, setUserInfo] = useState<JiraUser | null>(null);
+const JiraIntegration: React.FC = () => {
   const [projects, setProjects] = useState<JiraProject[]>([]);
   const [issues, setIssues] = useState<JiraIssue[]>([]);
   const [users, setUsers] = useState<JiraUser[]>([]);
   const [sprints, setSprints] = useState<JiraSprint[]>([]);
-  const [selectedProject, setSelectedProject] = useState("");
-  const [issueTitle, setIssueTitle] = useState("");
-  const [issueDescription, setIssueDescription] = useState("");
+  const [userProfile, setUserProfile] = useState<JiraUser | null>(null);
+  const [loading, setLoading] = useState({
+    projects: false,
+    issues: false,
+    users: false,
+    sprints: false,
+    profile: false,
+  });
+  const [connected, setConnected] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<
+    "healthy" | "error" | "unknown"
+  >("unknown");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedProject, setSelectedProject] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedAssignee, setSelectedAssignee] = useState("");
 
-  // API base URL
-  const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5058";
-  const JIRA_ENHANCED_URL = `${API_BASE_URL}/api/integrations/jira`;
-  const JIRA_OAUTH_URL = `${API_BASE_URL}/api/integrations/jira/auth`;
+  const {
+    isOpen: isIssueOpen,
+    onOpen: onIssueOpen,
+    onClose: onIssueClose,
+  } = useDisclosure();
+  const {
+    isOpen: isProjectOpen,
+    onOpen: onProjectOpen,
+    onClose: onProjectClose,
+  } = useDisclosure();
+  
+  const [newIssue, setNewIssue] = useState({
+    project: "",
+    summary: "",
+    description: "",
+    issueType: "Story",
+    priority: "Medium",
+    assignee: "",
+  });
+  
+  const [newProject, setNewProject] = useState({
+    name: "",
+    key: "",
+    description: "",
+    type: "Software",
+  });
 
-  // Load initial data
-  useEffect(() => {
-    loadStatus();
-    if (activeTab === "projects") {
-      loadProjects();
-    } else if (activeTab === "issues") {
-      loadIssues();
-    } else if (activeTab === "users") {
-      loadUsers();
-    } else if (activeTab === "sprints") {
-      loadSprints();
-    }
-  }, [activeTab]);
+  const toast = useToast();
+  const bgColor = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
 
-  const loadStatus = async () => {
+  // Check connection status
+  const checkConnection = async () => {
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/health`);
-      const data = await response.json();
-      setStatus(data);
+      const response = await fetch("/api/integrations/jira/health");
+      if (response.ok) {
+        setConnected(true);
+        setHealthStatus("healthy");
+        loadUserProfile();
+        loadProjects();
+        loadUsers();
+      } else {
+        setConnected(false);
+        setHealthStatus("error");
+      }
     } catch (error) {
-      console.error("Failed to load status:", error);
-      setStatus({
-        service: "jira_enhanced",
-        status: "error",
-        timestamp: new Date().toISOString(),
-        components: {},
-      });
+      console.error("Health check failed:", error);
+      setConnected(false);
+      setHealthStatus("error");
     }
   };
 
-  const loadUserInfo = async () => {
-    setLoading(true);
+  // Load Jira data
+  const loadUserProfile = async () => {
+    setLoading((prev) => ({ ...prev, profile: true }));
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/users/profile`, {
+      const response = await fetch("/api/integrations/jira/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
+          user_id: "current",
         }),
       });
 
-      const data = await response.json();
-
-      if (data.ok) {
-        setUserInfo(data.data.user);
-        toast({
-          title: "User info loaded",
-          description: `Successfully loaded profile for ${data.data.user.displayName}`,
-        });
-      } else {
-        toast({
-          title: "Failed to load user info",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+      if (response.ok) {
+        const data = await response.json();
+        setUserProfile(data.data?.profile || null);
       }
     } catch (error) {
-      console.error("Failed to load user info:", error);
-      toast({
-        title: "Error loading user info",
-        description: "Could not connect to Jira service",
-        variant: "destructive",
-      });
+      console.error("Failed to load user profile:", error);
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, profile: false }));
     }
   };
 
   const loadProjects = async () => {
-    setLoading(true);
+    setLoading((prev) => ({ ...prev, projects: true }));
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/projects`, {
+      const response = await fetch("/api/integrations/jira/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
+          user_id: "current",
           limit: 100,
         }),
       });
 
-      const data = await response.json();
-
-      if (data.ok) {
-        setProjects(data.data.projects);
-        toast({
-          title: "Projects loaded",
-          description: `Loaded ${data.data.projects.length} projects`,
-        });
-      } else {
-        toast({
-          title: "Failed to load projects",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data.data?.projects || []);
       }
     } catch (error) {
       console.error("Failed to load projects:", error);
       toast({
-        title: "Error loading projects",
-        description: "Could not connect to Jira service",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to load projects from Jira",
+        status: "error",
+        duration: 3000,
       });
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, projects: false }));
     }
   };
 
   const loadIssues = async () => {
-    setLoading(true);
+    setLoading((prev) => ({ ...prev, issues: true }));
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/issues`, {
+      const response = await fetch("/api/integrations/jira/issues", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          project_key: selectedProject,
-          jql: searchQuery || "",
-          limit: 100,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.ok) {
-        setIssues(data.data.issues);
-        toast({
-          title: "Issues loaded",
-          description: `Loaded ${data.data.issues.length} issues`,
-        });
-      } else {
-        toast({
-          title: "Failed to load issues",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load issues:", error);
-      toast({
-        title: "Error loading issues",
-        description: "Could not connect to Jira service",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/users`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          limit: 200,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.ok) {
-        setUsers(data.data.users);
-        toast({
-          title: "Users loaded",
-          description: `Loaded ${data.data.users.length} users`,
-        });
-      } else {
-        toast({
-          title: "Failed to load users",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load users:", error);
-      toast({
-        title: "Error loading users",
-        description: "Could not connect to Jira service",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadSprints = async () => {
-    if (!selectedProject) return;
-
-    setLoading(true);
-    try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/sprints`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          project_key: selectedProject,
+          user_id: "current",
+          project: selectedProject,
+          status: selectedStatus,
+          assignee: selectedAssignee,
           limit: 50,
         }),
       });
 
-      const data = await response.json();
+      if (response.ok) {
+        const data = await response.json();
+        setIssues(data.data?.issues || []);
+      }
+    } catch (error) {
+      console.error("Failed to load issues:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, issues: false }));
+    }
+  };
 
-      if (data.ok) {
-        setSprints(data.data.sprints);
-        toast({
-          title: "Sprints loaded",
-          description: `Loaded ${data.data.sprints.length} sprints from ${selectedProject}`,
-        });
-      } else {
-        toast({
-          title: "Failed to load sprints",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+  const loadUsers = async () => {
+    setLoading((prev) => ({ ...prev, users: true }));
+    try {
+      const response = await fetch("/api/integrations/jira/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          limit: 100,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.data?.users || []);
+      }
+    } catch (error) {
+      console.error("Failed to load users:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, users: false }));
+    }
+  };
+
+  const loadSprints = async (projectId: string) => {
+    if (!projectId) return;
+    
+    setLoading((prev) => ({ ...prev, sprints: true }));
+    try {
+      const response = await fetch("/api/integrations/jira/sprints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          project: projectId,
+          limit: 20,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSprints(data.data?.sprints || []);
       }
     } catch (error) {
       console.error("Failed to load sprints:", error);
-      toast({
-        title: "Error loading sprints",
-        description: "Could not connect to Jira service",
-        variant: "destructive",
-      });
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, sprints: false }));
     }
   };
 
   const createIssue = async () => {
-    if (!issueTitle.trim() || !selectedProject) return;
+    if (!newIssue.project || !newIssue.summary) return;
 
-    setLoading(true);
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/issues`, {
+      const response = await fetch("/api/integrations/jira/issues/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          project_key: selectedProject,
-          summary: issueTitle.trim(),
-          description: issueDescription.trim(),
-          issue_type: "Task",
+          user_id: "current",
+          project: newIssue.project,
+          summary: newIssue.summary,
+          description: newIssue.description,
+          issueType: newIssue.issueType,
+          priority: newIssue.priority,
+          assignee: newIssue.assignee,
         }),
       });
 
-      const data = await response.json();
-
-      if (data.ok) {
-        setIssueTitle("");
-        setIssueDescription("");
+      if (response.ok) {
         toast({
-          title: "Issue created",
+          title: "Success",
           description: "Issue created successfully",
+          status: "success",
+          duration: 3000,
         });
-        // Reload issues
-        setTimeout(() => loadIssues(), 1000);
-      } else {
-        toast({
-          title: "Failed to create issue",
-          description: data.error || "Unknown error",
-          variant: "destructive",
+        onIssueClose();
+        setNewIssue({
+          project: "",
+          summary: "",
+          description: "",
+          issueType: "Story",
+          priority: "Medium",
+          assignee: "",
         });
+        if (newIssue.project === selectedProject) {
+          loadIssues();
+        }
       }
     } catch (error) {
       console.error("Failed to create issue:", error);
       toast({
-        title: "Error creating issue",
-        description: "Could not connect to Jira service",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const initiateOAuth = async () => {
-    try {
-      const response = await fetch(`${JIRA_OAUTH_URL}/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.ok) {
-        // Redirect to OAuth URL
-        window.location.href = `${JIRA_OAUTH_URL}/start`;
-      } else {
-        toast({
-          title: "OAuth failed",
-          description: data.error || "Could not initiate OAuth flow",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("OAuth initiation failed:", error);
-      toast({
-        title: "OAuth error",
-        description: "Could not initiate OAuth flow",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to create issue",
+        status: "error",
+        duration: 3000,
       });
     }
   };
 
-  const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString();
-  };
+  // Filter data based on search
+  const filteredProjects = projects.filter(
+    (project) =>
+      project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "healthy":
-        return "bg-green-500";
-      case "degraded":
-        return "bg-yellow-500";
-      case "error":
-        return "bg-red-500";
-      case "unavailable":
-        return "bg-gray-500";
-      default:
-        return "bg-gray-500";
+  const filteredIssues = issues.filter(
+    (issue) =>
+      issue.fields.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      issue.fields.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      issue.key.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Stats calculations
+  const totalProjects = projects.length;
+  const activeProjects = projects.filter(p => !p.archived).length;
+  const totalIssues = issues.length;
+  const openIssues = issues.filter(i => i.fields.status.statusCategory.colorName !== 'done').length;
+  const inProgressIssues = issues.filter(i => i.fields.status.statusCategory.colorName === 'in-progress').length;
+  const doneIssues = issues.filter(i => i.fields.status.statusCategory.colorName === 'done').length;
+
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  useEffect(() => {
+    if (connected) {
+      loadUserProfile();
+      loadProjects();
+      loadUsers();
     }
-  };
+  }, [connected]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "healthy":
-        return <CheckCircle className="h-4 w-4" />;
-      case "degraded":
-        return <AlertCircle className="h-4 w-4" />;
-      case "error":
-        return <AlertCircle className="h-4 w-4" />;
-      case "unavailable":
-        return <AlertCircle className="h-4 w-4" />;
-      default:
-        return <AlertCircle className="h-4 w-4" />;
+  useEffect(() => {
+    if (selectedProject) {
+      loadIssues();
+      loadSprints(selectedProject);
     }
+  }, [selectedProject, selectedStatus, selectedAssignee]);
+
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleString();
   };
 
-  const getPriorityColor = (priority: JiraIssue["priority"]) => {
-    switch (priority?.name?.toLowerCase()) {
-      case "highest":
-        return "bg-red-500";
-      case "high":
-        return "bg-orange-500";
-      case "medium":
-        return "bg-yellow-500";
-      case "low":
-        return "bg-green-500";
-      case "lowest":
-        return "bg-gray-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
-  const getStatusCategoryColor = (
-    statusCategory: JiraIssue["status"]["statusCategory"],
-  ) => {
-    switch (statusCategory?.key) {
+  const getStatusColor = (statusCategory: string): string => {
+    switch (statusCategory?.toLowerCase()) {
+      case "blue-gray":
+      case "new":
+        return "gray";
+      case "yellow":
+      case "in-progress":
+        return "yellow";
+      case "green":
       case "done":
-        return "bg-green-500";
-      case "in_progress":
-        return "bg-blue-500";
-      case "to_do":
-        return "bg-gray-500";
+        return "green";
+      case "red":
       case "undefined":
-        return "bg-gray-500";
+        return "red";
       default:
-        return "bg-gray-500";
+        return "gray";
     }
   };
 
-  const getIssueTypeIcon = (issueType: JiraIssue["issueType"]) => {
-    const iconUrl = issueType?.iconUrl;
-    if (iconUrl) {
-      return (
-        <Image
-          src={iconUrl}
-          alt={issueType?.name}
-          className="h-4 w-4"
-          width={16}
-          height={16}
-        />
-      );
-    }
-    return <Bug className="h-4 w-4 text-purple-500" />;
-  };
-
-  const getProjectIcon = (project: JiraProject) => {
-    const avatarUrl = project.avatarUrls?.["48x48"];
-    if (avatarUrl) {
-      return (
-        <Image
-          src={avatarUrl}
-          alt={project.name}
-          className="h-8 w-8 rounded"
-          width={32}
-          height={32}
-        />
-      );
-    }
-    return <FolderOpen className="h-8 w-8 text-blue-500" />;
-  };
-
-  const getSprintStateColor = (state: string) => {
-    switch (state) {
-      case "active":
-        return "bg-green-500";
-      case "closed":
-        return "bg-gray-500";
-      case "future":
-        return "bg-blue-500";
+  const getPriorityColor = (priority: string): string => {
+    switch (priority?.toLowerCase()) {
+      case "highest":
+      case "blocker":
+        return "red";
+      case "high":
+      case "critical":
+        return "orange";
+      case "medium":
+        return "yellow";
+      case "low":
+      case "minor":
+        return "blue";
       default:
-        return "bg-gray-500";
+        return "gray";
     }
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Jira Integration</h1>
-        <div className="flex items-center space-x-2">
-          {status && (
+    <Box minH="100vh" bg={bgColor} p={6}>
+      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
+        {/* Header */}
+        <VStack align="start" spacing={4}>
+          <HStack spacing={4}>
+            <Icon as={ViewIcon} w={8} h={8} color="#0052CC" />
+            <VStack align="start" spacing={1}>
+              <Heading size="2xl">Jira Integration</Heading>
+              <Text color="gray.600" fontSize="lg">
+                Project management and issue tracking platform
+              </Text>
+            </VStack>
+          </HStack>
+
+          <HStack spacing={4}>
             <Badge
-              variant="outline"
-              className={`${getStatusColor(status.status)} text-white`}
+              colorScheme={healthStatus === "healthy" ? "green" : "red"}
+              display="flex"
+              alignItems="center"
             >
-              {getStatusIcon(status.status)}
-              <span className="ml-1">{status.status}</span>
-            </Badge>
-          )}
-          <Button onClick={loadStatus} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Status Alert */}
-      {status && status.status !== "healthy" && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Jira integration is {status.status}.
-            {status.components.configuration?.status !== "configured" &&
-              " OAuth configuration is incomplete. Please check environment variables."}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="overview" className="flex items-center">
-            <Settings className="h-4 w-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="projects" className="flex items-center">
-            <FolderOpen className="h-4 w-4 mr-2" />
-            Projects
-          </TabsTrigger>
-          <TabsTrigger value="issues" className="flex items-center">
-            <CheckSquare className="h-4 w-4 mr-2" />
-            Issues
-          </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center">
-            <Users className="h-4 w-4 mr-2" />
-            Users
-          </TabsTrigger>
-          <TabsTrigger value="sprints" className="flex items-center">
-            <Calendar className="h-4 w-4 mr-2" />
-            Sprints
-          </TabsTrigger>
-          <TabsTrigger value="workflows" className="flex items-center">
-            <Settings className="h-4 w-4 mr-2" />
-            Workflows
-          </TabsTrigger>
-          <TabsTrigger value="oauth" className="flex items-center">
-            <Search className="h-4 w-4 mr-2" />
-            OAuth
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Service Status */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Service Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {status ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span>Service</span>
-                      <Badge
-                        variant={
-                          status.components.service?.status === "available"
-                            ? "default"
-                            : "destructive"
-                        }
-                      >
-                        {status.components.service?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Configuration</span>
-                      <Badge
-                        variant={
-                          status.components.configuration?.status ===
-                          "configured"
-                            ? "default"
-                            : "destructive"
-                        }
-                      >
-                        {status.components.configuration?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Database</span>
-                      <Badge
-                        variant={
-                          status.components.database?.status === "connected"
-                            ? "default"
-                            : "destructive"
-                        }
-                      >
-                        {status.components.database?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>API</span>
-                      <Badge
-                        variant={
-                          status.components.api?.status === "connected"
-                            ? "default"
-                            : "destructive"
-                        }
-                      >
-                        {status.components.api?.status}
-                      </Badge>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Loading status...
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* User Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>User Profile</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="userId">User ID</Label>
-                  <Input
-                    id="userId"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter user ID"
-                  />
-                </div>
-                <Button
-                  onClick={loadUserInfo}
-                  disabled={loading || !userId}
-                  className="w-full"
-                >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : null}
-                  Load Profile
-                </Button>
-
-                {userInfo && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <div className="flex items-center space-x-3">
-                      {userInfo.avatarUrls?.["48x48"] && (
-                        <Image
-                          src={userInfo.avatarUrls["48x48"]}
-                          alt={userInfo.displayName}
-                          className="w-12 h-12 rounded-full"
-                          width={48}
-                          height={48}
-                        />
-                      )}
-                      <div>
-                        <div className="font-medium">
-                          {userInfo.displayName}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {userInfo.emailAddress}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="font-medium">Status:</span>{" "}
-                      {userInfo.active ? "Active" : "Inactive"}
-                    </div>
-                    <div>
-                      <span className="font-medium">Time Zone:</span>{" "}
-                      {userInfo.timeZone}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="projects" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <FolderOpen className="h-5 w-5 mr-2" />
-                Jira Projects
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {projects.length > 0 ? (
-                  projects.map((project) => (
-                    <div
-                      key={project.id}
-                      className="p-3 border rounded-lg space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          {getProjectIcon(project)}
-                          <h4 className="font-medium">{project.name}</h4>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {project.isPrivate && (
-                            <Badge variant="outline" className="text-xs">
-                              Private
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-xs">
-                            {project.projectType}
-                          </Badge>
-                        </div>
-                      </div>
-                      {project.description && (
-                        <div className="text-sm text-muted-foreground">
-                          {project.description}
-                        </div>
-                      )}
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Key:</strong> {project.key}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Lead:</strong> {project.lead?.displayName}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No projects found"
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button
-                onClick={loadProjects}
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : null}
-                Refresh Projects
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="issues" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <CheckSquare className="h-5 w-5 mr-2" />
-                Jira Issues
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Project Selection */}
-              <div className="space-y-2 mb-4">
-                <Label htmlFor="projectSelect">Select Project</Label>
-                <Select
-                  value={selectedProject}
-                  onValueChange={setSelectedProject}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.key}>
-                        <div className="flex items-center space-x-2">
-                          {getProjectIcon(project)}
-                          <span>
-                            {project.name} ({project.key})
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Search */}
-              <div className="space-y-2 mb-4">
-                <Label htmlFor="searchQuery">Search Issues (JQL)</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="searchQuery"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="status != 'Closed' ORDER BY created DESC"
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={loadIssues}
-                    disabled={loading || !selectedProject}
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Issue Creation */}
-              {selectedProject && (
-                <div className="space-y-2 mb-4 border rounded-lg p-3">
-                  <Label htmlFor="issueTitle">Issue Title</Label>
-                  <Input
-                    id="issueTitle"
-                    value={issueTitle}
-                    onChange={(e) => setIssueTitle(e.target.value)}
-                    placeholder="Enter issue title"
-                    className="mb-2"
-                  />
-                  <Label htmlFor="issueDescription">Description</Label>
-                  <Textarea
-                    id="issueDescription"
-                    value={issueDescription}
-                    onChange={(e) => setIssueDescription(e.target.value)}
-                    placeholder="Enter issue description"
-                    className="mb-2"
-                    rows={3}
-                  />
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={createIssue}
-                      disabled={loading || !issueTitle.trim()}
-                      className="flex-1"
-                    >
-                      {loading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Plus className="h-4 w-4 mr-2" />
-                      )}
-                      Create Issue
-                    </Button>
-                  </div>
-                </div>
+              {healthStatus === "healthy" ? (
+                <CheckCircleIcon mr={1} />
+              ) : (
+                <WarningTwoIcon mr={1} />
               )}
+              {connected ? "Connected" : "Disconnected"}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<RepeatIcon />}
+              onClick={checkConnection}
+            >
+              Refresh Status
+            </Button>
+          </HStack>
 
-              {/* Issues List */}
-              <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
-                {issues.length > 0 ? (
-                  issues.map((issue) => (
-                    <div key={issue.id} className="mb-3">
-                      <div className="flex items-start space-x-2">
-                        {getIssueTypeIcon(issue.issueType)}
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="font-medium">{issue.key}</span>
-                            <span className="text-sm text-gray-600">
-                              {issue.summary}
-                            </span>
-                            <div className="flex items-center space-x-1">
-                              <Badge
-                                variant="outline"
-                                className={`${getPriorityColor(issue.priority)} text-white text-xs`}
-                              >
-                                {issue.priority?.name}
-                              </Badge>
-                              <Badge
-                                variant="outline"
-                                className={`${getStatusCategoryColor(issue.status.statusCategory)} text-white text-xs`}
-                              >
-                                {issue.status?.name}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                            <span>
-                              Assignee:{" "}
-                              {issue.assignee?.displayName || "Unassigned"}
-                            </span>
-                            <span>
-                              Created: {formatDateTime(issue.created)}
-                            </span>
-                            {issue.dueDate && (
-                              <span>Due: {formatDateTime(issue.dueDate)}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No issues found. Select a project and search or create a new issue."
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          {userProfile && (
+            <HStack spacing={4}>
+              <Avatar
+                src={userProfile.avatarUrls?.["48x48"]}
+                name={userProfile.displayName}
+              />
+              <VStack align="start" spacing={0}>
+                <Text fontWeight="bold">{userProfile.displayName}</Text>
+                <Text fontSize="sm" color="gray.600">
+                  {userProfile.emailAddress}
+                </Text>
+              </VStack>
+            </HStack>
+          )}
+        </VStack>
 
-        <TabsContent value="users" className="space-y-4">
+        {!connected ? (
+          // Connection Required State
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="h-5 w-5 mr-2" />
-                Jira Users
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {users.length > 0 ? (
-                  users.map((user) => (
-                    <div
-                      key={user.accountId}
-                      className="p-3 border rounded-lg space-y-2"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                          {user.avatarUrls?.["48x48"] ? (
-                            <Image
-                              src={user.avatarUrls["48x48"]}
-                              alt={user.displayName}
-                              className="w-10 h-10 rounded-full"
-                              width={40}
-                              height={40}
-                            />
-                          ) : (
-                            <User className="w-5 h-5" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-medium">{user.displayName}</h4>
-                            <Badge variant="outline" className="text-xs">
-                              {user.active ? "Active" : "Inactive"}
-                            </Badge>
-                          </div>
-                          {user.emailAddress && (
-                            <div className="text-sm text-muted-foreground">
-                              {user.emailAddress}
-                            </div>
-                          )}
-                          <div className="text-sm text-muted-foreground">
-                            <strong>Time Zone:</strong> {user.timeZone}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No users found"
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button
-                onClick={loadUsers}
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : null}
-                Refresh Users
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="sprints" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calendar className="h-5 w-5 mr-2" />
-                Jira Sprints
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Project Selection */}
-              <div className="space-y-2 mb-4">
-                <Label htmlFor="sprintProjectSelect">Select Project</Label>
-                <Select
-                  value={selectedProject}
-                  onValueChange={setSelectedProject}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.key}>
-                        <div className="flex items-center space-x-2">
-                          {getProjectIcon(project)}
-                          <span>
-                            {project.name} ({project.key})
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Sprints List */}
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {sprints.length > 0 ? (
-                  sprints.map((sprint) => (
-                    <div
-                      key={sprint.id}
-                      className="p-3 border rounded-lg space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{sprint.name}</h4>
-                        <div className="flex items-center space-x-2">
-                          <Badge
-                            variant="outline"
-                            className={`${getSprintStateColor(sprint.state)} text-white text-xs`}
-                          >
-                            {sprint.state}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            #{sprint.id}
-                          </span>
-                        </div>
-                      </div>
-                      {sprint.goal && (
-                        <div className="text-sm text-muted-foreground">
-                          <strong>Goal:</strong> {sprint.goal}
-                        </div>
-                      )}
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Duration:</strong>{" "}
-                        {formatDateTime(sprint.startDate)} -{" "}
-                        {formatDateTime(sprint.endDate)}
-                      </div>
-                      {sprint.completeDate && (
-                        <div className="text-sm text-muted-foreground">
-                          <strong>Completed:</strong>{" "}
-                          {formatDateTime(sprint.completeDate)}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No sprints found. Select a project to view sprints."
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button
-                onClick={loadSprints}
-                disabled={loading || !selectedProject}
-                className="w-full mt-4"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : null}
-                Refresh Sprints
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="workflows" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
-                Jira Workflows
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">Workflows Module</h3>
-                <p className="text-sm max-w-md mx-auto">
-                  Jira workflow management is under development. This will
-                  include:
-                </p>
-                <ul className="text-sm text-left mt-4 max-w-md mx-auto space-y-1">
-                  <li>• Custom workflow creation and editing</li>
-                  <li>• Status transitions and rules</li>
-                  <li>• Issue type workflows</li>
-                  <li>• Approval processes</li>
-                  <li>• Workflow visualization</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="oauth" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>OAuth Configuration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="oauthUserId">User ID</Label>
-                  <Input
-                    id="oauthUserId"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter user ID for OAuth"
-                  />
-                </div>
+            <CardBody>
+              <VStack spacing={6} py={8}>
+                <Icon as={ViewIcon} w={16} h={16} color="gray.400" />
+                <VStack spacing={2}>
+                  <Heading size="lg">Connect Jira</Heading>
+                  <Text color="gray.600" textAlign="center">
+                    Connect your Jira instance to start managing projects and issues
+                  </Text>
+                </VStack>
                 <Button
-                  onClick={initiateOAuth}
-                  disabled={!userId}
-                  className="w-full"
+                  colorScheme="blue"
+                  size="lg"
+                  leftIcon={<ArrowForwardIcon />}
+                  onClick={() =>
+                    (window.location.href = "/api/integrations/jira/auth/start")
+                  }
                 >
-                  <Search className="h-4 w-4 mr-2" />
-                  Connect to Jira
+                  Connect Jira Account
                 </Button>
-                <p className="text-sm text-muted-foreground">
-                  This will redirect you to Atlassian OAuth to authorize ATOM
-                  access to your Jira workspace.
-                </p>
-              </CardContent>
-            </Card>
+              </VStack>
+            </CardBody>
+          </Card>
+        ) : (
+          // Connected State
+          <>
+            {/* Services Overview */}
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Projects</StatLabel>
+                    <StatNumber>{totalProjects}</StatNumber>
+                    <StatHelpText>{activeProjects} active</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Total Issues</StatLabel>
+                    <StatNumber>{totalIssues}</StatNumber>
+                    <StatHelpText>All status</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>In Progress</StatLabel>
+                    <StatNumber>{inProgressIssues}</StatNumber>
+                    <StatHelpText>Currently being worked</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Completed</StatLabel>
+                    <StatNumber>{doneIssues}</StatNumber>
+                    <StatHelpText>Done this sprint</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+            </SimpleGrid>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>OAuth Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {status?.components.oauth ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span>Status</span>
-                      <Badge variant="outline">
-                        {status.components.oauth.status}
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {status.components.oauth.message}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    OAuth status not available
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+            {/* Main Content Tabs */}
+            <Tabs variant="enclosed">
+              <TabList>
+                <Tab>Projects</Tab>
+                <Tab>Issues</Tab>
+                <Tab>Sprints</Tab>
+                <Tab>Team</Tab>
+              </TabList>
+
+              <TabPanels>
+                {/* Projects Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search projects..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                      <Spacer />
+                      <Button
+                        colorScheme="blue"
+                        leftIcon={<AddIcon />}
+                        onClick={onProjectOpen}
+                      >
+                        Create Project
+                      </Button>
+                    </HStack>
+
+                    <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+                      {loading.projects ? (
+                        <Spinner size="xl" />
+                      ) : (
+                        filteredProjects.map((project) => (
+                          <Card
+                            key={project.id}
+                            cursor="pointer"
+                            _hover={{ shadow: "md", transform: "translateY(-2px)" }}
+                            transition="all 0.2s"
+                            onClick={() => setSelectedProject(project.key)}
+                            borderWidth="1px"
+                            borderColor={selectedProject === project.key ? "blue.500" : borderColor}
+                          >
+                            <CardHeader>
+                              <VStack align="start" spacing={2}>
+                                <HStack justify="space-between" width="100%">
+                                  <Text fontWeight="bold" fontSize="lg">
+                                    {project.name}
+                                  </Text>
+                                  <HStack spacing={1}>
+                                    {project.isPrivate && (
+                                      <Tag colorScheme="gray" size="sm">
+                                        Private
+                                      </Tag>
+                                    )}
+                                    {project.archived && (
+                                      <Tag colorScheme="red" size="sm">
+                                        Archived
+                                      </Tag>
+                                    )}
+                                  </HStack>
+                                </HStack>
+                                <Text fontSize="sm" color="gray.600">
+                                  {project.description}
+                                </Text>
+                                <Text fontSize="sm" color="blue.600" fontWeight="bold">
+                                  {project.key}
+                                </Text>
+                              </VStack>
+                            </CardHeader>
+                            <CardBody>
+                              <VStack spacing={3} align="stretch">
+                                {project.lead && (
+                                  <HStack spacing={2}>
+                                    <Avatar
+                                      src={project.lead.avatarUrls?.["24x24"]}
+                                      name={project.lead.displayName}
+                                      size="sm"
+                                    />
+                                    <Text fontSize="sm">
+                                      Lead: {project.lead.displayName}
+                                    </Text>
+                                  </HStack>
+                                )}
+                                <Text fontSize="xs" color="gray.500">
+                                  Type: {project.projectTypeKey}
+                                </Text>
+                                {project.issueTypes && (
+                                  <HStack wrap="wrap">
+                                    {project.issueTypes.slice(0, 3).map((type) => (
+                                      <Tag key={type.id} size="sm" colorScheme="blue">
+                                        {type.name}
+                                      </Tag>
+                                    ))}
+                                  </HStack>
+                                )}
+                              </VStack>
+                            </CardBody>
+                          </Card>
+                        ))
+                      )}
+                    </SimpleGrid>
+                  </VStack>
+                </TabPanel>
+
+                {/* Issues Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Select
+                        placeholder="Select project"
+                        value={selectedProject}
+                        onChange={(e) => setSelectedProject(e.target.value)}
+                        width="200px"
+                      >
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.key}>
+                            {project.name} ({project.key})
+                          </option>
+                        ))}
+                      </Select>
+                      <Select
+                        placeholder="Status"
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                        width="150px"
+                      >
+                        <option value="">All Status</option>
+                        <option value="To Do">To Do</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="In Review">In Review</option>
+                        <option value="Done">Done</option>
+                      </Select>
+                      <Select
+                        placeholder="Assignee"
+                        value={selectedAssignee}
+                        onChange={(e) => setSelectedAssignee(e.target.value)}
+                        width="200px"
+                      >
+                        <option value="">All Assignees</option>
+                        {users.map((user) => (
+                          <option key={user.accountId} value={user.accountId}>
+                            {user.displayName}
+                          </option>
+                        ))}
+                      </Select>
+                      <Input
+                        placeholder="Search issues..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                      <Spacer />
+                      <Button
+                        colorScheme="blue"
+                        leftIcon={<AddIcon />}
+                        onClick={onIssueOpen}
+                        disabled={!selectedProject}
+                      >
+                        Create Issue
+                      </Button>
+                    </HStack>
+
+                    <VStack spacing={4} align="stretch">
+                      {loading.issues ? (
+                        <Spinner size="xl" />
+                      ) : selectedProject ? (
+                        filteredIssues.map((issue) => (
+                          <Card key={issue.id}>
+                            <CardBody>
+                              <HStack spacing={4} align="start">
+                                <VStack spacing={2} flex={1}>
+                                  <HStack justify="space-between" width="100%">
+                                    <HStack>
+                                      <Text fontWeight="bold" fontSize="lg">
+                                        {issue.key}
+                                      </Text>
+                                      <Text>{issue.fields.summary}</Text>
+                                    </HStack>
+                                    <Tag
+                                      colorScheme={getStatusColor(
+                                        issue.fields.status.statusCategory.colorName
+                                      )}
+                                      size="sm"
+                                    >
+                                      {issue.fields.status.name}
+                                    </Tag>
+                                  </HStack>
+                                  <HStack spacing={4}>
+                                    <Tag colorScheme={getPriorityColor(issue.fields.priority.name)} size="sm">
+                                      {issue.fields.priority.name}
+                                    </Tag>
+                                    <Tag size="sm" colorScheme="purple">
+                                      {issue.fields.issuetype.name}
+                                    </Tag>
+                                  </HStack>
+                                  <Text fontSize="sm" color="gray.600">
+                                    {issue.fields.description?.substring(0, 200)}
+                                    {issue.fields.description && issue.fields.description.length > 200 && "..."}
+                                  </Text>
+                                  <HStack justify="space-between" width="100%">
+                                    <HStack spacing={4}>
+                                      <Avatar
+                                        src={issue.fields.reporter.avatarUrls?.["24x24"]}
+                                        name={issue.fields.reporter.displayName}
+                                        size="sm"
+                                      />
+                                      <Text fontSize="xs" color="gray.500">
+                                        Reporter: {issue.fields.reporter.displayName}
+                                      </Text>
+                                      {issue.fields.assignee && (
+                                        <>
+                                          <Avatar
+                                            src={issue.fields.assignee.avatarUrls?.["24x24"]}
+                                            name={issue.fields.assignee.displayName}
+                                            size="sm"
+                                          />
+                                          <Text fontSize="xs" color="gray.500">
+                                            Assignee: {issue.fields.assignee.displayName}
+                                          </Text>
+                                        </>
+                                      )}
+                                    </HStack>
+                                    <Text fontSize="xs" color="gray.500">
+                                      {formatDate(issue.fields.created)}
+                                    </Text>
+                                  </HStack>
+                                </VStack>
+                              </HStack>
+                            </CardBody>
+                          </Card>
+                        ))
+                      ) : (
+                        <Text color="gray.500" textAlign="center" py={8}>
+                          Select a project to view issues
+                        </Text>
+                      )}
+                    </VStack>
+                  </VStack>
+                </TabPanel>
+
+                {/* Sprints Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Select
+                        placeholder="Select project"
+                        value={selectedProject}
+                        onChange={(e) => setSelectedProject(e.target.value)}
+                        width="200px"
+                      >
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.key}>
+                            {project.name} ({project.key})
+                          </option>
+                        ))}
+                      </Select>
+                    </HStack>
+
+                    <VStack spacing={4} align="stretch">
+                      {loading.sprints ? (
+                        <Spinner size="xl" />
+                      ) : selectedProject ? (
+                        sprints.map((sprint) => (
+                          <Card key={sprint.id}>
+                            <CardBody>
+                              <VStack align="start" spacing={3}>
+                                <HStack justify="space-between" width="100%">
+                                  <Heading size="md">{sprint.name}</Heading>
+                                  <Tag colorScheme={sprint.state === 'active' ? 'green' : 'gray'} size="sm">
+                                    {sprint.state}
+                                  </Tag>
+                                </HStack>
+                                {sprint.goal && (
+                                  <Text color="gray.600">Goal: {sprint.goal}</Text>
+                                )}
+                                <HStack spacing={4}>
+                                  {sprint.startDate && (
+                                    <Text fontSize="sm" color="gray.500">
+                                      Start: {formatDate(sprint.startDate)}
+                                    </Text>
+                                  )}
+                                  {sprint.endDate && (
+                                    <Text fontSize="sm" color="gray.500">
+                                      End: {formatDate(sprint.endDate)}
+                                    </Text>
+                                  )}
+                                </HStack>
+                                <Text fontSize="sm" fontWeight="bold">
+                                  {sprint.issues.length} issues
+                                </Text>
+                                <VStack spacing={2} width="100%">
+                                  {sprint.issues.map((issue) => (
+                                    <HStack key={issue.id} p={2} bg="gray.50" borderRadius="md">
+                                      <Text fontSize="sm">{issue.key}</Text>
+                                      <Text fontSize="sm">{issue.fields.summary}</Text>
+                                      {issue.fields.assignee && (
+                                        <Avatar
+                                          src={issue.fields.assignee.avatarUrls?.["24x24"]}
+                                          name={issue.fields.assignee.displayName}
+                                          size="xs"
+                                        />
+                                      )}
+                                    </HStack>
+                                  ))}
+                                </VStack>
+                              </VStack>
+                            </CardBody>
+                          </Card>
+                        ))
+                      ) : (
+                        <Text color="gray.500" textAlign="center" py={8}>
+                          Select a project to view sprints
+                        </Text>
+                      )}
+                    </VStack>
+                  </VStack>
+                </TabPanel>
+
+                {/* Team Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search users..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                    </HStack>
+
+                    <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+                      {loading.users ? (
+                        <Spinner size="xl" />
+                      ) : (
+                        users.filter(user =>
+                          user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (user.emailAddress && user.emailAddress.toLowerCase().includes(searchQuery.toLowerCase()))
+                        ).map((user) => (
+                          <Card key={user.accountId}>
+                            <CardBody>
+                              <HStack spacing={4}>
+                                <Avatar
+                                  src={user.avatarUrls?.["48x48"]}
+                                  name={user.displayName}
+                                  size="lg"
+                                />
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <Text fontWeight="bold">{user.displayName}</Text>
+                                  {user.emailAddress && (
+                                    <Text fontSize="sm" color="gray.600">
+                                      {user.emailAddress}
+                                    </Text>
+                                  )}
+                                  <HStack spacing={2}>
+                                    <Tag colorScheme={user.active ? "green" : "red"} size="sm">
+                                      {user.active ? "Active" : "Inactive"}
+                                    </Tag>
+                                    <Tag colorScheme="blue" size="sm">
+                                      {user.accountType}
+                                    </Tag>
+                                  </HStack>
+                                </VStack>
+                              </HStack>
+                            </CardBody>
+                          </Card>
+                        ))
+                      )}
+                    </SimpleGrid>
+                  </VStack>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+
+            {/* Create Issue Modal */}
+            <Modal isOpen={isIssueOpen} onClose={onIssueClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Create Issue</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>Project</FormLabel>
+                      <Select
+                        value={newIssue.project}
+                        onChange={(e) =>
+                          setNewIssue({
+                            ...newIssue,
+                            project: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select a project</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.key}>
+                            {project.name} ({project.key})
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Summary</FormLabel>
+                      <Input
+                        placeholder="Issue summary"
+                        value={newIssue.summary}
+                        onChange={(e) =>
+                          setNewIssue({
+                            ...newIssue,
+                            summary: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Description</FormLabel>
+                      <Textarea
+                        placeholder="Describe the issue..."
+                        value={newIssue.description}
+                        onChange={(e) =>
+                          setNewIssue({
+                            ...newIssue,
+                            description: e.target.value,
+                          })
+                        }
+                        rows={6}
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Issue Type</FormLabel>
+                      <Select
+                        value={newIssue.issueType}
+                        onChange={(e) =>
+                          setNewIssue({
+                            ...newIssue,
+                            issueType: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="Story">Story</option>
+                        <option value="Task">Task</option>
+                        <option value="Bug">Bug</option>
+                        <option value="Epic">Epic</option>
+                      </Select>
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Priority</FormLabel>
+                      <Select
+                        value={newIssue.priority}
+                        onChange={(e) =>
+                          setNewIssue({
+                            ...newIssue,
+                            priority: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="Highest">Highest</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                        <option value="Lowest">Lowest</option>
+                      </Select>
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Assignee</FormLabel>
+                      <Select
+                        value={newIssue.assignee}
+                        onChange={(e) =>
+                          setNewIssue({
+                            ...newIssue,
+                            assignee: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Unassigned</option>
+                        {users.map((user) => (
+                          <option key={user.accountId} value={user.accountId}>
+                            {user.displayName}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onIssueClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="blue"
+                    onClick={createIssue}
+                    disabled={!newIssue.project || !newIssue.summary}
+                  >
+                    Create Issue
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+          </>
+        )}
+      </VStack>
+    </Box>
   );
-}
+};
+
+export default JiraIntegration;
