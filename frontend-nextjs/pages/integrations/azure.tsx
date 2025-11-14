@@ -21,25 +21,16 @@ import {
   Divider,
   useColorModeValue,
   Stack,
+  Flex,
   Spacer,
-  Progress,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatGroup,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
+  Input,
+  Select,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
-  TableContainer,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -49,55 +40,44 @@ import {
   ModalCloseButton,
   FormControl,
   FormLabel,
-  Input,
-  Select,
   Textarea,
   useDisclosure,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatGroup,
   Tag,
   TagLabel,
-  Flex,
-  Grid,
-  GridItem,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Avatar,
+  Spinner,
   Alert,
   AlertIcon,
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
-  NumberInput,
-  NumberInputField,
-  Switch,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
-  FormErrorMessage,
-  RadioGroup,
-  Radio,
 } from "@chakra-ui/react";
 import {
   SunIcon,
-  SettingsIcon,
-  HamburgerIcon,
+  CheckCircleIcon,
+  WarningTwoIcon,
   ArrowForwardIcon,
-  SearchIcon,
   AddIcon,
+  SearchIcon,
+  SettingsIcon,
   RepeatIcon,
-  CloseIcon,
-  MinusIcon,
+  StarIcon,
   ViewIcon,
   EditIcon,
   DeleteIcon,
-  CheckCircleIcon,
-  WarningTwoIcon,
-  InfoIcon,
-  FolderIcon,
-  CubeIcon,
-  MoneyIcon,
-  ChartBarIcon,
-  CpuIcon,
-  DiskIcon,
-  NetworkIcon,
+  ChatIcon,
+  CloudIcon,
+  ServerIcon,
+  DatabaseIcon,
+  SettingsIcon as Settings,
 } from "@chakra-ui/icons";
 
 interface AzureResourceGroup {
@@ -148,49 +128,35 @@ interface AzureAppService {
   resource_group: string;
 }
 
-interface AzureCostItem {
-  date: string;
-  service_name: string;
-  resource_group: string;
-  currency: string;
-  cost: number;
-}
-
-interface AzureFile {
-  name: string;
-  size: number;
-  content_type: string;
-  last_modified: string;
-  etag: string;
+interface AzureSubscription {
+  id: string;
+  subscriptionId: string;
+  displayName: string;
+  state: string;
+  tenantId: string;
+  policies?: any[];
 }
 
 const AzureIntegration: React.FC = () => {
-  const [resourceGroups, setResourceGroups] = useState<AzureResourceGroup[]>(
-    [],
-  );
-  const [virtualMachines, setVirtualMachines] = useState<AzureVirtualMachine[]>(
-    [],
-  );
-  const [storageAccounts, setStorageAccounts] = useState<AzureStorageAccount[]>(
-    [],
-  );
+  const [resourceGroups, setResourceGroups] = useState<AzureResourceGroup[]>([]);
+  const [virtualMachines, setVirtualMachines] = useState<AzureVirtualMachine[]>([]);
+  const [storageAccounts, setStorageAccounts] = useState<AzureStorageAccount[]>([]);
   const [appServices, setAppServices] = useState<AzureAppService[]>([]);
-  const [costAnalysis, setCostAnalysis] = useState<AzureCostItem[]>([]);
-  const [blobFiles, setBlobFiles] = useState<AzureFile[]>([]);
+  const [subscriptions, setSubscriptions] = useState<AzureSubscription[]>([]);
   const [connected, setConnected] = useState(false);
   const [healthStatus, setHealthStatus] = useState<
     "healthy" | "error" | "unknown"
   >("unknown");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedResourceGroup, setSelectedResourceGroup] = useState("");
-  const [selectedStorageAccount, setSelectedStorageAccount] = useState("");
-  const [selectedContainer, setSelectedContainer] = useState("");
+  const [selectedSubscription, setSelectedSubscription] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
 
   // Form states
   const [vmForm, setVmForm] = useState({
     resource_group: "",
     vm_name: "",
-    location: "",
+    location: "East US",
     size: "Standard_B2s",
     image_publisher: "MicrosoftWindowsServer",
     image_offer: "WindowsServer",
@@ -203,12 +169,19 @@ const AzureIntegration: React.FC = () => {
   const [appForm, setAppForm] = useState({
     resource_group: "",
     app_name: "",
-    location: "",
+    location: "East US",
     plan_tier: "Basic",
     plan_size: "B1",
-    python_version: "",
-    node_version: "",
+    runtime: "NODE",
     https_only: true,
+  });
+
+  const [storageForm, setStorageForm] = useState({
+    resource_group: "",
+    storage_name: "",
+    location: "East US",
+    account_type: "Standard_LRS",
+    tier: "Standard",
   });
 
   const {
@@ -221,6 +194,12 @@ const AzureIntegration: React.FC = () => {
     onOpen: onAppOpen,
     onClose: onAppClose,
   } = useDisclosure();
+  const {
+    isOpen: isStorageOpen,
+    onOpen: onStorageOpen,
+    onClose: onStorageClose,
+  } = useDisclosure();
+
   const toast = useToast();
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
@@ -232,6 +211,7 @@ const AzureIntegration: React.FC = () => {
       if (response.ok) {
         setConnected(true);
         setHealthStatus("healthy");
+        loadSubscriptions();
       } else {
         setConnected(false);
         setHealthStatus("error");
@@ -244,20 +224,43 @@ const AzureIntegration: React.FC = () => {
   };
 
   // Load Azure resources
-  const loadResourceGroups = async () => {
+  const loadSubscriptions = async () => {
     try {
-      const response = await fetch("/api/azure/resource-groups", {
+      const response = await fetch("/api/integrations/azure/subscriptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "current",
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSubscriptions(data.data?.subscriptions || []);
+        if (data.data?.subscriptions?.length > 0) {
+          setSelectedSubscription(data.data.subscriptions[0].subscriptionId);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load subscriptions:", error);
+    }
+  };
+
+  const loadResourceGroups = async () => {
+    try {
+      const response = await fetch("/api/integrations/azure/resource-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          subscription_id: selectedSubscription,
           limit: 50,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setResourceGroups(data.data || []);
+        setResourceGroups(data.data?.resourceGroups || []);
       }
     } catch (error) {
       console.error("Failed to load resource groups:", error);
@@ -266,11 +269,12 @@ const AzureIntegration: React.FC = () => {
 
   const loadVirtualMachines = async () => {
     try {
-      const response = await fetch("/api/azure/virtual-machines", {
+      const response = await fetch("/api/integrations/azure/virtual-machines", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "current",
+          subscription_id: selectedSubscription,
           resource_group: selectedResourceGroup,
           limit: 50,
         }),
@@ -278,7 +282,7 @@ const AzureIntegration: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setVirtualMachines(data.data || []);
+        setVirtualMachines(data.data?.virtualMachines || []);
       }
     } catch (error) {
       console.error("Failed to load virtual machines:", error);
@@ -287,11 +291,12 @@ const AzureIntegration: React.FC = () => {
 
   const loadStorageAccounts = async () => {
     try {
-      const response = await fetch("/api/azure/storage-accounts", {
+      const response = await fetch("/api/integrations/azure/storage-accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "current",
+          subscription_id: selectedSubscription,
           resource_group: selectedResourceGroup,
           limit: 50,
         }),
@@ -299,7 +304,7 @@ const AzureIntegration: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setStorageAccounts(data.data || []);
+        setStorageAccounts(data.data?.storageAccounts || []);
       }
     } catch (error) {
       console.error("Failed to load storage accounts:", error);
@@ -308,11 +313,12 @@ const AzureIntegration: React.FC = () => {
 
   const loadAppServices = async () => {
     try {
-      const response = await fetch("/api/azure/app-services", {
+      const response = await fetch("/api/integrations/azure/app-services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "current",
+          subscription_id: selectedSubscription,
           resource_group: selectedResourceGroup,
           limit: 50,
         }),
@@ -320,65 +326,23 @@ const AzureIntegration: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setAppServices(data.data || []);
+        setAppServices(data.data?.appServices || []);
       }
     } catch (error) {
       console.error("Failed to load app services:", error);
     }
   };
 
-  const loadCostAnalysis = async () => {
-    try {
-      const response = await fetch("/api/azure/costs/analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "current",
-          timeframe: "LastMonth",
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCostAnalysis(data.data?.costs || []);
-      }
-    } catch (error) {
-      console.error("Failed to load cost analysis:", error);
-    }
-  };
-
-  const loadBlobFiles = async () => {
-    if (!selectedStorageAccount || !selectedContainer) return;
-
-    try {
-      const response = await fetch("/api/azure/storage/files", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "current",
-          storage_account: selectedStorageAccount,
-          container_name: selectedContainer,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBlobFiles(data.data || []);
-      }
-    } catch (error) {
-      console.error("Failed to load blob files:", error);
-    }
-  };
-
-  // Create virtual machine
+  // Create resources
   const createVirtualMachine = async () => {
     try {
-      const response = await fetch("/api/azure/virtual-machines/create", {
+      const response = await fetch("/api/integrations/azure/virtual-machines/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...vmForm,
           user_id: "current",
+          subscription_id: selectedSubscription,
         }),
       });
 
@@ -393,7 +357,7 @@ const AzureIntegration: React.FC = () => {
         setVmForm({
           resource_group: "",
           vm_name: "",
-          location: "",
+          location: "East US",
           size: "Standard_B2s",
           image_publisher: "MicrosoftWindowsServer",
           image_offer: "WindowsServer",
@@ -415,15 +379,15 @@ const AzureIntegration: React.FC = () => {
     }
   };
 
-  // Deploy app service
   const deployAppService = async () => {
     try {
-      const response = await fetch("/api/azure/app-services/deploy", {
+      const response = await fetch("/api/integrations/azure/app-services/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...appForm,
           user_id: "current",
+          subscription_id: selectedSubscription,
         }),
       });
 
@@ -438,11 +402,10 @@ const AzureIntegration: React.FC = () => {
         setAppForm({
           resource_group: "",
           app_name: "",
-          location: "",
+          location: "East US",
           plan_tier: "Basic",
           plan_size: "B1",
-          python_version: "",
-          node_version: "",
+          runtime: "NODE",
           https_only: true,
         });
         loadAppServices();
@@ -452,6 +415,46 @@ const AzureIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to deploy app service",
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
+  const createStorageAccount = async () => {
+    try {
+      const response = await fetch("/api/integrations/azure/storage-accounts/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...storageForm,
+          user_id: "current",
+          subscription_id: selectedSubscription,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Storage account creation initiated",
+          status: "success",
+          duration: 3000,
+        });
+        onStorageClose();
+        setStorageForm({
+          resource_group: "",
+          storage_name: "",
+          location: "East US",
+          account_type: "Standard_LRS",
+          tier: "Standard",
+        });
+        loadStorageAccounts();
+      }
+    } catch (error) {
+      console.error("Failed to create storage account:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create storage account",
         status: "error",
         duration: 3000,
       });
@@ -469,9 +472,7 @@ const AzureIntegration: React.FC = () => {
   const filteredStorage = storageAccounts.filter(
     (storage) =>
       storage.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      storage.resource_group
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
+      storage.resource_group.toLowerCase().includes(searchQuery.toLowerCase()) ||
       storage.tier.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
@@ -486,34 +487,26 @@ const AzureIntegration: React.FC = () => {
   const totalRG = resourceGroups.length;
   const totalVMs = virtualMachines.length;
   const runningVMs = virtualMachines.filter(
-    (vm) => vm.status === "Running",
+    (vm) => vm.status.toLowerCase() === "running",
   ).length;
   const totalStorage = storageAccounts.length;
   const totalApps = appServices.length;
   const runningApps = appServices.filter(
-    (app) => app.state === "Running",
+    (app) => app.state.toLowerCase() === "running",
   ).length;
-  const totalCost = costAnalysis.reduce((sum, item) => sum + item.cost, 0);
 
   useEffect(() => {
     checkConnection();
-  }, [checkConnection]);
+  }, []);
 
   useEffect(() => {
-    if (connected) {
+    if (connected && selectedSubscription) {
       loadResourceGroups();
       loadVirtualMachines();
       loadStorageAccounts();
       loadAppServices();
-      loadCostAnalysis();
     }
-  }, [connected, selectedResourceGroup, loadResourceGroups, loadVirtualMachines, loadStorageAccounts, loadAppServices, loadCostAnalysis]);
-
-  useEffect(() => {
-    if (selectedStorageAccount && selectedContainer) {
-      loadBlobFiles();
-    }
-  }, [selectedStorageAccount, selectedContainer]);
+  }, [connected, selectedSubscription, selectedResourceGroup]);
 
   const getStatusColor = (status: string): string => {
     switch (status?.toLowerCase()) {
@@ -545,14 +538,6 @@ const AzureIntegration: React.FC = () => {
       default:
         return "gray";
     }
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const formatDate = (dateString: string): string => {
@@ -596,6 +581,23 @@ const AzureIntegration: React.FC = () => {
               Refresh Status
             </Button>
           </HStack>
+
+          {subscriptions.length > 0 && (
+            <HStack spacing={4}>
+              <Select
+                placeholder="Select Subscription"
+                value={selectedSubscription}
+                onChange={(e) => setSelectedSubscription(e.target.value)}
+                width="300px"
+              >
+                {subscriptions.map((sub) => (
+                  <option key={sub.subscriptionId} value={sub.subscriptionId}>
+                    {sub.displayName} ({sub.state})
+                  </option>
+                ))}
+              </Select>
+            </HStack>
+          )}
         </VStack>
 
         {!connected ? (
@@ -659,9 +661,9 @@ const AzureIntegration: React.FC = () => {
               <Card>
                 <CardBody>
                   <Stat>
-                    <StatLabel>Monthly Cost</StatLabel>
-                    <StatNumber>${totalCost.toFixed(2)}</StatNumber>
-                    <StatHelpText>Last 30 days</StatHelpText>
+                    <StatLabel>Resource Groups</StatLabel>
+                    <StatNumber>{totalRG}</StatNumber>
+                    <StatHelpText>Resource organization</StatHelpText>
                   </Stat>
                 </CardBody>
               </Card>
@@ -670,78 +672,17 @@ const AzureIntegration: React.FC = () => {
             {/* Main Content Tabs */}
             <Tabs variant="enclosed">
               <TabList>
-                <Tab>Resource Groups</Tab>
                 <Tab>Virtual Machines</Tab>
-                <Tab>Storage</Tab>
                 <Tab>App Services</Tab>
-                <Tab>Cost Analysis</Tab>
-                <Tab>File Browser</Tab>
+                <Tab>Storage</Tab>
+                <Tab>Resource Groups</Tab>
               </TabList>
 
               <TabPanels>
-                {/* Resource Groups Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Name</Th>
-                                <Th>Location</Th>
-                                <Th>Created</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {resourceGroups.map((rg) => (
-                                <Tr key={rg.id}>
-                                  <Td>
-                                    <HStack>
-                                      <Icon as={FolderIcon} color="blue.500" />
-                                      <Text fontWeight="medium">{rg.name}</Text>
-                                    </HStack>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">{rg.location}</Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {formatDate(rg.created_at)}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        setSelectedResourceGroup(rg.name)
-                                      }
-                                    >
-                                      View Resources
-                                    </Button>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
                 {/* Virtual Machines Tab */}
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
-                      <Input
-                        placeholder="Search VMs..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
-                      />
                       <Select
                         placeholder="Resource Group"
                         value={selectedResourceGroup}
@@ -757,6 +698,12 @@ const AzureIntegration: React.FC = () => {
                           </option>
                         ))}
                       </Select>
+                      <Input
+                        placeholder="Search VMs..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
                       <Spacer />
                       <Button
                         colorScheme="blue"
@@ -778,6 +725,7 @@ const AzureIntegration: React.FC = () => {
                                 <Th>OS</Th>
                                 <Th>Status</Th>
                                 <Th>Resource Group</Th>
+                                <Th>IP Address</Th>
                                 <Th>Actions</Th>
                               </Tr>
                             </Thead>
@@ -786,10 +734,7 @@ const AzureIntegration: React.FC = () => {
                                 <Tr key={vm.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon
-                                        as={SettingsIcon}
-                                        color="blue.500"
-                                      />
+                                      <Icon as={ServerIcon} color="blue.500" />
                                       <Text fontWeight="medium">{vm.name}</Text>
                                     </HStack>
                                   </Td>
@@ -815,106 +760,14 @@ const AzureIntegration: React.FC = () => {
                                     </Text>
                                   </Td>
                                   <Td>
+                                    <Text fontSize="sm">{vm.public_ip || "N/A"}</Text>
+                                  </Td>
+                                  <Td>
                                     <HStack>
-                                      {vm.status === "Running" ? (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          leftIcon={<CloseIcon />}
-                                        >
-                                          Stop
-                                        </Button>
-                                      ) : (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          leftIcon={<ArrowForwardIcon />}
-                                        >
-                                          Start
-                                        </Button>
-                                      )}
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        leftIcon={<ViewIcon />}
-                                      >
+                                      <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
                                         Details
                                       </Button>
                                     </HStack>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
-                {/* Storage Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Name</Th>
-                                <Th>Type</Th>
-                                <Th>Tier</Th>
-                                <Th>Replication</Th>
-                                <Th>Resource Group</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {filteredStorage.map((storage) => (
-                                <Tr key={storage.id}>
-                                  <Td>
-                                    <HStack>
-                                      <Icon
-                                        as={HamburgerIcon}
-                                        color="blue.500"
-                                      />
-                                      <Text fontWeight="medium">
-                                        {storage.name}
-                                      </Text>
-                                    </HStack>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">{storage.type}</Text>
-                                  </Td>
-                                  <Td>
-                                    <Tag
-                                      colorScheme={getTierColor(storage.tier)}
-                                      size="sm"
-                                    >
-                                      <TagLabel>{storage.tier}</TagLabel>
-                                    </Tag>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {storage.replication}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm">
-                                      {storage.resource_group}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      leftIcon={<ViewIcon />}
-                                      onClick={() =>
-                                        setSelectedStorageAccount(storage.name)
-                                      }
-                                    >
-                                      Browse
-                                    </Button>
                                   </Td>
                                 </Tr>
                               ))}
@@ -930,6 +783,21 @@ const AzureIntegration: React.FC = () => {
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
+                      <Select
+                        placeholder="Resource Group"
+                        value={selectedResourceGroup}
+                        onChange={(e) =>
+                          setSelectedResourceGroup(e.target.value)
+                        }
+                        width="200px"
+                      >
+                        <option value="">All Resource Groups</option>
+                        {resourceGroups.map((rg) => (
+                          <option key={rg.id} value={rg.name}>
+                            {rg.name}
+                          </option>
+                        ))}
+                      </Select>
                       <Input
                         placeholder="Search apps..."
                         value={searchQuery}
@@ -957,6 +825,7 @@ const AzureIntegration: React.FC = () => {
                                 <Th>State</Th>
                                 <Th>Host Names</Th>
                                 <Th>Resource Group</Th>
+                                <Th>HTTPS Only</Th>
                                 <Th>Actions</Th>
                               </Tr>
                             </Thead>
@@ -965,10 +834,7 @@ const AzureIntegration: React.FC = () => {
                                 <Tr key={app.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon
-                                        as={ArrowForwardIcon}
-                                        color="blue.500"
-                                      />
+                                      <Icon as={SettingsIcon} color="blue.500" />
                                       <Text fontWeight="medium">
                                         {app.name}
                                       </Text>
@@ -996,11 +862,21 @@ const AzureIntegration: React.FC = () => {
                                     </Text>
                                   </Td>
                                   <Td>
+                                    <Badge
+                                      colorScheme={app.https_only ? "green" : "red"}
+                                      size="sm"
+                                    >
+                                      {app.https_only ? "Enabled" : "Disabled"}
+                                    </Badge>
+                                  </Td>
+                                  <Td>
                                     <HStack>
+                                      <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                        Details
+                                      </Button>
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        leftIcon={<ArrowForwardIcon />}
                                         onClick={() =>
                                           window.open(
                                             `https://${app.host_names[0]}`,
@@ -1009,11 +885,106 @@ const AzureIntegration: React.FC = () => {
                                       >
                                         Open
                                       </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        leftIcon={<ViewIcon />}
-                                      >
+                                    </HStack>
+                                  </Td>
+                                </Tr>
+                              ))}
+                            </Tbody>
+                          </Table>
+                        </TableContainer>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+
+                {/* Storage Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Select
+                        placeholder="Resource Group"
+                        value={selectedResourceGroup}
+                        onChange={(e) =>
+                          setSelectedResourceGroup(e.target.value)
+                        }
+                        width="200px"
+                      >
+                        <option value="">All Resource Groups</option>
+                        {resourceGroups.map((rg) => (
+                          <option key={rg.id} value={rg.name}>
+                            {rg.name}
+                          </option>
+                        ))}
+                      </Select>
+                      <Input
+                        placeholder="Search storage..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                      <Spacer />
+                      <Button
+                        colorScheme="blue"
+                        leftIcon={<AddIcon />}
+                        onClick={onStorageOpen}
+                      >
+                        Create Storage
+                      </Button>
+                    </HStack>
+
+                    <Card>
+                      <CardBody>
+                        <TableContainer>
+                          <Table variant="simple">
+                            <Thead>
+                              <Tr>
+                                <Th>Name</Th>
+                                <Th>Type</Th>
+                                <Th>Tier</Th>
+                                <Th>Replication</Th>
+                                <Th>Resource Group</Th>
+                                <Th>Location</Th>
+                                <Th>Actions</Th>
+                              </Tr>
+                            </Thead>
+                            <Tbody>
+                              {filteredStorage.map((storage) => (
+                                <Tr key={storage.id}>
+                                  <Td>
+                                    <HStack>
+                                      <Icon as={DatabaseIcon} color="blue.500" />
+                                      <Text fontWeight="medium">
+                                        {storage.name}
+                                      </Text>
+                                    </HStack>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">{storage.type}</Text>
+                                  </Td>
+                                  <Td>
+                                    <Tag
+                                      colorScheme={getTierColor(storage.tier)}
+                                      size="sm"
+                                    >
+                                      <TagLabel>{storage.tier}</TagLabel>
+                                    </Tag>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">
+                                      {storage.replication}
+                                    </Text>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">
+                                      {storage.resource_group}
+                                    </Text>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">{storage.location}</Text>
+                                  </Td>
+                                  <Td>
+                                    <HStack>
+                                      <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
                                         Details
                                       </Button>
                                     </HStack>
@@ -1028,79 +999,16 @@ const AzureIntegration: React.FC = () => {
                   </VStack>
                 </TabPanel>
 
-                {/* Cost Analysis Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <Alert status="info">
-                      <InfoIcon />
-                      <Text>Cost analysis for the last billing period</Text>
-                    </Alert>
-
-                    <Card>
-                      <CardBody>
-                        <VStack spacing={4} align="stretch">
-                          {costAnalysis.map((cost, index) => (
-                            <HStack
-                              key={index}
-                              justify="space-between"
-                              p={3}
-                              borderWidth="1px"
-                              borderRadius="md"
-                            >
-                              <VStack align="start" spacing={1}>
-                                <Text fontWeight="medium">
-                                  {cost.service_name}
-                                </Text>
-                                <Text fontSize="sm" color="gray.600">
-                                  {cost.resource_group} • {cost.date}
-                                </Text>
-                              </VStack>
-                              <Text
-                                fontSize="lg"
-                                fontWeight="bold"
-                                color="blue.500"
-                              >
-                                ${cost.cost.toFixed(2)}
-                              </Text>
-                            </HStack>
-                          ))}
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
-                {/* File Browser Tab */}
+                {/* Resource Groups Tab */}
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
-                      <Select
-                        placeholder="Storage Account"
-                        value={selectedStorageAccount}
-                        onChange={(e) =>
-                          setSelectedStorageAccount(e.target.value)
-                        }
-                        width="200px"
-                      >
-                        {storageAccounts.map((storage) => (
-                          <option key={storage.id} value={storage.name}>
-                            {storage.name}
-                          </option>
-                        ))}
-                      </Select>
                       <Input
-                        placeholder="Container name"
-                        value={selectedContainer}
-                        onChange={(e) => setSelectedContainer(e.target.value)}
-                        width="200px"
+                        placeholder="Search resource groups..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
                       />
-                      <Button
-                        colorScheme="blue"
-                        onClick={loadBlobFiles}
-                        disabled={!selectedStorageAccount || !selectedContainer}
-                      >
-                        Load Files
-                      </Button>
                     </HStack>
 
                     <Card>
@@ -1110,46 +1018,40 @@ const AzureIntegration: React.FC = () => {
                             <Thead>
                               <Tr>
                                 <Th>Name</Th>
-                                <Th>Size</Th>
-                                <Th>Type</Th>
-                                <Th>Last Modified</Th>
-                                <Th>Actions</Th>
+                                <Th>Location</Th>
+                                <Th>Created</Th>
+                                <Th>Tags</Th>
                               </Tr>
                             </Thead>
                             <Tbody>
-                              {blobFiles.map((file, index) => (
-                                <Tr key={index}>
+                              {resourceGroups
+                                .filter(rg =>
+                                  rg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                  rg.location.toLowerCase().includes(searchQuery.toLowerCase())
+                                )
+                                .map((rg) => (
+                                <Tr key={rg.id}>
                                   <Td>
                                     <HStack>
-                                      <Icon as={CubeIcon} color="blue.500" />
-                                      <Text fontWeight="medium">
-                                        {file.name}
-                                      </Text>
+                                      <Icon as={CloudIcon} color="blue.500" />
+                                      <Text fontWeight="medium">{rg.name}</Text>
                                     </HStack>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">
-                                      {formatFileSize(file.size)}
-                                    </Text>
+                                    <Text fontSize="sm">{rg.location}</Text>
                                   </Td>
                                   <Td>
                                     <Text fontSize="sm">
-                                      {file.content_type}
+                                      {formatDate(rg.created_at)}
                                     </Text>
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">
-                                      {formatDate(file.last_modified)}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <HStack>
-                                      <Button size="sm" variant="outline">
-                                        Download
-                                      </Button>
-                                      <Button size="sm" variant="outline">
-                                        Delete
-                                      </Button>
+                                    <HStack wrap="wrap">
+                                      {Object.entries(rg.tags).map(([key, value]) => (
+                                        <Tag key={key} size="sm" colorScheme="gray">
+                                          {key}: {value}
+                                        </Tag>
+                                      ))}
                                     </HStack>
                                   </Td>
                                 </Tr>
@@ -1211,7 +1113,6 @@ const AzureIntegration: React.FC = () => {
                           setVmForm({ ...vmForm, location: e.target.value })
                         }
                       >
-                        <option value="">Select Location</option>
                         <option value="East US">East US</option>
                         <option value="West US">West US</option>
                         <option value="West Europe">West Europe</option>
@@ -1342,7 +1243,6 @@ const AzureIntegration: React.FC = () => {
                           setAppForm({ ...appForm, location: e.target.value })
                         }
                       >
-                        <option value="">Select Location</option>
                         <option value="East US">East US</option>
                         <option value="West US">West US</option>
                         <option value="West Europe">West Europe</option>
@@ -1352,41 +1252,24 @@ const AzureIntegration: React.FC = () => {
 
                     <FormControl isRequired>
                       <FormLabel>Runtime</FormLabel>
-                      <RadioGroup
-                        value={
-                          appForm.python_version
-                            ? "python"
-                            : appForm.node_version
-                              ? "node"
-                              : ""
+                      <Select
+                        value={appForm.runtime}
+                        onChange={(e) =>
+                          setAppForm({ ...appForm, runtime: e.target.value })
                         }
-                        onChange={(value) => {
-                          if (value === "python") {
-                            setAppForm({
-                              ...appForm,
-                              python_version: "3.9",
-                              node_version: "",
-                            });
-                          } else if (value === "node") {
-                            setAppForm({
-                              ...appForm,
-                              node_version: "18",
-                              python_version: "",
-                            });
-                          }
-                        }}
                       >
-                        <Stack direction="row">
-                          <Radio value="python">Python</Radio>
-                          <Radio value="node">Node.js</Radio>
-                        </Stack>
-                      </RadioGroup>
+                        <option value="NODE">Node.js</option>
+                        <option value="PYTHON">Python</option>
+                        <option value="JAVA">Java</option>
+                        <option value="DOTNETCORE">.NET Core</option>
+                      </Select>
                     </FormControl>
 
                     <FormControl>
                       <FormLabel>HTTPS Only</FormLabel>
-                      <Switch
-                        isChecked={appForm.https_only}
+                      <Input
+                        type="checkbox"
+                        checked={appForm.https_only}
                         onChange={(e) =>
                           setAppForm({
                             ...appForm,
@@ -1411,6 +1294,120 @@ const AzureIntegration: React.FC = () => {
                     }
                   >
                     Deploy App
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+
+            {/* Create Storage Account Modal */}
+            <Modal isOpen={isStorageOpen} onClose={onStorageClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Create Storage Account</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>Resource Group</FormLabel>
+                      <Select
+                        value={storageForm.resource_group}
+                        onChange={(e) =>
+                          setStorageForm({
+                            ...storageForm,
+                            resource_group: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select Resource Group</option>
+                        {resourceGroups.map((rg) => (
+                          <option key={rg.id} value={rg.name}>
+                            {rg.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Storage Account Name</FormLabel>
+                      <Input
+                        placeholder="mystorageaccount"
+                        value={storageForm.storage_name}
+                        onChange={(e) =>
+                          setStorageForm({
+                            ...storageForm,
+                            storage_name: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Location</FormLabel>
+                      <Select
+                        value={storageForm.location}
+                        onChange={(e) =>
+                          setStorageForm({
+                            ...storageForm,
+                            location: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="East US">East US</option>
+                        <option value="West US">West US</option>
+                        <option value="West Europe">West Europe</option>
+                        <option value="Southeast Asia">Southeast Asia</option>
+                      </Select>
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Account Type</FormLabel>
+                      <Select
+                        value={storageForm.account_type}
+                        onChange={(e) =>
+                          setStorageForm({
+                            ...storageForm,
+                            account_type: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="Standard_LRS">Standard LRS</option>
+                        <option value="Standard_ZRS">Standard ZRS</option>
+                        <option value="Standard_GRS">Standard GRS</option>
+                        <option value="Premium_LRS">Premium LRS</option>
+                      </Select>
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Tier</FormLabel>
+                      <Select
+                        value={storageForm.tier}
+                        onChange={(e) =>
+                          setStorageForm({
+                            ...storageForm,
+                            tier: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="Standard">Standard</option>
+                        <option value="Premium">Premium</option>
+                      </Select>
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onStorageClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="blue"
+                    onClick={createStorageAccount}
+                    disabled={
+                      !storageForm.resource_group ||
+                      !storageForm.storage_name ||
+                      !storageForm.location
+                    }
+                  >
+                    Create Storage
                   </Button>
                 </ModalFooter>
               </ModalContent>

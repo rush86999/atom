@@ -58,19 +58,19 @@ import {
   Textarea,
 } from "@chakra-ui/react";
 import {
-  CheckCircle,
-  Warning,
-  Time,
-  ArrowForward,
-  PlusSquare,
+  CheckCircleIcon,
+  WarningIcon,
+  TimeIcon,
+  ArrowForwardIcon,
+  PlusSquareIcon,
   // DollarIcon not available, using Money as alternative
   // Note: No money icon available in current version, using Star as placeholder
-  Star,
-  User,
-  Settings,
-  ChevronDown,
-  Search,
-  ChevronUp,
+  StarIcon,
+  UserIcon,
+  SettingsIcon,
+  ChevronDownIcon,
+  SearchIcon,
+  ChevronUpIcon,
 } from "@chakra-ui/icons";
 
 interface StripePayment {
@@ -570,7 +570,7 @@ const StripeIntegration: React.FC = () => {
                     <Heading size="lg">Payment Management</Heading>
                     <Button
                       colorScheme="blue"
-                      leftIcon={<PlusSquare />}
+                      leftIcon={<PlusSquareIcon />}
                       onClick={() => setIsCreatePaymentOpen(true)}
                     >
                       Create Payment
@@ -675,7 +675,7 @@ const StripeIntegration: React.FC = () => {
                     <Heading size="lg">Customer Management</Heading>
                     <Button
                       colorScheme="blue"
-                      leftIcon={<PlusSquare />}
+                      leftIcon={<PlusSquareIcon />}
                       onClick={() => setIsCreateCustomerOpen(true)}
                     >
                       Add Customer
@@ -808,7 +808,7 @@ const StripeIntegration: React.FC = () => {
                     <Heading size="lg">Product Catalog</Heading>
                     <Button
                       colorScheme="blue"
-                      leftIcon={<PlusSquare />}
+                      leftIcon={<PlusSquareIcon />}
                       onClick={() => setIsCreateProductOpen(true)}
                     >
                       Add Product

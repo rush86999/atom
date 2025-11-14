@@ -1,9 +1,9 @@
 /**
  * Slack Integration Page
- * Complete communication and collaboration platform integration
+ * Complete Slack communication and collaboration integration
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -21,25 +21,16 @@ import {
   Divider,
   useColorModeValue,
   Stack,
+  Flex,
   Spacer,
-  Progress,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatGroup,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
+  Input,
+  Select,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
-  TableContainer,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -49,229 +40,169 @@ import {
   ModalCloseButton,
   FormControl,
   FormLabel,
-  Input,
   Textarea,
   useDisclosure,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatGroup,
   Tag,
   TagLabel,
-  Flex,
-  Grid,
-  GridItem,
-  Alert,
-  AlertIcon,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
   Avatar,
-  IconButton,
-  Tooltip,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Select,
-  Switch,
-  Wrap,
-  WrapItem,
-  Link,
-  Image,
+  AvatarGroup,
+  Spinner,
 } from "@chakra-ui/react";
 import {
-  ChatAltIcon,
-  Icon as ChakraIcon,
-  SearchIcon,
-  AddIcon,
-  EditIcon,
-  DeleteIcon,
-  ArrowForwardIcon,
-  ViewIcon,
-  RepeatIcon,
-  SettingsIcon,
+  ChatIcon,
   CheckCircleIcon,
   WarningTwoIcon,
-  InfoIcon,
+  ArrowForwardIcon,
+  AddIcon,
+  SearchIcon,
+  SettingsIcon,
+  RepeatIcon,
   TimeIcon,
-  FileIcon,
-  FolderIcon,
-  ShareIcon,
-  ChevronDownIcon,
-  RefreshIcon,
-  PersonIcon,
-  UsersIcon,
-  ActivityIcon,
-  LightningIcon,
-  PaperAirplaneIcon,
+  StarIcon,
+  EmailIcon,
   PhoneIcon,
-  MailIcon,
-  BusinessIcon,
-  HashtagIcon,
-  LockIcon,
-  UnlockIcon,
-  CodeIcon,
-  PinIcon,
-  ReactionsIcon,
-  ThreadIcon,
-  ChatIcon,
-  ChannelIcon,
-  MessageIcon,
 } from "@chakra-ui/icons";
+
+interface SlackChannel {
+  id: string;
+  name: string;
+  purpose: string;
+  num_members: number;
+  is_archived: boolean;
+  is_general: boolean;
+  created: number;
+  creator: string;
+  is_private: boolean;
+}
+
+interface SlackMessage {
+  team: string;
+  user: string;
+  user_profile: {
+    real_name: string;
+    display_name: string;
+    image_24: string;
+    image_32: string;
+    image_48: string;
+    image_72: string;
+    image_192: string;
+    image_512: string;
+  };
+  text: string;
+  ts: string;
+  attachments: Array<any>;
+  reactions: Array<{
+    name: string;
+    count: number;
+    users: string[];
+  }>;
+  thread_ts?: string;
+  reply_count?: number;
+  replies?: Array<{
+    user: string;
+    ts: string;
+  }>;
+  files?: Array<any>;
+  upload?: boolean;
+}
 
 interface SlackUser {
   id: string;
   name: string;
   real_name: string;
   display_name: string;
-  email: string;
-  phone: string;
-  title: string;
-  status: string;
-  status_emoji: string;
-  is_bot: boolean;
+  email?: string;
+  phone?: string;
+  title?: string;
   is_admin: boolean;
   is_owner: boolean;
-  is_restricted: boolean;
-  is_ultra_restricted: boolean;
-  presence: string;
-  tz: string;
-  tz_label: string;
-  updated: number;
-  deleted: boolean;
-  image: string;
-  hasImage: boolean;
-  hasStatus: boolean;
-  hasPhone: boolean;
-  hasTitle: boolean;
-  hasEmail: boolean;
-}
-
-interface SlackChannel {
-  id: string;
-  name: string;
-  name_normalized: string;
-  topic: string;
-  purpose: string;
-  is_archived: boolean;
-  is_general: boolean;
-  is_private: boolean;
-  is_im: boolean;
-  is_mpim: boolean;
-  created: number;
-  creator: string;
-  last_read: string;
-  unread_count: number;
-  unread_count_display: number;
-  num_members: number;
-  member_count: number;
-  is_member: boolean;
-  user_name: string;
-  user_image: string;
-  updated_at: string;
-  has_topic: boolean;
-  has_purpose: boolean;
-  is_active: boolean;
-}
-
-interface SlackMessage {
-  id: string;
-  ts: string;
-  text: string;
-  user: string;
-  team: string;
-  bot_id: string;
   is_bot: boolean;
-  thread_ts: string;
-  is_thread: boolean;
-  reply_count: number;
-  reactions: any[];
-  files: any[];
-  has_files: boolean;
-  has_reactions: boolean;
-  has_thread: boolean;
-  edited: boolean;
-  pinned: boolean;
-  time: string;
-  date: string;
-  user_name: string;
-  user_image: string;
+  deleted: boolean;
+  profile: {
+    real_name: string;
+    display_name: string;
+    real_name_normalized: string;
+    display_name_normalized: string;
+    email: string;
+    image_24: string;
+    image_32: string;
+    image_48: string;
+    image_72: string;
+    image_192: string;
+    image_512: string;
+    title: string;
+    phone: string;
+  };
 }
 
-interface SlackFile {
+interface SlackWorkspace {
   id: string;
   name: string;
-  title: string;
-  mimetype: string;
-  filetype: string;
-  pretty_type: string;
-  user: string;
-  timestamp: number;
-  size: number;
-  url_private: string;
-  url_private_download: string;
-  permalink: string;
-  permalink_public: string;
-  editable: boolean;
-  is_public: boolean;
-  is_external: boolean;
-  has_preview: boolean;
-  num_starred: number;
-  time: string;
-  date: string;
-  size_mb: number;
-  has_image: boolean;
-  has_video: boolean;
-  has_audio: boolean;
-  is_document: boolean;
+  domain: string;
+  email_domain: string;
+  icon: {
+    image_34: string;
+    image_44: string;
+    image_68: string;
+    image_88: string;
+    image_102: string;
+    image_132: string;
+    image_230: string;
+    image_default: boolean;
+  };
 }
 
 const SlackIntegration: React.FC = () => {
-  const [users, setUsers] = useState<SlackUser[]>([]);
   const [channels, setChannels] = useState<SlackChannel[]>([]);
   const [messages, setMessages] = useState<SlackMessage[]>([]);
-  const [files, setFiles] = useState<SlackFile[]>([]);
-  const [selectedChannel, setSelectedChannel] = useState<string>("");
-  const [teamInfo, setTeamInfo] = useState<any>(null);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [connected, setConnected] = useState(false);
-  const [healthStatus, setHealthStatus] = useState<"healthy" | "error" | "unknown">("unknown");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [messageText, setMessageText] = useState("");
+  const [users, setUsers] = useState<SlackUser[]>([]);
+  const [workspace, setWorkspace] = useState<SlackWorkspace | null>(null);
   const [loading, setLoading] = useState({
-    users: false,
     channels: false,
     messages: false,
-    files: false,
-    team: false,
-    search: false,
-    send: false,
-    refresh: false,
+    users: false,
+    workspace: false,
   });
+  const [connected, setConnected] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<
+    "healthy" | "error" | "unknown"
+  >("unknown");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedChannel, setSelectedChannel] = useState("");
+  const [selectedUser, setSelectedUser] = useState("");
+  const [messageText, setMessageText] = useState("");
 
-  const { 
-    isOpen: isMessageOpen, 
-    onOpen: onMessageOpen, 
-    onClose: onMessageClose 
+  const {
+    isOpen: isMessageOpen,
+    onOpen: onMessageOpen,
+    onClose: onMessageClose,
   } = useDisclosure();
-
-  const { 
-    isOpen: isCreateChannelOpen, 
-    onOpen: onCreateChannelOpen, 
-    onClose: onCreateChannelClose 
+  const {
+    isOpen: isChannelOpen,
+    onOpen: onChannelOpen,
+    onClose: onChannelClose,
   } = useDisclosure();
-
-  const { 
-    isOpen: isFileUploadOpen, 
-    onOpen: onFileUploadOpen, 
-    onClose: onFileUploadClose 
-  } = useDisclosure();
-
-  const [newChannelData, setNewChannelData] = useState({
-    name: '',
-    isPrivate: false,
-    purpose: '',
+  
+  const [newMessage, setNewMessage] = useState({
+    channel: "",
+    text: "",
   });
-
-  const [fileUploadData, setFileUploadData] = useState({
-    file: null as File | null,
-    channels: [] as string[],
-    title: '',
-    initialComment: '',
+  
+  const [newChannel, setNewChannel] = useState({
+    name: "",
+    purpose: "",
+    is_private: false,
   });
 
   const toast = useToast();
@@ -283,9 +214,11 @@ const SlackIntegration: React.FC = () => {
     try {
       const response = await fetch("/api/integrations/slack/health");
       if (response.ok) {
-        const data = await response.json();
-        setConnected(data.status === "healthy");
-        setHealthStatus(data.status);
+        setConnected(true);
+        setHealthStatus("healthy");
+        loadWorkspace();
+        loadChannels();
+        loadUsers();
       } else {
         setConnected(false);
         setHealthStatus("error");
@@ -297,327 +230,208 @@ const SlackIntegration: React.FC = () => {
     }
   };
 
-  // Load team info
-  const loadTeamInfo = async () => {
-    if (!connected) return;
-
-    setLoading((prev) => ({ ...prev, team: true }));
+  // Load Slack data
+  const loadWorkspace = async () => {
+    setLoading((prev) => ({ ...prev, workspace: true }));
     try {
-      const response = await fetch("/api/integrations/slack/team/info", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setTeamInfo(data.data);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load team info:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, team: false }));
-    }
-  };
-
-  // Load users
-  const loadUsers = async () => {
-    if (!connected) return;
-
-    setLoading((prev) => ({ ...prev, users: true }));
-    try {
-      const response = await fetch("/api/integrations/slack/users", {
+      const response = await fetch("/api/integrations/slack/workspace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          limit: 100,
+          user_id: "current",
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.data || []);
+        setWorkspace(data.data?.workspace || null);
       }
     } catch (error) {
-      console.error("Failed to load Slack users:", error);
+      console.error("Failed to load workspace:", error);
     } finally {
-      setLoading((prev) => ({ ...prev, users: false }));
+      setLoading((prev) => ({ ...prev, workspace: false }));
     }
   };
 
-  // Load channels
   const loadChannels = async () => {
-    if (!connected) return;
-
     setLoading((prev) => ({ ...prev, channels: true }));
     try {
       const response = await fetch("/api/integrations/slack/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          types: ["public_channel", "private_channel", "im"],
+          user_id: "current",
           limit: 100,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setChannels(data.data || []);
+        setChannels(data.data?.channels || []);
       }
     } catch (error) {
-      console.error("Failed to load Slack channels:", error);
+      console.error("Failed to load channels:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load channels from Slack",
+        status: "error",
+        duration: 3000,
+      });
     } finally {
       setLoading((prev) => ({ ...prev, channels: false }));
     }
   };
 
-  // Load messages for selected channel
   const loadMessages = async (channelId: string) => {
-    if (!connected || !channelId) return;
-
+    if (!channelId) return;
+    
     setLoading((prev) => ({ ...prev, messages: true }));
     try {
       const response = await fetch("/api/integrations/slack/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          channelId,
+          user_id: "current",
+          channel: channelId,
           limit: 50,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
-          setMessages(data.data || []);
-        }
+        setMessages(data.data?.messages || []);
       }
     } catch (error) {
-      console.error("Failed to load Slack messages:", error);
+      console.error("Failed to load messages:", error);
     } finally {
       setLoading((prev) => ({ ...prev, messages: false }));
     }
   };
 
-  // Load files
-  const loadFiles = async () => {
-    if (!connected) return;
-
-    setLoading((prev) => ({ ...prev, files: true }));
+  const loadUsers = async () => {
+    setLoading((prev) => ({ ...prev, users: true }));
     try {
-      const response = await fetch("/api/integrations/slack/files", {
+      const response = await fetch("/api/integrations/slack/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          types: "all",
+          user_id: "current",
           limit: 100,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setFiles(data.data || []);
+        setUsers(data.data?.users || []);
       }
     } catch (error) {
-      console.error("Failed to load Slack files:", error);
+      console.error("Failed to load users:", error);
     } finally {
-      setLoading((prev) => ({ ...prev, files: false }));
+      setLoading((prev) => ({ ...prev, users: false }));
     }
   };
 
-  // Send message
   const sendMessage = async () => {
-    if (!selectedChannel || !messageText.trim()) return;
+    if (!newMessage.channel || !newMessage.text) return;
 
-    setLoading((prev) => ({ ...prev, send: true }));
     try {
       const response = await fetch("/api/integrations/slack/messages/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          channelId: selectedChannel,
-          text: messageText,
+          user_id: "current",
+          channel: newMessage.channel,
+          text: newMessage.text,
         }),
       });
 
       if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          toast({
-            title: "Message sent",
-            status: "success",
-            duration: 3000,
-          });
-          setMessageText("");
-          await loadMessages(selectedChannel);
+        toast({
+          title: "Success",
+          description: "Message sent successfully",
+          status: "success",
+          duration: 3000,
+        });
+        onMessageClose();
+        setNewMessage({ channel: "", text: "" });
+        if (newMessage.channel === selectedChannel) {
+          loadMessages(selectedChannel);
         }
       }
     } catch (error) {
       console.error("Failed to send message:", error);
       toast({
-        title: "Failed to send message",
+        title: "Error",
+        description: "Failed to send message",
         status: "error",
         duration: 3000,
       });
-    } finally {
-      setLoading((prev) => ({ ...prev, send: false }));
     }
   };
 
-  // Create channel
   const createChannel = async () => {
-    if (!newChannelData.name.trim()) return;
+    if (!newChannel.name) return;
 
     try {
       const response = await fetch("/api/integrations/slack/channels/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newChannelData),
+        body: JSON.stringify({
+          user_id: "current",
+          name: newChannel.name,
+          purpose: newChannel.purpose,
+          is_private: newChannel.is_private,
+        }),
       });
 
       if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          toast({
-            title: "Channel created successfully",
-            status: "success",
-            duration: 3000,
-          });
-          setNewChannelData({ name: '', isPrivate: false, purpose: '' });
-          onCreateChannelClose();
-          await loadChannels();
-        }
+        toast({
+          title: "Success",
+          description: "Channel created successfully",
+          status: "success",
+          duration: 3000,
+        });
+        onChannelClose();
+        setNewChannel({ name: "", purpose: "", is_private: false });
+        loadChannels();
       }
     } catch (error) {
       console.error("Failed to create channel:", error);
       toast({
-        title: "Failed to create channel",
+        title: "Error",
+        description: "Failed to create channel",
         status: "error",
         duration: 3000,
       });
     }
   };
 
-  // Upload file
-  const uploadFile = async () => {
-    if (!fileUploadData.file || fileUploadData.channels.length === 0) return;
+  // Filter data based on search
+  const filteredChannels = channels.filter(
+    (channel) =>
+      channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      channel.purpose.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    try {
-      const formData = new FormData();
-      formData.append('file', fileUploadData.file);
-      formData.append('channels', fileUploadData.channels.join(','));
-      if (fileUploadData.title) formData.append('title', fileUploadData.title);
-      if (fileUploadData.initialComment) formData.append('initialComment', fileUploadData.initialComment);
+  const filteredUsers = users.filter(
+    (user) =>
+      user.real_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
-      const response = await fetch("/api/integrations/slack/files/upload", {
-        method: "POST",
-        body: formData,
-      });
+  const filteredMessages = messages.filter(
+    (message) =>
+      message.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (message.user_profile?.display_name || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          toast({
-            title: "File uploaded successfully",
-            status: "success",
-            duration: 3000,
-          });
-          setFileUploadData({ file: null, channels: [], title: '', initialComment: '' });
-          onFileUploadClose();
-          await loadFiles();
-        }
-      }
-    } catch (error) {
-      console.error("Failed to upload file:", error);
-      toast({
-        title: "Failed to upload file",
-        status: "error",
-        duration: 3000,
-      });
-    }
-  };
-
-  // Manage channel actions
-  const manageChannel = async (channelId: string, action: string) => {
-    try {
-      const response = await fetch("/api/integrations/slack/channels/manage", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId, action }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          toast({
-            title: `Channel ${action} successful`,
-            status: "success",
-            duration: 3000,
-          });
-          await loadChannels();
-        }
-      }
-    } catch (error) {
-      console.error(`Failed to ${action} channel:`, error);
-      toast({
-        title: `Failed to ${action} channel`,
-        status: "error",
-        duration: 3000,
-      });
-    }
-  };
-
-  // Search messages
-  const searchMessages = async () => {
-    if (!searchQuery.trim() || !connected) return;
-
-    setLoading((prev) => ({ ...prev, search: true }));
-    try {
-      const response = await fetch("/api/integrations/slack/search/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: searchQuery,
-          count: 50,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSearchResults(data.data || []);
-      }
-    } catch (error) {
-      console.error("Failed to search Slack messages:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, search: false }));
-    }
-  };
-
-  // Search files
-  const searchFiles = async () => {
-    if (!searchQuery.trim() || !connected) return;
-
-    try {
-      const response = await fetch("/api/integrations/slack/search/files", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: searchQuery,
-          count: 50,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // You could display file search results in a separate state
-        console.log("File search results:", data.data);
-      }
-    } catch (error) {
-      console.error("Failed to search Slack files:", error);
-    }
-  };
+  // Stats calculations
+  const totalChannels = channels.length;
+  const privateChannels = channels.filter(ch => ch.is_private).length;
+  const totalUsers = users.length;
+  const activeUsers = users.filter(u => !u.deleted && !u.is_bot).length;
+  const totalMessages = messages.length;
 
   useEffect(() => {
     checkConnection();
@@ -625,43 +439,27 @@ const SlackIntegration: React.FC = () => {
 
   useEffect(() => {
     if (connected) {
-      loadTeamInfo();
-      loadUsers();
+      loadWorkspace();
       loadChannels();
-      loadFiles();
+      loadUsers();
     }
   }, [connected]);
 
-  // Stats calculations
-  const totalUsers = users.length;
-  const totalChannels = channels.length;
-  const totalMessages = messages.length;
-  const totalFiles = files.length;
-  const totalBots = users.filter(u => u.is_bot).length;
-  const activeUsers = users.filter(u => u.presence === "active").length;
-  const publicChannels = channels.filter(c => !c.is_private && !c.is_im).length;
-  const privateChannels = channels.filter(c => c.is_private && !c.is_im).length;
-  const directMessages = channels.filter(c => c.is_im).length;
-  const messagesWithFiles = messages.filter(m => m.has_files).length;
-  const messagesWithReactions = messages.filter(m => m.has_reactions).length;
-
-  const formatTimestamp = (timestamp: string | number): string => {
-    const ts = typeof timestamp === 'number' ? timestamp : parseFloat(timestamp);
-    return new Date(ts * 1000).toLocaleString();
-  };
+  useEffect(() => {
+    if (selectedChannel) {
+      loadMessages(selectedChannel);
+    }
+  }, [selectedChannel]);
 
   const formatDate = (timestamp: string): string => {
-    const ts = parseFloat(timestamp);
-    return new Date(ts * 1000).toLocaleDateString();
+    return new Date(parseFloat(timestamp) * 1000).toLocaleString();
   };
 
-  const getFileIcon = (file: SlackFile) => {
-    if (file.has_image) return "🖼️";
-    if (file.has_video) return "🎥";
-    if (file.has_audio) return "🎵";
-    if (file.mimetype.includes("pdf")) return "📄";
-    if (file.mimetype.includes("zip") || file.mimetype.includes("tar")) return "📦";
-    return "📎";
+  const getStatusColor = (channel: SlackChannel): string => {
+    if (channel.is_archived) return "gray";
+    if (channel.is_private) return "purple";
+    if (channel.is_general) return "green";
+    return "blue";
   };
 
   return (
@@ -670,11 +468,11 @@ const SlackIntegration: React.FC = () => {
         {/* Header */}
         <VStack align="start" spacing={4}>
           <HStack spacing={4}>
-            <Icon as={ChatAltIcon} w={8} h={8} color="purple.500" />
+            <Icon as={ChatIcon} w={8} h={8} color="purple.500" />
             <VStack align="start" spacing={1}>
               <Heading size="2xl">Slack Integration</Heading>
               <Text color="gray.600" fontSize="lg">
-                Complete communication and collaboration platform
+                Team communication and collaboration platform
               </Text>
             </VStack>
           </HStack>
@@ -700,14 +498,15 @@ const SlackIntegration: React.FC = () => {
             >
               Refresh Status
             </Button>
-            {teamInfo && (
-              <HStack spacing={2}>
-                <Avatar size="xs" name={teamInfo.name} />
-                <Text fontSize="sm" fontWeight="medium">{teamInfo.name}</Text>
-                <Text fontSize="sm" color="gray.500">({teamInfo.domain})</Text>
-              </HStack>
-            )}
           </HStack>
+
+          {workspace && (
+            <HStack spacing={4}>
+              <Avatar src={workspace.icon.image_72} name={workspace.name} />
+              <Text fontWeight="bold">{workspace.name}</Text>
+              <Text color="gray.600">({workspace.domain})</Text>
+            </HStack>
+          )}
         </VStack>
 
         {!connected ? (
@@ -715,18 +514,21 @@ const SlackIntegration: React.FC = () => {
           <Card>
             <CardBody>
               <VStack spacing={6} py={8}>
-                <Icon as={ChatAltIcon} w={16} h={16} color="gray.400" />
+                <Icon as={ChatIcon} w={16} h={16} color="gray.400" />
                 <VStack spacing={2}>
-                  <Heading size="lg">Connect to Slack</Heading>
+                  <Heading size="lg">Connect Slack</Heading>
                   <Text color="gray.600" textAlign="center">
-                    Connect your Slack workspace to manage users, channels, messages, and files
+                    Connect your Slack workspace to start managing conversations and teams
                   </Text>
                 </VStack>
                 <Button
                   colorScheme="purple"
                   size="lg"
                   leftIcon={<ArrowForwardIcon />}
-                  onClick={() => window.open("/api/integrations/slack/auth/start")}
+                  onClick={() =>
+                    (window.location.href =
+                      "/api/integrations/slack/auth/start")
+                  }
                 >
                   Connect Slack Workspace
                 </Button>
@@ -741,18 +543,18 @@ const SlackIntegration: React.FC = () => {
               <Card>
                 <CardBody>
                   <Stat>
-                    <StatLabel>Users</StatLabel>
-                    <StatNumber>{totalUsers}</StatNumber>
-                    <StatHelpText>{activeUsers} active, {totalBots} bots</StatHelpText>
+                    <StatLabel>Channels</StatLabel>
+                    <StatNumber>{totalChannels}</StatNumber>
+                    <StatHelpText>{privateChannels} private</StatHelpText>
                   </Stat>
                 </CardBody>
               </Card>
               <Card>
                 <CardBody>
                   <Stat>
-                    <StatLabel>Channels</StatLabel>
-                    <StatNumber>{totalChannels}</StatNumber>
-                    <StatHelpText>{publicChannels} public, {privateChannels} private</StatHelpText>
+                    <StatLabel>Users</StatLabel>
+                    <StatNumber>{activeUsers}</StatNumber>
+                    <StatHelpText>{totalUsers} total</StatHelpText>
                   </Stat>
                 </CardBody>
               </Card>
@@ -761,16 +563,16 @@ const SlackIntegration: React.FC = () => {
                   <Stat>
                     <StatLabel>Messages</StatLabel>
                     <StatNumber>{totalMessages}</StatNumber>
-                    <StatHelpText>{messagesWithFiles} with files</StatHelpText>
+                    <StatHelpText>In selected channel</StatHelpText>
                   </Stat>
                 </CardBody>
               </Card>
               <Card>
                 <CardBody>
                   <Stat>
-                    <StatLabel>Files</StatLabel>
-                    <StatNumber>{totalFiles}</StatNumber>
-                    <StatHelpText>Shared files</StatHelpText>
+                    <StatLabel>Workspace</StatLabel>
+                    <StatNumber>{workspace?.name || "Unknown"}</StatNumber>
+                    <StatHelpText>Connected</StatHelpText>
                   </Stat>
                 </CardBody>
               </Card>
@@ -779,302 +581,81 @@ const SlackIntegration: React.FC = () => {
             {/* Main Content Tabs */}
             <Tabs variant="enclosed">
               <TabList>
-                <Tab>Users</Tab>
                 <Tab>Channels</Tab>
                 <Tab>Messages</Tab>
-                <Tab>Files</Tab>
-                <Tab>Search</Tab>
+                <Tab>Users</Tab>
+                <Tab>Workspace</Tab>
               </TabList>
 
               <TabPanels>
-                {/* Users Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <HStack spacing={4}>
-                      <Button
-                        colorScheme="purple"
-                        leftIcon={<RepeatIcon />}
-                        onClick={loadUsers}
-                        isLoading={loading.users}
-                      >
-                        Refresh Users
-                      </Button>
-                    </HStack>
-
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>User</Th>
-                                <Th>Role</Th>
-                                <Th>Status</Th>
-                                <Th>Presence</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {users.map((user) => (
-                                <Tr key={user.id}>
-                                  <Td>
-                                    <HStack spacing={3}>
-                                      <Avatar 
-                                        size="sm" 
-                                        name={user.display_name} 
-                                        src={user.hasImage ? user.image : undefined}
-                                      />
-                                      <VStack align="start" spacing={0}>
-                                        <Text fontWeight="medium">{user.display_name}</Text>
-                                        {user.hasTitle && (
-                                          <Text fontSize="sm" color="gray.600">
-                                            {user.title}
-                                          </Text>
-                                        )}
-                                        {user.hasEmail && (
-                                          <Text fontSize="sm" color="blue.600">
-                                            {user.email}
-                                          </Text>
-                                        )}
-                                      </VStack>
-                                      {user.is_bot && (
-                                        <Tag size="sm" colorScheme="orange">
-                                          <ChatIcon mr={1} />
-                                          Bot
-                                        </Tag>
-                                      )}
-                                    </HStack>
-                                  </Td>
-                                  <Td>
-                                    <Wrap>
-                                      {user.is_owner && (
-                                        <WrapItem>
-                                          <Tag size="sm" colorScheme="purple">Owner</Tag>
-                                        </WrapItem>
-                                      )}
-                                      {user.is_admin && (
-                                        <WrapItem>
-                                          <Tag size="sm" colorScheme="blue">Admin</Tag>
-                                        </WrapItem>
-                                      )}
-                                      {user.is_restricted && (
-                                        <WrapItem>
-                                          <Tag size="sm" colorScheme="yellow">Restricted</Tag>
-                                        </WrapItem>
-                                      )}
-                                    </Wrap>
-                                  </Td>
-                                  <Td>
-                                    {user.hasStatus ? (
-                                      <HStack spacing={2}>
-                                        <Text fontSize="sm">{user.status}</Text>
-                                        <Text>{user.status_emoji}</Text>
-                                      </HStack>
-                                    ) : (
-                                      <Text fontSize="sm" color="gray.400">No status</Text>
-                                    )}
-                                  </Td>
-                                  <Td>
-                                    <Badge
-                                      colorScheme={user.presence === "active" ? "green" : "gray"}
-                                      size="sm"
-                                    >
-                                      {user.presence}
-                                    </Badge>
-                                  </Td>
-                                  <Td>
-                                    <Menu>
-                                      <MenuButton
-                                        as={IconButton}
-                                        aria-label="Options"
-                                        icon={<SettingsIcon />}
-                                        variant="outline"
-                                        size="sm"
-                                      />
-                                      <MenuList>
-                                        <MenuItem
-                                          icon={<ArrowForwardIcon />}
-                                          onClick={() => window.open(`https://slack.com/app_redirect?channel=${user.id}`, "_blank")}
-                                        >
-                                          Open Profile
-                                        </MenuItem>
-                                      </MenuList>
-                                    </Menu>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
                 {/* Channels Tab */}
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
+                      <Input
+                        placeholder="Search channels..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                      <Spacer />
                       <Button
                         colorScheme="purple"
-                        leftIcon={<RepeatIcon />}
-                        onClick={loadChannels}
-                        isLoading={loading.channels}
-                      >
-                        Refresh Channels
-                      </Button>
-                      <Button
-                        colorScheme="green"
                         leftIcon={<AddIcon />}
-                        onClick={onCreateChannelOpen}
+                        onClick={onChannelOpen}
                       >
                         Create Channel
-                      </Button>
-                      <Button
-                        colorScheme="blue"
-                        leftIcon={<FileIcon />}
-                        onClick={onFileUploadOpen}
-                      >
-                        Upload File
                       </Button>
                     </HStack>
 
                     <Card>
                       <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Channel</Th>
-                                <Th>Type</Th>
-                                <Th>Members</Th>
-                                <Th>Purpose/Topic</Th>
-                                <Th>Status</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {channels.map((channel) => (
-                                <Tr key={channel.id}>
-                                  <Td>
-                                    <HStack spacing={3}>
-                                      <Icon
-                                        as={channel.is_im ? PersonIcon : channel.is_private ? LockIcon : HashtagIcon}
-                                        color={channel.is_im ? "blue" : channel.is_private ? "yellow" : "green"}
-                                      />
-                                      <VStack align="start" spacing={0}>
-                                        <Text fontWeight="medium">
-                                          {channel.is_im ? channel.user_name || "Direct Message" : channel.name}
-                                        </Text>
-                                        {channel.has_topic && (
-                                          <Text fontSize="sm" color="gray.600">
-                                            {channel.topic}
-                                          </Text>
-                                        )}
-                                      </VStack>
-                                    </HStack>
-                                  </Td>
-                                  <Td>
+                        <VStack spacing={4} align="stretch">
+                          {loading.channels ? (
+                            <Spinner size="xl" />
+                          ) : (
+                            filteredChannels.map((channel) => (
+                              <HStack
+                                key={channel.id}
+                                p={4}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                _hover={{ bg: "gray.50" }}
+                                cursor="pointer"
+                                onClick={() => {
+                                  setSelectedChannel(channel.id);
+                                  loadMessages(channel.id);
+                                }}
+                              >
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <HStack>
+                                    <Text fontWeight="bold">
+                                      #{channel.name}
+                                    </Text>
                                     <Tag
-                                      colorScheme={
-                                        channel.is_im ? "blue" : 
-                                        channel.is_private ? "yellow" : 
-                                        channel.is_general ? "purple" : "green"
-                                      }
+                                      colorScheme={getStatusColor(channel)}
                                       size="sm"
                                     >
-                                      {channel.is_im ? "DM" : 
-                                       channel.is_private ? "Private" : 
-                                       channel.is_general ? "General" : "Public"}
+                                      {channel.is_private ? "Private" : channel.is_general ? "General" : "Public"}
                                     </Tag>
-                                  </Td>
-                                  <Td>
-                                    {channel.is_im ? (
-                                      <Text fontSize="sm">1</Text>
-                                    ) : (
-                                      <Text fontSize="sm">{channel.member_count || channel.num_members}</Text>
+                                    {channel.is_archived && (
+                                      <Tag colorScheme="gray" size="sm">
+                                        Archived
+                                      </Tag>
                                     )}
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm" noOfLines={2}>
-                                      {channel.has_purpose ? channel.purpose : 
-                                       channel.has_topic ? channel.topic : 
-                                       "No description"}
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    {channel.is_archived ? (
-                                      <Tag size="sm" colorScheme="gray">Archived</Tag>
-                                    ) : (
-                                      <Tag size="sm" colorScheme="green">Active</Tag>
-                                    )}
-                                  </Td>
-                                  <Td>
-                                    <HStack spacing={2}>
-                                      <Button
-                                        size="sm"
-                                        colorScheme="purple"
-                                        onClick={() => {
-                                          setSelectedChannel(channel.id);
-                                          loadMessages(channel.id);
-                                        }}
-                                        isLoading={loading.messages && selectedChannel === channel.id}
-                                      >
-                                        <ViewIcon mr={1} />
-                                        View Messages
-                                      </Button>
-                                      <Menu>
-                                        <MenuButton
-                                          as={IconButton}
-                                          aria-label="Options"
-                                          icon={<SettingsIcon />}
-                                          variant="outline"
-                                          size="sm"
-                                        />
-                                        <MenuList>
-                                          <MenuItem
-                                            icon={<ArrowForwardIcon />}
-                                            onClick={() => window.open(`https://slack.com/app_redirect?channel=${channel.id}`, "_blank")}
-                                          >
-                                            Open in Slack
-                                          </MenuItem>
-                                          {!channel.is_im && (
-                                            <>
-                                              <MenuItem
-                                                icon={<AddIcon />}
-                                                onClick={() => manageChannel(channel.id, 'join')}
-                                              >
-                                                Join Channel
-                                              </MenuItem>
-                                              <MenuItem
-                                                icon={<DeleteIcon />}
-                                                onClick={() => manageChannel(channel.id, 'leave')}
-                                              >
-                                                Leave Channel
-                                              </MenuItem>
-                                              <MenuItem
-                                                icon={<FolderIcon />}
-                                                onClick={() => manageChannel(channel.id, 'archive')}
-                                              >
-                                                Archive Channel
-                                              </MenuItem>
-                                              <MenuItem
-                                                icon={<UnlockIcon />}
-                                                onClick={() => manageChannel(channel.id, 'unarchive')}
-                                              >
-                                                Unarchive Channel
-                                              </MenuItem>
-                                            </>
-                                          )}
-                                        </MenuList>
-                                      </Menu>
-                                    </HStack>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
+                                  </HStack>
+                                  <Text fontSize="sm" color="gray.600">
+                                    {channel.purpose || "No purpose"}
+                                  </Text>
+                                  <Text fontSize="xs" color="gray.500">
+                                    {channel.num_members} members
+                                  </Text>
+                                </VStack>
+                                <ArrowForwardIcon color="gray.400" />
+                              </HStack>
+                            ))
+                          )}
+                        </VStack>
                       </CardBody>
                     </Card>
                   </VStack>
@@ -1083,409 +664,333 @@ const SlackIntegration: React.FC = () => {
                 {/* Messages Tab */}
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
-                    {selectedChannel && (
-                      <Card>
-                        <CardBody>
-                          <HStack justify="space-between">
-                            <VStack align="start" spacing={0}>
-                              <Text fontWeight="medium">
-                                Channel: {channels.find(c => c.id === selectedChannel)?.name || "Unknown"}
-                              </Text>
-                              <Text fontSize="sm" color="gray.600">
-                                {messages.length} messages
-                              </Text>
-                            </VStack>
-                            <Button
-                              size="sm"
-                              leftIcon={<PaperAirplaneIcon />}
-                              onClick={onMessageOpen}
-                            >
-                              Send Message
-                            </Button>
-                          </HStack>
-                        </CardBody>
-                      </Card>
-                    )}
-
-                    {!selectedChannel ? (
-                      <Alert status="info">
-                        <AlertIcon />
-                        Please select a channel from the Channels tab to view messages.
-                      </Alert>
-                    ) : (
-                      <Card>
-                        <CardBody>
-                          <VStack spacing={4} align="stretch">
-                            {messages.map((message) => (
-                              <Box key={message.ts} p={4} borderWidth="1px" borderRadius="md">
-                                <HStack spacing={3} align="start">
-                                  <Avatar
-                                    size="sm"
-                                    name={message.user_name}
-                                    src={message.user_image}
-                                  />
-                                  <VStack align="start" spacing={1} flex={1}>
-                                    <HStack spacing={2}>
-                                      <Text fontWeight="medium">{message.user_name}</Text>
-                                      <Text fontSize="xs" color="gray.500">
-                                        {formatTimestamp(message.ts)}
-                                      </Text>
-                                      {message.edited && (
-                                        <Text fontSize="xs" color="gray.400">(edited)</Text>
-                                      )}
-                                    </HStack>
-                                    <Text whiteSpace="pre-wrap">{message.text}</Text>
-                                    {message.has_files && (
-                                      <HStack spacing={2} mt={2}>
-                                        {message.files.map((file, idx) => (
-                                          <Tag key={idx} size="sm" colorScheme="blue">
-                                            <FileIcon mr={1} />
-                                            {file.name}
-                                          </Tag>
-                                        ))}
-                                      </HStack>
-                                    )}
-                                    {message.has_reactions && (
-                                      <HStack spacing={2} mt={2}>
-                                        {message.reactions.map((reaction, idx) => (
-                                          <Tag key={idx} size="sm" colorScheme="orange">
-                                            <ReactionsIcon mr={1} />
-                                            {reaction.name} ({reaction.count})
-                                          </Tag>
-                                        ))}
-                                      </HStack>
-                                    )}
-                                    {message.has_thread && (
-                                      <Text fontSize="sm" color="blue.600" mt={2}>
-                                        <ThreadIcon mr={1} />
-                                        {message.reply_count} replies
-                                      </Text>
-                                    )}
-                                  </VStack>
-                                </HStack>
-                              </Box>
-                            ))}
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    )}
-                  </VStack>
-                </TabPanel>
-
-                {/* Files Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
-                      <Button
-                        colorScheme="purple"
-                        leftIcon={<RepeatIcon />}
-                        onClick={loadFiles}
-                        isLoading={loading.files}
+                      <Select
+                        placeholder="Select channel"
+                        value={selectedChannel}
+                        onChange={(e) => setSelectedChannel(e.target.value)}
+                        width="300px"
                       >
-                        Refresh Files
-                      </Button>
-                    </HStack>
-
-                    <Card>
-                      <CardBody>
-                        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-                          {files.map((file) => (
-                            <Card key={file.id} variant="outline">
-                              <CardBody>
-                                <VStack spacing={3} align="start">
-                                  <HStack>
-                                    <Text fontSize="2xl">{getFileIcon(file)}</Text>
-                                    <VStack align="start" spacing={0} flex={1}>
-                                      <Text fontWeight="medium" noOfLines={1}>
-                                        {file.name}
-                                      </Text>
-                                      <Text fontSize="sm" color="gray.600">
-                                        {file.pretty_type}
-                                      </Text>
-                                    </VStack>
-                                  </HStack>
-                                  <HStack justify="space-between" width="100%">
-                                    <Text fontSize="sm" color="gray.500">
-                                      {formatDate(file.timestamp.toString())}
-                                    </Text>
-                                    <Text fontSize="sm" color="gray.500">
-                                      {file.size_mb} MB
-                                    </Text>
-                                  </HStack>
-                                  <HStack spacing={2}>
-                                    <Button
-                                      size="sm"
-                                      colorScheme="blue"
-                                      leftIcon={<ArrowForwardIcon />}
-                                      onClick={() => window.open(file.permalink, "_blank")}
-                                    >
-                                      Open
-                                    </Button>
-                                    {file.url_private_download && (
-                                      <Button
-                                        size="sm"
-                                        colorScheme="green"
-                                        leftIcon={<ChevronDownIcon />}
-                                        onClick={() => window.open(file.url_private_download, "_blank")}
-                                      >
-                                        Download
-                                      </Button>
-                                    )}
-                                  </HStack>
-                                </VStack>
-                              </CardBody>
-                            </Card>
-                          ))}
-                        </SimpleGrid>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
-                {/* Search Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <HStack spacing={4}>
+                        {channels.map((channel) => (
+                          <option key={channel.id} value={channel.id}>
+                            #{channel.name}
+                          </option>
+                        ))}
+                      </Select>
                       <Input
-                        placeholder="Search messages across all channels..."
+                        placeholder="Search messages..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         leftElement={<SearchIcon />}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            searchMessages();
-                          }
-                        }}
                       />
+                      <Spacer />
                       <Button
                         colorScheme="purple"
-                        onClick={searchMessages}
-                        isLoading={loading.search}
-                        disabled={!searchQuery.trim()}
+                        leftIcon={<AddIcon />}
+                        onClick={onMessageOpen}
+                        disabled={!selectedChannel}
                       >
-                        Search
+                        Send Message
                       </Button>
                     </HStack>
 
                     <Card>
                       <CardBody>
-                        <VStack spacing={4} align="stretch">
-                          {searchResults.map((result: any, index: number) => (
-                            <Box key={index} p={4} borderWidth="1px" borderRadius="md">
-                              <VStack spacing={3} align="start">
-                                <HStack spacing={2}>
-                                  <Text fontSize="sm" color="blue.600">
-                                    #{result.channel_name}
-                                  </Text>
-                                  <Text fontSize="xs" color="gray.500">
-                                    {formatTimestamp(result.ts)}
-                                  </Text>
-                                </HStack>
-                                <Text noOfLines={3}>{result.text}</Text>
-                                {result.user_name && (
-                                  <HStack spacing={2}>
-                                    <Avatar size="xs" name={result.user_name} />
-                                    <Text fontSize="sm">{result.user_name}</Text>
+                        <VStack spacing={4} align="stretch" maxH="600px" overflowY="auto">
+                          {loading.messages ? (
+                            <Spinner size="xl" />
+                          ) : selectedChannel ? (
+                            filteredMessages.map((message) => (
+                              <HStack
+                                key={message.ts}
+                                p={4}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                align="start"
+                                spacing={4}
+                              >
+                                <Avatar
+                                  src={message.user_profile?.image_48}
+                                  name={message.user_profile?.display_name}
+                                  size="sm"
+                                />
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <HStack>
+                                    <Text fontWeight="bold">
+                                      {message.user_profile?.display_name || "Unknown"}
+                                    </Text>
+                                    <Text fontSize="xs" color="gray.500">
+                                      {formatDate(message.ts)}
+                                    </Text>
                                   </HStack>
-                                )}
-                              </VStack>
-                            </Box>
-                          ))}
-                          
-                          {searchResults.length === 0 && searchQuery && (
-                            <VStack spacing={4} py={8}>
-                              <Icon as={SearchIcon} w={12} h={12} color="gray.400" />
-                              <Text color="gray.600">No search results found</Text>
-                            </VStack>
+                                  <Text fontSize="sm">{message.text}</Text>
+                                  {message.reactions && message.reactions.length > 0 && (
+                                    <HStack spacing={2}>
+                                      {message.reactions.map((reaction, idx) => (
+                                        <Tag key={idx} size="sm">
+                                          {reaction.name} {reaction.count}
+                                        </Tag>
+                                      ))}
+                                    </HStack>
+                                  )}
+                                </VStack>
+                              </HStack>
+                            ))
+                          ) : (
+                            <Text color="gray.500" textAlign="center" py={8}>
+                              Select a channel to view messages
+                            </Text>
                           )}
                         </VStack>
                       </CardBody>
                     </Card>
                   </VStack>
                 </TabPanel>
+
+                {/* Users Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search users..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                    </HStack>
+
+                    <Card>
+                      <CardBody>
+                        <VStack spacing={4} align="stretch">
+                          {loading.users ? (
+                            <Spinner size="xl" />
+                          ) : (
+                            filteredUsers.map((user) => (
+                              <HStack
+                                key={user.id}
+                                p={4}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                _hover={{ bg: "gray.50" }}
+                              >
+                                <Avatar
+                                  src={user.profile.image_48}
+                                  name={user.display_name}
+                                  size="md"
+                                />
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <HStack>
+                                    <Text fontWeight="bold">
+                                      {user.real_name}
+                                    </Text>
+                                    {user.is_admin && (
+                                      <Tag colorScheme="red" size="sm">
+                                        Admin
+                                      </Tag>
+                                    )}
+                                    {user.is_owner && (
+                                      <Tag colorScheme="orange" size="sm">
+                                        Owner
+                                      </Tag>
+                                    )}
+                                    {user.is_bot && (
+                                      <Tag colorScheme="blue" size="sm">
+                                        Bot
+                                      </Tag>
+                                    )}
+                                  </HStack>
+                                  <Text fontSize="sm" color="gray.600">
+                                    @{user.name}
+                                  </Text>
+                                  {user.profile.title && (
+                                    <Text fontSize="xs" color="gray.500">
+                                      {user.profile.title}
+                                    </Text>
+                                  )}
+                                  {user.profile.email && (
+                                    <HStack>
+                                      <EmailIcon boxSize={3} color="gray.400" />
+                                      <Text fontSize="xs" color="gray.500">
+                                        {user.profile.email}
+                                      </Text>
+                                    </HStack>
+                                  )}
+                                </VStack>
+                              </HStack>
+                            ))
+                          )}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+
+                {/* Workspace Tab */}
+                <TabPanel>
+                  <Card>
+                    <CardBody>
+                      <VStack spacing={6} align="stretch">
+                        {workspace ? (
+                          <>
+                            <HStack spacing={6}>
+                              <Avatar
+                                src={workspace.icon.image_192}
+                                name={workspace.name}
+                                size="xl"
+                              />
+                              <VStack align="start" spacing={2}>
+                                <Heading size="lg">{workspace.name}</Heading>
+                                <Text color="gray.600">
+                                  {workspace.domain}.slack.com
+                                </Text>
+                                {workspace.email_domain && (
+                                  <Text fontSize="sm" color="gray.500">
+                                    Email domain: {workspace.email_domain}
+                                  </Text>
+                                )}
+                              </VStack>
+                            </HStack>
+
+                            <Divider />
+
+                            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
+                              <Stat>
+                                <StatLabel>Total Channels</StatLabel>
+                                <StatNumber>{totalChannels}</StatNumber>
+                              </Stat>
+                              <Stat>
+                                <StatLabel>Total Users</StatLabel>
+                                <StatNumber>{totalUsers}</StatNumber>
+                              </Stat>
+                              <Stat>
+                                <StatLabel>Active Users</StatLabel>
+                                <StatNumber>{activeUsers}</StatNumber>
+                              </Stat>
+                            </SimpleGrid>
+                          </>
+                        ) : (
+                          <Text color="gray.500">Loading workspace information...</Text>
+                        )}
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                </TabPanel>
               </TabPanels>
             </Tabs>
+
+            {/* Send Message Modal */}
+            <Modal isOpen={isMessageOpen} onClose={onMessageClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Send Message</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>Channel</FormLabel>
+                      <Select
+                        value={newMessage.channel}
+                        onChange={(e) =>
+                          setNewMessage({
+                            ...newMessage,
+                            channel: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select a channel</option>
+                        {channels.map((channel) => (
+                          <option key={channel.id} value={channel.id}>
+                            #{channel.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Message</FormLabel>
+                      <Textarea
+                        placeholder="Type your message..."
+                        value={newMessage.text}
+                        onChange={(e) =>
+                          setNewMessage({
+                            ...newMessage,
+                            text: e.target.value,
+                          })
+                        }
+                        rows={4}
+                      />
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onMessageClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="purple"
+                    onClick={sendMessage}
+                    disabled={!newMessage.channel || !newMessage.text}
+                  >
+                    Send Message
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+
+            {/* Create Channel Modal */}
+            <Modal isOpen={isChannelOpen} onClose={onChannelClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Create Channel</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>Channel Name</FormLabel>
+                      <Input
+                        placeholder="channel-name"
+                        value={newChannel.name}
+                        onChange={(e) =>
+                          setNewChannel({
+                            ...newChannel,
+                            name: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Purpose</FormLabel>
+                      <Textarea
+                        placeholder="What's this channel about?"
+                        value={newChannel.purpose}
+                        onChange={(e) =>
+                          setNewChannel({
+                            ...newChannel,
+                            purpose: e.target.value,
+                          })
+                        }
+                        rows={3}
+                      />
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onChannelClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="purple"
+                    onClick={createChannel}
+                    disabled={!newChannel.name}
+                  >
+                    Create Channel
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
           </>
         )}
-
-        {/* Send Message Modal */}
-        <Modal isOpen={isMessageOpen} onClose={onMessageClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Send Message</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>Channel</FormLabel>
-                  <Select
-                    value={selectedChannel}
-                    onChange={(e) => setSelectedChannel(e.target.value)}
-                    placeholder="Select channel"
-                  >
-                    {channels
-                      .filter(c => !c.is_im && !c.is_archived)
-                      .map((channel) => (
-                        <option key={channel.id} value={channel.id}>
-                          {channel.name}
-                        </option>
-                      ))}
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Message</FormLabel>
-                  <Textarea
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    placeholder="Type your message..."
-                    rows={4}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="outline" onClick={onMessageClose}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="purple"
-                onClick={sendMessage}
-                isLoading={loading.send}
-                disabled={!selectedChannel || !messageText.trim()}
-              >
-                Send Message
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-
-        {/* Create Channel Modal */}
-        <Modal isOpen={isCreateChannelOpen} onClose={onCreateChannelClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Create Channel</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>Channel Name</FormLabel>
-                  <Input
-                    value={newChannelData.name}
-                    onChange={(e) => setNewChannelData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="#channel-name"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Purpose (Optional)</FormLabel>
-                  <Textarea
-                    value={newChannelData.purpose}
-                    onChange={(e) => setNewChannelData(prev => ({ ...prev, purpose: e.target.value }))}
-                    placeholder="What's this channel about?"
-                    rows={3}
-                  />
-                </FormControl>
-                <FormControl display="flex" alignItems="center">
-                  <FormLabel htmlFor="is-private" mb="0">
-                    Make Private
-                  </FormLabel>
-                  <Switch
-                    id="is-private"
-                    isChecked={newChannelData.isPrivate}
-                    onChange={(e) => setNewChannelData(prev => ({ ...prev, isPrivate: e.target.checked }))}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="outline" onClick={onCreateChannelClose}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="green"
-                onClick={createChannel}
-                isLoading={loading.channels}
-                disabled={!newChannelData.name.trim()}
-              >
-                Create Channel
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-
-        {/* Upload File Modal */}
-        <Modal isOpen={isFileUploadOpen} onClose={onFileUploadClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Upload File</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>File</FormLabel>
-                  <Input
-                    type="file"
-                    onChange={(e) => setFileUploadData(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Channels</FormLabel>
-                  <Select
-                    isMulti
-                    value={fileUploadData.channels.map(id => 
-                      channels.find(c => c.id === id)?.name
-                    ).filter(Boolean)}
-                    onChange={(selectedOptions) => {
-                      const selectedIds = selectedOptions.map((option: any) => 
-                        channels.find(c => c.name === option.value)?.id
-                      ).filter(Boolean);
-                      setFileUploadData(prev => ({ ...prev, channels: selectedIds }));
-                    }}
-                    placeholder="Select channels"
-                  >
-                    {channels
-                      .filter(c => !c.is_im && !c.is_archived)
-                      .map((channel) => (
-                        <option key={channel.id} value={channel.id}>
-                          {channel.name}
-                        </option>
-                      ))}
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Title (Optional)</FormLabel>
-                  <Input
-                    value={fileUploadData.title}
-                    onChange={(e) => setFileUploadData(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="File title"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Initial Comment (Optional)</FormLabel>
-                  <Textarea
-                    value={fileUploadData.initialComment}
-                    onChange={(e) => setFileUploadData(prev => ({ ...prev, initialComment: e.target.value }))}
-                    placeholder="Add a comment..."
-                    rows={3}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="outline" onClick={onFileUploadClose}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="blue"
-                onClick={uploadFile}
-                isLoading={loading.files}
-                disabled={!fileUploadData.file || fileUploadData.channels.length === 0}
-              >
-                Upload File
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
       </VStack>
     </Box>
   );

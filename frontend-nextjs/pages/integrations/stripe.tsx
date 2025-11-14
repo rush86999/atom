@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, VStack, Heading, Text } from "@chakra-ui/react";
-// import StripeIntegration from "../../../src/ui-shared/integrations/stripe/components/StripeIntegration";
+import StripeIntegration from "../../components/StripeIntegration";
 
 const StripeIntegrationPage: React.FC = () => {
   return (
@@ -13,16 +13,7 @@ const StripeIntegrationPage: React.FC = () => {
           </Text>
         </VStack>
 
-        {/* <StripeIntegration /> */}
-        <Box p={8} textAlign="center">
-          <Heading size="lg" mb={4}>
-            Stripe Integration
-          </Heading>
-          <Text color="gray.600">
-            Stripe integration is temporarily unavailable. Please check back
-            later.
-          </Text>
-        </Box>
+        <StripeIntegration />
       </VStack>
     </Box>
   );

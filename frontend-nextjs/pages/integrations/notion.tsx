@@ -1,37 +1,62 @@
 /**
  * Notion Integration Page
- * Complete Notion integration with comprehensive document and database management
+ * Complete Notion document and database management integration
  */
 
 import React, { useState, useEffect } from "react";
 import {
   Box,
-  Card,
-  CardHeader,
-  CardBody,
-  Heading,
+  VStack,
+  HStack,
+  Text,
   Button,
+  Heading,
+  Card,
+  CardBody,
+  CardHeader,
+  Badge,
+  Icon,
+  useToast,
+  SimpleGrid,
+  Divider,
+  useColorModeValue,
+  Stack,
+  Flex,
+  Spacer,
   Input,
+  Select,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
   FormLabel,
   Textarea,
+  useDisclosure,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatGroup,
+  Tag,
+  TagLabel,
   Tabs,
   TabList,
   TabPanels,
   Tab,
   TabPanel,
-  Badge,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  Select,
-  VStack,
-  HStack,
-  Text,
+  Avatar,
   Spinner,
-  IconButton,
-  useToast,
-  useColorModeValue,
 } from "@chakra-ui/react";
 import {
   SettingsIcon,
@@ -48,1022 +73,1095 @@ import {
   FolderIcon,
   UserIcon,
   TimeIcon,
-  ArrowForwardIcon,
-  Eye,
-  Calendar,
-  Clock,
-} from "lucide-react";
-
-interface NotionDatabase {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  type: string;
-  parent_id: string;
-  properties: any[];
-  created_time: string;
-  last_edited_time: string;
-  url: string;
-}
+} from "@chakra-ui/icons";
 
 interface NotionPage {
   id: string;
-  title: string;
-  parent_id: string;
-  database_id: string;
   created_time: string;
   last_edited_time: string;
-  cover: string;
-  icon: string;
+  properties: {
+    title?: {
+      title: Array<{ text: { content: string } }>;
+    };
+    status?: {
+      select: { name: string; color?: string };
+    };
+    priority?: {
+      select: { name: string; color?: string };
+    };
+    assignee?: {
+      people: Array<{ name?: string; avatar_url?: string }>;
+    };
+    due_date?: {
+      date: { start: string; end?: string };
+    };
+    tags?: {
+      multi_select: Array<{ name: string; color?: string }>;
+    };
+    created_by?: {
+      created_by: { name?: string; avatar_url?: string };
+    };
+  };
+  parent: {
+    type: string;
+    page_id?: string;
+    database_id?: string;
+    workspace?: boolean;
+  };
   url: string;
   archived: boolean;
-  properties: any;
+  in_trash: boolean;
+  public_url?: string;
 }
 
-interface NotionBlock {
+interface NotionDatabase {
   id: string;
-  type: string;
-  content: string;
-  parent_id: string;
   created_time: string;
   last_edited_time: string;
-  has_children: boolean;
-  children: NotionBlock[];
+  title: Array<{ text: { content: string } }>;
+  properties: Record<string, any>;
+  parent: {
+    type: string;
+    page_id?: string;
+    workspace?: boolean;
+  };
+  url: string;
+  archived: boolean;
+  is_inline: boolean;
+  description: Array<{ text: { content: string } }>;
+  icon: {
+    type: string;
+    emoji?: string;
+    file?: { url: string };
+  };
+  cover: {
+    type: string;
+    external?: { url: string };
+  };
 }
 
 interface NotionUser {
   id: string;
-  name: string;
-  email: string;
-  avatar_url: string;
+  name?: string;
+  avatar_url?: string;
   type: string;
-  person: any;
-  bot: any;
+  person?: {
+    email: string;
+  };
+  bot?: {
+    owner?: { type: string; user?: { object: string; id: string } };
+  };
 }
 
-interface NotionWorkspace {
+interface NotionSearchResult {
+  object: string;
   id: string;
-  name: string;
-  icon: string;
-  type: string;
-  owner: NotionUser;
   created_time: string;
+  last_edited_time: string;
+  has_children: boolean;
+  archived: boolean;
+  properties?: any;
+  title?: string;
+  url: string;
 }
 
-interface NotionStatus {
-  service: string;
-  status: "healthy" | "degraded" | "error" | "unavailable";
-  timestamp: string;
-  components: {
-    service?: { status: string; message: string };
-    configuration?: { status: string; client_id_configured: boolean };
-    database?: { status: string; message: string };
-    api?: { status: string; rate_limit_remaining: number };
-  };
-}
-
-export default function NotionIntegration() {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState("demo-user");
-  const [status, setStatus] = useState<NotionStatus | null>(null);
-  const [userInfo, setUserInfo] = useState<NotionUser | null>(null);
-  const [workspaces, setWorkspaces] = useState<NotionWorkspace[]>([]);
-  const [databases, setDatabases] = useState<NotionDatabase[]>([]);
+const NotionIntegration: React.FC = () => {
   const [pages, setPages] = useState<NotionPage[]>([]);
-  const [blocks, setBlocks] = useState<NotionBlock[]>([]);
-  const [selectedDatabase, setSelectedDatabase] = useState("");
-  const [selectedPage, setSelectedPage] = useState("");
-  const [pageTitle, setPageTitle] = useState("");
-  const [pageContent, setPageContent] = useState("");
-  const [databaseTitle, setDatabaseTitle] = useState("");
+  const [databases, setDatabases] = useState<NotionDatabase[]>([]);
+  const [users, setUsers] = useState<NotionUser[]>([]);
+  const [searchResults, setSearchResults] = useState<NotionSearchResult[]>([]);
+  const [loading, setLoading] = useState({
+    pages: false,
+    databases: false,
+    users: false,
+    search: false,
+  });
+  const [connected, setConnected] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<
+    "healthy" | "error" | "unknown"
+  >("unknown");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedDatabase, setSelectedDatabase] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState("all");
 
-  // API base URL
-  const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5058";
-  const NOTION_ENHANCED_URL = `${API_BASE_URL}/api/integrations/notion`;
-  const NOTION_OAUTH_URL = `${API_BASE_URL}/api/auth/notion`;
+  // Form states
+  const [pageForm, setPageForm] = useState({
+    parent_type: "page",
+    parent_id: "",
+    title: "",
+    children: [] as any[],
+  });
 
-  // Load initial data
-  useEffect(() => {
-    loadStatus();
-    if (activeTab === "workspaces") {
-      loadWorkspaces();
-    } else if (activeTab === "databases") {
-      loadDatabases();
-    } else if (activeTab === "pages") {
-      loadPages();
-    } else if (activeTab === "blocks") {
-      loadBlocks();
-    }
-  }, [activeTab]);
+  const [databaseForm, setDatabaseForm] = useState({
+    parent_type: "page",
+    parent_id: "",
+    title: "",
+    properties: {} as any,
+    is_inline: false,
+  });
 
-  const loadStatus = async () => {
+  const {
+    isOpen: isPageOpen,
+    onOpen: onPageOpen,
+    onClose: onPageClose,
+  } = useDisclosure();
+  const {
+    isOpen: isDatabaseOpen,
+    onOpen: onDatabaseOpen,
+    onClose: onDatabaseClose,
+  } = useDisclosure();
+
+  const toast = useToast();
+  const bgColor = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
+
+  // Check connection status
+  const checkConnection = async () => {
     try {
-      const response = await fetch(`${NOTION_ENHANCED_URL}/health`);
-      const data = await response.json();
-      setStatus(data);
-    } catch (error) {
-      console.error("Failed to load status:", error);
-      setStatus({
-        service: "notion_enhanced",
-        status: "error",
-        timestamp: new Date().toISOString(),
-        components: {},
-      });
-    }
-  };
-
-  const loadUserInfo = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${NOTION_ENHANCED_URL}/users/profile`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.ok) {
-        setUserInfo(data.data.user);
-        toast({
-          title: "User info loaded",
-          description: `Successfully loaded profile for ${data.data.user.name}`,
-        });
+      const response = await fetch("/api/integrations/notion/health");
+      if (response.ok) {
+        setConnected(true);
+        setHealthStatus("healthy");
+        loadDatabases();
+        loadUsers();
       } else {
-        toast({
-          title: "Failed to load user info",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+        setConnected(false);
+        setHealthStatus("error");
       }
     } catch (error) {
-      console.error("Failed to load user info:", error);
-      toast({
-        title: "Error loading user info",
-        description: "Could not connect to Notion service",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      console.error("Health check failed:", error);
+      setConnected(false);
+      setHealthStatus("error");
     }
   };
 
-  const loadWorkspaces = async () => {
-    setLoading(true);
+  // Load Notion data
+  const loadPages = async (databaseId?: string) => {
+    setLoading((prev) => ({ ...prev, pages: true }));
     try {
-      const response = await fetch(`${NOTION_ENHANCED_URL}/workspaces/list`, {
+      const response = await fetch("/api/integrations/notion/pages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          limit: 50,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.ok) {
-        setWorkspaces(data.data.workspaces);
-        toast({
-          title: "Workspaces loaded",
-          description: `Loaded ${data.data.workspaces.length} workspaces`,
-        });
-      } else {
-        toast({
-          title: "Failed to load workspaces",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load workspaces:", error);
-      toast({
-        title: "Error loading workspaces",
-        description: "Could not connect to Notion service",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadDatabases = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${NOTION_ENHANCED_URL}/databases/list`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
+          user_id: "current",
+          database_id: databaseId,
+          filter: selectedFilter !== "all" ? {
+            property: "status",
+            select: { equals: selectedFilter }
+          } : undefined,
           limit: 100,
         }),
       });
 
-      const data = await response.json();
-
-      if (data.ok) {
-        setDatabases(data.data.databases);
-        toast({
-          title: "Databases loaded",
-          description: `Loaded ${data.data.databases.length} databases`,
-        });
-      } else {
-        toast({
-          title: "Failed to load databases",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load databases:", error);
-      toast({
-        title: "Error loading databases",
-        description: "Could not connect to Notion service",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadPages = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${NOTION_ENHANCED_URL}/pages/search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          query: searchQuery || "",
-          limit: 100,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.ok) {
-        setPages(data.data.pages);
-        toast({
-          title: "Pages loaded",
-          description: `Loaded ${data.data.pages.length} pages`,
-        });
-      } else {
-        toast({
-          title: "Failed to load pages",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+      if (response.ok) {
+        const data = await response.json();
+        setPages(data.data?.pages || []);
       }
     } catch (error) {
       console.error("Failed to load pages:", error);
       toast({
-        title: "Error loading pages",
-        description: "Could not connect to Notion service",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to load pages from Notion",
+        status: "error",
+        duration: 3000,
       });
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, pages: false }));
     }
   };
 
-  const loadBlocks = async () => {
-    if (!selectedPage) return;
-
-    setLoading(true);
+  const loadDatabases = async () => {
+    setLoading((prev) => ({ ...prev, databases: true }));
     try {
-      const response = await fetch(`${NOTION_ENHANCED_URL}/blocks/list`, {
+      const response = await fetch("/api/integrations/notion/databases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          page_id: selectedPage,
-          limit: 100,
+          user_id: "current",
+          limit: 50,
         }),
       });
 
-      const data = await response.json();
-
-      if (data.ok) {
-        setBlocks(data.data.blocks);
-        toast({
-          title: "Blocks loaded",
-          description: `Loaded ${data.data.blocks.length} blocks from page ${selectedPage}`,
-        });
-      } else {
-        toast({
-          title: "Failed to load blocks",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+      if (response.ok) {
+        const data = await response.json();
+        setDatabases(data.data?.databases || []);
+        if (data.data?.databases?.length > 0) {
+          setSelectedDatabase(data.data.databases[0].id);
+        }
       }
     } catch (error) {
-      console.error("Failed to load blocks:", error);
-      toast({
-        title: "Error loading blocks",
-        description: "Could not connect to Notion service",
-        variant: "destructive",
-      });
+      console.error("Failed to load databases:", error);
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, databases: false }));
+    }
+  };
+
+  const loadUsers = async () => {
+    setLoading((prev) => ({ ...prev, users: true }));
+    try {
+      const response = await fetch("/api/integrations/notion/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          limit: 50,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.data?.users || []);
+      }
+    } catch (error) {
+      console.error("Failed to load users:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, users: false }));
+    }
+  };
+
+  const searchNotion = async () => {
+    if (!searchQuery) return;
+
+    setLoading((prev) => ({ ...prev, search: true }));
+    try {
+      const response = await fetch("/api/integrations/notion/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          query: searchQuery,
+          filter: {
+            property: "object",
+            value: selectedFilter === "all" ? undefined : selectedFilter,
+          },
+          limit: 50,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.data?.results || []);
+      }
+    } catch (error) {
+      console.error("Failed to search:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, search: false }));
     }
   };
 
   const createPage = async () => {
-    if (!pageTitle.trim() || !selectedDatabase) return;
-
-    setLoading(true);
     try {
-      const response = await fetch(`${NOTION_ENHANCED_URL}/pages/create`, {
+      const response = await fetch("/api/integrations/notion/pages/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          database_id: selectedDatabase,
-          title: pageTitle.trim(),
+          user_id: "current",
+          parent: {
+            type: pageForm.parent_type,
+            [pageForm.parent_type === "database_id" ? "database_id" : "page_id"]: pageForm.parent_id,
+          },
           properties: {
-            Name: {
+            title: {
               title: [
                 {
-                  text: pageTitle.trim(),
+                  text: {
+                    content: pageForm.title,
+                  },
                 },
               ],
             },
           },
+          children: pageForm.children,
         }),
       });
 
-      const data = await response.json();
-
-      if (data.ok) {
-        setPageTitle("");
+      if (response.ok) {
         toast({
-          title: "Page created",
+          title: "Success",
           description: "Page created successfully",
+          status: "success",
+          duration: 3000,
         });
-        // Reload pages
-        setTimeout(() => loadPages(), 1000);
-      } else {
-        toast({
-          title: "Failed to create page",
-          description: data.error || "Unknown error",
-          variant: "destructive",
+        onPageClose();
+        setPageForm({
+          parent_type: "page",
+          parent_id: "",
+          title: "",
+          children: [],
         });
+        if (selectedDatabase) {
+          loadPages(selectedDatabase);
+        }
       }
     } catch (error) {
       console.error("Failed to create page:", error);
       toast({
-        title: "Error creating page",
-        description: "Could not connect to Notion service",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to create page",
+        status: "error",
+        duration: 3000,
       });
-    } finally {
-      setLoading(false);
     }
   };
 
-  const initiateOAuth = async () => {
+  const createDatabase = async () => {
     try {
-      const response = await fetch(`${NOTION_OAUTH_URL}/authorize`, {
+      const response = await fetch("/api/integrations/notion/databases/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
+          user_id: "current",
+          parent: {
+            type: databaseForm.parent_type,
+            [databaseForm.parent_type === "page_id" ? "page_id" : "workspace"]: databaseForm.parent_id,
+          },
+          title: [
+            {
+              text: {
+                content: databaseForm.title,
+              },
+            },
+          ],
+          properties: databaseForm.properties,
+          is_inline: databaseForm.is_inline,
         }),
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Redirect to OAuth URL
-        window.location.href = data.oauth_url;
-      } else {
+      if (response.ok) {
         toast({
-          title: "OAuth failed",
-          description: data.error || "Could not initiate OAuth flow",
-          variant: "destructive",
+          title: "Success",
+          description: "Database created successfully",
+          status: "success",
+          duration: 3000,
         });
+        onDatabaseClose();
+        setDatabaseForm({
+          parent_type: "page",
+          parent_id: "",
+          title: "",
+          properties: {},
+          is_inline: false,
+        });
+        loadDatabases();
       }
     } catch (error) {
-      console.error("OAuth initiation failed:", error);
+      console.error("Failed to create database:", error);
       toast({
-        title: "OAuth error",
-        description: "Could not initiate OAuth flow",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to create database",
+        status: "error",
+        duration: 3000,
       });
     }
   };
 
-  const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString();
+  // Filter data based on search
+  const filteredDatabases = databases.filter(
+    (db) =>
+      db.title[0]?.text.content.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  const filteredPages = pages.filter(
+    (page) =>
+      page.properties.title?.title[0]?.text.content.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  // Stats calculations
+  const totalDatabases = databases.length;
+  const totalPages = pages.length;
+  const totalUsers = users.length;
+  const activePages = pages.filter(p => !p.archived).length;
+
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  useEffect(() => {
+    if (connected) {
+      loadDatabases();
+      loadUsers();
+    }
+  }, [connected]);
+
+  useEffect(() => {
+    if (selectedDatabase) {
+      loadPages(selectedDatabase);
+    }
+  }, [selectedDatabase, selectedFilter]);
+
+  useEffect(() => {
+    if (searchQuery) {
+      searchNotion();
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, selectedFilter]);
+
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleString();
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "healthy":
-        return "bg-green-500";
-      case "degraded":
-        return "bg-yellow-500";
-      case "error":
-        return "bg-red-500";
-      case "unavailable":
-        return "bg-gray-500";
+  const getStatusColor = (status?: string): string => {
+    switch (status?.toLowerCase()) {
+      case "done":
+        return "green";
+      case "in progress":
+        return "yellow";
+      case "not started":
+        return "gray";
+      case "blocked":
+        return "red";
       default:
-        return "bg-gray-500";
+        return "gray";
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "healthy":
-        return <CheckCircle className="h-4 w-4" />;
-      case "degraded":
-        return <AlertCircle className="h-4 w-4" />;
-      case "error":
-        return <AlertCircle className="h-4 w-4" />;
-      case "unavailable":
-        return <AlertCircle className="h-4 w-4" />;
+  const getPriorityColor = (priority?: string): string => {
+    switch (priority?.toLowerCase()) {
+      case "high":
+        return "red";
+      case "medium":
+        return "yellow";
+      case "low":
+        return "blue";
       default:
-        return <AlertCircle className="h-4 w-4" />;
+        return "gray";
     }
   };
 
-  const getHamburgerIcon = (database: NotionDatabase) => {
-    switch (database.type) {
-      case "table":
-        return <Database className="h-4 w-4 text-blue-500" />;
-      case "board":
-        return <Layers className="h-4 w-4 text-green-500" />;
-      case "list":
-        return <FileText className="h-4 w-4 text-purple-500" />;
-      case "gallery":
-        return <Eye className="h-4 w-4 text-orange-500" />;
-      case "calendar":
-        return <Calendar className="h-4 w-4 text-red-500" />;
-      case "timeline":
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-      default:
-        return <Database className="h-4 w-4 text-gray-500" />;
-    }
+  const getPageTitle = (page: NotionPage): string => {
+    return page.properties.title?.title[0]?.text.content || "Untitled";
+  };
+
+  const getDatabaseTitle = (db: NotionDatabase): string => {
+    return db.title[0]?.text.content || "Untitled Database";
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Notion Integration</h1>
-        <div className="flex items-center space-x-2">
-          {status && (
+    <Box minH="100vh" bg={bgColor} p={6}>
+      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
+        {/* Header */}
+        <VStack align="start" spacing={4}>
+          <HStack spacing={4}>
+            <Icon as={SettingsIcon} w={8} h={8} color="black" />
+            <VStack align="start" spacing={1}>
+              <Heading size="2xl">Notion Integration</Heading>
+              <Text color="gray.600" fontSize="lg">
+                Document management and knowledge base platform
+              </Text>
+            </VStack>
+          </HStack>
+
+          <HStack spacing={4}>
             <Badge
-              variant="outline"
-              className={`${getStatusColor(status.status)} text-white`}
+              colorScheme={healthStatus === "healthy" ? "green" : "red"}
+              display="flex"
+              alignItems="center"
             >
-              {getStatusIcon(status.status)}
-              <span className="ml-1">{status.status}</span>
+              {healthStatus === "healthy" ? (
+                <CheckCircleIcon mr={1} />
+              ) : (
+                <WarningIcon mr={1} />
+              )}
+              {connected ? "Connected" : "Disconnected"}
             </Badge>
-          )}
-          <Button onClick={loadStatus} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Refresh
-          </Button>
-        </div>
-      </div>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<RepeatIcon />}
+              onClick={checkConnection}
+            >
+              Refresh Status
+            </Button>
+          </HStack>
+        </VStack>
 
-      {/* Status Alert */}
-      {status && status.status !== "healthy" && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Notion integration is {status.status}.
-            {status.components.configuration?.status !== "configured" &&
-              " OAuth configuration is incomplete. Please check environment variables."}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview" className="flex items-center">
-            <Settings className="h-4 w-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="workspaces" className="flex items-center">
-            <Folder className="h-4 w-4 mr-2" />
-            Workspaces
-          </TabsTrigger>
-          <TabsTrigger value="databases" className="flex items-center">
-            <Database className="h-4 w-4 mr-2" />
-            Databases
-          </TabsTrigger>
-          <TabsTrigger value="pages" className="flex items-center">
-            <FileText className="h-4 w-4 mr-2" />
-            Pages
-          </TabsTrigger>
-          <TabsTrigger value="blocks" className="flex items-center">
-            <Layers className="h-4 w-4 mr-2" />
-            Blocks
-          </TabsTrigger>
-          <TabsTrigger value="oauth" className="flex items-center">
-            <Search className="h-4 w-4 mr-2" />
-            OAuth
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Service Status */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Service Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {status ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span>Service</span>
-                      <Badge
-                        variant={
-                          status.components.service?.status === "available"
-                            ? "default"
-                            : "destructive"
-                        }
-                      >
-                        {status.components.service?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Configuration</span>
-                      <Badge
-                        variant={
-                          status.components.configuration?.status ===
-                          "configured"
-                            ? "default"
-                            : "destructive"
-                        }
-                      >
-                        {status.components.configuration?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Database</span>
-                      <Badge
-                        variant={
-                          status.components.database?.status === "connected"
-                            ? "default"
-                            : "destructive"
-                        }
-                      >
-                        {status.components.database?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>API</span>
-                      <Badge
-                        variant={
-                          status.components.api?.status === "connected"
-                            ? "default"
-                            : "destructive"
-                        }
-                      >
-                        {status.components.api?.status}
-                      </Badge>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Loading status...
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* User Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>User Profile</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="userId">User ID</Label>
-                  <Input
-                    id="userId"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter user ID"
-                  />
-                </div>
+        {!connected ? (
+          // Connection Required State
+          <Card>
+            <CardBody>
+              <VStack spacing={6} py={8}>
+                <Icon as={SettingsIcon} w={16} h={16} color="gray.400" />
+                <VStack spacing={2}>
+                  <Heading size="lg">Connect Notion</Heading>
+                  <Text color="gray.600" textAlign="center">
+                    Connect your Notion workspace to start managing documents and databases
+                  </Text>
+                </VStack>
                 <Button
-                  onClick={loadUserInfo}
-                  disabled={loading || !userId}
-                  className="w-full"
+                  colorScheme="black"
+                  size="lg"
+                  leftIcon={<ArrowForwardIcon />}
+                  onClick={() =>
+                    (window.location.href =
+                      "/api/integrations/notion/auth/start")
+                  }
                 >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : null}
-                  Load Profile
+                  Connect Notion Workspace
                 </Button>
-
-                {userInfo && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <div className="flex items-center space-x-3">
-                      {userInfo.avatar_url && (
-                        <img
-                          src={userInfo.avatar_url}
-                          alt={userInfo.name}
-                          className="w-12 h-12 rounded-full"
-                        />
-                      )}
-                      <div>
-                        <div className="font-medium">{userInfo.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {userInfo.email}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="font-medium">Type:</span> {userInfo.type}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="workspaces" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Folder className="h-5 w-5 mr-2" />
-                Notion Workspaces
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {workspaces.length > 0 ? (
-                  workspaces.map((workspace) => (
-                    <div
-                      key={workspace.id}
-                      className="p-3 border rounded-lg space-y-2"
-                    >
-                      <div className="flex items-center space-x-3">
-                        {workspace.icon && (
-                          <img
-                            src={workspace.icon}
-                            alt={workspace.name}
-                            className="w-8 h-8 rounded"
-                          />
-                        )}
-                        <div>
-                          <h4 className="font-medium">{workspace.name}</h4>
-                          <div className="text-sm text-muted-foreground">
-                            {workspace.type}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <strong>ID:</strong> {workspace.id}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Created:</strong>{" "}
-                        {formatDateTime(workspace.created_time)}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No workspaces found"
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button
-                onClick={loadWorkspaces}
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : null}
-                Refresh Workspaces
-              </Button>
-            </CardContent>
+              </VStack>
+            </CardBody>
           </Card>
-        </TabsContent>
+        ) : (
+          // Connected State
+          <>
+            {/* Services Overview */}
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Databases</StatLabel>
+                    <StatNumber>{totalDatabases}</StatNumber>
+                    <StatHelpText>Knowledge bases</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Pages</StatLabel>
+                    <StatNumber>{totalPages}</StatNumber>
+                    <StatHelpText>{activePages} active</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Users</StatLabel>
+                    <StatNumber>{totalUsers}</StatNumber>
+                    <StatHelpText>Team members</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Search Results</StatLabel>
+                    <StatNumber>{searchResults.length}</StatNumber>
+                    <StatHelpText>Current query</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+            </SimpleGrid>
 
-        <TabsContent value="databases" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Database className="h-5 w-5 mr-2" />
-                Notion Databases
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {databases.length > 0 ? (
-                  databases.map((database) => (
-                    <div
-                      key={database.id}
-                      className="p-3 border rounded-lg space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          {getHamburgerIcon(database)}
-                          <h4 className="font-medium">{database.title}</h4>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {database.type}
-                        </Badge>
-                      </div>
-                      {database.description && (
-                        <div className="text-sm text-muted-foreground">
-                          {database.description}
-                        </div>
+            {/* Main Content Tabs */}
+            <Tabs variant="enclosed">
+              <TabList>
+                <Tab>Databases</Tab>
+                <Tab>Pages</Tab>
+                <Tab>Search</Tab>
+                <Tab>Users</Tab>
+              </TabList>
+
+              <TabPanels>
+                {/* Databases Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search databases..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                      <Spacer />
+                      <Button
+                        colorScheme="black"
+                        leftIcon={<AddIcon />}
+                        onClick={onDatabaseOpen}
+                      >
+                        Create Database
+                      </Button>
+                    </HStack>
+
+                    <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+                      {loading.databases ? (
+                        <Spinner size="xl" />
+                      ) : (
+                        filteredDatabases.map((db) => (
+                          <Card
+                            key={db.id}
+                            cursor="pointer"
+                            _hover={{ shadow: "md", transform: "translateY(-2px)" }}
+                            transition="all 0.2s"
+                            onClick={() => {
+                              setSelectedDatabase(db.id);
+                              loadPages(db.id);
+                            }}
+                            borderWidth="1px"
+                            borderColor={selectedDatabase === db.id ? "blue.500" : borderColor}
+                          >
+                            <CardHeader>
+                              <VStack align="start" spacing={2}>
+                                <HStack justify="space-between" width="100%">
+                                  <Text fontWeight="bold" fontSize="lg">
+                                    {getDatabaseTitle(db)}
+                                  </Text>
+                                  {db.icon?.emoji && (
+                                    <Text fontSize="2xl">{db.icon.emoji}</Text>
+                                  )}
+                                </HStack>
+                                <Text fontSize="sm" color="gray.600">
+                                  {db.description[0]?.text.content || "No description"}
+                                </Text>
+                              </VStack>
+                            </CardHeader>
+                            <CardBody>
+                              <VStack spacing={3} align="stretch">
+                                <HStack justify="space-between">
+                                  <Tag colorScheme="blue" size="sm">
+                                    Database
+                                  </Tag>
+                                  <Tag colorScheme={db.is_inline ? "green" : "gray"} size="sm">
+                                    {db.is_inline ? "Inline" : "Full Page"}
+                                  </Tag>
+                                </HStack>
+                                <Text fontSize="xs" color="gray.500">
+                                  Created: {formatDate(db.created_time)}
+                                </Text>
+                                <Text fontSize="xs" color="gray.500">
+                                  Modified: {formatDate(db.last_edited_time)}
+                                </Text>
+                                <Link href={db.url} isExternal>
+                                  <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                    Open in Notion
+                                  </Button>
+                                </Link>
+                              </VStack>
+                            </CardBody>
+                          </Card>
+                        ))
                       )}
-                      <div className="text-sm text-muted-foreground">
-                        <strong>ID:</strong> {database.id}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Last Edited:</strong>{" "}
-                        {formatDateTime(database.last_edited_time)}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No databases found"
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button
-                onClick={loadDatabases}
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : null}
-                Refresh Databases
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    </SimpleGrid>
+                  </VStack>
+                </TabPanel>
 
-        <TabsContent value="pages" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <FileText className="h-5 w-5 mr-2" />
-                Notion Pages
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Search */}
-              <div className="space-y-2 mb-4">
-                <Label htmlFor="searchQuery">Search Pages</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="searchQuery"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search pages..."
-                    className="flex-1"
-                  />
-                  <Button onClick={loadPages} disabled={loading}>
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
+                {/* Pages Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Select
+                        placeholder="Select database"
+                        value={selectedDatabase}
+                        onChange={(e) => {
+                          setSelectedDatabase(e.target.value);
+                          loadPages(e.target.value);
+                        }}
+                        width="300px"
+                      >
+                        {databases.map((db) => (
+                          <option key={db.id} value={db.id}>
+                            {getDatabaseTitle(db)}
+                          </option>
+                        ))}
+                      </Select>
+                      <Select
+                        placeholder="Filter by status"
+                        value={selectedFilter}
+                        onChange={(e) => setSelectedFilter(e.target.value)}
+                        width="150px"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="Not Started">Not Started</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Done">Done</option>
+                      </Select>
+                      <Input
+                        placeholder="Search pages..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                      <Spacer />
+                      <Button
+                        colorScheme="black"
+                        leftIcon={<AddIcon />}
+                        onClick={onPageOpen}
+                        disabled={!selectedDatabase}
+                      >
+                        Create Page
+                      </Button>
+                    </HStack>
+
+                    <VStack spacing={4} align="stretch">
+                      {loading.pages ? (
+                        <Spinner size="xl" />
+                      ) : selectedDatabase ? (
+                        filteredPages.map((page) => (
+                          <Card key={page.id}>
+                            <CardBody>
+                              <HStack spacing={4} align="start">
+                                <VStack spacing={2} flex={1}>
+                                  <HStack justify="space-between" width="100%">
+                                    <HStack>
+                                      <Link href={page.url} isExternal>
+                                        <Text fontWeight="bold" fontSize="lg">
+                                          {getPageTitle(page)}
+                                        </Text>
+                                      </Link>
+                                      {page.properties.status?.select && (
+                                        <Tag
+                                          colorScheme={getStatusColor(page.properties.status.select.name)}
+                                          size="sm"
+                                        >
+                                          {page.properties.status.select.name}
+                                        </Tag>
+                                      )}
+                                    </HStack>
+                                    <Text fontSize="xs" color="gray.500">
+                                      {formatDate(page.last_edited_time)}
+                                    </Text>
+                                  </HStack>
+                                  
+                                  <HStack spacing={4}>
+                                    {page.properties.priority?.select && (
+                                      <Tag
+                                        colorScheme={getPriorityColor(page.properties.priority.select.name)}
+                                        size="sm"
+                                      >
+                                        Priority: {page.properties.priority.select.name}
+                                      </Tag>
+                                    )}
+                                    {page.properties.due_date?.date && (
+                                      <Tag colorScheme="blue" size="sm">
+                                        Due: {new Date(page.properties.due_date.date.start).toLocaleDateString()}
+                                      </Tag>
+                                    )}
+                                  </HStack>
+                                  
+                                  {page.properties.tags?.multi_select && (
+                                    <HStack wrap="wrap">
+                                      {page.properties.tags.multi_select.map((tag) => (
+                                        <Tag
+                                          key={tag.name}
+                                          size="sm"
+                                          colorScheme="gray"
+                                        >
+                                          {tag.name}
+                                        </Tag>
+                                      ))}
+                                    </HStack>
+                                  )}
+
+                                  <Link href={page.url} isExternal>
+                                    <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                      Open in Notion
+                                    </Button>
+                                  </Link>
+                                </VStack>
+                              </HStack>
+                            </CardBody>
+                          </Card>
+                        ))
+                      ) : (
+                        <Text color="gray.500" textAlign="center" py={8}>
+                          Select a database to view pages
+                        </Text>
+                      )}
+                    </VStack>
+                  </VStack>
+                </TabPanel>
+
+                {/* Search Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Select
+                        placeholder="Filter by type"
+                        value={selectedFilter}
+                        onChange={(e) => setSelectedFilter(e.target.value)}
+                        width="150px"
+                      >
+                        <option value="all">All Types</option>
+                        <option value="page">Pages</option>
+                        <option value="database">Databases</option>
+                      </Select>
+                      <Input
+                        placeholder="Search all content..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") {
+                            searchNotion();
+                          }
+                        }}
+                      />
+                    </HStack>
+
+                    <VStack spacing={4} align="stretch">
+                      {loading.search ? (
+                        <Spinner size="xl" />
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((result) => (
+                          <Card key={result.id}>
+                            <CardBody>
+                              <HStack spacing={4} align="start">
+                                <Icon
+                                  as={result.object === "database" ? DatabaseIcon : FileIcon}
+                                  color="blue.500"
+                                  w={6}
+                                  h={6}
+                                />
+                                <VStack align="start" spacing={2} flex={1}>
+                                  <HStack justify="space-between" width="100%">
+                                    <Link href={result.url} isExternal>
+                                      <Text fontWeight="bold">
+                                        {result.title || result.object}
+                                      </Text>
+                                    </Link>
+                                    <Tag colorScheme="blue" size="sm">
+                                      {result.object}
+                                    </Tag>
+                                  </HStack>
+                                  <Text fontSize="xs" color="gray.500">
+                                    Modified: {formatDate(result.last_edited_time)}
+                                  </Text>
+                                  <Link href={result.url} isExternal>
+                                    <Button size="sm" variant="outline" leftIcon={<ViewIcon />}>
+                                      Open in Notion
+                                    </Button>
+                                  </Link>
+                                </VStack>
+                              </HStack>
+                            </CardBody>
+                          </Card>
+                        ))
+                      ) : searchQuery ? (
+                        <Text color="gray.500" textAlign="center" py={8}>
+                          No results found for "{searchQuery}"
+                        </Text>
+                      ) : (
+                        <Text color="gray.500" textAlign="center" py={8}>
+                          Enter a search query to find content
+                        </Text>
+                      )}
+                    </VStack>
+                  </VStack>
+                </TabPanel>
+
+                {/* Users Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search users..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        leftElement={<SearchIcon />}
+                      />
+                    </HStack>
+
+                    <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+                      {loading.users ? (
+                        <Spinner size="xl" />
+                      ) : (
+                        users.filter(user =>
+                          user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          user.person?.email?.toLowerCase().includes(searchQuery.toLowerCase())
+                        ).map((user) => (
+                          <Card key={user.id}>
+                            <CardBody>
+                              <HStack spacing={4}>
+                                <Avatar
+                                  src={user.avatar_url}
+                                  name={user.name}
+                                  size="lg"
+                                />
+                                <VStack align="start" spacing={1} flex={1}>
+                                  <Text fontWeight="bold">
+                                    {user.name || "Unknown"}
+                                  </Text>
+                                  {user.person?.email && (
+                                    <Text fontSize="sm" color="gray.600">
+                                      {user.person.email}
+                                    </Text>
+                                  )}
+                                  <HStack spacing={2}>
+                                    <Tag colorScheme={user.type === "person" ? "green" : "blue"} size="sm">
+                                      {user.type}
+                                    </Tag>
+                                  </HStack>
+                                </VStack>
+                              </HStack>
+                            </CardBody>
+                          </Card>
+                        ))
+                      )}
+                    </SimpleGrid>
+                  </VStack>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+
+            {/* Create Page Modal */}
+            <Modal isOpen={isPageOpen} onClose={onPageClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Create Page</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>Parent</FormLabel>
+                      <Select
+                        value={pageForm.parent_id}
+                        onChange={(e) =>
+                          setPageForm({
+                            ...pageForm,
+                            parent_id: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select parent</option>
+                        <option value={selectedDatabase}>
+                          Selected Database
+                        </option>
+                        {databases.map((db) => (
+                          <option key={db.id} value={db.id}>
+                            {getDatabaseTitle(db)}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel>Page Title</FormLabel>
+                      <Input
+                        placeholder="Enter page title"
+                        value={pageForm.title}
+                        onChange={(e) =>
+                          setPageForm({
+                            ...pageForm,
+                            title: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Initial Content</FormLabel>
+                      <Textarea
+                        placeholder="Optional initial content..."
+                        value={pageForm.children?.[0]?.text?.[0]?.text?.content || ""}
+                        onChange={(e) =>
+                          setPageForm({
+                            ...pageForm,
+                            children: e.target.value ? [
+                              {
+                                object: "block",
+                                type: "paragraph",
+                                paragraph: {
+                                  text: [
+                                    {
+                                      type: "text",
+                                      text: { content: e.target.value },
+                                    },
+                                  ],
+                                },
+                              },
+                            ] : [],
+                          })
+                        }
+                        rows={4}
+                      />
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onPageClose}>
+                    Cancel
                   </Button>
-                </div>
-              </div>
-
-              {/* Page Creation */}
-              <div className="space-y-2 mb-4 border rounded-lg p-3">
-                <Label htmlFor="pageDatabase">Database</Label>
-                <Select
-                  value={selectedDatabase}
-                  onValueChange={setSelectedDatabase}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a database" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {databases.map((database) => (
-                      <SelectItem key={database.id} value={database.id}>
-                        <div className="flex items-center space-x-2">
-                          {getHamburgerIcon(database)}
-                          <span>{database.title}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Label htmlFor="pageTitle">Page Title</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="pageTitle"
-                    value={pageTitle}
-                    onChange={(e) => setPageTitle(e.target.value)}
-                    placeholder="Enter page title"
-                    className="flex-1"
-                  />
                   <Button
+                    colorScheme="black"
                     onClick={createPage}
-                    disabled={loading || !pageTitle.trim() || !selectedDatabase}
+                    disabled={!pageForm.title}
                   >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
+                    Create Page
                   </Button>
-                </div>
-              </div>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
 
-              {/* Pages List */}
-              <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
-                {pages.length > 0 ? (
-                  pages.map((page) => (
-                    <div key={page.id} className="mb-3 p-2 border rounded">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{page.title}</h4>
-                        {page.archived && (
-                          <Badge variant="destructive" className="text-xs">
-                            Archived
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Database:</strong> {page.database_id}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Last Edited:</strong>{" "}
-                        {formatDateTime(page.last_edited_time)}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No pages found. Try searching or create a new page."
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            {/* Create Database Modal */}
+            <Modal isOpen={isDatabaseOpen} onClose={onDatabaseClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Create Database</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>Parent</FormLabel>
+                      <Select
+                        value={databaseForm.parent_id}
+                        onChange={(e) =>
+                          setDatabaseForm({
+                            ...databaseForm,
+                            parent_id: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Workspace Root</option>
+                        {databases.map((db) => (
+                          <option key={db.id} value={db.id}>
+                            Inside: {getDatabaseTitle(db)}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
 
-        <TabsContent value="blocks" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Layers className="h-5 w-5 mr-2" />
-                Notion Blocks
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Page Selection */}
-              <div className="space-y-2 mb-4">
-                <Label htmlFor="blockPage">Select Page</Label>
-                <Select value={selectedPage} onValueChange={setSelectedPage}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a page" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pages.map((page) => (
-                      <SelectItem key={page.id} value={page.id}>
-                        <span>{page.title}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                    <FormControl isRequired>
+                      <FormLabel>Database Name</FormLabel>
+                      <Input
+                        placeholder="Enter database name"
+                        value={databaseForm.title}
+                        onChange={(e) =>
+                          setDatabaseForm({
+                            ...databaseForm,
+                            title: e.target.value,
+                          })
+                        }
+                      />
+                    </FormControl>
 
-              {/* Blocks List */}
-              <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
-                {blocks.length > 0 ? (
-                  blocks.map((block) => (
-                    <div key={block.id} className="mb-3 p-2 border rounded">
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="outline" className="text-xs">
-                          {block.type}
-                        </Badge>
-                        {block.has_children && (
-                          <Layers className="h-3 w-3 text-blue-500" />
-                        )}
-                      </div>
-                      <div className="text-sm">
-                        {block.content || "Empty block"}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        <strong>Last Edited:</strong>{" "}
-                        {formatDateTime(block.last_edited_time)}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No blocks found. Select a page to view blocks."
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button
-                onClick={loadBlocks}
-                disabled={loading || !selectedPage}
-                className="w-full mt-4"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : null}
-                Refresh Blocks
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="oauth" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>OAuth Configuration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="oauthUserId">User ID</Label>
-                  <Input
-                    id="oauthUserId"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter user ID for OAuth"
-                  />
-                </div>
-                <Button
-                  onClick={initiateOAuth}
-                  disabled={!userId}
-                  className="w-full"
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Connect to Notion
-                </Button>
-                <p className="text-sm text-muted-foreground">
-                  This will redirect you to Notion OAuth to authorize ATOM
-                  access to your workspace.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>OAuth Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {status?.components.oauth ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span>Status</span>
-                      <Badge variant="outline">
-                        {status.components.oauth.status}
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {status.components.oauth.message}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    OAuth status not available
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+                    <FormControl>
+                      <FormLabel>Database Type</FormLabel>
+                      <Select
+                        value={databaseForm.is_inline ? "inline" : "full"}
+                        onChange={(e) =>
+                          setDatabaseForm({
+                            ...databaseForm,
+                            is_inline: e.target.value === "inline",
+                          })
+                        }
+                      >
+                        <option value="full">Full Page</option>
+                        <option value="inline">Inline</option>
+                      </Select>
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onDatabaseClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="black"
+                    onClick={createDatabase}
+                    disabled={!databaseForm.title}
+                  >
+                    Create Database
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+          </>
+        )}
+      </VStack>
+    </Box>
   );
-}
+};
+
+export default NotionIntegration;
