@@ -24,6 +24,8 @@ import {
   Flex,
   Spacer,
   Input,
+  InputGroup,
+  InputLeftElement,
   Select,
   Table,
   Thead,
@@ -98,6 +100,7 @@ interface SlackMessage {
     image_72: string;
     image_192: string;
     image_512: string;
+    image_102: string;
   };
   text: string;
   ts: string;
@@ -141,8 +144,8 @@ interface SlackUser {
     image_72: string;
     image_192: string;
     image_512: string;
-    title: string;
-    phone: string;
+    image_1024: string;
+    image_102: string;
   };
 }
 
@@ -193,12 +196,12 @@ const SlackIntegration: React.FC = () => {
     onOpen: onChannelOpen,
     onClose: onChannelClose,
   } = useDisclosure();
-  
+
   const [newMessage, setNewMessage] = useState({
     channel: "",
     text: "",
   });
-  
+
   const [newChannel, setNewChannel] = useState({
     name: "",
     purpose: "",
@@ -284,7 +287,7 @@ const SlackIntegration: React.FC = () => {
 
   const loadMessages = async (channelId: string) => {
     if (!channelId) return;
-    
+
     setLoading((prev) => ({ ...prev, messages: true }));
     try {
       const response = await fetch("/api/integrations/slack/messages", {
@@ -410,32 +413,35 @@ const SlackIntegration: React.FC = () => {
   const filteredChannels = channels.filter(
     (channel) =>
       channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      channel.purpose.toLowerCase().includes(searchQuery.toLowerCase())
+      channel.purpose.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const filteredUsers = users.filter(
     (user) =>
       user.real_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()))
+      (user.email &&
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   const filteredMessages = messages.filter(
     (message) =>
       message.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (message.user_profile?.display_name || "").toLowerCase().includes(searchQuery.toLowerCase())
+      (message.user_profile?.display_name || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()),
   );
 
   // Stats calculations
   const totalChannels = channels.length;
-  const privateChannels = channels.filter(ch => ch.is_private).length;
+  const privateChannels = channels.filter((ch) => ch.is_private).length;
   const totalUsers = users.length;
-  const activeUsers = users.filter(u => !u.deleted && !u.is_bot).length;
+  const activeUsers = users.filter((u) => !u.deleted && !u.is_bot).length;
   const totalMessages = messages.length;
 
   useEffect(() => {
     checkConnection();
-  }, []);
+  }, [checkConnection]);
 
   useEffect(() => {
     if (connected) {
@@ -443,7 +449,7 @@ const SlackIntegration: React.FC = () => {
       loadChannels();
       loadUsers();
     }
-  }, [connected]);
+  }, [connected, loadChannels]);
 
   useEffect(() => {
     if (selectedChannel) {
@@ -502,7 +508,7 @@ const SlackIntegration: React.FC = () => {
 
           {workspace && (
             <HStack spacing={4}>
-              <Avatar src={workspace.icon.image_72} name={workspace.name} />
+              <Avatar src={workspace.icon.image_102} name={workspace.name} />
               <Text fontWeight="bold">{workspace.name}</Text>
               <Text color="gray.600">({workspace.domain})</Text>
             </HStack>
@@ -518,7 +524,8 @@ const SlackIntegration: React.FC = () => {
                 <VStack spacing={2}>
                   <Heading size="lg">Connect Slack</Heading>
                   <Text color="gray.600" textAlign="center">
-                    Connect your Slack workspace to start managing conversations and teams
+                    Connect your Slack workspace to start managing conversations
+                    and teams
                   </Text>
                 </VStack>
                 <Button
@@ -592,12 +599,16 @@ const SlackIntegration: React.FC = () => {
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
-                      <Input
-                        placeholder="Search channels..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
-                      />
+                      <InputGroup>
+                        <InputLeftElement pointerEvents="none">
+                          <SearchIcon color="gray.400" />
+                        </InputLeftElement>
+                        <Input
+                          placeholder="Search channels..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </InputGroup>
                       <Spacer />
                       <Button
                         colorScheme="purple"
@@ -636,7 +647,11 @@ const SlackIntegration: React.FC = () => {
                                       colorScheme={getStatusColor(channel)}
                                       size="sm"
                                     >
-                                      {channel.is_private ? "Private" : channel.is_general ? "General" : "Public"}
+                                      {channel.is_private
+                                        ? "Private"
+                                        : channel.is_general
+                                          ? "General"
+                                          : "Public"}
                                     </Tag>
                                     {channel.is_archived && (
                                       <Tag colorScheme="gray" size="sm">
@@ -677,12 +692,16 @@ const SlackIntegration: React.FC = () => {
                           </option>
                         ))}
                       </Select>
-                      <Input
-                        placeholder="Search messages..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
-                      />
+                      <InputGroup>
+                        <InputLeftElement pointerEvents="none">
+                          <SearchIcon color="gray.400" />
+                        </InputLeftElement>
+                        <Input
+                          placeholder="Search messages..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </InputGroup>
                       <Spacer />
                       <Button
                         colorScheme="purple"
@@ -696,7 +715,12 @@ const SlackIntegration: React.FC = () => {
 
                     <Card>
                       <CardBody>
-                        <VStack spacing={4} align="stretch" maxH="600px" overflowY="auto">
+                        <VStack
+                          spacing={4}
+                          align="stretch"
+                          maxH="600px"
+                          overflowY="auto"
+                        >
                           {loading.messages ? (
                             <Spinner size="xl" />
                           ) : selectedChannel ? (
@@ -717,22 +741,26 @@ const SlackIntegration: React.FC = () => {
                                 <VStack align="start" spacing={1} flex={1}>
                                   <HStack>
                                     <Text fontWeight="bold">
-                                      {message.user_profile?.display_name || "Unknown"}
+                                      {message.user_profile?.display_name ||
+                                        "Unknown"}
                                     </Text>
                                     <Text fontSize="xs" color="gray.500">
                                       {formatDate(message.ts)}
                                     </Text>
                                   </HStack>
                                   <Text fontSize="sm">{message.text}</Text>
-                                  {message.reactions && message.reactions.length > 0 && (
-                                    <HStack spacing={2}>
-                                      {message.reactions.map((reaction, idx) => (
-                                        <Tag key={idx} size="sm">
-                                          {reaction.name} {reaction.count}
-                                        </Tag>
-                                      ))}
-                                    </HStack>
-                                  )}
+                                  {message.reactions &&
+                                    message.reactions.length > 0 && (
+                                      <HStack spacing={2}>
+                                        {message.reactions.map(
+                                          (reaction, idx) => (
+                                            <Tag key={idx} size="sm">
+                                              {reaction.name} {reaction.count}
+                                            </Tag>
+                                          ),
+                                        )}
+                                      </HStack>
+                                    )}
                                 </VStack>
                               </HStack>
                             ))
@@ -751,12 +779,16 @@ const SlackIntegration: React.FC = () => {
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
-                      <Input
-                        placeholder="Search users..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftElement={<SearchIcon />}
-                      />
+                      <InputGroup>
+                        <InputLeftElement pointerEvents="none">
+                          <SearchIcon color="gray.400" />
+                        </InputLeftElement>
+                        <Input
+                          placeholder="Search users..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </InputGroup>
                     </HStack>
 
                     <Card>
@@ -802,9 +834,9 @@ const SlackIntegration: React.FC = () => {
                                   <Text fontSize="sm" color="gray.600">
                                     @{user.name}
                                   </Text>
-                                  {user.profile.title && (
+                                  {user.title && (
                                     <Text fontSize="xs" color="gray.500">
-                                      {user.profile.title}
+                                      {user.title}
                                     </Text>
                                   )}
                                   {user.profile.email && (
@@ -834,7 +866,7 @@ const SlackIntegration: React.FC = () => {
                           <>
                             <HStack spacing={6}>
                               <Avatar
-                                src={workspace.icon.image_192}
+                                src={workspace.icon.image_102}
                                 name={workspace.name}
                                 size="xl"
                               />
@@ -853,7 +885,10 @@ const SlackIntegration: React.FC = () => {
 
                             <Divider />
 
-                            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
+                            <SimpleGrid
+                              columns={{ base: 1, md: 3 }}
+                              spacing={6}
+                            >
                               <Stat>
                                 <StatLabel>Total Channels</StatLabel>
                                 <StatNumber>{totalChannels}</StatNumber>
@@ -869,7 +904,9 @@ const SlackIntegration: React.FC = () => {
                             </SimpleGrid>
                           </>
                         ) : (
-                          <Text color="gray.500">Loading workspace information...</Text>
+                          <Text color="gray.500">
+                            Loading workspace information...
+                          </Text>
                         )}
                       </VStack>
                     </CardBody>

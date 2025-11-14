@@ -43,9 +43,9 @@ import {
   SettingsIcon,
   RepeatIcon,
   StarIcon,
-  BuildingIcon,
   SunIcon,
   ViewIcon,
+  GenericAvatarIcon,
   // Special icons for specific integrations
   EmailIcon,
   ChatIcon,
@@ -90,7 +90,7 @@ const IntegrationsPage: React.FC = () => {
       category: "storage",
       status: "complete",
       connected: false,
-      icon: BoxIcon,
+      icon: GenericAvatarIcon,
       color: "blue",
       documentation: "https://developer.box.com/",
     },
@@ -125,7 +125,8 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: DownloadIcon,
       color: "blue",
-      documentation: "https://docs.microsoft.com/en-us/graph/api/resources/onedrive",
+      documentation:
+        "https://docs.microsoft.com/en-us/graph/api/resources/onedrive",
     },
 
     // Communication & Collaboration
@@ -149,7 +150,8 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: ChatIcon,
       color: "purple",
-      documentation: "https://docs.microsoft.com/en-us/microsoftteams/platform/overview",
+      documentation:
+        "https://docs.microsoft.com/en-us/microsoftteams/platform/overview",
     },
     {
       id: "gmail",
@@ -171,7 +173,8 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: EmailIcon,
       color: "blue",
-      documentation: "https://docs.microsoft.com/en-us/graph/api/resources/outlook",
+      documentation:
+        "https://docs.microsoft.com/en-us/graph/api/resources/outlook",
     },
 
     // Productivity & Project Management
@@ -195,7 +198,8 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: SettingsIcon,
       color: "blue",
-      documentation: "https://developer.atlassian.com/cloud/jira/platform/rest/v3/",
+      documentation:
+        "https://developer.atlassian.com/cloud/jira/platform/rest/v3/",
     },
     {
       id: "trello",
@@ -206,7 +210,8 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: ViewIcon,
       color: "blue",
-      documentation: "https://developer.atlassian.com/cloud/trello/rest/api-group/",
+      documentation:
+        "https://developer.atlassian.com/cloud/trello/rest/api-group/",
     },
     {
       id: "asana",
@@ -233,7 +238,8 @@ const IntegrationsPage: React.FC = () => {
     {
       id: "google-workspace",
       name: "Google Workspace",
-      description: "Complete productivity suite (Docs, Sheets, Slides, Keep, Tasks)",
+      description:
+        "Complete productivity suite (Docs, Sheets, Slides, Keep, Tasks)",
       category: "productivity",
       status: "complete",
       connected: false,
@@ -244,7 +250,8 @@ const IntegrationsPage: React.FC = () => {
     {
       id: "microsoft365",
       name: "Microsoft 365",
-      description: "Complete productivity suite with Teams, Outlook, and OneDrive",
+      description:
+        "Complete productivity suite with Teams, Outlook, and OneDrive",
       category: "productivity",
       status: "complete",
       connected: false,
@@ -331,7 +338,7 @@ const IntegrationsPage: React.FC = () => {
       category: "crm",
       status: "complete",
       connected: false,
-      icon: BuildingIcon,
+      icon: GenericAvatarIcon,
       color: "blue",
       documentation: "https://developer.salesforce.com/docs/api",
     },
@@ -357,7 +364,8 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: ChatIcon,
       color: "green",
-      documentation: "https://developers.intercom.com/intercom-api-reference/reference",
+      documentation:
+        "https://developers.intercom.com/intercom-api-reference/reference",
     },
     {
       id: "freshdesk",
