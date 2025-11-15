@@ -3,7 +3,7 @@
  * Complete Slack communication and collaboration integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   VStack,
@@ -212,29 +212,9 @@ const SlackIntegration: React.FC = () => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
 
-  // Check connection status
-  const checkConnection = async () => {
-    try {
-      const response = await fetch("/api/integrations/slack/health");
-      if (response.ok) {
-        setConnected(true);
-        setHealthStatus("healthy");
-        loadWorkspace();
-        loadChannels();
-        loadUsers();
-      } else {
-        setConnected(false);
-        setHealthStatus("error");
-      }
-    } catch (error) {
-      console.error("Health check failed:", error);
-      setConnected(false);
-      setHealthStatus("error");
-    }
-  };
-
   // Load Slack data
-  const loadWorkspace = async () => {
+
+  const loadWorkspace = useCallback(async () => {
     setLoading((prev) => ({ ...prev, workspace: true }));
     try {
       const response = await fetch("/api/integrations/slack/workspace", {
@@ -254,9 +234,9 @@ const SlackIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, workspace: false }));
     }
-  };
+  }, []);
 
-  const loadChannels = async () => {
+  const loadChannels = useCallback(async () => {
     setLoading((prev) => ({ ...prev, channels: true }));
     try {
       const response = await fetch("/api/integrations/slack/channels", {
@@ -283,7 +263,7 @@ const SlackIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, channels: false }));
     }
-  };
+  }, [toast]);
 
   const loadMessages = async (channelId: string) => {
     if (!channelId) return;
@@ -311,7 +291,7 @@ const SlackIntegration: React.FC = () => {
     }
   };
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading((prev) => ({ ...prev, users: true }));
     try {
       const response = await fetch("/api/integrations/slack/users", {
@@ -332,7 +312,28 @@ const SlackIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, users: false }));
     }
-  };
+  }, []);
+
+  // Check connection status
+  const checkConnection = useCallback(async () => {
+    try {
+      const response = await fetch("/api/integrations/slack/health");
+      if (response.ok) {
+        setConnected(true);
+        setHealthStatus("healthy");
+        loadWorkspace();
+        loadChannels();
+        loadUsers();
+      } else {
+        setConnected(false);
+        setHealthStatus("error");
+      }
+    } catch (error) {
+      console.error("Health check failed:", error);
+      setConnected(false);
+      setHealthStatus("error");
+    }
+  }, [loadWorkspace, loadChannels, loadUsers]);
 
   const sendMessage = async () => {
     if (!newMessage.channel || !newMessage.text) return;
@@ -449,7 +450,7 @@ const SlackIntegration: React.FC = () => {
       loadChannels();
       loadUsers();
     }
-  }, [connected, loadChannels]);
+  }, [connected, loadChannels, loadWorkspace, loadUsers]);
 
   useEffect(() => {
     if (selectedChannel) {

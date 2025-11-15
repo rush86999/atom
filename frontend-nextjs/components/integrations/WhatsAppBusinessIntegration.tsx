@@ -202,9 +202,10 @@ const WhatsAppBusinessIntegration: React.FC = () => {
       // Check health status
       const healthResponse = await fetch('/api/whatsapp/health');
       const healthData = await healthResponse.json();
-      setIsConnected(healthData.status === 'healthy');
+      const isHealthy = healthData.status === 'healthy';
+      setIsConnected(isHealthy);
 
-      if (isConnected) {
+      if (isHealthy) {
         await Promise.all([
           fetchConversations(),
           fetchAnalytics(),
@@ -500,7 +501,7 @@ const WhatsAppBusinessIntegration: React.FC = () => {
                 </HStack>
                 
                 <Grid templateColumns="repeat(auto-fill, minmax(400px, 1fr))" gap={4}>
-                  {conversations.map((conversation) => (
+                  {(conversations || []).map((conversation) => (
                     <Card
                       key={conversation.id}
                       cursor="pointer"

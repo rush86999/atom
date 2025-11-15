@@ -36,7 +36,7 @@ Object.assign(navigator, {
   },
 });
 
-const renderWithProviders = (component: React.ReactElement) => {
+const renderWithProviders = (component) => {
   return render(<ChakraProvider>{component}</ChakraProvider>);
 };
 

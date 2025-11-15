@@ -9,6 +9,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+# Import PDF processing routes
+try:
+    from integrations.pdf_processing import pdf_memory_router, pdf_ocr_router
+
+    PDF_PROCESSING_AVAILABLE = True
+except ImportError as e:
+    print(f"PDF Processing integration not available: {e}")
+    PDF_PROCESSING_AVAILABLE = False
+    pdf_ocr_router = None
+    pdf_memory_router = None
+
 # Import memory integration routes
 try:
     from integrations.atom_communication_memory_api import atom_memory_router
@@ -320,6 +331,27 @@ if BOX_AVAILABLE and box_router:
 else:
     print("⚠️  Box integration routes not available")
 
+# Include BYOK routes if available
+if BYOK_AVAILABLE and byok_router:
+    app.include_router(byok_router)
+    print("✅ BYOK AI provider management routes loaded")
+else:
+    print("⚠️  BYOK AI provider management routes not available")
+
+# Include PDF processing routes if available
+if PDF_PROCESSING_AVAILABLE and pdf_ocr_router:
+    app.include_router(pdf_ocr_router, prefix="/api/v1")
+    print("✅ PDF OCR processing routes loaded")
+else:
+    print("⚠️  PDF OCR processing routes not available")
+
+# Include PDF memory integration routes if available
+if PDF_PROCESSING_AVAILABLE and pdf_memory_router:
+    app.include_router(pdf_memory_router, prefix="/api/v1")
+    print("✅ PDF memory integration routes loaded")
+else:
+    print("⚠️  PDF memory integration routes not available")
+
 # Include Salesforce integration routes if available
 if SALESFORCE_AVAILABLE and salesforce_router:
     app.include_router(salesforce_router)
@@ -477,8 +509,9 @@ async def health_check():
     return {
         "status": "healthy",
         "message": "ATOM Platform Backend is running",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
+
 
 # Add root endpoint
 @app.get("/")
@@ -488,8 +521,9 @@ async def root():
         "name": "ATOM Platform",
         "description": "Complete AI-powered automation platform",
         "status": "running",
-        "docs": "/docs"
+        "docs": "/docs",
     }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5058)

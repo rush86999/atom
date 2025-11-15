@@ -1,259 +1,298 @@
 /**
- * Skills Index - Finance Capabilities Registration
- * Registers finance skills as Atom agent capabilities ready for wake word activation
+ * Skills Index - Central Registry for ATOM Agent Skills
+ *
+ * Provides unified skill registration and management for the ATOM agentic OS.
+ * This module serves as the central hub for all agent capabilities.
  */
 
-import { registerSkill, SkillDefinition } from '../services/agentSkillRegistry';
-import {
-  allFinanceSkills,
-  financeAgentTools,
-  FinanceSkillRegistration,
-} from './financeSkillIndex';
-import { processVoiceFinance } from './financeVoiceAgent';
-import { researchSkills } from './researchSkillIndex';
-import { legalSkills } from './legalSkillIndex';
-import {
-  allTaxSkills,
-  taxAgentTools,
-  TaxSkillRegistration,
-} from './taxSkillIndex';
+import { registerSkill, SkillDefinition } from "../services/agentSkillRegistry";
 
-// Finance skill activation triggers
-const financeSkillConfig = {
-  wakeWordTriggers: [
-    'finance',
-    'money',
-    'budget',
-    'spending',
-    'net worth',
-    'investment',
-    'goals',
-    'savings',
-    'account',
-  ],
-
-  activationPatterns: [
-    '^what.*net.*worth',
-    '^show.*budget',
-    '^how.*much.*spend',
-    '^create.*budget',
-    '^set.*goal',
-    '^where.*money.*go',
-    '^investment.*portfolio',
-    '^finance.*help',
-  ],
-
-  naturalLanguagePatterns: [
-    'what is my net worth',
-    'show my budget for this month',
-    'how much did I spend on dining',
-    'create a grocery budget',
-    'am I on track for retirement',
-    'investment performance this quarter',
-    'show my financial goals',
-    'budget breakdown',
-    'overspending detection',
-  ],
-};
-
-// Register all finance skills with Atom agent
-export async function registerFinanceSkills() {
-  console.log('🔥 Registering Atom Finance Skills for Wake Word Activation');
-
-  try {
-    // Register each finance skill
-    for (const skill of allFinanceSkills) {
-      await registerSkill(skill);
-    }
-
-    // Register finance-specific tools for LLM function calling
-    for (const tool of financeAgentTools) {
-      await registerSkill({
-        name: tool.name,
-        description: tool.description || 'Finance tool',
-        parameters: {}, // Tool-specific parameters assigned during registry
-        handler: tool.handler,
-      } as SkillDefinition);
-    }
-
-    console.log('✅ Finance skills registered successfully');
-
-    return {
-      success: true,
-      registeredSkills: allFinanceSkills.length + financeAgentTools.length,
-      wakeWordTriggers: financeSkillConfig.wakeWordTriggers,
-      naturalLanguageSupport: true,
-    };
-  } catch (error) {
-    console.error('❌ Failed to register finance skills:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
+// Core skill categories and types
+export interface SkillCategory {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  skills: SkillDefinition[];
 }
 
-// Voice Command Handler Integration
-export class FinanceVoiceHandler {
-  private isActive = false;
-
-  async handleWakeWordActivation(context: any) {
-    this.isActive = true;
-
-    return {
-      message: '💰 Finance agent activated. Ask me anything about your money!',
-      examples: financeSkillConfig.naturalLanguagePatterns.slice(0, 6),
-      isFinanceMode: true,
-    };
-  }
-
-  async processFinanceVoiceCommand(voiceText: string, context: any) {
-    const userId = context?.userId || 'current_user';
-
-    try {
-      // Clean wake word from start of phrase if present
-      const cleanedText = voiceText.replace(/^(atom|hey atom)\s*/gi, '').trim();
-
-      return await processVoiceFinance.processVoiceFinanceCommand(
-        userId,
-        cleanedText,
-        {
-          ...context,
-          interface: 'voice',
-          transactionSource: 'wake_word',
-        }
-      );
-    } catch (error) {
+// Core skill definitions
+const coreSkills: SkillDefinition[] = [
+  {
+    id: "shell-command",
+    name: "Execute Shell Command",
+    description: "Execute shell commands and scripts",
+    category: "system",
+    icon: "💻",
+    parameters: {
+      type: "object",
+      properties: {
+        command: {
+          type: "string",
+          description: "Shell command to execute",
+          minLength: 1,
+        },
+        cwd: {
+          type: "string",
+          description: "Working directory (optional)",
+          default: process.cwd(),
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds (optional)",
+          default: 30000,
+        },
+      },
+      required: ["command"],
+    },
+    handler: async (userId: string, parameters: any) => {
+      // Placeholder - would integrate with shellSkills
       return {
-        ok: false,
-        response:
-          "I couldn't process your finance request. Try rephrasing or type it out.",
-        suggestions: [
-          "What's my net worth",
-          'Show budget',
-          'Spending this month',
-        ],
+        ok: true,
+        data: { message: "Shell command execution placeholder" },
       };
+    },
+    version: "1.0.0",
+    enabled: true,
+    tags: ["system", "command", "execution"],
+  },
+  {
+    id: "github-create-repo",
+    name: "Create GitHub Repository",
+    description: "Create a new GitHub repository",
+    category: "development",
+    icon: "🐙",
+    parameters: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Repository name",
+          minLength: 1,
+          maxLength: 100,
+        },
+        description: {
+          type: "string",
+          description: "Repository description",
+          maxLength: 255,
+        },
+        private: {
+          type: "boolean",
+          description: "Make repository private",
+          default: false,
+        },
+      },
+      required: ["name"],
+    },
+    handler: async (userId: string, parameters: any) => {
+      // Placeholder - would integrate with githubSkills
+      return {
+        ok: true,
+        data: {
+          message: "GitHub repository creation placeholder",
+          repoName: parameters.name,
+        },
+      };
+    },
+    version: "1.0.0",
+    enabled: true,
+    tags: ["github", "repository", "development"],
+  },
+  {
+    id: "jira-create-issue",
+    name: "Create Jira Issue",
+    description: "Create a new Jira issue",
+    category: "project-management",
+    icon: "🐛",
+    parameters: {
+      type: "object",
+      properties: {
+        projectKey: {
+          type: "string",
+          description: "Jira project key",
+          minLength: 2,
+          maxLength: 10,
+        },
+        summary: {
+          type: "string",
+          description: "Issue summary",
+          minLength: 1,
+          maxLength: 255,
+        },
+        description: {
+          type: "string",
+          description: "Issue description",
+          maxLength: 32768,
+        },
+        issueType: {
+          type: "string",
+          enum: ["Story", "Task", "Bug", "Epic"],
+          description: "Issue type",
+          default: "Task",
+        },
+      },
+      required: ["projectKey", "summary"],
+    },
+    handler: async (userId: string, parameters: any) => {
+      // Placeholder - would integrate with jiraSkills
+      return {
+        ok: true,
+        data: {
+          message: "Jira issue creation placeholder",
+          issueKey: `${parameters.projectKey}-123`,
+        },
+      };
+    },
+    version: "1.0.0",
+    enabled: true,
+    tags: ["jira", "issue", "project-management"],
+  },
+];
+
+// Skill categories for organization
+export const skillCategories: SkillCategory[] = [
+  {
+    id: "development",
+    name: "Development",
+    description: "Code and development related skills",
+    icon: "💻",
+    skills: coreSkills.filter((skill) => skill.category === "development"),
+  },
+  {
+    id: "project-management",
+    name: "Project Management",
+    description: "Project and task management skills",
+    icon: "📊",
+    skills: coreSkills.filter(
+      (skill) => skill.category === "project-management",
+    ),
+  },
+  {
+    id: "system",
+    name: "System",
+    description: "System and infrastructure skills",
+    icon: "⚙️",
+    skills: coreSkills.filter((skill) => skill.category === "system"),
+  },
+  {
+    id: "communication",
+    name: "Communication",
+    description: "Messaging and notification skills",
+    icon: "💬",
+    skills: coreSkills.filter((skill) => skill.category === "communication"),
+  },
+];
+
+/**
+ * Register all core skills with the agent skill registry
+ */
+export async function registerAllSkills(): Promise<{
+  success: boolean;
+  registered: number;
+  failed: number;
+  details: string[];
+}> {
+  const results = {
+    success: true,
+    registered: 0,
+    failed: 0,
+    details: [] as string[],
+  };
+
+  console.log("🔧 Registering ATOM Agent Skills...");
+
+  for (const skill of coreSkills) {
+    try {
+      const registered = await registerSkill(skill);
+      if (registered) {
+        results.registered++;
+        results.details.push(`✅ ${skill.name}`);
+      } else {
+        results.failed++;
+        results.details.push(`❌ ${skill.name} (registration failed)`);
+        results.success = false;
+      }
+    } catch (error) {
+      results.failed++;
+      results.details.push(
+        `❌ ${skill.name} (error: ${error instanceof Error ? error.message : "unknown"})`,
+      );
+      results.success = false;
     }
   }
 
-  getFinancePrompt(context: any): string {
-    return `💰 You are now in finance mode. Use any of these commands:\n${financeSkillConfig.naturalLanguagePatterns.join('\n• ')}`;
+  console.log(
+    `📊 Skill registration complete: ${results.registered} successful, ${results.failed} failed`,
+  );
+
+  if (results.success) {
+    console.log("✅ All skills registered successfully");
+  } else {
+    console.warn("⚠️ Some skills failed to register");
   }
+
+  return results;
 }
 
-// Export singleton
-export const financeVoiceHandler = new FinanceVoiceHandler();
-
-// Register all research skills with Atom agent
-export async function registerResearchSkills() {
-  console.log('🔬 Registering Atom Research Skills for Wake Word Activation');
-
-  try {
-    // Register each research skill
-    for (const skill of researchSkills) {
-      await registerSkill(skill);
-    }
-
-    console.log('✅ Research skills registered successfully');
-
-    return {
-      success: true,
-      registeredSkills: researchSkills.length,
-      naturalLanguageSupport: true,
-    };
-  } catch (error) {
-    console.error('❌ Failed to register research skills:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
+/**
+ * Get skills by category
+ */
+export function getSkillsByCategory(categoryId: string): SkillDefinition[] {
+  const category = skillCategories.find((cat) => cat.id === categoryId);
+  return category ? category.skills : [];
 }
 
-// Register all legal skills with Atom agent
-export async function registerLegalSkills() {
-  console.log('⚖️ Registering Atom Legal Skills for Wake Word Activation');
-
-  try {
-    // Register each legal skill
-    for (const skill of legalSkills) {
-      await registerSkill(skill);
-    }
-
-    console.log('✅ Legal skills registered successfully');
-
-    return {
-      success: true,
-      registeredSkills: legalSkills.length,
-      naturalLanguageSupport: true,
-    };
-  } catch (error) {
-    console.error('❌ Failed to register legal skills:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
+/**
+ * Search skills by name, description, or tags
+ */
+export function searchSkills(query: string): SkillDefinition[] {
+  const lowerQuery = query.toLowerCase();
+  return coreSkills.filter(
+    (skill) =>
+      skill.name.toLowerCase().includes(lowerQuery) ||
+      skill.description.toLowerCase().includes(lowerQuery) ||
+      skill.tags?.some((tag) => tag.toLowerCase().includes(lowerQuery)) ||
+      false,
+  );
 }
 
-// Register all tax skills with Atom agent
-export async function registerTaxSkills() {
-  console.log('💸 Registering Atom Tax Skills for Wake Word Activation');
-
-  try {
-    // Register each tax skill
-    for (const skill of allTaxSkills) {
-      await registerSkill(skill);
-    }
-
-    // Register tax-specific tools for LLM function calling
-    for (const tool of taxAgentTools) {
-      await registerSkill({
-        name: tool.name,
-        description: tool.description || 'Tax tool',
-        parameters: {}, // Tool-specific parameters assigned during registry
-        handler: tool.handler,
-      } as SkillDefinition);
-    }
-
-    console.log('✅ Tax skills registered successfully');
-
-    return {
-      success: true,
-      registeredSkills: allTaxSkills.length + taxAgentTools.length,
-      naturalLanguageSupport: true,
-    };
-  } catch (error) {
-    console.error('❌ Failed to register tax skills:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
+/**
+ * Get skill by ID
+ */
+export function getSkill(skillId: string): SkillDefinition | undefined {
+  return coreSkills.find((skill) => skill.id === skillId);
 }
 
-// Auto-registration on import
-registerFinanceSkills().catch(console.error);
-registerResearchSkills().catch(console.error);
-registerLegalSkills().catch(console.error);
-registerTaxSkills().catch(console.error);
+/**
+ * Get all available skills
+ */
+export function getAllSkills(): SkillDefinition[] {
+  return [...coreSkills];
+}
 
-// Integration exports
-export { FinanceSkillRegistration as FinanceCapabilities };
-export { TaxSkillRegistration as TaxCapabilities };
-export { financeSkillConfig as FinanceCommandConfig };
-export * as boxSkills from './boxSkills';
-export * as asanaSkills from './asanaSkills';
-export * as trelloSkills from './trelloSkills';
-export * as jiraSkills from './jiraSkills';
-export * as shopifySkills from './shopifySkills';
+/**
+ * Get skill categories with counts
+ */
+export function getSkillCategories(): Array<SkillCategory & { count: number }> {
+  return skillCategories.map((category) => ({
+    ...category,
+    count: category.skills.length,
+  }));
+}
 
-// Default export for import
+// Auto-register skills on import (optional - can be disabled for testing)
+if (process.env.NODE_ENV !== "test") {
+  registerAllSkills().catch(console.error);
+}
+
+// Default exports
 export default {
-  registerFinanceSkills,
-  financeVoiceHandler,
-  financeSkillConfig,
-  allFinanceSkills,
-  financeAgentTools,
+  registerAllSkills,
+  getAllSkills,
+  getSkill,
+  getSkillsByCategory,
+  searchSkills,
+  getSkillCategories,
+  skillCategories,
+  coreSkills,
 };
