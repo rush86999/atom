@@ -6,7 +6,7 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DESKTOP_BACKEND_DIR="$PROJECT_ROOT/desktop/tauri/src-tauri/python-backend"
+DESKTOP_BACKEND_DIR="$PROJECT_ROOT/src-tauri"
 PROTECTION_LOG="$PROJECT_ROOT/logs/desktop-backend-protection.log"
 
 # Create logs directory if it doesn't exist
@@ -24,24 +24,21 @@ is_protected_path() {
     # Critical desktop backend directories
     local protected_dirs=(
         "$DESKTOP_BACKEND_DIR"
-        "$DESKTOP_BACKEND_DIR/backend"
-        "$DESKTOP_BACKEND_DIR/backend/python-api-service"
-        "$DESKTOP_BACKEND_DIR/backend/python-api-service/_utils"
-        "$DESKTOP_BACKEND_DIR/backend/python-api-service/wake_word_detector"
-        "$DESKTOP_BACKEND_DIR/backend/audio-utils"
+        "$DESKTOP_BACKEND_DIR/src"
+        "$DESKTOP_BACKEND_DIR/icons"
+        "$PROJECT_ROOT/src/ui-shared/desktop"
+        "$PROJECT_ROOT/frontend-nextjs"
     )
 
     # Critical desktop backend files
     local protected_files=(
-        "$DESKTOP_BACKEND_DIR/main.py"
-        "$DESKTOP_BACKEND_DIR/start_backend.py"
-        "$DESKTOP_BACKEND_DIR/requirements.txt"
-        "$DESKTOP_BACKEND_DIR/atom_wake_word.onnx"
-        "$DESKTOP_BACKEND_DIR/backend/python-api-service/main_api_app.py"
-        "$DESKTOP_BACKEND_DIR/backend/python-api-service/_utils/constants.py"
-        "$DESKTOP_BACKEND_DIR/backend/python-api-service/_utils/lancedb_service.py"
-        "$DESKTOP_BACKEND_DIR/backend/python-api-service/wake_word_detector/handler.py"
-        "$DESKTOP_BACKEND_DIR/backend/python-api-service/wake_word_detector/openwakeword_handler.py"
+        "$DESKTOP_BACKEND_DIR/Cargo.toml"
+        "$DESKTOP_BACKEND_DIR/tauri.conf.json"
+        "$DESKTOP_BACKEND_DIR/build.rs"
+        "$DESKTOP_BACKEND_DIR/src/main.rs"
+        "$PROJECT_ROOT/scripts/start_desktop.sh"
+        "$PROJECT_ROOT/DESKTOP_APP_README.md"
+        "$PROJECT_ROOT/DESKTOP_APP_CONSOLIDATION.md"
     )
 
     # Check if path matches any protected directory
@@ -177,10 +174,10 @@ main() {
         echo "  --force     Bypass protection (use with extreme caution)"
         echo ""
         echo "Protected paths include:"
-        echo "  - Desktop backend Python services"
-        echo "  - Wake word detection system"
-        echo "  - Audio processing utilities"
-        echo "  - API service handlers"
+        echo "  - Tauri desktop application (src-tauri/)"
+        echo "  - Frontend application (frontend-nextjs/)"
+        echo "  - Desktop-specific UI components"
+        echo "  - Desktop configuration and scripts"
         exit 1
     fi
 

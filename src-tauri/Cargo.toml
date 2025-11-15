@@ -1,44 +1,44 @@
 [package]
 name = "atom"
-version = "1.1.0"
-description = "ATOM Desktop Agent - Health & Development Integration Platform with Chat Interface"
-authors = ["ATOM Platform Team"]
-license = "MIT"
-repository = "https://github.com/atom-platform/desktop-agent"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["You"]
+license = ""
+repository = ""
 edition = "2021"
+rust-version = "1.57"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.4", features = [] }
+tauri-build = { version = "1.1", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = ["dialog-open", "dialog-save", "fs-copy-file", "fs-create-dir", "fs-read-dir", "fs-read-file", "fs-remove-dir", "fs-remove-file", "fs-rename-file", "fs-write-file", "http-request", "notification-all", "path-all", "protocol-asset", "shell-open"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
-reqwest = { version = "0.11", features = ["json"] }
+tauri = { version = "1.1", features = [ "fs-all", "window-all", "dialog-all", "shell-execute", "shell-open", "http-all", "path-all", "notification-all"] }
+reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
+open = "4.0"
+aes-gcm = "0.10.0"
+hex = "0.4"
+rand = "0.8"
+tokio = { version = "1", features = ["full"] }
+base64 = "0.13"
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.0", features = ["v4"] }
-
-# Integration dependencies
-oauth2 = "4.4"
-base64 = "0.21"
-url = "2.4"
-
-# HTTP and networking
-http = "0.2"
-hyper = { version = "0.14", features = ["full"] }
-
-# Serialization
-serde_derive = "1.0"
-
-# Utilities
+urlencoding = "2.1"
+url = "2.3"
+thiserror = "1.0"
 anyhow = "1.0"
-log = "0.4"
-env_logger = "0.10"
+lazy_static = "1.4"
+
+[features]
+# by default Tauri runs in production mode
+# when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
+default = [ "custom-protocol" ]
+# this feature is used used for production builds where `devPath` points to the filesystem
+# DO NOT remove this
+custom-protocol = [ "tauri/custom-protocol" ]
 
 [[bin]]
 name = "atom"
 path = "src/main.rs"
-
-[dev-dependencies]
-tauri-build = { version = "1.4", features = [] }
