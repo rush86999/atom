@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useToast } from "@chakra-ui/react";
 
 // Interfaces for Gmail data types
@@ -542,11 +542,8 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
       JSON.stringify(updatedSavedSearches),
     );
 
-    toast({
-      title: "Search saved",
-      status: "success",
-      duration: 2000,
-    });
+    // Search saved successfully
+    console.log("Search saved successfully");
   };
 
   // Load saved search

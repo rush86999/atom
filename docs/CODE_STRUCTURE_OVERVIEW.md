@@ -115,6 +115,8 @@ utils/
 ```
 
 ### 🎨 UI Shared Components (`src/ui-shared/`)
+- **Desktop-specific components** (`src/ui-shared/desktop/`): Components with Tauri integration for desktop features
+  - `FinanceDesktopDashboard.tsx`: Desktop-optimized finance dashboard with file system integration
 
 Shared React components used by both web and desktop applications:
 
@@ -261,63 +263,80 @@ frontend-nextjs/
 └── package.json                     # Dependencies and scripts
 ```
 
-## 📁 Desktop Application (`desktop/`)
+## 📁 Desktop Application (`src-tauri/`)
 
-Tauri-based desktop application with shared services architecture:
+Tauri-based desktop application with feature parity to Next.js web app, using local LanceDB storage:
 
 ```
-desktop/
-├── tauri/              # Tauri application
-│   ├── src-tauri/      # Tauri Rust backend
-│   │   ├── src/        # Rust source code
-│   │   ├── Cargo.toml  # Rust dependencies
-│   │   └── tauri.conf.json # Tauri configuration
-│   ├── src/            # React frontend
-│   │   ├── components/ # Desktop-specific components
-│   │   ├── services/   # Desktop-specific services
-│   │   └── shared/     # Links to shared services
-│   └── package.json    # Node.js dependencies
-├── services/           # Desktop-specific service implementations
-├── lancedb_client/     # Local LanceDB client for desktop
-└── README.md           # Desktop app documentation
+src-tauri/
+├── src/                # Rust backend source code
+│   └── main.rs         # Tauri application entry point
+├── Cargo.toml          # Rust dependencies
+├── tauri.conf.json     # Tauri configuration
+├── icons/              # Application icons
+└── build.rs            # Build script
+
+**Frontend Integration:**
+- Uses `frontend-nextjs/` for UI (shared codebase)
+- Development: `http://localhost:3000`
+- Production: `frontend-nextjs/.next` build output
+
+**Desktop-Specific Components:**
+- `src/ui-shared/desktop/`: Components with Tauri APIs for desktop features
+- FinanceDesktopDashboard: Desktop-optimized finance interface with file operations
 ```
 
-**Shared Architecture:**
-- Uses `src/ui-shared/` components for consistent UI
-- Shares business logic from `src/services/`
-- Desktop-specific features: voice processing, system integration
+**Feature Parity with Next.js Web App:**
+- All integrations (GitHub, Azure, Slack, Stripe, etc.)
+- Health monitoring dashboard
+- Chat interface and AI capabilities
+- Integration management
+- System status monitoring
+
+**Desktop-Specific Features:**
+- Local LanceDB storage (vs cloud storage in web app)
+- File system access and management
+- System notifications
+- Platform-specific optimizations
+- Offline functionality
+- Desktop-specific UI components with Tauri integration
 
 ### Technology Stack
-- **Framework**: Tauri 1.0.0 + React 18.2.0 + TypeScript
-- **Backend**: Rust + Shared Python backend services
-- **Storage**: Local file system with encryption + LanceDB
-- **Build Tool**: esbuild + Vite
+- **Framework**: Tauri 1.1.0 + Next.js 15.5.0 + TypeScript
+- **Backend**: Rust + Shared backend services
+- **Storage**: Local LanceDB (vs cloud storage in web app)
+- **Build Tool**: Cargo + Next.js build system
 
 ### Key Features
-- Local-first architecture with LanceDB storage
-- Encrypted local storage
-- Voice/audio processing
-- Wake word detection
-- Offline functionality
-- Shared services with web app
-- Platform-specific optimizations
+- **Full Feature Parity**: All Next.js app features available
+- **Local Storage**: LanceDB for local data persistence
+- **System Integration**: File system access, notifications
+- **Offline Capable**: Works without internet connection
+- **Shared Codebase**: Uses same frontend as web application
+- **Cross-Platform**: Windows, macOS, Linux support
+- **Desktop Components**: Specialized UI components for desktop environment
 
 ### Configuration
-- **TypeScript Config**: Includes shared `src/services/**/*` and `src/ui-shared/**/*`
-- **Path Mapping**: `@shared-*` aliases for shared services (`@shared-ai/*`, `@shared-integrations/*`, `@shared-workflows/*`, `@shared-utils/*`)
-- **Build**: esbuild with external package handling for shared services
-- **Backend**: Shared Python backend services on port 8084
-- **External Packages**: Chakra UI, React, Emotion, Framer Motion, and shared service packages
+- **Frontend Integration**: Points to `frontend-nextjs` build
+- **Build Process**: Frontend builds first, then Tauri bundles
+- **Development**: Hot reload with Next.js dev server
+- **Production**: Static build from Next.js output
+- **Platform Targets**: Windows (msi), macOS (dmg), Linux (deb, appimage)
 
 ### Directory Structure
 ```
-desktop/
-├── tauri/                           # Tauri application
-│   ├── src/
-│   │   ├── components/              # Desktop-specific components
-│   │   ├── services/                # Desktop-specific services
-│   │   ├── hooks/                   # Custom React hooks
-│   │   ├── types/                   # TypeScript types
+src-tauri/                          # Consolidated Tauri implementation
+├── src/
+│   └── main.rs                     # Tauri application entry
+├── Cargo.toml                      # Rust dependencies
+├── tauri.conf.json                 # Tauri configuration
+├── icons/                          # Application icons
+└── build.rs                        # Build script
+
+**Integration:**
+- Frontend: `frontend-nextjs/` (shared with web app)
+- Backend: Shared services architecture
+- Storage: Local LanceDB client
 │   │   └── integrations/            # Desktop integration components
 │   ├── src-tauri/
 │   │   ├── src/                     # Rust backend code
@@ -624,15 +643,19 @@ frontend-nextjs/
 └── next.config.js                   # Next.js configuration
 ```
 
-### Desktop Configuration (`desktop/tauri/`)
+### Desktop Configuration (`src-tauri/`)
 ```
-desktop/tauri/
-├── package.json                     # Frontend dependencies with shared externals
-├── esbuild.config.js                # Build configuration
-├── tauri.config.ts                  # Tauri app configuration
-├── tsconfig.json                    # TypeScript with shared path mappings
-└── .env.google.example              # Google integration template
+src-tauri/
+├── Cargo.toml                       # Rust dependencies
+├── tauri.conf.json                  # Tauri app configuration
+├── build.rs                         # Build script
+└── icons/                           # Application icons
 ```
+
+**Frontend Integration:**
+- Uses `frontend-nextjs/` build output
+- Development: `http://localhost:3000`
+- Production: `frontend-nextjs/.next`
 
 ### Shared Configuration (`config/`)
 ```

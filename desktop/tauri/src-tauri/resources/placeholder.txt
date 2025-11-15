@@ -1,3 +1,0 @@
-# Placeholder resource file
-# This file is required for Tauri build process
-# Add actual resource files as needed for the application
