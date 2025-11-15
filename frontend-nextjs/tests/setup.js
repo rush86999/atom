@@ -46,10 +46,7 @@ Object.assign(navigator, {
 // Mock got module to handle ESM imports
 jest.mock('got', () => ({
   __esModule: true,
-  default: jest.fn(() => Promise.resolve({ body: '{}' })),
-  post: jest.fn(() => Promise.resolve({ body: '{}' })),
-  get: jest.fn(() => Promise.resolve({ body: '{}' })),
-  extend: jest.fn(() => jest.fn(() => Promise.resolve({ body: '{}' }))),
+  default: jest.fn(),
 }));
 
 // Mock console methods to reduce noise in tests

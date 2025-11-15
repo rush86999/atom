@@ -24,6 +24,8 @@ import {
   Flex,
   Spacer,
   Input,
+  InputGroup,
+  InputLeftElement,
   Select,
   Table,
   Thead,
@@ -80,7 +82,6 @@ import {
   EmailIcon,
   PhoneIcon,
   CalendarIcon,
-  StarIcon,
 } from "@chakra-ui/icons";
 
 interface SalesforceLead {
@@ -1097,12 +1098,16 @@ const SalesforceIntegration: React.FC = () => {
                         <option value="Nurturing">Nurturing</option>
                         <option value="Qualified">Qualified</option>
                       </Select>
-                      <Input
-                        placeholder="Search leads..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftAddon={<SearchIcon />}
-                      />
+                      <InputGroup>
+                        <InputLeftElement>
+                          <SearchIcon />
+                        </InputLeftElement>
+                        <Input
+                          placeholder="Search opportunities..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </InputGroup>
                       <Spacer />
                       <Button
                         colorScheme="blue"
@@ -1473,12 +1478,16 @@ const SalesforceIntegration: React.FC = () => {
                 <TabPanel>
                   <VStack spacing={6} align="stretch">
                     <HStack spacing={4}>
-                      <Input
-                        placeholder="Search cases..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftAddon={<SearchIcon />}
-                      />
+                      <InputGroup>
+                        <InputLeftElement>
+                          <SearchIcon />
+                        </InputLeftElement>
+                        <Input
+                          placeholder="Search users..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </InputGroup>
                     </HStack>
 
                     <Card>

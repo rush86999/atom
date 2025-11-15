@@ -6,8 +6,8 @@
  */
 
 // Platform types and interfaces
-export type Platform = 'desktop' | 'web';
-export type Environment = 'development' | 'production' | 'test';
+export type Platform = "desktop" | "web";
+export type Environment = "development" | "production" | "test";
 
 export interface UnifiedPlatformConfig {
   platform: Platform;
@@ -109,7 +109,7 @@ export interface StorageBackendConfig {
 }
 
 export interface StorageImplementation {
-  type: 'localStorage' | 'indexedDB' | 'fileSystem' | 's3' | 'cloudStorage';
+  type: "localStorage" | "indexedDB" | "fileSystem" | "s3" | "cloudStorage";
   encryption: boolean;
   sync: boolean;
   offline: boolean;
@@ -165,8 +165,8 @@ export interface HardwareCapabilities {
 
 // Platform configuration presets
 export const desktopPlatformConfig: UnifiedPlatformConfig = {
-  platform: 'desktop',
-  environment: 'development',
+  platform: "desktop",
+  environment: "development",
   features: {
     chatInterface: true,
     automationEngine: true,
@@ -234,14 +234,14 @@ export const desktopPlatformConfig: UnifiedPlatformConfig = {
   storage: {
     memory: {
       desktop: {
-        type: 'localStorage',
+        type: "localStorage",
         encryption: true,
         sync: false,
         offline: true,
         capacity: 50 * 1024 * 1024, // 50MB
       },
       web: {
-        type: 's3',
+        type: "s3",
         encryption: true,
         sync: true,
         offline: false,
@@ -249,13 +249,13 @@ export const desktopPlatformConfig: UnifiedPlatformConfig = {
     },
     files: {
       desktop: {
-        type: 'fileSystem',
+        type: "fileSystem",
         encryption: true,
         sync: false,
         offline: true,
       },
       web: {
-        type: 'cloudStorage',
+        type: "cloudStorage",
         encryption: true,
         sync: true,
         offline: false,
@@ -263,14 +263,14 @@ export const desktopPlatformConfig: UnifiedPlatformConfig = {
     },
     cache: {
       desktop: {
-        type: 'fileSystem',
+        type: "fileSystem",
         encryption: false,
         sync: false,
         offline: true,
         capacity: 100 * 1024 * 1024, // 100MB
       },
       web: {
-        type: 'indexedDB',
+        type: "indexedDB",
         encryption: false,
         sync: false,
         offline: true,
@@ -279,13 +279,13 @@ export const desktopPlatformConfig: UnifiedPlatformConfig = {
     },
     preferences: {
       desktop: {
-        type: 'localStorage',
+        type: "localStorage",
         encryption: true,
         sync: false,
         offline: true,
       },
       web: {
-        type: 'localStorage',
+        type: "localStorage",
         encryption: true,
         sync: false,
         offline: true,
@@ -294,8 +294,21 @@ export const desktopPlatformConfig: UnifiedPlatformConfig = {
   },
   integrations: {
     available: [
-      'slack', 'teams', 'notion', 'trello', 'figma', 'linear', 'asana',
-      'gmail', 'outlook', 'github', 'jira', 'stripe', 'box', 'dropbox', 'gdrive'
+      "slack",
+      "teams",
+      "notion",
+      "trello",
+      "figma",
+      "linear",
+      "asana",
+      "gmail",
+      "outlook",
+      "github",
+      "jira",
+      "stripe",
+      "box",
+      "dropbox",
+      "gdrive",
     ],
     oauth: true,
     apiKeys: true,
@@ -335,8 +348,8 @@ export const desktopPlatformConfig: UnifiedPlatformConfig = {
 };
 
 export const webPlatformConfig: UnifiedPlatformConfig = {
-  platform: 'web',
-  environment: 'development',
+  platform: "web",
+  environment: "development",
   features: {
     chatInterface: true,
     automationEngine: true,
@@ -404,14 +417,14 @@ export const webPlatformConfig: UnifiedPlatformConfig = {
   storage: {
     memory: {
       desktop: {
-        type: 'localStorage',
+        type: "localStorage",
         encryption: true,
         sync: false,
         offline: true,
         capacity: 50 * 1024 * 1024,
       },
       web: {
-        type: 's3',
+        type: "s3",
         encryption: true,
         sync: true,
         offline: false,
@@ -419,13 +432,13 @@ export const webPlatformConfig: UnifiedPlatformConfig = {
     },
     files: {
       desktop: {
-        type: 'fileSystem',
+        type: "fileSystem",
         encryption: true,
         sync: false,
         offline: true,
       },
       web: {
-        type: 'cloudStorage',
+        type: "cloudStorage",
         encryption: true,
         sync: true,
         offline: false,
@@ -433,14 +446,14 @@ export const webPlatformConfig: UnifiedPlatformConfig = {
     },
     cache: {
       desktop: {
-        type: 'fileSystem',
+        type: "fileSystem",
         encryption: false,
         sync: false,
         offline: true,
         capacity: 100 * 1024 * 1024,
       },
       web: {
-        type: 'indexedDB',
+        type: "indexedDB",
         encryption: false,
         sync: false,
         offline: true,
@@ -449,13 +462,13 @@ export const webPlatformConfig: UnifiedPlatformConfig = {
     },
     preferences: {
       desktop: {
-        type: 'localStorage',
+        type: "localStorage",
         encryption: true,
         sync: false,
         offline: true,
       },
       web: {
-        type: 'localStorage',
+        type: "localStorage",
         encryption: true,
         sync: false,
         offline: true,
@@ -464,8 +477,21 @@ export const webPlatformConfig: UnifiedPlatformConfig = {
   },
   integrations: {
     available: [
-      'slack', 'teams', 'notion', 'trello', 'figma', 'linear', 'asana',
-      'gmail', 'outlook', 'github', 'jira', 'stripe', 'box', 'dropbox', 'gdrive'
+      "slack",
+      "teams",
+      "notion",
+      "trello",
+      "figma",
+      "linear",
+      "asana",
+      "gmail",
+      "outlook",
+      "github",
+      "jira",
+      "stripe",
+      "box",
+      "dropbox",
+      "gdrive",
     ],
     oauth: true,
     apiKeys: true,
@@ -522,17 +548,17 @@ export class UnifiedPlatform {
 
   private detectPlatform(): UnifiedPlatformConfig {
     // Check for Tauri environment (desktop)
-    if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+    if (typeof window !== "undefined" && (window as any).__TAURI__) {
       return desktopPlatformConfig;
     }
 
     // Check for Electron environment (desktop)
-    if (typeof window !== 'undefined' && (window as any).electron) {
+    if (typeof window !== "undefined" && (window as any).electron) {
       return desktopPlatformConfig;
     }
 
     // Check for Node.js environment (desktop apps typically run in Node)
-    if (typeof process !== 'undefined' && process.versions?.node) {
+    if (typeof process !== "undefined" && process.versions?.node) {
       return desktopPlatformConfig;
     }
 
@@ -549,14 +575,16 @@ export class UnifiedPlatform {
   }
 
   public isDesktop(): boolean {
-    return this.config.platform === 'desktop';
+    return this.config.platform === "desktop";
   }
 
   public isWeb(): boolean {
-    return this.config.platform === 'web';
+    return this.config.platform === "web";
   }
 
-  public getFeature<T extends keyof PlatformFeatures>(feature: T): PlatformFeatures[T] {
+  public getFeature<T extends keyof PlatformFeatures>(
+    feature: T,
+  ): PlatformFeatures[T] {
     return this.config.features[feature];
   }
 
@@ -564,7 +592,9 @@ export class UnifiedPlatform {
     return this.config.features[feature] === true;
   }
 
-  public getStorageConfig(storageType: keyof PlatformStorageConfig): StorageImplementation {
+  public getStorageConfig(
+    storageType: keyof PlatformStorageConfig,
+  ): StorageImplementation {
     const storageConfig = this.config.storage[storageType];
     return this.isDesktop() ? storageConfig.desktop : storageConfig.web;
   }
@@ -612,15 +642,15 @@ export class UnifiedPlatform {
   }
 
   public isDevelopment(): boolean {
-    return this.config.environment === 'development';
+    return this.config.environment === "development";
   }
 
   public isProduction(): boolean {
-    return this.config.environment === 'production';
+    return this.config.environment === "production";
   }
 
   public isTest(): boolean {
-    return this.config.environment === 'test';
+    return this.config.environment === "test";
   }
 }
 
@@ -640,7 +670,9 @@ export function getCurrentPlatform(): Platform {
   return platform.getPlatform();
 }
 
-export function createPlatformConfig(customConfig?: Partial<UnifiedPlatformConfig>): UnifiedPlatformConfig {
+export function createPlatformConfig(
+  customConfig?: Partial<UnifiedPlatformConfig>,
+): UnifiedPlatformConfig {
   const baseConfig = platform.getConfig();
   return {
     ...baseConfig,
@@ -671,15 +703,15 @@ export function createPlatformConfig(customConfig?: Partial<UnifiedPlatformConfi
 // Feature availability checks
 export const featureFlags = {
   // Core features available on both platforms
-  chatInterface: () => platform.hasFeature('chatInterface'),
-  automationEngine: () => platform.hasFeature('automationEngine'),
-  workflowManagement: () => platform.hasFeature('workflowManagement'),
-  taskManagement: () => platform.hasFeature('taskManagement'),
-  calendarIntegration: () => platform.hasFeature('calendarIntegration'),
-  fileManagement: () => platform.hasFeature('fileManagement'),
-  search: () => platform.hasFeature('search'),
-  analytics: () => platform.hasFeature('analytics'),
-  notifications: () => platform.hasFeature('notifications'),
+  chatInterface: () => platform.hasFeature("chatInterface"),
+  automationEngine: () => platform.hasFeature("automationEngine"),
+  workflowManagement: () => platform.hasFeature("workflowManagement"),
+  taskManagement: () => platform.hasFeature("taskManagement"),
+  calendarIntegration: () => platform.hasFeature("calendarIntegration"),
+  fileManagement: () => platform.hasFeature("fileManagement"),
+  search: () => platform.hasFeature("search"),
+  analytics: () => platform.hasFeature("analytics"),
+  notifications: () => platform.hasFeature("notifications"),
 
   // Platform-specific features
   systemTray: () => platform.canUseSystemTray(),
@@ -688,40 +720,32 @@ export const featureFlags = {
   serviceWorker: () => platform.canUseServiceWorker(),
   pushNotifications: () => platform.canUsePushNotifications(),
   realTimeSync: () => platform.canUseRealTimeSync(),
-  offlineMode: () => platform.getFeature('desktopOnly').offlineMode,
-  voiceProcessing: () => platform.getFeature('desktopOnly').voiceProcessing,
-  collaborativeEditing: () => platform.getFeature('webOnly').collaborativeEditing,
-  multiDeviceAccess: () => platform.getFeature('webOnly').multiDeviceAccess,
+  offlineMode: () => platform.getFeature("desktopOnly").offlineMode,
+  voiceProcessing: () => platform.getFeature("desktopOnly").voiceProcessing,
+  collaborativeEditing: () =>
+    platform.getFeature("webOnly").collaborativeEditing,
+  multiDeviceAccess: () => platform.getFeature("webOnly").multiDeviceAccess,
 };
 
 // Storage utility functions
-export function getStorageBackend(type: keyof PlatformStorageConfig): StorageImplementation {
+export function getStorageBackend(
+  type: keyof PlatformStorageConfig,
+): StorageImplementation {
   return platform.getStorageConfig(type);
 }
 
 export function getMemoryStorage(): StorageImplementation {
-  return getStorageBackend('memory');
+  return getStorageBackend("memory");
 }
 
 export function getFileStorage(): StorageImplementation {
-  return getStorageBackend('files');
+  return getStorageBackend("files");
 }
 
 export function getCacheStorage(): StorageImplementation {
-  return getStorageBackend('cache');
+  return getStorageBackend("cache");
 }
 
 export function getPreferencesStorage(): StorageImplementation {
-  return getStorageBackend('preferences');
+  return getStorageBackend("preferences");
 }
-
-// Export types for external use
-export type {
-  PlatformFeatures,
-  DesktopFeatures,
-  WebFeatures,
-  PlatformUIConfig,
-  PlatformStorageConfig,
-  PlatformIntegrationsConfig,
-  PlatformCapabilities
-};

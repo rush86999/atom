@@ -22,6 +22,8 @@ import {
   FiCheckSquare,
   FiPlay,
   FiCalendar,
+  FiTerminal,
+  FiServer,
 } from "react-icons/fi";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -82,6 +84,20 @@ const Home = () => {
       icon: FiCalendar,
       path: "/calendar",
       color: "red",
+    },
+    {
+      title: "Dev Tools",
+      description: "Development utilities and system integration",
+      icon: FiTerminal,
+      path: "/dev-tools",
+      color: "purple",
+    },
+    {
+      title: "Dev Status",
+      description: "Development environment monitoring and status",
+      icon: FiServer,
+      path: "/dev-status",
+      color: "teal",
     },
   ];
 

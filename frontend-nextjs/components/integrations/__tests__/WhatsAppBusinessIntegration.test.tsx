@@ -4,10 +4,11 @@
  * Comprehensive test suite for WhatsApp Business integration functionality
  */
 
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { ThemeProvider } from '@emotion/react';
-import WhatsAppBusinessIntegration from '../components/integrations/WhatsAppBusinessIntegration';
+import WhatsAppBusinessIntegration from '../WhatsAppBusinessIntegration';
 
 // Mock fetch API
 global.fetch = jest.fn();
@@ -293,7 +294,7 @@ describe('WhatsAppBusinessIntegration', () => {
     });
     
     // Click on conversation
-    const conversationCard = screen.getByText('John Doe').closest('[role="button"]');
+    const conversationCard = screen.getByText('John Doe').closest('.chakra-card');
     fireEvent.click(conversationCard);
     
     await waitFor(() => {
