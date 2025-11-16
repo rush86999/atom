@@ -6,7 +6,7 @@ Validates required credentials and sets up test environment
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import requests
 from dotenv import load_dotenv
@@ -86,7 +86,7 @@ class TestConfig:
     }
 
     @classmethod
-    def validate_credentials(cls, test_category: str = "all") -> Dict[str, bool]:
+    def validate_credentials(cls, test_category: Union[str, List[str]] = "all") -> Dict[str, bool]:
         """
         Validate required credentials for testing
 
@@ -99,7 +99,9 @@ class TestConfig:
         validation_results = {}
 
         if test_category == "all":
-            categories = cls.REQUIRED_CREDENTIALS.keys()
+            categories = list(cls.REQUIRED_CREDENTIALS.keys())
+        elif isinstance(test_category, list):
+            categories = test_category
         else:
             categories = [test_category]
 

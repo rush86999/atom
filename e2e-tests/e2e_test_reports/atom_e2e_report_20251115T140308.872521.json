@@ -1,0 +1,772 @@
+{
+  "overall_status": "PASSED",
+  "start_time": "2025-11-15T14:02:37.838406",
+  "end_time": "2025-11-15T14:03:08.872521",
+  "duration_seconds": 31.034115,
+  "total_tests": 6,
+  "tests_passed": 6,
+  "tests_failed": 0,
+  "test_categories": [
+    "core",
+    "productivity",
+    "development",
+    "crm",
+    "storage",
+    "financial"
+  ],
+  "category_results": {
+    "core": {
+      "category": "core",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "service_registry": {
+          "test_name": "service_registry",
+          "description": "Test service registry and available integrations",
+          "status": "passed",
+          "details": {
+            "service_registry": {
+              "status_code": 200,
+              "available": true,
+              "services_data": {
+                "services": [
+                  {
+                    "name": "test_service",
+                    "status": "active",
+                    "available": true,
+                    "type": "mock"
+                  },
+                  {
+                    "name": "email_service",
+                    "status": "active",
+                    "available": true,
+                    "type": "communication"
+                  },
+                  {
+                    "name": "calendar_service",
+                    "status": "active",
+                    "available": true,
+                    "type": "productivity"
+                  }
+                ]
+              }
+            },
+            "services": {
+              "total_services": 3,
+              "available_services": [
+                "test_service",
+                "email_service",
+                "calendar_service"
+              ],
+              "unavailable_services": [],
+              "service_types": {
+                "communication": 1,
+                "productivity": 1,
+                "mock": 1
+              }
+            },
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10b233e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          }
+        }
+      },
+      "marketing_claims_verified": {
+        "Just describe what you want to automate and Atom builds complete workflows": {
+          "claim": "Just describe what you want to automate and Atom builds complete workflows",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The test output data does not provide any evidence that supports the marketing claim. The claim is that the user can 'just describe what you want to automate and Atom builds complete workflows'. However, the test output data only shows the status of various services, such as 'test_service', 'email_service', and 'calendar_service'. There is no evidence of any user input being converted into a complete workflow, nor is there any evidence of Atom's ability to build workflows based on user descriptions.",
+          "evidence_cited": [
+            "The test output data shows the status of various services, but does not show any evidence of workflows being built based on user descriptions."
+          ],
+          "gaps": [
+            "The test output data does not include any evidence of user input being converted into a workflow.",
+            "There is no evidence of Atom's ability to build workflows based on user descriptions."
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10b233e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+            }
+          }
+        },
+        "Automates complex workflows through natural language chat": {
+          "claim": "Automates complex workflows through natural language chat",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The test output data provided does not demonstrate the claimed capability of automating complex workflows through natural language chat. The data shows the status of various services, including a test service, email service, and calendar service, but there is no evidence of any natural language chat functionality or automation of complex workflows. The error message indicates a failed connection, which further suggests that the test did not successfully demonstrate the claimed capability.",
+          "evidence_cited": [
+            "Service registry data showing status of various services",
+            "Error message indicating a failed connection"
+          ],
+          "gaps": [
+            "No evidence of natural language chat functionality",
+            "No evidence of automation of complex workflows",
+            "Failed connection suggests test did not successfully demonstrate claimed capability"
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10b233e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+            }
+          }
+        },
+        "Remembers conversation history and context": {
+          "claim": "Remembers conversation history and context",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The test output data provided does not contain any evidence to support the claim that the system 'Remembers conversation history and context'. The data provided is related to the status of various services, their availability, and types. There is no information about conversation history or context.",
+          "evidence_cited": [],
+          "gaps": [
+            "The test output data does not contain any information related to conversation history or context. Therefore, it is not possible to verify the claim based on the provided data."
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10b233e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+            }
+          }
+        },
+        "Production-ready architecture with FastAPI backend and Next.js frontend": {
+          "claim": "Production-ready architecture with FastAPI backend and Next.js frontend",
+          "verified": false,
+          "confidence": 0.6,
+          "reason": "The test output data shows that the service registry is functioning and able to list the status of various services. However, the claim of a 'Production-ready architecture with FastAPI backend and Next.js frontend' cannot be fully verified based on the provided test output data. The data does not provide any specific evidence of FastAPI or Next.js being used. Additionally, there is an error message indicating a failed connection, which raises concerns about the production-readiness of the architecture.",
+          "evidence_cited": [
+            "Service registry status code 200",
+            "List of active services",
+            "Error message indicating a failed connection"
+          ],
+          "gaps": [
+            "No specific evidence of FastAPI or Next.js being used",
+            "Error message indicating a potential issue with the architecture"
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10b233e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+            }
+          }
+        }
+      },
+      "start_time": 1763233358.13586,
+      "test_outputs": {
+        "service_registry": {
+          "service_registry": {
+            "status_code": 200,
+            "available": true,
+            "services_data": {
+              "services": [
+                {
+                  "name": "test_service",
+                  "status": "active",
+                  "available": true,
+                  "type": "mock"
+                },
+                {
+                  "name": "email_service",
+                  "status": "active",
+                  "available": true,
+                  "type": "communication"
+                },
+                {
+                  "name": "calendar_service",
+                  "status": "active",
+                  "available": true,
+                  "type": "productivity"
+                }
+              ]
+            }
+          },
+          "services": {
+            "total_services": 3,
+            "available_services": [
+              "test_service",
+              "email_service",
+              "calendar_service"
+            ],
+            "unavailable_services": [],
+            "service_types": {
+              "communication": 1,
+              "productivity": 1,
+              "mock": 1
+            }
+          },
+          "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10b233e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+        }
+      },
+      "end_time": 1763233358.163887,
+      "duration_seconds": 0.028027057647705078
+    },
+    "productivity": {
+      "category": "productivity",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "monday_integration": {
+          "test_name": "monday_integration",
+          "description": "Test Monday.com workspace connectivity and item management",
+          "status": "passed",
+          "details": {
+            "monday_connection": {
+              "status_code": 200,
+              "connected": true,
+              "workspace_info": {
+                "name": "Test Workspace",
+                "account_tier": "Pro",
+                "users": 25
+              }
+            },
+            "monday_boards": {
+              "status_code": 200,
+              "available": true,
+              "board_count": 12,
+              "item_count": 847
+            },
+            "monday_automations": {
+              "status_code": 200,
+              "available": true,
+              "automation_count": 8,
+              "active_recipes": 5
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {
+        "Works across all your tools seamlessly": {
+          "claim": "Works across all your tools seamlessly",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The test output data only provides information about the integration with one tool, 'monday'. The marketing claim states that the product 'works across all your tools seamlessly'. To verify this claim, we would need test output data for multiple tools, not just one. Therefore, based on the available evidence, we cannot verify the claim.",
+          "evidence_cited": [
+            "Test output data only includes information about 'monday' integration"
+          ],
+          "gaps": [
+            "Lack of test output data for other tools"
+          ],
+          "evidence": {
+            "monday_integration": {
+              "monday_connection": {
+                "status_code": 200,
+                "connected": true,
+                "workspace_info": {
+                  "name": "Test Workspace",
+                  "account_tier": "Pro",
+                  "users": 25
+                }
+              },
+              "monday_boards": {
+                "status_code": 200,
+                "available": true,
+                "board_count": 12,
+                "item_count": 847
+              },
+              "monday_automations": {
+                "status_code": 200,
+                "available": true,
+                "automation_count": 8,
+                "active_recipes": 5
+              }
+            }
+          }
+        },
+        "Just describe what you want to automate and Atom builds complete workflows": {
+          "claim": "Just describe what you want to automate and Atom builds complete workflows",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The test output data does not provide any evidence that supports the marketing claim. The claim is that the user can 'just describe what they want to automate and Atom builds complete workflows'. However, the test output data only shows that the system can connect to a workspace, access boards, and identify existing automations. There is no evidence of the system building workflows based on user descriptions.",
+          "evidence_cited": [
+            "monday_connection status_code and connected status",
+            "monday_boards status_code and available status",
+            "monday_automations status_code and available status"
+          ],
+          "gaps": [
+            "No evidence of the system building workflows based on user descriptions",
+            "No evidence of the system interpreting or understanding user descriptions",
+            "No evidence of the system's ability to create new automations"
+          ],
+          "evidence": {
+            "monday_integration": {
+              "monday_connection": {
+                "status_code": 200,
+                "connected": true,
+                "workspace_info": {
+                  "name": "Test Workspace",
+                  "account_tier": "Pro",
+                  "users": 25
+                }
+              },
+              "monday_boards": {
+                "status_code": 200,
+                "available": true,
+                "board_count": 12,
+                "item_count": 847
+              },
+              "monday_automations": {
+                "status_code": 200,
+                "available": true,
+                "automation_count": 8,
+                "active_recipes": 5
+              }
+            }
+          }
+        }
+      },
+      "start_time": 1763233379.002351,
+      "test_outputs": {
+        "monday_integration": {
+          "monday_connection": {
+            "status_code": 200,
+            "connected": true,
+            "workspace_info": {
+              "name": "Test Workspace",
+              "account_tier": "Pro",
+              "users": 25
+            }
+          },
+          "monday_boards": {
+            "status_code": 200,
+            "available": true,
+            "board_count": 12,
+            "item_count": 847
+          },
+          "monday_automations": {
+            "status_code": 200,
+            "available": true,
+            "automation_count": 8,
+            "active_recipes": 5
+          }
+        }
+      },
+      "end_time": 1763233379.002374,
+      "duration_seconds": 2.288818359375e-05
+    },
+    "development": {
+      "category": "development",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "jira_integration": {
+          "test_name": "jira_integration",
+          "description": "Test JIRA integration and issue management",
+          "status": "passed",
+          "details": {
+            "jira_connection": {
+              "status_code": 200,
+              "connected": true,
+              "projects_count": 8,
+              "issues_count": 156
+            },
+            "jira_workflows": {
+              "status_code": 200,
+              "available": true,
+              "workflow_schemes": [
+                "Kanban",
+                "Scrum",
+                "Custom"
+              ],
+              "automation_rules": 12
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763233388.8676171,
+      "test_outputs": {
+        "jira_integration": {
+          "jira_connection": {
+            "status_code": 200,
+            "connected": true,
+            "projects_count": 8,
+            "issues_count": 156
+          },
+          "jira_workflows": {
+            "status_code": 200,
+            "available": true,
+            "workflow_schemes": [
+              "Kanban",
+              "Scrum",
+              "Custom"
+            ],
+            "automation_rules": 12
+          }
+        }
+      },
+      "end_time": 1763233388.867659,
+      "duration_seconds": 4.1961669921875e-05
+    },
+    "crm": {
+      "category": "crm",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "hubspot_integration": {
+          "test_name": "hubspot_integration",
+          "description": "Test HubSpot integration and marketing operations",
+          "status": "passed",
+          "details": {
+            "hubspot_connection": {
+              "status_code": 200,
+              "connected": true,
+              "portal_info": {
+                "name": "Test Portal",
+                "account_tier": "Professional",
+                "contacts": 5000
+              }
+            },
+            "hubspot_contacts": {
+              "status_code": 200,
+              "available": true,
+              "total_contacts": 5000,
+              "active_lists": 25,
+              "segments": 8
+            },
+            "hubspot_workflows": {
+              "status_code": 200,
+              "available": true,
+              "workflow_count": 12,
+              "automated_emails": 50000,
+              "conversion_rate": 0.12
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763233388.868968,
+      "test_outputs": {
+        "hubspot_integration": {
+          "hubspot_connection": {
+            "status_code": 200,
+            "connected": true,
+            "portal_info": {
+              "name": "Test Portal",
+              "account_tier": "Professional",
+              "contacts": 5000
+            }
+          },
+          "hubspot_contacts": {
+            "status_code": 200,
+            "available": true,
+            "total_contacts": 5000,
+            "active_lists": 25,
+            "segments": 8
+          },
+          "hubspot_workflows": {
+            "status_code": 200,
+            "available": true,
+            "workflow_count": 12,
+            "automated_emails": 50000,
+            "conversion_rate": 0.12
+          }
+        }
+      },
+      "end_time": 1763233388.868994,
+      "duration_seconds": 2.5987625122070312e-05
+    },
+    "storage": {
+      "category": "storage",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "box_integration": {
+          "test_name": "box_integration",
+          "description": "Test Box integration and file operations",
+          "status": "passed",
+          "details": {
+            "box_connection": {
+              "status_code": 200,
+              "connected": true,
+              "account_info": {
+                "name": "Enterprise User",
+                "storage_limit": "Unlimited",
+                "used_storage": "125GB"
+              }
+            },
+            "box_files": {
+              "status_code": 200,
+              "available": true,
+              "file_count": 2100,
+              "collaborations": 67
+            },
+            "box_workflows": {
+              "status_code": 200,
+              "available": true,
+              "automated_rules": 15,
+              "retention_policies": 8
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763233388.8710358,
+      "test_outputs": {
+        "box_integration": {
+          "box_connection": {
+            "status_code": 200,
+            "connected": true,
+            "account_info": {
+              "name": "Enterprise User",
+              "storage_limit": "Unlimited",
+              "used_storage": "125GB"
+            }
+          },
+          "box_files": {
+            "status_code": 200,
+            "available": true,
+            "file_count": 2100,
+            "collaborations": 67
+          },
+          "box_workflows": {
+            "status_code": 200,
+            "available": true,
+            "automated_rules": 15,
+            "retention_policies": 8
+          }
+        }
+      },
+      "end_time": 1763233388.871059,
+      "duration_seconds": 2.3126602172851562e-05
+    },
+    "financial": {
+      "category": "financial",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "xero_integration": {
+          "test_name": "xero_integration",
+          "description": "Test Xero integration and accounting operations",
+          "status": "passed",
+          "details": {
+            "xero_connection": {
+              "status_code": 200,
+              "connected": true,
+              "organisation": {
+                "name": "Test Organisation Ltd",
+                "country": "Australia",
+                "currency": "AUD",
+                "subscription_tier": "Premium"
+              }
+            },
+            "xero_accounts": {
+              "status_code": 200,
+              "available": true,
+              "total_accounts": 25,
+              "bank_accounts": 3,
+              "credit_cards": 2,
+              "last_reconciliation": "2025-11-14"
+            },
+            "xero_invoicing": {
+              "status_code": 200,
+              "available": true,
+              "total_invoices": 342,
+              "paid_invoices": 289,
+              "outstanding_amount": 45890.5,
+              "average_payment_days": 18
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763233388.872364,
+      "test_outputs": {
+        "xero_integration": {
+          "xero_connection": {
+            "status_code": 200,
+            "connected": true,
+            "organisation": {
+              "name": "Test Organisation Ltd",
+              "country": "Australia",
+              "currency": "AUD",
+              "subscription_tier": "Premium"
+            }
+          },
+          "xero_accounts": {
+            "status_code": 200,
+            "available": true,
+            "total_accounts": 25,
+            "bank_accounts": 3,
+            "credit_cards": 2,
+            "last_reconciliation": "2025-11-14"
+          },
+          "xero_invoicing": {
+            "status_code": 200,
+            "available": true,
+            "total_invoices": 342,
+            "paid_invoices": 289,
+            "outstanding_amount": 45890.5,
+            "average_payment_days": 18
+          }
+        }
+      },
+      "end_time": 1763233388.872386,
+      "duration_seconds": 2.193450927734375e-05
+    }
+  },
+  "llm_verification_available": true,
+  "marketing_claims_verified": {
+    "total": 6,
+    "verified": 0,
+    "verification_rate": 0.0
+  }
+}

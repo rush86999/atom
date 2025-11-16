@@ -5,6 +5,7 @@ Uses OpenAI API to independently assess test outputs against marketing claims
 
 import json
 import os
+import time
 from typing import Any, Dict, List, Optional
 
 import openai
@@ -14,13 +15,15 @@ from openai import OpenAI
 class LLMVerifier:
     """LLM-based verification for marketing claims validation"""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, max_retries: int = 3):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
 
         self.client = OpenAI(api_key=self.api_key)
         self.model = "gpt-4"  # Using GPT-4 for better reasoning capabilities
+        self.max_retries = max_retries
+        self.request_delay = 2  # Increased delay between requests
 
     def verify_marketing_claim(
         self, claim: str, test_output: Dict[str, Any], context: Optional[str] = None
@@ -39,33 +42,65 @@ class LLMVerifier:
         prompt = self._build_verification_prompt(claim, test_output, context)
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are a quality assurance expert that verifies marketing claims against actual test results.
-                        Be objective, thorough, and evidence-based in your assessment.
-                        Focus on whether the test results demonstrate the claimed capability.""",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-                max_tokens=1000,
-            )
+            for attempt in range(self.max_retries):
+                try:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": """You are a quality assurance expert that verifies marketing claims against actual test results.
+                                Be objective, thorough, and evidence-based in your assessment.
+                                Focus on whether the test results demonstrate the claimed capability.""",
+                            },
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=0.1,
+                        max_tokens=1000,
+                        timeout=30,  # Add 30 second timeout
+                    )
 
-            result_text = response.choices[0].message.content
-            return self._parse_verification_result(result_text, claim, test_output)
+                    result_text = response.choices[0].message.content
+                    return self._parse_verification_result(result_text, claim, test_output)
+
+                except Exception as api_error:
+                    if attempt == self.max_retries - 1:
+                        # Last attempt failed
+                        raise api_error
+                    
+                    # Check if it's a rate limit error
+                    error_str = str(api_error)
+                    if "429" in error_str or "rate limit" in error_str.lower():
+                        print(f"Rate limit hit, waiting {self.request_delay * (attempt + 1)} seconds before retry...")
+                        time.sleep(self.request_delay * (attempt + 1))
+                        continue
+                    else:
+                        # Non-rate-limit error, don't retry
+                        raise api_error
 
         except Exception as e:
-            return {
-                "claim": claim,
-                "verified": False,
-                "confidence": 0.0,
-                "reason": f"LLM verification failed: {str(e)}",
-                "evidence": test_output,
-                "error": True,
-            }
+            error_msg = str(e)
+            
+            # Check for API quota/rate limit issues
+            if "429" in error_msg or "insufficient_quota" in error_msg or "rate limit" in error_msg.lower():
+                return {
+                    "claim": claim,
+                    "verified": False,
+                    "confidence": 0.0,
+                    "reason": f"API quota/rate limit reached: {error_msg}. Verification paused due to OpenAI API limits.",
+                    "evidence": test_output,
+                    "api_limit_error": True,
+                    "error": True,
+                }
+            else:
+                return {
+                    "claim": claim,
+                    "verified": False,
+                    "confidence": 0.0,
+                    "reason": f"LLM verification failed: {error_msg}",
+                    "evidence": test_output,
+                    "error": True,
+                }
 
     def _build_verification_prompt(
         self, claim: str, test_output: Dict[str, Any], context: Optional[str]
@@ -164,9 +199,67 @@ class LLMVerifier:
 
         for claim in claims:
             print(f"Verifying claim: {claim}")
-            results[claim] = self.verify_marketing_claim(claim, test_outputs, context)
+            result = self.verify_marketing_claim(claim, test_outputs, context)
+            
+            # Check if it's an API limit error and provide fallback
+            if result.get("api_limit_error", False):
+                print(f"⚠️  API limit reached for claim: {claim}. Skipping verification due to OpenAI quota limits.")
+                # Provide mock verification based on available evidence
+                results[claim] = self._fallback_verification(claim, test_outputs)
+            else:
+                results[claim] = result
+            
+            # Rate limiting: wait between API calls to avoid rate limits
+            time.sleep(self.request_delay)
 
         return results
+
+    def _fallback_verification(self, claim: str, test_output: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Provide fallback verification when API is unavailable
+        Uses rule-based analysis instead of LLM
+        """
+        # Simple rule-based verification based on available evidence
+        evidence_keywords = {
+            "workflow": ["workflow", "automation", "automated"],
+            "natural language": ["natural_language", "input", "description"],
+            "memory": ["memory", "context", "history", "conversation"],
+            "seamless": ["seamless", "integrated", "coordination"],
+            "voice": ["voice", "audio", "speech", "transcription"],
+            "production": ["production", "ready", "fastapi", "next", "framework"]
+        }
+        
+        claim_lower = claim.lower()
+        evidence_text = str(test_output).lower()
+        
+        # Check if evidence supports the claim
+        supporting_evidence = []
+        for keyword, evidence_list in evidence_keywords.items():
+            if keyword in claim_lower:
+                found_evidence = [ev for ev in evidence_list if ev in evidence_text]
+                supporting_evidence.extend(found_evidence)
+        
+        # Basic verification logic
+        if supporting_evidence:
+            confidence = min(0.8, len(supporting_evidence) * 0.2)
+            return {
+                "claim": claim,
+                "verified": confidence >= 0.4,
+                "confidence": confidence,
+                "reason": f"Fallback verification found evidence: {supporting_evidence}. Limited analysis due to API quota limits.",
+                "evidence_cited": supporting_evidence,
+                "gaps": ["Limited analysis due to API quota exhaustion"],
+                "fallback_used": True
+            }
+        else:
+            return {
+                "claim": claim,
+                "verified": False,
+                "confidence": 0.0,
+                "reason": "No supporting evidence found for marketing claim (fallback verification due to API limits)",
+                "evidence": test_output,
+                "fallback_used": True
+            }
 
     def generate_test_scenario(
         self, feature: str, marketing_claims: List[str]

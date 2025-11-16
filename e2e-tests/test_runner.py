@@ -129,6 +129,13 @@ class E2ETestRunner:
     def _import_test_module(self, category: str):
         """Dynamically import test module for a category"""
         try:
+            import sys
+            import os
+            # Add current directory to Python path
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            if current_dir not in sys.path:
+                sys.path.insert(0, current_dir)
+            
             module_name = f"tests.test_{category}"
             module = __import__(module_name, fromlist=["run_tests"])
             return module

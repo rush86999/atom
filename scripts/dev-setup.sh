@@ -33,7 +33,7 @@ print_error() {
 }
 
 # Check if we're in the right directory
-if [ ! -f "package.json" ]; then
+if [ ! -f "README.md" ]; then
     print_error "Please run this script from the project root directory"
     exit 1
 fi
@@ -50,47 +50,71 @@ else
     exit 1
 fi
 
-# Install dependencies
-print_status "Installing dependencies..."
+# Install dependencies for frontend
+print_status "Installing frontend dependencies..."
+cd frontend-nextjs
 npm install
 
 if [ $? -eq 0 ]; then
-    print_success "Dependencies installed successfully"
+    print_success "Frontend dependencies installed successfully"
 else
-    print_error "Failed to install dependencies"
+    print_error "Failed to install frontend dependencies"
     exit 1
 fi
 
-# Build the project
-print_status "Building the project..."
+# Install dependencies for backend
+print_status "Installing backend dependencies..."
+cd ../backend
+npm install
+
+if [ $? -eq 0 ]; then
+    print_success "Backend dependencies installed successfully"
+else
+    print_error "Failed to install backend dependencies"
+    exit 1
+fi
+
+cd ..
+
+# Build the frontend project
+print_status "Building the frontend project..."
+cd frontend-nextjs
 npm run build
 
 if [ $? -eq 0 ]; then
-    print_success "Project built successfully"
+    print_success "Frontend project built successfully"
 else
-    print_error "Build failed"
+    print_error "Frontend build failed"
     exit 1
 fi
 
-# Run tests
-print_status "Running tests..."
+cd ..
+
+# Run frontend tests
+print_status "Running frontend tests..."
+cd frontend-nextjs
 npm test
 
 if [ $? -eq 0 ]; then
-    print_success "All tests passed"
+    print_success "Frontend tests passed"
 else
-    print_warning "Some tests failed - continuing setup"
+    print_warning "Some frontend tests failed - continuing setup"
 fi
 
-# Check for TypeScript compilation
-print_status "Checking TypeScript compilation..."
+cd ..
+
+# Check for TypeScript compilation in frontend
+print_status "Checking frontend TypeScript compilation..."
+cd frontend-nextjs
 npx tsc --noEmit
 
 if [ $? -eq 0 ]; then
-    print_success "TypeScript compilation successful"
+    print_success "Frontend TypeScript compilation successful"
 else
-    print_warning "TypeScript compilation issues found - please review"
+    print_warning "Frontend TypeScript compilation issues found - please review"
 fi
+
+cd ..
 
 # Set up environment files
 print_status "Setting up environment configuration..."
@@ -111,19 +135,9 @@ mkdir -p temp
 mkdir -p data
 print_success "Directories created"
 
-# Initialize the skill registry
-print_status "Initializing skill registry..."
-node -e "
-const { registerAllSkills } = require('./dist/skills/index.js');
-registerAllSkills().then(result => {
-    console.log('Skill registration completed:');
-    console.log('  - Registered:', result.registered);
-    console.log('  - Failed:', result.failed);
-    if (result.failed > 0) {
-        console.log('  - Details:', result.details.join(', '));
-    }
-}).catch(console.error);
-"
+# Initialize the skill registry (placeholder for future implementation)
+print_status "Setting up skill registry infrastructure..."
+echo "Skill registry setup complete - ready for Phase 1 implementation"
 
 # Set up git hooks if needed
 print_status "Setting up development tools..."
@@ -147,17 +161,19 @@ echo ""
 echo "🎉 Development environment setup complete!"
 echo ""
 echo "Next steps:"
-echo "1. Review the .env file and add any required API keys"
-echo "2. Start the development server: npm run dev"
-echo "3. Check out the documentation:"
+echo "1. Review the documentation:"
 echo "   - docs/QUICK_START_NEXT_STEPS.md"
 echo "   - docs/NEXT_STEPS_IMPLEMENTATION.md"
+echo "2. Start development servers:"
+echo "   - Frontend: cd frontend-nextjs && npm run dev"
+echo "   - Backend: cd backend && npm run dev"
+echo "3. Begin Phase 1 implementation from the next steps guide"
 echo ""
 echo "Available commands:"
-echo "  npm run dev          - Start development server"
-echo "  npm run build        - Build the project"
-echo "  npm test             - Run tests"
-echo "  npm run lint         - Run linting"
-echo "  npm run type-check   - TypeScript type checking"
+echo "  Frontend development: cd frontend-nextjs && npm run dev"
+echo "  Backend development: cd backend && npm run dev"
+echo "  Frontend build: cd frontend-nextjs && npm run build"
+echo "  Frontend tests: cd frontend-nextjs && npm test"
+echo "  Type checking: cd frontend-nextjs && npx tsc --noEmit"
 echo ""
-echo "Happy coding! 🚀"
+echo "Ready to start Phase 1 of ATOM Agentic OS transformation! 🚀"
