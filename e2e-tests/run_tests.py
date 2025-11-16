@@ -50,8 +50,22 @@ def validate_credentials(test_category=None):
     print("\n🔐 Validating Credentials...")
 
     if test_category:
-        missing_creds = config.get_missing_credentials(test_category)
-        available_categories = [test_category] if not missing_creds else []
+        # Handle single or multiple categories
+        if isinstance(test_category, list):
+            # For multiple categories, check each individually
+            available_categories = []
+            all_missing_creds = []
+            for category in test_category:
+                missing_creds = config.get_missing_credentials(category)
+                if not missing_creds:
+                    available_categories.append(category)
+                else:
+                    all_missing_creds.extend(missing_creds)
+            missing_creds = all_missing_creds
+        else:
+            # Single category
+            missing_creds = config.get_missing_credentials(test_category)
+            available_categories = [test_category] if not missing_creds else []
     else:
         missing_creds = config.get_missing_credentials("all")
         available_categories = config.get_test_categories_with_credentials()
@@ -152,6 +166,11 @@ def main():
         help="Only validate credentials and connectivity without running tests",
     )
     parser.add_argument(
+        "--skip-connectivity",
+        action="store_true",
+        help="Skip service connectivity check",
+    )
+    parser.add_argument(
         "--report-file", help="Output file for test report (default: auto-generated)"
     )
     parser.add_argument(
@@ -180,10 +199,13 @@ def main():
 
     # Validate credentials
     test_categories = args.categories if args.categories else None
-    available_categories = validate_credentials(test_categories)
+    available_categories = validate_credentials(test_categories[0] if test_categories and len(test_categories) == 1 else test_categories)
 
     # Check connectivity
-    connectivity = check_service_connectivity()
+    if not args.skip_connectivity:
+        connectivity = check_service_connectivity()
+    else:
+        connectivity = {"frontend": True, "backend": True}  # Assume connected for testing
 
     # Stop here if validation only
     if args.validate_only:

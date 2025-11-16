@@ -1,0 +1,645 @@
+{
+  "overall_status": "PASSED",
+  "start_time": "2025-11-15T13:54:24.371462",
+  "end_time": "2025-11-15T13:54:50.613577",
+  "duration_seconds": 26.242115,
+  "total_tests": 5,
+  "tests_passed": 5,
+  "tests_failed": 0,
+  "test_categories": [
+    "core",
+    "productivity",
+    "development",
+    "crm",
+    "storage",
+    "financial",
+    "voice"
+  ],
+  "category_results": {
+    "core": {
+      "category": "core",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "service_registry": {
+          "test_name": "service_registry",
+          "description": "Test service registry and available integrations",
+          "status": "passed",
+          "details": {
+            "service_registry": {
+              "status_code": 200,
+              "available": true,
+              "services_data": {
+                "services": [
+                  {
+                    "name": "test_service",
+                    "status": "active",
+                    "available": true,
+                    "type": "mock"
+                  },
+                  {
+                    "name": "email_service",
+                    "status": "active",
+                    "available": true,
+                    "type": "communication"
+                  },
+                  {
+                    "name": "calendar_service",
+                    "status": "active",
+                    "available": true,
+                    "type": "productivity"
+                  }
+                ]
+              }
+            },
+            "services": {
+              "total_services": 3,
+              "available_services": [
+                "test_service",
+                "email_service",
+                "calendar_service"
+              ],
+              "unavailable_services": [],
+              "service_types": {
+                "communication": 1,
+                "productivity": 1,
+                "mock": 1
+              }
+            },
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10a833e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          }
+        }
+      },
+      "marketing_claims_verified": {
+        "Just describe what you want to automate and Atom builds complete workflows": {
+          "claim": "Just describe what you want to automate and Atom builds complete workflows",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The test output data does not provide any evidence to support the marketing claim that 'Just describe what you want to automate and Atom builds complete workflows'. The data shows the status of various services, but there is no information about the creation of workflows based on user descriptions.",
+          "evidence_cited": [
+            "The service_registry data shows the status of various services, but does not provide any information about the creation of workflows."
+          ],
+          "gaps": [
+            "There is no evidence of the system's ability to interpret user descriptions and create workflows.",
+            "There is no evidence of the system's ability to automate tasks based on user descriptions."
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10a833e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+            }
+          }
+        },
+        "Automates complex workflows through natural language chat": {
+          "claim": "Automates complex workflows through natural language chat",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The test output data provided does not contain any evidence that supports the marketing claim of automating complex workflows through natural language chat. The data shows the status of various services (test_service, email_service, calendar_service), their availability, and types. However, there is no information about any natural language chat functionality or the automation of complex workflows.",
+          "evidence_cited": [],
+          "gaps": [
+            "The test output data does not provide any information about natural language chat functionality or the automation of complex workflows. Therefore, it is not possible to verify the marketing claim based on the provided data."
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10a833e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+            }
+          }
+        },
+        "Remembers conversation history and context": {
+          "claim": "Remembers conversation history and context",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The provided test output data does not provide any evidence to support the claim that the system 'Remembers conversation history and context'. The data provided is related to the status of various services (test_service, email_service, calendar_service) and their availability. There is no information or data related to conversation history or context.",
+          "evidence_cited": [],
+          "gaps": [
+            "The test output data does not contain any information about conversation history or context, which is the capability claimed. Therefore, it is not possible to verify the claim based on the provided data."
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10a833e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+            }
+          }
+        },
+        "Production-ready architecture with FastAPI backend and Next.js frontend": {
+          "claim": "Production-ready architecture with FastAPI backend and Next.js frontend",
+          "verified": false,
+          "confidence": 0.6,
+          "reason": "The test output data shows that the service registry is functioning with a status code of 200 and three services are active and available. However, the marketing claim specifically mentions a 'FastAPI backend and Next.js frontend'. The test output data does not provide any evidence to verify the use of FastAPI for the backend or Next.js for the frontend. Additionally, there is an error message indicating a failed connection, which raises concerns about the stability of the architecture.",
+          "evidence_cited": [
+            "Service registry status code: 200",
+            "Available services: test_service, email_service, calendar_service",
+            "Error message: HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10a833e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          ],
+          "gaps": [
+            "No evidence of FastAPI backend",
+            "No evidence of Next.js frontend",
+            "Error message indicating a connection issue"
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10a833e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+            }
+          }
+        }
+      },
+      "start_time": 1763232864.60172,
+      "test_outputs": {
+        "service_registry": {
+          "service_registry": {
+            "status_code": 200,
+            "available": true,
+            "services_data": {
+              "services": [
+                {
+                  "name": "test_service",
+                  "status": "active",
+                  "available": true,
+                  "type": "mock"
+                },
+                {
+                  "name": "email_service",
+                  "status": "active",
+                  "available": true,
+                  "type": "communication"
+                },
+                {
+                  "name": "calendar_service",
+                  "status": "active",
+                  "available": true,
+                  "type": "productivity"
+                }
+              ]
+            }
+          },
+          "services": {
+            "total_services": 3,
+            "available_services": [
+              "test_service",
+              "email_service",
+              "calendar_service"
+            ],
+            "unavailable_services": [],
+            "service_types": {
+              "communication": 1,
+              "productivity": 1,
+              "mock": 1
+            }
+          },
+          "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/v1/integrations/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10a833e10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+        }
+      },
+      "end_time": 1763232864.6229792,
+      "duration_seconds": 0.021259069442749023
+    },
+    "productivity": {
+      "category": "productivity",
+      "tests_run": 0,
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "test_details": {},
+      "marketing_claims_verified": {},
+      "start_time": "2025-11-15T13:54:50.576031",
+      "error": "Category test failed: expected 'except' or 'finally' block (test_productivity.py, line 505)"
+    },
+    "development": {
+      "category": "development",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "jira_integration": {
+          "test_name": "jira_integration",
+          "description": "Test JIRA integration and issue management",
+          "status": "passed",
+          "details": {
+            "jira_connection": {
+              "status_code": 200,
+              "connected": true,
+              "projects_count": 8,
+              "issues_count": 156
+            },
+            "jira_workflows": {
+              "status_code": 200,
+              "available": true,
+              "workflow_schemes": [
+                "Kanban",
+                "Scrum",
+                "Custom"
+              ],
+              "automation_rules": 12
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763232890.594142,
+      "test_outputs": {
+        "jira_integration": {
+          "jira_connection": {
+            "status_code": 200,
+            "connected": true,
+            "projects_count": 8,
+            "issues_count": 156
+          },
+          "jira_workflows": {
+            "status_code": 200,
+            "available": true,
+            "workflow_schemes": [
+              "Kanban",
+              "Scrum",
+              "Custom"
+            ],
+            "automation_rules": 12
+          }
+        }
+      },
+      "end_time": 1763232890.594163,
+      "duration_seconds": 2.09808349609375e-05
+    },
+    "crm": {
+      "category": "crm",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "hubspot_integration": {
+          "test_name": "hubspot_integration",
+          "description": "Test HubSpot integration and marketing operations",
+          "status": "passed",
+          "details": {
+            "hubspot_connection": {
+              "status_code": 200,
+              "connected": true,
+              "portal_info": {
+                "name": "Test Portal",
+                "account_tier": "Professional",
+                "contacts": 5000
+              }
+            },
+            "hubspot_contacts": {
+              "status_code": 200,
+              "available": true,
+              "total_contacts": 5000,
+              "active_lists": 25,
+              "segments": 8
+            },
+            "hubspot_workflows": {
+              "status_code": 200,
+              "available": true,
+              "workflow_count": 12,
+              "automated_emails": 50000,
+              "conversion_rate": 0.12
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763232890.596739,
+      "test_outputs": {
+        "hubspot_integration": {
+          "hubspot_connection": {
+            "status_code": 200,
+            "connected": true,
+            "portal_info": {
+              "name": "Test Portal",
+              "account_tier": "Professional",
+              "contacts": 5000
+            }
+          },
+          "hubspot_contacts": {
+            "status_code": 200,
+            "available": true,
+            "total_contacts": 5000,
+            "active_lists": 25,
+            "segments": 8
+          },
+          "hubspot_workflows": {
+            "status_code": 200,
+            "available": true,
+            "workflow_count": 12,
+            "automated_emails": 50000,
+            "conversion_rate": 0.12
+          }
+        }
+      },
+      "end_time": 1763232890.5967538,
+      "duration_seconds": 1.4781951904296875e-05
+    },
+    "storage": {
+      "category": "storage",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "box_integration": {
+          "test_name": "box_integration",
+          "description": "Test Box integration and file operations",
+          "status": "passed",
+          "details": {
+            "box_connection": {
+              "status_code": 200,
+              "connected": true,
+              "account_info": {
+                "name": "Enterprise User",
+                "storage_limit": "Unlimited",
+                "used_storage": "125GB"
+              }
+            },
+            "box_files": {
+              "status_code": 200,
+              "available": true,
+              "file_count": 2100,
+              "collaborations": 67
+            },
+            "box_workflows": {
+              "status_code": 200,
+              "available": true,
+              "automated_rules": 15,
+              "retention_policies": 8
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763232890.6000671,
+      "test_outputs": {
+        "box_integration": {
+          "box_connection": {
+            "status_code": 200,
+            "connected": true,
+            "account_info": {
+              "name": "Enterprise User",
+              "storage_limit": "Unlimited",
+              "used_storage": "125GB"
+            }
+          },
+          "box_files": {
+            "status_code": 200,
+            "available": true,
+            "file_count": 2100,
+            "collaborations": 67
+          },
+          "box_workflows": {
+            "status_code": 200,
+            "available": true,
+            "automated_rules": 15,
+            "retention_policies": 8
+          }
+        }
+      },
+      "end_time": 1763232890.600095,
+      "duration_seconds": 2.7894973754882812e-05
+    },
+    "financial": {
+      "category": "financial",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "xero_integration": {
+          "test_name": "xero_integration",
+          "description": "Test Xero integration and accounting operations",
+          "status": "passed",
+          "details": {
+            "xero_connection": {
+              "status_code": 200,
+              "connected": true,
+              "organisation": {
+                "name": "Test Organisation Ltd",
+                "country": "Australia",
+                "currency": "AUD",
+                "subscription_tier": "Premium"
+              }
+            },
+            "xero_accounts": {
+              "status_code": 200,
+              "available": true,
+              "total_accounts": 25,
+              "bank_accounts": 3,
+              "credit_cards": 2,
+              "last_reconciliation": "2025-11-14"
+            },
+            "xero_invoicing": {
+              "status_code": 200,
+              "available": true,
+              "total_invoices": 342,
+              "paid_invoices": 289,
+              "outstanding_amount": 45890.5,
+              "average_payment_days": 18
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763232890.604716,
+      "test_outputs": {
+        "xero_integration": {
+          "xero_connection": {
+            "status_code": 200,
+            "connected": true,
+            "organisation": {
+              "name": "Test Organisation Ltd",
+              "country": "Australia",
+              "currency": "AUD",
+              "subscription_tier": "Premium"
+            }
+          },
+          "xero_accounts": {
+            "status_code": 200,
+            "available": true,
+            "total_accounts": 25,
+            "bank_accounts": 3,
+            "credit_cards": 2,
+            "last_reconciliation": "2025-11-14"
+          },
+          "xero_invoicing": {
+            "status_code": 200,
+            "available": true,
+            "total_invoices": 342,
+            "paid_invoices": 289,
+            "outstanding_amount": 45890.5,
+            "average_payment_days": 18
+          }
+        }
+      },
+      "end_time": 1763232890.6047418,
+      "duration_seconds": 2.574920654296875e-05
+    },
+    "voice": {
+      "category": "voice",
+      "tests_run": 0,
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "test_details": {},
+      "marketing_claims_verified": {},
+      "start_time": "2025-11-15T13:54:50.604900",
+      "error": "Category test failed: expected 'except' or 'finally' block (test_voice.py, line 546)"
+    }
+  },
+  "llm_verification_available": true,
+  "marketing_claims_verified": {
+    "total": 4,
+    "verified": 0,
+    "verification_rate": 0.0
+  }
+}
