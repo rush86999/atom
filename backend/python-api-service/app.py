@@ -55,7 +55,11 @@ def create_app(config_name='development'):
     socketio.init_app(app, message_queue=os.getenv('REDIS_URL'))
 
     # Enable CORS with environment-based origins
-    from .config import get_config
+    try:
+        from .config import get_config
+    except ImportError:
+        import config
+        get_config = config.get_config
     config = get_config(config_name)
     cors_origins = config.CORS_ORIGINS if hasattr(config, 'CORS_ORIGINS') else ["http://localhost:3000", "http://localhost:5173"]
 
@@ -74,16 +78,38 @@ def create_app(config_name='development'):
     )
 
     # Register blueprints
-    from .routes.auth import auth_bp
-    from .routes.tasks import tasks_bp
-    from .routes.calendar import calendar_bp
-    from .routes.communications import communications_bp
-    from .routes.integrations import integrations_bp
-    from .routes.workflows import workflows_bp
-    from .routes.agents import agents_bp
-    from .routes.finances import finances_bp
-    from .routes.voice import voice_bp
-    from .routes.health import health_bp
+    try:
+        from .routes.auth import auth_bp
+        from .routes.tasks import tasks_bp
+        from .routes.calendar import calendar_bp
+        from .routes.communications import communications_bp
+        from .routes.integrations import integrations_bp
+        from .routes.workflows import workflows_bp
+        from .routes.agents import agents_bp
+        from .routes.finances import finances_bp
+        from .routes.voice import voice_bp
+        from .routes.health import health_bp
+    except ImportError:
+        import routes.auth as auth
+        import routes.tasks as tasks
+        import routes.calendar as calendar
+        import routes.communications as communications
+        import routes.integrations as integrations
+        import routes.workflows as workflows
+        import routes.agents as agents
+        import routes.finances as finances
+        import routes.voice as voice
+        import routes.health as health
+        auth_bp = auth.auth_bp
+        tasks_bp = tasks.tasks_bp
+        calendar_bp = calendar.calendar_bp
+        communications_bp = communications.communications_bp
+        integrations_bp = integrations.integrations_bp
+        workflows_bp = workflows.workflows_bp
+        agents_bp = agents.agents_bp
+        finances_bp = finances.finances_bp
+        voice_bp = voice.voice_bp
+        health_bp = health.health_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(tasks_bp, url_prefix='/api/tasks')
@@ -222,7 +248,10 @@ def handle_socket_error(e):
     emit('error', {'message': 'Internal server error'})
 
 # Import models after app creation to avoid circular imports
-from . import models
+try:
+    from . import models
+except ImportError:
+    import models
 
 if __name__ == '__main__':
     app = create_app()

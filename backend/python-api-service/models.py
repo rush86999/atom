@@ -296,7 +296,7 @@ class AgentLog(db.Model):
     agent_name = db.Column(db.String(50), nullable=False)
     level = db.Column(db.String(20), default='info')  # info, warning, error
     message = db.Column(db.Text, nullable=False)
-    metadata = db.Column(db.JSON, default=dict)
+    log_metadata = db.Column(db.JSON, default=dict)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -305,7 +305,7 @@ class AgentLog(db.Model):
             'agent_name': self.agent_name,
             'level': self.level,
             'message': self.message,
-            'metadata': self.metadata,
+            'metadata': self.log_metadata,
             'timestamp': self.timestamp.isoformat()
         }
 

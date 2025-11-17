@@ -68,8 +68,8 @@ class PerformanceMonitor {
     this.config = {
       enableWebVitals: true,
       enableCustomMetrics: true,
-      enableRealTimeMonitoring: false,
-      enablePredictiveAnalytics: false,
+      enableRealTimeMonitoring: true,
+      enablePredictiveAnalytics: true,
       sampleRate: 1,
       ...config,
     };

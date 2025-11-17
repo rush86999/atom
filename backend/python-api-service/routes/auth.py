@@ -4,8 +4,16 @@ Authentication API routes
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
-from ..models import db, User
-from ..utils import generate_uuid, validate_user_data
+try:
+    from ..models import db, User
+    from ..utils import generate_uuid, validate_user_data
+except ImportError:
+    import models
+    import utils
+    db = models.db
+    User = models.User
+    generate_uuid = utils.generate_uuid
+    validate_user_data = utils.validate_user_data
 from datetime import datetime
 import logging
 

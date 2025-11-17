@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { FixedSizeList as List } from 'react-window';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAppStore } from '../store';
 
 interface VirtualizedListProps<T> {
@@ -15,6 +15,10 @@ interface VirtualizedListProps<T> {
   emptyMessage?: string;
   loading?: boolean;
   loadingComponent?: React.ReactNode;
+  loadMoreItems?: () => void;
+  hasMore?: boolean;
+  groupBy?: (item: T) => string;
+  filterBy?: (item: T, query: string) => boolean;
 }
 
 export function VirtualizedList<T>({
@@ -29,24 +33,68 @@ export function VirtualizedList<T>({
   emptyMessage = 'No items to display',
   loading = false,
   loadingComponent,
+  loadMoreItems,
+  hasMore,
+  groupBy,
+  filterBy,
 }: VirtualizedListProps<T>) {
   const { searchQuery } = useAppStore();
+  const listRef = useRef<List>(null);
 
-  // Filter items based on search query if provided
   const filteredItems = useMemo(() => {
     if (!searchQuery) return items;
-
-    return items.filter((item, index) => {
-      // If renderItem provides searchable text, we could enhance this
-      // For now, assume items have a 'title' or 'name' property
+    if (filterBy) {
+      return items.filter(item => filterBy(item, searchQuery));
+    }
+    return items.filter((item) => {
       const searchableText = (item as any).title || (item as any).name || '';
       return searchableText.toLowerCase().includes(searchQuery.toLowerCase());
     });
-  }, [items, searchQuery]);
+  }, [items, searchQuery, filterBy]);
+
+  const groupedItems = useMemo(() => {
+    if (!groupBy) return filteredItems.map(item => ({ type: 'item', data: item }));
+
+    const groups: { [key: string]: T[] } = {};
+    filteredItems.forEach(item => {
+      const groupKey = groupBy(item);
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(item);
+    });
+
+    const result: ({ type: 'header'; data: string } | { type: 'item'; data: T })[] = [];
+    Object.keys(groups).forEach(groupKey => {
+      result.push({ type: 'header', data: groupKey });
+      groups[groupKey].forEach(item => {
+        result.push({ type: 'item', data: item });
+      });
+    });
+    return result;
+  }, [filteredItems, groupBy]);
+
+  const handleScroll = ({ scrollOffset }: { scrollOffset: number }) => {
+    if (listRef.current && loadMoreItems && hasMore && !loading) {
+      const listHeight = containerHeight;
+      const listScrollHeight = (groupedItems.length * itemHeight);
+      if (scrollOffset + listHeight >= listScrollHeight - (itemHeight * 5)) {
+        loadMoreItems();
+      }
+    }
+  };
 
   const ItemWrapper = useCallback(
     ({ index, style }: { index: number; style: React.CSSProperties }) => {
-      const item = filteredItems[index];
+      const item = groupedItems[index];
+
+      if (item.type === 'header') {
+        return (
+          <div style={style} className="p-2 bg-gray-100 dark:bg-gray-800 font-bold">
+            {item.data}
+          </div>
+        );
+      }
 
       return (
         <motion.div
@@ -58,16 +106,16 @@ export function VirtualizedList<T>({
           className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
             selectedIndex === index ? 'bg-blue-50 dark:bg-blue-900/20' : ''
           }`}
-          onClick={() => onItemClick?.(item, index)}
+          onClick={() => onItemClick?.(item.data as T, index)}
         >
-          {renderItem(item, index)}
+          {renderItem(item.data as T, index)}
         </motion.div>
       );
     },
-    [filteredItems, renderItem, onItemClick, selectedIndex]
+    [groupedItems, renderItem, onItemClick, selectedIndex]
   );
 
-  if (loading) {
+  if (loading && groupedItems.length === 0) {
     return (
       <div
         className={`flex items-center justify-center ${className}`}
@@ -83,7 +131,7 @@ export function VirtualizedList<T>({
     );
   }
 
-  if (filteredItems.length === 0) {
+  if (groupedItems.length === 0) {
     return (
       <div
         className={`flex items-center justify-center text-gray-500 dark:text-gray-400 ${className}`}
@@ -97,14 +145,26 @@ export function VirtualizedList<T>({
   return (
     <div className={className}>
       <List
+        ref={listRef}
         height={containerHeight}
-        itemCount={filteredItems.length}
+        itemCount={groupedItems.length}
         itemSize={itemHeight}
         overscanCount={overscanCount}
         className="scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+        onScroll={handleScroll}
       >
         {ItemWrapper}
       </List>
+      {loading && groupedItems.length > 0 && (
+        <div className="flex items-center justify-center p-4">
+          {loadingComponent || (
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              <span className="text-gray-500 dark:text-gray-400">Loading...</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

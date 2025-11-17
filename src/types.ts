@@ -64,6 +64,8 @@ export interface Task {
     assignee?: string;
     tags?: string[];
     subtasks?: Subtask[];
+    version: number;
+    _optimistic?: boolean;
 }
 
 export interface Note {
