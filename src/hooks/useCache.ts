@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getPerformanceMonitor } from '../utils/performance';
 import lzString from 'lz-string';
 import { Timer } from '../utils/timer';
 
@@ -20,7 +19,11 @@ class Cache {
   public hits: number = 0;
   public misses: number = 0;
 
-  constructor(private options: { enablePersistence?: boolean } = {}) {}
+  constructor(private options: { enablePersistence?: boolean } = {}) {
+    if (this.options.enablePersistence) {
+      this.loadFromPersistence();
+    }
+  }
 
   get<T>(key: string): T | null {
     const entry = this.cache.get(key);
@@ -48,11 +51,12 @@ class Cache {
 
     if (this.options.enablePersistence) {
       try {
-        localStorage.setItem(`cache_${key}`, JSON.stringify({
+        const compressedData = lzString.compressToUTF16(JSON.stringify({
           data,
           timestamp: Date.now(),
           ttl,
         }));
+        localStorage.setItem(`cache_${key}`, compressedData);
       } catch (e) {
         console.warn('Failed to persist cache entry:', e);
       }
@@ -97,6 +101,29 @@ class Cache {
       console.warn('Prefetch failed:', err);
     });
   }
+
+  private loadFromPersistence(): void {
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('cache_')) {
+          const compressedData = localStorage.getItem(key);
+          if (compressedData) {
+            const decompressedData = lzString.decompressFromUTF16(compressedData);
+            if (decompressedData) {
+              const entry = JSON.parse(decompressedData);
+              if (Date.now() - entry.timestamp < entry.ttl) {
+                this.cache.set(key.replace('cache_', ''), entry);
+              } else {
+                localStorage.removeItem(key);
+              }
+            }
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to load persisted cache:', e);
+    }
+  }
 }
 
 // Global cache instance
@@ -114,6 +141,7 @@ export const useCache = <T>(
     refetchOnWindowFocus?: boolean;
     refetchInterval?: number;
     optimisticUpdate?: (currentData: T | null) => T;
+    initialData?: T;
   } = {}
 ) => {
   const {
@@ -121,37 +149,31 @@ export const useCache = <T>(
     refetchOnWindowFocus = false,
     refetchInterval,
     optimisticUpdate,
+    initialData,
     ...cacheOptions
   } = options;
 
-  const [data, setData] = useState<T | null>(null);
+  const [data, setData] = useState<T | null>(initialData || null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [isStale, setIsStale] = useState(false);
 
   const fetchRef = useRef(fetcher);
-  const intervalRef = useRef<NodeJS.Timeout | undefined>();
+  const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const mountedRef = useRef(true);
   const previousDataRef = useRef<T | null>(null);
+  const initializedRef = useRef(false);
 
   // Update fetcher ref when it changes
   useEffect(() => {
     fetchRef.current = fetcher;
   }, [fetcher]);
 
-  // Prefetch data if enabled
-  useEffect(() => {
-    if (enabled) {
-      globalCache.prefetch(key, fetchRef.current);
-    }
-  }, [key, enabled]);
-
   const fetchData = useCallback(async (force = false) => {
     if (!enabled || !mountedRef.current) return;
 
     let startTime = 0;
     try {
-      const monitor = getPerformanceMonitor();
       startTime = performance.now();
     } catch (e) {
       console.warn('Performance monitoring not available:', e);
@@ -164,9 +186,9 @@ export const useCache = <T>(
       setIsLoading(true);
       setError(null);
 
-      // Apply optimistic update if provided
+      // Apply optimistic update if provided and force
       if (optimisticUpdate && force) {
-        const optimisticData = optimisticUpdate(data);
+        const optimisticData = optimisticUpdate(previousDataRef.current);
         if (mountedRef.current) {
           setData(optimisticData);
         }
@@ -233,7 +255,7 @@ export const useCache = <T>(
         setIsLoading(false);
       }
     }
-  }, [key, enabled, cacheOptions.ttl, cacheOptions.backgroundRefresh, optimisticUpdate, data]);
+  }, [key, enabled, cacheOptions.ttl, cacheOptions.backgroundRefresh, optimisticUpdate]);
 
   const refetch = useCallback(() => {
     return fetchData(true);
@@ -247,8 +269,11 @@ export const useCache = <T>(
 
   // Initial fetch
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      fetchData();
+    }
+  }, [key]); // Only depend on key, not fetchData
 
   // Refetch on window focus
   useEffect(() => {
@@ -310,6 +335,41 @@ export const useCache = <T>(
     };
   }, [key]);
 
+  const mutate = useCallback(async (updater: (currentData: T | null) => T, options: { optimistic?: boolean } = {}) => {
+    const { optimistic = true } = options;
+    const previousData = data;
+    let updatedData: T;
+    
+    try {
+      updatedData = updater(previousData);
+      
+      // Update cache and state with optimistic data
+      globalCache.set(key, updatedData, cacheOptions.ttl);
+      if (optimistic && mountedRef.current) {
+        setData(updatedData);
+      }
+      
+      // Fetch actual data from server
+      const serverData = await fetchRef.current();
+      globalCache.set(key, serverData, cacheOptions.ttl);
+      if (mountedRef.current) {
+        setData(serverData);
+        setError(null);
+      }
+    } catch (err) {
+      // Revert to previous data on error
+      if (mountedRef.current) {
+        setData(previousData);
+      }
+      const error = err instanceof Error ? err : new Error(String(err));
+      if (mountedRef.current) {
+        setError(error);
+      }
+      console.warn(`Mutation error for ${key}:`, err);
+      throw error;
+    }
+  }, [key, data, cacheOptions.ttl]);
+
   return {
     data,
     isLoading,
@@ -317,6 +377,7 @@ export const useCache = <T>(
     isStale,
     refetch,
     invalidate,
+    mutate,
   };
 };
 
