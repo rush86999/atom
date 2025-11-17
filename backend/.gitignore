@@ -1,0 +1,55 @@
+
+# Credentials and secrets
+**/credentials.json
+**/api_keys.json
+**/secrets.json
+**/.env
+**/.env.local
+**/.env.production
+**/private_keys.json
+
+# API Keys patterns
+*sk-proj*
+*sk-ant*
+*sk-8fd*
+*xoxb*
+*github_pat*
+*AIza*
+*secret_*
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test reports and logs
+*.log
+test_reports/
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Large files
+*.sqlite3
+*.db
