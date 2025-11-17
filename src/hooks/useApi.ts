@@ -1,6 +1,9 @@
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
+import { io } from 'socket.io-client';
 import { useAppStore } from '../store';
+import type { Task, Workflow } from '../types';
 
 // Configure axios defaults
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';

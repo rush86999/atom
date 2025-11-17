@@ -308,6 +308,15 @@ export interface NotificationPreference {
     frequency: 'immediate' | 'hourly' | 'daily' | 'weekly';
 }
 
+export interface Notification {
+    id?: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+    timestamp?: number;
+    duration?: number;
+}
+
 export interface PerformanceMetric {
     id: string;
     component: string;

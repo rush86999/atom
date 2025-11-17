@@ -137,4 +137,134 @@ describe('useCache', () => {
       expect(fetcher).toHaveBeenCalledTimes(2);
     }, { timeout: 1000 });
   });
+
+  it('should apply optimistic update on refetch', async () => {
+    const initialData = { id: 1, name: 'Test' };
+    const optimisticData = { id: 1, name: 'Optimistic Test' };
+    const finalData = { id: 1, name: 'Final Test' };
+    let fetcherResult = initialData;
+    const fetcher = jest.fn().mockImplementation(() => Promise.resolve(fetcherResult));
+
+    const { result } = renderHook(() =>
+      useCache('test-key', fetcher, { optimisticUpdate: () => optimisticData })
+    );
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(initialData);
+    });
+
+    fetcherResult = finalData;
+    act(() => {
+      result.current.refetch();
+    });
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(finalData);
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('should revert optimistic update on error', async () => {
+    const initialData = { id: 1, name: 'Test' };
+    const optimisticData = { id: 1, name: 'Optimistic Test' };
+    let shouldFail = false;
+    const fetcher = jest.fn().mockImplementation(() => {
+      if (shouldFail) {
+        return Promise.reject(new Error('Fetch failed'));
+      }
+      return Promise.resolve(initialData);
+    });
+
+    const { result } = renderHook(() =>
+      useCache('test-key', fetcher, { optimisticUpdate: () => optimisticData })
+    );
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(initialData);
+    });
+
+    shouldFail = true;
+    act(() => {
+      result.current.refetch();
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy();
+      expect(result.current.data).toEqual(initialData); // Reverted
+    });
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(initialData);
+    });
+
+    act(() => {
+      result.current.refetch();
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy();
+      expect(result.current.data).toEqual(initialData); // Reverted
+    });
+  });
+
+  it('should mutate with optimistic update', async () => {
+    const initialData = { count: 0 };
+    const optimisticData = { count: 1 };
+    const finalData = { count: 2 };
+    let fetcherResult = initialData;
+    const fetcher = jest.fn().mockImplementation(() => Promise.resolve(fetcherResult));
+
+    const { result } = renderHook(() =>
+      useCache('test-key', fetcher)
+    );
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(initialData);
+    });
+
+    // Change the fetcher result for the next call
+    fetcherResult = finalData;
+    act(() => {
+      result.current.mutate(() => optimisticData);
+    });
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(finalData);
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('should revert mutation on error', async () => {
+    const initialData = { count: 0 };
+    const optimisticData = { count: 1 };
+    let shouldFail = false;
+    const fetcher = jest.fn().mockImplementation(() => {
+      if (shouldFail) {
+        return Promise.reject(new Error('Mutation failed'));
+      }
+      return Promise.resolve(initialData);
+    });
+
+    const { result } = renderHook(() =>
+      useCache('test-key', fetcher)
+    );
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(initialData);
+    });
+
+    shouldFail = true;
+    await act(async () => {
+      try {
+        await result.current.mutate(() => optimisticData);
+      } catch (error) {
+        // Error is expected
+      }
+    });
+
+    expect(result.current.error).toBeTruthy();
+    expect(result.current.data).toEqual(initialData); // Reverted
+  });
 });
