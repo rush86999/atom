@@ -3,12 +3,14 @@ import { VoiceCommand } from '../types';
 import { VOICE_COMMANDS_DATA } from '../data';
 import { useAppStore } from '../store';
 import { useToast } from '../components/NotificationSystem';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 export const VoiceView = () => {
     const { voiceCommands, setVoiceCommands } = useAppStore();
     const { toast } = useToast();
     const [commands, setCommands] = useState<VoiceCommand[]>(voiceCommands);
     const [isListening, setIsListening] = useState(false);
+    const { emit } = useWebSocket({ enabled: true });
 
     useEffect(() => {
         if (voiceCommands.length === 0) {
@@ -22,6 +24,11 @@ export const VoiceView = () => {
     const toggleListening = () => {
         setIsListening(!isListening);
         toast.info('Voice Control', isListening ? 'Voice listening stopped' : 'Voice listening started');
+        if (!isListening) {
+            try { emit && emit('voice:activation', { active: true }); } catch (e) {}
+        } else {
+            try { emit && emit('voice:activation', { active: false }); } catch (e) {}
+        }
     };
 
     return (

@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider } from './components/ThemeProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationSystem } from './components/NotificationSystem';
+import { WebSocketProvider } from './contexts/WebSocketProvider';
 import { initializePerformanceMonitoring } from './utils/performance';
 import MainLayout from './components/MainLayout';
 
@@ -64,27 +65,29 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <Router>
           <ThemeProvider>
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<Navigate to="/dashboard" replace />} />
-                  <Route path="dashboard" element={<DashboardView />} />
-                  <Route path="tasks" element={<TasksView />} />
-                  <Route path="agents" element={<AgentsView />} />
-                  <Route path="calendar" element={<CalendarView />} />
-                  <Route path="communications" element={<CommunicationsView />} />
-                  <Route path="settings" element={<SettingsView />} />
-                  <Route path="chat" element={<ChatView />} />
-                  <Route path="voice" element={<VoiceView />} />
-                  <Route path="notes" element={<NotesView />} />
-                  <Route path="integrations" element={<IntegrationsView />} />
-                  <Route path="workflows" element={<WorkflowsView />} />
-                  <Route path="finances" element={<FinancesView />} />
-                  <Route path="dev" element={<DevStudioView />} />
-                  <Route path="docs" element={<DocsView />} />
-                </Route>
-              </Routes>
-            </Suspense>
+            <WebSocketProvider>
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
+                  <Route path="/" element={<MainLayout />}>
+                    <Route index element={<Navigate to="/dashboard" replace />} />
+                    <Route path="dashboard" element={<DashboardView />} />
+                    <Route path="tasks" element={<TasksView />} />
+                    <Route path="agents" element={<AgentsView />} />
+                    <Route path="calendar" element={<CalendarView />} />
+                    <Route path="communications" element={<CommunicationsView />} />
+                    <Route path="settings" element={<SettingsView />} />
+                    <Route path="chat" element={<ChatView />} />
+                    <Route path="voice" element={<VoiceView />} />
+                    <Route path="notes" element={<NotesView />} />
+                    <Route path="integrations" element={<IntegrationsView />} />
+                    <Route path="workflows" element={<WorkflowsView />} />
+                    <Route path="finances" element={<FinancesView />} />
+                    <Route path="dev" element={<DevStudioView />} />
+                    <Route path="docs" element={<DocsView />} />
+                  </Route>
+                </Routes>
+              </Suspense>
+            </WebSocketProvider>
             <NotificationSystem />
           </ThemeProvider>
         </Router>

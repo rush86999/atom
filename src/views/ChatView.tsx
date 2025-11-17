@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { ChatMessage } from '../types';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const Message: React.FC<{ message: ChatMessage }> = ({ message }) => (
     <div className={`message ${message.role === "user" ? "user-message" : "atom-message"}`}>
@@ -14,6 +15,7 @@ const Message: React.FC<{ message: ChatMessage }> = ({ message }) => (
 export const ChatView = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [remoteTypingUsers, setRemoteTypingUsers] = useState<string[]>([]);
   const [chat, setChat] = useState<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -42,6 +44,41 @@ export const ChatView = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // WebSocket: subscribe to incoming chat messages and typing indicators
+  useEffect(() => {
+    const { subscribe, unsubscribe, emit } = useWebSocket({ enabled: true });
+
+    const onMessageNew = (payload: any) => {
+      if (!payload) return;
+      const msg: ChatMessage = {
+        id: payload.id || `remote-${Date.now()}`,
+        role: payload.role || 'assistant',
+        content: payload.content || payload.text || '',
+      };
+      setMessages(prev => [...prev, msg]);
+    };
+
+    const onTypingStart = (data: any) => {
+      if (!data?.username) return;
+      setRemoteTypingUsers(prev => Array.from(new Set([...prev, data.username])));
+    };
+
+    const onTypingStop = (data: any) => {
+      if (!data?.username) return;
+      setRemoteTypingUsers(prev => prev.filter(u => u !== data.username));
+    };
+
+    subscribe('message:new', onMessageNew);
+    subscribe('typing:start', onTypingStart);
+    subscribe('typing:stop', onTypingStop);
+
+    return () => {
+      unsubscribe('message:new', onMessageNew);
+      unsubscribe('typing:start', onTypingStart);
+      unsubscribe('typing:stop', onTypingStop);
+    };
+  }, []);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -74,6 +111,14 @@ export const ChatView = () => {
 
       setMessages((prev) => prev.map((msg) => msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg));
 
+      // Emit the user message to server so other clients receive it
+      try {
+        const { emit } = useWebSocket({ enabled: true });
+        emit && emit('message:new', { id: userMessage.id, role: 'user', content: userMessage.content, from: { name: 'You' } });
+      } catch (e) {
+        // ignore
+      }
+
     } catch (error) {
       console.error("Error sending message:", error);
       setMessages((prev) =>
@@ -86,10 +131,24 @@ export const ChatView = () => {
     }
   };
 
+  // Emit typing indicators while user types
+  useEffect(() => {
+    const { emit } = useWebSocket({ enabled: true });
+    if (!emit) return;
+    if (inputValue && inputValue.length > 0) {
+      emit('typing:start', { channelId: 'chat-global', username: 'You' });
+      const t = setTimeout(() => emit('typing:stop', { channelId: 'chat-global', username: 'You' }), 2000);
+      return () => clearTimeout(t);
+    } else {
+      emit('typing:stop', { channelId: 'chat-global', username: 'You' });
+    }
+  }, [inputValue]);
+
   return (
     <div className="chat-container">
       <header className="chat-header"><h1>Atom AI Assistant</h1><p>Your life, managed.</p></header>
       <div className="message-list">{messages.map((msg) => (<Message key={msg.id} message={msg} />))}<div ref={messagesEndRef} /></div>
+      <div className="typing-indicator">{remoteTypingUsers.length > 0 && <small>{remoteTypingUsers.join(', ')} typing...</small>}</div>
       <footer className="chat-footer">
         <form onSubmit={handleSubmit} className="input-form">
           <textarea ref={textareaRef} value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder={chat ? "Ask Atom anything..." : "AI disabled. Set VITE_GOOGLE_API_KEY to enable."} rows={1} disabled={isStreaming || !chat} aria-label="Chat input" />

@@ -15,6 +15,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSa
 import { useAppStore } from '../store';
 import { AdvancedModal, ConfirmModal } from '../components/AdvancedModal';
 import { useToast } from '../components/NotificationSystem';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 
 interface CalendarEvent {
@@ -32,6 +33,7 @@ interface CalendarEvent {
 const CalendarView: React.FC = () => {
   const { calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, setCalendarEvents } = useAppStore();
   const { toast } = useToast();
+  const { subscribe, unsubscribe, emit } = useWebSocket({ enabled: true });
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -67,6 +69,20 @@ const CalendarView: React.FC = () => {
       ];
       setCalendarEvents(sampleEvents);
     }
+    // Subscribe to calendar events
+    const onCreated = (ev: any) => { addCalendarEvent(ev); toast.info('Event created', ev.title || 'New calendar event'); };
+    const onUpdated = (ev: any) => { updateCalendarEvent(ev.id, ev); toast.info('Event updated', ev.title || 'Calendar event updated'); };
+    const onDeleted = (ev: any) => { deleteCalendarEvent(ev.id); toast.info('Event deleted', ev.title || 'Calendar event removed'); };
+
+    subscribe('calendar:event:created', onCreated);
+    subscribe('calendar:event:updated', onUpdated);
+    subscribe('calendar:event:deleted', onDeleted);
+
+    return () => {
+      unsubscribe('calendar:event:created', onCreated);
+      unsubscribe('calendar:event:updated', onUpdated);
+      unsubscribe('calendar:event:deleted', onDeleted);
+    };
   }, [calendarEvents.length, setCalendarEvents]);
 
   const monthStart = startOfMonth(currentDate);
@@ -169,12 +185,14 @@ const CalendarView: React.FC = () => {
     if (editingEvent) {
       updateCalendarEvent(editingEvent.id, eventData);
       toast.success('Event Updated', 'Calendar event has been updated');
+      try { emit && emit('calendar:event:updated', { id: editingEvent.id, ...eventData }); } catch (e) {}
     } else {
       addCalendarEvent({
         id: Date.now().toString(),
         ...eventData,
       });
       toast.success('Event Created', 'New calendar event has been added');
+      try { emit && emit('calendar:event:created', { id: Date.now().toString(), ...eventData }); } catch (e) {}
     }
     setShowEventModal(false);
     setEditingEvent(null);

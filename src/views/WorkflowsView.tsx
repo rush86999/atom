@@ -3,15 +3,37 @@ import { Workflow } from '../types';
 import { WORKFLOWS_DATA } from '../data';
 import { useAppStore } from '../store';
 import { useToast } from '../components/NotificationSystem';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 export const WorkflowsView = () => {
     const { workflows, setWorkflows, addWorkflow, updateWorkflow, deleteWorkflow } = useAppStore();
     const { toast } = useToast();
+    const { subscribe, unsubscribe } = useWebSocket({ enabled: true });
 
     useEffect(() => {
         if (workflows.length === 0) {
             WORKFLOWS_DATA.forEach(workflow => addWorkflow(workflow));
         }
+
+        const onExecuted = (data: any) => {
+            if (!data?.workflowId) return;
+            toast.success('Workflow Executed', `Workflow ${data.workflowId} executed in ${data.executionTime}ms`);
+            // Optionally update execution count if present
+            const wf = workflows.find(w => w.id === data.workflowId);
+            if (wf) updateWorkflow(data.workflowId, { executionCount: (wf.executionCount || 0) + 1, lastExecuted: data.timestamp || new Date().toISOString() });
+        };
+
+        const onFailed = (data: any) => {
+            toast.error('Workflow Failed', data.error || 'Workflow execution failed');
+        };
+
+        subscribe('workflow:executed', onExecuted);
+        subscribe('workflow:execution:failed', onFailed);
+
+        return () => {
+            unsubscribe('workflow:executed', onExecuted);
+            unsubscribe('workflow:execution:failed', onFailed);
+        };
     }, [workflows.length, addWorkflow]);
 
     return (

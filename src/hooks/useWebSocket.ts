@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useWebSocketContext } from '../contexts/WebSocketProvider';
 import { useAppStore } from '../store';
 import { CommunicationsMessage } from '../types';
 import { AutonomousCommunicationOrchestrator } from '../autonomous-communication/autonomousCommunicationOrchestrator';
@@ -34,6 +35,7 @@ interface UseWebSocketOptions {
   batchUpdateInterval?: number;
   maxConcurrentConnections?: number;
   enableAutonomousCommunication?: boolean;
+  recentRooms?: string[];
 }
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
@@ -66,10 +68,12 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     batchUpdateInterval = 100,
     maxConcurrentConnections = 5,
     enableAutonomousCommunication = false,
+    recentRooms = [],
   } = options;
 
   const socketRef = useRef<Socket | null>(null);
   const messageQueueRef = useRef<any[]>([]);
+  const handlersRef = useRef<Map<string, Set<(...args: any[]) => void>>>(new Map());
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const healthCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -77,6 +81,9 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   const lastPongRef = useRef<number>(Date.now());
   const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed'>('disconnected');
   const { setConnected, addNotification } = useAppStore();
+
+  // Check for a global provider but do not early-return (keep hook call order stable)
+  const wsContext = useWebSocketContext();
 
   // New refs for advanced features
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -178,6 +185,25 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       } else {
         socketRef.current.off(event);
       }
+    }
+  }, []);
+
+  const subscribe = useCallback((event: string, callback: (...args: any[]) => void) => {
+    if (!handlersRef.current.has(event)) handlersRef.current.set(event, new Set());
+    handlersRef.current.get(event)!.add(callback);
+    if (socketRef.current) socketRef.current.on(event, callback);
+  }, []);
+
+  const unsubscribe = useCallback((event: string, callback?: (...args: any[]) => void) => {
+    const set = handlersRef.current.get(event);
+    if (callback) {
+      set?.delete(callback);
+      if (socketRef.current) socketRef.current.off(event, callback);
+    } else {
+      set?.forEach((cb) => {
+        if (socketRef.current) socketRef.current.off(event, cb as any);
+      });
+      handlersRef.current.delete(event);
     }
   }, []);
 
@@ -297,6 +323,20 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     concurrentConnectionsRef.current = Math.max(0, concurrentConnectionsRef.current - 1);
   }, []);
 
+  // Load persisted queued messages (if any)
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const persisted = localStorage.getItem('ws_message_queue');
+        if (persisted) {
+          messageQueueRef.current = JSON.parse(persisted);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load persisted WS queue', e);
+    }
+  }, []);
+
   // Create socket on mount with autoConnect: false
   useEffect(() => {
     socketRef.current = io(url, {
@@ -337,6 +377,17 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       // Emit presence if enabled
       if (enablePresence && userId) {
         socket.emit('presence:join', { userId, username });
+      }
+
+      // Auto-join recent rooms/projects if provided
+      if (Array.isArray(recentRooms) && recentRooms.length > 0) {
+        recentRooms.forEach((r) => {
+          try {
+            socket.emit('join_project', r);
+          } catch (e) {
+            console.warn('Auto-join room failed', r, e);
+          }
+        });
       }
 
       addNotification({
@@ -442,6 +493,50 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     };
   }, [enabled, connect, disconnect]);
 
+  // Persist queued messages periodically so they survive refreshes
+  useEffect(() => {
+    const id = setInterval(() => {
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ws_message_queue', JSON.stringify(messageQueueRef.current || []));
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 2000);
+
+    return () => clearInterval(id);
+  }, []);
+
+  // If a global provider exists, delegate to it (after all hooks called)
+  if (wsContext && wsContext.socket) {
+    return {
+      socket: wsContext.socket,
+      isConnected: !!wsContext.socket.connected,
+      connectionState: wsContext.socket.connected ? 'connected' : 'disconnected',
+      connect: () => wsContext.socket?.connect(),
+      disconnect: () => wsContext.socket?.disconnect(),
+      emit: wsContext.emit,
+      on: wsContext.on,
+      off: wsContext.off,
+      subscribe: wsContext.subscribe,
+      unsubscribe: wsContext.unsubscribe,
+      // noop placeholders for advanced features when provider is used
+      encryptData: (d: any) => d,
+      decryptData: (d: any) => d,
+      compressData: (d: any) => d,
+      decompressData: (d: any) => d,
+      batchEmit: () => {},
+      sendTypingIndicator: () => {},
+      sendReadReceipt: () => {},
+      sendMessageReaction: () => {},
+      sendCursorPosition: () => {},
+      trackAnalytics: () => {},
+      checkConcurrentConnections: () => true,
+      releaseConcurrentConnection: () => {},
+    } as any;
+  }
+
   return {
     socket: socketRef.current,
     isConnected: socketRef.current?.connected || false,
@@ -450,6 +545,8 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     disconnect,
     emit,
     on,
+    subscribe,
+    unsubscribe,
     off,
     // Advanced features
     encryptData,
@@ -720,13 +817,27 @@ export const useRealtimeSync = () => {
 
     // Presence events
     presenceJoined: (user: any) => {
-      console.log('User joined presence:', user);
-      // Handle user presence updates
+      try {
+        addNotification({
+          type: 'info',
+          title: 'User Online',
+          message: `${user?.username || user?.userId || 'Someone'} joined`,
+        });
+      } catch (e) {
+        console.log('User joined presence:', user);
+      }
     },
 
     presenceLeft: (user: any) => {
-      console.log('User left presence:', user);
-      // Handle user presence updates
+      try {
+        addNotification({
+          type: 'info',
+          title: 'User Offline',
+          message: `${user?.username || user?.userId || 'Someone'} left`,
+        });
+      } catch (e) {
+        console.log('User left presence:', user);
+      }
     },
 
     // Collaborative editing events
@@ -867,3 +978,6 @@ export const useOptimisticUpdate = () => {
 
   return { optimisticUpdate };
 };
+
+// Default export for compatibility with components using default import
+export default useWebSocket;
