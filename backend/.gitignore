@@ -53,3 +53,19 @@ temp/
 # Large files
 *.sqlite3
 *.db
+
+# Development and test files
+dev/
+tests/legacy/
+logs/
+
+# Additional log patterns
+*.log
+*.out
+*.err
+
+# Development artifacts
+test_*.py
+*_test.py
+temp_*.py
+debug_*.py
