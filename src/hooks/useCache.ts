@@ -1,155 +1,86 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getPerformanceMonitor } from '../utils/performance';
 import lzString from 'lz-string';
+import { Timer } from '../utils/timer';
+
+// Cache interfaces and class
+interface CacheOptions {
+  ttl?: number;
+  backgroundRefresh?: boolean;
+}
 
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
   ttl: number;
-  accessCount?: number;
-  compressed?: boolean;
-  size?: number;
 }
 
-interface CacheOptions {
-  ttl?: number; // Time to live in milliseconds
-  maxSize?: number; // Maximum cache size
-  strategy?: 'lru' | 'fifo' | 'lfu'; // Cache eviction strategy
-  enablePersistence?: boolean; // Enable localStorage persistence
-  enableCompression?: boolean; // Enable data compression
-  backgroundRefresh?: boolean; // Enable background refresh
-  prefetch?: boolean; // Enable prefetching
-}
+class Cache {
+  private cache: Map<string, CacheEntry<any>> = new Map();
+  public hits: number = 0;
+  public misses: number = 0;
 
-class Cache<T = any> {
-  private cache = new Map<string, CacheEntry<T>>();
-  private accessOrder = new Set<string>();
-  private options: Required<CacheOptions>;
+  constructor(private options: { enablePersistence?: boolean } = {}) {}
 
-  constructor(options: CacheOptions = {}) {
-    this.options = {
-      ttl: options.ttl || 5 * 60 * 1000, // 5 minutes default
-      maxSize: options.maxSize || 100,
-      strategy: options.strategy || 'lru',
-      enablePersistence: options.enablePersistence || false,
-      enableCompression: options.enableCompression || false,
-      backgroundRefresh: options.backgroundRefresh || false,
-      prefetch: options.prefetch || false,
-    };
-  }
-
-  get(key: string): T | null {
+  get<T>(key: string): T | null {
     const entry = this.cache.get(key);
-    if (!entry) return null;
-
-    // Check if expired
-    if (Date.now() - entry.timestamp > entry.ttl) {
-      this.cache.delete(key);
-      this.accessOrder.delete(key);
+    if (!entry) {
+      this.misses++;
       return null;
     }
 
-    // Update access order for LRU
-    if (this.options.strategy === 'lru') {
-      this.accessOrder.delete(key);
-      this.accessOrder.add(key);
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.cache.delete(key);
+      this.misses++;
+      return null;
     }
 
-    // Increment access count for LFU
-    if (this.options.strategy === 'lfu') {
-      entry.accessCount = (entry.accessCount || 0) + 1;
-    }
-
-    // Decompress if compressed
-    if (entry.compressed && typeof entry.data === 'string') {
-      try {
-        const decompressed = lzString.decompressFromUTF16(entry.data as string);
-        return JSON.parse(decompressed);
-      } catch (e) {
-        console.warn('Failed to decompress cache entry:', e);
-        return null;
-      }
-    }
-
+    this.hits++;
     return entry.data;
   }
 
-  set(key: string, data: T, ttl?: number): void {
-    // Evict if cache is full
-    if (this.cache.size >= this.options.maxSize) {
-      this.evict();
-    }
+  set<T>(key: string, data: T, ttl: number = 300000): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    });
 
-    let processedData = data;
-    let compressed = false;
-
-    // Compress data if enabled and data is large
-    if (this.options.enableCompression && typeof data === 'object' && data !== null) {
+    if (this.options.enablePersistence) {
       try {
-        const jsonString = JSON.stringify(data);
-        if (jsonString.length > 1000) { // Only compress if > 1KB
-          const compressedString = lzString.compressToUTF16(jsonString);
-          processedData = compressedString as any;
-          compressed = true;
-        }
+        localStorage.setItem(`cache_${key}`, JSON.stringify({
+          data,
+          timestamp: Date.now(),
+          ttl,
+        }));
       } catch (e) {
-        console.warn('Failed to compress cache entry:', e);
+        console.warn('Failed to persist cache entry:', e);
       }
     }
-
-    const entry: CacheEntry<T> = {
-      data: processedData,
-      timestamp: Date.now(),
-      ttl: ttl || this.options.ttl,
-      compressed,
-      accessCount: 0,
-    };
-
-    this.cache.set(key, entry);
-    this.accessOrder.add(key);
   }
 
   delete(key: string): void {
     this.cache.delete(key);
-    this.accessOrder.delete(key);
+    if (this.options.enablePersistence) {
+      try {
+        localStorage.removeItem(`cache_${key}`);
+      } catch (e) {
+        console.warn('Failed to remove persisted cache entry:', e);
+      }
+    }
   }
 
   clear(): void {
     this.cache.clear();
-    this.accessOrder.clear();
-  }
-
-  private evict(): void {
-    if (this.options.strategy === 'lru') {
-      // Remove least recently used
-      const firstKey = this.accessOrder.values().next().value;
-      if (firstKey) {
-        this.cache.delete(firstKey);
-        this.accessOrder.delete(firstKey);
-      }
-    } else if (this.options.strategy === 'fifo') {
-      // FIFO - remove oldest
-      const firstKey = this.accessOrder.values().next().value;
-      if (firstKey) {
-        this.cache.delete(firstKey);
-        this.accessOrder.delete(firstKey);
-      }
-    } else if (this.options.strategy === 'lfu') {
-      // LFU - remove least frequently used
-      let leastUsedKey: string | null = null;
-      let minAccessCount = Infinity;
-
-      for (const key of this.accessOrder) {
-        const entry = this.cache.get(key);
-        if (entry && (entry as any).accessCount < minAccessCount) {
-          minAccessCount = (entry as any).accessCount || 0;
-          leastUsedKey = key;
-        }
-      }
-
-      if (leastUsedKey) {
-        this.cache.delete(leastUsedKey);
-        this.accessOrder.delete(leastUsedKey);
+    if (this.options.enablePersistence) {
+      try {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('cache_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (e) {
+        console.warn('Failed to clear persisted cache:', e);
       }
     }
   }
@@ -157,10 +88,23 @@ class Cache<T = any> {
   size(): number {
     return this.cache.size;
   }
+
+  prefetch<T>(key: string, fetcher: () => Promise<T>): void {
+    // Prefetch data in the background
+    fetcher().then(data => {
+      this.set(key, data);
+    }).catch(err => {
+      console.warn('Prefetch failed:', err);
+    });
+  }
 }
 
 // Global cache instance
-const globalCache = new Cache({});
+const globalCache = new Cache({
+  enablePersistence: true,
+});
+
+const backgroundRefreshTimers = new Map<string, Timer>();
 
 export const useCache = <T>(
   key: string,
@@ -169,12 +113,14 @@ export const useCache = <T>(
     enabled?: boolean;
     refetchOnWindowFocus?: boolean;
     refetchInterval?: number;
+    optimisticUpdate?: (currentData: T | null) => T;
   } = {}
 ) => {
   const {
     enabled = true,
     refetchOnWindowFocus = false,
     refetchInterval,
+    optimisticUpdate,
     ...cacheOptions
   } = options;
 
@@ -186,30 +132,47 @@ export const useCache = <T>(
   const fetchRef = useRef(fetcher);
   const intervalRef = useRef<NodeJS.Timeout | undefined>();
   const mountedRef = useRef(true);
+  const previousDataRef = useRef<T | null>(null);
 
   // Update fetcher ref when it changes
   useEffect(() => {
     fetchRef.current = fetcher;
   }, [fetcher]);
 
+  // Prefetch data if enabled
+  useEffect(() => {
+    if (enabled) {
+      globalCache.prefetch(key, fetchRef.current);
+    }
+  }, [key, enabled]);
+
   const fetchData = useCallback(async (force = false) => {
     if (!enabled || !mountedRef.current) return;
 
     let startTime = 0;
     try {
-      // Try to get performance monitor, but don't fail if it's not available
       const monitor = getPerformanceMonitor();
       startTime = performance.now();
     } catch (e) {
-      // Performance monitoring not available, continue without it
       console.warn('Performance monitoring not available:', e);
     }
+
+    // Store previous data for potential reversion
+    previousDataRef.current = data;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      let cachedData = globalCache.get(key);
+      // Apply optimistic update if provided
+      if (optimisticUpdate && force) {
+        const optimisticData = optimisticUpdate(data);
+        if (mountedRef.current) {
+          setData(optimisticData);
+        }
+      }
+
+      let cachedData = globalCache.get<T>(key);
 
       if (!cachedData || force) {
         const freshData = await fetchRef.current();
@@ -219,17 +182,21 @@ export const useCache = <T>(
 
         // Background refresh if enabled
         if (cacheOptions.backgroundRefresh && !force) {
-          setTimeout(async () => {
-            try {
-              const newData = await fetchRef.current();
+          if (backgroundRefreshTimers.has(key)) {
+            backgroundRefreshTimers.get(key)!.stop();
+          }
+          const callback = () => {
+            fetchRef.current().then(newData => {
               globalCache.set(key, newData, cacheOptions.ttl);
               if (mountedRef.current) {
                 setData(newData);
               }
-            } catch (e) {
+            }).catch(e => {
               console.warn('Background refresh failed:', e);
-            }
-          }, (cacheOptions.ttl || 300000) * 0.9); // Refresh before expiration
+            });
+          };
+          const timer = new Timer(callback, (cacheOptions.ttl || 300000) * 0.9);
+          backgroundRefreshTimers.set(key, timer);
         }
       } else {
         // Check if data is stale (close to expiration)
@@ -243,7 +210,6 @@ export const useCache = <T>(
         setData(cachedData);
       }
 
-      // Track cache performance if available
       if (startTime > 0) {
         try {
           const duration = performance.now() - startTime;
@@ -253,8 +219,13 @@ export const useCache = <T>(
         }
       }
     } catch (err) {
+      // Revert optimistic update on error
+      if (optimisticUpdate && force && mountedRef.current && previousDataRef.current !== undefined) {
+        setData(previousDataRef.current);
+      }
       if (mountedRef.current) {
-        setError(err as Error);
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
       }
       console.warn(`Cache error for ${key}:`, err);
     } finally {
@@ -262,7 +233,7 @@ export const useCache = <T>(
         setIsLoading(false);
       }
     }
-  }, [key, enabled, cacheOptions.ttl, cacheOptions.backgroundRefresh]);
+  }, [key, enabled, cacheOptions.ttl, cacheOptions.backgroundRefresh, optimisticUpdate, data]);
 
   const refetch = useCallback(() => {
     return fetchData(true);
@@ -304,6 +275,26 @@ export const useCache = <T>(
     };
   }, [fetchData, refetchInterval]);
 
+  // Pause and resume background refresh on window focus/blur
+  useEffect(() => {
+    const handleFocus = () => {
+      if (backgroundRefreshTimers.has(key)) {
+        backgroundRefreshTimers.get(key)!.resume();
+      }
+    };
+    const handleBlur = () => {
+      if (backgroundRefreshTimers.has(key)) {
+        backgroundRefreshTimers.get(key)!.pause();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [key]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -312,8 +303,12 @@ export const useCache = <T>(
         clearInterval(intervalRef.current);
         intervalRef.current = undefined;
       }
+      if (backgroundRefreshTimers.has(key)) {
+        backgroundRefreshTimers.get(key)!.stop();
+        backgroundRefreshTimers.delete(key);
+      }
     };
-  }, []);
+  }, [key]);
 
   return {
     data,
@@ -341,15 +336,18 @@ export const useCacheStats = () => {
     hitRate: 0,
     totalRequests: 0,
     cacheHits: 0,
+    cacheMisses: 0,
   });
 
   useEffect(() => {
     const updateStats = () => {
+      const totalRequests = globalCache.hits + globalCache.misses;
       setStats({
         size: globalCache.size(),
-        hitRate: 0, // Would need to track this separately
-        totalRequests: 0,
-        cacheHits: 0,
+        hitRate: totalRequests > 0 ? globalCache.hits / totalRequests : 0,
+        totalRequests,
+        cacheHits: globalCache.hits,
+        cacheMisses: globalCache.misses,
       });
     };
 

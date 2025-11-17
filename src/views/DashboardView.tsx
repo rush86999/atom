@@ -22,6 +22,7 @@ import {
     HEALTH_DATA
 } from '../data';
 import { useAppStore } from '../store';
+import PerformanceTimeline from '../components/PerformanceTimeline';
 
 // Helper function to check if a date is today
 const isToday = (date: Date) => {
@@ -304,7 +305,8 @@ export const DashboardView = () => {
         setLoading,
         setError,
         isLoading,
-        errors
+        errors,
+        setCurrentView
     } = useAppStore();
 
     const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -420,8 +422,8 @@ export const DashboardView = () => {
         const widget = widgets.find(w => w.id === widgetId);
         if (!widget?.visible) return null;
 
-        const isLoading = isLoading[widgetId] || false;
-        const error = errors[widgetId];
+        const isWidgetLoading = isLoading[widgetId] || false;
+        const widgetError = errors[widgetId];
 
         const widgetContent = () => {
             switch (widgetId) {
@@ -460,9 +462,9 @@ export const DashboardView = () => {
                         role="article"
                         aria-label={`${widget.title} widget`}
                     >
-                        {isLoading && <div className="loading-spinner" aria-label="Loading">Loading...</div>}
-                        {error && <div className="error-message" role="alert">{error}</div>}
-                        {!isLoading && !error && widgetContent()}
+                        {isWidgetLoading && <div className="loading-spinner" aria-label="Loading">Loading...</div>}
+                        {widgetError && <div className="error-message" role="alert">{widgetError}</div>}
+                        {!isWidgetLoading && !widgetError && widgetContent()}
                     </div>
                 )}
             </Draggable>
@@ -541,7 +543,7 @@ export const DashboardView = () => {
                             aria-label="Note content"
                         ></textarea>
                         <div className="modal-actions">
-                            <button onClick={handleCreateNote} disabled={!newNoteTitle.trim()} aria-label="Create note">Create</button>
+                            <button onClick={() => handleCreateNote} disabled={!newNoteTitle.trim()} aria-label="Create note">Create</button>
                             <button onClick={() => setShowNoteModal(false)} aria-label="Cancel note creation">Cancel</button>
                         </div>
                     </div>
