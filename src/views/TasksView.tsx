@@ -4,6 +4,7 @@ import { TASKS_DATA } from '../data';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAppStore } from '../store';
 import { useToast } from '../components/NotificationSystem';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; onToggleSubtask: (taskId: string, subtaskId: string) => void; }> = ({ task, onToggleImportant, onToggleSubtask }) => {
     const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'completed';
@@ -78,6 +79,7 @@ const TaskColumn: React.FC<{ title: string; tasks: Task[]; status: Task['status'
 export const TasksView = () => {
     const { tasks, setTasks, updateTask, deleteTask, addTask } = useAppStore();
     const { toast } = useToast();
+    const { subscribe, unsubscribe, emit } = useWebSocket({ enabled: true });
     const [statusFilter, setStatusFilter] = useState('all');
     const [priorityFilter, setPriorityFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState('');
@@ -89,6 +91,24 @@ export const TasksView = () => {
         if (tasks.length === 0) {
             setTasks(TASKS_DATA);
         }
+        // Subscribe to task events
+        const onTaskCreated = (task: any) => {
+            setTasks(prev => [task, ...prev]);
+            toast.info('Task Created', task.title || 'A new task was created');
+        };
+
+        const onTaskUpdated = (task: any) => {
+            updateTask(task.id, task);
+            toast.info('Task Updated', task.title || 'A task was updated');
+        };
+
+        subscribe('task:created', onTaskCreated);
+        subscribe('task:updated', onTaskUpdated);
+
+        return () => {
+            unsubscribe('task:created', onTaskCreated);
+            unsubscribe('task:updated', onTaskUpdated);
+        };
     }, [tasks.length, setTasks]);
 
     const handleToggleImportant = (taskId: string) => {
@@ -117,6 +137,7 @@ export const TasksView = () => {
 
         updateTask(result.draggableId, { status: destination.droppableId as Task['status'] });
         toast.success('Task Moved', `Task moved to ${destination.droppableId.replace('_', ' ')}`);
+        try { emit && emit('task:updated', { id: result.draggableId, status: destination.droppableId }); } catch (e) {}
     };
 
     const clearFilters = () => {

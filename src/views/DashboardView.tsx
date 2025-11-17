@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import {
     CalendarEvent,
@@ -23,6 +23,7 @@ import {
 } from '../data';
 import { useAppStore } from '../store';
 import PerformanceTimeline from '../components/PerformanceTimeline';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 // Helper function to check if a date is today
 const isToday = (date: Date) => {
@@ -304,10 +305,67 @@ export const DashboardView = () => {
         addNote,
         setLoading,
         setError,
-        isLoading,
+        loading,
         errors,
-        setCurrentView
+        setCurrentView,
+        addNotification
     } = useAppStore();
+
+        // Presence list maintained locally from socket events
+        const [presenceList, setPresenceList] = useState<Array<{ userId?: string; username?: string; socketId?: string; room?: string }>>([]);
+        const { subscribe, unsubscribe, emit, isConnected } = useWebSocket({ enabled: true });
+
+        const [serverMetrics, setServerMetrics] = useState<{ currentConnections: number; messagesSent: number; messagesReceived: number }>({ currentConnections: 0, messagesSent: 0, messagesReceived: 0 });
+        const saveTimeoutRef = useRef<number | null>(null);
+
+        useEffect(() => {
+            const onJoin = (user: any) => {
+                setPresenceList(prev => {
+                    const exists = prev.find(p => p.socketId === user.socketId || p.userId === user.userId);
+                    if (exists) return prev;
+                    return [...prev, user];
+                });
+            };
+
+            const onLeave = (user: any) => {
+                setPresenceList(prev => prev.filter(p => p.socketId !== user.socketId && p.userId !== user.userId));
+            };
+
+            subscribe('presence:joined', onJoin);
+            subscribe('presence:left', onLeave);
+            // server metrics
+            const onMetrics = (m: any) => {
+                setServerMetrics(prev => ({
+                    currentConnections: typeof m.currentConnections === 'number' ? m.currentConnections : prev.currentConnections,
+                    messagesSent: typeof m.messagesSent === 'number' ? m.messagesSent : prev.messagesSent,
+                    messagesReceived: typeof m.messagesReceived === 'number' ? m.messagesReceived : prev.messagesReceived,
+                }));
+            };
+            subscribe('metrics:update', onMetrics);
+
+            return () => {
+                unsubscribe('presence:joined', onJoin);
+                unsubscribe('presence:left', onLeave);
+                unsubscribe('metrics:update', onMetrics);
+            };
+        }, [subscribe, unsubscribe]);
+
+        const handleBroadcast = async () => {
+            const message = window.prompt('Enter announcement to broadcast to connected clients:');
+            if (!message) return;
+            try {
+                emit?.('broadcast:announcement', { from: (userProfile as any)?.id, text: message, timestamp: new Date().toISOString() });
+                addNotification?.({ type: 'success', title: 'Broadcast Sent', message: 'Announcement sent to connected clients' });
+            } catch (e) {
+                addNotification?.({ type: 'error', title: 'Broadcast Failed', message: 'Failed to send announcement' });
+            }
+        };
+
+        const handleStartDM = (p: any) => {
+            // Emit an intent to start a DM and navigate to chat view
+            emit?.('dm:init', { from: (userProfile as any)?.id, to: p.userId || p.socketId });
+            setCurrentView('chat');
+        };
 
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [weather, setWeather] = useState<WeatherData>(WEATHER_DATA);
@@ -326,7 +384,7 @@ export const DashboardView = () => {
         setEvents(getCalendarEventsForMonth(today.getFullYear(), today.getMonth()));
     }, []);
 
-    // Real-time data polling
+    // Real-time data polling (faster refresh)
     useEffect(() => {
         const pollData = () => {
             try {
@@ -350,17 +408,16 @@ export const DashboardView = () => {
                 setLoading('transactions', false);
             }
         };
-
         pollData(); // Initial load
-        const interval = setInterval(pollData, 30000); // Poll every 30 seconds
+        const interval = setInterval(pollData, 15000); // Poll every 15 seconds for snappier updates
         return () => clearInterval(interval);
     }, [setLoading, setError]);
 
-    const handleTaskUpdate = (taskId: string, updates: Partial<Task>) => {
+    const handleTaskUpdate = useCallback((taskId: string, updates: Partial<Task>) => {
         updateTask(taskId, updates);
-    };
+    }, [updateTask]);
 
-    const handleCreateTask = () => {
+    const handleCreateTask = useCallback(() => {
         if (newTaskTitle.trim()) {
             addTask({
                 id: `task-${Date.now()}`,
@@ -372,15 +429,16 @@ export const DashboardView = () => {
                 isImportant: false,
                 assignee: userProfile?.name || 'User',
                 tags: [],
-                subtasks: []
+                subtasks: [],
+                version: 1,
             });
             setNewTaskTitle('');
             setNewTaskDescription('');
             setShowTaskModal(false);
         }
-    };
+    }, [newTaskTitle, newTaskDescription, addTask, userProfile]);
 
-    const handleCreateNote = () => {
+    const handleCreateNote = useCallback(() => {
         if (newNoteTitle.trim()) {
             addNote({
                 id: `note-${Date.now()}`,
@@ -394,9 +452,9 @@ export const DashboardView = () => {
             setNewNoteContent('');
             setShowNoteModal(false);
         }
-    };
+    }, [newNoteTitle, newNoteContent, addNote]);
 
-    const handleDragEnd = (result: DropResult) => {
+    const handleDragEnd = useCallback((result: DropResult) => {
         if (!result.destination) return;
 
         const items = Array.from(widgets);
@@ -406,23 +464,46 @@ export const DashboardView = () => {
         // Update positions
         const updatedItems = items.map((item, index) => ({ ...item, position: index }));
         setWidgets(updatedItems);
+        // Persist will be handled by debounced effect below
+    }, [widgets, setWidgets]);
 
-        // Persist to localStorage or user profile
-        localStorage.setItem('dashboardWidgets', JSON.stringify(updatedItems));
-    };
-
-    const toggleWidgetVisibility = (widgetId: string) => {
+    const toggleWidgetVisibility = useCallback((widgetId: string) => {
         const updatedWidgets = widgets.map(widget =>
             widget.id === widgetId ? { ...widget, visible: !widget.visible } : widget
         );
         setWidgets(updatedWidgets);
-    };
+    }, [widgets, setWidgets]);
+
+    // Debounced save to localStorage when widgets change
+    useEffect(() => {
+        if (saveTimeoutRef.current) {
+            window.clearTimeout(saveTimeoutRef.current);
+        }
+        // store id returned by setTimeout (number in browsers)
+        saveTimeoutRef.current = window.setTimeout(() => {
+            try {
+                localStorage.setItem('dashboardWidgets', JSON.stringify(widgets));
+            } catch (e) {
+                // ignore storage errors
+            }
+            saveTimeoutRef.current = null;
+        }, 500);
+
+        return () => {
+            if (saveTimeoutRef.current) {
+                window.clearTimeout(saveTimeoutRef.current);
+                saveTimeoutRef.current = null;
+            }
+        };
+    }, [widgets]);
+
+    const sortedWidgets = useMemo(() => widgets.slice().sort((a, b) => a.position - b.position), [widgets]);
 
     const renderWidget = (widgetId: string) => {
         const widget = widgets.find(w => w.id === widgetId);
         if (!widget?.visible) return null;
 
-        const isWidgetLoading = isLoading[widgetId] || false;
+        const isWidgetLoading = loading[widgetId] || false;
         const widgetError = errors[widgetId];
 
         const widgetContent = () => {
@@ -436,6 +517,20 @@ export const DashboardView = () => {
                 case 'health': return <HealthMetricsWidget health={health} />;
                 case 'productivity': return <ProductivityChart tasks={tasks} />;
                 case 'clock': return <RealTimeClock />;
+                case 'advanced-project':
+                    return (
+                        <div className="dashboard-card advanced-project-card">
+                            <h3>Advanced Project</h3>
+                            <p>Active connections: {serverMetrics.currentConnections}</p>
+                            <p>Messages sent: {serverMetrics.messagesSent}</p>
+                            <p>Messages received: {serverMetrics.messagesReceived}</p>
+                            <p>Online collaborators: {presenceList.length}</p>
+                            <div className="advanced-actions">
+                                <button onClick={() => handleBroadcast?.()} aria-label="Broadcast announcement">Broadcast</button>
+                                <button onClick={() => setCurrentView('projects')} aria-label="Open projects">Open Projects</button>
+                            </div>
+                        </div>
+                    );
                 case 'quick-actions':
                     return (
                         <div className="dashboard-card quick-actions" role="region" aria-labelledby="quick-actions-title">
@@ -474,7 +569,7 @@ export const DashboardView = () => {
     return (
         <div className="dashboard-view">
             <header className="view-header">
-                <h1>Welcome back, {userProfile?.name.split(' ')[0]}!</h1>
+                <h1>Welcome back, {userProfile?.name ? userProfile.name.split(' ')[0] : 'there'}!</h1>
                 <p>Here's a snapshot of your day.</p>
                 <button
                     onClick={() => setShowWidgetSettings(true)}
@@ -495,9 +590,26 @@ export const DashboardView = () => {
                             role="main"
                             aria-label="Dashboard widgets"
                         >
-                            {widgets
-                                .sort((a, b) => a.position - b.position)
-                                .map(widget => renderWidget(widget.id))}
+                            {/* Presence panel */}
+                            <div className="dashboard-widget presence-panel" role="region" aria-label="Presence">
+                                <div className="dashboard-card">
+                                    <h3>Active Now</h3>
+                                    {presenceList.length === 0 ? (
+                                        <p className="text-sm text-gray-500">No one else is online</p>
+                                    ) : (
+                                        <ul className="presence-list">
+                                            {presenceList.map(p => (
+                                                <li key={p.socketId || p.userId} className="presence-item">
+                                                    <span className="presence-dot" aria-hidden style={{ background: '#34d399', display: 'inline-block', width: 10, height: 10, borderRadius: 999 }}></span>
+                                                    <span className="presence-name">{p.username || p.userId || 'Unknown'}</span>
+                                                    {p.room && <small className="presence-room">{p.room}</small>}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                            {sortedWidgets.map(widget => renderWidget(widget.id))}
                             {provided.placeholder}
                         </div>
                     )}
@@ -543,7 +655,7 @@ export const DashboardView = () => {
                             aria-label="Note content"
                         ></textarea>
                         <div className="modal-actions">
-                            <button onClick={() => handleCreateNote} disabled={!newNoteTitle.trim()} aria-label="Create note">Create</button>
+                            <button onClick={handleCreateNote} disabled={!newNoteTitle.trim()} aria-label="Create note">Create</button>
                             <button onClick={() => setShowNoteModal(false)} aria-label="Cancel note creation">Cancel</button>
                         </div>
                     </div>

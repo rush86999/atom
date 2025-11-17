@@ -18,10 +18,34 @@ const io = socketIo(server, {
   },
 });
 
+// Optional socket auth middleware. Set WS_SECRET to enable token-based socket auth.
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth && socket.handshake.auth.token;
+    if (!process.env.WS_SECRET) return next(); // auth disabled when no secret
+    if (token && token === process.env.WS_SECRET) return next();
+    const err = new Error('Authentication error');
+    // @ts-ignore
+    err.data = { message: 'Invalid token' };
+    return next(err);
+  } catch (err) {
+    return next(err);
+  }
+});
+
 // Real build tracking
 const buildStates = new Map();
 const projectStates = new Map();
 const connectedClients = new Map();
+
+// Presence tracking and lightweight metrics
+const presenceMap = new Map(); // socketId -> { userId, username, room }
+const metrics = {
+  totalConnections: 0,
+  currentConnections: 0,
+  messagesReceived: 0,
+  messagesSent: 0,
+};
 
 // Middleware
 app.use(cors());
@@ -38,6 +62,46 @@ app.get("/health", (req, res) => {
     activeProjects: projectStates.size,
     connectedClients: connectedClients.size,
   });
+});
+
+// Metrics endpoint: connection and message stats
+app.get('/metrics', (req, res) => {
+  const rooms = {};
+  try {
+    for (const [name] of Object.entries(io.sockets.adapter.rooms || {})) {
+      rooms[name] = io.sockets.adapter.rooms.get(name)?.size || 0;
+    }
+  } catch (e) {
+    // adapter shape may vary; ignore
+  }
+
+  res.json({
+    totalConnections: metrics.totalConnections,
+    currentConnections: metrics.currentConnections,
+    messagesReceived: metrics.messagesReceived,
+    messagesSent: metrics.messagesSent,
+    rooms,
+  });
+});
+
+// Simple admin broadcast (protected by WS_SECRET header when set)
+app.post('/api/broadcast', async (req, res) => {
+  try {
+    const { room, event = 'broadcast', payload } = req.body || {};
+    if (process.env.WS_SECRET && req.headers['x-admin-token'] !== process.env.WS_SECRET) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (room) {
+      io.to(room).emit(event, payload);
+    } else {
+      io.emit(event, payload);
+    }
+    metrics.messagesSent += 1;
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Real project status endpoint
@@ -124,7 +188,9 @@ app.post("/webhook/build-status", async (req, res) => {
     }
 
     // Broadcast to all connected desktop clients
+    metrics.messagesSent += 1;
     io.emit("build_status", { buildId, build });
+    metrics.messagesSent += 1;
     io.to(`project-${projectId}`).emit("project_update", { projectId, build });
 
     res.json({ received: true, buildId });
@@ -138,6 +204,73 @@ app.post("/webhook/build-status", async (req, res) => {
 io.on("connection", (socket) => {
   console.log("Desktop client connected:", socket.id);
   connectedClients.set(socket.id, { connectedAt: new Date() });
+  metrics.totalConnections += 1;
+  metrics.currentConnections = connectedClients.size;
+
+  // Presence: join/leave
+  socket.on('presence:join', (user) => {
+    try {
+      const { userId, username, room } = user || {};
+      presenceMap.set(socket.id, { userId, username, room });
+      const target = room ? `project-${room}` : null;
+      if (target) {
+        io.to(target).emit('presence:joined', { userId, username, socketId: socket.id, room });
+      } else {
+        io.emit('presence:joined', { userId, username, socketId: socket.id });
+      }
+      metrics.messagesSent += 1;
+    } catch (e) {
+      console.warn('presence:join handler error', e);
+    }
+  });
+
+  socket.on('presence:leave', (user) => {
+    try {
+      const { userId, username, room } = user || {};
+      presenceMap.delete(socket.id);
+      const target = room ? `project-${room}` : null;
+      if (target) {
+        io.to(target).emit('presence:left', { userId, username, socketId: socket.id, room });
+      } else {
+        io.emit('presence:left', { userId, username, socketId: socket.id });
+      }
+      metrics.messagesSent += 1;
+    } catch (e) {
+      console.warn('presence:leave handler error', e);
+    }
+  });
+
+  // Typing indicators (volatile - not critical)
+  socket.on('typing:start', (data) => {
+    try {
+      const { channelId, userId, username } = data || {};
+      socket.to(`project-${channelId}`).volatile.emit('typing:start', { channelId, userId, username });
+      metrics.messagesSent += 1;
+    } catch (e) {
+      console.warn('typing:start error', e);
+    }
+  });
+
+  socket.on('typing:stop', (data) => {
+    try {
+      const { channelId, userId, username } = data || {};
+      socket.to(`project-${channelId}`).volatile.emit('typing:stop', { channelId, userId, username });
+      metrics.messagesSent += 1;
+    } catch (e) {
+      console.warn('typing:stop error', e);
+    }
+  });
+
+  // Count incoming messages for lightweight metrics
+  if (typeof socket.onAny === 'function') {
+    socket.onAny((event, ...args) => {
+      try {
+        metrics.messagesReceived += 1;
+      } catch (e) {
+        // ignore
+      }
+    });
+  }
 
   socket.on("join_project", (projectId) => {
     socket.join(`project-${projectId}`);
@@ -196,7 +329,9 @@ io.on("connection", (socket) => {
     projectStates.set(projectId, project);
 
     // Emit initial state
+    metrics.messagesSent += 1;
     socket.emit("build_status", { buildId, build });
+    metrics.messagesSent += 1;
     io.to(`project-${projectId}`).emit("project_update", {
       projectId,
       project,
@@ -235,7 +370,9 @@ io.on("connection", (socket) => {
       build.logs.push("Build dispatched to GitHub Actions");
       buildStates.set(buildId, build);
 
+      metrics.messagesSent += 1;
       socket.emit("build_status", { buildId, build });
+      metrics.messagesSent += 1;
       io.to(`project-${projectId}`).emit("project_update", {
         projectId,
         project,
@@ -251,7 +388,9 @@ io.on("connection", (socket) => {
       project.status = "failed";
       projectStates.set(projectId, project);
 
+      metrics.messagesSent += 1;
       socket.emit("build_error", { buildId, error: error.message });
+      metrics.messagesSent += 1;
       io.to(`project-${projectId}`).emit("project_error", {
         projectId,
         error: error.message,
@@ -293,7 +432,9 @@ io.on("connection", (socket) => {
       build.endTime = new Date();
       buildStates.set(buildId, build);
 
+      metrics.messagesSent += 1;
       socket.emit("build_status", { buildId, build });
+      metrics.messagesSent += 1;
       io.to(`project-${build.projectId}`).emit("project_update", {
         projectId: build.projectId,
         project: projectStates.get(build.projectId),
@@ -317,7 +458,9 @@ io.on("connection", (socket) => {
       // Remove project
       projectStates.delete(projectId);
 
+      metrics.messagesSent += 1;
       socket.emit("project_deleted", { projectId });
+      metrics.messagesSent += 1;
       io.emit("project_removed", { projectId });
     } catch (error) {
       socket.emit("project_error", { projectId, error: error.message });
@@ -327,6 +470,22 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("Desktop client disconnected:", socket.id);
     connectedClients.delete(socket.id);
+    // Update metrics
+    metrics.currentConnections = connectedClients.size;
+
+    // Remove presence if it exists and broadcast leave
+    const p = presenceMap.get(socket.id);
+    if (p) {
+      const { userId, username, room } = p;
+      const target = room ? `project-${room}` : null;
+      if (target) {
+        io.to(target).emit('presence:left', { userId, username, socketId: socket.id, room });
+      } else {
+        io.emit('presence:left', { userId, username, socketId: socket.id });
+      }
+      presenceMap.delete(socket.id);
+      metrics.messagesSent += 1;
+    }
   });
 });
 
@@ -359,6 +518,15 @@ server.listen(PORT, () => {
   console.log(`✅ Ready for desktop connections`);
   console.log(`🌐 Health check available at http://localhost:${PORT}/health`);
 });
+
+// Periodically broadcast metrics so clients can render live charts
+setInterval(() => {
+  try {
+    io.emit('metrics:update', { ...metrics, timestamp: new Date().toISOString() });
+  } catch (e) {
+    // ignore
+  }
+}, 5000);
 
 // Graceful shutdown
 process.on("SIGTERM", () => {

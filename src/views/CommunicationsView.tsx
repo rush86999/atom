@@ -9,6 +9,7 @@ import { ServiceIcon } from '../components/ServiceIcon';
 import { useAppStore } from '../store';
 import { useToast } from '../components/NotificationSystem';
 import { CommunicationAnalyzer } from '../autonomous-communication/communicationAnalyzer';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const timeAgo = (date: string) => {
     const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
@@ -43,6 +44,21 @@ export const CommunicationsView = () => {
     const { messages, setMessages, markMessageAsRead, deleteMessage } = useAppStore();
     const { toast } = useToast();
     const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+    const { subscribe, unsubscribe, emit } = useWebSocket({ enabled: true });
+
+    // Live incoming messages
+    useEffect(() => {
+        const onMessageNew = (payload: any) => {
+            if (!payload) return;
+            setMessages(prev => [payload, ...prev]);
+            toast.info('New Message', payload.subject || payload.preview || 'You have a new message');
+        };
+
+        subscribe('message:new', onMessageNew);
+        return () => {
+            unsubscribe('message:new', onMessageNew);
+        };
+    }, [subscribe, unsubscribe, setMessages, toast]);
 
     // New states for filters
     const [senderFilter, setSenderFilter] = useState('');
@@ -160,6 +176,12 @@ export const CommunicationsView = () => {
 
     const sendMessage = () => {
         // Placeholder for sending message
+        // Emit to server so other clients can receive
+        try {
+            emit && emit('communications:send', { to: composeForm.to, subject: composeForm.subject, body: composeForm.body });
+        } catch (e) {
+            console.warn('Emit failed', e);
+        }
         alert(`Message sent to ${composeForm.to}`);
         setShowComposeModal(false);
         setComposeForm({ to: '', subject: '', body: '' });

@@ -8,6 +8,7 @@ export const AgentsView = () => {
     const { agents, setAgents, updateAgent } = useAppStore();
     const { toast } = useToast();
     const [logs] = useState<AgentLog[]>(AGENT_LOGS_DATA);
+    const { subscribe, unsubscribe } = useWebSocket({ enabled: true });
     const [showConfigModal, setShowConfigModal] = useState(false);
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
     const [expandedLogs, setExpandedLogs] = useState(false);
@@ -16,6 +17,25 @@ export const AgentsView = () => {
         if (agents.length === 0) {
             setAgents(AGENTS_DATA);
         }
+        const onAgentLog = (log: any) => {
+            // push into logs area (this component holds initial logs only)
+            // For simplicity, just show a toast
+            toast.info('Agent Log', log.message || 'Agent activity');
+        };
+
+        const onAgentStatus = (agent: any) => {
+            if (!agent?.id) return;
+            updateAgent(agent.id, { status: agent.status });
+            toast.info('Agent Status', `${agent.name || agent.id} is now ${agent.status}`);
+        };
+
+        subscribe('agent:log', onAgentLog);
+        subscribe('agent:status:changed', onAgentStatus);
+
+        return () => {
+            unsubscribe('agent:log', onAgentLog);
+            unsubscribe('agent:status:changed', onAgentStatus);
+        };
     }, [agents.length, setAgents]);
 
     const handleToggleAgent = (agentId: string) => {

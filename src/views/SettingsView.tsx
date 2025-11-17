@@ -3,6 +3,7 @@ import { UserProfile, IntegrationConfig, AdvancedSettings } from '../types';
 import { USER_PROFILE_DATA, LANGUAGES, TIMEZONES, INTEGRATION_CONFIGS_DATA } from '../data';
 import { useAppStore } from '../store';
 import { useToast } from '../components/NotificationSystem';
+import useWebSocket from '../hooks/useWebSocket';
 
 export const SettingsView = () => {
     const { userProfile, setUserProfile, integrations, setIntegrations, updateIntegration } = useAppStore();
@@ -50,8 +51,11 @@ export const SettingsView = () => {
     const handleIntegrationToggle = (id: string) => {
         const integration = integrations.find(int => int.id === id);
         if (integration) {
-            updateIntegration(id, { connected: !integration.connected });
-            toast.success('Integration Updated', `${integration.displayName} ${!integration.connected ? 'connected' : 'disconnected'}`);
+            const newStatus = !integration.connected;
+            updateIntegration(id, { connected: newStatus });
+            // Notify other clients and backend
+            emit?.('integration:toggle', { id, connected: newStatus });
+            toast.success('Integration Updated', `${integration.displayName} ${newStatus ? 'connected' : 'disconnected'}`);
         }
     };
 
@@ -84,7 +88,8 @@ export const SettingsView = () => {
         setHasChanges(true);
         setShowPasswordModal(false);
         setNewPassword('');
-        alert('Password changed successfully!');
+        emit?.('user:password:changed', { userId: profile.id, timestamp: new Date().toISOString() });
+        toast.success('Password Changed', 'Your password was updated');
     };
 
     const handleExportSettings = () => {
@@ -96,6 +101,7 @@ export const SettingsView = () => {
         linkElement.setAttribute('download', exportFileDefaultName);
         linkElement.click();
         setShowExportModal(false);
+        emit?.('settings:exported', { userId: profile.id });
     };
 
     const handleImportSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,14 +114,54 @@ export const SettingsView = () => {
                     setProfile(imported.profile);
                     setIntegrations(imported.integrations);
                     setHasChanges(true);
-                    alert('Settings imported successfully!');
+                    emit?.('settings:imported', { userId: profile.id });
+                    toast.success('Settings Imported', 'Settings imported successfully');
                 } catch (error) {
-                    alert('Invalid settings file.');
+                    toast.error('Import Failed', 'Invalid settings file');
                 }
             };
             reader.readAsText(file);
         }
     };
+
+    // WebSocket: presence, metrics and integration status updates
+    const { subscribe, unsubscribe, emit } = useWebSocket({ recentRooms: [] });
+    const [presenceList, setPresenceList] = useState<Array<any>>([]);
+    const [serverConnections, setServerConnections] = useState<number>(0);
+
+    useEffect(() => {
+        const onPresenceJoined = (payload: any) => {
+            setPresenceList(prev => {
+                if (prev.find(p => p.userId === payload.userId)) return prev;
+                return [...prev, payload];
+            });
+        };
+        const onPresenceLeft = (payload: any) => {
+            setPresenceList(prev => prev.filter(p => p.userId !== payload.userId));
+        };
+        const onMetrics = (m: any) => {
+            if (typeof m.currentConnections === 'number') setServerConnections(m.currentConnections);
+        };
+        const onIntegrationStatus = (update: any) => {
+            // Sync integration status if broadcasted from elsewhere
+            if (update && update.id) {
+                updateIntegration(update.id, { connected: !!update.connected });
+                toast.info('Integration Changed', `${update.displayName || update.id} is now ${update.connected ? 'connected' : 'disconnected'}`);
+            }
+        };
+
+        subscribe?.('presence:joined', onPresenceJoined);
+        subscribe?.('presence:left', onPresenceLeft);
+        subscribe?.('metrics:update', onMetrics);
+        subscribe?.('integration:status', onIntegrationStatus);
+
+        return () => {
+            unsubscribe?.('presence:joined', onPresenceJoined);
+            unsubscribe?.('presence:left', onPresenceLeft);
+            unsubscribe?.('metrics:update', onMetrics);
+            unsubscribe?.('integration:status', onIntegrationStatus);
+        };
+    }, [subscribe, unsubscribe, updateIntegration, toast]);
 
     return (
         <div className="settings-view">
