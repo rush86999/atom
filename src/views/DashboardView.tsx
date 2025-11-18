@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, FC } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import {
     CalendarEvent,
@@ -25,6 +25,15 @@ import { useAppStore } from '../store';
 import PerformanceTimeline from '../components/PerformanceTimeline';
 import { useWebSocket } from '../hooks/useWebSocket';
 
+// Advanced Analytics Component
+interface AnalyticsData {
+    totalActivities: number;
+    completionRate: number;
+    averageResponseTime: number;
+    productivityScore: number;
+    timeSpent: Record<string, number>;
+}
+
 // Helper function to check if a date is today
 const isToday = (date: Date) => {
     const today = new Date();
@@ -34,6 +43,126 @@ const isToday = (date: Date) => {
 };
 
 const formatTime = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+// Advanced Analytics Widget
+const AdvancedAnalyticsWidget: FC<{ tasks: Task[]; transactions: Transaction[]; events: CalendarEvent[] }> = ({ tasks, transactions, events }) => {
+    const analytics: AnalyticsData = useMemo(() => {
+        const completed = tasks.filter(t => t.status === 'completed').length;
+        const total = tasks.length;
+        const spent = transactions.filter(t => t.type === 'debit').reduce((a, b) => a + b.amount, 0);
+        
+        return {
+            totalActivities: tasks.length + events.length,
+            completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+            averageResponseTime: 2.5, // mock data
+            productivityScore: Math.min(100, (completed / Math.max(1, total)) * 100 + 20),
+            timeSpent: { tasks: 4.5, meetings: 2, focus: 1.5 }
+        };
+    }, [tasks, transactions, events]);
+
+    return (
+        <div className="dashboard-card analytics-card">
+            <h3>📊 Advanced Analytics</h3>
+            <div className="analytics-grid">
+                <div className="analytics-item">
+                    <span className="analytics-label">Completion Rate</span>
+                    <div className="circular-progress" style={{ position: 'relative', width: 80, height: 80 }}>
+                        <svg width="80" height="80" style={{ transform: 'rotate(-90deg)' }}>
+                            <circle cx="40" cy="40" r="35" fill="none" stroke="#e0e0e0" strokeWidth="4" />
+                            <circle
+                                cx="40"
+                                cy="40"
+                                r="35"
+                                fill="none"
+                                stroke="#3b82f6"
+                                strokeWidth="4"
+                                strokeDasharray={`${2 * Math.PI * 35}`}
+                                strokeDashoffset={`${2 * Math.PI * 35 * (1 - analytics.completionRate / 100)}`}
+                                strokeLinecap="round"
+                            />
+                        </svg>
+                        <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: 16, fontWeight: 'bold' }}>
+                            {analytics.completionRate}%
+                        </span>
+                    </div>
+                </div>
+                <div className="analytics-item">
+                    <span className="analytics-label">Productivity Score</span>
+                    <p style={{ fontSize: 24, fontWeight: 'bold', margin: '10px 0' }}>{Math.round(analytics.productivityScore)}/100</p>
+                </div>
+                <div className="analytics-item">
+                    <span className="analytics-label">Total Activities</span>
+                    <p style={{ fontSize: 24, fontWeight: 'bold' }}>{analytics.totalActivities}</p>
+                </div>
+                <div className="analytics-item">
+                    <span className="analytics-label">Time Breakdown</span>
+                    <ul style={{ fontSize: 12 }}>
+                        {Object.entries(analytics.timeSpent).map(([key, val]) => (
+                            <li key={key}>{key}: {val}h</li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Smart Assistant Widget
+const SmartAssistantWidget: FC = () => {
+    const [suggestions, setSuggestions] = useState<string[]>([
+        '📌 Focus on high-priority tasks this morning',
+        '💡 You completed 75% of tasks - Great progress!',
+        '⏰ Schedule a 15-min break before your next meeting',
+        '🎯 Productivity peak between 10AM-12PM'
+    ]);
+
+    return (
+        <div className="dashboard-card assistant-card">
+            <h3>🤖 Smart Assistant</h3>
+            <div className="suggestions-list">
+                {suggestions.map((suggestion, i) => (
+                    <div key={i} className="suggestion-item">
+                        <p>{suggestion}</p>
+                        <button className="dismiss-btn" aria-label="Dismiss suggestion">×</button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// Collaboration & Presence Widget
+const CollaborationWidget: FC<{ presenceList: any[] }> = ({ presenceList }) => {
+    const [activeCollaborations, setActiveCollaborations] = useState<number>(0);
+
+    useEffect(() => {
+        setActiveCollaborations(presenceList.filter(p => p.room === 'projects').length);
+    }, [presenceList]);
+
+    return (
+        <div className="dashboard-card collaboration-card">
+            <h3>👥 Team Collaboration</h3>
+            <div className="collaboration-stats">
+                <div className="stat">
+                    <span className="stat-value">{presenceList.length}</span>
+                    <span className="stat-label">Online Members</span>
+                </div>
+                <div className="stat">
+                    <span className="stat-value">{activeCollaborations}</span>
+                    <span className="stat-label">Active Collaborations</span>
+                </div>
+            </div>
+            <div className="collaboration-members">
+                {presenceList.slice(0, 5).map(member => (
+                    <div key={member.socketId} className="member-avatar" title={member.username || member.userId}>
+                        {(member.username || member.userId)?.charAt(0).toUpperCase()}
+                    </div>
+                ))}
+                {presenceList.length > 5 && <div className="member-avatar">+{presenceList.length - 5}</div>}
+            </div>
+        </div>
+    );
+};
 
 
 // Widget for Today's Schedule
@@ -517,6 +646,9 @@ export const DashboardView = () => {
                 case 'health': return <HealthMetricsWidget health={health} />;
                 case 'productivity': return <ProductivityChart tasks={tasks} />;
                 case 'clock': return <RealTimeClock />;
+                case 'advanced-analytics': return <AdvancedAnalyticsWidget tasks={tasks} transactions={transactions} events={events} />;
+                case 'smart-assistant': return <SmartAssistantWidget />;
+                case 'collaboration': return <CollaborationWidget presenceList={presenceList} />;
                 case 'advanced-project':
                     return (
                         <div className="dashboard-card advanced-project-card">

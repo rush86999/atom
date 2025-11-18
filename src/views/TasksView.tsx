@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, FC } from 'react';
 import { Task, Subtask } from '../types';
 import { TASKS_DATA } from '../data';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -6,8 +6,28 @@ import { useAppStore } from '../store';
 import { useToast } from '../components/NotificationSystem';
 import { useWebSocket } from '../hooks/useWebSocket';
 
-const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; onToggleSubtask: (taskId: string, subtaskId: string) => void; }> = ({ task, onToggleImportant, onToggleSubtask }) => {
+interface SmartSuggestion {
+    taskId: string;
+    suggestion: string;
+    priority: 'high' | 'medium' | 'low';
+}
+
+interface TimeAllocation {
+    taskId: string;
+    estimatedTime: number;
+    suggestedTime: number;
+}
+
+const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; onToggleSubtask: (taskId: string, subtaskId: string) => void; onEstimateTime?: (taskId: string, time: number) => void; }> = ({ task, onToggleImportant, onToggleSubtask, onEstimateTime }) => {
     const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'completed';
+    const [showTimeEstimate, setShowTimeEstimate] = useState(false);
+    const [estimatedTime, setEstimatedTime] = useState<number>(2);
+
+    const handleSaveEstimate = () => {
+        onEstimateTime?.(task.id, estimatedTime);
+        setShowTimeEstimate(false);
+    };
+
     return (
         <div className={`task-card ${task.isImportant ? 'important' : ''}`}>
             <div className={`priority-indicator ${task.priority}`}></div>
@@ -21,6 +41,15 @@ const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; 
                 )}
                 {task.subtasks && task.subtasks.length > 0 && (
                     <div className="subtasks">
+                        <div className="subtask-progress">
+                            <div className="progress-bar">
+                                <div 
+                                    className="progress-fill"
+                                    style={{ width: `${(task.subtasks.filter(s => s.completed).length / task.subtasks.length) * 100}%` }}
+                                ></div>
+                            </div>
+                            <small>{task.subtasks.filter(s => s.completed).length}/{task.subtasks.length}</small>
+                        </div>
                         {task.subtasks.map(subtask => (
                             <label key={subtask.id} className="subtask-item">
                                 <input
@@ -39,6 +68,13 @@ const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; 
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 018 8z" /><path fillRule="evenodd" d="M2 3.5c0-.966.784-1.75 1.75-1.75h8.5A1.75 1.75 0 0114 3.5v8.5A1.75 1.75 0 0112.25 14h-8.5A1.75 1.75 0 012 12.25v-8.5ZM3.75 3a.25.25 0 00-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 00.25-.25v-8.5a.25.25 0 00-.25-.25h-8.5Z" clipRule="evenodd" /></svg>
                     <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                 </div>
+                <button 
+                    className="time-estimate-btn" 
+                    onClick={() => setShowTimeEstimate(!showTimeEstimate)}
+                    title="Estimate time"
+                >
+                    ⏱️
+                </button>
                 <button className="important-toggle" onClick={() => onToggleImportant(task.id)} aria-label={task.isImportant ? "Unmark as important" : "Mark as important"}>
                     {task.isImportant ? (
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.868 2.884c.321-.772 1.415-.772 1.736 0l1.983 4.795a1 1 0 00.758.548l5.293.769c.84.122 1.177 1.14.566 1.745l-3.83 3.734a1 1 0 00-.287.885l.905 5.272c.143.828-.73 1.464-1.488 1.079L12 18.334a1 1 0 00-.936 0l-4.722 2.484c-.758.385-1.631-.251-1.488-1.08l.905-5.272a1 1 0 00-.287-.885l-3.83-3.734c-.611-.605-.274-1.623.566-1.745l5.293-.769a1 1 0 00.758-.548l1.983-4.795z" clipRule="evenodd" /></svg>
@@ -47,11 +83,25 @@ const TaskCard: React.FC<{ task: Task; onToggleImportant: (id: string) => void; 
                     )}
                 </button>
             </div>
+            {showTimeEstimate && (
+                <div className="time-estimate-modal">
+                    <input 
+                        type="number" 
+                        min="0.5" 
+                        step="0.5" 
+                        value={estimatedTime}
+                        onChange={(e) => setEstimatedTime(parseFloat(e.target.value))}
+                        placeholder="Hours"
+                    />
+                    <button onClick={handleSaveEstimate}>Save</button>
+                    <button onClick={() => setShowTimeEstimate(false)}>Cancel</button>
+                </div>
+            )}
         </div>
     );
 };
 
-const TaskColumn: React.FC<{ title: string; tasks: Task[]; status: Task['status']; onToggleImportant: (id: string) => void; onToggleSubtask: (taskId: string, subtaskId: string) => void; }> = ({ title, tasks, status, onToggleImportant, onToggleSubtask }) => {
+const TaskColumn: React.FC<{ title: string; tasks: Task[]; status: Task['status']; onToggleImportant: (id: string) => void; onToggleSubtask: (taskId: string, subtaskId: string) => void; onEstimateTime?: (taskId: string, time: number) => void; }> = ({ title, tasks, status, onToggleImportant, onToggleSubtask, onEstimateTime }) => {
     const columnTasks = tasks.filter(t => t.status === status);
     return (
         <Droppable droppableId={status}>
@@ -63,7 +113,12 @@ const TaskColumn: React.FC<{ title: string; tasks: Task[]; status: Task['status'
                             <Draggable key={task.id} draggableId={task.id} index={index}>
                                 {(provided) => (
                                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                                        <TaskCard task={task} onToggleImportant={onToggleImportant} onToggleSubtask={onToggleSubtask} />
+                                        <TaskCard 
+                                          task={task} 
+                                          onToggleImportant={onToggleImportant} 
+                                          onToggleSubtask={onToggleSubtask}
+                                          onEstimateTime={onEstimateTime}
+                                        />
                                     </div>
                                 )}
                             </Draggable>
@@ -73,6 +128,66 @@ const TaskColumn: React.FC<{ title: string; tasks: Task[]; status: Task['status'
                 </div>
             )}
         </Droppable>
+    );
+};
+
+// AI-Powered Task Suggestions Widget
+const AITaskSuggestionsWidget: FC<{ tasks: Task[] }> = ({ tasks }) => {
+    const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([]);
+
+    useEffect(() => {
+        const generateSuggestions = () => {
+            const overdueTasks = tasks.filter(t => new Date(t.dueDate) < new Date() && t.status !== 'completed');
+            const highPriorityTasks = tasks.filter(t => t.priority === 'critical' || t.priority === 'high');
+            
+            const newSuggestions: SmartSuggestion[] = [];
+            
+            if (overdueTasks.length > 0) {
+                newSuggestions.push({
+                    taskId: overdueTasks[0].id,
+                    suggestion: `You have ${overdueTasks.length} overdue task(s). Consider tackling them first.`,
+                    priority: 'high'
+                });
+            }
+            
+            if (highPriorityTasks.length > 5) {
+                newSuggestions.push({
+                    taskId: highPriorityTasks[0].id,
+                    suggestion: 'You have many high-priority tasks. Consider breaking them into smaller subtasks.',
+                    priority: 'medium'
+                });
+            }
+            
+            const completionRate = (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100;
+            if (completionRate < 30) {
+                newSuggestions.push({
+                    taskId: tasks[0].id,
+                    suggestion: 'Your completion rate is low. Try focusing on one task at a time.',
+                    priority: 'medium'
+                });
+            }
+            
+            setSuggestions(newSuggestions);
+        };
+
+        generateSuggestions();
+    }, [tasks]);
+
+    return (
+        <div className="ai-suggestions-widget">
+            <h4>🤖 Smart Task Suggestions</h4>
+            {suggestions.length > 0 ? (
+                <div className="suggestions-list">
+                    {suggestions.map((s, i) => (
+                        <div key={i} className={`suggestion ${s.priority}`}>
+                            <p>{s.suggestion}</p>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p>No suggestions at the moment. Keep up the good work!</p>
+            )}
+        </div>
     );
 };
 
@@ -184,6 +299,10 @@ export const TasksView = () => {
                 <h1>Task Management</h1>
                 <p>Organize your work with a Kanban board.</p>
             </header>
+
+            <div className="tasks-top-section">
+                <AITaskSuggestionsWidget tasks={filteredTasks} />
+            </div>
 
             <div className="tasks-filter-bar">
                 <div className="filter-group">

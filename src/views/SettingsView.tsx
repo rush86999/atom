@@ -14,6 +14,12 @@ export const SettingsView = () => {
     const [showExportModal, setShowExportModal] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [newPassword, setNewPassword] = useState('');
+    const [auditLogs, setAuditLogs] = useState<Array<{timestamp: string; action: string; details: string}>>([
+        { timestamp: new Date().toISOString(), action: 'Login', details: 'User logged in from Chrome' },
+        { timestamp: new Date(Date.now() - 3600000).toISOString(), action: 'Settings Updated', details: 'Profile picture changed' }
+    ]);
+    const [backupSchedule, setBackupSchedule] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+    const [mfaEnabled, setMfaEnabled] = useState(false);
 
     const handleInputChange = (field: string, value: any) => {
         setProfile(prev => ({ ...prev, [field]: value }));
@@ -174,6 +180,9 @@ export const SettingsView = () => {
                 <button className={`settings-nav-item ${activeTab === 'notifications' ? 'active' : ''}`} onClick={() => setActiveTab('notifications')}>Notifications</button>
                 <button className={`settings-nav-item ${activeTab === 'integrations' ? 'active' : ''}`} onClick={() => setActiveTab('integrations')}>Integrations</button>
                 <button className={`settings-nav-item ${activeTab === 'advanced' ? 'active' : ''}`} onClick={() => setActiveTab('advanced')}>Advanced</button>
+                <button className={`settings-nav-item ${activeTab === 'security' ? 'active' : ''}`} onClick={() => setActiveTab('security')}>Security</button>
+                <button className={`settings-nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}>Audit Logs</button>
+                <button className={`settings-nav-item ${activeTab === 'backup' ? 'active' : ''}`} onClick={() => setActiveTab('backup')}>Backup</button>
                 <button className={`settings-nav-item ${activeTab === 'export' ? 'active' : ''}`} onClick={() => setActiveTab('export')}>Export/Import</button>
             </div>
             <div className="settings-content">
@@ -343,6 +352,85 @@ export const SettingsView = () => {
                                 Import Settings
                                 <input type="file" accept=".json" onChange={handleImportSettings} style={{ display: 'none' }} />
                             </label>
+                        </div>
+                    </div>
+                )}
+                {activeTab === 'security' && (
+                    <div className="settings-section">
+                        <h2>Security & Privacy</h2>
+                        <div className="form-group checkbox-group">
+                            <input 
+                                id="mfa-enabled" 
+                                type="checkbox" 
+                                checked={mfaEnabled}
+                                onChange={(e) => {
+                                    setMfaEnabled(e.target.checked);
+                                    toast.info('MFA', e.target.checked ? 'Multi-factor authentication enabled' : 'MFA disabled');
+                                }}
+                            />
+                            <label htmlFor="mfa-enabled">Enable Multi-Factor Authentication</label>
+                        </div>
+                        <div className="form-group checkbox-group">
+                            <input 
+                                id="session-lock" 
+                                type="checkbox"
+                                defaultChecked={true}
+                            />
+                            <label htmlFor="session-lock">Auto-lock after inactivity</label>
+                        </div>
+                        <div className="form-group checkbox-group">
+                            <input 
+                                id="encryption" 
+                                type="checkbox"
+                                defaultChecked={true}
+                            />
+                            <label htmlFor="encryption">End-to-end encryption</label>
+                        </div>
+                    </div>
+                )}
+                {activeTab === 'audit' && (
+                    <div className="settings-section">
+                        <h2>Audit Logs</h2>
+                        <p>Track all account activity and changes</p>
+                        <div className="audit-logs">
+                            <div className="logs-header">
+                                <span>Timestamp</span>
+                                <span>Action</span>
+                                <span>Details</span>
+                            </div>
+                            {auditLogs.map((log, i) => (
+                                <div key={i} className="log-entry">
+                                    <span>{new Date(log.timestamp).toLocaleString()}</span>
+                                    <span className="log-action">{log.action}</span>
+                                    <span>{log.details}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {activeTab === 'backup' && (
+                    <div className="settings-section">
+                        <h2>Backup & Recovery</h2>
+                        <div className="form-group">
+                            <label htmlFor="backup-schedule">Backup Schedule</label>
+                            <select 
+                                id="backup-schedule" 
+                                value={backupSchedule}
+                                onChange={(e) => {
+                                    setBackupSchedule(e.target.value as 'daily' | 'weekly' | 'monthly');
+                                    toast.success('Backup Schedule Updated', `Backups scheduled ${e.target.value}`);
+                                }}
+                            >
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                        <div className="backup-info">
+                            <h4>Latest Backup</h4>
+                            <p>Created: {new Date(Date.now() - 86400000).toLocaleDateString()}</p>
+                            <p>Size: 2.5 MB</p>
+                            <button className="backup-restore-btn">Restore from Backup</button>
                         </div>
                     </div>
                 )}
