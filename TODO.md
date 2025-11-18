@@ -1,7 +1,23 @@
-# TODO: Add Optimistic Updates to useCache Hook
+# Dashboard Improvements TODO
 
-- [x] Add 'optimisticUpdate' option to the hook's options type
-- [x] Add previousDataRef to track data for reversion
-- [x] Modify fetchData to apply optimistic update before fetching fresh data
-- [x] Modify catch block in fetchData to revert data on error
-- [x] Test the implementation
+## Phase 1: Core Enhancements
+
+- [x] Add Dark Mode state to store
+- [ ] Add Global Search Bar in header
+- [x] Implement Dark Mode Toggle in header
+- [ ] Create Notifications Widget
+- [ ] Add Quick Stats Summary Widget
+- [ ] Implement Export Dashboard Data button
+- [ ] Enhance Presence Panel with click actions
+- [ ] Add Keyboard Shortcuts (Ctrl+N for new task, etc.)
+
+## Phase 2: UI/UX Improvements
+
+- [ ] Improve Responsiveness for mobile/tablet
+- [ ] Update CSS for dark mode styles
+
+## Phase 3: Testing and Integration
+
+- [ ] Test all new features
+- [ ] Ensure WebSocket integration
+- [ ] Add unit tests for new components
