@@ -4,7 +4,8 @@ Health API routes
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, User
+from models import db, User
+import os
 from datetime import datetime, timedelta
 import psutil
 import logging
@@ -257,12 +258,12 @@ def get_active_users_count():
 
 def get_total_tasks_count():
     """Get total tasks count"""
-    from ..models import Task
+    from models import Task
     return Task.query.count()
 
 def get_total_messages_count():
     """Get total messages count"""
-    from ..models import Message
+    from models import Message
     return Message.query.count()
 
 def get_db_connection_count():
@@ -277,7 +278,7 @@ def get_average_response_time():
 
 def get_user_tasks_completed_today(user_id):
     """Get user's tasks completed today"""
-    from ..models import Task
+    from models import Task
     today = datetime.utcnow().date()
     return Task.query.filter_by(user_id=user_id, status='completed').filter(
         db.func.date(Task.updated_at) == today
@@ -285,17 +286,17 @@ def get_user_tasks_completed_today(user_id):
 
 def get_user_unread_messages_count(user_id):
     """Get user's unread messages count"""
-    from ..models import Message
+    from models import Message
     return Message.query.filter_by(user_id=user_id, unread=True).count()
 
 def get_user_connected_integrations_count(user_id):
     """Get user's connected integrations count"""
-    from ..models import Integration
+    from models import Integration
     return Integration.query.filter_by(user_id=user_id, connected=True).count()
 
 def get_user_workflows_executed_today(user_id):
     """Get user's workflows executed today"""
-    from ..models import Workflow
+    from models import Workflow
     today = datetime.utcnow().date()
     return Workflow.query.filter_by(user_id=user_id).filter(
         db.func.date(Workflow.last_executed) == today
@@ -303,7 +304,7 @@ def get_user_workflows_executed_today(user_id):
 
 def get_user_overdue_tasks_count(user_id):
     """Get user's overdue tasks count"""
-    from ..models import Task
+    from models import Task
     now = datetime.utcnow()
     return Task.query.filter_by(user_id=user_id).filter(
         Task.due_date < now,
@@ -350,7 +351,7 @@ def check_external_services_status():
 def check_websocket_status():
     """Check WebSocket service status"""
     try:
-        from ..app import socketio
+        from app import socketio
         # Check if Socket.IO is initialized and Redis is available
         if socketio and socketio.server:
             # Try to check Redis connectivity if message queue is configured

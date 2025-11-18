@@ -4,8 +4,8 @@ Tasks API routes
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, Task, User
-from ..utils import generate_uuid, validate_task_data
+from models import db, Task, User
+from utils import generate_uuid, validate_task_data
 import logging
 
 tasks_bp = Blueprint('tasks', __name__)
@@ -64,7 +64,7 @@ def create_task():
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('task:created', task.to_dict(), room=user_id)
 
         logger.info(f'Task created: {task.id} for user {user_id}')
@@ -117,7 +117,7 @@ def update_task(task_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('task:updated', task.to_dict(), room=user_id)
 
         logger.info(f'Task updated: {task_id} for user {user_id}')
@@ -141,7 +141,7 @@ def delete_task(task_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('task:deleted', {'id': task_id}, room=user_id)
 
         logger.info(f'Task deleted: {task_id} for user {user_id}')

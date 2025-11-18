@@ -4,8 +4,8 @@ Communications API routes
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, Message, User
-from ..utils import generate_uuid
+from models import db, Message, User
+from utils import generate_uuid
 from datetime import datetime
 import logging
 
@@ -71,7 +71,7 @@ def mark_message_read(message_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('message:read', {'id': message_id}, room=user_id)
 
         logger.info(f'Message marked as read: {message_id} for user {user_id}')
@@ -95,7 +95,7 @@ def delete_message(message_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('message:deleted', {'id': message_id}, room=user_id)
 
         logger.info(f'Message deleted: {message_id} for user {user_id}')
@@ -139,7 +139,7 @@ def send_message():
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('message:sent', message.to_dict(), room=user_id)
 
         logger.info(f'Message sent: {message.id} for user {user_id}')
@@ -203,7 +203,7 @@ def sync_communications():
         }
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('communications:synced', sync_result, room=user_id)
 
         logger.info(f'Communications sync completed for user {user_id}')

@@ -4,8 +4,8 @@ Calendar API routes
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, CalendarEvent, User
-from ..utils import generate_uuid, validate_calendar_event_data
+from models import db, CalendarEvent, User
+from utils import generate_uuid, validate_calendar_event_data
 from datetime import datetime, timedelta
 import logging
 
@@ -92,7 +92,7 @@ def create_event():
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('calendar:event:created', event.to_dict(), room=user_id)
 
         logger.info(f'Calendar event created: {event.id} for user {user_id}')
@@ -148,7 +148,7 @@ def update_event(event_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('calendar:event:updated', event.to_dict(), room=user_id)
 
         logger.info(f'Calendar event updated: {event_id} for user {user_id}')
@@ -172,7 +172,7 @@ def delete_event(event_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('calendar:event:deleted', {'id': event_id}, room=user_id)
 
         logger.info(f'Calendar event deleted: {event_id} for user {user_id}')
