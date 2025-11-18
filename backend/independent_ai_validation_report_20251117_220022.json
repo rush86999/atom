@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "validation_date": "2025-11-17T22:00:22.680856",
+    "validator_version": "1.0.0",
+    "total_claims_validated": 1,
+    "providers_used": [
+      "openai",
+      "anthropic",
+      "deepseek"
+    ]
+  },
+  "summary": {
+    "overall_score": 0.6888888888888889,
+    "claims_fully_validated": 0,
+    "claims_partially_validated": 0,
+    "claims_not_validated": 1,
+    "average_confidence": 0.6888888888888889
+  },
+  "category_scores": {
+    "ai_features": 0.6888888888888889
+  },
+  "detailed_results": {
+    "atom_ai_workflows": {
+      "claim": "AI-Powered Workflow Automation: Automate complex workflows with intelligent AI assistance",
+      "category": "ai_features",
+      "score": 0.6888888888888889,
+      "evidence_strength": "WEAK",
+      "recommendations": [
+        "deepseek: ### **Recommendations**",
+        "anthropic: Recommendations:",
+        "openai: - Recommendations: The AI system should be debugged and tested again to identify and fix the issues causing the HTTP 404 errors. It would also be beneficial to provide more detailed information about the AI's capabilities and the specific tasks it is designed to perform. This would allow for a more accurate and comprehensive evaluation of the claim.",
+        "anthropic: 3. Improve the reliability and performance of the workflow automation feature to ensure it can deliver on the promised functionality."
+      ],
+      "individual_scores": {
+        "openai": 1.0,
+        "deepseek": 0.3
+      }
+    }
+  }
+}

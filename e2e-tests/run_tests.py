@@ -10,6 +10,20 @@ import os
 import sys
 from pathlib import Path
 
+# Import colorama for colored output (if available)
+try:
+    from colorama import Fore, Style
+    COLORAMA_AVAILABLE = True
+except ImportError:
+    # Define dummy colorama classes if not available
+    class Fore:
+        CYAN = ''
+        RED = ''
+        YELLOW = ''
+    class Style:
+        RESET_ALL = ''
+    COLORAMA_AVAILABLE = False
+
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -178,6 +192,11 @@ def main():
         action="store_true",
         help="Skip LLM-based marketing claim verification",
     )
+    parser.add_argument(
+        "--use-glm",
+        action="store_true",
+        help="Use GLM 4.6 instead of OpenAI for validation",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
 
     args = parser.parse_args()
@@ -234,6 +253,11 @@ def main():
     # Set environment variable to skip LLM if requested
     if args.skip_llm:
         os.environ["SKIP_LLM_VERIFICATION"] = "true"
+
+    # Set environment variable to use GLM if requested
+    if args.use_glm:
+        os.environ["USE_GLM_VALIDATOR"] = "true"
+        print(f"{Fore.CYAN}Using GLM 4.6 for AI validation{Style.RESET_ALL}")
 
     try:
         results = runner.run_all_tests(available_categories)

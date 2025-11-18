@@ -1,0 +1,157 @@
+{
+  "truth_score": {
+    "overall_score": 0.76,
+    "validation_level": "ACCEPTABLE (70%+ Achieved)",
+    "status": "\u26a0\ufe0f  ACCEPTABLE",
+    "category_breakdown": {
+      "AI Integration": {
+        "score": 0.2,
+        "weight": 0.3,
+        "weighted_score": 0.06,
+        "tests_passed": 1,
+        "total_tests": 5
+      },
+      "Workflow Automation": {
+        "score": 1.0,
+        "weight": 0.25,
+        "weighted_score": 0.25,
+        "tests_passed": 2,
+        "total_tests": 2
+      },
+      "Service Integration": {
+        "score": 1.0,
+        "weight": 0.25,
+        "weighted_score": 0.25,
+        "tests_passed": 4,
+        "total_tests": 7
+      },
+      "Data Analysis": {
+        "score": 1.0,
+        "weight": 0.2,
+        "weighted_score": 0.2,
+        "tests_passed": 4,
+        "total_tests": 5
+      }
+    },
+    "target_achieved": false
+  },
+  "report": {
+    "test_metadata": {
+      "timestamp": "2025-11-18T07:49:48.252968",
+      "total_execution_time": 0.2921640872955322,
+      "target_truth_score": 0.98,
+      "actual_truth_score": 0.76,
+      "target_achieved": false,
+      "credentials_tested": 0,
+      "validation_level": "ACCEPTABLE (70%+ Achieved)"
+    },
+    "test_results_summary": {
+      "total_categories_tested": 4,
+      "successful_categories": 3,
+      "total_tests_run": 19,
+      "total_successful_tests": 11
+    },
+    "category_results": {
+      "AI Integration": {
+        "success": false,
+        "execution_time": 0.05846810340881348,
+        "tests_passed": 1,
+        "total_tests": 5,
+        "details": [
+          "\u23ed\ufe0f  Openai: Skipped (no credential)",
+          "\u23ed\ufe0f  Anthropic: Skipped (no credential)",
+          "\u23ed\ufe0f  Deepseek: Skipped (no credential)",
+          "\u2705 ATOM NLP API: Integration successful",
+          "\ud83d\udcca AI Integration Success Rate: 25.0% (1/4)"
+        ],
+        "evidence_collected": true
+      },
+      "Workflow Automation": {
+        "success": true,
+        "execution_time": 0.046714067459106445,
+        "tests_passed": 2,
+        "total_tests": 2,
+        "details": [
+          "\u2705 Workflow creation successful",
+          "\u2705 Workflow execution successful"
+        ],
+        "evidence_collected": true
+      },
+      "Service Integration": {
+        "success": true,
+        "execution_time": 0.05084800720214844,
+        "tests_passed": 4,
+        "total_tests": 7,
+        "details": [
+          "\u23ed\ufe0f  Slack: Skipped (no token)",
+          "\u23ed\ufe0f  GitHub: Skipped (no token)",
+          "\u2705 NLP Service: Healthy",
+          "\u2705 Workflow Engine: Healthy",
+          "\u2705 Database: Healthy",
+          "\u2705 BYOK System: Healthy",
+          "\ud83d\udcca Service Integration Success Rate: 100.0% (4/4)"
+        ],
+        "evidence_collected": true
+      },
+      "Data Analysis": {
+        "success": true,
+        "execution_time": 0.048156023025512695,
+        "tests_passed": 4,
+        "total_tests": 5,
+        "details": [
+          "\u2705 Sales Data Analysis: Analysis successful",
+          "\u2705 Customer Sentiment Analysis: Analysis successful",
+          "\u2705 Performance Metrics: Analysis successful",
+          "\u2705 Analytics Dashboard: Data accessible",
+          "\ud83d\udcca Data Analysis Success Rate: 133.3% (4/3)"
+        ],
+        "evidence_collected": true
+      }
+    },
+    "evidence_summary": {
+      "total_evidence_items": 11,
+      "evidence_types": [
+        "database",
+        "byok",
+        "customer",
+        "atom",
+        "dashboard",
+        "sales",
+        "workflow",
+        "performance",
+        "nlp"
+      ],
+      "has_real_api_evidence": false
+    },
+    "marketing_claims_validation": {
+      "AI-Powered Workflow Automation": {
+        "validation_score": 0.62,
+        "validated": false
+      },
+      "Multi-Provider Integration": {
+        "validation_score": 0.5,
+        "validated": false
+      },
+      "Real-Time Analytics": {
+        "validation_score": 0.4,
+        "validated": false
+      },
+      "Enterprise-Grade Reliability": {
+        "validation_score": 1.0,
+        "validated": true
+      }
+    },
+    "recommendations": [
+      "\u26a0\ufe0f  Review and improve core functionality before marketing launch",
+      "\ud83d\udd0d Focus on fixing failed tests in critical categories",
+      "\ud83e\uddea Consider additional testing with more credentials"
+    ]
+  },
+  "test_results": [
+    "TestResult(category='AI Integration', test_name='Multi-Provider AI Testing', success=False, details=['\u23ed\ufe0f  Openai: Skipped (no credential)', '\u23ed\ufe0f  Anthropic: Skipped (no credential)', '\u23ed\ufe0f  Deepseek: Skipped (no credential)', '\u2705 ATOM NLP API: Integration successful', '\ud83d\udcca AI Integration Success Rate: 25.0% (1/4)'], evidence={'atom_nlp_response': {'analysis_type': 'intent', 'text_length': 24, 'result': {'intent': 'automation_request', 'confidence': 0.87}, 'processed_at': '2025-11-18T07:49:48.096077', 'success': True}}, execution_time=0.05846810340881348)",
+    "TestResult(category='Workflow Automation', test_name='End-to-End Workflow Testing', success=True, details=['\u2705 Workflow creation successful', '\u2705 Workflow execution successful'], evidence={'workflow_creation': {'id': 'workflow_1763470188.116558', 'status': 'created', 'message': 'Workflow created successfully', 'data': {'name': 'E2E Test Workflow', 'description': 'Automated test workflow for 98% validation', 'trigger_type': 'manual', 'steps': [{'name': 'test_step', 'action_type': 'send_notification', 'config': {'message': 'E2E testing workflow step'}}]}}, 'workflow_execution': {'execution_id': 'exec_1763470188.148881', 'workflow_id': 'workflow_1763470188.116558', 'status': 'completed', 'final_status': 'success', 'context': {'context': {'test_mode': True}}, 'steps_completed': 1, 'message': 'Workflow executed successfully'}}, execution_time=0.046714067459106445)",
+    "TestResult(category='Service Integration', test_name='Multi-Service Integration Testing', success=True, details=['\u23ed\ufe0f  Slack: Skipped (no token)', '\u23ed\ufe0f  GitHub: Skipped (no token)', '\u2705 NLP Service: Healthy', '\u2705 Workflow Engine: Healthy', '\u2705 Database: Healthy', '\u2705 BYOK System: Healthy', '\ud83d\udcca Service Integration Success Rate: 100.0% (4/4)'], evidence={'nlp_service_health': {'status': 'healthy', 'models_loaded': ['gpt-4', 'claude-3', 'deepseek-chat'], 'queue_length': 0}, 'workflow_engine_health': {'status': 'healthy', 'active_workflows': 0, 'completed_today': 42}, 'database_health': {'status': 'healthy', 'api_version': 'v1', 'services': {'nlp': 'healthy', 'workflows': 'healthy', 'database': 'healthy', 'byok': 'healthy'}}, 'byok_system_health': {'status': 'healthy', 'providers_connected': ['openai', 'anthropic', 'deepseek'], 'active_models': 8, 'cost_tracking': 'enabled'}}, execution_time=0.05084800720214844)",
+    "TestResult(category='Data Analysis', test_name='Business Intelligence Testing', success=True, details=['\u2705 Sales Data Analysis: Analysis successful', '\u2705 Customer Sentiment Analysis: Analysis successful', '\u2705 Performance Metrics: Analysis successful', '\u2705 Analytics Dashboard: Data accessible', '\ud83d\udcca Data Analysis Success Rate: 133.3% (4/3)'], evidence={'sales_data_analysis_analysis': {'analysis_type': 'trend', 'text_length': 57, 'result': {'score': 0.8, 'label': 'positive', 'confidence': 0.95}, 'processed_at': '2025-11-18T07:49:48.215762', 'success': True}, 'customer_sentiment_analysis_analysis': {'analysis_type': 'sentiment', 'text_length': 73, 'result': {'score': 0.8, 'label': 'positive', 'confidence': 0.95}, 'processed_at': '2025-11-18T07:49:48.223551', 'success': True}, 'performance_metrics_analysis': {'analysis_type': 'performance', 'text_length': 75, 'result': {'score': 0.8, 'label': 'positive', 'confidence': 0.95}, 'processed_at': '2025-11-18T07:49:48.241817', 'success': True}, 'dashboard_data': {'metrics': {'response_time': 120, 'throughput': 1000, 'error_rate': 0.01, 'uptime': 0.999}, 'insights': ['System performance is optimal', 'AI integrations functioning correctly', 'Service health indicators positive'], 'timestamp': '2025-11-18T07:49:48.251172'}}, execution_time=0.048156023025512695)"
+  ],
+  "evidence": {}
+}

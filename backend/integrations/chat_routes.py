@@ -1,0 +1,250 @@
+"""
+Chat Routes - API endpoints for the ATOM chat interface
+"""
+import logging
+import os
+from typing import Any, Dict, Optional
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+
+# Add parent directory to path to import from backend
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
+from chat_orchestrator import ChatOrchestrator, FeatureType
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create router
+router = APIRouter(prefix="/chat", tags=["chat"])
+
+# Initialize chat orchestrator
+chat_orchestrator = ChatOrchestrator()
+
+
+# Pydantic Models
+class ChatMessageRequest(BaseModel):
+    message: str = Field(..., description="Chat message from user")
+    user_id: str = Field(..., description="User ID for context")
+    session_id: Optional[str] = Field(None, description="Conversation session ID")
+    context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
+
+
+class ChatMessageResponse(BaseModel):
+    success: bool = Field(..., description="Whether the request was successful")
+    message: str = Field(..., description="Response message")
+    session_id: str = Field(..., description="Conversation session ID")
+    intent: str = Field(..., description="Detected intent")
+    confidence: float = Field(..., description="Confidence score (0.0-1.0)")
+    suggested_actions: list = Field(..., description="Suggested next actions")
+    requires_confirmation: bool = Field(..., description="Whether confirmation is needed")
+    next_steps: list = Field(..., description="Suggested next steps")
+    timestamp: str = Field(..., description="Response timestamp")
+
+
+class ChatHistoryRequest(BaseModel):
+    session_id: str = Field(..., description="Conversation session ID")
+    user_id: str = Field(..., description="User ID")
+
+
+class ChatHistoryResponse(BaseModel):
+    session_id: str
+    messages: list
+    timestamp: str
+
+
+class ChatMemoryRequest(BaseModel):
+    session_id: str = Field(..., description="Conversation session ID")
+    user_id: str = Field(..., description="User ID")
+
+
+class ChatMemoryResponse(BaseModel):
+    session_id: str
+    memory_context: dict
+    timestamp: str
+
+
+# API Routes
+@router.post("/message")
+async def send_chat_message(request: ChatMessageRequest) -> ChatMessageResponse:
+    """
+    Send a chat message to the ATOM chat orchestrator
+    """
+    try:
+        logger.info(f"Processing chat message from user {request.user_id}: {request.message}")
+
+        # Process the message through the chat orchestrator
+        response = await chat_orchestrator.process_chat_message(
+            user_id=request.user_id,
+            message=request.message,
+            session_id=request.session_id,
+            context=request.context
+        )
+
+        return ChatMessageResponse(
+            success=response.get("success", True),
+            message=response.get("message", "Message processed successfully"),
+            session_id=response.get("session_id", request.session_id or "unknown"),
+            intent=response.get("intent", "unknown"),
+            confidence=response.get("confidence", 0.5),
+            suggested_actions=response.get("suggested_actions", []),
+            requires_confirmation=response.get("requires_confirmation", False),
+            next_steps=response.get("next_steps", []),
+            timestamp=response.get("timestamp", "")
+        )
+
+    except Exception as e:
+        logger.error(f"Chat message processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
+
+
+@router.get("/memory/{session_id}")
+async def get_chat_memory(session_id: str, user_id: str) -> ChatMemoryResponse:
+    """
+    Get memory/context for a specific chat session
+    """
+    try:
+        logger.info(f"Retrieving memory for session {session_id} and user {user_id}")
+
+        # Check if session exists
+        if session_id not in chat_orchestrator.conversation_sessions:
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+        session = chat_orchestrator.conversation_sessions[session_id]
+        if session.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        return ChatMemoryResponse(
+            session_id=session_id,
+            memory_context=session.get("context", {}),
+            timestamp=session.get("last_updated", "")
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve chat memory: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve chat memory: {str(e)}")
+
+
+@router.get("/history/{session_id}")
+async def get_chat_history(session_id: str, user_id: str) -> ChatHistoryResponse:
+    """
+    Get chat history for a specific session
+    """
+    try:
+        logger.info(f"Retrieving history for session {session_id} and user {user_id}")
+
+        # Check if session exists
+        if session_id not in chat_orchestrator.conversation_sessions:
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+        session = chat_orchestrator.conversation_sessions[session_id]
+        if session.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        return ChatHistoryResponse(
+            session_id=session_id,
+            messages=session.get("messages", []),
+            timestamp=session.get("last_updated", "")
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve chat history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve chat history: {str(e)}")
+
+
+@router.get("/sessions")
+async def get_user_sessions(user_id: str) -> Dict[str, Any]:
+    """
+    Get all chat sessions for a user
+    """
+    try:
+        logger.info(f"Retrieving sessions for user {user_id}")
+
+        user_sessions = {
+            session_id: session_data
+            for session_id, session_data in chat_orchestrator.conversation_sessions.items()
+            if session_data.get("user_id") == user_id
+        }
+
+        return {
+            "user_id": user_id,
+            "sessions": user_sessions,
+            "total_sessions": len(user_sessions)
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to retrieve user sessions: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve user sessions: {str(e)}")
+
+
+@router.get("/health")
+async def chat_health_check():
+    """
+    Health check for the chat system
+    """
+    try:
+        # Test basic functionality
+        test_session_id = "health_test"
+        
+        # Verify orchestrator is initialized
+        is_initialized = chat_orchestrator is not None
+        has_feature_handlers = len(chat_orchestrator.feature_handlers) > 0
+        
+        status = "healthy" if is_initialized and has_feature_handlers else "degraded"
+
+        return {
+            "status": status,
+            "service": "atom_chat_system",
+            "version": "1.0.0",
+            "components": {
+                "orchestrator": "initialized" if is_initialized else "not_initialized",
+                "feature_handlers": "available" if has_feature_handlers else "unavailable",
+                "platform_connectors": f"available ({len(chat_orchestrator.platform_connectors)})",
+                "ai_engines": f"available ({len(chat_orchestrator.ai_engines)})"
+            },
+            "metrics": {
+                "total_sessions": len(chat_orchestrator.conversation_sessions),
+                "active_features": len(chat_orchestrator.feature_handlers),
+                "connected_platforms": len(chat_orchestrator.platform_connectors)
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Chat health check failed: {str(e)}")
+        return {
+            "status": "unhealthy",
+            "service": "atom_chat_system",
+            "error": str(e)
+        }
+
+
+@router.get("/")
+async def chat_root():
+    """
+    Chat integration root endpoint
+    """
+    return {
+        "service": "chat_integration",
+        "status": "active",
+        "version": "1.0.0",
+        "description": "ATOM Chat Interface - Conversational Automation System",
+        "endpoints": {
+            "chat": {
+                "/chat/message": "Send a chat message",
+                "/chat/memory/{session_id}": "Get chat memory/context",
+                "/chat/history/{session_id}": "Get chat history",
+                "/chat/sessions": "Get user sessions",
+            },
+            "system": {
+                "/chat/health": "Health check",
+                "/chat/": "This endpoint"
+            }
+        }
+    }
