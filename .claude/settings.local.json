@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(printf:*)",
+      "Bash(pkill:*)",
+      "Bash(ps:*)",
+      "Bash(../notes/credentials.md)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

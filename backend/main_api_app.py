@@ -4,6 +4,7 @@ import uvicorn
 
 # Import our modules
 from core.api_routes import router
+from service_health_endpoints import router as service_health_router
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -110,6 +111,24 @@ except ImportError as e:
     print(f"Workflow endpoints not available: {e}")
     WORKFLOW_AVAILABLE = False
     workflow_router = None
+
+try:
+    from core.analytics_endpoints import router as analytics_router
+
+    ANALYTICS_AVAILABLE = True
+except ImportError as e:
+    print(f"Analytics endpoints not available: {e}")
+    ANALYTICS_AVAILABLE = False
+    analytics_router = None
+
+try:
+    from core.enterprise_endpoints import router as enterprise_router
+
+    ENTERPRISE_AVAILABLE = True
+except ImportError as e:
+    print(f"Enterprise endpoints not available: {e}")
+    ENTERPRISE_AVAILABLE = False
+    enterprise_router = None
 
 try:
     from core.byok_endpoints import router as byok_router
@@ -240,6 +259,56 @@ except ImportError as e:
     ZOOM_AVAILABLE = False
     zoom_router = None
 
+# Import Enhanced AI Workflow endpoints
+try:
+    from enhanced_ai_workflow_endpoints import router as enhanced_ai_router
+
+    ENHANCED_AI_AVAILABLE = True
+except ImportError as e:
+    print(f"Enhanced AI workflow endpoints not available: {e}")
+    ENHANCED_AI_AVAILABLE = False
+    enhanced_ai_router = None
+
+# Import service integrations for unified service endpoints
+try:
+    from service_integrations import router as service_integrations_router
+
+    SERVICE_INTEGRATIONS_AVAILABLE = True
+except ImportError as e:
+    print(f"Service integrations not available: {e}")
+    SERVICE_INTEGRATIONS_AVAILABLE = False
+    service_integrations_router = None
+
+# Import Advanced Workflow Orchestrator
+try:
+    from advanced_workflow_api import router as advanced_workflow_router
+
+    ADVANCED_WORKFLOW_AVAILABLE = True
+except ImportError as e:
+    print(f"Advanced workflow orchestrator not available: {e}")
+    ADVANCED_WORKFLOW_AVAILABLE = False
+    advanced_workflow_router = None
+
+# Import Evidence Collection Framework
+try:
+    from evidence_collection_api import router as evidence_router
+
+    EVIDENCE_COLLECTION_AVAILABLE = True
+except ImportError as e:
+    print(f"Evidence collection framework not available: {e}")
+    EVIDENCE_COLLECTION_AVAILABLE = False
+    evidence_router = None
+
+# Import Case Studies Framework
+try:
+    from case_studies_api import router as case_studies_router
+
+    CASE_STUDIES_AVAILABLE = True
+except ImportError as e:
+    print(f"Case studies framework not available: {e}")
+    CASE_STUDIES_AVAILABLE = False
+    case_studies_router = None
+
 # Initialize FastAPI app
 app = FastAPI(
     title="ATOM API",
@@ -260,6 +329,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(router, prefix="/api/v1")
+app.include_router(service_health_router, prefix="")
 
 # Include Asana integration routes if available
 if ASANA_AVAILABLE and asana_router:
@@ -337,6 +407,82 @@ if BYOK_AVAILABLE and byok_router:
     print("✅ BYOK AI provider management routes loaded")
 else:
     print("⚠️  BYOK AI provider management routes not available")
+
+# Include Service Integrations routes if available
+if SERVICE_INTEGRATIONS_AVAILABLE and service_integrations_router:
+    app.include_router(service_integrations_router)
+    print("✅ Comprehensive service integrations routes loaded (16 services)")
+else:
+    print("⚠️  Service integrations routes not available")
+
+# Import integration health endpoints
+try:
+    from integration_health_endpoints import router as integration_health_router
+    INTEGRATION_HEALTH_AVAILABLE = True
+    print("✅ Integration health endpoints imported")
+except ImportError as e:
+    print(f"⚠️ Integration health endpoints not available: {e}")
+    INTEGRATION_HEALTH_AVAILABLE = False
+    integration_health_router = None
+
+# Include integration health endpoints
+if INTEGRATION_HEALTH_AVAILABLE and integration_health_router:
+    app.include_router(integration_health_router)
+    print("✅ Integration health endpoints loaded (33+ services)")
+else:
+    print("⚠️ Integration health endpoints not available")
+
+# Import AI workflow endpoints
+try:
+    from enhanced_ai_workflow_endpoints import router as ai_workflow_router
+    AI_WORKFLOW_AVAILABLE = True
+    print("✅ Enhanced AI workflow endpoints with real AI processing imported")
+except ImportError as e:
+    print(f"⚠️ Enhanced AI workflow endpoints not available: {e}")
+    # Fallback to original endpoints if enhanced ones fail
+    try:
+        from ai_workflow_endpoints import router as ai_workflow_router
+        AI_WORKFLOW_AVAILABLE = True
+        print("⚠️ Using fallback AI workflow endpoints (simulated)")
+    except ImportError as e2:
+        print(f"⚠️ All AI workflow endpoints not available: {e2}")
+        AI_WORKFLOW_AVAILABLE = False
+        ai_workflow_router = None
+
+# Include AI workflow endpoints
+if AI_WORKFLOW_AVAILABLE and ai_workflow_router:
+    app.include_router(ai_workflow_router)
+    print("✅ AI workflow endpoints loaded")
+else:
+    print("⚠️ AI workflow endpoints not available")
+
+# Include Enhanced AI workflow endpoints if available
+if ENHANCED_AI_AVAILABLE and enhanced_ai_router:
+    app.include_router(enhanced_ai_router)
+    print("✅ Enhanced AI workflow endpoints with real AI processing loaded")
+else:
+    print("⚠️ Enhanced AI workflow endpoints not available")
+
+# Include Advanced Workflow Orchestrator if available
+if ADVANCED_WORKFLOW_AVAILABLE and advanced_workflow_router:
+    app.include_router(advanced_workflow_router)
+    print("✅ Advanced workflow orchestrator loaded")
+else:
+    print("⚠️ Advanced workflow orchestrator not available")
+
+# Include Evidence Collection Framework if available
+if EVIDENCE_COLLECTION_AVAILABLE and evidence_router:
+    app.include_router(evidence_router)
+    print("✅ Evidence collection framework loaded")
+else:
+    print("⚠️ Evidence collection framework not available")
+
+# Include Case Studies Framework if available
+if CASE_STUDIES_AVAILABLE and case_studies_router:
+    app.include_router(case_studies_router)
+    print("✅ Real-world case studies framework loaded")
+else:
+    print("⚠️ Case studies framework not available")
 
 # Include PDF processing routes if available
 if PDF_PROCESSING_AVAILABLE and pdf_ocr_router:
@@ -486,6 +632,20 @@ if workflow_router:
     print("✅ Enhanced workflow automation routes loaded")
 else:
     print("⚠️  Workflow automation routes not available")
+
+# Register analytics routes
+if ANALYTICS_AVAILABLE and analytics_router:
+    app.include_router(analytics_router)
+    print("✅ Real-time analytics routes loaded")
+else:
+    print("⚠️  Real-time analytics routes not available")
+
+# Register enterprise routes
+if ENTERPRISE_AVAILABLE and enterprise_router:
+    app.include_router(enterprise_router)
+    print("✅ Enterprise reliability routes loaded")
+else:
+    print("⚠️  Enterprise reliability routes not available")
 
 # Register enterprise user management routes
 if ENTERPRISE_USER_MGMT_AVAILABLE and enterprise_user_router:
