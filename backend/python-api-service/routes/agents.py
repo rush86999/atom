@@ -4,8 +4,8 @@ Agents API routes
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, AgentLog, User
-from ..utils import generate_uuid
+from models import db, AgentLog, User
+from utils import generate_uuid
 from datetime import datetime
 import logging
 
@@ -140,7 +140,7 @@ def execute_agent(agent_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('agent:log', log_entry.to_dict(), room=user_id)
 
         logger.info(f'Agent executed: {agent_id} for user {user_id}')

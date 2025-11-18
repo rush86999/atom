@@ -4,8 +4,8 @@ Finances API routes
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, Transaction, User
-from ..utils import generate_uuid, validate_transaction_data
+from models import db, Transaction, User
+from utils import generate_uuid, validate_transaction_data
 from datetime import datetime, timedelta
 import logging
 

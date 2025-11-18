@@ -4,8 +4,8 @@ Workflows API routes
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, Workflow, User
-from ..utils import generate_uuid, validate_workflow_data
+from models import db, Workflow, User
+from utils import generate_uuid, validate_workflow_data
 from datetime import datetime
 import logging
 
@@ -173,7 +173,7 @@ def execute_workflow(workflow_id):
         }
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('workflow:executed:realtime', result, room=user_id)
 
         logger.info(f'Workflow executed: {workflow_id} for user {user_id}')
@@ -182,7 +182,7 @@ def execute_workflow(workflow_id):
         logger.error(f'Error executing workflow {workflow_id}: {str(e)}')
 
         # Emit failure event
-        from ..app import socketio
+        from app import socketio
         socketio.emit('workflow:execution:failed', {
             'workflow_id': workflow_id,
             'error': str(e),

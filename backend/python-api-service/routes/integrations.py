@@ -4,8 +4,8 @@ Integrations API routes
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..models import db, Integration, User
-from ..utils import generate_uuid
+from models import db, Integration, User
+from utils import generate_uuid
 from datetime import datetime
 import logging
 
@@ -65,7 +65,7 @@ def connect_integration(integration_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('integration:connected', integration.to_dict(), room=user_id)
 
         logger.info(f'Integration connected: {integration_id} for user {user_id}')
@@ -92,7 +92,7 @@ def disconnect_integration(integration_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('integration:disconnected', integration.to_dict(), room=user_id)
 
         logger.info(f'Integration disconnected: {integration_id} for user {user_id}')
@@ -129,7 +129,7 @@ def sync_integration(integration_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('integration:sync:completed', integration.to_dict(), room=user_id)
 
         logger.info(f'Integration synced: {integration_id} for user {user_id}')
@@ -150,7 +150,7 @@ def sync_integration(integration_id):
         db.session.commit()
 
         # Emit real-time update
-        from ..app import socketio
+        from app import socketio
         socketio.emit('integration:sync:failed', integration.to_dict(), room=user_id)
 
         return jsonify({'error': 'Failed to sync integration'}), 500
