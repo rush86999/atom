@@ -59,8 +59,20 @@ async def get_tasks():
     return {"tasks": [], "count": 0}
 
 
-# Service endpoints
+# Service endpoints - DEPRECATED: Use service_integrations.py for comprehensive 16-service support
 @router.get("/services")
 async def get_connected_services():
+    """Redirect to comprehensive service integrations for full 16-service support"""
+    import httpx
+    try:
+        # Forward to comprehensive service integrations
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://localhost:5058/api/v1/services/", timeout=5.0)
+            if response.status_code == 200:
+                return response.json()
+    except Exception:
+        pass
+
+    # Fallback to basic service list
     services = ["github", "google", "slack", "outlook", "teams"]
     return {"services": services, "count": len(services)}

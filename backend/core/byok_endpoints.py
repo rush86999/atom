@@ -27,6 +27,7 @@ class AIProviderConfig:
     description: str
     api_key_env_var: str
     base_url: Optional[str] = None
+    model: Optional[str] = None
     cost_per_token: float = 0.0
     supported_tasks: List[str] = None
     max_requests_per_minute: int = 60
@@ -173,9 +174,26 @@ class BYOKManager:
         """Initialize default AI providers"""
         default_providers = [
             AIProviderConfig(
+                id="glm",
+                name="GLM-4.6",
+                description="GLM-4.6 models for cost-effective AI tasks and document processing",
+                api_key_env_var="GLM_API_KEY",
+                base_url="https://api.z.ai/api/paas/v4",
+                model="glm-4.6",
+                cost_per_token=0.0001,
+                supported_tasks=[
+                    "chat",
+                    "code",
+                    "analysis",
+                    "pdf_processing",
+                    "document_processing",
+                ],
+                max_requests_per_minute=120,
+            ),
+            AIProviderConfig(
                 id="openai",
                 name="OpenAI",
-                description="GPT models for general AI tasks and PDF processing",
+                description="GPT models for general AI tasks and PDF processing (paused for cost optimization)",
                 api_key_env_var="OPENAI_API_KEY",
                 cost_per_token=0.002,
                 supported_tasks=[
@@ -186,6 +204,7 @@ class BYOKManager:
                     "image_comprehension",
                 ],
                 max_requests_per_minute=60,
+                is_active=False,  # Paused for cost optimization
             ),
             AIProviderConfig(
                 id="anthropic",

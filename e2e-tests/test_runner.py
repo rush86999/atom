@@ -20,7 +20,9 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from config.test_config import TestConfig
+import os
 from utils.llm_verifier import LLMVerifier
+from utils.glm_verifier import GLMVerifier
 
 # Initialize colorama for colored output
 init(autoreset=True)
@@ -39,7 +41,15 @@ class E2ETestRunner:
     def initialize_llm_verifier(self) -> bool:
         """Initialize LLM verifier if credentials are available"""
         try:
-            self.llm_verifier = LLMVerifier()
+            # Check if we should use GLM instead of OpenAI
+            use_glm = os.getenv("USE_GLM_VALIDATOR", "false").lower() == "true"
+
+            if use_glm:
+                self.llm_verifier = GLMVerifier()
+                print(f"{Fore.CYAN}Using GLM 4.6 for AI validation{Style.RESET_ALL}")
+            else:
+                self.llm_verifier = LLMVerifier()
+                print(f"{Fore.CYAN}Using OpenAI for AI validation{Style.RESET_ALL}")
             return True
         except ValueError as e:
             print(
@@ -196,6 +206,7 @@ class E2ETestRunner:
                 f"{Fore.RED}❌ LLM verification failed for {category}: {str(e)}{Style.RESET_ALL}"
             )
             return {"error": str(e)}
+
 
     def _print_category_summary(self, category: str, results: Dict[str, Any]):
         """Print summary for a test category"""
