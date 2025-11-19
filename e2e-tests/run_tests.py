@@ -35,7 +35,7 @@ from config.test_config import TestConfig
 
 def setup_environment():
     """Setup test environment and validate requirements"""
-    print("🔧 Setting up E2E Test Environment...")
+    print("[SETUP] Setting up E2E Test Environment...")
 
     # Check if we're in the right directory
     current_dir = Path(__file__).parent
@@ -43,7 +43,7 @@ def setup_environment():
         not (current_dir.parent / "backend").exists()
         and not (current_dir.parent / "frontend-nextjs").exists()
     ):
-        print("❌ Error: Please run this script from the project root directory")
+        print("[ERROR] Please run this script from the project root directory")
         sys.exit(1)
 
     # Load environment variables
@@ -51,17 +51,17 @@ def setup_environment():
 
     for env_file in env_files:
         if Path(env_file).exists():
-            print(f"📁 Loading environment from: {env_file}")
+            print(f"[ENV] Loading environment from: {env_file}")
             break
     else:
-        print("⚠️  No .env file found. Using environment variables only.")
+        print("[WARN] No .env file found. Using environment variables only.")
 
 
 def validate_credentials(test_category=None):
     """Validate required credentials for testing"""
     config = TestConfig()
 
-    print("\n🔐 Validating Credentials...")
+    print("\n[CREDS] Validating Credentials...")
 
     if test_category:
         # Handle single or multiple categories
@@ -85,16 +85,16 @@ def validate_credentials(test_category=None):
         available_categories = config.get_test_categories_with_credentials()
 
     if missing_creds:
-        print("❌ Missing credentials:")
+        print("[ERROR] Missing credentials:")
         for cred in missing_creds:
             print(f"   - {cred}")
     else:
-        print("✅ All required credentials are available")
+        print("[OK] All required credentials are available")
 
     if available_categories:
-        print(f"✅ Available test categories: {', '.join(available_categories)}")
+        print(f"[OK] Available test categories: {', '.join(available_categories)}")
     else:
-        print("❌ No test categories have all required credentials")
+        print("[ERROR] No test categories have all required credentials")
 
     return available_categories
 
@@ -103,12 +103,12 @@ def check_service_connectivity():
     """Check connectivity to required services"""
     config = TestConfig()
 
-    print("\n🌐 Checking Service Connectivity...")
+    print("\n[NET] Checking Service Connectivity...")
 
     connectivity = config.check_service_connectivity()
 
     for service, status in connectivity.items():
-        status_icon = "✅" if status else "❌"
+        status_icon = "[OK]" if status else "[FAIL]"
         print(
             f"   {status_icon} {service.capitalize()}: {'Connected' if status else 'Not connected'}"
         )
@@ -118,7 +118,7 @@ def check_service_connectivity():
 
 def generate_test_report(results, output_file=None):
     """Generate comprehensive test report"""
-    print("\n📊 Generating Test Report...")
+    print("\n[REPORT] Generating Test Report...")
 
     if output_file:
         report_path = Path(output_file)
@@ -131,16 +131,16 @@ def generate_test_report(results, output_file=None):
     with open(report_path, "w") as f:
         json.dump(results, f, indent=2, default=str)
 
-    print(f"📄 Report saved to: {report_path}")
+    print(f"[FILE] Report saved to: {report_path}")
 
     # Print summary
     print("\n" + "=" * 80)
-    print("🎯 ATOM PLATFORM E2E TEST SUMMARY")
+    print("[SUMMARY] ATOM PLATFORM E2E TEST SUMMARY")
     print("=" * 80)
 
     overall_status = results.get("overall_status", "UNKNOWN")
-    status_color = {"PASSED": "🟢", "FAILED": "🔴", "NO_TESTS": "🟡"}.get(
-        overall_status, "⚪"
+    status_color = {"PASSED": "[PASS]", "FAILED": "[FAIL]", "NO_TESTS": "[SKIP]"}.get(
+        overall_status, "[UNKNOWN]"
     )
 
     print(f"Overall Status: {status_color} {overall_status}")
@@ -212,10 +212,10 @@ def main():
     # List categories if requested
     if args.list_categories:
         config = TestConfig()
-        print("\n📋 Available Test Categories:")
+        print("\n[CATEGORIES] Available Test Categories:")
         for category in config.REQUIRED_CREDENTIALS.keys():
             missing = config.get_missing_credentials(category)
-            status = "✅" if not missing else "❌"
+            status = "[OK]" if not missing else "[FAIL]"
             print(
                 f"   {status} {category}: {'Ready' if not missing else f'Missing {len(missing)} credentials'}"
             )
@@ -234,25 +234,25 @@ def main():
     # Stop here if validation only
     if args.validate_only:
         if available_categories and connectivity.get("backend", False):
-            print("\n✅ Environment is ready for testing!")
+            print("\n[OK] Environment is ready for testing!")
         else:
-            print("\n❌ Environment is not ready for testing")
+            print("\n[ERROR] Environment is not ready for testing")
             sys.exit(1)
         return
 
     # Check if we can proceed with testing
     if not available_categories:
         print(
-            "\n❌ Cannot proceed with testing - no categories have all required credentials"
+            "\n[ERROR] Cannot proceed with testing - no categories have all required credentials"
         )
         sys.exit(1)
 
     if not connectivity.get("backend", False):
-        print("\n❌ Cannot proceed with testing - backend service is not accessible")
+        print("\n[ERROR] Cannot proceed with testing - backend service is not accessible")
         sys.exit(1)
 
     # Run tests
-    print("\n🚀 Starting E2E Tests...")
+    print("\n[START] Starting E2E Tests...")
     runner = E2ETestRunner()
 
     # Set environment variable to skip LLM if requested
@@ -275,17 +275,17 @@ def main():
 
         # Exit with appropriate code
         if results.get("overall_status") == "PASSED":
-            print("\n🎉 All tests passed!")
+            print("\n[SUCCESS] All tests passed!")
             sys.exit(0)
         else:
-            print("\n💥 Some tests failed!")
+            print("\n[FAIL] Some tests failed!")
             sys.exit(1)
 
     except KeyboardInterrupt:
-        print("\n⏹️  Test execution interrupted by user")
+        print("\n[STOP] Test execution interrupted by user")
         sys.exit(130)
     except Exception as e:
-        print(f"\n💥 Test execution failed: {str(e)}")
+        print(f"\n[ERROR] Test execution failed: {str(e)}")
         if args.verbose:
             import traceback
 
