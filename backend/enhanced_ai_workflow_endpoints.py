@@ -268,17 +268,17 @@ class RealAIWorkflowService:
 
     async def process_with_nlu(self, text: str, provider: str = "openai") -> Dict[str, Any]:
         """Process text using real NLU capabilities"""
-        system_prompt = """Analyze the user's request and extract:
-1. The main intent/goal
+        system_prompt = """Analyze the user's request and extract ALL intents and goals:
+1. The main intent(s)/goal(s) - List ALL distinct goals found
 2. Key entities (people, dates, times, locations, actions)
-3. Specific tasks that should be created
+3. Specific tasks that should be created for EACH intent
 4. Priority level
 
 Return your response as a JSON object with this format:
 {
-    "intent": "brief description of the main goal",
+    "intent": "summary of all goals (e.g. 'Refund order AND update address')",
     "entities": ["list", "of", "key", "entities"],
-    "tasks": ["specific", "actionable", "tasks"],
+    "tasks": ["Task 1: Refund order #12345", "Task 2: Update shipping address to 123 Main St"],
     "priority": "high/medium/low",
     "confidence": 0.0-1.0
 }"""
@@ -286,13 +286,15 @@ Return your response as a JSON object with this format:
         user_prompt = f"Analyze this request: {text}"
 
         # Try the requested provider, fallback to others if needed
-        providers_to_try = [provider]
-        if provider != "openai" and self.openai_api_key:
-            providers_to_try.append("openai")
-        if provider != "anthropic" and self.anthropic_api_key:
-            providers_to_try.append("anthropic")
-        if provider != "deepseek" and self.deepseek_api_key:
-            providers_to_try.append("deepseek")
+        # FORCED DEEPSEEK ONLY MODE
+        providers_to_try = ["deepseek"]
+        
+        # if provider != "openai" and self.openai_api_key:
+        #     providers_to_try.append("openai")
+        # if provider != "anthropic" and self.anthropic_api_key:
+        #     providers_to_try.append("anthropic")
+        # if provider != "deepseek" and self.deepseek_api_key:
+        #     providers_to_try.append("deepseek")
 
         last_error = None
         for provider_name in providers_to_try:
@@ -309,11 +311,21 @@ Return your response as a JSON object with this format:
                 # Parse JSON response
                 try:
                     import json
-                    ai_response = json.loads(result['content'])
+                    content = result['content']
+                    logger.info(f"RAW AI RESPONSE: {content}")
+                    
+                    # Strip markdown code blocks if present
+                    if "```json" in content:
+                        content = content.split("```json")[1].split("```")[0].strip()
+                    elif "```" in content:
+                        content = content.split("```")[1].split("```")[0].strip()
+                        
+                    ai_response = json.loads(content)
                     ai_response['ai_provider_used'] = provider_name
                     ai_response['raw_confidence'] = result['confidence']
                     return ai_response
                 except json.JSONDecodeError:
+                    logger.error(f"JSON Decode Error. Raw content: {result['content']}")
                     # Fallback: create structured response from text
                     return {
                         "intent": result['content'][:200],
@@ -345,7 +357,9 @@ Return your response as a JSON array of strings, like:
 ["Task 1 description", "Task 2 description", "Task 3 description"]"""
 
         try:
+            logger.info(f"Generating tasks for input: {input_text}")
             result = await self.process_with_nlu(input_text, provider)
+            logger.info(f"NLU Result: {result}")
             if 'tasks' in result:
                 return result['tasks'][:5]  # Limit to 5 tasks
             else:
@@ -441,7 +455,7 @@ async def execute_ai_workflow(request: Dict[str, Any]):
     start_time = time.time()
 
     natural_language_input = request.get("input", "Create a task for team meeting tomorrow")
-    ai_provider = request.get("provider", "openai")
+    ai_provider = request.get("provider", "deepseek")
 
     try:
         # Generate real tasks using AI
@@ -483,7 +497,7 @@ async def process_natural_language(request: Dict[str, Any]):
     start_time = time.time()
 
     input_text = request.get("text", "Schedule team meeting for tomorrow at 2pm")
-    ai_provider = request.get("provider", "openai")
+    ai_provider = request.get("provider", "deepseek")
 
     try:
         # Use real NLU processing

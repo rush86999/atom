@@ -527,7 +527,7 @@ class UserExpectationValidator:
                 endpoints = [
                     f"{self.backend_url}/api/v1/ai/nlu",
                     f"{self.backend_url}/api/v1/ai/execute",
-                    f"{self.backend_url}/api/ai/providers"
+                    f"{self.backend_url}/api/v1/ai/providers"
                 ]
                 
                 for endpoint in endpoints:
@@ -621,11 +621,11 @@ class UserExpectationValidator:
             {"service": "linear", "endpoint": "/api/linear/health"},
             {"service": "outlook", "endpoint": "/api/outlook/health"},
             {"service": "dropbox", "endpoint": "/api/dropbox/health"},
-            {"service": "google_drive", "endpoint": "/google_drive/health"},
+            {"service": "google_drive", "endpoint": "/api/google-drive/health"},
             {"service": "github", "endpoint": "/api/github/health"},
             {"service": "slack", "endpoint": "/api/slack/health"},
-            {"service": "salesforce", "endpoint": "/salesforce/health"},
-            {"service": "stripe", "endpoint": "/stripe/health"},
+            {"service": "salesforce", "endpoint": "/api/salesforce/health"},
+            {"service": "stripe", "endpoint": "/api/stripe/health"},
         ]
         
         for service_test in integration_tests:
@@ -683,9 +683,9 @@ class UserExpectationValidator:
         # Test actual analytics endpoints
         analytics_endpoints = [
             "/api/v1/analytics/dashboard",
-            "/api/v1/analytics/usage/stats", 
+            "/api/v1/analytics/usage/stats",
             "/api/v1/analytics/performance",
-            "/api/analytics/health"
+            "/api/v1/analytics/health"
         ]
         
         for endpoint_path in analytics_endpoints:

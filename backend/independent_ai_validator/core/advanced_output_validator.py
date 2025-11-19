@@ -502,13 +502,13 @@ class AdvancedOutputValidator:
             "stripe": {
                 "name": "Stripe Payments",
                 "category": "business",
-                "endpoint": "/stripe/health",
+                "endpoint": "/api/stripe/health",
                 "description": "Payment processing and billing"
             },
             "salesforce": {
                 "name": "Salesforce CRM",
                 "category": "business",
-                "endpoint": "/salesforce/health",
+                "endpoint": "/api/salesforce/health",
                 "description": "Customer relationship management"
             },
             "zoom": {
@@ -526,25 +526,25 @@ class AdvancedOutputValidator:
             "google_drive": {
                 "name": "Google Drive",
                 "category": "storage",
-                "endpoint": "/google_drive/health",
+                "endpoint": "/api/google-drive/health",
                 "description": "Cloud storage and collaboration"
             },
             "onedrive": {
                 "name": "OneDrive",
                 "category": "storage",
-                "endpoint": "/onedrive/health",
+                "endpoint": "/api/onedrive/health",
                 "description": "Microsoft cloud storage integration"
             },
             "microsoft365": {
                 "name": "Microsoft 365",
                 "category": "productivity",
-                "endpoint": "/microsoft365/health",
+                "endpoint": "/api/microsoft365/health",
                 "description": "Office 365 productivity suite"
             },
             "box": {
                 "name": "Box Cloud Storage",
                 "category": "storage",
-                "endpoint": "/box/health",
+                "endpoint": "/api/box/health",
                 "description": "Enterprise cloud storage"
             },
             "slack": {
@@ -562,7 +562,7 @@ class AdvancedOutputValidator:
             "tableau": {
                 "name": "Tableau Analytics",
                 "category": "business",
-                "endpoint": "/tableau/health",
+                "endpoint": "/api/tableau/health",
                 "description": "Business intelligence and data visualization"
             }
         }

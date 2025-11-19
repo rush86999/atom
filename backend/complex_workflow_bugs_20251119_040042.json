@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-11-19T04:00:42.097765",
+  "total_bugs": 3,
+  "by_severity": {
+    "critical": 0,
+    "high": 1,
+    "medium": 1,
+    "low": 1
+  },
+  "bugs": [
+    {
+      "title": "AI analysis endpoint missing",
+      "description": "/api/v1/ai/analyze returns 404",
+      "severity": "high",
+      "reproduction_steps": [
+        "POST to /api/v1/ai/analyze",
+        "Receives 404"
+      ],
+      "expected": "AI analysis result",
+      "actual": "404 Not Found - endpoint not implemented",
+      "timestamp": "2025-11-19T04:00:42.068879"
+    },
+    {
+      "title": "Workflow steps not persisted",
+      "description": "Created multi-step workflow but steps not in response",
+      "severity": "medium",
+      "reproduction_steps": [
+        "Create workflow with steps array",
+        "Check response for 'workflow.steps'"
+      ],
+      "expected": "Response includes steps array",
+      "actual": "No steps in response",
+      "timestamp": "2025-11-19T04:00:42.081830"
+    },
+    {
+      "title": "No input length validation",
+      "description": "Accepts extremely long workflow names",
+      "severity": "low",
+      "reproduction_steps": [
+        "POST workflow with 10k character name",
+        "Accepts without limit"
+      ],
+      "expected": "400/422 - name too long",
+      "actual": "200 OK",
+      "timestamp": "2025-11-19T04:00:42.097218"
+    }
+  ]
+}

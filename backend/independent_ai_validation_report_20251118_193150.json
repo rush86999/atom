@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "validation_date": "2025-11-18T19:31:50.968640",
+    "validator_version": "1.0.0",
+    "total_claims_validated": 1,
+    "providers_used": [
+      "glm",
+      "anthropic",
+      "deepseek"
+    ]
+  },
+  "summary": {
+    "overall_score": 0.4222222222222222,
+    "claims_fully_validated": 0,
+    "claims_partially_validated": 0,
+    "claims_not_validated": 1,
+    "average_confidence": 0.4222222222222222
+  },
+  "category_scores": {
+    "integrations": 0.4222222222222222
+  },
+  "detailed_results": {
+    "atom_multi_provider": {
+      "claim": "Multi-Provider Integration: Connect with 15+ third-party services seamlessly",
+      "category": "integrations",
+      "score": 0.4222222222222222,
+      "evidence_strength": "INSUFFICIENT",
+      "recommendations": [
+        "deepseek: ### Recommendations for Claim Improvement",
+        "deepseek: - No information about planned improvements or roadmap",
+        "anthropic: Recommendations:"
+      ],
+      "individual_scores": {
+        "anthropic": 0.2,
+        "deepseek": 0.7
+      }
+    }
+  }
+}

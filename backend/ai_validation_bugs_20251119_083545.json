@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-11-19T08:35:45.710138",
+  "validation_method": "multi_provider_ai_consensus",
+  "providers_used": [
+    "glm",
+    "anthropic",
+    "deepseek"
+  ],
+  "bugs_found": 2,
+  "bugs": [
+    {
+      "type": "ai_detected_issue",
+      "workflow": "customer_support_multi_issue",
+      "severity": "medium",
+      "consensus_score": 0.3,
+      "description": "Workflow 'customer_support_multi_issue' output quality issue detected by AI analysis",
+      "ai_reasoning": [
+        "deepseek: No reasoning provided..."
+      ],
+      "provider_verdicts": {
+        "deepseek": "UNKNOWN"
+      }
+    },
+    {
+      "type": "ai_detected_issue",
+      "workflow": "content_generation",
+      "severity": "medium",
+      "consensus_score": 0.3,
+      "description": "Workflow 'content_generation' output quality issue detected by AI analysis",
+      "ai_reasoning": [
+        "deepseek: No reasoning provided..."
+      ],
+      "provider_verdicts": {
+        "deepseek": "UNKNOWN"
+      }
+    }
+  ]
+}

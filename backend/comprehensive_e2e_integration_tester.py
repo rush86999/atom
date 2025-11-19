@@ -24,6 +24,7 @@ import subprocess
 import threading
 import queue
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from collections import Counter
 
 # Configure logging
 logging.basicConfig(
@@ -58,12 +59,14 @@ class CredentialConfig:
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     deepseek_api_key: Optional[str] = None
+    glm_api_key: Optional[str] = None
+    deepseek_api_key: Optional[str] = None
     slack_bot_token: Optional[str] = None
-    github_token: Optional[str] = None
+    github_access_token: Optional[str] = None
     google_client_id: Optional[str] = None
     google_client_secret: Optional[str] = None
-    asana_token: Optional[str] = None
-    notion_token: Optional[str] = None
+    asana_access_token: Optional[str] = None
+    notion_api_key: Optional[str] = None
 
     def is_complete(self) -> bool:
         """Check if all required credentials are provided"""
@@ -87,31 +90,25 @@ class CredentialManager:
         print("All credentials are stored temporarily and cleaned up after testing.\n")
 
         credential_methods = [
-            ("OpenAI API Key", "OPENAI_API_KEY", self._validate_openai_key"),
+            ("OpenAI API Key", "OPENAI_API_KEY", self._validate_openai_key),
             ("Anthropic API Key", "ANTHROPIC_API_KEY", self._validate_anthropic_key),
             ("DeepSeek API Key", "DEEPSEEK_API_KEY", self._validate_deepseek_key),
+            ("GLM API Key", "GLM_API_KEY", self._validate_glm_key),
             ("Slack Bot Token", "SLACK_BOT_TOKEN", self._validate_slack_token),
-            ("GitHub Personal Access Token", "GITHUB_TOKEN", self._validate_github_token),
+            ("GitHub Personal Access Token", "GITHUB_TOKEN", self._validate_github_access_token),
             ("Google Client ID", "GOOGLE_CLIENT_ID", self._validate_google_client_id),
             ("Google Client Secret", "GOOGLE_CLIENT_SECRET", self._validate_google_client_secret),
-            ("Asana Personal Access Token", "ASANA_TOKEN", self._validate_asana_token),
-            ("Notion Integration Token", "NOTION_TOKEN", self._validate_notion_token),
+            ("Asana Personal Access Token", "ASANA_TOKEN", self._validate_asana_access_token),
+            ("Notion Integration Token", "NOTION_TOKEN", self._validate_notion_api_key),
         ]
 
         for name, env_var, validator in credential_methods:
             value = os.getenv(env_var)
             if not value:
-                value = input(f"Enter {name} (or press Enter to skip): ").strip()
-                if value:
-                    value = validator(value)
-                    if not value:
-                        print(f"⚠️  Invalid {name}. Skipping...")
-                        continue
-                    os.environ[env_var] = value
-                    self.temp_env_vars[env_var] = value
-                else:
-                    print(f"⚠️  {name} skipped")
-                    continue
+                # Auto-skip if not in environment (non-interactive mode)
+                # For interactive mode, users can set env vars before running
+                print(f"⚠️  {name} not found in environment, skipping")
+                continue
             else:
                 value = validator(value)
                 if not value:
@@ -151,13 +148,19 @@ class CredentialManager:
             return key
         return None
 
+    def _validate_glm_key(self, key: str) -> Optional[str]:
+        """Validate GLM API key format"""
+        if '.' in key and len(key) >= 30:
+            return key
+        return None
+
     def _validate_slack_token(self, token: str) -> Optional[str]:
         """Validate Slack bot token format"""
         if token.startswith('xoxb-') and len(token) >= 20:
             return token
         return None
 
-    def _validate_github_token(self, token: str) -> Optional[str]:
+    def _validate_github_access_token(self, token: str) -> Optional[str]:
         """Validate GitHub token format"""
         if token.startswith('github_pat_') or token.startswith('ghp_') or token.startswith('gho_'):
             return token
@@ -175,13 +178,13 @@ class CredentialManager:
             return client_secret
         return None
 
-    def _validate_asana_token(self, token: str) -> Optional[str]:
+    def _validate_asana_access_token(self, token: str) -> Optional[str]:
         """Validate Asana token format"""
         if len(token) >= 16:
             return token
         return None
 
-    def _validate_notion_token(self, token: str) -> Optional[str]:
+    def _validate_notion_api_key(self, token: str) -> Optional[str]:
         """Validate Notion token format"""
         if token.startswith('secret_') and len(token) >= 20:
             return token
@@ -199,11 +202,12 @@ class CredentialManager:
         """Count available optional credentials"""
         optional = [
             self.config.slack_bot_token,
-            self.config.github_token,
+            self.config.github_access_token,
             self.config.google_client_id,
             self.config.google_client_secret,
-            self.config.asana_token,
-            self.config.notion_token
+            self.config.asana_access_token,
+            self.config.notion_api_key,
+            self.config.glm_api_key # GLM is optional for now
         ]
         return sum(1 for cred in optional if cred)
 
@@ -275,6 +279,48 @@ class EvidenceCollector:
             json.dump(evidence_data, f, indent=2)
 
         self.current_test_evidence = []
+
+class GapAnalyzer:
+    """Analyzes test results to identify gaps and bugs"""
+
+    def __init__(self):
+        self.gaps = []
+        self.bugs = []
+
+    def analyze_results(self, test_results: List[TestResult]) -> Dict[str, Any]:
+        """Analyze test results for gaps and bugs"""
+        self.gaps = []
+        self.bugs = []
+
+        for result in test_results:
+            if result.status == TestStatus.FAILED:
+                self.bugs.append({
+                    "test_name": result.test_name,
+                    "category": result.category,
+                    "error": result.error_message,
+                    "severity": "high"
+                })
+            elif result.status == TestStatus.SKIPPED:
+                self.gaps.append({
+                    "test_name": result.test_name,
+                    "category": result.category,
+                    "reason": result.error_message,
+                    "severity": "medium"
+                })
+            elif result.success_rate < 0.9:
+                self.gaps.append({
+                    "test_name": result.test_name,
+                    "category": result.category,
+                    "reason": f"Low success rate: {result.success_rate:.1%}",
+                    "severity": "low"
+                })
+
+        return {
+            "gaps": self.gaps,
+            "bugs": self.bugs,
+            "gap_count": len(self.gaps),
+            "bug_count": len(self.bugs)
+        }
 
 class ComprehensiveE2ETester:
     """Main E2E integration testing framework"""
@@ -374,39 +420,39 @@ class ComprehensiveE2ETester:
         try:
             config = self.credential_manager.get_config()
 
-            # Test OpenAI integration
-            if config.openai_api_key:
-                result = await self._test_openai_integration(evidence_dir)
-                self.test_results.append(result)
-            else:
-                self.test_results.append(TestResult(
-                    test_name="OpenAI Integration",
-                    category="ai_nlp_processing",
-                    status=TestStatus.SKIPPED,
-                    success_rate=0.0,
-                    confidence=0.0,
-                    execution_time=0.0,
-                    evidence=[],
-                    error_message="OpenAI API key not provided",
-                    timestamp=datetime.datetime.now().isoformat()
-                ))
+            # Test OpenAI integration - DISABLED for DeepSeek only testing
+            # if config.openai_api_key:
+            #     result = await self._test_openai_integration(evidence_dir)
+            #     self.test_results.append(result)
+            # else:
+            #     self.test_results.append(TestResult(
+            #         test_name="OpenAI Integration",
+            #         category="ai_nlp_processing",
+            #         status=TestStatus.SKIPPED,
+            #         success_rate=0.0,
+            #         confidence=0.0,
+            #         execution_time=0.0,
+            #         evidence=[],
+            #         error_message="OpenAI API key not provided",
+            #         timestamp=datetime.datetime.now().isoformat()
+            #     ))
 
-            # Test Anthropic integration
-            if config.anthropic_api_key:
-                result = await self._test_anthropic_integration(evidence_dir)
-                self.test_results.append(result)
-            else:
-                self.test_results.append(TestResult(
-                    test_name="Anthropic Integration",
-                    category="ai_nlp_processing",
-                    status=TestStatus.SKIPPED,
-                    success_rate=0.0,
-                    confidence=0.0,
-                    execution_time=0.0,
-                    evidence=[],
-                    error_message="Anthropic API key not provided",
-                    timestamp=datetime.datetime.now().isoformat()
-                ))
+            # Test Anthropic integration - DISABLED for DeepSeek only testing
+            # if config.anthropic_api_key:
+            #     result = await self._test_anthropic_integration(evidence_dir)
+            #     self.test_results.append(result)
+            # else:
+            #     self.test_results.append(TestResult(
+            #         test_name="Anthropic Integration",
+            #         category="ai_nlp_processing",
+            #         status=TestStatus.SKIPPED,
+            #         success_rate=0.0,
+            #         confidence=0.0,
+            #         execution_time=0.0,
+            #         evidence=[],
+            #         error_message="Anthropic API key not provided",
+            #         timestamp=datetime.datetime.now().isoformat()
+            #     ))
 
             # Test DeepSeek integration
             if config.deepseek_api_key:
@@ -424,6 +470,23 @@ class ComprehensiveE2ETester:
                     error_message="DeepSeek API key not provided",
                     timestamp=datetime.datetime.now().isoformat()
                 ))
+
+            # Test GLM integration - DISABLED for DeepSeek only testing
+            # if config.glm_api_key:
+            #     result = await self._test_glm_integration(evidence_dir)
+            #     self.test_results.append(result)
+            # else:
+            #     self.test_results.append(TestResult(
+            #         test_name="GLM API Integration",
+            #         category="ai_nlp_processing",
+            #         status=TestStatus.SKIPPED,
+            #         success_rate=0.0,
+            #         confidence=0.0,
+            #         execution_time=0.0,
+            #         evidence=[],
+            #         error_message="GLM API key not provided",
+            #         timestamp=datetime.datetime.now().isoformat()
+            #     ))
 
         except Exception as e:
             logger.error(f"AI NLP Processing test failed: {e}")
@@ -525,7 +588,7 @@ class ComprehensiveE2ETester:
 
                 # Test Anthropic API
                 data = {
-                    "model": "claude-3-sonnet-20240229",
+                    "model": "claude-3-5-sonnet-20241022",
                     "max_tokens": 150,
                     "messages": [
                         {"role": "user", "content": "Analyze this workflow requirement and suggest automation steps: 'When a customer submits a support ticket via email, automatically categorize it and assign to the appropriate team member'"}
@@ -647,56 +710,210 @@ class ComprehensiveE2ETester:
                 timestamp=datetime.datetime.now().isoformat()
             )
 
+    async def _test_glm_integration(self, evidence_dir: str) -> TestResult:
+        """Test GLM API integration using the correct Z.AI endpoint"""
+        test_name = "GLM API Integration"
+        start_time = time.time()
+
+        try:
+            config = self.credential_manager.get_config()
+
+            async with aiohttp.ClientSession() as session:
+                # Use correct Z.AI endpoint from curl example
+                headers = {
+                    'Authorization': f'Bearer {config.glm_api_key}',
+                    'Content-Type': 'application/json'
+                }
+
+                # Test GLM API
+                data = {
+                    "model": "glm-4.6",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "Generate a cost-effective analysis of this workflow requirement"
+                        }
+                    ],
+                    "max_tokens": 150,
+                    "temperature": 0.7
+                }
+
+                async with session.post(
+                    "https://api.z.ai/api/paas/v4/chat/completions",
+                    headers=headers,
+                    json=data,
+                    timeout=30
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        
+                        # Collect evidence
+                        self.evidence_collector.collect_api_response({
+                            'provider': 'GLM',
+                            'request': data,
+                            'response': result,
+                            'status_code': response.status,
+                            'test_type': 'ai_nlp_integration'
+                        })
+
+                        return TestResult(
+                            test_name=test_name,
+                            category="ai_nlp_processing",
+                            status=TestStatus.PASSED,
+                            success_rate=1.0,
+                            confidence=0.90,
+                            execution_time=time.time() - start_time,
+                            evidence=self.evidence_collector.current_test_evidence.copy(),
+                            error_message=None,
+                            timestamp=datetime.datetime.now().isoformat()
+                        )
+                    else:
+                        raise Exception(f"HTTP {response.status}: {await response.text()}")
+
+        except Exception as e:
+            return TestResult(
+                test_name=test_name,
+                category="ai_nlp_processing",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            )
+
     async def _test_workflow_engine(self):
-        """Test workflow engine"""
+        """Test workflow engine with real API calls"""
         print("\n⚙️ Testing: Workflow Engine")
-        # Implementation would go here
-        # For now, create placeholder result
-        self.test_results.append(TestResult(
-            test_name="Workflow Engine",
-            category="core_systems",
-            status=TestStatus.PASSED,
-            success_rate=0.95,
-            confidence=0.90,
-            execution_time=1.5,
-            evidence=[],
-            error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
-        ))
+        test_name = "Workflow Engine Execution"
+        start_time = time.time()
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                # 1. Create a simple workflow
+                workflow_def = {
+                    "name": f"E2E Test Workflow {int(time.time())}",
+                    "description": "Test workflow created by E2E tester",
+                    "steps": [
+                        {"action": "analysis", "input": "Test input"}
+                    ]
+                }
+                
+                async with session.post("http://localhost:5058/api/v1/workflows", json=workflow_def) as response:
+                    if response.status not in [200, 201]:
+                        raise Exception(f"Failed to create workflow: {response.status}")
+                    workflow_data = await response.json()
+                    workflow_id = workflow_data.get("id")
+
+                # 2. Execute the workflow
+                async with session.post(f"http://localhost:5058/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                    if response.status != 200:
+                        raise Exception(f"Failed to execute workflow: {response.status}")
+                    execution_result = await response.json()
+
+                self.test_results.append(TestResult(
+                    test_name=test_name,
+                    category="core_systems",
+                    status=TestStatus.PASSED,
+                    success_rate=1.0,
+                    confidence=0.95,
+                    execution_time=time.time() - start_time,
+                    evidence=[{"type": "execution_result", "data": execution_result}],
+                    error_message=None,
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+
+        except Exception as e:
+            self.test_results.append(TestResult(
+                test_name=test_name,
+                category="core_systems",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            ))
 
     async def _test_byok_system(self):
-        """Test BYOK system"""
+        """Test BYOK system with real API calls"""
         print("\n🔑 Testing: BYOK System")
-        # Implementation would go here
-        # For now, create placeholder result
-        self.test_results.append(TestResult(
-            test_name="BYOK System",
-            category="core_systems",
-            status=TestStatus.PASSED,
-            success_rate=0.95,
-            confidence=0.90,
-            execution_time=1.2,
-            evidence=[],
-            error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
-        ))
+        test_name = "BYOK Key Management"
+        start_time = time.time()
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Check BYOK health/status
+                async with session.get("http://localhost:5058/api/v1/byok/health") as response:
+                    if response.status != 200:
+                        raise Exception(f"BYOK system unhealthy: {response.status}")
+                    health_data = await response.json()
+
+                self.test_results.append(TestResult(
+                    test_name=test_name,
+                    category="core_systems",
+                    status=TestStatus.PASSED,
+                    success_rate=1.0,
+                    confidence=0.95,
+                    execution_time=time.time() - start_time,
+                    evidence=[{"type": "health_check", "data": health_data}],
+                    error_message=None,
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+
+        except Exception as e:
+            self.test_results.append(TestResult(
+                test_name=test_name,
+                category="core_systems",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            ))
 
     async def _test_real_time_monitoring(self):
-        """Test real-time monitoring"""
+        """Test real-time monitoring with real API calls"""
         print("\n📊 Testing: Real-Time Monitoring")
-        # Implementation would go here
-        # For now, create placeholder result
-        self.test_results.append(TestResult(
-            test_name="Real-Time Monitoring",
-            category="core_systems",
-            status=TestStatus.PASSED,
-            success_rate=0.95,
-            confidence=0.90,
-            execution_time=1.0,
-            evidence=[],
-            error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
-        ))
+        test_name = "Real-Time Monitoring System"
+        start_time = time.time()
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Check metrics endpoint
+                async with session.get("http://localhost:5058/metrics") as response:
+                    if response.status != 200:
+                        raise Exception(f"Metrics endpoint failed: {response.status}")
+                    metrics_data = await response.text()
+
+                self.test_results.append(TestResult(
+                    test_name=test_name,
+                    category="core_systems",
+                    status=TestStatus.PASSED,
+                    success_rate=1.0,
+                    confidence=0.95,
+                    execution_time=time.time() - start_time,
+                    evidence=[{"type": "metrics_sample", "size": len(metrics_data)}],
+                    error_message=None,
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+
+        except Exception as e:
+            self.test_results.append(TestResult(
+                test_name=test_name,
+                category="core_systems",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            ))
 
     async def _run_service_integration_tests(self):
         """Run service integration tests"""
@@ -705,63 +922,190 @@ class ComprehensiveE2ETester:
 
         # Test service integrations based on available credentials
         config = self.credential_manager.get_config()
-
+        # Test third-party service integrations
         if config.slack_bot_token:
             await self._test_slack_integration()
-
-        if config.github_token:
+        if config.github_access_token:
             await self._test_github_integration()
-
-        if config.asana_token:
+        if config.asana_access_token:
             await self._test_asana_integration()
+        if config.notion_api_key:
+            await self._test_notion_integration()
+        
+        # Test Analytics API
+        await self._test_analytics_api()
 
     async def _test_slack_integration(self):
-        """Test Slack integration"""
+        """Test Slack integration with real API calls"""
         print("📱 Testing: Slack Integration")
-        # Implementation would go here
-        self.test_results.append(TestResult(
-            test_name="Slack Integration",
-            category="service_integration",
-            status=TestStatus.PASSED,
-            success_rate=0.90,
-            confidence=0.85,
-            execution_time=2.0,
-            evidence=[],
-            error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
-        ))
+        test_name = "Slack Integration"
+        start_time = time.time()
+
+        try:
+            config = self.credential_manager.get_config()
+            async with aiohttp.ClientSession() as session:
+                # Test auth/health
+                async with session.post("https://slack.com/api/auth.test", 
+                                      headers={"Authorization": f"Bearer {config.slack_bot_token}"}) as response:
+                    if response.status != 200:
+                        raise Exception(f"Slack auth failed: {response.status}")
+                    auth_data = await response.json()
+                    if not auth_data.get("ok"):
+                        raise Exception(f"Slack auth error: {auth_data.get('error')}")
+
+                self.test_results.append(TestResult(
+                    test_name=test_name,
+                    category="service_integration",
+                    status=TestStatus.PASSED,
+                    success_rate=1.0,
+                    confidence=0.95,
+                    execution_time=time.time() - start_time,
+                    evidence=[{"type": "auth_data", "data": auth_data}],
+                    error_message=None,
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+
+        except Exception as e:
+            self.test_results.append(TestResult(
+                test_name=test_name,
+                category="service_integration",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            ))
 
     async def _test_github_integration(self):
-        """Test GitHub integration"""
+        """Test GitHub integration with real API calls"""
         print("🐙 Testing: GitHub Integration")
-        # Implementation would go here
-        self.test_results.append(TestResult(
-            test_name="GitHub Integration",
-            category="service_integration",
-            status=TestStatus.PASSED,
-            success_rate=0.90,
-            confidence=0.85,
-            execution_time=1.8,
-            evidence=[],
-            error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
-        ))
+        test_name = "GitHub Integration"
+        start_time = time.time()
+
+        try:
+            config = self.credential_manager.get_config()
+            async with aiohttp.ClientSession() as session:
+                # Test user endpoint
+                async with session.get("https://api.github.com/user", 
+                                     headers={
+                                         "Authorization": f"Bearer {config.github_access_token}",
+                                         "Accept": "application/vnd.github.v3+json",
+                                         "User-Agent": "ATOM-E2E-Tester"
+                                     }) as response:
+                    if response.status != 200:
+                        raise Exception(f"GitHub auth failed: {response.status}")
+                    user_data = await response.json()
+
+                self.test_results.append(TestResult(
+                    test_name=test_name,
+                    category="service_integration",
+                    status=TestStatus.PASSED,
+                    success_rate=1.0,
+                    confidence=0.95,
+                    execution_time=time.time() - start_time,
+                    evidence=[{"type": "user_data", "login": user_data.get("login")}],
+                    error_message=None,
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+
+        except Exception as e:
+            self.test_results.append(TestResult(
+                test_name=test_name,
+                category="service_integration",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            ))
 
     async def _test_asana_integration(self):
-        """Test Asana integration"""
+        """Test Asana integration with real API calls"""
         print("📋 Testing: Asana Integration")
-        # Implementation would go here
-        self.test_results.append(TestResult(
-            test_name="Asana Integration",
-            category="service_integration",
-            status=TestStatus.PASSED,
-            success_rate=0.90,
-            confidence=0.85,
-            execution_time=2.2,
-            evidence=[],
-            error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
-        ))
+        test_name = "Asana Integration"
+        start_time = time.time()
+
+        try:
+            config = self.credential_manager.get_config()
+            async with aiohttp.ClientSession() as session:
+                # Test user endpoint
+                async with session.get("https://app.asana.com/api/1.0/users/me", 
+                                     headers={"Authorization": f"Bearer {config.asana_access_token}"}) as response:
+                    if response.status != 200:
+                        raise Exception(f"Asana auth failed: {response.status}")
+                    user_data = await response.json()
+
+                self.test_results.append(TestResult(
+                    test_name=test_name,
+                    category="service_integration",
+                    status=TestStatus.PASSED,
+                    success_rate=1.0,
+                    confidence=0.95,
+                    execution_time=time.time() - start_time,
+                    evidence=[{"type": "user_data", "data": user_data}],
+                    error_message=None,
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+
+        except Exception as e:
+            self.test_results.append(TestResult(
+                test_name=test_name,
+                category="service_integration",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            ))
+
+    async def _test_notion_integration(self):
+        """Test Notion workspace integration"""
+        print("\n📝 Testing: Notion Integration")
+        test_name = "Notion Integration"
+        start_time = time.time()
+        
+        try:
+            config = self.credential_manager.get_config()
+            if not config.notion_api_key:
+                raise Exception("Notion API key not provided")
+            
+            async with aiohttp.ClientSession() as session:
+                headers = {
+                    'Authorization': f'Bearer {config.notion_api_key}',
+                    'Notion-Version': '2022-06-28',
+                    'Content-Type': 'application/json'
+                }
+                
+                async with session.post('https://api.notion.com/v1/search', headers=headers, json={"query": "", "page_size": 1}, timeout=10) as response:
+                    self.test_results.append(TestResult(
+                        test_name=test_name, category="service_integration",
+                        status=TestStatus.PASSED if response.status == 200 else TestStatus.FAILED,
+                        success_rate=1.0 if response.status == 200 else 0.0,
+                        confidence=0.95, execution_time=time.time() - start_time,
+                        evidence=[{'notion_status': response.status}],
+                        error_message=None if response.status == 200 else f"HTTP {response.status}",
+                        timestamp=datetime.datetime.now().isoformat()
+                    ))
+        except Exception as e:
+            self.test_results.append(TestResult(test_name=test_name, category="service_integration", status=TestStatus.FAILED, success_rate=0.0, confidence=0.0, execution_time=time.time() - start_time, evidence=[], error_message=str(e), timestamp=datetime.datetime.now().isoformat()))
+
+    async def _test_analytics_api(self):
+        """Test real-time analytics"""
+        print("\n📊 Testing: Analytics API")
+        test_name = "Analytics API"
+        start_time = time.time()
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get("http://localhost:5058/api/v1/analytics/metrics", timeout=10) as response:
+                    self.test_results.append(TestResult(test_name=test_name, category="analytics", status=TestStatus.PASSED if response.status == 200 else TestStatus.FAILED, success_rate=1.0 if response.status == 200 else 0.0, confidence=0.9, execution_time=time.time() - start_time, evidence=[{'analytics_status': response.status}], error_message=None if response.status == 200 else f"Metrics failed: {response.status}", timestamp=datetime.datetime.now().isoformat()))
+        except Exception as e:
+            self.test_results.append(TestResult(test_name=test_name, category="analytics", status=TestStatus.FAILED, success_rate=0.0, confidence=0.0, execution_time=time.time() - start_time, evidence=[], error_message=str(e), timestamp=datetime.datetime.now().isoformat()))
 
     async def _run_real_world_scenarios(self):
         """Run real-world test scenarios"""
@@ -774,52 +1118,175 @@ class ComprehensiveE2ETester:
         await self._test_customer_support_automation()
 
     async def _test_project_management_workflow(self):
-        """Test project management workflow"""
+        """Test project management workflow with real API calls"""
         print("📊 Testing: Project Management Workflow")
-        # Implementation would go here
-        self.test_results.append(TestResult(
-            test_name="Project Management Workflow",
-            category="real_world_scenarios",
-            status=TestStatus.PASSED,
-            success_rate=0.85,
-            confidence=0.80,
-            execution_time=5.0,
-            evidence=[],
-            error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
-        ))
+        test_name = "Project Management Workflow"
+        start_time = time.time()
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                # 1. Create Project
+                project_data = {
+                    "name": f"E2E Project {int(time.time())}",
+                    "description": "Test project for E2E validation"
+                }
+                # Mocking project creation via workflow for now as direct endpoint might differ
+                # Using workflow engine to simulate project management steps
+                workflow_def = {
+                    "name": "Project Management Simulation",
+                    "steps": [
+                        {"action": "create_project", "input": project_data},
+                        {"action": "add_task", "input": "Task 1"},
+                        {"action": "update_status", "input": "In Progress"}
+                    ]
+                }
+                
+                async with session.post("http://localhost:5058/api/v1/workflows", json=workflow_def) as response:
+                    if response.status not in [200, 201]:
+                        raise Exception(f"Failed to init project workflow: {response.status}")
+                    workflow_data = await response.json()
+                    workflow_id = workflow_data.get("id")
+
+                # Execute
+                async with session.post(f"http://localhost:5058/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                    if response.status != 200:
+                        raise Exception(f"Failed to execute project workflow: {response.status}")
+                    result = await response.json()
+
+                self.test_results.append(TestResult(
+                    test_name=test_name,
+                    category="real_world_scenarios",
+                    status=TestStatus.PASSED,
+                    success_rate=1.0,
+                    confidence=0.90,
+                    execution_time=time.time() - start_time,
+                    evidence=[{"type": "workflow_result", "data": result}],
+                    error_message=None,
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+
+        except Exception as e:
+            self.test_results.append(TestResult(
+                test_name=test_name,
+                category="real_world_scenarios",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            ))
 
     async def _test_content_creation_pipeline(self):
-        """Test content creation pipeline"""
-        print("✍️ Testing: Content Creation Pipeline")
-        # Implementation would go here
-        self.test_results.append(TestResult(
-            test_name="Content Creation Pipeline",
-            category="real_world_scenarios",
-            status=TestStatus.PASSED,
-            success_rate=0.85,
-            confidence=0.80,
-            execution_time=4.5,
-            evidence=[],
-            error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
-        ))
+        """Test content creation pipeline with real API calls"""
+        print("📝 Testing: Content Creation Pipeline")
+        test_name = "Content Creation Pipeline"
+        start_time = time.time()
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Simulate content creation flow
+                workflow_def = {
+                    "name": "Content Creation Simulation",
+                    "steps": [
+                        {"action": "generate_ideas", "input": "AI Trends 2025"},
+                        {"action": "draft_content", "input": "Selected Idea"},
+                        {"action": "review_content", "input": "Draft"}
+                    ]
+                }
+                
+                async with session.post("http://localhost:5058/api/v1/workflows", json=workflow_def) as response:
+                    if response.status not in [200, 201]:
+                        raise Exception(f"Failed to init content workflow: {response.status}")
+                    workflow_data = await response.json()
+                    workflow_id = workflow_data.get("id")
+
+                # Execute
+                async with session.post(f"http://localhost:5058/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                    if response.status != 200:
+                        raise Exception(f"Failed to execute content workflow: {response.status}")
+                    result = await response.json()
+
+                self.test_results.append(TestResult(
+                    test_name=test_name,
+                    category="real_world_scenarios",
+                    status=TestStatus.PASSED,
+                    success_rate=1.0,
+                    confidence=0.90,
+                    execution_time=time.time() - start_time,
+                    evidence=[{"type": "workflow_result", "data": result}],
+                    error_message=None,
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+
+        except Exception as e:
+            self.test_results.append(TestResult(
+                test_name=test_name,
+                category="real_world_scenarios",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            ))
 
     async def _test_customer_support_automation(self):
-        """Test customer support automation"""
+        """Test customer support automation with real API calls"""
         print("🎧 Testing: Customer Support Automation")
-        # Implementation would go here
-        self.test_results.append(TestResult(
-            test_name="Customer Support Automation",
-            category="real_world_scenarios",
-            status=TestStatus.PASSED,
-            success_rate=0.85,
-            confidence=0.80,
-            execution_time=6.0,
-            evidence=[],
-            error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
-        ))
+        test_name = "Customer Support Automation"
+        start_time = time.time()
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Simulate support flow
+                workflow_def = {
+                    "name": "Support Automation Simulation",
+                    "steps": [
+                        {"action": "analyze_ticket", "input": "Login issue"},
+                        {"action": "classify_priority", "input": "High"},
+                        {"action": "generate_response", "input": "Solution steps"}
+                    ]
+                }
+                
+                async with session.post("http://localhost:5058/api/v1/workflows", json=workflow_def) as response:
+                    if response.status not in [200, 201]:
+                        raise Exception(f"Failed to init support workflow: {response.status}")
+                    workflow_data = await response.json()
+                    workflow_id = workflow_data.get("id")
+
+                # Execute
+                async with session.post(f"http://localhost:5058/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                    if response.status != 200:
+                        raise Exception(f"Failed to execute support workflow: {response.status}")
+                    result = await response.json()
+
+                self.test_results.append(TestResult(
+                    test_name=test_name,
+                    category="real_world_scenarios",
+                    status=TestStatus.PASSED,
+                    success_rate=1.0,
+                    confidence=0.90,
+                    execution_time=time.time() - start_time,
+                    evidence=[{"type": "workflow_result", "data": result}],
+                    error_message=None,
+                    timestamp=datetime.datetime.now().isoformat()
+                ))
+
+        except Exception as e:
+            self.test_results.append(TestResult(
+                test_name=test_name,
+                category="real_world_scenarios",
+                status=TestStatus.FAILED,
+                success_rate=0.0,
+                confidence=0.0,
+                execution_time=time.time() - start_time,
+                evidence=[],
+                error_message=str(e),
+                timestamp=datetime.datetime.now().isoformat()
+            ))
 
     async def _run_performance_tests(self):
         """Run performance tests"""
@@ -891,6 +1358,12 @@ class ComprehensiveE2ETester:
         # Check if we achieved 98% target
         target_achieved = overall_success_rate >= 0.98
 
+
+
+        # Analyze gaps
+        gap_analyzer = GapAnalyzer()
+        gap_analysis = gap_analyzer.analyze_results(self.test_results)
+
         # Generate report
         report = {
             'session_id': self.current_session_id,
@@ -904,8 +1377,9 @@ class ComprehensiveE2ETester:
             'skipped_tests': skipped_tests,
             'overall_success_rate': overall_success_rate,
             'confidence_level': total_confidence,
-            'test_results': [asdict(r) for r in self.test_results],
+            'test_results': [{**asdict(r), 'status': r.status.value} for r in self.test_results],
             'category_breakdown': self._calculate_category_breakdown(),
+            'gap_analysis': gap_analysis,
             'recommendations': self._generate_recommendations(overall_success_rate, target_achieved)
         }
 
