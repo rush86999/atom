@@ -4,8 +4,8 @@
   "version": "1.1.0",
   "identifier": "com.atom.app",
   "build": {
-    "beforeDevCommand": "cd frontend-nextjs && npm run dev",
-    "beforeBuildCommand": "cd frontend-nextjs && npm run build",
+    "beforeDevCommand": "echo \"CWD: $(pwd)\" && ls -la && cd frontend-nextjs && npm run dev",
+    "beforeBuildCommand": "echo \"DEBUG: CWD is $(pwd)\" && cd ../frontend-nextjs && npm run build",
     "devUrl": "http://localhost:3000",
     "frontendDist": "../frontend-nextjs/.next"
   },
