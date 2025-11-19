@@ -131,7 +131,7 @@ async def run_comprehensive_validation():
         # Register claims in the database
         print("Registering claims in database...")
         for claim in READINESS_CLAIMS:
-            await validator.register_claim(claim)
+            validator.claims_database[claim.id] = claim
         print(f"✓ {len(READINESS_CLAIMS)} claims registered")
         print()
         
@@ -142,7 +142,7 @@ async def run_comprehensive_validation():
             print(f"    Category: {claim.category}")
             print(f"    Priority: {claim.priority}")
             
-            result = await validator.validate_claim(claim.id, claim.claim)
+            result = await validator.validate_claim(claim.id)
             results.append(result)
             
             # Display key findings

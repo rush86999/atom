@@ -162,6 +162,62 @@ class RealWorldUsageValidator:
                     "service_integrations",
                     "production_ready"
                 ]
+            },
+            "search_and_retrieval": {
+                "name": "Search and Retrieval Workflow",
+                "description": "Search for documents and get suggestions",
+                "steps": [
+                    {
+                        "step": 1,
+                        "action": "search_query",
+                        "input": {"query": "project", "user_id": "user1", "search_type": "hybrid"},
+                        "expected_outputs": ["results", "total_count"],
+                        "next_step": 2
+                    },
+                    {
+                        "step": 2,
+                        "action": "get_suggestions",
+                        "input": {"query": "pro", "user_id": "user1"},
+                        "expected_outputs": ["suggestions"],
+                        "next_step": None
+                    }
+                ],
+                "marketing_claim_mapping": [
+                    "advanced_hybrid_search",
+                    "production_ready"
+                ]
+            },
+            "ai_workflow_automation": {
+                "name": "AI Workflow Automation Workflow",
+                "description": "Test AI-powered workflow automation with natural language processing",
+                "steps": [
+                    {
+                        "step": 1,
+                        "action": "check_ai_providers",
+                        "input": {},
+                        "expected_outputs": ["providers_list", "multi_provider_support"],
+                        "next_step": 2
+                    },
+                    {
+                        "step": 2,
+                        "action": "execute_nlu_workflow",
+                        "input": {"text": "Create a task for reviewing the quarterly financial report and schedule a team meeting to discuss it"},
+                        "expected_outputs": ["tasks_created", "ai_generated_tasks", "confidence_score"],
+                        "next_step": 3
+                    },
+                    {
+                        "step": 3,
+                        "action": "verify_task_quality",
+                        "input": {"min_tasks": 2, "min_confidence": 0.7},
+                        "expected_outputs": ["quality_verified"],
+                        "next_step": None
+                    }
+                ],
+                "marketing_claim_mapping": [
+                    "ai_powered_workflow_automation",
+                    "natural_language_processing",
+                    "production_ready"
+                ]
             }
         }
 
@@ -513,6 +569,87 @@ class RealWorldUsageValidator:
                 result["success"] = success_checks >= len([exp for exp in step["expected_outputs"] if exp in ["workflow_active", "engagement_tracked"]])
                 result["outputs"] = api_result
 
+            elif step["action"] == "search_query":
+                # Test search query
+                api_result = await self._perform_search(step["input"])
+                result["api_response"] = api_result
+                
+                success_checks = 0
+                if "results" in step["expected_outputs"] and "results" in str(api_result).lower():
+                    success_checks += 1
+                if "total_count" in step["expected_outputs"] and "total_count" in str(api_result).lower():
+                    success_checks += 1
+                
+                result["success"] = success_checks >= len([exp for exp in step["expected_outputs"] if exp in ["results", "total_count"]])
+                result["outputs"] = api_result
+
+            elif step["action"] == "get_suggestions":
+                # Test search suggestions
+                api_result = await self._get_search_suggestions(step["input"])
+                result["api_response"] = api_result
+                
+                success_checks = 0
+                if "suggestions" in step["expected_outputs"] and "suggestions" in str(api_result).lower():
+                    success_checks += 1
+                
+                result["success"] = success_checks >= len([exp for exp in step["expected_outputs"] if exp in ["suggestions"]])
+                result["outputs"] = api_result
+
+            elif step["action"] == "check_ai_providers":
+                # Test AI providers endpoint
+                api_result = await self._check_ai_providers()
+                result["api_response"] = api_result
+                
+                success_checks = 0
+                if "providers_list" in step["expected_outputs"] and isinstance(api_result, dict) and "providers" in api_result:
+                    success_checks += 1
+                if "multi_provider_support" in step["expected_outputs"] and isinstance(api_result, dict) and api_result.get("multi_provider_support"):
+                    success_checks += 1
+                
+                result["success"] = success_checks >= len([exp for exp in step["expected_outputs"] if exp in ["providers_list", "multi_provider_support"]])
+                result["outputs"] = api_result
+
+            elif step["action"] == "execute_nlu_workflow":
+                # Test NLU workflow execution
+                api_result = await self._execute_ai_workflow(step["input"])
+                result["api_response"] = api_result
+                
+                # Store for next step verification
+                self.last_workflow_result = api_result
+                
+                success_checks = 0
+                if "tasks_created" in step["expected_outputs"] and isinstance(api_result, dict) and api_result.get("tasks_created", 0) > 0:
+                    success_checks += 1
+                if "ai_generated_tasks" in step["expected_outputs"] and isinstance(api_result, dict) and "ai_generated_tasks" in api_result:
+                    success_checks += 1
+                if "confidence_score" in step["expected_outputs"] and isinstance(api_result, dict) and "confidence_score" in api_result:
+                    success_checks += 1
+                
+                result["success"] = success_checks >= len([exp for exp in step["expected_outputs"] if exp in ["tasks_created", "ai_generated_tasks", "confidence_score"]])
+                result["outputs"] = api_result
+
+            elif step["action"] == "verify_task_quality":
+                # Verify the quality of AI-generated tasks
+                api_result = getattr(self, 'last_workflow_result', {})
+                result["api_response"] = api_result
+                
+                min_tasks = step["input"].get("min_tasks", 1)
+                min_confidence = step["input"].get("min_confidence", 0.5)
+                
+                tasks_count = api_result.get("tasks_created", 0) if isinstance(api_result, dict) else 0
+                confidence = api_result.get("confidence_score", 0) if isinstance(api_result, dict) else 0
+                
+                quality_verified = tasks_count >= min_tasks and confidence >= min_confidence
+                
+                result["success"] = quality_verified
+                result["outputs"] = {
+                    "quality_verified": quality_verified,
+                    "tasks_count": tasks_count,
+                    "confidence": confidence,
+                    "min_tasks_met": tasks_count >= min_tasks,
+                    "min_confidence_met": confidence >= min_confidence
+                }
+
             else:
                 # Unknown step action
                 result["error"] = f"Unknown step action: {step['action']}"
@@ -684,6 +821,35 @@ class RealWorldUsageValidator:
         except Exception as e:
             return f"Error generating tasks: {str(e)}"
 
+    async def _check_ai_providers(self) -> Any:
+        """Check AI providers using real endpoint"""
+        try:
+            async with self.session.get(
+                f"{self.backend_url}/api/v1/ai/providers",
+                timeout=15
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    return f"Error: HTTP {response.status}"
+        except Exception as e:
+            return f"Error checking AI providers: {str(e)}"
+
+    async def _execute_ai_workflow(self, workflow_input: Dict[str, Any]) -> Any:
+        """Execute AI workflow using real NLU endpoint"""
+        try:
+            async with self.session.post(
+                f"{self.backend_url}/api/v1/ai/execute",
+                json=workflow_input,
+                timeout=30  # Longer timeout for AI processing
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    return f"Error: HTTP {response.status}"
+        except Exception as e:
+            return f"Error executing AI workflow: {str(e)}"
+
     async def _assign_tasks_to_team(self, assignment_params: Dict[str, Any]) -> Any:
         """Assign tasks to team members"""
         try:
@@ -773,6 +939,37 @@ class RealWorldUsageValidator:
                     return f"Error: HTTP {response.status}"
         except Exception as e:
             return f"Error activating nurturing workflow: {str(e)}"
+
+    async def _perform_search(self, search_params: Dict[str, Any]) -> Any:
+        """Perform search query"""
+        try:
+            async with self.session.post(
+                f"{self.backend_url}/api/lancedb-search/hybrid",
+                json=search_params,
+                timeout=15
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    return f"Error: HTTP {response.status}"
+        except Exception as e:
+            return f"Error performing search: {str(e)}"
+
+    async def _get_search_suggestions(self, suggestion_params: Dict[str, Any]) -> Any:
+        """Get search suggestions"""
+        try:
+            # Convert params to query string
+            query_params = "&".join([f"{k}={v}" for k, v in suggestion_params.items()])
+            async with self.session.get(
+                f"{self.backend_url}/api/lancedb-search/suggestions?{query_params}",
+                timeout=15
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    return f"Error: HTTP {response.status}"
+        except Exception as e:
+            return f"Error getting suggestions: {str(e)}"
 
     def _assess_workflow_functionality(self, workflow_def: Dict[str, Any], step_details: List[Dict[str, Any]]) -> Dict[str, float]:
         """Assess the functionality level of the workflow"""

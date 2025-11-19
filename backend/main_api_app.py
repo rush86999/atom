@@ -164,6 +164,15 @@ except ImportError as e:
     unified_calendar_router = None
     unified_search_router = None
 
+# Import Missing Endpoints (Project Management Demo)
+try:
+    from core.missing_endpoints import router as missing_endpoints_router
+    MISSING_ENDPOINTS_AVAILABLE = True
+except ImportError as e:
+    print(f"Missing endpoints not available: {e}")
+    MISSING_ENDPOINTS_AVAILABLE = False
+    missing_endpoints_router = None
+
 # Mount system status router if available
 if SYSTEM_STATUS_AVAILABLE and system_status_router:
     # Mount at root to support /metrics endpoint
@@ -431,6 +440,11 @@ if UNIFIED_ENDPOINTS_AVAILABLE:
         app.include_router(unified_calendar_router)
     if unified_search_router:
         app.include_router(unified_search_router)
+
+# Include Missing Endpoints
+if MISSING_ENDPOINTS_AVAILABLE and missing_endpoints_router:
+    app.include_router(missing_endpoints_router)
+    print("[OK] Project Management Demo endpoints loaded")
 
 # Include main API router (generic)
 app.include_router(router)
