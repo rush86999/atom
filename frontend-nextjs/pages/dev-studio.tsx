@@ -1,17 +1,28 @@
 import React from 'react';
-import { Box, Heading, Text, VStack, Icon } from '@chakra-ui/react';
-import { SettingsIcon } from '@chakra-ui/icons';
+import { Box, Tabs, TabList, TabPanels, Tab, TabPanel, useColorModeValue } from '@chakra-ui/react';
+import BYOKManager from '../components/DevStudio/BYOKManager';
+import SystemMonitor from '../components/DevStudio/SystemMonitor';
 
 const DevStudio = () => {
+    const bg = useColorModeValue('gray.50', 'gray.900');
+
     return (
-        <Box p={8}>
-            <VStack spacing={6} align="center" justify="center" minH="60vh">
-                <Icon as={SettingsIcon} w={20} h={20} color="purple.500" />
-                <Heading>Developer Studio</Heading>
-                <Text fontSize="xl" color="gray.600">
-                    Tools for extending and customizing the Atom platform are coming soon.
-                </Text>
-            </VStack>
+        <Box minH="100vh" bg={bg} p={8}>
+            <Tabs variant="enclosed" colorScheme="teal" isLazy>
+                <TabList>
+                    <Tab fontWeight="bold">AI Providers (BYOK)</Tab>
+                    <Tab fontWeight="bold">System Monitor</Tab>
+                </TabList>
+
+                <TabPanels>
+                    <TabPanel>
+                        <BYOKManager />
+                    </TabPanel>
+                    <TabPanel>
+                        <SystemMonitor />
+                    </TabPanel>
+                </TabPanels>
+            </Tabs>
         </Box>
     );
 };

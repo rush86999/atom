@@ -100,6 +100,24 @@ except ImportError as e:
     service_registry_router = None
 
 try:
+    from core.byok_endpoints import router as byok_router
+
+    BYOK_AVAILABLE = True
+except ImportError as e:
+    print(f"BYOK endpoints not available: {e}")
+    BYOK_AVAILABLE = False
+    byok_router = None
+
+try:
+    from core.system_status import router as system_status_router
+
+    SYSTEM_STATUS_AVAILABLE = True
+except ImportError as e:
+    print(f"System status endpoints not available: {e}")
+    SYSTEM_STATUS_AVAILABLE = False
+    system_status_router = None
+
+try:
     from core.system_status import router as system_status_router
 
     SYSTEM_STATUS_AVAILABLE = True
@@ -418,8 +436,16 @@ if UNIFIED_ENDPOINTS_AVAILABLE:
 app.include_router(router)
 
 # Include Service Health routes
-if SERVICE_HEALTH_AVAILABLE and service_health_router:
-    app.include_router(service_health_router)
+if SERVICE_REGISTRY_AVAILABLE and service_registry_router:
+    app.include_router(service_registry_router)
+
+if BYOK_AVAILABLE and byok_router:
+    app.include_router(byok_router)
+    print("[OK] BYOK routes loaded")
+
+if SYSTEM_STATUS_AVAILABLE and system_status_router:
+    app.include_router(system_status_router)
+    print("[OK] System Status routes loaded")
     print("[OK] Service health routes loaded")
 
 # Include API routes
