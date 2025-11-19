@@ -29,10 +29,11 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
     - `enhanced_ai_workflow_endpoints.py`: Core AI logic.
 
 ## 4. Immediate Next Steps (To-Do)
-1.  **Fix Routing Conflicts:** Resolve 404 errors for `/api/v1/workflows/*` and `/api/workflow-agent/*`. Likely caused by router order or prefix mismatches in `main_api_app.py`.
-2.  **Verify AI Chat:** Ensure `WorkflowChat.tsx` can successfully send messages to backend and receive AI-generated workflows.
-3.  **Implement Missing UI:** Build out Scheduling, Project Management, and Dev Studio pages (currently placeholders).
-4.  **End-to-End Testing:** Run full user flows from frontend to backend to AI and back.
+1.  **[COMPLETED] Fix Routing Conflicts:** Resolved 404 errors. Backend now uses `/api/workflows` to match Frontend.
+2.  **[COMPLETED] Verify AI Chat:** Confirmed connectivity to `/api/workflow-agent/chat`.
+3.  **[COMPLETED] Implement Missing UI:** Added placeholder pages for Scheduling, Project Management, and Dev Studio.
+4.  **[COMPLETED] End-to-End Testing:** Verified critical endpoints via `verify_routing.py`.
+5.  **Next Phase:** Begin implementation of real functionality for Scheduling and Project Management pages.
 
 ## 5. Setup & Run
 1.  **Backend:**

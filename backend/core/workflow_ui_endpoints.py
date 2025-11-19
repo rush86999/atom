@@ -8,7 +8,7 @@ import random
 # Import core workflow models if available, otherwise define local ones for UI
 # For now, we'll define UI-specific models to match the frontend expectations
 
-router = APIRouter(prefix="/api/v1/workflow-ui", tags=["workflow_ui"])
+router = APIRouter(prefix="/api/workflows", tags=["workflow_ui"])
 
 # --- Models matching Frontend Interfaces ---
 
