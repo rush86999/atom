@@ -6,6 +6,7 @@ Builds on the successful OAuth implementation to provide full Asana functionalit
 import json
 import logging
 import os
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
@@ -65,7 +66,7 @@ class AsanaService:
                     timeout=self.timeout,
                 )
 
-                if response.status_code == 200:
+                if response.status_code in [200, 201]:
                     return response.json()
                 elif response.status_code == 401:
                     logger.warning("Asana API returned 401 - token may be expired")
@@ -97,7 +98,9 @@ class AsanaService:
     async def get_user_profile(self, access_token: str) -> Dict:
         """Get current Asana user profile"""
         try:
-            result = self._make_request("GET", "/users/me", access_token)
+            result = await asyncio.to_thread(
+                self._make_request, "GET", "/users/me", access_token
+            )
             user_data = result.get("data", {})
 
             return {
@@ -257,7 +260,8 @@ class AsanaService:
             if task_data.get("workspace"):
                 create_data["workspace"] = task_data["workspace"]
 
-            result = self._make_request(
+            result = await asyncio.to_thread(
+                self._make_request,
                 "POST", "/tasks", access_token, data={"data": create_data}
             )
             task = result.get("data", {})
