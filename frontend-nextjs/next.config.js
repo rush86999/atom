@@ -7,13 +7,17 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  output: 'export',
   images: {
-    domains: ["localhost", "127.0.0.1", "api.slack.com", "graph.microsoft.com"],
+    unoptimized: true,
   },
   transpilePackages: ["@chakra-ui/react", "@chakra-ui/icons", "@ark-ui/react"],
   experimental: {
     externalDir: true,
   },
+  // Rewrites are not supported in static export
+  // The frontend must use absolute URLs or a different mechanism for API calls in the desktop app
+  /*
   async rewrites() {
     return [
       {
@@ -42,6 +46,7 @@ const nextConfig = {
       },
     ];
   },
+  */
 };
 
 module.exports = nextConfig;

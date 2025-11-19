@@ -18,16 +18,16 @@ export default function JiraOAuthPage() {
   useEffect(() => {
     if (typeof window !== 'undefined' && router.isReady) {
       const urlParams = new URLSearchParams(window.location.search);
-      
+
       const data = {
         code: urlParams.get('code') || '',
         state: urlParams.get('state') || '',
         error: urlParams.get('error') || '',
         errorDescription: urlParams.get('description') || ''
       };
-      
+
       setCallbackData(data);
-      
+
       // Handle the callback
       if (data.code) {
         // Success - notify parent window
@@ -38,7 +38,7 @@ export default function JiraOAuthPage() {
             state: data.state
           }, window.location.origin);
         }
-        
+
         // Close popup after a brief delay
         setTimeout(() => {
           window.close();
@@ -52,7 +52,7 @@ export default function JiraOAuthPage() {
             errorDescription: data.errorDescription
           }, window.location.origin);
         }
-        
+
         // Close popup after a brief delay
         setTimeout(() => {
           window.close();
@@ -75,7 +75,7 @@ export default function JiraOAuthPage() {
               <p className="text-gray-600 mb-4">
                 Your Jira workspace has been successfully connected to ATOM.
               </p>
-              
+
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <div className="text-sm text-green-700">
                   <div className="font-semibold mb-1">Authorization Details:</div>
@@ -83,13 +83,13 @@ export default function JiraOAuthPage() {
                   {callbackData.state && <div>State: {callbackData.state}</div>}
                 </div>
               </div>
-              
+
               <div className="text-sm text-gray-500">
                 This window will close automatically in 2 seconds.
               </div>
             </>
           )}
-          
+
           {/* Error State */}
           {callbackData.error && (
             <>
@@ -100,7 +100,7 @@ export default function JiraOAuthPage() {
               <p className="text-gray-600 mb-4">
                 There was an error connecting your Jira workspace to ATOM.
               </p>
-              
+
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                 <div className="text-sm text-red-700">
                   <div className="font-semibold mb-1">Error Details:</div>
@@ -110,7 +110,7 @@ export default function JiraOAuthPage() {
                   )}
                 </div>
               </div>
-              
+
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                 <div className="text-sm text-yellow-700">
                   <div className="font-semibold mb-1">Possible Solutions:</div>
@@ -122,13 +122,13 @@ export default function JiraOAuthPage() {
                   </ul>
                 </div>
               </div>
-              
+
               <div className="text-sm text-gray-500">
                 This window will close automatically in 2 seconds.
               </div>
             </>
           )}
-          
+
           {/* Loading State */}
           {!callbackData.code && !callbackData.error && (
             <>
@@ -145,11 +145,4 @@ export default function JiraOAuthPage() {
       </div>
     </div>
   );
-}
-
-export async function getServerSideProps() {
-  // No server-side props needed for this page
-  return {
-    props: {}
-  };
 }
