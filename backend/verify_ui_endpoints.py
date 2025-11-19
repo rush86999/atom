@@ -1,60 +1,66 @@
-import requests
-import json
 import sys
+import os
+import asyncio
+from fastapi.testclient import TestClient
+from datetime import datetime
 
-BASE_URL = "http://localhost:5059"
+# Add current directory to path
+sys.path.append(os.getcwd())
 
-def test_endpoint(method, path, payload=None):
-    url = f"{BASE_URL}{path}"
-    try:
-        if method == "GET":
-            response = requests.get(url)
+try:
+    from main_api_app import app
+except ImportError:
+    print("Error: Could not import main_api_app. Make sure you are in the backend directory.")
+    sys.exit(1)
+
+client = TestClient(app)
+
+def test_ui_endpoints():
+    print("Testing UI Endpoints...")
+    
+    # 1. Test Calendar Endpoints
+    print("\n[Calendar] Testing /api/v1/calendar/events...")
+    response = client.get("/api/v1/calendar/events")
+    if response.status_code == 200:
+        data = response.json()
+        if data.get("success"):
+            print(f"[OK] Calendar events fetched. Count: {len(data.get('events', []))}")
         else:
-            response = requests.post(url, json=payload)
-        
-        print(f"{method} {path}: {response.status_code}")
-        if response.status_code == 200:
-            # print(json.dumps(response.json(), indent=2))
-            return True
-        else:
-            print(response.text)
-            return False
-    except Exception as e:
-        print(f"Error calling {path}: {e}")
-        return False
+            print(f"[FAIL] Calendar success flag missing: {data}")
+    else:
+        print(f"[FAIL] Calendar endpoint failed: {response.status_code}")
 
-def main():
-    print("Verifying UI Endpoints...")
-    
-    # 1. Service Health (Dashboard)
-    # Note: These are mounted at root /api/v1/integrations in main_api_app.py
-    # But service_health_endpoints.py defines router with prefix /api/v1/integrations
-    # AND main_api_app.py mounts it with prefix=""
-    # So path is /api/v1/integrations/{service}/health
-    
-    print("\n--- Service Health ---")
-    test_endpoint("GET", "/api/v1/integrations/box/health")
-    test_endpoint("GET", "/api/v1/integrations/services/status")
-    
-    # 2. Workflow UI
-    # Mounted at /api/v1/workflow-ui
-    print("\n--- Workflow UI ---")
-    test_endpoint("GET", "/api/v1/workflow-ui/templates")
-    test_endpoint("GET", "/api/v1/workflow-ui/definitions")
-    test_endpoint("GET", "/api/v1/workflow-ui/services")
-    
-    # 3. Workflow Agent (Chat)
-    # Mounted at /api/workflow-agent (no v1 prefix in router, but check main_api_app mount)
-    # main_api_app mounts it with include_router(workflow_agent_router)
-    # workflow_agent_endpoints.py defines prefix="/api/workflow-agent"
-    print("\n--- Workflow Agent ---")
-    chat_payload = {
-        "message": "Create a workflow to summarize emails",
-        "user_id": "test_user",
-        "session_id": "test_session",
-        "conversation_history": []
+    # 2. Test Task Endpoints
+    print("\n[Projects] Testing /api/v1/tasks...")
+    response = client.get("/api/v1/tasks?platform=all")
+    if response.status_code == 200:
+        data = response.json()
+        if data.get("success"):
+            print(f"[OK] Tasks fetched. Count: {len(data.get('tasks', []))}")
+        else:
+            print(f"[FAIL] Tasks success flag missing: {data}")
+    else:
+        print(f"[FAIL] Tasks endpoint failed: {response.status_code}")
+
+    # 3. Test Create Task
+    print("\n[Projects] Testing Create Task...")
+    new_task = {
+        "title": "Verify UI Implementation",
+        "description": "Automated test task",
+        "priority": "high",
+        "dueDate": datetime.now().isoformat(),
+        "status": "todo",
+        "platform": "local"
     }
-    test_endpoint("POST", "/api/workflow-agent/chat", chat_payload)
+    response = client.post("/api/v1/tasks/", json=new_task)
+    if response.status_code == 200:
+        data = response.json()
+        if data.get("success"):
+            print(f"[OK] Task created successfully: {data.get('task', {}).get('id')}")
+        else:
+            print(f"[FAIL] Create task failed: {data}")
+    else:
+        print(f"[FAIL] Create task endpoint failed: {response.status_code} - {response.text}")
 
 if __name__ == "__main__":
-    main()
+    test_ui_endpoints()
