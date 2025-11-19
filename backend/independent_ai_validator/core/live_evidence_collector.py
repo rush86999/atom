@@ -39,7 +39,7 @@ class LiveEvidenceCollector:
     async def initialize(self):
         """Initialize HTTP session"""
         self.session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=30),
+            timeout=aiohttp.ClientTimeout(total=60),  # Increased timeout
             headers={"User-Agent": "ATOM-Evidence-Collector/1.0"}
         )
         logger.info(f"Live evidence collector initialized for {self.base_url}")
@@ -157,6 +157,9 @@ class LiveEvidenceCollector:
                 if evidence.success:
                     working_integrations += 1
                 self.evidence_points.append(evidence)
+
+            # Add small delay to prevent overwhelming backend
+            await asyncio.sleep(0.1)
 
         return {
             "total_integrations_tested": len(integration_results),

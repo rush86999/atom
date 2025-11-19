@@ -1,0 +1,49 @@
+{
+  "timestamp": "2025-11-18T23:31:19.329935",
+  "total_bugs": 3,
+  "by_severity": {
+    "critical": 1,
+    "high": 0,
+    "medium": 1,
+    "low": 1
+  },
+  "bugs": [
+    {
+      "title": "Workflow disappears after creation",
+      "description": "Workflow workflow_1 not found after creation",
+      "severity": "critical",
+      "reproduction_steps": [
+        "Create workflow with ID",
+        "GET workflow by ID",
+        "Receives 404"
+      ],
+      "expected": "Workflow data returned",
+      "actual": "404 Not Found",
+      "timestamp": "2025-11-18T23:31:19.309262"
+    },
+    {
+      "title": "Workflow steps not persisted",
+      "description": "Created multi-step workflow but steps not in response",
+      "severity": "medium",
+      "reproduction_steps": [
+        "Create workflow with steps array",
+        "Check response for 'workflow.steps'"
+      ],
+      "expected": "Response includes steps array",
+      "actual": "No steps in response",
+      "timestamp": "2025-11-18T23:31:19.320325"
+    },
+    {
+      "title": "No input length validation",
+      "description": "Accepts extremely long workflow names",
+      "severity": "low",
+      "reproduction_steps": [
+        "POST workflow with 10k character name",
+        "Accepts without limit"
+      ],
+      "expected": "400/422 - name too long",
+      "actual": "200 OK",
+      "timestamp": "2025-11-18T23:31:19.329489"
+    }
+  ]
+}

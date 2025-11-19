@@ -1,13 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .database_manager import db_manager
 
 # Initialize router
 router = APIRouter()
-
 
 # Pydantic models
 class UserCreate(BaseModel):
@@ -16,8 +15,9 @@ class UserCreate(BaseModel):
 
 
 class WorkflowCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=255, description="Name of the workflow")
+    description: Optional[str] = Field(None, max_length=1000, description="Description of the workflow")
+    steps: Optional[List[Dict[str, Any]]] = Field(None, max_items=50, description="List of workflow steps")
 
 
 class TaskCreate(BaseModel):
@@ -38,14 +38,42 @@ async def get_current_user():
 
 
 # Workflow endpoints
+# In-memory workflow storage (for testing - would use DB in production)
+_workflows = {}
+_workflow_counter = 0
+
 @router.post("/workflows")
 async def create_workflow(workflow: WorkflowCreate):
-    return {"workflow": {"id": "workflow_1", "name": workflow.name}}
+    global _workflow_counter
+    _workflow_counter += 1
+    workflow_id = f"workflow_{_workflow_counter}"
+    
+    workflow_data = {
+        "id": workflow_id,
+        "name": workflow.name,
+        "description": workflow.description,
+        "steps": workflow.steps or [],
+        "created_at": "2025-11-18T23:00:00Z",
+        "status": "active"
+    }
+    
+    # Store workflow in memory
+    _workflows[workflow_id] = workflow_data
+    
+    return {"workflow": workflow_data}
 
 
 @router.get("/workflows")
 async def get_workflows():
-    return {"workflows": [], "count": 0}
+    return {"workflows": list(_workflows.values()), "count": len(_workflows)}
+
+
+@router.get("/workflows/{workflow_id}")
+async def get_workflow(workflow_id: str):
+    """Get workflow by ID - fixes critical retrieval bug"""
+    if workflow_id not in _workflows:
+        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+    return {"workflow": _workflows[workflow_id]}
 
 
 # Task endpoints
