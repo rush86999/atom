@@ -229,6 +229,99 @@ class LLMVerifier:
 
         return results
 
+    def verify_business_outcome(
+        self, outcome_type: str, metrics: Dict[str, Any], context: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Verify if the test metrics demonstrate tangible business value
+        
+        Args:
+            outcome_type: Type of outcome (e.g., "time_savings", "roi", "efficiency")
+            metrics: Measured metrics from the test
+            context: Additional context
+            
+        Returns:
+            Verification result with business value assessment
+        """
+        prompt = self._build_business_outcome_prompt(outcome_type, metrics, context)
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a business value analyst verifying automation ROI.
+                        Analyze the metrics to determine real-world business impact.
+                        Focus on tangible value: time saved, cost reduced, efficiency gained.""",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.1,
+                max_tokens=1000,
+            )
+            
+            result_text = response.choices[0].message.content
+            return self._parse_business_outcome_result(result_text, outcome_type, metrics)
+            
+        except Exception as e:
+            return {
+                "outcome_type": outcome_type,
+                "verified": False,
+                "business_value_score": 0.0,
+                "reason": f"Verification failed: {str(e)}",
+                "metrics": metrics,
+                "error": True
+            }
+
+    def _build_business_outcome_prompt(
+        self, outcome_type: str, metrics: Dict[str, Any], context: Optional[str]
+    ) -> str:
+        """Build prompt for business outcome verification"""
+        return f"""
+        BUSINESS OUTCOME TO VERIFY: {outcome_type}
+        
+        MEASURED METRICS:
+        {json.dumps(metrics, indent=2)}
+        
+        CONTEXT:
+        {context or "No additional context"}
+        
+        INSTRUCTIONS:
+        1. Calculate the projected annual value based on these metrics
+        2. Assess if this represents significant business value
+        3. Provide a business value score (0.0-10.0)
+        4. Format response as JSON:
+           - verified: boolean (is there positive value?)
+           - business_value_score: float (0.0-10.0)
+           - annual_value_projection: string
+           - reasoning: string
+        """
+
+    def _parse_business_outcome_result(
+        self, result_text: str, outcome_type: str, metrics: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Parse business outcome result"""
+        try:
+            if "```json" in result_text:
+                json_str = result_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in result_text:
+                json_str = result_text.split("```")[1].split("```")[0].strip()
+            else:
+                json_str = result_text
+                
+            result = json.loads(json_str)
+            result["outcome_type"] = outcome_type
+            result["metrics"] = metrics
+            return result
+        except Exception as e:
+            return {
+                "outcome_type": outcome_type,
+                "verified": False,
+                "error": f"Parse error: {str(e)}",
+                "raw_response": result_text
+            }
+
     def _fallback_verification(self, claim: str, test_output: Dict[str, Any]) -> Dict[str, Any]:
         """
         Provide fallback verification when API is unavailable
