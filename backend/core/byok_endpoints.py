@@ -844,3 +844,41 @@ async def byok_health_check(byok_manager: BYOKManager = Depends(get_byok_manager
 
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"BYOK system unhealthy: {str(e)}")
+
+
+# Backward compatibility endpoints for /api/v1/byok/*
+@router.get("/api/v1/byok/health")
+async def byok_health_v1(byok_manager: BYOKManager = Depends(get_byok_manager)):
+    """Health check endpoint for BYOK system (v1 API compatibility)"""
+    return await byok_health_check(byok_manager)
+
+
+@router.get("/api/v1/byok/status")
+async def byok_status_v1(byok_manager: BYOKManager = Depends(get_byok_manager)):
+    """Status endpoint for BYOK system with provider details"""
+    health_response = await byok_health_check(byok_manager)
+
+    # Add provider list
+    providers_list = []
+    for provider_id in byok_manager.providers:
+        try:
+            status = byok_manager.get_provider_status(provider_id)
+            providers_list.append({
+                "id":  provider_id,
+                "name": status["provider"]["name"],
+                "status": status["status"],
+                "has_keys": status["has_api_keys"],
+                "active": status["provider"]["is_active"]
+            })
+        except Exception as e:
+            logger.error(f"Failed to get status for provider {provider_id}: {e}")
+
+    return {
+        **health_response,
+        "status_code": 200,
+        "available": True,
+        "providers_connected": [p["id"] for p in providers_list if p["has_keys"]],
+        "active_models": sum(1 for p in providers_list if p["active"]),
+        "cost_tracking": "enabled",
+        "providers_list": providers_list
+    }

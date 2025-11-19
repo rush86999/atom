@@ -11,14 +11,8 @@ import os
 import sys
 from datetime import datetime
 
-# Add Python API service path for imports
-sys.path.append('/Users/rushiparikh/projects/atom/atom/backend/python-api-service')
-
 try:
-    from github_enhanced_api import github_enhanced_bp
-    from github_service_real import github_service
-    from auth_handler_github_complete import github_auth_manager
-    from db_oauth_github_complete import get_tokens, save_tokens, delete_tokens
+    from .github_service import github_service
     GITHUB_AVAILABLE = True
 except ImportError as e:
     print(f"GitHub service not available: {e}")
@@ -92,30 +86,19 @@ class SearchRequest(UserRequest):
 def get_github_tokens(user_id: str) -> Optional[Dict[str, Any]]:
     """Get GitHub tokens for user"""
     try:
-        if GITHUB_AVAILABLE:
-            return asyncio.run(get_tokens(None, user_id))
-        else:
-            # Mock implementation for development
+        # Simple implementation using env var
+        token = os.getenv('GITHUB_ACCESS_TOKEN')
+        if token:
             return {
-                'access_token': os.getenv('GITHUB_ACCESS_TOKEN', 'mock_github_token'),
+                'access_token': token,
                 'token_type': 'bearer',
                 'scope': 'repo,user:email,read:org',
-                'expires_at': (datetime.utcnow() + timedelta(hours=8)).isoformat(),
                 'user_info': {
-                    'login': os.getenv('GITHUB_USER_LOGIN', 'testuser'),
-                    'id': os.getenv('GITHUB_USER_ID', '123456'),
-                    'name': os.getenv('GITHUB_USER_NAME', 'Test User'),
-                    'email': os.getenv('GITHUB_USER_EMAIL', 'test@example.com'),
-                    'avatar_url': os.getenv('GITHUB_USER_AVATAR', 'https://avatars.githubusercontent.com/u/123456?v=4'),
-                    'html_url': f"https://github.com/{os.getenv('GITHUB_USER_LOGIN', 'testuser')}",
-                    'company': os.getenv('GITHUB_USER_COMPANY', 'Test Company'),
-                    'location': os.getenv('GITHUB_USER_LOCATION', 'San Francisco, CA'),
-                    'public_repos': 25,
-                    'followers': 150,
-                    'following': 80,
-                    'created_at': (datetime.utcnow() - timedelta(days=365)).isoformat()
+                    'login': 'testuser',
+                    'id': '123456'
                 }
             }
+        return None
     except Exception as e:
         print(f"Error getting GitHub tokens for user {user_id}: {e}")
         return None
@@ -133,7 +116,7 @@ async def health_check():
         
         # Test GitHub service
         try:
-            service_info = github_service.get_service_info()
+            service_info = github_service.test_connection()
             return {
                 "status": "healthy",
                 "message": "GitHub API is accessible",
@@ -170,13 +153,9 @@ async def list_repositories(request: RepoRequest):
             return await create_repository(CreateRepoRequest(**request.dict()))
         
         # Get repositories using GitHub service
-        repos = await github_service.get_user_repositories(
-            request.user_id,
-            request.repo_type,
-            request.sort,
-            request.direction,
-            request.limit,
-            request.page
+        # Note: github_service methods are synchronous and don't take user_id
+        repos = github_service.get_user_repositories(
+            request.repo_type
         )
         
         repos_data = [{

@@ -41,10 +41,23 @@ class E2ETestRunner:
     def initialize_llm_verifier(self) -> bool:
         """Initialize LLM verifier if credentials are available"""
         try:
+            # Check if we should use DeepSeek
+            use_deepseek = os.getenv("USE_DEEPSEEK_VALIDATOR", "false").lower() == "true"
             # Check if we should use GLM instead of OpenAI
             use_glm = os.getenv("USE_GLM_VALIDATOR", "false").lower() == "true"
 
-            if use_glm:
+            if use_deepseek:
+                deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+                if not deepseek_key:
+                    raise ValueError("DEEPSEEK_API_KEY not found")
+                
+                self.llm_verifier = LLMVerifier(
+                    api_key=deepseek_key,
+                    base_url="https://api.deepseek.com",
+                    model="deepseek-chat"
+                )
+                print(f"{Fore.CYAN}Using DeepSeek (deepseek-chat) for AI validation{Style.RESET_ALL}")
+            elif use_glm:
                 self.llm_verifier = GLMVerifier()
                 print(f"{Fore.CYAN}Using GLM 4.6 for AI validation{Style.RESET_ALL}")
             else:

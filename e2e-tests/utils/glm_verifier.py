@@ -21,7 +21,7 @@ class GLMVerifier:
             raise ValueError("GLM_API_KEY environment variable is required")
 
         self.base_url = "https://api.z.ai/api/paas/v4"
-        self.model = "glm-4.6"
+        self.models = ["glm-4.6", "glm-4.5", "glm-4-flash"]  # Try 4.6, then 4.5, then Flash
         self.max_retries = max_retries
         self.request_delay = 2  # Increased delay between requests
 
@@ -47,69 +47,86 @@ class GLMVerifier:
             "Content-Type": "application/json"
         }
 
-        data = {
-            "model": self.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": """You are a quality assurance expert that verifies marketing claims against actual test results.
-                    Be objective, thorough, and evidence-based in your assessment.
-                    Focus on whether the test results demonstrate the claimed capability."""
-                },
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.1,
-            "max_tokens": 1000
-        }
+        for model in self.models:
+            print(f"Trying AI validation with model: {model}")
+            
+            data = {
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": """You are a quality assurance expert that verifies marketing claims against actual test results.
+                        Be objective, thorough, and evidence-based in your assessment.
+                        Focus on whether the test results demonstrate the claimed capability."""
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.1,
+                "max_tokens": 1000
+            }
 
-        for attempt in range(self.max_retries):
-            try:
-                response = requests.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=data,
-                    timeout=30
-                )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    result_text = result["choices"][0]["message"]["content"]
-                    return self._parse_verification_result(result_text, claim, test_output)
-                else:
-                    error_text = response.text
-                    error_msg = f"GLM API error: {response.status_code} - {error_text}"
-                    print(f"Attempt {attempt + 1} failed: {error_msg}")
+            for attempt in range(self.max_retries):
+                try:
+                    response = requests.post(
+                        f"{self.base_url}/chat/completions",
+                        headers=headers,
+                        json=data,
+                        timeout=30
+                    )
                     
+                    if response.status_code == 200:
+                        result = response.json()
+                        result_text = result["choices"][0]["message"]["content"]
+                        return self._parse_verification_result(result_text, claim, test_output)
+                    else:
+                        error_text = response.text
+                        error_msg = f"GLM API error ({model}): {response.status_code} - {error_text}"
+                        print(f"Attempt {attempt + 1} failed with {model}: {error_msg}")
+                        
+                        # If it's a quota/balance error, break retry loop to try next model
+                        if "1113" in error_text or "balance" in error_text.lower() or "quota" in error_text.lower():
+                            print(f"⚠️  Quota/Balance error with {model}. Switching to next model...")
+                            break
+                        
+                        if attempt == self.max_retries - 1:
+                            # Last attempt for this model failed
+                            if model == self.models[-1]:
+                                raise Exception(error_msg)
+                        
+                        # Check if it's a rate limit error
+                        if response.status_code == 429:
+                            print(f"Rate limit hit, waiting {self.request_delay * (attempt + 1)} seconds before retry...")
+                            time.sleep(self.request_delay * (attempt + 1))
+                            continue
+                        else:
+                            # Non-rate-limit error, try next model if available
+                            break
+
+                except requests.exceptions.Timeout:
                     if attempt == self.max_retries - 1:
-                        # Last attempt failed
-                        raise Exception(error_msg)
-                    
-                    # Check if it's a rate limit error
-                    if response.status_code == 429:
+                        if model == self.models[-1]:
+                            raise Exception("GLM API timeout after all retries")
+                    print(f"Timeout, waiting {self.request_delay * (attempt + 1)} seconds before retry...")
+                    time.sleep(self.request_delay * (attempt + 1))
+                    continue
+                except Exception as api_error:
+                    if attempt == self.max_retries - 1:
+                        if model == self.models[-1]:
+                            raise api_error
+                    error_str = str(api_error)
+                    if "429" in error_str or "rate limit" in error_str.lower():
                         print(f"Rate limit hit, waiting {self.request_delay * (attempt + 1)} seconds before retry...")
                         time.sleep(self.request_delay * (attempt + 1))
                         continue
                     else:
-                        # Non-rate-limit error, don't retry
-                        raise Exception(error_msg)
+                        # Non-rate-limit error
+                        break
+            
+            # If we got here (broke out of retry loop), continue to next model
+            continue
 
-            except requests.exceptions.Timeout:
-                if attempt == self.max_retries - 1:
-                    raise Exception("GLM API timeout after all retries")
-                print(f"Timeout, waiting {self.request_delay * (attempt + 1)} seconds before retry...")
-                time.sleep(self.request_delay * (attempt + 1))
-                continue
-            except Exception as api_error:
-                if attempt == self.max_retries - 1:
-                    raise api_error
-                error_str = str(api_error)
-                if "429" in error_str or "rate limit" in error_str.lower():
-                    print(f"Rate limit hit, waiting {self.request_delay * (attempt + 1)} seconds before retry...")
-                    time.sleep(self.request_delay * (attempt + 1))
-                    continue
-                else:
-                    # Non-rate-limit error, don't retry
-                    raise api_error
+        # If all models failed
+        raise Exception("All GLM models failed to verify the claim")
 
     def _build_verification_prompt(
         self, claim: str, test_output: Dict[str, Any], context: Optional[str]

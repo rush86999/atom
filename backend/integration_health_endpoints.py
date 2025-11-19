@@ -290,6 +290,29 @@ async def get_all_integrations_health():
         overall_health_percentage=round(overall_health, 1)
     )
 
+@router.get("/integrations/status")
+async def get_integrations_status():
+    """Get integration status (alias for /integrations/health for backward compatibility)"""
+    health_data = await get_all_integrations_health()
+    return {
+        "status_code": 200,
+        "integrations_count": health_data.total_integrations,
+        "connected_integrations": health_data.healthy_integrations,
+        "configured_integrations": health_data.configured_integrations,
+        "overall_status": "healthy" if health_data.overall_health_percentage > 80 else "degraded",
+        "health_percentage": health_data.overall_health_percentage,
+        "integrations": [
+            {
+                "name": status.service_name,
+                "status": status.status,
+                "enabled": status.enabled,
+                "configured": status.configured
+            }
+            for status in health_data.integration_status
+        ]
+    }
+
+
 # Individual health endpoints for key integrations
 @router.get("/asana/health", response_model=IntegrationHealthStatus)
 async def get_asana_health():

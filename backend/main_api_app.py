@@ -1,4 +1,9 @@
 import time
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 import uvicorn
 
@@ -248,6 +253,24 @@ except ImportError as e:
     print(f"Salesforce integration not available: {e}")
     SALESFORCE_AVAILABLE = False
     salesforce_router = None
+
+# Import Email integration
+try:
+    from integrations.email_routes import router as email_router
+    EMAIL_AVAILABLE = True
+except ImportError as e:
+    print(f"Email integration not available: {e}")
+    EMAIL_AVAILABLE = False
+    email_router = None
+
+# Import Slack integration
+try:
+    from integrations.slack_routes import router as slack_router
+    SLACK_AVAILABLE = True
+except ImportError as e:
+    print(f"Slack integration not available: {e}")
+    SLACK_AVAILABLE = False
+    slack_router = None
 
 # Import Zoom integration
 try:
@@ -504,6 +527,27 @@ if SALESFORCE_AVAILABLE and salesforce_router:
     print("✅ Salesforce integration routes loaded")
 else:
     print("⚠️  Salesforce integration routes not available")
+
+# Include Email API routes
+if EMAIL_AVAILABLE and email_router:
+    app.include_router(email_router)
+    print("✅ Email integration routes loaded (Gmail/Outlook)")
+else:
+    print("⚠️  Email integration routes not available")
+
+# Include Slack API routes
+if SLACK_AVAILABLE and slack_router:
+    app.include_router(slack_router)
+    print("✅ Slack integration routes loaded")
+else:
+    print("⚠️  Slack integration routes not available")
+
+# Include Zoom API routes
+if ZOOM_AVAILABLE and zoom_router:
+    app.include_router(zoom_router)
+    print("✅ Zoom integration routes loaded")
+else:
+    print("⚠️  Zoom integration routes not available")
 
 # Include GitHub integration routes if available
 try:

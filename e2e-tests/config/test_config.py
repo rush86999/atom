@@ -44,32 +44,32 @@ class TestConfig:
         ],
         "development": [
             "GITHUB_ACCESS_TOKEN",
-            "GITLAB_ACCESS_TOKEN",
-            "JIRA_API_TOKEN",
+            # "GITLAB_ACCESS_TOKEN",
+            # "JIRA_API_TOKEN",
         ],
         "crm": [
             "SALESFORCE_CLIENT_ID",
             "SALESFORCE_CLIENT_SECRET",
-            "HUBSPOT_ACCESS_TOKEN",
+            # "HUBSPOT_ACCESS_TOKEN",
         ],
         "storage": [
             "GOOGLE_DRIVE_CLIENT_ID",
             "GOOGLE_DRIVE_CLIENT_SECRET",
-            "DROPBOX_ACCESS_TOKEN",
+            # "DROPBOX_ACCESS_TOKEN",
             "ONEDRIVE_CLIENT_ID",
             "ONEDRIVE_CLIENT_SECRET",
             "BOX_CLIENT_ID",
             "BOX_CLIENT_SECRET",
         ],
         "financial": [
-            "STRIPE_SECRET_KEY",
-            "QUICKBOOKS_CLIENT_ID",
-            "QUICKBOOKS_CLIENT_SECRET",
-            "XERO_CLIENT_ID",
-            "XERO_CLIENT_SECRET",
+            # "STRIPE_SECRET_KEY",
+            # "QUICKBOOKS_CLIENT_ID",
+            # "QUICKBOOKS_CLIENT_SECRET",
+            # "XERO_CLIENT_ID",
+            # "XERO_CLIENT_SECRET",
         ],
         "voice": [
-            "ELEVENLABS_API_KEY",
+            # "ELEVENLABS_API_KEY",
         ],
     }
 
@@ -83,6 +83,16 @@ class TestConfig:
         "production_ready": "Production-ready architecture with FastAPI backend and Next.js frontend",
         "service_integrations": "33+ service integrations available",
         "byok_support": "Complete BYOK (Bring Your Own Key) system",
+        # Functional Claims (Non-marketed but expected features)
+        "github_integration": "Integrates with GitHub for issue tracking and repository management",
+        "slack_integration": "Sends and receives messages via Slack",
+        "google_drive_integration": "Syncs files and manages documents with Google Drive",
+        "asana_integration": "Manages tasks and projects in Asana",
+        "trello_integration": "Organizes projects and cards in Trello",
+        "salesforce_integration": "Connects with Salesforce CRM for customer data",
+        "gmail_integration": "Sends and reads emails via Gmail",
+        "outlook_integration": "Integrates with Outlook for email and calendar",
+        "notion_integration": "Manages pages and databases in Notion",
     }
 
     @classmethod

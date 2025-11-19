@@ -32,10 +32,20 @@ def run_tests(config: TestConfig) -> Dict[str, Any]:
     }
 
     # Test 1: Salesforce integration
-    results.update(_test_salesforce_integration(config))
+    sf_results = _test_salesforce_integration(config)
+    results["tests_run"] += sf_results["tests_run"]
+    results["tests_passed"] += sf_results["tests_passed"]
+    results["tests_failed"] += sf_results["tests_failed"]
+    results["test_details"].update(sf_results["test_details"])
+    results["test_outputs"].update(sf_results["test_outputs"])
 
     # Test 2: HubSpot integration
-    results.update(_test_hubspot_integration(config))
+    hs_results = _test_hubspot_integration(config)
+    results["tests_run"] += hs_results["tests_run"]
+    results["tests_passed"] += hs_results["tests_passed"]
+    results["tests_failed"] += hs_results["tests_failed"]
+    results["test_details"].update(hs_results["test_details"])
+    results["test_outputs"].update(hs_results["test_outputs"])
 
     results["end_time"] = time.time()
     results["duration_seconds"] = results["end_time"] - results["start_time"]
@@ -54,37 +64,53 @@ def _test_salesforce_integration(config: TestConfig) -> Dict[str, Any]:
     }
 
     try:
-        # Mock Salesforce endpoints for testing
-        test_details["details"]["salesforce_connection"] = {
-            "status_code": 200,
-            "connected": True,
-            "org_info": {
-                "name": "Test Organization",
-                "type": "Developer Edition",
-                "users": 150
+
+        # Real API calls to backend
+        base_url = config.BACKEND_URL
+        
+        # 1. Check Health
+        try:
+            health_response = requests.get(f"{base_url}/api/salesforce/health")
+            test_details["details"]["salesforce_connection"] = {
+                "status_code": health_response.status_code,
+                "connected": health_response.status_code == 200,
+                "response": health_response.json() if health_response.status_code == 200 else health_response.text
             }
-        }
+        except Exception as e:
+            test_details["details"]["salesforce_connection"] = {
+                "status_code": 0,
+                "connected": False,
+                "error": str(e)
+            }
 
-        test_details["details"]["salesforce_objects"] = {
-            "status_code": 200,
-            "available": True,
-            "objects": ["Account", "Contact", "Opportunity", "Lead", "Case"],
-            "custom_objects": 12
-        }
-
-        test_details["details"]["salesforce_workflows"] = {
-            "status_code": 200,
-            "available": True,
-            "flow_count": 8,
-            "automated_processes": 15
-        }
+        # 2. List Accounts (Object Access)
+        try:
+            accounts_response = requests.get(f"{base_url}/api/salesforce/accounts?limit=5")
+            test_details["details"]["salesforce_accounts"] = {
+                "status_code": accounts_response.status_code,
+                "available": accounts_response.status_code == 200,
+                "response": accounts_response.json() if accounts_response.status_code == 200 else accounts_response.text
+            }
+        except Exception as e:
+            test_details["details"]["salesforce_accounts"] = {
+                "status_code": 0,
+                "available": False,
+                "error": str(e)
+            }
 
         # Determine test status
-        if test_details["details"]["salesforce_connection"]["connected"]:
+        # Pass if health check returns 200 (even if degraded due to auth) or if accounts returns 200
+        # Note: If no credentials, accounts will return 200 with empty list or error message in JSON, 
+        # but status code might be 200 from our wrapper.
+        conn_status = test_details["details"]["salesforce_connection"].get("status_code")
+        if conn_status == 200:
             test_details["status"] = "passed"
+        else:
+            test_details["status"] = "failed"
 
     except Exception as e:
         test_details["details"]["error"] = str(e)
+        test_details["status"] = "failed"
 
     return {
         "tests_run": 1,

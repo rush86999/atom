@@ -32,13 +32,28 @@ def run_tests(config: TestConfig) -> Dict[str, Any]:
     }
 
     # Test 1: GitHub integration
-    results.update(_test_github_integration(config))
+    github_results = _test_github_integration(config)
+    results["tests_run"] += github_results["tests_run"]
+    results["tests_passed"] += github_results["tests_passed"]
+    results["tests_failed"] += github_results["tests_failed"]
+    results["test_details"].update(github_results["test_details"])
+    results["test_outputs"].update(github_results["test_outputs"])
 
     # Test 2: GitLab integration (mock if no credentials)
-    results.update(_test_gitlab_integration(config))
+    gitlab_results = _test_gitlab_integration(config)
+    results["tests_run"] += gitlab_results["tests_run"]
+    results["tests_passed"] += gitlab_results["tests_passed"]
+    results["tests_failed"] += gitlab_results["tests_failed"]
+    results["test_details"].update(gitlab_results["test_details"])
+    results["test_outputs"].update(gitlab_results["test_outputs"])
 
     # Test 3: JIRA integration (mock if no credentials)
-    results.update(_test_jira_integration(config))
+    jira_results = _test_jira_integration(config)
+    results["tests_run"] += jira_results["tests_run"]
+    results["tests_passed"] += jira_results["tests_passed"]
+    results["tests_failed"] += jira_results["tests_failed"]
+    results["test_details"].update(jira_results["test_details"])
+    results["test_outputs"].update(jira_results["test_outputs"])
 
     results["end_time"] = time.time()
     results["duration_seconds"] = results["end_time"] - results["start_time"]
@@ -57,31 +72,54 @@ def _test_github_integration(config: TestConfig) -> Dict[str, Any]:
     }
 
     try:
-        # Mock GitHub endpoints for testing
-        test_details["details"]["github_connection"] = {
-            "status_code": 200,
-            "connected": True,
-            "user_info": {
-                "login": "test_user",
-                "repositories": 25,
-                "organizations": 3
+        # 1. Test GitHub Health/Connection
+        health_url = f"{config.BACKEND_URL}/api/github/health"
+        try:
+            health_response = requests.get(health_url, timeout=10)
+            test_details["details"]["github_connection"] = {
+                "status_code": health_response.status_code,
+                "connected": health_response.status_code == 200,
+                "response": health_response.json() if health_response.status_code == 200 else health_response.text
             }
-        }
+        except Exception as e:
+            test_details["details"]["github_connection"] = {
+                "status_code": 0,
+                "connected": False,
+                "error": str(e)
+            }
 
-        test_details["details"]["github_repositories"] = {
-            "status_code": 200,
-            "available": True,
-            "repo_count": 25,
-            "languages": ["Python", "JavaScript", "TypeScript", "React", "Vue.js"]
-        }
-
-        test_details["details"]["github_workflows"] = {
-            "status_code": 200,
-            "available": True,
-            "workflow_count": 8,
-            "active_workflows": 5
-        }
-
+        # 2. Test List Repositories (if connection successful)
+        if test_details["details"]["github_connection"]["connected"]:
+            repo_url = f"{config.BACKEND_URL}/api/github/repositories"
+            # Use a test user ID - in a real scenario this would come from auth
+            payload = {
+                "user_id": "test_user_123", 
+                "limit": 5
+            }
+            try:
+                repo_response = requests.post(repo_url, json=payload, timeout=10)
+                
+                if repo_response.status_code == 200:
+                    repo_data = repo_response.json()
+                    test_details["details"]["github_repositories"] = {
+                        "status_code": 200,
+                        "available": True,
+                        "repo_count": repo_data.get("data", {}).get("total_count", 0),
+                        "repositories": [r.get("full_name") for r in repo_data.get("data", {}).get("repositories", [])[:3]]
+                    }
+                else:
+                    test_details["details"]["github_repositories"] = {
+                        "status_code": repo_response.status_code,
+                        "available": False,
+                        "error": repo_response.text
+                    }
+            except Exception as e:
+                test_details["details"]["github_repositories"] = {
+                    "status_code": 0,
+                    "available": False,
+                    "error": str(e)
+                }
+        
         # Determine test status
         if test_details["details"]["github_connection"]["connected"]:
             test_details["status"] = "passed"
