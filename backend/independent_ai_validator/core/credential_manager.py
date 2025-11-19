@@ -41,6 +41,7 @@ class CredentialManager:
         Returns True if successful, False otherwise
         """
         try:
+            print(f"DEBUG: self.credentials_file type: {type(self.credentials_file)}, value: {self.credentials_file}")
             credentials_path = Path(__file__).parent.parent.parent / self.credentials_file
 
             if not credentials_path.exists():

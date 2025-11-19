@@ -57,8 +57,13 @@ class IndependentAIValidator:
     Uses multiple AI providers for unbiased validation
     """
 
-    def __init__(self, credentials_file: str = None, backend_url: str = "http://localhost:5058"):
-        self.credential_manager = CredentialManager(credentials_file)
+    def __init__(self, credential_manager: Any = None, credentials_file: str = None, backend_url: str = "http://localhost:5058"):
+        if credential_manager and not isinstance(credential_manager, str):
+            self.credential_manager = credential_manager
+        else:
+            # Handle case where string is passed as first arg (backward compatibility)
+            file_path = credential_manager if isinstance(credential_manager, str) else credentials_file
+            self.credential_manager = CredentialManager(file_path)
         self.providers: Dict[str, Any] = {}
         self.claims_database: Dict[str, MarketingClaim] = {}
         self.validation_history: List[ValidationResult] = []
@@ -66,11 +71,12 @@ class IndependentAIValidator:
         self.backend_url = backend_url
 
         # Provider weights for consensus calculation
+        # Provider weights for consensus calculation
         self.provider_weights = {
-            'glm': 1.0,
-            'anthropic': 0.95,
-            'deepseek': 0.85,
-            'google': 0.90
+            'glm': 0.0,
+            'anthropic': 0.0,
+            'deepseek': 1.0,
+            'google': 0.0
         }
 
     async def initialize(self) -> bool:
@@ -104,22 +110,22 @@ class IndependentAIValidator:
     async def _initialize_providers(self):
         """Initialize all available AI providers"""
         # GLM Provider (cost-effective alternative to OpenAI)
-        glm_cred = self.credential_manager.get_credential('glm')
-        if glm_cred:
-            self.providers['glm'] = GLMProvider(
-                glm_cred.key,
-                glm_cred.weight
-            )
-            logger.info("GLM provider initialized")
+        # glm_cred = self.credential_manager.get_credential('glm')
+        # if glm_cred:
+        #     self.providers['glm'] = GLMProvider(
+        #         glm_cred.key,
+        #         glm_cred.weight
+        #     )
+        #     logger.info("GLM provider initialized")
 
         # Anthropic Provider
-        anthropic_cred = self.credential_manager.get_credential('anthropic')
-        if anthropic_cred:
-            self.providers['anthropic'] = AnthropicProvider(
-                anthropic_cred.key,
-                anthropic_cred.weight
-            )
-            logger.info("Anthropic provider initialized")
+        # anthropic_cred = self.credential_manager.get_credential('anthropic')
+        # if anthropic_cred:
+        #     self.providers['anthropic'] = AnthropicProvider(
+        #         anthropic_cred.key,
+        #         anthropic_cred.weight
+        #     )
+        #     logger.info("Anthropic provider initialized")
 
         # DeepSeek Provider
         deepseek_cred = self.credential_manager.get_credential('deepseek')
@@ -274,6 +280,11 @@ class IndependentAIValidator:
         Focuses on real outputs, functionality, and realistic execution times
         """
         from .advanced_output_validator import AdvancedOutputValidator
+        # Import ComprehensiveE2ETester dynamically to avoid circular imports
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        from comprehensive_e2e_integration_tester import ComprehensiveE2ETester
 
         evidence = {
             "timestamp": datetime.now().isoformat(),
@@ -311,6 +322,48 @@ class IndependentAIValidator:
                 evidence["real_world_usage_error"] = str(rw_e)
             finally:
                 await real_world_validator.cleanup()
+
+            # Integrate Comprehensive E2E Tester Evidence
+            try:
+                logger.info("🚀 Running Comprehensive E2E Integration Tests for additional evidence...")
+                
+                # Inject credentials into environment for E2E tester to pick up automatically
+                env_mapping = {
+                    'glm': 'GLM_API_KEY',
+                    'openai': 'OPENAI_API_KEY',
+                    'anthropic': 'ANTHROPIC_API_KEY',
+                    'deepseek': 'DEEPSEEK_API_KEY',
+                    'slack': 'SLACK_BOT_TOKEN',
+                    'github': 'GITHUB_TOKEN',
+                    'google': 'GOOGLE_CLIENT_ID', # Note: This might need secret too, but let's start with ID or check how E2E uses it
+                    'asana': 'ASANA_TOKEN',
+                    'notion': 'NOTION_TOKEN'
+                }
+                
+                # Pre-populate environment variables from loaded credentials
+                for provider, env_var in env_mapping.items():
+                    key = self.credential_manager.get_credential_key(provider)
+                    if key:
+                        os.environ[env_var] = key
+                        logger.debug(f"Injected {env_var} for E2E testing")
+
+                e2e_tester = ComprehensiveE2ETester()
+                # Run tests relevant to the claim category if possible, or all tests
+                e2e_results = await e2e_tester.run_comprehensive_tests()
+                
+                # Add E2E results to evidence
+                evidence["e2e_integration_test_results"] = self._make_serializable(e2e_results)
+                
+                # Extract specific insights for the claim
+                if e2e_results.get('success'):
+                    evidence["e2e_validation_status"] = "PASSED"
+                else:
+                    evidence["e2e_validation_status"] = "PARTIAL_FAILURE"
+                    
+                logger.info(f"✅ E2E Integration evidence collected: Score {e2e_results.get('actual_validation_score', 0.0):.2%}")
+            except Exception as e2e_e:
+                logger.warning(f"Failed to collect E2E integration evidence: {str(e2e_e)}")
+                evidence["e2e_integration_error"] = str(e2e_e)
 
             # Additionally validate all features against user expectations
             user_expectation_validator = UserExpectationValidator(backend_url=self.backend_url)

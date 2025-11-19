@@ -22,7 +22,7 @@ class GLMProvider(BaseLLMProvider):
 
     def __init__(self, api_key: str, weight: float = 1.0):
         super().__init__(api_key, "GLM", weight)
-        self.base_url = "https://api.z.ai/api/anthropic"
+        self.base_url = "https://api.z.ai/api/paas/v4"
         self.model = "glm-4.6"  # Use GLM-4.6 for high quality analysis
 
     async def validate_claim(self, request: ValidationRequest) -> LLMResponse:
