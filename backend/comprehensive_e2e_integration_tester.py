@@ -9,16 +9,25 @@ to validate all ATOM platform features and marketing claims with 98% truth accur
 Philosophy: "Test with real data, real integrations, and real user scenarios"
 """
 
+import sys
 import os
 import asyncio
 import json
-import time
 import logging
-import datetime
-from typing import Dict, List, Optional, Any, Tuple, Callable
+import time
+from datetime import datetime
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from absolute path
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(dotenv_path=env_path)
+
+# Add parent directory to path to import backend modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import aiohttp
 import subprocess
 import threading
@@ -247,7 +256,7 @@ class EvidenceCollector:
 
     def collect_api_response(self, evidence: Dict[str, Any]):
         """Collect API response evidence"""
-        evidence['timestamp'] = datetime.datetime.now().isoformat()
+        evidence['timestamp'] = datetime.now().isoformat()
         self.current_test_evidence.append(evidence)
 
     def collect_screenshot(self, test_name: str, description: str) -> Optional[str]:
@@ -258,7 +267,7 @@ class EvidenceCollector:
 
     def collect_performance_metrics(self, metrics: Dict[str, Any]):
         """Collect performance metrics"""
-        metrics['timestamp'] = datetime.datetime.now().isoformat()
+        metrics['timestamp'] = datetime.now().isoformat()
         self.current_test_evidence.append({
             'type': 'performance_metrics',
             'data': metrics
@@ -272,7 +281,7 @@ class EvidenceCollector:
             'test_name': test_name,
             'result': asdict(test_result),
             'evidence': self.current_test_evidence,
-            'collection_timestamp': datetime.datetime.now().isoformat()
+            'collection_timestamp': datetime.now().isoformat()
         }
 
         with open(evidence_file, 'w') as f:
@@ -329,7 +338,7 @@ class ComprehensiveE2ETester:
         self.credential_manager = CredentialManager()
         self.evidence_collector = EvidenceCollector()
         self.test_results = []
-        self.current_session_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.current_session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Test categories
         self.test_categories = {
@@ -434,7 +443,7 @@ class ComprehensiveE2ETester:
             #         execution_time=0.0,
             #         evidence=[],
             #         error_message="OpenAI API key not provided",
-            #         timestamp=datetime.datetime.now().isoformat()
+            #         timestamp=datetime.now().isoformat()
             #     ))
 
             # Test Anthropic integration - DISABLED for DeepSeek only testing
@@ -451,7 +460,7 @@ class ComprehensiveE2ETester:
             #         execution_time=0.0,
             #         evidence=[],
             #         error_message="Anthropic API key not provided",
-            #         timestamp=datetime.datetime.now().isoformat()
+            #         timestamp=datetime.now().isoformat()
             #     ))
 
             # Test DeepSeek integration
@@ -468,7 +477,7 @@ class ComprehensiveE2ETester:
                     execution_time=0.0,
                     evidence=[],
                     error_message="DeepSeek API key not provided",
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
             # Test GLM integration - DISABLED for DeepSeek only testing
@@ -485,7 +494,7 @@ class ComprehensiveE2ETester:
             #         execution_time=0.0,
             #         evidence=[],
             #         error_message="GLM API key not provided",
-            #         timestamp=datetime.datetime.now().isoformat()
+            #         timestamp=datetime.now().isoformat()
             #     ))
 
         except Exception as e:
@@ -499,7 +508,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _test_openai_integration(self, evidence_dir: str) -> TestResult:
@@ -553,7 +562,7 @@ class ComprehensiveE2ETester:
                             execution_time=time.time() - start_time,
                             evidence=self.evidence_collector.current_test_evidence.copy(),
                             error_message=None,
-                            timestamp=datetime.datetime.now().isoformat()
+                            timestamp=datetime.now().isoformat()
                         )
                     else:
                         raise Exception(f"HTTP {response.status}: {await response.text()}")
@@ -568,7 +577,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             )
 
     async def _test_anthropic_integration(self, evidence_dir: str) -> TestResult:
@@ -622,7 +631,7 @@ class ComprehensiveE2ETester:
                             execution_time=time.time() - start_time,
                             evidence=self.evidence_collector.current_test_evidence.copy(),
                             error_message=None,
-                            timestamp=datetime.datetime.now().isoformat()
+                            timestamp=datetime.now().isoformat()
                         )
                     else:
                         raise Exception(f"HTTP {response.status}: {await response.text()}")
@@ -637,7 +646,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             )
 
     async def _test_deepseek_integration(self, evidence_dir: str) -> TestResult:
@@ -692,7 +701,7 @@ class ComprehensiveE2ETester:
                             execution_time=time.time() - start_time,
                             evidence=self.evidence_collector.current_test_evidence.copy(),
                             error_message=None,
-                            timestamp=datetime.datetime.now().isoformat()
+                            timestamp=datetime.now().isoformat()
                         )
                     else:
                         raise Exception(f"HTTP {response.status}: {await response.text()}")
@@ -707,7 +716,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             )
 
     async def _test_glm_integration(self, evidence_dir: str) -> TestResult:
@@ -765,7 +774,7 @@ class ComprehensiveE2ETester:
                             execution_time=time.time() - start_time,
                             evidence=self.evidence_collector.current_test_evidence.copy(),
                             error_message=None,
-                            timestamp=datetime.datetime.now().isoformat()
+                            timestamp=datetime.now().isoformat()
                         )
                     else:
                         raise Exception(f"HTTP {response.status}: {await response.text()}")
@@ -780,7 +789,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             )
 
     async def _test_workflow_engine(self):
@@ -800,14 +809,14 @@ class ComprehensiveE2ETester:
                     ]
                 }
                 
-                async with session.post("http://localhost:5058/api/v1/workflows", json=workflow_def) as response:
+                async with session.post("http://localhost:5059/api/v1/workflows", json=workflow_def) as response:
                     if response.status not in [200, 201]:
                         raise Exception(f"Failed to create workflow: {response.status}")
                     workflow_data = await response.json()
                     workflow_id = workflow_data.get("id")
 
                 # 2. Execute the workflow
-                async with session.post(f"http://localhost:5058/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                async with session.post(f"http://localhost:5059/api/v1/workflows/{workflow_id}/execute", json={}) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to execute workflow: {response.status}")
                     execution_result = await response.json()
@@ -821,7 +830,7 @@ class ComprehensiveE2ETester:
                     execution_time=time.time() - start_time,
                     evidence=[{"type": "execution_result", "data": execution_result}],
                     error_message=None,
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
         except Exception as e:
@@ -834,7 +843,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _test_byok_system(self):
@@ -846,7 +855,7 @@ class ComprehensiveE2ETester:
         try:
             async with aiohttp.ClientSession() as session:
                 # Check BYOK health/status
-                async with session.get("http://localhost:5058/api/v1/byok/health") as response:
+                async with session.get("http://localhost:5059/api/v1/byok/health") as response:
                     if response.status != 200:
                         raise Exception(f"BYOK system unhealthy: {response.status}")
                     health_data = await response.json()
@@ -860,7 +869,7 @@ class ComprehensiveE2ETester:
                     execution_time=time.time() - start_time,
                     evidence=[{"type": "health_check", "data": health_data}],
                     error_message=None,
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
         except Exception as e:
@@ -873,7 +882,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _test_real_time_monitoring(self):
@@ -885,7 +894,7 @@ class ComprehensiveE2ETester:
         try:
             async with aiohttp.ClientSession() as session:
                 # Check metrics endpoint
-                async with session.get("http://localhost:5058/metrics") as response:
+                async with session.get("http://localhost:5059/metrics") as response:
                     if response.status != 200:
                         raise Exception(f"Metrics endpoint failed: {response.status}")
                     metrics_data = await response.text()
@@ -899,7 +908,7 @@ class ComprehensiveE2ETester:
                     execution_time=time.time() - start_time,
                     evidence=[{"type": "metrics_sample", "size": len(metrics_data)}],
                     error_message=None,
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
         except Exception as e:
@@ -912,7 +921,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _run_service_integration_tests(self):
@@ -962,7 +971,7 @@ class ComprehensiveE2ETester:
                     execution_time=time.time() - start_time,
                     evidence=[{"type": "auth_data", "data": auth_data}],
                     error_message=None,
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
         except Exception as e:
@@ -975,7 +984,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _test_github_integration(self):
@@ -1007,7 +1016,7 @@ class ComprehensiveE2ETester:
                     execution_time=time.time() - start_time,
                     evidence=[{"type": "user_data", "login": user_data.get("login")}],
                     error_message=None,
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
         except Exception as e:
@@ -1020,7 +1029,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _test_asana_integration(self):
@@ -1048,7 +1057,7 @@ class ComprehensiveE2ETester:
                     execution_time=time.time() - start_time,
                     evidence=[{"type": "user_data", "data": user_data}],
                     error_message=None,
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
         except Exception as e:
@@ -1061,7 +1070,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _test_notion_integration(self):
@@ -1090,10 +1099,10 @@ class ComprehensiveE2ETester:
                         confidence=0.95, execution_time=time.time() - start_time,
                         evidence=[{'notion_status': response.status}],
                         error_message=None if response.status == 200 else f"HTTP {response.status}",
-                        timestamp=datetime.datetime.now().isoformat()
+                        timestamp=datetime.now().isoformat()
                     ))
         except Exception as e:
-            self.test_results.append(TestResult(test_name=test_name, category="service_integration", status=TestStatus.FAILED, success_rate=0.0, confidence=0.0, execution_time=time.time() - start_time, evidence=[], error_message=str(e), timestamp=datetime.datetime.now().isoformat()))
+            self.test_results.append(TestResult(test_name=test_name, category="service_integration", status=TestStatus.FAILED, success_rate=0.0, confidence=0.0, execution_time=time.time() - start_time, evidence=[], error_message=str(e), timestamp=datetime.now().isoformat()))
 
     async def _test_analytics_api(self):
         """Test real-time analytics"""
@@ -1102,10 +1111,10 @@ class ComprehensiveE2ETester:
         start_time = time.time()
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get("http://localhost:5058/api/v1/analytics/metrics", timeout=10) as response:
-                    self.test_results.append(TestResult(test_name=test_name, category="analytics", status=TestStatus.PASSED if response.status == 200 else TestStatus.FAILED, success_rate=1.0 if response.status == 200 else 0.0, confidence=0.9, execution_time=time.time() - start_time, evidence=[{'analytics_status': response.status}], error_message=None if response.status == 200 else f"Metrics failed: {response.status}", timestamp=datetime.datetime.now().isoformat()))
+                async with session.get("http://localhost:5059/api/v1/analytics/metrics", timeout=10) as response:
+                    self.test_results.append(TestResult(test_name=test_name, category="analytics", status=TestStatus.PASSED if response.status == 200 else TestStatus.FAILED, success_rate=1.0 if response.status == 200 else 0.0, confidence=0.9, execution_time=time.time() - start_time, evidence=[{'analytics_status': response.status}], error_message=None if response.status == 200 else f"Metrics failed: {response.status}", timestamp=datetime.now().isoformat()))
         except Exception as e:
-            self.test_results.append(TestResult(test_name=test_name, category="analytics", status=TestStatus.FAILED, success_rate=0.0, confidence=0.0, execution_time=time.time() - start_time, evidence=[], error_message=str(e), timestamp=datetime.datetime.now().isoformat()))
+            self.test_results.append(TestResult(test_name=test_name, category="analytics", status=TestStatus.FAILED, success_rate=0.0, confidence=0.0, execution_time=time.time() - start_time, evidence=[], error_message=str(e), timestamp=datetime.now().isoformat()))
 
     async def _run_real_world_scenarios(self):
         """Run real-world test scenarios"""
@@ -1141,14 +1150,14 @@ class ComprehensiveE2ETester:
                     ]
                 }
                 
-                async with session.post("http://localhost:5058/api/v1/workflows", json=workflow_def) as response:
+                async with session.post("http://localhost:5059/api/v1/workflows", json=workflow_def) as response:
                     if response.status not in [200, 201]:
                         raise Exception(f"Failed to init project workflow: {response.status}")
                     workflow_data = await response.json()
                     workflow_id = workflow_data.get("id")
 
                 # Execute
-                async with session.post(f"http://localhost:5058/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                async with session.post(f"http://localhost:5059/api/v1/workflows/{workflow_id}/execute", json={}) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to execute project workflow: {response.status}")
                     result = await response.json()
@@ -1162,7 +1171,7 @@ class ComprehensiveE2ETester:
                     execution_time=time.time() - start_time,
                     evidence=[{"type": "workflow_result", "data": result}],
                     error_message=None,
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
         except Exception as e:
@@ -1175,7 +1184,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _test_content_creation_pipeline(self):
@@ -1196,14 +1205,14 @@ class ComprehensiveE2ETester:
                     ]
                 }
                 
-                async with session.post("http://localhost:5058/api/v1/workflows", json=workflow_def) as response:
+                async with session.post("http://localhost:5059/api/v1/workflows", json=workflow_def) as response:
                     if response.status not in [200, 201]:
                         raise Exception(f"Failed to init content workflow: {response.status}")
                     workflow_data = await response.json()
                     workflow_id = workflow_data.get("id")
 
                 # Execute
-                async with session.post(f"http://localhost:5058/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                async with session.post(f"http://localhost:5059/api/v1/workflows/{workflow_id}/execute", json={}) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to execute content workflow: {response.status}")
                     result = await response.json()
@@ -1217,7 +1226,7 @@ class ComprehensiveE2ETester:
                     execution_time=time.time() - start_time,
                     evidence=[{"type": "workflow_result", "data": result}],
                     error_message=None,
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
         except Exception as e:
@@ -1230,7 +1239,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _test_customer_support_automation(self):
@@ -1251,14 +1260,14 @@ class ComprehensiveE2ETester:
                     ]
                 }
                 
-                async with session.post("http://localhost:5058/api/v1/workflows", json=workflow_def) as response:
+                async with session.post("http://localhost:5059/api/v1/workflows", json=workflow_def) as response:
                     if response.status not in [200, 201]:
                         raise Exception(f"Failed to init support workflow: {response.status}")
                     workflow_data = await response.json()
                     workflow_id = workflow_data.get("id")
 
                 # Execute
-                async with session.post(f"http://localhost:5058/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                async with session.post(f"http://localhost:5059/api/v1/workflows/{workflow_id}/execute", json={}) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to execute support workflow: {response.status}")
                     result = await response.json()
@@ -1272,7 +1281,7 @@ class ComprehensiveE2ETester:
                     execution_time=time.time() - start_time,
                     evidence=[{"type": "workflow_result", "data": result}],
                     error_message=None,
-                    timestamp=datetime.datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat()
                 ))
 
         except Exception as e:
@@ -1285,7 +1294,7 @@ class ComprehensiveE2ETester:
                 execution_time=time.time() - start_time,
                 evidence=[],
                 error_message=str(e),
-                timestamp=datetime.datetime.now().isoformat()
+                timestamp=datetime.now().isoformat()
             ))
 
     async def _run_performance_tests(self):
@@ -1312,7 +1321,7 @@ class ComprehensiveE2ETester:
             execution_time=8.0,
             evidence=[],
             error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
+            timestamp=datetime.now().isoformat()
         ))
 
     async def _test_stress_scenarios(self):
@@ -1328,7 +1337,7 @@ class ComprehensiveE2ETester:
             execution_time=10.0,
             evidence=[],
             error_message=None,
-            timestamp=datetime.datetime.now().isoformat()
+            timestamp=datetime.now().isoformat()
         ))
 
     async def _generate_final_report(self) -> Dict[str, Any]:
@@ -1367,7 +1376,7 @@ class ComprehensiveE2ETester:
         # Generate report
         report = {
             'session_id': self.current_session_id,
-            'timestamp': datetime.datetime.now().isoformat(),
+            'timestamp': datetime.now().isoformat(),
             'target_validation_score': 0.98,
             'actual_validation_score': overall_success_rate,
             'target_achieved': target_achieved,
