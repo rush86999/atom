@@ -81,7 +81,7 @@ class E2ETestRunner:
             Comprehensive test results
         """
         self.start_time = datetime.now()
-        print(f"{Fore.CYAN}🚀 Starting Atom Platform E2E Tests{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}[START] Starting Atom Platform E2E Tests{Style.RESET_ALL}")
         print(f"{Fore.CYAN}Start Time: {self.start_time}{Style.RESET_ALL}")
         print("-" * 80)
 
@@ -94,18 +94,18 @@ class E2ETestRunner:
 
         if not categories:
             print(
-                f"{Fore.RED}❌ No test categories have all required credentials{Style.RESET_ALL}"
+                f"{Fore.RED}[ERROR] No test categories have all required credentials{Style.RESET_ALL}"
             )
             return {"error": "No testable categories available"}
 
         print(
-            f"{Fore.GREEN}📋 Testing Categories: {', '.join(categories)}{Style.RESET_ALL}"
+            f"{Fore.GREEN}[TESTING] Testing Categories: {', '.join(categories)}{Style.RESET_ALL}"
         )
 
         # Run tests for each category
         for category in categories:
             print(
-                f"\n{Fore.BLUE}🔍 Testing Category: {category.upper()}{Style.RESET_ALL}"
+                f"\n{Fore.BLUE}[CAT] Testing Category: {category.upper()}{Style.RESET_ALL}"
             )
             self._run_category_tests(category)
 
@@ -138,7 +138,7 @@ class E2ETestRunner:
 
         except Exception as e:
             category_results["error"] = f"Category test failed: {str(e)}"
-            print(f"{Fore.RED}❌ Error in {category} tests: {str(e)}{Style.RESET_ALL}")
+            print(f"{Fore.RED}[ERROR] Error in {category} tests: {str(e)}{Style.RESET_ALL}")
 
         # Verify marketing claims if LLM is available
         if self.llm_verifier and "test_outputs" in category_results:
@@ -164,7 +164,7 @@ class E2ETestRunner:
             return module
         except ImportError as e:
             print(
-                f"{Fore.YELLOW}⚠️  No specific test module for {category}: {e}{Style.RESET_ALL}"
+                f"{Fore.YELLOW}[WARN] No specific test module for {category}: {e}{Style.RESET_ALL}"
             )
             return None
 
@@ -207,7 +207,7 @@ class E2ETestRunner:
             return {}
 
         print(
-            f"{Fore.MAGENTA}🤖 Verifying {len(claims_to_verify)} marketing claims for {category}{Style.RESET_ALL}"
+            f"{Fore.MAGENTA}[AI] Verifying {len(claims_to_verify)} marketing claims for {category}{Style.RESET_ALL}"
         )
 
         try:
@@ -216,7 +216,7 @@ class E2ETestRunner:
             )
         except Exception as e:
             print(
-                f"{Fore.RED}❌ LLM verification failed for {category}: {str(e)}{Style.RESET_ALL}"
+                f"{Fore.RED}[ERROR] LLM verification failed for {category}: {str(e)}{Style.RESET_ALL}"
             )
             return {"error": str(e)}
 
@@ -234,7 +234,7 @@ class E2ETestRunner:
         else:
             status = f"{Fore.RED}FAILED{Style.RESET_ALL}"
 
-        print(f"{Fore.CYAN}📊 {category.upper()} Summary: {status}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}[SUMMARY] {category.upper()} Summary: {status}{Style.RESET_ALL}")
         print(
             f"   Tests Run: {tests_run}, Passed: {tests_passed}, Failed: {tests_failed}"
         )
@@ -293,7 +293,7 @@ class E2ETestRunner:
 
         # Print final summary
         print(f"\n{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
-        print(f"{status_color}🎯 ATOM PLATFORM E2E TEST COMPLETE{Style.RESET_ALL}")
+        print(f"{status_color}[COMPLETE] ATOM PLATFORM E2E TEST COMPLETE{Style.RESET_ALL}")
         print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
         print(f"Overall Status: {status_color}{overall_status}{Style.RESET_ALL}")
         print(f"Duration: {duration}")
@@ -344,12 +344,12 @@ class E2ETestRunner:
         with open(report_path, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
-        print(f"{Fore.GREEN}📄 Test report saved to: {report_path}{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}[FILE] Test report saved to: {report_path}{Style.RESET_ALL}")
 
     def run_specific_test(self, category: str, test_name: str) -> Dict[str, Any]:
         """Run a specific test within a category"""
         print(
-            f"{Fore.CYAN}🔍 Running specific test: {category}.{test_name}{Style.RESET_ALL}"
+            f"{Fore.CYAN}[TEST] Running specific test: {category}.{test_name}{Style.RESET_ALL}"
         )
 
         try:

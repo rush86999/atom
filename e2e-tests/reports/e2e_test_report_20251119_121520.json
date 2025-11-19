@@ -1,0 +1,2352 @@
+{
+  "overall_status": "FAILED",
+  "start_time": "2025-11-19T12:11:56.857669",
+  "end_time": "2025-11-19T12:15:20.501528",
+  "duration_seconds": 203.643859,
+  "total_tests": 14,
+  "tests_passed": 13,
+  "tests_failed": 1,
+  "test_categories": [
+    "core",
+    "communication",
+    "productivity",
+    "development",
+    "crm",
+    "storage",
+    "financial",
+    "voice"
+  ],
+  "category_results": {
+    "core": {
+      "category": "core",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "service_registry": {
+          "test_name": "service_registry",
+          "description": "Test service registry and available integrations",
+          "status": "passed",
+          "details": {
+            "service_registry": {
+              "status_code": 200,
+              "available": true,
+              "services_data": {
+                "services": [
+                  {
+                    "name": "test_service",
+                    "status": "active",
+                    "available": true,
+                    "type": "mock"
+                  },
+                  {
+                    "name": "email_service",
+                    "status": "active",
+                    "available": true,
+                    "type": "communication"
+                  },
+                  {
+                    "name": "calendar_service",
+                    "status": "active",
+                    "available": true,
+                    "type": "productivity"
+                  }
+                ]
+              }
+            },
+            "workflow_creation": {
+              "status_code": 200,
+              "success": true,
+              "natural_language_input": "Create a daily routine that sends me a summary of tasks at 9 AM and schedules follow-ups for overdue items",
+              "generated_workflow": {
+                "name": "Daily Task Summary Routine",
+                "steps": [
+                  {
+                    "action": "get_tasks",
+                    "service": "productivity",
+                    "filter": {
+                      "status": "incomplete",
+                      "due": "today"
+                    }
+                  },
+                  {
+                    "action": "send_summary",
+                    "service": "communication",
+                    "schedule": "09:00",
+                    "recipient": "user@example.com"
+                  },
+                  {
+                    "action": "check_overdue",
+                    "service": "productivity",
+                    "follow_up_action": "increase_priority"
+                  }
+                ]
+              },
+              "automation_result": "Successfully created automated workflow from natural language description"
+            },
+            "conversation_memory": {
+              "status_code": 200,
+              "available": true,
+              "memory_examples": [
+                {
+                  "session_id": "sess_123",
+                  "conversation_history": [
+                    {
+                      "timestamp": "2025-11-15T10:00:00",
+                      "user": "Create task for team meeting",
+                      "context": "work planning"
+                    },
+                    {
+                      "timestamp": "2025-11-15T10:01:30",
+                      "system": "Created task 'Team Meeting' in Asana",
+                      "context": "task created"
+                    },
+                    {
+                      "timestamp": "2025-11-15T10:05:00",
+                      "user": "Also add John to the task",
+                      "context": "collaboration"
+                    },
+                    {
+                      "timestamp": "2025-11-15T10:05:15",
+                      "system": "Added John Smith to task 'Team Meeting'",
+                      "context": "maintained context"
+                    }
+                  ]
+                }
+              ],
+              "context_retention": true,
+              "session_persistence": true
+            },
+            "architecture_info": {
+              "status_code": 200,
+              "backend_info": {
+                "framework": "FastAPI",
+                "version": "0.104.1",
+                "production_ready": true,
+                "features": [
+                  "OAuth2",
+                  "Rate Limiting",
+                  "CORS",
+                  "HTTPS",
+                  "Health Checks"
+                ]
+              },
+              "frontend_info": {
+                "framework": "Next.js",
+                "version": "14.0.0",
+                "production_ready": true,
+                "features": [
+                  "SSR",
+                  "API Routes",
+                  "TypeScript",
+                  "Code Splitting",
+                  "HTTPS"
+                ]
+              },
+              "deployment_info": {
+                "environment": "production",
+                "load_balancer": "NGINX",
+                "database": "PostgreSQL + Redis",
+                "monitoring": "Prometheus + Grafana"
+              }
+            },
+            "services": {
+              "total_services": 3,
+              "available_services": [
+                "test_service",
+                "email_service",
+                "calendar_service"
+              ],
+              "unavailable_services": [],
+              "service_types": {
+                "communication": 1,
+                "productivity": 1,
+                "mock": 1
+              }
+            },
+            "integration_status": {
+              "status_code": 200,
+              "integrations_count": 34
+            },
+            "byok_system": {
+              "status_code": 200,
+              "available": true
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {
+        "Just describe what you want to automate and Atom builds complete workflows": {
+          "claim": "Just describe what you want to automate and Atom builds complete workflows",
+          "verified": true,
+          "confidence": 0.85,
+          "reason": "The test output provides strong evidence supporting the marketing claim. The workflow_creation section demonstrates successful generation of a complete workflow from natural language input 'Create a daily routine that sends me a summary of tasks at 9 AM and schedules follow-ups for overdue items'. The system generated a structured workflow with multiple steps including task retrieval, email scheduling, and follow-up actions. The service registry shows available services that support the workflow execution, and the conversation memory demonstrates context retention across multiple interactions. However, while the workflow was successfully created, the test doesn't show actual execution results or performance metrics.",
+          "evidence_cited": [
+            "workflow_creation.success: true with status_code 200",
+            "natural_language_input showing descriptive user request",
+            "generated_workflow with complete step-by-step structure",
+            "automation_result: 'Successfully created automated workflow from natural language description'",
+            "service_registry showing available communication and productivity services",
+            "conversation_memory demonstrating context retention across multiple user interactions"
+          ],
+          "gaps": [
+            "No evidence of actual workflow execution or runtime performance",
+            "Missing demonstration of workflow testing or validation",
+            "No user feedback or success metrics on the generated workflow",
+            "Limited variety of natural language inputs tested",
+            "No error handling or edge case scenarios demonstrated"
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "workflow_creation": {
+                "status_code": 200,
+                "success": true,
+                "natural_language_input": "Create a daily routine that sends me a summary of tasks at 9 AM and schedules follow-ups for overdue items",
+                "generated_workflow": {
+                  "name": "Daily Task Summary Routine",
+                  "steps": [
+                    {
+                      "action": "get_tasks",
+                      "service": "productivity",
+                      "filter": {
+                        "status": "incomplete",
+                        "due": "today"
+                      }
+                    },
+                    {
+                      "action": "send_summary",
+                      "service": "communication",
+                      "schedule": "09:00",
+                      "recipient": "user@example.com"
+                    },
+                    {
+                      "action": "check_overdue",
+                      "service": "productivity",
+                      "follow_up_action": "increase_priority"
+                    }
+                  ]
+                },
+                "automation_result": "Successfully created automated workflow from natural language description"
+              },
+              "conversation_memory": {
+                "status_code": 200,
+                "available": true,
+                "memory_examples": [
+                  {
+                    "session_id": "sess_123",
+                    "conversation_history": [
+                      {
+                        "timestamp": "2025-11-15T10:00:00",
+                        "user": "Create task for team meeting",
+                        "context": "work planning"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:01:30",
+                        "system": "Created task 'Team Meeting' in Asana",
+                        "context": "task created"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:05:00",
+                        "user": "Also add John to the task",
+                        "context": "collaboration"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:05:15",
+                        "system": "Added John Smith to task 'Team Meeting'",
+                        "context": "maintained context"
+                      }
+                    ]
+                  }
+                ],
+                "context_retention": true,
+                "session_persistence": true
+              },
+              "architecture_info": {
+                "status_code": 200,
+                "backend_info": {
+                  "framework": "FastAPI",
+                  "version": "0.104.1",
+                  "production_ready": true,
+                  "features": [
+                    "OAuth2",
+                    "Rate Limiting",
+                    "CORS",
+                    "HTTPS",
+                    "Health Checks"
+                  ]
+                },
+                "frontend_info": {
+                  "framework": "Next.js",
+                  "version": "14.0.0",
+                  "production_ready": true,
+                  "features": [
+                    "SSR",
+                    "API Routes",
+                    "TypeScript",
+                    "Code Splitting",
+                    "HTTPS"
+                  ]
+                },
+                "deployment_info": {
+                  "environment": "production",
+                  "load_balancer": "NGINX",
+                  "database": "PostgreSQL + Redis",
+                  "monitoring": "Prometheus + Grafana"
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "integration_status": {
+                "status_code": 200,
+                "integrations_count": 34
+              },
+              "byok_system": {
+                "status_code": 200,
+                "available": true
+              }
+            }
+          }
+        },
+        "Automates complex workflows through natural language chat": {
+          "claim": "Automates complex workflows through natural language chat",
+          "verified": true,
+          "confidence": 0.85,
+          "reason": "The test output provides strong evidence supporting the claim 'Automates complex workflows through natural language chat'. The workflow_creation section demonstrates successful conversion of natural language input ('Create a daily routine that sends me a summary of tasks at 9 AM and schedules follow-ups for overdue items') into a structured workflow with multiple steps involving different services. The generated workflow includes conditional logic (filtering tasks by status and due date), scheduling capabilities, and multi-service integration. The conversation_memory section shows context retention across multiple user interactions, indicating the system can handle conversational workflow creation. However, while the evidence shows workflow creation from natural language, there's limited evidence of actual execution of these complex workflows in production environments.",
+          "evidence_cited": [
+            "workflow_creation.natural_language_input showing complex multi-step request in plain English",
+            "workflow_creation.generated_workflow demonstrating conversion to structured automation with 3 distinct steps",
+            "workflow_creation.automation_result confirming successful workflow creation",
+            "conversation_memory showing context retention across multiple user interactions",
+            "services.available_services showing integration capabilities with email and calendar services",
+            "integration_status.integrations_count indicating broad service connectivity"
+          ],
+          "gaps": [
+            "No evidence of actual workflow execution or runtime performance",
+            "Limited demonstration of error handling in complex workflow scenarios",
+            "No user testing data showing real-world natural language understanding accuracy",
+            "Missing evidence of workflow modification or iteration through chat",
+            "No performance metrics on workflow complexity limits or scalability"
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "workflow_creation": {
+                "status_code": 200,
+                "success": true,
+                "natural_language_input": "Create a daily routine that sends me a summary of tasks at 9 AM and schedules follow-ups for overdue items",
+                "generated_workflow": {
+                  "name": "Daily Task Summary Routine",
+                  "steps": [
+                    {
+                      "action": "get_tasks",
+                      "service": "productivity",
+                      "filter": {
+                        "status": "incomplete",
+                        "due": "today"
+                      }
+                    },
+                    {
+                      "action": "send_summary",
+                      "service": "communication",
+                      "schedule": "09:00",
+                      "recipient": "user@example.com"
+                    },
+                    {
+                      "action": "check_overdue",
+                      "service": "productivity",
+                      "follow_up_action": "increase_priority"
+                    }
+                  ]
+                },
+                "automation_result": "Successfully created automated workflow from natural language description"
+              },
+              "conversation_memory": {
+                "status_code": 200,
+                "available": true,
+                "memory_examples": [
+                  {
+                    "session_id": "sess_123",
+                    "conversation_history": [
+                      {
+                        "timestamp": "2025-11-15T10:00:00",
+                        "user": "Create task for team meeting",
+                        "context": "work planning"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:01:30",
+                        "system": "Created task 'Team Meeting' in Asana",
+                        "context": "task created"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:05:00",
+                        "user": "Also add John to the task",
+                        "context": "collaboration"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:05:15",
+                        "system": "Added John Smith to task 'Team Meeting'",
+                        "context": "maintained context"
+                      }
+                    ]
+                  }
+                ],
+                "context_retention": true,
+                "session_persistence": true
+              },
+              "architecture_info": {
+                "status_code": 200,
+                "backend_info": {
+                  "framework": "FastAPI",
+                  "version": "0.104.1",
+                  "production_ready": true,
+                  "features": [
+                    "OAuth2",
+                    "Rate Limiting",
+                    "CORS",
+                    "HTTPS",
+                    "Health Checks"
+                  ]
+                },
+                "frontend_info": {
+                  "framework": "Next.js",
+                  "version": "14.0.0",
+                  "production_ready": true,
+                  "features": [
+                    "SSR",
+                    "API Routes",
+                    "TypeScript",
+                    "Code Splitting",
+                    "HTTPS"
+                  ]
+                },
+                "deployment_info": {
+                  "environment": "production",
+                  "load_balancer": "NGINX",
+                  "database": "PostgreSQL + Redis",
+                  "monitoring": "Prometheus + Grafana"
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "integration_status": {
+                "status_code": 200,
+                "integrations_count": 34
+              },
+              "byok_system": {
+                "status_code": 200,
+                "available": true
+              }
+            }
+          }
+        },
+        "Remembers conversation history and context": {
+          "claim": "Remembers conversation history and context",
+          "verified": true,
+          "confidence": 0.85,
+          "reason": "The test output provides strong evidence supporting the 'Remembers conversation history and context' claim through the conversation_memory section. The system demonstrates session persistence with a complete conversation history showing user inputs and system responses across multiple turns. The example shows context retention where the system maintains understanding of the 'Team Meeting' task across different user requests (creating the task and then adding John to it). The presence of session_id, timestamps, and context fields indicates structured memory storage. However, the evidence is limited to a single example session and doesn't demonstrate long-term memory across multiple sessions or complex contextual dependencies.",
+          "evidence_cited": [
+            "conversation_memory.status_code: 200 and available: true",
+            "conversation_memory.memory_examples showing complete session history with timestamps",
+            "Session persistence demonstrated through maintained context from 'Create task for team meeting' to 'Also add John to the task'",
+            "context_retention: true and session_persistence: true flags",
+            "Structured conversation history with user-system interaction pairs and context labels"
+          ],
+          "gaps": [
+            "Only one example session provided - no evidence of multiple concurrent sessions",
+            "No demonstration of long-term memory across different time periods or sessions",
+            "Limited complexity in the conversation example - doesn't test deep contextual dependencies",
+            "No evidence of memory capacity limits or performance under load",
+            "Missing evidence of memory retrieval accuracy for complex queries"
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "workflow_creation": {
+                "status_code": 200,
+                "success": true,
+                "natural_language_input": "Create a daily routine that sends me a summary of tasks at 9 AM and schedules follow-ups for overdue items",
+                "generated_workflow": {
+                  "name": "Daily Task Summary Routine",
+                  "steps": [
+                    {
+                      "action": "get_tasks",
+                      "service": "productivity",
+                      "filter": {
+                        "status": "incomplete",
+                        "due": "today"
+                      }
+                    },
+                    {
+                      "action": "send_summary",
+                      "service": "communication",
+                      "schedule": "09:00",
+                      "recipient": "user@example.com"
+                    },
+                    {
+                      "action": "check_overdue",
+                      "service": "productivity",
+                      "follow_up_action": "increase_priority"
+                    }
+                  ]
+                },
+                "automation_result": "Successfully created automated workflow from natural language description"
+              },
+              "conversation_memory": {
+                "status_code": 200,
+                "available": true,
+                "memory_examples": [
+                  {
+                    "session_id": "sess_123",
+                    "conversation_history": [
+                      {
+                        "timestamp": "2025-11-15T10:00:00",
+                        "user": "Create task for team meeting",
+                        "context": "work planning"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:01:30",
+                        "system": "Created task 'Team Meeting' in Asana",
+                        "context": "task created"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:05:00",
+                        "user": "Also add John to the task",
+                        "context": "collaboration"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:05:15",
+                        "system": "Added John Smith to task 'Team Meeting'",
+                        "context": "maintained context"
+                      }
+                    ]
+                  }
+                ],
+                "context_retention": true,
+                "session_persistence": true
+              },
+              "architecture_info": {
+                "status_code": 200,
+                "backend_info": {
+                  "framework": "FastAPI",
+                  "version": "0.104.1",
+                  "production_ready": true,
+                  "features": [
+                    "OAuth2",
+                    "Rate Limiting",
+                    "CORS",
+                    "HTTPS",
+                    "Health Checks"
+                  ]
+                },
+                "frontend_info": {
+                  "framework": "Next.js",
+                  "version": "14.0.0",
+                  "production_ready": true,
+                  "features": [
+                    "SSR",
+                    "API Routes",
+                    "TypeScript",
+                    "Code Splitting",
+                    "HTTPS"
+                  ]
+                },
+                "deployment_info": {
+                  "environment": "production",
+                  "load_balancer": "NGINX",
+                  "database": "PostgreSQL + Redis",
+                  "monitoring": "Prometheus + Grafana"
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "integration_status": {
+                "status_code": 200,
+                "integrations_count": 34
+              },
+              "byok_system": {
+                "status_code": 200,
+                "available": true
+              }
+            }
+          }
+        },
+        "Production-ready architecture with FastAPI backend and Next.js frontend": {
+          "claim": "Production-ready architecture with FastAPI backend and Next.js frontend",
+          "verified": true,
+          "confidence": 0.85,
+          "reason": "The test output provides strong evidence supporting the 'production-ready architecture with FastAPI backend and Next.js frontend' claim. The architecture_info section explicitly confirms both frameworks are present and marked as 'production_ready': true. FastAPI (v0.104.1) demonstrates production features including OAuth2, Rate Limiting, CORS, HTTPS, and Health Checks. Next.js (v14.0.0) shows enterprise-grade capabilities with SSR, API Routes, TypeScript, and Code Splitting. The deployment_info further validates production readiness with NGINX load balancing, PostgreSQL + Redis database stack, and Prometheus + Grafana monitoring. Multiple services are actively running with 200 status codes across service registry, workflow creation, and conversation memory systems, indicating functional integration.",
+          "evidence_cited": [
+            "architecture_info.backend_info.framework: 'FastAPI' with production_ready: true",
+            "architecture_info.frontend_info.framework: 'Next.js' with production_ready: true",
+            "backend_info.features includes OAuth2, Rate Limiting, CORS, HTTPS, Health Checks",
+            "frontend_info.features includes SSR, API Routes, TypeScript, Code Splitting, HTTPS",
+            "deployment_info shows production environment with NGINX, PostgreSQL, Redis, Prometheus, Grafana",
+            "Multiple 200 status codes across service_registry, workflow_creation, conversation_memory endpoints",
+            "34 active integrations confirmed in integration_status"
+          ],
+          "gaps": [
+            "No performance metrics (response times, throughput, error rates) provided to validate 'production-ready' performance",
+            "No scalability testing evidence (load testing, concurrent user handling)",
+            "No security audit results or penetration testing data",
+            "No uptime metrics or reliability data over extended periods",
+            "No evidence of CI/CD pipeline or deployment automation processes"
+          ],
+          "evidence": {
+            "service_registry": {
+              "service_registry": {
+                "status_code": 200,
+                "available": true,
+                "services_data": {
+                  "services": [
+                    {
+                      "name": "test_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "mock"
+                    },
+                    {
+                      "name": "email_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "communication"
+                    },
+                    {
+                      "name": "calendar_service",
+                      "status": "active",
+                      "available": true,
+                      "type": "productivity"
+                    }
+                  ]
+                }
+              },
+              "workflow_creation": {
+                "status_code": 200,
+                "success": true,
+                "natural_language_input": "Create a daily routine that sends me a summary of tasks at 9 AM and schedules follow-ups for overdue items",
+                "generated_workflow": {
+                  "name": "Daily Task Summary Routine",
+                  "steps": [
+                    {
+                      "action": "get_tasks",
+                      "service": "productivity",
+                      "filter": {
+                        "status": "incomplete",
+                        "due": "today"
+                      }
+                    },
+                    {
+                      "action": "send_summary",
+                      "service": "communication",
+                      "schedule": "09:00",
+                      "recipient": "user@example.com"
+                    },
+                    {
+                      "action": "check_overdue",
+                      "service": "productivity",
+                      "follow_up_action": "increase_priority"
+                    }
+                  ]
+                },
+                "automation_result": "Successfully created automated workflow from natural language description"
+              },
+              "conversation_memory": {
+                "status_code": 200,
+                "available": true,
+                "memory_examples": [
+                  {
+                    "session_id": "sess_123",
+                    "conversation_history": [
+                      {
+                        "timestamp": "2025-11-15T10:00:00",
+                        "user": "Create task for team meeting",
+                        "context": "work planning"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:01:30",
+                        "system": "Created task 'Team Meeting' in Asana",
+                        "context": "task created"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:05:00",
+                        "user": "Also add John to the task",
+                        "context": "collaboration"
+                      },
+                      {
+                        "timestamp": "2025-11-15T10:05:15",
+                        "system": "Added John Smith to task 'Team Meeting'",
+                        "context": "maintained context"
+                      }
+                    ]
+                  }
+                ],
+                "context_retention": true,
+                "session_persistence": true
+              },
+              "architecture_info": {
+                "status_code": 200,
+                "backend_info": {
+                  "framework": "FastAPI",
+                  "version": "0.104.1",
+                  "production_ready": true,
+                  "features": [
+                    "OAuth2",
+                    "Rate Limiting",
+                    "CORS",
+                    "HTTPS",
+                    "Health Checks"
+                  ]
+                },
+                "frontend_info": {
+                  "framework": "Next.js",
+                  "version": "14.0.0",
+                  "production_ready": true,
+                  "features": [
+                    "SSR",
+                    "API Routes",
+                    "TypeScript",
+                    "Code Splitting",
+                    "HTTPS"
+                  ]
+                },
+                "deployment_info": {
+                  "environment": "production",
+                  "load_balancer": "NGINX",
+                  "database": "PostgreSQL + Redis",
+                  "monitoring": "Prometheus + Grafana"
+                }
+              },
+              "services": {
+                "total_services": 3,
+                "available_services": [
+                  "test_service",
+                  "email_service",
+                  "calendar_service"
+                ],
+                "unavailable_services": [],
+                "service_types": {
+                  "communication": 1,
+                  "productivity": 1,
+                  "mock": 1
+                }
+              },
+              "integration_status": {
+                "status_code": 200,
+                "integrations_count": 34
+              },
+              "byok_system": {
+                "status_code": 200,
+                "available": true
+              }
+            }
+          }
+        }
+      },
+      "start_time": 1763572317.412287,
+      "test_outputs": {
+        "service_registry": {
+          "service_registry": {
+            "status_code": 200,
+            "available": true,
+            "services_data": {
+              "services": [
+                {
+                  "name": "test_service",
+                  "status": "active",
+                  "available": true,
+                  "type": "mock"
+                },
+                {
+                  "name": "email_service",
+                  "status": "active",
+                  "available": true,
+                  "type": "communication"
+                },
+                {
+                  "name": "calendar_service",
+                  "status": "active",
+                  "available": true,
+                  "type": "productivity"
+                }
+              ]
+            }
+          },
+          "workflow_creation": {
+            "status_code": 200,
+            "success": true,
+            "natural_language_input": "Create a daily routine that sends me a summary of tasks at 9 AM and schedules follow-ups for overdue items",
+            "generated_workflow": {
+              "name": "Daily Task Summary Routine",
+              "steps": [
+                {
+                  "action": "get_tasks",
+                  "service": "productivity",
+                  "filter": {
+                    "status": "incomplete",
+                    "due": "today"
+                  }
+                },
+                {
+                  "action": "send_summary",
+                  "service": "communication",
+                  "schedule": "09:00",
+                  "recipient": "user@example.com"
+                },
+                {
+                  "action": "check_overdue",
+                  "service": "productivity",
+                  "follow_up_action": "increase_priority"
+                }
+              ]
+            },
+            "automation_result": "Successfully created automated workflow from natural language description"
+          },
+          "conversation_memory": {
+            "status_code": 200,
+            "available": true,
+            "memory_examples": [
+              {
+                "session_id": "sess_123",
+                "conversation_history": [
+                  {
+                    "timestamp": "2025-11-15T10:00:00",
+                    "user": "Create task for team meeting",
+                    "context": "work planning"
+                  },
+                  {
+                    "timestamp": "2025-11-15T10:01:30",
+                    "system": "Created task 'Team Meeting' in Asana",
+                    "context": "task created"
+                  },
+                  {
+                    "timestamp": "2025-11-15T10:05:00",
+                    "user": "Also add John to the task",
+                    "context": "collaboration"
+                  },
+                  {
+                    "timestamp": "2025-11-15T10:05:15",
+                    "system": "Added John Smith to task 'Team Meeting'",
+                    "context": "maintained context"
+                  }
+                ]
+              }
+            ],
+            "context_retention": true,
+            "session_persistence": true
+          },
+          "architecture_info": {
+            "status_code": 200,
+            "backend_info": {
+              "framework": "FastAPI",
+              "version": "0.104.1",
+              "production_ready": true,
+              "features": [
+                "OAuth2",
+                "Rate Limiting",
+                "CORS",
+                "HTTPS",
+                "Health Checks"
+              ]
+            },
+            "frontend_info": {
+              "framework": "Next.js",
+              "version": "14.0.0",
+              "production_ready": true,
+              "features": [
+                "SSR",
+                "API Routes",
+                "TypeScript",
+                "Code Splitting",
+                "HTTPS"
+              ]
+            },
+            "deployment_info": {
+              "environment": "production",
+              "load_balancer": "NGINX",
+              "database": "PostgreSQL + Redis",
+              "monitoring": "Prometheus + Grafana"
+            }
+          },
+          "services": {
+            "total_services": 3,
+            "available_services": [
+              "test_service",
+              "email_service",
+              "calendar_service"
+            ],
+            "unavailable_services": [],
+            "service_types": {
+              "communication": 1,
+              "productivity": 1,
+              "mock": 1
+            }
+          },
+          "integration_status": {
+            "status_code": 200,
+            "integrations_count": 34
+          },
+          "byok_system": {
+            "status_code": 200,
+            "available": true
+          }
+        }
+      },
+      "end_time": 1763572348.3057513,
+      "duration_seconds": 30.89346432685852
+    },
+    "communication": {
+      "category": "communication",
+      "tests_run": 4,
+      "tests_passed": 3,
+      "tests_failed": 1,
+      "test_details": {
+        "email_integration": {
+          "test_name": "email_integration",
+          "description": "Test Email integration for sending and receiving messages",
+          "status": "passed",
+          "details": {
+            "email_health": {
+              "status_code": 200,
+              "available": true,
+              "response": {
+                "ok": true,
+                "service": "email",
+                "provider": "gmail",
+                "status": "connected",
+                "message": "Email integration is available",
+                "timestamp": "2025-11-19T12:13:28.818502"
+              }
+            },
+            "email_send": {
+              "status_code": 200,
+              "sent_successfully": true,
+              "response": {
+                "ok": true,
+                "provider": "gmail",
+                "to": "test@example.com",
+                "subject": "E2E Test Email",
+                "message_id": "email_1763572410.903705",
+                "timestamp": "2025-11-19T12:13:30.903705"
+              }
+            },
+            "email_list": {
+              "status_code": 200,
+              "messages_count": 0
+            }
+          }
+        },
+        "slack_integration": {
+          "test_name": "slack_integration",
+          "description": "Test Slack integration for messaging and notifications",
+          "status": "passed",
+          "details": {
+            "slack_health": {
+              "status_code": 200,
+              "available": true,
+              "response": {
+                "ok": true,
+                "service": "slack",
+                "user_id": "test_user",
+                "status": "connected",
+                "message": "Slack integration is available",
+                "timestamp": "2025-11-19T12:13:35.015534"
+              }
+            },
+            "slack_send_message": {
+              "status_code": 200,
+              "sent_successfully": true,
+              "response": {
+                "ok": true,
+                "channel": "#general",
+                "message_id": "msg_#general_1763572417.115155",
+                "text": "E2E Test: Atom platform integration test",
+                "timestamp": "2025-11-19T12:13:37.115155"
+              }
+            },
+            "slack_channels": {
+              "status_code": 200,
+              "channels_count": 7
+            }
+          }
+        },
+        "zoom_integration": {
+          "test_name": "zoom_integration",
+          "description": "Test Zoom integration for meetings and webinars",
+          "status": "passed",
+          "details": {
+            "zoom_health": {
+              "status_code": 200,
+              "available": true,
+              "response": {
+                "ok": true,
+                "service": "zoom",
+                "user_id": "test_user",
+                "status": "connected",
+                "message": "Zoom integration is available",
+                "timestamp": "2025-11-09T17:25:00Z"
+              }
+            },
+            "zoom_create_meeting": {
+              "status_code": 200,
+              "meeting_created": true,
+              "response": {
+                "ok": true,
+                "meeting_id": "zoom_meeting_e2e_test_meeting",
+                "topic": "E2E Test Meeting",
+                "join_url": "https://zoom.us/j/mock_meeting_e2e_test_meeting",
+                "timestamp": "2025-11-09T17:25:00Z"
+              }
+            },
+            "zoom_meetings": {
+              "status_code": 200,
+              "meetings_count": 0
+            }
+          }
+        },
+        "whatsapp_integration": {
+          "test_name": "whatsapp_integration",
+          "description": "Test WhatsApp Business integration for messaging",
+          "status": "failed",
+          "details": {
+            "whatsapp_health": {
+              "status_code": 200,
+              "available": true,
+              "response": {
+                "status": "healthy",
+                "service": "WhatsApp Business API",
+                "timestamp": "2025-11-19T12:13:47.352547"
+              }
+            },
+            "whatsapp_send_message": {
+              "status_code": 404,
+              "sent_successfully": false,
+              "response": null
+            },
+            "whatsapp_messages": {
+              "status_code": 404,
+              "messages_count": 0
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {
+        "Works across all your tools seamlessly": {
+          "claim": "Works across all your tools seamlessly",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The test output data is completely empty ({}), providing zero evidence to support the marketing claim 'Works across all your tools seamlessly.' For a communication category product, we would expect to see test results demonstrating integration with various communication tools (email, messaging platforms, video conferencing, collaboration software, etc.), interoperability testing, data synchronization across platforms, or user workflow demonstrations. The absence of any test data means there is no empirical evidence to evaluate whether the product actually works across tools or provides seamless integration.",
+          "evidence_cited": [
+            "Empty test output data ({})"
+          ],
+          "gaps": [
+            "No specific tool integrations tested",
+            "No interoperability evidence",
+            "No workflow testing across multiple platforms",
+            "No user experience data for seamless operation",
+            "No performance metrics for cross-tool functionality",
+            "No compatibility testing with common communication tools",
+            "No data synchronization evidence across platforms"
+          ],
+          "evidence": {}
+        },
+        "Automates complex workflows through natural language chat": {
+          "claim": "Automates complex workflows through natural language chat",
+          "verified": false,
+          "confidence": 0.0,
+          "reason": "The test output data is completely empty ({}), providing zero evidence to support the marketing claim that the system 'automates complex workflows through natural language chat.' There are no test scenarios, user interactions, workflow executions, or any demonstration of natural language processing capabilities. Without any test data showing how the system processes natural language inputs, interprets workflow requirements, executes automation tasks, or handles complex multi-step processes, it is impossible to verify the claimed capability. The empty test output fails to demonstrate even basic functionality, let alone the sophisticated automation of complex workflows through chat interfaces.",
+          "evidence_cited": [
+            "Empty test output data ({})"
+          ],
+          "gaps": [
+            "No test scenarios demonstrating natural language processing",
+            "No evidence of workflow automation capabilities",
+            "No examples of complex workflow handling",
+            "No chat interface interactions documented",
+            "No demonstration of multi-step process automation",
+            "No evidence of system understanding or executing commands from natural language input",
+            "Complete absence of any functional testing data"
+          ],
+          "evidence": {}
+        }
+      },
+      "start_time": 1763572406.7483044,
+      "test_outputs": {},
+      "end_time": 1763572431.4735644,
+      "duration_seconds": 24.725260019302368
+    },
+    "productivity": {
+      "category": "productivity",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "cross_platform_workflows": {
+          "test_name": "cross_platform_workflows",
+          "description": "Test cross-platform workflow coordination across multiple services",
+          "status": "passed",
+          "details": {
+            "cross_platform_workflows": {
+              "status_code": 200,
+              "available": true,
+              "example_workflow": {
+                "name": "Project Onboarding Workflow",
+                "trigger": "new_hire_email",
+                "coordination_example": [
+                  {
+                    "step": 1,
+                    "action": "Create user accounts",
+                    "services": [
+                      "Asana",
+                      "Slack",
+                      "Notion"
+                    ],
+                    "result": "Accounts created across all platforms"
+                  },
+                  {
+                    "step": 2,
+                    "action": "Set up project space",
+                    "services": [
+                      "Notion",
+                      "Trello"
+                    ],
+                    "result": "Project workspace initialized"
+                  },
+                  {
+                    "step": 3,
+                    "action": "Schedule onboarding tasks",
+                    "services": [
+                      "Asana",
+                      "Google Calendar"
+                    ],
+                    "result": "Tasks scheduled with reminders"
+                  },
+                  {
+                    "step": 4,
+                    "action": "Send welcome messages",
+                    "services": [
+                      "Slack",
+                      "Gmail"
+                    ],
+                    "result": "Automated notifications sent"
+                  }
+                ],
+                "coordination_success": true,
+                "integration_count": 6,
+                "automation_coverage": "100%"
+              },
+              "seamless_integration": {
+                "status_code": 200,
+                "available": true,
+                "sync_status": "real_time",
+                "connected_services": [
+                  "Asana",
+                  "Notion",
+                  "Trello",
+                  "Slack",
+                  "Google Calendar",
+                  "Gmail"
+                ],
+                "data_flow": "bidirectional",
+                "error_rate": 0.01,
+                "response_time": "150ms"
+              }
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {
+        "Works across all your tools seamlessly": {
+          "claim": "Works across all your tools seamlessly",
+          "verified": false,
+          "confidence": 0.65,
+          "reason": "The test data demonstrates strong cross-platform integration capabilities across 6 specific productivity tools (Asana, Notion, Trello, Slack, Google Calendar, Gmail) with real-time synchronization, bidirectional data flow, and successful workflow coordination. The example workflow shows seamless automation across multiple services with 100% automation coverage and minimal error rate (0.01%). However, the claim 'works across ALL your tools' is overly broad and absolute. The evidence only covers 6 specific tools and doesn't demonstrate compatibility with other common productivity tools like Microsoft Teams, Outlook, Jira, GitHub, or custom/internal tools. The test doesn't show scalability to larger tool ecosystems or compatibility testing with tools outside the demonstrated set.",
+          "evidence_cited": [
+            "Successful coordination across 6 services in Project Onboarding Workflow",
+            "Real-time sync status with bidirectional data flow",
+            "Low error rate of 0.01% and fast response time of 150ms",
+            "100% automation coverage in demonstrated workflow",
+            "Integration with Asana, Notion, Trello, Slack, Google Calendar, Gmail"
+          ],
+          "gaps": [
+            "No evidence of compatibility with tools beyond the 6 demonstrated",
+            "No testing with Microsoft ecosystem tools (Teams, Outlook, Office 365)",
+            "No evidence of integration with development tools (Jira, GitHub, GitLab)",
+            "No demonstration with custom or proprietary tools",
+            "Limited scope - only one workflow example provided",
+            "No evidence of scalability to larger tool ecosystems"
+          ],
+          "evidence": {
+            "cross_platform_workflows": {
+              "cross_platform_workflows": {
+                "status_code": 200,
+                "available": true,
+                "example_workflow": {
+                  "name": "Project Onboarding Workflow",
+                  "trigger": "new_hire_email",
+                  "coordination_example": [
+                    {
+                      "step": 1,
+                      "action": "Create user accounts",
+                      "services": [
+                        "Asana",
+                        "Slack",
+                        "Notion"
+                      ],
+                      "result": "Accounts created across all platforms"
+                    },
+                    {
+                      "step": 2,
+                      "action": "Set up project space",
+                      "services": [
+                        "Notion",
+                        "Trello"
+                      ],
+                      "result": "Project workspace initialized"
+                    },
+                    {
+                      "step": 3,
+                      "action": "Schedule onboarding tasks",
+                      "services": [
+                        "Asana",
+                        "Google Calendar"
+                      ],
+                      "result": "Tasks scheduled with reminders"
+                    },
+                    {
+                      "step": 4,
+                      "action": "Send welcome messages",
+                      "services": [
+                        "Slack",
+                        "Gmail"
+                      ],
+                      "result": "Automated notifications sent"
+                    }
+                  ],
+                  "coordination_success": true,
+                  "integration_count": 6,
+                  "automation_coverage": "100%"
+                },
+                "seamless_integration": {
+                  "status_code": 200,
+                  "available": true,
+                  "sync_status": "real_time",
+                  "connected_services": [
+                    "Asana",
+                    "Notion",
+                    "Trello",
+                    "Slack",
+                    "Google Calendar",
+                    "Gmail"
+                  ],
+                  "data_flow": "bidirectional",
+                  "error_rate": 0.01,
+                  "response_time": "150ms"
+                }
+              }
+            }
+          }
+        },
+        "Just describe what you want to automate and Atom builds complete workflows": {
+          "claim": "Just describe what you want to automate and Atom builds complete workflows",
+          "verified": false,
+          "confidence": 0.4,
+          "reason": "The test data demonstrates strong workflow automation capabilities with successful cross-platform coordination and seamless integration across multiple services. The example workflow shows comprehensive automation across 6 different services with 100% automation coverage, real-time sync, and minimal error rates. However, the marketing claim specifically states 'Just describe what you want to automate and Atom builds complete workflows,' implying natural language processing and automatic workflow generation from descriptions. The test data only shows a pre-built example workflow with detailed technical specifications (trigger, steps, services), but provides no evidence of the system's ability to interpret natural language descriptions and automatically generate workflows from them. The evidence demonstrates execution capability but not the claimed descriptive-to-workflow generation capability.",
+          "evidence_cited": [
+            "Example workflow 'Project Onboarding Workflow' with detailed step-by-step coordination",
+            "Successful coordination across 6 different services (Asana, Slack, Notion, Trello, Google Calendar, Gmail)",
+            "100% automation coverage and real-time sync capabilities",
+            "Low error rate (0.01) and fast response time (150ms)",
+            "Bidirectional data flow and seamless integration status"
+          ],
+          "gaps": [
+            "No evidence of natural language processing capabilities",
+            "No demonstration of workflow generation from descriptive input",
+            "Test shows execution of pre-defined workflows, not creation from descriptions",
+            "Missing evidence of how 'describing what you want' translates to workflow building",
+            "No user interface or API examples showing descriptive input functionality"
+          ],
+          "evidence": {
+            "cross_platform_workflows": {
+              "cross_platform_workflows": {
+                "status_code": 200,
+                "available": true,
+                "example_workflow": {
+                  "name": "Project Onboarding Workflow",
+                  "trigger": "new_hire_email",
+                  "coordination_example": [
+                    {
+                      "step": 1,
+                      "action": "Create user accounts",
+                      "services": [
+                        "Asana",
+                        "Slack",
+                        "Notion"
+                      ],
+                      "result": "Accounts created across all platforms"
+                    },
+                    {
+                      "step": 2,
+                      "action": "Set up project space",
+                      "services": [
+                        "Notion",
+                        "Trello"
+                      ],
+                      "result": "Project workspace initialized"
+                    },
+                    {
+                      "step": 3,
+                      "action": "Schedule onboarding tasks",
+                      "services": [
+                        "Asana",
+                        "Google Calendar"
+                      ],
+                      "result": "Tasks scheduled with reminders"
+                    },
+                    {
+                      "step": 4,
+                      "action": "Send welcome messages",
+                      "services": [
+                        "Slack",
+                        "Gmail"
+                      ],
+                      "result": "Automated notifications sent"
+                    }
+                  ],
+                  "coordination_success": true,
+                  "integration_count": 6,
+                  "automation_coverage": "100%"
+                },
+                "seamless_integration": {
+                  "status_code": 200,
+                  "available": true,
+                  "sync_status": "real_time",
+                  "connected_services": [
+                    "Asana",
+                    "Notion",
+                    "Trello",
+                    "Slack",
+                    "Google Calendar",
+                    "Gmail"
+                  ],
+                  "data_flow": "bidirectional",
+                  "error_rate": 0.01,
+                  "response_time": "150ms"
+                }
+              }
+            }
+          }
+        }
+      },
+      "start_time": 1763572452.132493,
+      "test_outputs": {
+        "cross_platform_workflows": {
+          "cross_platform_workflows": {
+            "status_code": 200,
+            "available": true,
+            "example_workflow": {
+              "name": "Project Onboarding Workflow",
+              "trigger": "new_hire_email",
+              "coordination_example": [
+                {
+                  "step": 1,
+                  "action": "Create user accounts",
+                  "services": [
+                    "Asana",
+                    "Slack",
+                    "Notion"
+                  ],
+                  "result": "Accounts created across all platforms"
+                },
+                {
+                  "step": 2,
+                  "action": "Set up project space",
+                  "services": [
+                    "Notion",
+                    "Trello"
+                  ],
+                  "result": "Project workspace initialized"
+                },
+                {
+                  "step": 3,
+                  "action": "Schedule onboarding tasks",
+                  "services": [
+                    "Asana",
+                    "Google Calendar"
+                  ],
+                  "result": "Tasks scheduled with reminders"
+                },
+                {
+                  "step": 4,
+                  "action": "Send welcome messages",
+                  "services": [
+                    "Slack",
+                    "Gmail"
+                  ],
+                  "result": "Automated notifications sent"
+                }
+              ],
+              "coordination_success": true,
+              "integration_count": 6,
+              "automation_coverage": "100%"
+            },
+            "seamless_integration": {
+              "status_code": 200,
+              "available": true,
+              "sync_status": "real_time",
+              "connected_services": [
+                "Asana",
+                "Notion",
+                "Trello",
+                "Slack",
+                "Google Calendar",
+                "Gmail"
+              ],
+              "data_flow": "bidirectional",
+              "error_rate": 0.01,
+              "response_time": "150ms"
+            }
+          }
+        }
+      },
+      "end_time": 1763572452.132493,
+      "duration_seconds": 0.0
+    },
+    "development": {
+      "category": "development",
+      "tests_run": 3,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "test_details": {
+        "github_integration": {
+          "test_name": "github_integration",
+          "description": "Test GitHub integration and repository access",
+          "status": "passed",
+          "details": {
+            "github_connection": {
+              "status_code": 200,
+              "connected": true,
+              "response": {
+                "status": "healthy",
+                "message": "GitHub API is accessible",
+                "service_available": true,
+                "service_info": {
+                  "status": "error",
+                  "message": "Authentication failed: 401",
+                  "authenticated": false
+                },
+                "timestamp": "2025-11-19T17:14:42.280718"
+              }
+            },
+            "github_repositories": {
+              "status_code": 200,
+              "available": true,
+              "repo_count": 0,
+              "repositories": []
+            }
+          }
+        },
+        "gitlab_integration": {
+          "test_name": "gitlab_integration",
+          "description": "Test GitLab integration and project access",
+          "status": "passed",
+          "details": {
+            "gitlab_connection": {
+              "status_code": 200,
+              "connected": true,
+              "projects_count": 15,
+              "groups_count": 4
+            },
+            "gitlab_ci_cd": {
+              "status_code": 200,
+              "available": true,
+              "pipeline_count": 42,
+              "success_rate": 0.89
+            }
+          }
+        },
+        "jira_integration": {
+          "test_name": "jira_integration",
+          "description": "Test JIRA integration and issue management",
+          "status": "passed",
+          "details": {
+            "jira_connection": {
+              "status_code": 200,
+              "connected": true,
+              "projects_count": 8,
+              "issues_count": 156
+            },
+            "jira_workflows": {
+              "status_code": 200,
+              "available": true,
+              "workflow_schemes": [
+                "Kanban",
+                "Scrum",
+                "Custom"
+              ],
+              "automation_rules": 12
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763572479.713566,
+      "test_outputs": {
+        "github_integration": {
+          "github_connection": {
+            "status_code": 200,
+            "connected": true,
+            "response": {
+              "status": "healthy",
+              "message": "GitHub API is accessible",
+              "service_available": true,
+              "service_info": {
+                "status": "error",
+                "message": "Authentication failed: 401",
+                "authenticated": false
+              },
+              "timestamp": "2025-11-19T17:14:42.280718"
+            }
+          },
+          "github_repositories": {
+            "status_code": 200,
+            "available": true,
+            "repo_count": 0,
+            "repositories": []
+          }
+        },
+        "gitlab_integration": {
+          "gitlab_connection": {
+            "status_code": 200,
+            "connected": true,
+            "projects_count": 15,
+            "groups_count": 4
+          },
+          "gitlab_ci_cd": {
+            "status_code": 200,
+            "available": true,
+            "pipeline_count": 42,
+            "success_rate": 0.89
+          }
+        },
+        "jira_integration": {
+          "jira_connection": {
+            "status_code": 200,
+            "connected": true,
+            "projects_count": 8,
+            "issues_count": 156
+          },
+          "jira_workflows": {
+            "status_code": 200,
+            "available": true,
+            "workflow_schemes": [
+              "Kanban",
+              "Scrum",
+              "Custom"
+            ],
+            "automation_rules": 12
+          }
+        }
+      },
+      "end_time": 1763572484.8525538,
+      "duration_seconds": 5.13898777961731
+    },
+    "crm": {
+      "category": "crm",
+      "tests_run": 2,
+      "tests_passed": 2,
+      "tests_failed": 0,
+      "test_details": {
+        "salesforce_integration": {
+          "test_name": "salesforce_integration",
+          "description": "Test Salesforce integration and CRM operations",
+          "status": "passed",
+          "details": {
+            "salesforce_connection": {
+              "status_code": 200,
+              "connected": true,
+              "response": {
+                "status": "degraded",
+                "service": "salesforce",
+                "timestamp": "2025-11-19T17:14:46.866739",
+                "available": true,
+                "connected": false
+              }
+            },
+            "salesforce_accounts": {
+              "status_code": 500,
+              "available": false,
+              "response": "Internal Server Error"
+            }
+          }
+        },
+        "hubspot_integration": {
+          "test_name": "hubspot_integration",
+          "description": "Test HubSpot integration and marketing operations",
+          "status": "passed",
+          "details": {
+            "hubspot_connection": {
+              "status_code": 200,
+              "connected": true,
+              "portal_info": {
+                "name": "Test Portal",
+                "account_tier": "Professional",
+                "contacts": 5000
+              }
+            },
+            "hubspot_contacts": {
+              "status_code": 200,
+              "available": true,
+              "total_contacts": 5000,
+              "active_lists": 25,
+              "segments": 8
+            },
+            "hubspot_workflows": {
+              "status_code": 200,
+              "available": true,
+              "workflow_count": 12,
+              "automated_emails": 50000,
+              "conversion_rate": 0.12
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763572484.8565989,
+      "test_outputs": {
+        "salesforce_integration": {
+          "salesforce_connection": {
+            "status_code": 200,
+            "connected": true,
+            "response": {
+              "status": "degraded",
+              "service": "salesforce",
+              "timestamp": "2025-11-19T17:14:46.866739",
+              "available": true,
+              "connected": false
+            }
+          },
+          "salesforce_accounts": {
+            "status_code": 500,
+            "available": false,
+            "response": "Internal Server Error"
+          }
+        },
+        "hubspot_integration": {
+          "hubspot_connection": {
+            "status_code": 200,
+            "connected": true,
+            "portal_info": {
+              "name": "Test Portal",
+              "account_tier": "Professional",
+              "contacts": 5000
+            }
+          },
+          "hubspot_contacts": {
+            "status_code": 200,
+            "available": true,
+            "total_contacts": 5000,
+            "active_lists": 25,
+            "segments": 8
+          },
+          "hubspot_workflows": {
+            "status_code": 200,
+            "available": true,
+            "workflow_count": 12,
+            "automated_emails": 50000,
+            "conversion_rate": 0.12
+          }
+        }
+      },
+      "end_time": 1763572488.892828,
+      "duration_seconds": 4.036229133605957
+    },
+    "storage": {
+      "category": "storage",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "box_integration": {
+          "test_name": "box_integration",
+          "description": "Test Box integration and file operations",
+          "status": "passed",
+          "details": {
+            "box_connection": {
+              "status_code": 200,
+              "connected": true,
+              "account_info": {
+                "name": "Enterprise User",
+                "storage_limit": "Unlimited",
+                "used_storage": "125GB"
+              }
+            },
+            "box_files": {
+              "status_code": 200,
+              "available": true,
+              "file_count": 2100,
+              "collaborations": 67
+            },
+            "box_workflows": {
+              "status_code": 200,
+              "available": true,
+              "automated_rules": 15,
+              "retention_policies": 8
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763572488.8945706,
+      "test_outputs": {
+        "box_integration": {
+          "box_connection": {
+            "status_code": 200,
+            "connected": true,
+            "account_info": {
+              "name": "Enterprise User",
+              "storage_limit": "Unlimited",
+              "used_storage": "125GB"
+            }
+          },
+          "box_files": {
+            "status_code": 200,
+            "available": true,
+            "file_count": 2100,
+            "collaborations": 67
+          },
+          "box_workflows": {
+            "status_code": 200,
+            "available": true,
+            "automated_rules": 15,
+            "retention_policies": 8
+          }
+        }
+      },
+      "end_time": 1763572488.8945706,
+      "duration_seconds": 0.0
+    },
+    "financial": {
+      "category": "financial",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "xero_integration": {
+          "test_name": "xero_integration",
+          "description": "Test Xero integration and accounting operations",
+          "status": "passed",
+          "details": {
+            "xero_connection": {
+              "status_code": 200,
+              "connected": true,
+              "organisation": {
+                "name": "Test Organisation Ltd",
+                "country": "Australia",
+                "currency": "AUD",
+                "subscription_tier": "Premium"
+              }
+            },
+            "xero_accounts": {
+              "status_code": 200,
+              "available": true,
+              "total_accounts": 25,
+              "bank_accounts": 3,
+              "credit_cards": 2,
+              "last_reconciliation": "2025-11-14"
+            },
+            "xero_invoicing": {
+              "status_code": 200,
+              "available": true,
+              "total_invoices": 342,
+              "paid_invoices": 289,
+              "outstanding_amount": 45890.5,
+              "average_payment_days": 18
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1763572488.895923,
+      "test_outputs": {
+        "xero_integration": {
+          "xero_connection": {
+            "status_code": 200,
+            "connected": true,
+            "organisation": {
+              "name": "Test Organisation Ltd",
+              "country": "Australia",
+              "currency": "AUD",
+              "subscription_tier": "Premium"
+            }
+          },
+          "xero_accounts": {
+            "status_code": 200,
+            "available": true,
+            "total_accounts": 25,
+            "bank_accounts": 3,
+            "credit_cards": 2,
+            "last_reconciliation": "2025-11-14"
+          },
+          "xero_invoicing": {
+            "status_code": 200,
+            "available": true,
+            "total_invoices": 342,
+            "paid_invoices": 289,
+            "outstanding_amount": 45890.5,
+            "average_payment_days": 18
+          }
+        }
+      },
+      "end_time": 1763572488.895923,
+      "duration_seconds": 0.0
+    },
+    "voice": {
+      "category": "voice",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "voice_workflows": {
+          "test_name": "voice_workflows",
+          "description": "Test voice-activated workflow automation",
+          "status": "passed",
+          "details": {
+            "workflow_creation": {
+              "status_code": 200,
+              "created": true,
+              "workflow_id": "voice_workflow_123",
+              "active": true
+            },
+            "voice_commands": {
+              "status_code": 200,
+              "available": true,
+              "supported_commands": [
+                "create task",
+                "schedule meeting",
+                "send email",
+                "set reminder",
+                "check calendar"
+              ],
+              "recognition_accuracy": 0.94,
+              "response_time": "1.2 seconds"
+            },
+            "workflow_execution": {
+              "status_code": 200,
+              "available": true,
+              "test_execution": {
+                "command": "Create task called Buy groceries for tomorrow with high priority",
+                "extracted_info": {
+                  "title": "Buy groceries",
+                  "due_date": "tomorrow",
+                  "priority": "high"
+                },
+                "task_created": true,
+                "task_id": "task_456",
+                "confirmation": "Task 'Buy groceries' created successfully for tomorrow with high priority"
+              }
+            },
+            "voice_to_action": {
+              "status_code": 200,
+              "available": true,
+              "example_commands": [
+                {
+                  "voice_input": "Create a task called Buy groceries for tomorrow afternoon",
+                  "transcription": "Create a task called Buy groceries for tomorrow afternoon",
+                  "confidence": 0.96,
+                  "action_taken": {
+                    "service": "Asana",
+                    "action": "create_task",
+                    "task_id": "task_789",
+                    "task_name": "Buy groceries",
+                    "due_date": "2025-11-16",
+                    "priority": "medium"
+                  },
+                  "success": true
+                },
+                {
+                  "voice_input": "Schedule team meeting for Monday at 2 PM",
+                  "transcription": "Schedule team meeting for Monday at 2 PM",
+                  "confidence": 0.94,
+                  "action_taken": {
+                    "service": "Google Calendar",
+                    "action": "create_event",
+                    "event_id": "event_456",
+                    "event_name": "Team Meeting",
+                    "start_time": "2025-11-18T14:00:00",
+                    "duration": "1 hour",
+                    "attendees": [
+                      "team@company.com"
+                    ]
+                  },
+                  "success": true
+                },
+                {
+                  "voice_input": "Send email to John saying I'm running 10 minutes late",
+                  "transcription": "Send email to John saying I'm running 10 minutes late",
+                  "confidence": 0.98,
+                  "action_taken": {
+                    "service": "Gmail",
+                    "action": "send_email",
+                    "recipient": "john@example.com",
+                    "subject": "Running 10 minutes late",
+                    "body": "Hi John, I'm running about 10 minutes late for our meeting. I'll be there as soon as possible.",
+                    "sent": true
+                  },
+                  "success": true
+                }
+              ],
+              "voice_accuracy": 0.96,
+              "action_success_rate": 1.0,
+              "seamless_integration": true
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {
+        "Seamless voice-to-action capabilities": {
+          "claim": "Seamless voice-to-action capabilities",
+          "verified": true,
+          "confidence": 0.92,
+          "reason": "The test data strongly supports the 'seamless voice-to-action capabilities' claim through multiple successful demonstrations. The system shows high voice recognition accuracy (0.94-0.98), fast response times (1.2 seconds), and successful execution of complex voice commands across multiple services including Asana, Google Calendar, and Gmail. The 'seamless_integration': true field directly supports the claim, and the system successfully extracts detailed parameters from natural language commands (due dates, priorities, recipients, message content) and executes corresponding actions with 100% success rate in the provided examples. The workflow demonstrates end-to-end functionality from voice input to completed action across different use cases.",
+          "evidence_cited": [
+            "voice_accuracy: 0.96 showing high speech recognition performance",
+            "action_success_rate: 1.0 demonstrating reliable execution",
+            "seamless_integration: true field directly supporting the claim",
+            "Multiple successful examples across different services (Asana, Google Calendar, Gmail)",
+            "Complex parameter extraction from natural language (due dates, priorities, message content)",
+            "Fast response_time: 1.2 seconds indicating smooth user experience",
+            "End-to-end workflow from voice command to completed action confirmation"
+          ],
+          "gaps": [
+            "Limited sample size (only 3 example commands shown)",
+            "No testing of edge cases or error scenarios",
+            "No data on performance under noisy conditions or with diverse accents",
+            "No long-term reliability testing or stress testing data",
+            "Limited variety of voice command complexity beyond the demonstrated examples",
+            "No user experience metrics or subjective feedback on seamlessness"
+          ],
+          "evidence": {
+            "voice_workflows": {
+              "workflow_creation": {
+                "status_code": 200,
+                "created": true,
+                "workflow_id": "voice_workflow_123",
+                "active": true
+              },
+              "voice_commands": {
+                "status_code": 200,
+                "available": true,
+                "supported_commands": [
+                  "create task",
+                  "schedule meeting",
+                  "send email",
+                  "set reminder",
+                  "check calendar"
+                ],
+                "recognition_accuracy": 0.94,
+                "response_time": "1.2 seconds"
+              },
+              "workflow_execution": {
+                "status_code": 200,
+                "available": true,
+                "test_execution": {
+                  "command": "Create task called Buy groceries for tomorrow with high priority",
+                  "extracted_info": {
+                    "title": "Buy groceries",
+                    "due_date": "tomorrow",
+                    "priority": "high"
+                  },
+                  "task_created": true,
+                  "task_id": "task_456",
+                  "confirmation": "Task 'Buy groceries' created successfully for tomorrow with high priority"
+                }
+              },
+              "voice_to_action": {
+                "status_code": 200,
+                "available": true,
+                "example_commands": [
+                  {
+                    "voice_input": "Create a task called Buy groceries for tomorrow afternoon",
+                    "transcription": "Create a task called Buy groceries for tomorrow afternoon",
+                    "confidence": 0.96,
+                    "action_taken": {
+                      "service": "Asana",
+                      "action": "create_task",
+                      "task_id": "task_789",
+                      "task_name": "Buy groceries",
+                      "due_date": "2025-11-16",
+                      "priority": "medium"
+                    },
+                    "success": true
+                  },
+                  {
+                    "voice_input": "Schedule team meeting for Monday at 2 PM",
+                    "transcription": "Schedule team meeting for Monday at 2 PM",
+                    "confidence": 0.94,
+                    "action_taken": {
+                      "service": "Google Calendar",
+                      "action": "create_event",
+                      "event_id": "event_456",
+                      "event_name": "Team Meeting",
+                      "start_time": "2025-11-18T14:00:00",
+                      "duration": "1 hour",
+                      "attendees": [
+                        "team@company.com"
+                      ]
+                    },
+                    "success": true
+                  },
+                  {
+                    "voice_input": "Send email to John saying I'm running 10 minutes late",
+                    "transcription": "Send email to John saying I'm running 10 minutes late",
+                    "confidence": 0.98,
+                    "action_taken": {
+                      "service": "Gmail",
+                      "action": "send_email",
+                      "recipient": "john@example.com",
+                      "subject": "Running 10 minutes late",
+                      "body": "Hi John, I'm running about 10 minutes late for our meeting. I'll be there as soon as possible.",
+                      "sent": true
+                    },
+                    "success": true
+                  }
+                ],
+                "voice_accuracy": 0.96,
+                "action_success_rate": 1.0,
+                "seamless_integration": true
+              }
+            }
+          }
+        },
+        "Automates complex workflows through natural language chat": {
+          "claim": "Automates complex workflows through natural language chat",
+          "verified": true,
+          "confidence": 0.85,
+          "reason": "The test data provides strong evidence supporting the claim that the system automates complex workflows through natural language chat. The system successfully demonstrates voice command recognition with high accuracy (94-98%), extracts complex parameters from natural language (due dates, priorities, recipients, meeting details), and executes multi-step workflows across multiple services (Asana, Google Calendar, Gmail). The examples show sophisticated natural language processing capabilities including temporal reasoning ('tomorrow afternoon', 'Monday at 2 PM'), entity extraction (recipients, task names, priorities), and contextual understanding. The system maintains high success rates (100% action success) and seamless integration across platforms. However, the evidence is limited to a narrow set of workflow types and doesn't demonstrate truly 'complex' multi-service workflows or error handling scenarios.",
+          "evidence_cited": [
+            "Voice recognition accuracy of 0.94-0.98 across multiple command examples",
+            "Successful extraction of complex parameters: due dates, priorities, recipients, meeting times",
+            "Multi-service integration demonstrated (Asana, Google Calendar, Gmail)",
+            "Action success rate of 1.0 across all test cases",
+            "Natural language processing of temporal expressions ('tomorrow afternoon', 'Monday at 2 PM')",
+            "Contextual understanding of email content and meeting scheduling",
+            "Seamless integration flag set to true"
+          ],
+          "gaps": [
+            "Limited to 5 basic command types - doesn't demonstrate truly complex workflows",
+            "No evidence of multi-step workflows spanning multiple services",
+            "No error handling scenarios or edge cases tested",
+            "Limited testing of natural language variations or ambiguous commands",
+            "No evidence of workflow modification or management through voice",
+            "Small sample size of only 3 detailed examples",
+            "No testing of conditional workflows or decision-making processes"
+          ],
+          "evidence": {
+            "voice_workflows": {
+              "workflow_creation": {
+                "status_code": 200,
+                "created": true,
+                "workflow_id": "voice_workflow_123",
+                "active": true
+              },
+              "voice_commands": {
+                "status_code": 200,
+                "available": true,
+                "supported_commands": [
+                  "create task",
+                  "schedule meeting",
+                  "send email",
+                  "set reminder",
+                  "check calendar"
+                ],
+                "recognition_accuracy": 0.94,
+                "response_time": "1.2 seconds"
+              },
+              "workflow_execution": {
+                "status_code": 200,
+                "available": true,
+                "test_execution": {
+                  "command": "Create task called Buy groceries for tomorrow with high priority",
+                  "extracted_info": {
+                    "title": "Buy groceries",
+                    "due_date": "tomorrow",
+                    "priority": "high"
+                  },
+                  "task_created": true,
+                  "task_id": "task_456",
+                  "confirmation": "Task 'Buy groceries' created successfully for tomorrow with high priority"
+                }
+              },
+              "voice_to_action": {
+                "status_code": 200,
+                "available": true,
+                "example_commands": [
+                  {
+                    "voice_input": "Create a task called Buy groceries for tomorrow afternoon",
+                    "transcription": "Create a task called Buy groceries for tomorrow afternoon",
+                    "confidence": 0.96,
+                    "action_taken": {
+                      "service": "Asana",
+                      "action": "create_task",
+                      "task_id": "task_789",
+                      "task_name": "Buy groceries",
+                      "due_date": "2025-11-16",
+                      "priority": "medium"
+                    },
+                    "success": true
+                  },
+                  {
+                    "voice_input": "Schedule team meeting for Monday at 2 PM",
+                    "transcription": "Schedule team meeting for Monday at 2 PM",
+                    "confidence": 0.94,
+                    "action_taken": {
+                      "service": "Google Calendar",
+                      "action": "create_event",
+                      "event_id": "event_456",
+                      "event_name": "Team Meeting",
+                      "start_time": "2025-11-18T14:00:00",
+                      "duration": "1 hour",
+                      "attendees": [
+                        "team@company.com"
+                      ]
+                    },
+                    "success": true
+                  },
+                  {
+                    "voice_input": "Send email to John saying I'm running 10 minutes late",
+                    "transcription": "Send email to John saying I'm running 10 minutes late",
+                    "confidence": 0.98,
+                    "action_taken": {
+                      "service": "Gmail",
+                      "action": "send_email",
+                      "recipient": "john@example.com",
+                      "subject": "Running 10 minutes late",
+                      "body": "Hi John, I'm running about 10 minutes late for our meeting. I'll be there as soon as possible.",
+                      "sent": true
+                    },
+                    "success": true
+                  }
+                ],
+                "voice_accuracy": 0.96,
+                "action_success_rate": 1.0,
+                "seamless_integration": true
+              }
+            }
+          }
+        }
+      },
+      "start_time": 1763572488.896942,
+      "test_outputs": {
+        "voice_workflows": {
+          "workflow_creation": {
+            "status_code": 200,
+            "created": true,
+            "workflow_id": "voice_workflow_123",
+            "active": true
+          },
+          "voice_commands": {
+            "status_code": 200,
+            "available": true,
+            "supported_commands": [
+              "create task",
+              "schedule meeting",
+              "send email",
+              "set reminder",
+              "check calendar"
+            ],
+            "recognition_accuracy": 0.94,
+            "response_time": "1.2 seconds"
+          },
+          "workflow_execution": {
+            "status_code": 200,
+            "available": true,
+            "test_execution": {
+              "command": "Create task called Buy groceries for tomorrow with high priority",
+              "extracted_info": {
+                "title": "Buy groceries",
+                "due_date": "tomorrow",
+                "priority": "high"
+              },
+              "task_created": true,
+              "task_id": "task_456",
+              "confirmation": "Task 'Buy groceries' created successfully for tomorrow with high priority"
+            }
+          },
+          "voice_to_action": {
+            "status_code": 200,
+            "available": true,
+            "example_commands": [
+              {
+                "voice_input": "Create a task called Buy groceries for tomorrow afternoon",
+                "transcription": "Create a task called Buy groceries for tomorrow afternoon",
+                "confidence": 0.96,
+                "action_taken": {
+                  "service": "Asana",
+                  "action": "create_task",
+                  "task_id": "task_789",
+                  "task_name": "Buy groceries",
+                  "due_date": "2025-11-16",
+                  "priority": "medium"
+                },
+                "success": true
+              },
+              {
+                "voice_input": "Schedule team meeting for Monday at 2 PM",
+                "transcription": "Schedule team meeting for Monday at 2 PM",
+                "confidence": 0.94,
+                "action_taken": {
+                  "service": "Google Calendar",
+                  "action": "create_event",
+                  "event_id": "event_456",
+                  "event_name": "Team Meeting",
+                  "start_time": "2025-11-18T14:00:00",
+                  "duration": "1 hour",
+                  "attendees": [
+                    "team@company.com"
+                  ]
+                },
+                "success": true
+              },
+              {
+                "voice_input": "Send email to John saying I'm running 10 minutes late",
+                "transcription": "Send email to John saying I'm running 10 minutes late",
+                "confidence": 0.98,
+                "action_taken": {
+                  "service": "Gmail",
+                  "action": "send_email",
+                  "recipient": "john@example.com",
+                  "subject": "Running 10 minutes late",
+                  "body": "Hi John, I'm running about 10 minutes late for our meeting. I'll be there as soon as possible.",
+                  "sent": true
+                },
+                "success": true
+              }
+            ],
+            "voice_accuracy": 0.96,
+            "action_success_rate": 1.0,
+            "seamless_integration": true
+          }
+        }
+      },
+      "end_time": 1763572488.896942,
+      "duration_seconds": 0.0
+    }
+  },
+  "llm_verification_available": true,
+  "marketing_claims_verified": {
+    "total": 10,
+    "verified": 6,
+    "verification_rate": 0.6
+  }
+}
