@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { NextPage } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import GmailSearch from "../../../src/ui-shared/integrations/gmail/components/GmailSearch";
+import GmailSearch from "../../components/GmailSearch";
 
 const GmailIntegrationPage: NextPage = () => {
   const router = useRouter();
@@ -586,9 +586,8 @@ const GmailIntegrationPage: NextPage = () => {
                 <h3 className="text-lg font-medium mb-2">Connection Status</h3>
                 <div className="flex items-center space-x-2">
                   <div
-                    className={`w-3 h-3 rounded-full ${
-                      isConnected ? "bg-green-500" : "bg-red-500"
-                    }`}
+                    className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"
+                      }`}
                   ></div>
                   <span>{isConnected ? "Connected" : "Disconnected"}</span>
                 </div>
@@ -723,11 +722,10 @@ const GmailIntegrationPage: NextPage = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <div
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    isConnected
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${isConnected
                       ? "bg-green-100 text-green-800"
                       : "bg-red-100 text-red-800"
-                  }`}
+                    }`}
                 >
                   {loading
                     ? "Checking..."
@@ -748,11 +746,10 @@ const GmailIntegrationPage: NextPage = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
                       ? "border-red-500 text-red-600"
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
+                    }`}
                 >
                   <span className="mr-2">{tab.icon}</span>
                   {tab.name}

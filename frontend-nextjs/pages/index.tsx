@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import { getSession } from "next-auth/react";
 import { GetServerSideProps } from "next";
 import {
@@ -16,6 +17,7 @@ import {
   Flex,
 } from "@chakra-ui/react";
 import { useRouter } from "next/router";
+
 import {
   FiSearch,
   FiMessageSquare,
@@ -26,27 +28,18 @@ import {
   FiServer,
 } from "react-icons/fi";
 
-export const getServerSideProps: GetServerSideProps = async (context) => {
-  const session = await getSession(context);
-
-  if (!session) {
-    return {
-      redirect: {
-        destination: "/auth/signin",
-        permanent: false,
-      },
-    };
-  }
-
-  return {
-    props: {
-      session,
-    },
-  };
-};
-
 const Home = () => {
   const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const session = await getSession();
+      if (!session) {
+        router.push("/auth/signin");
+      }
+    };
+    checkSession();
+  }, [router]);
 
   const features = [
     {
