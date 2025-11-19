@@ -3,9 +3,31 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
+import os
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+backend_root = Path(__file__).parent.parent.resolve()
+if str(backend_root) not in sys.path:
+    sys.path.insert(0, str(backend_root))
+
+try:
+    from integrations.asana_service import asana_service
+    ASANA_AVAILABLE = True
+    print(f"✅ Asana service loaded successfully")
+except ImportError as e:
+    ASANA_AVAILABLE = False
+    asana_service = None
+    print(f"⚠️ Asana service not available: {e}")
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["unified_tasks"])
 project_router = APIRouter(prefix="/api/v1/projects", tags=["unified_projects"])
+
+# Configuration
+ASANA_ACCESS_TOKEN = "2/1211551477617044/1211959900544452:04904fb3621a011e810dc1c21ef41890"
+ASANA_WORKSPACE_GID = "1211551477617056"
+ASANA_DEFAULT_PROJECT_GID = "1211551443885526"  # Cross-functional project plan
 
 # --- Models ---
 
@@ -131,11 +153,126 @@ MOCK_PROJECTS: List[Project] = [
 # --- Task Endpoints ---
 
 @router.get("/", response_model=Dict[str, Any])
-async def get_tasks():
-    return {"success": True, "tasks": MOCK_TASKS}
+async def get_tasks(platform: str = Query("all")):
+    """Get tasks from specified platform or all platforms"""
+    
+    # If Asana is requested or all platforms, fetch from Asana
+    if ASANA_AVAILABLE and platform in ["asana", "all"]:
+        try:
+            result = await asana_service.get_tasks(
+                ASANA_ACCESS_TOKEN,
+                project_gid=ASANA_DEFAULT_PROJECT_GID,
+                limit=100
+            )
+            
+            if result.get("ok"):
+                # Convert Asana tasks to unified format
+                asana_tasks = []
+                for asana_task in result.get("tasks", []):
+                    status = "completed" if asana_task.get("completed") else "in-progress"
+                    asana_tasks.append(Task(
+                        id=asana_task.get("gid"),
+                        title=asana_task.get("name"),
+                        description=asana_task.get("notes", ""),
+                        dueDate=datetime.fromisoformat(asana_task.get("due_on") + "T00:00:00") if asana_task.get("due_on") else datetime.now(),
+                        priority="medium",
+                        status=status,
+                        project=ASANA_DEFAULT_PROJECT_GID,
+                        tags=[],
+                        assignee=asana_task.get("assignee_name"),
+                        estimatedHours=0,
+                        actualHours=0,
+                        dependencies=[],
+                        platform="asana",
+                        color="#3182CE",
+                        createdAt=datetime.fromisoformat(asana_task.get("created_at")) if asana_task.get("created_at") else datetime.now(),
+                        updatedAt=datetime.fromisoformat(asana_task.get("modified_at")) if asana_task.get("modified_at") else datetime.now(),
+                    ))
+                
+                # Combine with mock tasks if "all" platforms
+                if platform == "all":
+                    all_tasks = asana_tasks + MOCK_TASKS
+                else:
+                    all_tasks = asana_tasks
+                    
+                return {"success": True, "tasks": all_tasks, "source": "asana"}
+        except Exception as e:
+            # Fall back to mock data on error
+            print(f"Error fetching Asana tasks: {e}")
+    
+    # Return mock tasks if Asana not available or error
+    return {"success": True, "tasks": MOCK_TASKS, "source": "mock"}
 
-@router.post("/", response_model=Dict[str, Any])
+@router.post("/")
 async def create_task(task_data: CreateTaskRequest):
+    """Create task on specified platform"""
+    
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.error(f"!!! CREATE_TASK CALLED - Platform: {task_data.platform}, ASANA_AVAILABLE: {ASANA_AVAILABLE}")
+    
+    # If platform is Asana, create in Asana
+    if task_data.platform == "asana" and ASANA_AVAILABLE:
+        print(f"[CREATE_TASK] Creating in Asana...")
+        try:
+            # Convert datetime to just date string
+            due_date_str = task_data.dueDate.strftime("%Y-%m-%d") if isinstance(task_data.dueDate, datetime) else task_data.dueDate.split("T")[0]
+            
+            asana_task_data = {
+                "name": task_data.title,
+                "description": task_data.description or "",
+                "due_on": due_date_str,
+                "projects": [ASANA_DEFAULT_PROJECT_GID],
+                "workspace": ASANA_WORKSPACE_GID,
+            }
+            
+            print(f"[CREATE_TASK] Asana task data: {asana_task_data}")
+            
+            result = await asana_service.create_task(ASANA_ACCESS_TOKEN, asana_task_data)
+            
+            print(f"[CREATE_TASK] Asana result: {result}")
+            
+            if result.get("ok"):
+                asana_task = result.get("task")
+                
+                # Parse created_at and modified_at safely
+                created_at = datetime.now()
+                if asana_task.get("created_at"):
+                    try:
+                        # Remove milliseconds and Z for parsing
+                        created_str = asana_task["created_at"].replace("Z", "+00:00")
+                        created_at = datetime.fromisoformat(created_str)
+                    except:
+                        pass
+                
+                created_task = Task(
+                    id=asana_task.get("gid"),
+                    title=asana_task.get("name"),
+                    description=asana_task.get("notes", ""),
+                    dueDate=datetime.fromisoformat(asana_task.get("due_on") + "T00:00:00") if asana_task.get("due_on") else datetime.now(),
+                    priority=task_data.priority,
+                    status="todo",
+                    project=ASANA_DEFAULT_PROJECT_GID,
+                    tags=task_data.tags or [],
+                    assignee=None,
+                    estimatedHours=task_data.estimatedHours or 0,
+                    platform="asana",
+                    color=task_data.color,
+                    createdAt=created_at,
+                    updatedAt=datetime.now(),
+                )
+                print(f"[CREATE_TASK] Successfully created in Asana: {created_task.id}")
+                return {"success": True, "task": created_task, "platform": "asana"}
+            else:
+                print(f"[CREATE_TASK] Asana API returned not OK: {result}")
+        except Exception as e:
+            print(f"[CREATE_TASK] Error creating Asana task: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Failed to create Asana task: {str(e)}")
+    
+    # Otherwise create mock task locally
+    print(f"[CREATE_TASK] Creating local mock task")
     new_task = Task(
         id=str(uuid.uuid4()),
         **task_data.dict(),
@@ -144,14 +281,13 @@ async def create_task(task_data: CreateTaskRequest):
     )
     MOCK_TASKS.append(new_task)
     
-    # Update project counts if applicable
     if new_task.project:
         for p in MOCK_PROJECTS:
             if p.id == new_task.project:
                 p.task_count += 1
                 break
                 
-    return {"success": True, "task": new_task}
+    return {"success": True, "task": new_task, "platform": "local"}
 
 @router.put("/{task_id}", response_model=Dict[str, Any])
 async def update_task(task_id: str, updates: UpdateTaskRequest):

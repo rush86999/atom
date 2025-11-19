@@ -109,15 +109,15 @@ async def execute_workflow_by_id(workflow_id: str):
 
 
 
-# Task endpoints
-@router.post("/tasks")
-async def create_task(task: TaskCreate):
-    return {"task": {"id": "task_1", "title": task.title}}
+# DEPRECATED: Task endpoints moved to unified_task_endpoints.py
+# These routes were causing conflicts with /api/v1/tasks unified endpoints
+# @router.post("/tasks")
+# async def create_task(task: TaskCreate):
+#     return {"task": {"id": "task_1", "title": task.title}}
 
-
-@router.get("/tasks")
-async def get_tasks():
-    return {"tasks": [], "count": 0}
+# @router.get("/tasks")
+# async def get_tasks():
+#     return {"tasks": [], "count": 0}
 
 
 # Service endpoints - DEPRECATED: Use service_integrations.py for comprehensive 16-service support
