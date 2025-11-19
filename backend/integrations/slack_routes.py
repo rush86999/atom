@@ -70,7 +70,14 @@ async def slack_status(user_id: str = "test_user"):
     }
 
 
-@router.post("/messages/send")
+@router.get("/health")
+async def slack_health(user_id: str = "test_user"):
+    """Health check endpoint (alias for status)"""
+    return await slack_status(user_id)
+
+
+
+@router.post("/messages")
 async def send_slack_message(request: SlackMessageRequest):
     """Send a Slack message"""
     logger.info(f"Sending Slack message to channel: {request.channel}")

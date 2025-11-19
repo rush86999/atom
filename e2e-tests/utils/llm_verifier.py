@@ -15,13 +15,28 @@ from openai import OpenAI
 class LLMVerifier:
     """LLM-based verification for marketing claims validation"""
 
-    def __init__(self, api_key: Optional[str] = None, max_retries: int = 3):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        model: str = "gpt-4",
+        max_retries: int = 3,
+    ):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is required")
+            raise ValueError("API key is required (OPENAI_API_KEY or passed explicitly)")
 
-        self.client = OpenAI(api_key=self.api_key)
-        self.model = "gpt-4"  # Using GPT-4 for better reasoning capabilities
+        self.base_url = base_url
+        self.model = model
+        
+        # Initialize client with optional base_url for compatible providers (e.g. DeepSeek)
+        if self.base_url:
+            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+            print(f"Initialized LLMVerifier with custom base_url: {self.base_url} and model: {self.model}")
+        else:
+            self.client = OpenAI(api_key=self.api_key)
+            
+        self.max_retries = max_retries
         self.max_retries = max_retries
         self.request_delay = 2  # Increased delay between requests
 

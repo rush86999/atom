@@ -193,9 +193,14 @@ def main():
         help="Skip LLM-based marketing claim verification",
     )
     parser.add_argument(
+        "--use-deepseek",
+        action="store_true",
+        help="Use DeepSeek for AI validation instead of OpenAI",
+    )
+    parser.add_argument(
         "--use-glm",
         action="store_true",
-        help="Use GLM 4.6 instead of OpenAI for validation",
+        help="Use GLM-4 for AI validation instead of OpenAI",
     )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
 
@@ -255,6 +260,9 @@ def main():
         os.environ["SKIP_LLM_VERIFICATION"] = "true"
 
     # Set environment variable to use GLM if requested
+    if args.use_deepseek:
+        os.environ["USE_DEEPSEEK_VALIDATOR"] = "true"
+    
     if args.use_glm:
         os.environ["USE_GLM_VALIDATOR"] = "true"
         print(f"{Fore.CYAN}Using GLM 4.6 for AI validation{Style.RESET_ALL}")
