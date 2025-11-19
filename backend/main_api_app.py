@@ -109,6 +109,50 @@ except ImportError as e:
     system_status_router = None
 
 try:
+    from core.workflow_agent_endpoints import router as workflow_agent_router
+    WORKFLOW_AGENT_AVAILABLE = True
+except ImportError as e:
+    print(f"Workflow Agent endpoints not available: {e}")
+    WORKFLOW_AGENT_AVAILABLE = False
+    workflow_agent_router = None
+
+try:
+    from core.workflow_ui_endpoints import router as workflow_ui_router
+    WORKFLOW_UI_AVAILABLE = True
+except ImportError as e:
+    print(f"Workflow UI endpoints not available: {e}")
+    WORKFLOW_UI_AVAILABLE = False
+    workflow_ui_router = None
+
+try:
+    from service_health_endpoints import router as service_health_router
+    SERVICE_HEALTH_AVAILABLE = True
+except ImportError as e:
+    print(f"Service health endpoints not available: {e}")
+    SERVICE_HEALTH_AVAILABLE = False
+    service_health_router = None
+
+# Import Unified Endpoints
+try:
+    from core.unified_task_endpoints import router as unified_task_router, project_router as unified_project_router
+    from core.unified_calendar_endpoints import router as unified_calendar_router
+    from core.unified_search_endpoints import router as unified_search_router
+    UNIFIED_ENDPOINTS_AVAILABLE = True
+except ImportError as e:
+    print(f"Unified endpoints not available: {e}")
+    UNIFIED_ENDPOINTS_AVAILABLE = False
+    unified_task_router = None
+    unified_project_router = None
+    unified_calendar_router = None
+    unified_search_router = None
+
+# Mount system status router if available
+if SYSTEM_STATUS_AVAILABLE and system_status_router:
+    # Mount at root to support /metrics endpoint
+    pass  # We will include it later with other includes or right here
+
+
+try:
     from core.workflow_endpoints import router as workflow_router
 
     WORKFLOW_AVAILABLE = True
@@ -350,9 +394,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include Workflow UI routes (Must be before main router to avoid shadowing)
+if WORKFLOW_UI_AVAILABLE and workflow_ui_router:
+    app.include_router(workflow_ui_router)
+    print("✅ Workflow UI routes loaded")
+
+# Include Workflow Agent router
+if WORKFLOW_AGENT_AVAILABLE and workflow_agent_router:
+    app.include_router(workflow_agent_router)
+
+# Include Unified Endpoints
+if UNIFIED_ENDPOINTS_AVAILABLE:
+    if unified_task_router:
+        app.include_router(unified_task_router)
+    if unified_project_router:
+        app.include_router(unified_project_router)
+    if unified_calendar_router:
+        app.include_router(unified_calendar_router)
+    if unified_search_router:
+        app.include_router(unified_search_router)
+
+# Include main API router (generic)
+app.include_router(router)
+
+# Include Service Health routes
+if SERVICE_HEALTH_AVAILABLE and service_health_router:
+    app.include_router(service_health_router)
+    print("✅ Service health routes loaded")
+
 # Include API routes
 app.include_router(router, prefix="/api/v1")
-app.include_router(service_health_router, prefix="")
 
 # Include Asana integration routes if available
 if ASANA_AVAILABLE and asana_router:
@@ -730,4 +801,4 @@ async def root():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5058)
+    uvicorn.run(app, host="0.0.0.0", port=5059)

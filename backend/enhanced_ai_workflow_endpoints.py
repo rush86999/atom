@@ -266,9 +266,10 @@ class RealAIWorkflowService:
             logger.error(f"Error calling DeepSeek: {e}")
             raise Exception(f"DeepSeek API call failed: {str(e)}")
 
-    async def process_with_nlu(self, text: str, provider: str = "openai") -> Dict[str, Any]:
+    async def process_with_nlu(self, text: str, provider: str = "openai", system_prompt: str = None) -> Dict[str, Any]:
         """Process text using real NLU capabilities"""
-        system_prompt = """Analyze the user's request and extract ALL intents and goals:
+        if system_prompt is None:
+            system_prompt = """Analyze the user's request and extract ALL intents and goals:
 1. The main intent(s)/goal(s) - List ALL distinct goals found
 2. Key entities (people, dates, times, locations, actions)
 3. Specific tasks that should be created for EACH intent
@@ -346,19 +347,24 @@ Return your response as a JSON object with this format:
 
     async def generate_workflow_tasks(self, input_text: str, provider: str = "openai") -> List[str]:
         """Generate actual tasks using AI"""
-        system_prompt = """Based on the user's request, generate a list of specific, actionable tasks that should be created.
+        system_prompt = """Based on the user's request, generate a comprehensive and professional list of actionable tasks.
 Each task should be:
-- Specific and clear
-- Action-oriented
-- Realistic to implement
-- Related to workflow management
+- Detailed and specific, avoiding generic language
+- Action-oriented with clear deliverables where applicable
+- Professional in tone and structure
+- Broken down into logical sub-components if complex
 
-Return your response as a JSON array of strings, like:
-["Task 1 description", "Task 2 description", "Task 3 description"]"""
+Return your response as a JSON object with this format:
+{
+    "tasks": ["Phase 1: Detailed task description...", "Phase 2: Detailed task description..."],
+    "intent": "Summary of the request",
+    "confidence": 1.0
+}"""
 
         try:
             logger.info(f"Generating tasks for input: {input_text}")
-            result = await self.process_with_nlu(input_text, provider)
+            # Pass the specific task generation prompt
+            result = await self.process_with_nlu(input_text, provider, system_prompt=system_prompt)
             logger.info(f"NLU Result: {result}")
             if 'tasks' in result:
                 return result['tasks'][:5]  # Limit to 5 tasks
@@ -529,6 +535,38 @@ async def process_natural_language(request: Dict[str, Any]):
             processing_time_ms=processing_time,
             ai_provider_used=ai_provider
         )
+
+@router.post("/analyze", response_model=Dict[str, Any])
+async def analyze_content(request: Dict[str, Any]):
+    """Analyze content for specific tasks (intent classification, sentiment, etc.)"""
+    start_time = time.time()
+    
+    text = request.get("text", "")
+    task = request.get("task", "general_analysis")
+    provider = request.get("provider", "deepseek")
+    
+    try:
+        # Use process_with_nlu but adapt for specific analysis tasks
+        system_prompt = None
+        if task == "intent_classification":
+            system_prompt = "Analyze the text and classify the user's intent. Return JSON with 'intent', 'confidence', and 'category'."
+        elif task == "sentiment_analysis":
+            system_prompt = "Analyze the sentiment of the text. Return JSON with 'sentiment' (positive/negative/neutral), 'score' (0-1), and 'key_phrases'."
+            
+        result = await ai_service.process_with_nlu(text, provider, system_prompt=system_prompt)
+        
+        return {
+            "status": "success",
+            "analysis": result,
+            "metadata": {
+                "task": task,
+                "provider": provider,
+                "processing_time_ms": (time.time() - start_time) * 1000
+            }
+        }
+    except Exception as e:
+        logger.error(f"Analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status", response_model=Dict[str, Any])
 async def get_ai_workflow_status():

@@ -237,3 +237,21 @@ async def get_system_health():
             "error": str(e),
             "error": str(e)
         }
+
+@router.get("/metrics")
+async def get_metrics():
+    """Get system metrics for monitoring"""
+    try:
+        resources = SystemStatus.get_resource_usage()
+        # Return simple text format for E2E test
+        return (
+            f"# HELP system_cpu_usage System CPU usage percent\n"
+            f"# TYPE system_cpu_usage gauge\n"
+            f"system_cpu_usage {resources.get('cpu', {}).get('percent', 0)}\n"
+            f"# HELP system_memory_usage System memory usage percent\n"
+            f"# TYPE system_memory_usage gauge\n"
+            f"system_memory_usage {resources.get('memory', {}).get('percent', 0)}\n"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
