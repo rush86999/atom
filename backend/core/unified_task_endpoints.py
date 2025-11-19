@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -152,41 +153,59 @@ MOCK_PROJECTS: List[Project] = [
 
 # --- Task Endpoints ---
 
-@router.get("/", response_model=Dict[str, Any])
+@router.get("/")
 async def get_tasks(platform: str = Query("all")):
     """Get tasks from specified platform or all platforms"""
     
     # If Asana is requested or all platforms, fetch from Asana
     if ASANA_AVAILABLE and platform in ["asana", "all"]:
         try:
-            result = await asana_service.get_tasks(
-                ASANA_ACCESS_TOKEN,
-                project_gid=ASANA_DEFAULT_PROJECT_GID,
-                limit=100
+            result = await asyncio.to_thread(
+                asana_service._make_request,
+                "GET",
+                f"/projects/{ASANA_DEFAULT_PROJECT_GID}/tasks?opt_fields=name,notes,completed,due_on,assignee,tags,created_at,modified_at",
+                ASANA_ACCESS_TOKEN
             )
             
-            if result.get("ok"):
+            if result and result.get("data"):
                 # Convert Asana tasks to unified format
                 asana_tasks = []
-                for asana_task in result.get("tasks", []):
+                for asana_task in result.get("data", []):
                     status = "completed" if asana_task.get("completed") else "in-progress"
+                    
+                    # Parse dates safely
+                    due_date = datetime.now()
+                    if asana_task.get("due_on"):
+                        try:
+                            due_date = datetime.fromisoformat(asana_task["due_on"] + "T00:00:00")
+                        except:
+                            pass
+                    
+                    created_at = datetime.now()
+                    if asana_task.get("created_at"):
+                        try:
+                            created_str = asana_task["created_at"].replace("Z", "+00:00")
+                            created_at = datetime.fromisoformat(created_str)
+                        except:
+                            pass
+                    
                     asana_tasks.append(Task(
                         id=asana_task.get("gid"),
                         title=asana_task.get("name"),
                         description=asana_task.get("notes", ""),
-                        dueDate=datetime.fromisoformat(asana_task.get("due_on") + "T00:00:00") if asana_task.get("due_on") else datetime.now(),
+                        dueDate=due_date,
                         priority="medium",
                         status=status,
                         project=ASANA_DEFAULT_PROJECT_GID,
-                        tags=[],
-                        assignee=asana_task.get("assignee_name"),
+                        tags=[tag.get("name") for tag in asana_task.get("tags", [])],
+                        assignee=asana_task.get("assignee", {}).get("name") if asana_task.get("assignee") else None,
                         estimatedHours=0,
                         actualHours=0,
                         dependencies=[],
                         platform="asana",
                         color="#3182CE",
-                        createdAt=datetime.fromisoformat(asana_task.get("created_at")) if asana_task.get("created_at") else datetime.now(),
-                        updatedAt=datetime.fromisoformat(asana_task.get("modified_at")) if asana_task.get("modified_at") else datetime.now(),
+                        createdAt=created_at,
+                        updatedAt=created_at,
                     ))
                 
                 # Combine with mock tasks if "all" platforms
@@ -199,6 +218,8 @@ async def get_tasks(platform: str = Query("all")):
         except Exception as e:
             # Fall back to mock data on error
             print(f"Error fetching Asana tasks: {e}")
+            import traceback
+            traceback.print_exc()
     
     # Return mock tasks if Asana not available or error
     return {"success": True, "tasks": MOCK_TASKS, "source": "mock"}
