@@ -1,6 +1,10 @@
 <div align="center">
 
-# 🚀 Atom - Advanced Task Orchestration & Management
+# ATOM Platform
+
+> **Developer Note:** For current status, architecture, and handover instructions, please see [docs/developer_handover.md](docs/developer_handover.md).
+
+ATOM (Advanced Task Orchestration & Management) is an AI-powered automation platform.
 
 ![WhatsApp Video 2025-11-04 at 12 23 11 AM](https://github.com/user-attachments/assets/398de2e3-4ea6-487c-93ae-9600a66598fc)
 

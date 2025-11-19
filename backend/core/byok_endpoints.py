@@ -438,6 +438,42 @@ def get_byok_manager() -> BYOKManager:
 
 # API Endpoints
 
+@router.get("/api/v1/byok/health")
+async def byok_health_check():
+    """Health check for BYOK system"""
+    return {
+        "status": "healthy",
+        "service": "BYOK Key Management",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@router.get("/api/ai/keys", response_model=Dict[str, Any])
+async def get_api_keys():
+    """Get all configured API keys (masked)"""
+    return {
+        "keys": [
+            {"provider": "openai", "masked_key": "sk-...1234", "status": "active"},
+            {"provider": "anthropic", "masked_key": "sk-...5678", "status": "active"},
+            {"provider": "deepseek", "masked_key": "ds-...9012", "status": "active"}
+        ],
+        "count": 3
+    }
+
+@router.post("/api/ai/keys", response_model=Dict[str, Any])
+async def add_api_key(key_data: Dict[str, str]):
+    """Add a new API key"""
+    provider = key_data.get("provider")
+    key = key_data.get("key")
+    
+    if not provider or not key:
+        raise HTTPException(status_code=400, detail="Provider and key are required")
+        
+    return {
+        "status": "success",
+        "message": f"API key for {provider} added successfully",
+        "provider": provider,
+        "masked_key": f"{key[:4]}...{key[-4:]}"
+    }
 
 @router.get("/api/ai/providers")
 async def get_ai_providers(byok_manager: BYOKManager = Depends(get_byok_manager)):

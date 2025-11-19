@@ -14,6 +14,34 @@ const nextConfig = {
   experimental: {
     externalDir: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/integrations/:path*",
+        destination: "http://127.0.0.1:5059/api/v1/integrations/:path*",
+      },
+      {
+        source: "/api/workflows/:path*",
+        destination: "http://127.0.0.1:5059/api/v1/workflow-ui/:path*",
+      },
+      {
+        source: "/api/ai/:path*",
+        destination: "http://127.0.0.1:5059/api/v1/ai/:path*",
+      },
+      {
+        source: "/api/system/:path*",
+        destination: "http://127.0.0.1:5059/api/v1/system/:path*",
+      },
+      {
+        source: "/api/analytics/:path*",
+        destination: "http://127.0.0.1:5059/api/v1/analytics/:path*",
+      },
+      {
+        source: "/api/workflow-agent/:path*",
+        destination: "http://127.0.0.1:5059/api/workflow-agent/:path*",
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
