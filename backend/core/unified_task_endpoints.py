@@ -16,7 +16,10 @@ if str(backend_root) not in sys.path:
 try:
     from integrations.asana_service import asana_service
     ASANA_AVAILABLE = True
-    print(f"✅ Asana service loaded successfully")
+    try:
+        print("Asana service loaded successfully")
+    except UnicodeEncodeError:
+        pass
 except ImportError as e:
     ASANA_AVAILABLE = False
     asana_service = None
