@@ -19,17 +19,17 @@ try:
     from lancedb.pydantic import LanceModel, Vector
     import pyarrow as pa
     LANCEDB_AVAILABLE = True
-except ImportError:
+except (ImportError, Exception) as e:
     LANCEDB_AVAILABLE = False
-    print("LanceDB not available. Install with: pip install lancedb")
+    print(f"LanceDB not available: {e}")
 
 # Import sentence transformers for embeddings
 try:
     from sentence_transformers import SentenceTransformer
     SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
+except (ImportError, Exception) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
-    print("Sentence transformers not available. Install with: pip install sentence-transformers")
+    print(f"Sentence transformers not available: {e}")
 
 logger = logging.getLogger(__name__)
 
