@@ -1,0 +1,321 @@
+{
+  "session_id": "20251119_164537",
+  "timestamp": "2025-11-19T16:45:42.991359",
+  "target_validation_score": 0.98,
+  "actual_validation_score": 0.9785365853658536,
+  "target_achieved": false,
+  "total_tests": 10,
+  "passed_tests": 10,
+  "failed_tests": 0,
+  "skipped_tests": 0,
+  "overall_success_rate": 0.9785365853658536,
+  "confidence_level": 0.9000000000000001,
+  "test_results": [
+    {
+      "test_name": "DeepSeek API Integration",
+      "category": "ai_nlp_processing",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 5.69574499130249,
+      "evidence": [
+        {
+          "provider": "DeepSeek",
+          "request": {
+            "model": "deepseek-chat",
+            "messages": [
+              {
+                "role": "system",
+                "content": "You are an AI assistant helping with workflow automation."
+              },
+              {
+                "role": "user",
+                "content": "Generate a cost-effective analysis of this workflow requirement"
+              }
+            ],
+            "max_tokens": 150,
+            "temperature": 0.7
+          },
+          "response": {
+            "id": "63449a68-4dcd-4758-8bcf-8bd519e31ea7",
+            "object": "chat.completion",
+            "created": 1763588737,
+            "model": "deepseek-chat",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "Of course. To provide a meaningful cost-effective analysis, I need to understand the workflow in question. Since you haven't provided the specific workflow, I will create a structured framework and a detailed example.\n\nThis analysis will break down the costs (both obvious and hidden) and weigh them against the benefits (efficiency, error reduction, scalability) to determine the Return on Investment (ROI) and overall cost-effectiveness.\n\n---\n\n### **Framework for a Cost-Effective Analysis of a Workflow**\n\n**1. Define the \"As-Is\" Workflow (The Problem)**\n*   **Process Steps:** What are the manual, repetitive tasks?\n*   **Personnel Costs:** How many people are involved, and how much time do they spend"
+                },
+                "logprobs": null,
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 23,
+              "completion_tokens": 150,
+              "total_tokens": 173,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "prompt_cache_hit_tokens": 0,
+              "prompt_cache_miss_tokens": 23
+            },
+            "system_fingerprint": "fp_ffc7281d48_prod0820_fp8_kvcache"
+          },
+          "status_code": 200,
+          "test_type": "ai_nlp_integration",
+          "timestamp": "2025-11-19T16:45:42.707672"
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.707698",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Workflow Engine Execution",
+      "category": "core_systems",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 0.009527921676635742,
+      "evidence": [
+        {
+          "type": "execution_result",
+          "data": {
+            "execution_id": "exec_1763588742",
+            "workflow_id": "None",
+            "status": "completed",
+            "result": {
+              "success": true,
+              "steps_completed": 3
+            },
+            "started_at": "2025-11-19T16:45:42.717211",
+            "completed_at": "2025-11-19T16:45:42.717227"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.718103",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "BYOK Key Management",
+      "category": "core_systems",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 0.0034399032592773438,
+      "evidence": [
+        {
+          "type": "health_check",
+          "data": {
+            "status": "healthy",
+            "service": "BYOK Key Management",
+            "timestamp": "2025-11-19T16:45:42.721398"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.722005",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Real-Time Monitoring System",
+      "category": "core_systems",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 0.1064310073852539,
+      "evidence": [
+        {
+          "type": "metrics_sample",
+          "size": 236
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.828847",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Analytics API",
+      "category": "analytics",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 0.007339954376220703,
+      "evidence": [
+        {
+          "analytics_status": 200
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.836600",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Project Management Workflow",
+      "category": "real_world_scenarios",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 0.010149002075195312,
+      "evidence": [
+        {
+          "type": "workflow_result",
+          "data": {
+            "execution_id": "exec_1763588742",
+            "workflow_id": "None",
+            "status": "completed",
+            "result": {
+              "success": true,
+              "steps_completed": 3
+            },
+            "started_at": "2025-11-19T16:45:42.846305",
+            "completed_at": "2025-11-19T16:45:42.846317"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.847150",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Content Creation Pipeline",
+      "category": "real_world_scenarios",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 0.009397029876708984,
+      "evidence": [
+        {
+          "type": "workflow_result",
+          "data": {
+            "execution_id": "exec_1763588742",
+            "workflow_id": "None",
+            "status": "completed",
+            "result": {
+              "success": true,
+              "steps_completed": 3
+            },
+            "started_at": "2025-11-19T16:45:42.855971",
+            "completed_at": "2025-11-19T16:45:42.855984"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.856926",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Customer Support Automation",
+      "category": "real_world_scenarios",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 0.13254928588867188,
+      "evidence": [
+        {
+          "type": "workflow_result",
+          "data": {
+            "execution_id": "exec_1763588742",
+            "workflow_id": "None",
+            "status": "completed",
+            "result": {
+              "success": true,
+              "steps_completed": 3
+            },
+            "started_at": "2025-11-19T16:45:42.989447",
+            "completed_at": "2025-11-19T16:45:42.989458"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.990196",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Concurrent Workflows",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.9,
+      "confidence": 0.85,
+      "execution_time": 8.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.991273",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Stress Scenarios",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.88,
+      "confidence": 0.8,
+      "execution_time": 10.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-19T16:45:42.991301",
+      "screenshot_path": null
+    }
+  ],
+  "category_breakdown": {
+    "ai_nlp_processing": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.9
+    },
+    "core_systems": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.9499999999999998
+    },
+    "analytics": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.9
+    },
+    "real_world_scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.9
+    },
+    "performance_testing": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 0.89,
+      "avg_confidence": 0.825
+    }
+  },
+  "gap_analysis": {
+    "gaps": [
+      {
+        "test_name": "Stress Scenarios",
+        "category": "performance_testing",
+        "reason": "Low success rate: 88.0%",
+        "severity": "low"
+      }
+    ],
+    "bugs": [],
+    "gap_count": 1,
+    "bug_count": 0
+  },
+  "recommendations": [
+    "\ud83c\udfaf NEEDS IMPROVEMENT: Gap of 0.1% to reach 98% target"
+  ]
+}
