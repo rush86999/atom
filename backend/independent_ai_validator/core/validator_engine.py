@@ -661,12 +661,82 @@ class IndependentAIValidator:
                 })
             
             else:
-                # Default evidence for unknown claims
-                evidence.update({
-                    "overall_score": 0.5,
-                    "evidence_strength": "PARTIAL",
-                    "note": "Limited evidence available for this claim"
-                })
+                # Check if this is a claim that needs real-world usage validation
+                real_world_categories = ["project_management", "calendar", "search", "workflows", "overall_readiness", "gaps_and_bugs"]
+                
+                if claim.category in real_world_categories:
+                    logger.info(f"Running real-world usage validation for {claim.category}")
+                    try:
+                        # Initialize real-world usage validator
+                        real_world_validator = RealWorldUsageValidator(self.backend_url)
+                        await real_world_validator.initialize()
+                        
+                        # Run validation scenarios
+                        validation_results = await real_world_validator.validate_real_world_usage_scenarios()
+                        
+                        # Clean up
+                        await real_world_validator.cleanup()
+                        
+                        # Extract relevant results based on claim category
+                        overall_success_rate = validation_results.get("overall_success_rate", 0.0)
+                        workflow_validations = validation_results.get("workflow_validations", [])
+                        
+                        # Map categories to workflow IDs
+                        category_workflow_map = {
+                            "project_management": "ai_workflow_automation",  # Task creation workflows
+                            "calendar": "calendar_management",
+                            "search": "hybrid_search",
+                            "workflows": "ai_workflow_automation"
+                        }
+                        
+                        # Find relevant workflow results
+                        relevant_workflow = category_workflow_map.get(claim.category)
+                        workflow_result = None
+                        if relevant_workflow:
+                            for wf in workflow_validations:
+                                if wf.get("workflow_id") == relevant_workflow:
+                                    workflow_result = wf
+                                    break
+                        
+                        # Determine evidence strength based on success rate
+                        if overall_success_rate >= 0.8:
+                            strength = "STRONG"
+                        elif overall_success_rate >= 0.6:
+                            strength = "MODERATE"
+                        else:
+                            strength = "INSUFFICIENT"
+                        
+                        evidence.update({
+                            "overall_score": overall_success_rate,
+                            "evidence_strength": strength,
+                            "real_world_validation": validation_results,
+                            "workflow_result": workflow_result,
+                            "test_category": "real_world_scenarios",
+                            "workflows_tested": validation_results.get("total_workflows", 0),
+                            "workflows_passed": validation_results.get("successful_workflows", 0),
+                            "performance_metrics": validation_results.get("performance_metrics", {}),
+                            "marketing_claim_validation": validation_results.get("marketing_claim_validation", {})
+                        })
+                        
+                        logger.info(f"Real-world validation complete for {claim.category}: success_rate={overall_success_rate:.2%}")
+                        
+                    except Exception as e:
+                        logger.error(f"Real-world usage validation failed for {claim.category}: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        # Fall back to default evidence
+                        evidence.update({
+                            "overall_score": 0.5,
+                            "evidence_strength": "PARTIAL",
+                            "note": f"Real-world validation failed: {str(e)}"
+                        })
+                else:
+                    # Default evidence for unknown claims
+                    evidence.update({
+                        "overall_score": 0.5,
+                        "evidence_strength": "PARTIAL",
+                        "note": "Limited evidence available for this claim"
+                    })
 
             logger.info(f"Evidence collected for {claim.id}: score={evidence.get('overall_score', 0):.2f}")
 

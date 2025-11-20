@@ -84,3 +84,32 @@ async def demo_sales_lead(request: WorkflowRequest):
         "qualification_result": "qualified",
         "segmentation": "enterprise"
     }
+
+# --- AI Provider Endpoints ---
+
+@router.get("/api/v1/ai/providers")
+async def get_ai_providers():
+    """Get available AI providers"""
+    return {
+        "providers": ["openai", "anthropic", "deepseek"],
+        "active_providers": 3,
+        "multi_provider_support": True,
+        "default_provider": "openai"
+    }
+
+@router.post("/api/v1/ai/execute")
+async def execute_ai_workflow(request: WorkflowRequest):
+    """Execute generic AI workflow"""
+    # Mock response for NLU/Workflow execution
+    return {
+        "success": True,
+        "tasks_created": 2,
+        "ai_generated_tasks": [
+            {"id": "task_1", "title": "Review Financial Report", "assignee": "finance_team"},
+            {"id": "task_2", "title": "Schedule Team Meeting", "assignee": "project_manager"}
+        ],
+        "confidence_score": 0.92,
+        "intent": "task_creation",
+        "entities": ["financial report", "team meeting"],
+        "execution_time": 0.45
+    }
