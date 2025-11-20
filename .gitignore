@@ -675,3 +675,6 @@ backend/independent_ai_validator/data/credentials.json
 **/credentials.json
 **/credentials.md
 **/.env.local
+backend/token.json
+backend/credentials.json
+backend/REAL_API_INTEGRATION_SUCCESS_20251119.md
