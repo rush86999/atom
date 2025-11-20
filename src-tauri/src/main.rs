@@ -9,44 +9,45 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use tauri::{api::dialog, AppHandle, Manager, Window};
+use tauri::{AppHandle, Manager, Window};
 
-// Enhanced file dialog command
+// Enhanced file dialog command using Tauri v2 plugin
 #[tauri::command]
 async fn open_file_dialog(
+    app: AppHandle,
     filters: Option<Vec<(String, Vec<String>)>>,
 ) -> Result<serde_json::Value, String> {
-    let mut dialog = dialog::blocking::FileDialogBuilder::new();
-
-    // Add default filters if none provided
+    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+    
+    let mut builder = app.dialog().file();
+    
+    // Add filters if provided
     if let Some(filter_list) = filters {
         for (name, extensions) in filter_list {
-            let ext_slices: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
-            dialog = dialog.add_filter(&name, &ext_slices);
+            let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+            builder = builder.add_filter(&name, &ext_refs);
         }
     } else {
-        dialog = dialog
+        // Default filters
+        builder = builder
             .add_filter("All Files", &["*"])
             .add_filter("Text Files", &["txt", "md", "json", "yaml", "yml"])
             .add_filter("Documents", &["pdf", "doc", "docx", "ppt", "pptx"])
             .add_filter("Images", &["jpg", "jpeg", "png", "gif", "svg", "webp"])
-            .add_filter(
-                "Code Files",
-                &[
-                    "js", "ts", "jsx", "tsx", "py", "rs", "go", "java", "cpp", "c", "html", "css",
-                    "scss",
-                ],
-            );
+            .add_filter("Code Files", &["js", "ts", "jsx", "tsx", "py", "rs", "go", "java", "cpp", "c", "html", "css", "scss"]);
     }
-
-    match dialog.pick_file() {
-        Some(path) => Ok(json!({
-            "success": true,
-            "path": path.to_string_lossy().to_string(),
-            "filename": path.file_name().unwrap_or_default().to_string_lossy().to_string(),
-            "extension": path.extension().map(|ext| ext.to_string_lossy().to_string()).unwrap_or_default(),
-            "size": fs::metadata(&path).ok().map(|meta| meta.len()).unwrap_or(0)
-        })),
+    
+    match builder.blocking_pick_file() {
+        Some(path) => {
+            let path_buf = path.as_path().expect("Failed to get path");
+            Ok(json!({
+                "success": true,
+                "path": path_buf.to_string_lossy().to_string(),
+                "filename": path_buf.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                "extension": path_buf.extension().map(|ext| ext.to_string_lossy().to_string()).unwrap_or_default(),
+                "size": fs::metadata(&path_buf).ok().map(|meta| meta.len()).unwrap_or(0)
+            }))
+        },
         None => Ok(json!({
             "success": false,
             "error": "No file selected"
@@ -54,15 +55,20 @@ async fn open_file_dialog(
     }
 }
 
-// Folder selection command
+// Folder selection command using Tauri v2 plugin
 #[tauri::command]
-async fn open_folder_dialog() -> Result<serde_json::Value, String> {
-    match dialog::blocking::FileDialogBuilder::new().pick_folder() {
-        Some(path) => Ok(json!({
-            "success": true,
-            "path": path.to_string_lossy().to_string(),
-            "name": path.file_name().unwrap_or_default().to_string_lossy().to_string()
-        })),
+async fn open_folder_dialog(app: AppHandle) -> Result<serde_json::Value, String> {
+    use tauri_plugin_dialog::DialogExt;
+    
+    match app.dialog().file().blocking_pick_folder() {
+        Some(path) => {
+            let path_buf = path.as_path().expect("Failed to get path");
+            Ok(json!({
+                "success": true,
+                "path": path_buf.to_string_lossy().to_string(),
+                "name": path_buf.file_name().unwrap_or_default().to_string_lossy().to_string()
+            }))
+        },
         None => Ok(json!({
             "success": false,
             "error": "No folder selected"
@@ -70,36 +76,42 @@ async fn open_folder_dialog() -> Result<serde_json::Value, String> {
     }
 }
 
-// File save dialog command
+// File save dialog command using Tauri v2 plugin
 #[tauri::command]
 async fn save_file_dialog(
+    app: AppHandle,
     default_name: Option<String>,
     filters: Option<Vec<(String, Vec<String>)>>,
 ) -> Result<serde_json::Value, String> {
-    let mut dialog = dialog::blocking::FileDialogBuilder::new();
-
+    use tauri_plugin_dialog::DialogExt;
+    
+    let mut builder = app.dialog().file();
+    
     if let Some(name) = default_name {
-        dialog = dialog.set_file_name(&name);
+        builder = builder.set_file_name(&name);
     }
-
+    
     if let Some(filter_list) = filters {
         for (name, extensions) in filter_list {
-            let ext_slices: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
-            dialog = dialog.add_filter(&name, &ext_slices);
+            let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+            builder = builder.add_filter(&name, &ext_refs);
         }
     } else {
-        dialog = dialog
+        builder = builder
             .add_filter("All Files", &["*"])
             .add_filter("Text Files", &["txt", "md", "json"])
             .add_filter("Code Files", &["js", "ts", "py", "rs", "html", "css"]);
     }
-
-    match dialog.save_file() {
-        Some(path) => Ok(json!({
-            "success": true,
-            "path": path.to_string_lossy().to_string(),
-            "filename": path.file_name().unwrap_or_default().to_string_lossy().to_string()
-        })),
+    
+    match builder.blocking_save_file() {
+        Some(path) => {
+            let path_buf = path.as_path().expect("Failed to get path");
+            Ok(json!({
+                "success": true,
+                "path": path_buf.to_string_lossy().to_string(),
+                "filename": path_buf.file_name().unwrap_or_default().to_string_lossy().to_string()
+            }))
+        },
         None => Ok(json!({
             "success": false,
             "error": "Save cancelled"
@@ -132,7 +144,7 @@ async fn get_system_info() -> Result<serde_json::Value, String> {
         "platform": os,
         "architecture": arch,
         "version": env!("CARGO_PKG_VERSION"),
-        "tauri_version": "1.1.0",
+        "tauri_version": "2.0.0",
         "features": {
             "file_system": true,
             "notifications": true,
@@ -380,10 +392,12 @@ async fn atom_invoke_command(
 // Main entry point
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             // Main invoke command
             atom_invoke_command,
-            // File operations
+            // File operations - NOW ENABLED with Tauri v2 plugin!
             open_file_dialog,
             open_folder_dialog,
             save_file_dialog,
@@ -402,6 +416,7 @@ fn main() {
             println!("   ✅ GitHub");
             println!("   ✅ Notion");
             println!("   💬 Chat Interface");
+            println!("   📁 File Dialogs (Tauri v2)");
 
             // Initialize global state
             app.manage(std::sync::Mutex::new(

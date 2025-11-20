@@ -132,36 +132,62 @@ def _test_hubspot_integration(config: TestConfig) -> Dict[str, Any]:
     }
 
     try:
-        # Mock HubSpot endpoints for testing
-        test_details["details"]["hubspot_connection"] = {
-            "status_code": 200,
-            "connected": True,
-            "portal_info": {
-                "name": "Test Portal",
-                "account_tier": "Professional",
-                "contacts": 5000
+        # Real API calls to backend
+        base_url = config.BACKEND_URL
+
+        # 1. Check Health
+        try:
+            health_response = requests.get(f"{base_url}/api/hubspot/health", timeout=10)
+            test_details["details"]["hubspot_connection"] = {
+                "status_code": health_response.status_code,
+                "connected": health_response.status_code == 200,
+                "response": health_response.json() if health_response.status_code == 200 else health_response.text
             }
-        }
+        except Exception as e:
+            test_details["details"]["hubspot_connection"] = {
+                "status_code": 0,
+                "connected": False,
+                "error": str(e)
+            }
 
-        test_details["details"]["hubspot_contacts"] = {
-            "status_code": 200,
-            "available": True,
-            "total_contacts": 5000,
-            "active_lists": 25,
-            "segments": 8
-        }
+        # 2. Get Stats (Platform Overview)
+        try:
+            stats_response = requests.get(f"{base_url}/api/hubspot/stats", timeout=10)
+            test_details["details"]["hubspot_stats"] = {
+                "status_code": stats_response.status_code,
+                "available": stats_response.status_code == 200,
+                "response": stats_response.json() if stats_response.status_code == 200 else stats_response.text
+            }
+        except Exception as e:
+            test_details["details"]["hubspot_stats"] = {
+                "status_code": 0,
+                "available": False,
+                "error": str(e)
+            }
 
-        test_details["details"]["hubspot_workflows"] = {
-            "status_code": 200,
-            "available": True,
-            "workflow_count": 12,
-            "automated_emails": 50000,
-            "conversion_rate": 0.12
-        }
+        # 3. List Contacts (Data Access)
+        try:
+            contacts_response = requests.get(f"{base_url}/api/hubspot/contacts?limit=5", timeout=10)
+            test_details["details"]["hubspot_contacts"] = {
+                "status_code": contacts_response.status_code,
+                "available": contacts_response.status_code == 200,
+                "response": contacts_response.json() if contacts_response.status_code == 200 else contacts_response.text
+            }
+        except Exception as e:
+            test_details["details"]["hubspot_contacts"] = {
+                "status_code": 0,
+                "available": False,
+                "error": str(e)
+            }
 
         # Determine test status
-        if test_details["details"]["hubspot_connection"]["connected"]:
+        # Pass if health check returns 200. 
+        # Note: Contacts might fail 401 if not authenticated, but we want to verify the endpoint exists and is reachable.
+        # Ideally, we want at least health to be 200.
+        if test_details["details"]["hubspot_connection"].get("status_code") == 200:
             test_details["status"] = "passed"
+        else:
+            test_details["status"] = "failed"
 
     except Exception as e:
         test_details["details"]["error"] = str(e)

@@ -41,13 +41,6 @@
     "core:window:allow-start-dragging",
     "core:webview:allow-print",
     "shell:allow-execute",
-    "shell:allow-open",
-    "dialog:allow-open",
-    "dialog:allow-save",
-    "dialog:allow-message",
-    "dialog:allow-ask",
-    "dialog:allow-confirm",
-    "http:default",
-    "notification:default"
+    "shell:allow-open"
   ]
 }
