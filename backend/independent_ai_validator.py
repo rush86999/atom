@@ -88,12 +88,12 @@ class IndependentValidatorCLI:
             report_file = f"independent_ai_validation_report_{timestamp}.{output_format}"
 
             if output_format == "json":
-                with open(report_file, 'w') as f:
+                with open(report_file, 'w', encoding='utf-8') as f:
                     f.write(report_data)
             else:
                 # Generate markdown report
                 markdown_report = self.generate_markdown_report(report)
-                with open(f"independent_ai_validation_report_{timestamp}.md", 'w') as f:
+                with open(f"independent_ai_validation_report_{timestamp}.md", 'w', encoding='utf-8') as f:
                     f.write(markdown_report)
                 report_file = f"independent_ai_validation_report_{timestamp}.md"
 
