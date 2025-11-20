@@ -21,26 +21,38 @@ from utils.llm_verifier import LLMVerifier
 class BusinessOutcomeTestRunner:
     """Runner for business-focused validation tests"""
 
+
     def __init__(self):
         print("Initializing Business Outcome Test Runner...")
 
-        # DeepSeek Configuration
-        api_key = "sk-2bff7e7132634a44a4867e74d8938870"
+        # DeepSeek Configuration - Read from environment
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        if not api_key:
+            print("WARNING: DEEPSEEK_API_KEY not found in environment. Business validation will be limited.")
+        
         base_url = "https://api.deepseek.com"
         model = "deepseek-chat"
 
         try:
-            self.business_validator = BusinessOutcomeValidator(api_key=api_key, base_url=base_url, model=model)
-            self.business_validator_available = True
-            print("Business Outcome Validator: Available (DeepSeek)")
+            if api_key:
+                self.business_validator = BusinessOutcomeValidator(api_key=api_key, base_url=base_url, model=model)
+                self.business_validator_available = True
+                print("Business Outcome Validator: Available (DeepSeek)")
+            else:
+                self.business_validator_available = False
+                print("Business Outcome Validator: Unavailable - No API key")
         except Exception as e:
             print(f"Business Outcome Validator: Unavailable - {e}")
             self.business_validator_available = False
 
         try:
-            self.llm_verifier = LLMVerifier(api_key=api_key, base_url=base_url, model=model)
-            self.llm_verifier_available = True
-            print("LLM Verifier: Available (DeepSeek)")
+            if api_key:
+                self.llm_verifier = LLMVerifier(api_key=api_key, base_url=base_url, model=model)
+                self.llm_verifier_available = True
+                print("LLM Verifier: Available (DeepSeek)")
+            else:
+                self.llm_verifier_available = False
+                print("LLM Verifier: Unavailable - No API key")
         except Exception as e:
             print(f"LLM Verifier: Unavailable - {e}")
             self.llm_verifier_available = False
