@@ -353,6 +353,26 @@ except ImportError as e:
     ZOOM_AVAILABLE = False
     zoom_router = None
 
+# Import HubSpot integration
+try:
+    from integrations.hubspot_routes import router as hubspot_router
+
+    HUBSPOT_AVAILABLE = True
+except ImportError as e:
+    print(f"HubSpot integration not available: {e}")
+    HUBSPOT_AVAILABLE = False
+    hubspot_router = None
+
+# Import Salesforce integration
+try:
+    from integrations.salesforce_routes import router as salesforce_router
+
+    SALESFORCE_AVAILABLE = True
+except ImportError as e:
+    print(f"Salesforce integration not available: {e}")
+    SALESFORCE_AVAILABLE = False
+    salesforce_router = None
+
 # Import Enhanced AI Workflow endpoints
 try:
     from enhanced_ai_workflow_endpoints import router as enhanced_ai_router
@@ -659,6 +679,20 @@ if ZOOM_AVAILABLE and zoom_router:
     print("[OK] Zoom integration routes loaded")
 else:
     print("[WARN] Zoom integration routes not available")
+
+# Include HubSpot API routes
+if HUBSPOT_AVAILABLE and hubspot_router:
+    app.include_router(hubspot_router)
+    print("[OK] HubSpot integration routes loaded")
+else:
+    print("[WARN] HubSpot integration routes not available")
+
+# Include Salesforce API routes
+if SALESFORCE_AVAILABLE and salesforce_router:
+    app.include_router(salesforce_router)
+    print("[OK] Salesforce integration routes loaded")
+else:
+    print("[WARN] Salesforce integration routes not available")
 
 # Include GitHub integration routes if available
 try:

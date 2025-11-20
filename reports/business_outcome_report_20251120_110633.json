@@ -1,0 +1,153 @@
+{
+  "overall_status": "PASSED",
+  "total_tests": 5,
+  "passed_tests": 4,
+  "business_outcomes_verified": 4,
+  "business_readiness": "Ready",
+  "duration_seconds": 19.65028,
+  "test_results": [
+    {
+      "test_name": "employee_onboarding_roi",
+      "status": "passed",
+      "business_score": 7.9375,
+      "annual_roi": 293.75,
+      "annual_value": 31500.0,
+      "business_outcome_verified": true,
+      "details": {
+        "workflow_name": "Employee Onboarding Automation",
+        "time_metrics": {
+          "minutes_saved_per_run": 210,
+          "hours_saved_per_run": 3.5,
+          "monthly_frequency": 10,
+          "total_hours_saved_monthly": 35.0,
+          "total_hours_saved_annually": 420.0
+        },
+        "financial_metrics": {
+          "hourly_rate": 75.0,
+          "value_per_run": 262.5,
+          "monthly_value": 2625.0,
+          "annual_value": 31500.0,
+          "implementation_cost": 8000
+        },
+        "roi_metrics": {
+          "monthly_roi_percent": -67.1875,
+          "annual_roi_percent": 293.75,
+          "payback_period_months": 3.0476190476190474,
+          "profit_first_year": 23500.0
+        },
+        "business_value_score": 7.9375,
+        "recommendation": "Excellent ROI - prioritize deployment"
+      }
+    },
+    {
+      "test_name": "cross_platform_productivity",
+      "status": "passed",
+      "business_score": 7.8,
+      "annual_value": 13650.0,
+      "business_outcome_verified": true,
+      "details": {
+        "business_value_score": 7.8,
+        "monthly_value_estimate": "$1,200-$1,800 monthly value per project manager",
+        "scalability_recommendation": "Yes, scale across all project management roles with phased implementation and training",
+        "key_business_benefits": [
+          "87.5% reduction in administrative time (3.5 hours saved weekly)",
+          "33.3% increase in task completion capacity",
+          "66.7% reduction in reporting errors",
+          "Improved data accuracy and decision-making quality",
+          "Enhanced manager focus on strategic vs. administrative work"
+        ],
+        "deployment_priority": "High",
+        "user_scenario": "Project manager automating weekly status reporting",
+        "time_period_days": 7,
+        "productivity_metrics": {
+          "task_completion_increase_pct": 33.33333333333333,
+          "time_reduction_pct": 87.5,
+          "error_reduction_pct": 66.66666666666666,
+          "efficiency_score": 62.5
+        }
+      }
+    },
+    {
+      "test_name": "multi_department_roi",
+      "status": "passed",
+      "avg_business_score": 6.534999999999999,
+      "total_annual_value": 82980.0,
+      "overall_roi": 151.45454545454547,
+      "business_outcome_verified": true,
+      "department_results": [
+        {
+          "department": "HR Department",
+          "business_score": 5.95,
+          "annual_roi": 95.0,
+          "annual_value": 23400.0
+        },
+        {
+          "department": "Sales Operations",
+          "business_score": 6.805,
+          "annual_roi": 180.5,
+          "annual_value": 16830.0
+        },
+        {
+          "department": "IT Operations",
+          "business_score": 6.85,
+          "annual_roi": 185.0,
+          "annual_value": 42750.0
+        }
+      ]
+    },
+    {
+      "test_name": "overall_business_value",
+      "status": "passed",
+      "platform_score": 7.8,
+      "business_outcome_verified": true,
+      "feature_results": [
+        {
+          "feature": "Workflow Automation Platform",
+          "business_score": 7.8,
+          "investment_recommendation": "Invest",
+          "validation": {
+            "business_value_score": 7.8,
+            "annual_cost_savings": "$300,000",
+            "revenue_impact": "Indirect revenue protection through error reduction and efficiency gains",
+            "competitive_advantage": "Significant operational efficiency and error reduction in cross-platform workflows",
+            "investment_recommendation": "Invest",
+            "target_market_size": "Medium to large enterprises (500+ employees) undergoing digital transformation",
+            "key_business_benefits": [
+              "Eliminates $300K in annual operational costs",
+              "85% reduction in workflow errors and rework",
+              "75% productivity increase in automated processes",
+              "High user satisfaction (9.2/10) driving adoption",
+              "Cross-platform coordination eliminates manual handoffs"
+            ],
+            "roi_months_estimate": "4 months",
+            "feature_name": "Workflow Automation Platform",
+            "business_signals": {
+              "workflow_automation_detected": true,
+              "cross_platform_coordination": true,
+              "time_saving_features": true,
+              "error_reduction_features": true,
+              "productivity_gains": false,
+              "scalability_indicators": false
+            },
+            "validation_timestamp": "2025-11-20T11:06:28.631494"
+          }
+        }
+      ]
+    },
+    {
+      "test_name": "test_feature_specific_value",
+      "status": "error",
+      "error": "'charmap' codec can't encode character '\\u274c' in position 3: character maps to <undefined>",
+      "business_outcome_verified": false
+    }
+  ],
+  "executive_summary": {
+    "recommendation": "DEPLOY",
+    "confidence_level": "80%",
+    "key_benefits": [
+      "Time savings",
+      "Cost reduction",
+      "Productivity gains"
+    ]
+  }
+}

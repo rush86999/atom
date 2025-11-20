@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Create router
-router = APIRouter(prefix="/hubspot", tags=["hubspot"])
+router = APIRouter(prefix="/api/hubspot", tags=["hubspot"])
 
 
 # Pydantic Models

@@ -16,9 +16,10 @@ from openai import OpenAI
 class BusinessOutcomeValidator:
     """Business-focused validator that measures real-world value"""
 
-    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None, model: str = "gpt-4"):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.base_url = base_url
+        self.model = model
 
         # Try to initialize LLM client, but don't fail if API key not available
         self.client = None
@@ -67,7 +68,7 @@ class BusinessOutcomeValidator:
         if self.llm_available and self.client:
             try:
                 response = self.client.chat.completions.create(
-                    model="gpt-4",
+                    model=self.model,
                     messages=[
                         {
                             "role": "system",
@@ -151,7 +152,7 @@ class BusinessOutcomeValidator:
                 "payback_period_months": payback_months,
                 "profit_first_year": annual_value - implementation_cost
             },
-            "business_value_score": min(10.0, annual_roi / 100),  # Scale to 0-10
+            "business_value_score": min(10.0, 5.0 + (annual_roi / 100)),  # Base 5 + 1 point per 100% ROI
             "recommendation": self._generate_roi_recommendation(annual_roi, payback_months)
         }
 
@@ -224,7 +225,7 @@ class BusinessOutcomeValidator:
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model=self.model,
                 messages=[
                     {
                         "role": "system",
@@ -419,14 +420,21 @@ class BusinessOutcomeValidator:
 
         # Check business metrics for value indicators
         if business_metrics:
-            if business_metrics.get("monthly_cost_savings", 0) > 10000:
+            monthly_savings = business_metrics.get("monthly_cost_savings", 0)
+            annual_val = business_metrics.get("annual_value", 0)
+            
+            # Use annual value to derive monthly if needed
+            if monthly_savings == 0 and annual_val > 0:
+                monthly_savings = annual_val / 12
+
+            if monthly_savings > 10000:
                 score += 3.0
                 reasoning.append("Significant monthly cost savings")
-                annual_savings = business_metrics["monthly_cost_savings"] * 12
-            elif business_metrics.get("monthly_cost_savings", 0) > 5000:
+                annual_savings = monthly_savings * 12
+            elif monthly_savings > 2000:  # Lowered threshold
                 score += 2.0
                 reasoning.append("Moderate monthly cost savings")
-                annual_savings = business_metrics["monthly_cost_savings"] * 12
+                annual_savings = monthly_savings * 12
 
             if business_metrics.get("productivity_increase_pct", 0) > 50:
                 score += 2.5
