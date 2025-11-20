@@ -31,31 +31,48 @@ except (ImportError, Exception) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
     print(f"Sentence transformers not available: {e}")
 
+# Import OpenAI for embeddings
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except (ImportError, Exception) as e:
+    OPENAI_AVAILABLE = False
+    print(f"OpenAI not available: {e}")
+
 logger = logging.getLogger(__name__)
 
 class LanceDBHandler:
     """LanceDB vector database handler"""
     
-    def __init__(self, db_path: str = "./data/atom_memory", 
+    def __init__(self, db_path: str = None, 
+                 embedding_provider: str = "local",
                  embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
-        self.db_path = db_path
-        self.embedding_model = embedding_model
+        
+        # Determine DB path (S3 or local)
+        self.db_path = db_path or os.getenv("LANCEDB_URI", "./data/atom_memory")
+        
+        # Embedding configuration
+        self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", embedding_provider)
+        self.embedding_model = os.getenv("EMBEDDING_MODEL", embedding_model)
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        
         self.db = None
         self.embedder = None
+        self.openai_client = None
         
         # Initialize LanceDB if available
         if LANCEDB_AVAILABLE:
             self._initialize_db()
         
-        # Initialize embedder if available
-        if SENTENCE_TRANSFORMERS_AVAILABLE:
-            self._initialize_embedder()
+        # Initialize embedder
+        self._initialize_embedder()
     
     def _initialize_db(self):
         """Initialize LanceDB connection"""
         try:
-            # Create directory if it doesn't exist
-            Path(self.db_path).mkdir(parents=True, exist_ok=True)
+            # Handle local path creation
+            if not self.db_path.startswith("s3://"):
+                Path(self.db_path).mkdir(parents=True, exist_ok=True)
             
             # Connect to database
             self.db = lancedb.connect(self.db_path)
@@ -66,14 +83,31 @@ class LanceDBHandler:
             self.db = None
     
     def _initialize_embedder(self):
-        """Initialize sentence transformer embedder"""
+        """Initialize embedding provider"""
         try:
-            self.embedder = SentenceTransformer(self.embedding_model)
-            logger.info(f"Embedding model loaded: {self.embedding_model}")
+            if self.embedding_provider == "openai" and OPENAI_AVAILABLE:
+                if not self.openai_api_key:
+                    logger.warning("OpenAI API key not found, falling back to local embeddings")
+                    self.embedding_provider = "local"
+                    self._init_local_embedder()
+                else:
+                    self.openai_client = OpenAI(api_key=self.openai_api_key)
+                    logger.info("OpenAI embeddings initialized")
+            else:
+                self._init_local_embedder()
+                
         except Exception as e:
             logger.error(f"Failed to initialize embedder: {e}")
             self.embedder = None
-    
+
+    def _init_local_embedder(self):
+        """Initialize local sentence transformer"""
+        if SENTENCE_TRANSFORMERS_AVAILABLE:
+            self.embedder = SentenceTransformer(self.embedding_model)
+            logger.info(f"Local embedding model loaded: {self.embedding_model}")
+        else:
+            logger.error("Sentence transformers not available for local embeddings")
+
     def test_connection(self) -> Dict[str, Any]:
         """Test LanceDB connection"""
         if not LANCEDB_AVAILABLE:
@@ -98,7 +132,8 @@ class LanceDBHandler:
                 "message": "LanceDB connection successful",
                 "connected": True,
                 "tables": tables,
-                "db_path": self.db_path
+                "db_path": self.db_path,
+                "embedding_provider": self.embedding_provider
             }
             
         except Exception as e:
@@ -119,6 +154,10 @@ class LanceDBHandler:
         try:
             # Create schema if not provided
             if schema is None:
+                # Adjust vector size for OpenAI
+                if self.embedding_provider == "openai":
+                    vector_size = 1536
+                
                 schema = {
                     "id": str,
                     "text": str,
@@ -129,8 +168,8 @@ class LanceDBHandler:
                 }
             
             # Create table
-            table = self.db.create_table(table_name, schema=schema)
-            logger.info(f"Table '{table_name}' created successfully")
+            table = self.db.create_table(table_name, schema=schema, exist_ok=True)
+            logger.info(f"Table '{table_name}' created/accessed successfully")
             return table
             
         except Exception as e:
@@ -147,7 +186,6 @@ class LanceDBHandler:
             if table_name in self.db.table_names():
                 return self.db.open_table(table_name)
             else:
-                logger.warning(f"Table '{table_name}' does not exist")
                 return None
                 
         except Exception as e:
@@ -161,8 +199,9 @@ class LanceDBHandler:
             return False
         
         try:
-            self.db.drop_table(table_name)
-            logger.info(f"Table '{table_name}' dropped successfully")
+            if table_name in self.db.table_names():
+                self.db.drop_table(table_name)
+                logger.info(f"Table '{table_name}' dropped successfully")
             return True
             
         except Exception as e:
@@ -170,15 +209,22 @@ class LanceDBHandler:
             return False
     
     def embed_text(self, text: str) -> Optional[np.ndarray]:
-        """Embed text using sentence transformer"""
-        if not self.embedder:
-            logger.error("Embedder not initialized")
-            return None
-        
+        """Embed text using configured provider"""
         try:
-            embedding = self.embedder.encode(text, convert_to_numpy=True)
-            return embedding
+            if self.embedding_provider == "openai" and self.openai_client:
+                response = self.openai_client.embeddings.create(
+                    input=text,
+                    model="text-embedding-3-small"
+                )
+                return np.array(response.data[0].embedding)
             
+            elif self.embedder:
+                return self.embedder.encode(text, convert_to_numpy=True)
+            
+            else:
+                logger.error("No embedding provider available")
+                return None
+                
         except Exception as e:
             logger.error(f"Failed to embed text: {e}")
             return None
@@ -186,13 +232,12 @@ class LanceDBHandler:
     def add_document(self, table_name: str, text: str, source: str = "",
                     metadata: Dict[str, Any] = None, doc_id: str = None) -> bool:
         """Add a document to the vector database"""
-        if not self.db or not self.embedder:
+        if not self.db:
             return False
         
         try:
             table = self.get_table(table_name)
             if not table:
-                # Create table if it doesn't exist
                 table = self.create_table(table_name)
                 if not table:
                     return False
@@ -209,15 +254,12 @@ class LanceDBHandler:
             if metadata is None:
                 metadata = {}
             
-            # Convert metadata to JSON string
-            metadata_json = json.dumps(metadata)
-            
             # Create record
             record = {
                 "id": doc_id,
                 "text": text,
                 "source": source,
-                "metadata": metadata_json,
+                "metadata": json.dumps(metadata),
                 "created_at": datetime.utcnow().isoformat(),
                 "vector": embedding.tolist()
             }
@@ -233,7 +275,7 @@ class LanceDBHandler:
     
     def add_documents_batch(self, table_name: str, documents: List[Dict[str, Any]]) -> int:
         """Add multiple documents in batch"""
-        if not self.db or not self.embedder:
+        if not self.db:
             return 0
         
         try:
@@ -281,7 +323,7 @@ class LanceDBHandler:
     def search(self, table_name: str, query: str, limit: int = 10,
               filter_expression: str = None) -> List[Dict[str, Any]]:
         """Search for similar documents"""
-        if not self.db or not self.embedder:
+        if not self.db:
             return []
         
         try:
@@ -316,7 +358,7 @@ class LanceDBHandler:
                         "source": row['source'],
                         "metadata": metadata,
                         "created_at": row['created_at'],
-                        "score": row.get('_distance', 0.0)
+                        "score": 1.0 - row.get('_distance', 0.0) # Convert distance to similarity score
                     }
                     results_list.append(result)
                 except Exception as e:
@@ -328,165 +370,10 @@ class LanceDBHandler:
         except Exception as e:
             logger.error(f"Failed to search in '{table_name}': {e}")
             return []
-    
-    def get_document(self, table_name: str, doc_id: str) -> Optional[Dict[str, Any]]:
-        """Get a specific document by ID"""
-        if not self.db:
-            return None
-        
-        try:
-            table = self.get_table(table_name)
-            if not table:
-                return None
-            
-            # Query by ID
-            results = table.search().where(f"id = '{doc_id}'").limit(1).to_pandas()
-            
-            if len(results) == 0:
-                return None
-            
-            # Convert to dictionary
-            row = results.iloc[0]
-            metadata = json.loads(row['metadata']) if row['metadata'] else {}
-            
-            return {
-                "id": row['id'],
-                "text": row['text'],
-                "source": row['source'],
-                "metadata": metadata,
-                "created_at": row['created_at']
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to get document {doc_id} from '{table_name}': {e}")
-            return None
-    
-    def delete_document(self, table_name: str, doc_id: str) -> bool:
-        """Delete a document by ID"""
-        if not self.db:
-            return False
-        
-        try:
-            table = self.get_table(table_name)
-            if not table:
-                return False
-            
-            # Delete by ID
-            table.delete(f"id = '{doc_id}'")
-            logger.info(f"Document {doc_id} deleted from '{table_name}'")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to delete document {doc_id} from '{table_name}': {e}")
-            return False
-    
-    def get_table_stats(self, table_name: str) -> Dict[str, Any]:
-        """Get table statistics"""
-        if not self.db:
-            return {}
-        
-        try:
-            table = self.get_table(table_name)
-            if not table:
-                return {}
-            
-            # Get count
-            count = len(table)
-            
-            # Get sources
-            results = table.search().select(['source']).to_pandas()
-            sources = results['source'].value_counts().to_dict()
-            
-            return {
-                "table_name": table_name,
-                "document_count": count,
-                "sources": sources,
-                "db_path": self.db_path
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to get stats for '{table_name}': {e}")
-            return {}
-    
-    def list_tables(self) -> List[str]:
-        """List all tables"""
-        if not self.db:
-            return []
-        
-        try:
-            return self.db.table_names()
-        except Exception as e:
-            logger.error(f"Failed to list tables: {e}")
-            return []
-    
-    def optimize_table(self, table_name: str) -> bool:
-        """Optimize table for better search performance"""
-        if not self.db:
-            return False
-        
-        try:
-            table = self.get_table(table_name)
-            if not table:
-                return False
-            
-            # Optimize index
-            table.create_index()
-            logger.info(f"Table '{table_name}' optimized")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to optimize table '{table_name}': {e}")
-            return False
-    
-    def backup_table(self, table_name: str, backup_path: str) -> bool:
-        """Backup table to file"""
-        if not self.db:
-            return False
-        
-        try:
-            table = self.get_table(table_name)
-            if not table:
-                return False
-            
-            # Export table
-            df = table.to_pandas()
-            df.to_parquet(backup_path, index=False)
-            
-            logger.info(f"Table '{table_name}' backed up to {backup_path}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to backup table '{table_name}': {e}")
-            return False
-    
-    def restore_table(self, table_name: str, backup_path: str) -> bool:
-        """Restore table from backup file"""
-        if not self.db:
-            return False
-        
-        try:
-            # Load backup
-            df = pd.read_parquet(backup_path)
-            
-            # Drop existing table if it exists
-            if table_name in self.db.table_names():
-                self.db.drop_table(table_name)
-            
-            # Create new table
-            table = self.create_table(table_name)
-            if not table:
-                return False
-            
-            # Insert data
-            records = df.to_dict('records')
-            table.add(records)
-            
-            logger.info(f"Table '{table_name}' restored from {backup_path}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to restore table '{table_name}': {e}")
-            return False
+
+    def seed_mock_data(self, documents: List[Dict[str, Any]]) -> int:
+        """Seed mock data for validation"""
+        return self.add_documents_batch("documents", documents)
 
 # Global instance for easy access
 lancedb_handler = LanceDBHandler()
