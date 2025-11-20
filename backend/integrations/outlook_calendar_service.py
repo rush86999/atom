@@ -1,6 +1,7 @@
 """
 Outlook Calendar Real API Integration Service
 Provides real Microsoft Graph API access for event management and conflict detection
+Uses delegated permissions with device code flow (no admin consent required)
 """
 
 import os
@@ -9,7 +10,8 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta, timezone
 import aiohttp
 import asyncio
-from msal import ConfidentialClientApplication
+import json
+from msal import PublicClientApplication
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -25,41 +27,84 @@ class OutlookCalendarService:
     """Service for real Outlook/Microsoft Graph Calendar API interactions"""
     
     def __init__(self):
-        """Initialize Outlook Calendar service"""
+        """Initialize Outlook Calendar service with delegated permissions"""
         self.client_id = os.getenv("OUTLOOK_CLIENT_ID")
-        self.client_secret = os.getenv("OUTLOOK_CLIENT_SECRET")
         self.tenant_id = os.getenv("OUTLOOK_TENANT_ID", "common")
         self.access_token = None
         self.token_expiry = None
         self.app = None
+        self.token_cache_file = Path(__file__).parent.parent.parent / '.outlook_token_cache.json'
         
         # Microsoft Graph API endpoints
         self.authority = f"https://login.microsoftonline.com/{self.tenant_id}"
         self.graph_url = "https://graph.microsoft.com/v1.0"
-        self.scopes = ["https://graph.microsoft.com/.default"]
+        # Delegated permissions (user consent, no admin required)
+        self.scopes = ["Calendars.ReadWrite", "User.Read"]
+        
+    def _load_token_cache(self) -> Dict:
+        """Load cached token if available"""
+        if self.token_cache_file.exists():
+            try:
+                with open(self.token_cache_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load token cache: {e}")
+        return {}
+    
+    def _save_token_cache(self, cache_data: Dict):
+        """Save token to cache for future use"""
+        try:
+            with open(self.token_cache_file, 'w') as f:
+                json.dump(cache_data, f)
+            logger.info("✅ Token cached successfully")
+        except Exception as e:
+            logger.warning(f"Failed to save token cache: {e}")
         
     def authenticate(self) -> bool:
-        """Authenticate with Microsoft Graph API using client credentials flow"""
+        """Authenticate with Microsoft Graph API using delegated permissions (device code flow)"""
         try:
-            if not self.client_id or not self.client_secret:
-                logger.error("Missing Outlook credentials (OUTLOOK_CLIENT_ID or OUTLOOK_CLIENT_SECRET)")
+            if not self.client_id:
+                logger.error("Missing Outlook credentials (OUTLOOK_CLIENT_ID)")
                 return False
             
-            # Create MSAL confidential client app
-            self.app = ConfidentialClientApplication(
+            # Create MSAL public client app (no secret needed for delegated permissions)
+            self.app = PublicClientApplication(
                 client_id=self.client_id,
-                client_credential=self.client_secret,
                 authority=self.authority
             )
             
-            # Acquire token using client credentials flow
-            result = self.app.acquire_token_for_client(scopes=self.scopes)
+            # Try to get token from cache first
+            accounts = self.app.get_accounts()
+            if accounts:
+                logger.info("Found cached account, attempting silent authentication...")
+                result = self.app.acquire_token_silent(self.scopes, account=accounts[0])
+                if result and "access_token" in result:
+                    self.access_token = result["access_token"]
+                    self.token_expiry = datetime.now() + timedelta(seconds=result.get("expires_in", 3600))
+                    logger.info("✅ Outlook Calendar authenticated via cached token")
+                    return True
+            
+            # No cached token, use device code flow
+            logger.info("No cached token found, initiating device code flow...")
+            flow = self.app.initiate_device_flow(scopes=self.scopes)
+            
+            if "user_code" not in flow:
+                raise ValueError("Failed to create device flow")
+            
+            # Display user instructions
+            print("\n" + "="*60)
+            print("🔐 OUTLOOK AUTHENTICATION REQUIRED")
+            print("="*60)
+            print(flow["message"])
+            print("="*60 + "\n")
+            
+            # Wait for user to complete authentication
+            result = self.app.acquire_token_by_device_flow(flow)
             
             if "access_token" in result:
                 self.access_token = result["access_token"]
-                # Token typically expires in 3600 seconds
                 self.token_expiry = datetime.now() + timedelta(seconds=result.get("expires_in", 3600))
-                logger.info("✅ Outlook Calendar service authenticated successfully")
+                logger.info("✅ Outlook Calendar service authenticated successfully via device code")
                 return True
             else:
                 error = result.get("error_description", result.get("error", "Unknown error"))
