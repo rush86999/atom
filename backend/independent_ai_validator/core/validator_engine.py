@@ -393,6 +393,8 @@ class IndependentAIValidator:
                 logger.info(f"Claim {claim_id} validated with score: {result.overall_score:.2%}")
             except Exception as e:
                 logger.error(f"Failed to validate claim {claim_id}: {str(e)}")
+                import traceback
+                logger.error(f"Full traceback: {traceback.format_exc()}")
                 # Create error result
                 claim = self.claims_database[claim_id]
                 results[claim_id] = ValidationResult(
@@ -918,16 +920,16 @@ class IndependentAIValidator:
                     "validation": {
                         "content": validation_response.content,
                         "confidence": validation_response.confidence,
-                        "reasoning": validation_response.reasoning,
-                        "metadata": getattr(validation_response, 'metadata', {}),
+                        "reasoning": {"text": validation_response.reasoning} if isinstance(validation_response.reasoning, str) else validation_response.reasoning,
+                        "metadata": getattr(validation_response, 'metadata', {}) if not isinstance(getattr(validation_response, 'metadata', {}), str) else {},
                         "response_time": validation_response.response_time,
                         "tokens_used": validation_response.tokens_used
                     },
                     "evidence_analysis": {
                         "content": evidence_response.content,
                         "confidence": evidence_response.confidence,
-                        "reasoning": getattr(evidence_response, 'reasoning', ''),
-                        "metadata": getattr(evidence_response, 'metadata', {}),
+                        "reasoning": {"text": getattr(evidence_response, 'reasoning', '')} if isinstance(getattr(evidence_response, 'reasoning', ''), str) else getattr(evidence_response, 'reasoning', {}),
+                        "metadata": getattr(evidence_response, 'metadata', {}) if not isinstance(getattr(evidence_response, 'metadata', {}), str) else {},
                         "response_time": evidence_response.response_time,
                         "tokens_used": evidence_response.tokens_used
                     }

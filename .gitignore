@@ -168,7 +168,7 @@ venv.bak/
 # ATOM application temporary files
 *.log
 tmp/
-data/
+# data/
 integration_test_report_*.json
 .env.development
 .env.postgres
