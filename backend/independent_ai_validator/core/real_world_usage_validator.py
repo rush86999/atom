@@ -24,6 +24,14 @@ except ImportError:
     ASANA_AVAILABLE = False
     asana_real_service = None
 
+try:
+    from backend.integrations.outlook_calendar_service import outlook_calendar_service
+    OUTLOOK_CALENDAR_AVAILABLE = True
+except ImportError:
+    OUTLOOK_CALENDAR_AVAILABLE = False
+    outlook_calendar_service = None
+
+
 class WorkflowValidationResult:
     def __init__(self, workflow_id, workflow_name, success, execution_time, steps_completed, steps_total, error_details, step_details, performance_metrics, functionality_assessment):
         self.workflow_id = workflow_id
@@ -553,9 +561,36 @@ class RealWorldUsageValidator:
 
     async def _create_calendar_event(self, event_data: Dict[str, Any]) -> Any:
         """Create calendar event using real Google Calendar API first, then fallback"""
-        # Handle Outlook mock
+        # Handle Outlook with real API
         if event_data.get("platform") == "outlook":
-            logger.info("Creating mock Outlook event")
+            if OUTLOOK_CALENDAR_AVAILABLE and outlook_calendar_service:
+                try:
+                    # Ensure Outlook Calendar is authenticated
+                    if not outlook_calendar_service.access_token:
+                        outlook_calendar_service.authenticate()
+                    
+                    if outlook_calendar_service.access_token:
+                        # Create event in real Outlook Calendar
+                        result = await outlook_calendar_service.create_event(event_data)
+                        
+                        if result:
+                            logger.info(f"✅ Created real Outlook Calendar event: {result.get('id')}")
+                            return {
+                                "success": True,
+                                "event": result,
+                                "event_id": result.get("id"),
+                                "id": result.get("id"),
+                                "title": result.get("title"),
+                                "platform": "outlook",
+                                "start_time": result.get("start_time"),
+                                "end_time": result.get("end_time"),
+                                "real_api_used": True  # Real Outlook API!
+                            }
+                except Exception as e:
+                    logger.warning(f"Outlook Calendar API failed, using mock: {e}")
+            
+            # Mock fallback if API unavailable or failed
+            logger.info("Creating mock Outlook event (API not available)")
             return {
                 "success": True,
                 "event": {
@@ -567,8 +602,9 @@ class RealWorldUsageValidator:
                 },
                 "event_id": f"outlook_evt_{int(time.time())}",
                 "platform": "outlook",
-                "real_api_used": False  # Mocked for now
+                "real_api_used": False  # Mocked fallback
             }
+
 
         # Try real Google Calendar API first if available
         if GOOGLE_CALENDAR_AVAILABLE:
@@ -641,8 +677,42 @@ class RealWorldUsageValidator:
         }
 
     async def _check_calendar_conflicts(self, conflict_data: Dict[str, Any]) -> Any:
-        """Check calendar conflicts using real Google Calendar API with fallbacks"""
-        # Try real Google Calendar API first if available
+        """Check calendar conflicts using real Outlook or Google Calendar API with fallbacks"""
+        from datetime import datetime, timezone
+        
+        # Parse start and end times early for both APIs
+        start_str = conflict_data.get("start_time", conflict_data.get("start", "")).replace("Z", "+00:00")
+        end_str = conflict_data.get("end_time", conflict_data.get("end", "")).replace("Z", "+00:00")
+        
+        start_time = datetime.fromisoformat(start_str)
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+            
+        end_time = datetime.fromisoformat(end_str)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+        
+        # Check if we need Outlook-specific conflict check
+        if conflict_data.get("platform") == "outlook":
+            if OUTLOOK_CALENDAR_AVAILABLE and outlook_calendar_service:
+                try:
+                    # Ensure Outlook Calendar is authenticated
+                    if not outlook_calendar_service.access_token:
+                        outlook_calendar_service.authenticate()
+                    
+                    if outlook_calendar_service.access_token:
+                        # Use Outlook API for conflict detection
+                        result = await outlook_calendar_service.check_conflicts(start_time, end_time)
+                        
+                        if result.get("success"):
+                            logger.info(f"✅ Checked Outlook Calendar conflicts: {result.get('conflict_count', 0)} found")
+                            result["real_api_used"] = True
+                            result["conflict_detected"] = result.get("has_conflicts", False)
+                            return result
+                except Exception as e:
+                    logger.warning(f"Outlook conflict check failed, falling back: {e}")
+        
+        # Try real Google Calendar API if available (default for non-Outlook platforms)
         if GOOGLE_CALENDAR_AVAILABLE:
             try:
                 # Ensure Google Calendar is authenticated
@@ -650,32 +720,22 @@ class RealWorldUsageValidator:
                     google_calendar_service.authenticate()
                 
                 if google_calendar_service.service:
-                    # Parse start and end times and ensure they are timezone-aware (UTC)
-                    from datetime import datetime, timezone
-                    
-                    start_str = conflict_data.get("start_time", conflict_data.get("start", "")).replace("Z", "+00:00")
-                    end_str = conflict_data.get("end_time", conflict_data.get("end", "")).replace("Z", "+00:00")
-                    
-                    start_time = datetime.fromisoformat(start_str)
-                    if start_time.tzinfo is None:
-                        start_time = start_time.replace(tzinfo=timezone.utc)
-                        
-                    end_time = datetime.fromisoformat(end_str)
-                    if end_time.tzinfo is None:
-                        end_time = end_time.replace(tzinfo=timezone.utc)
-                    
                     # Check for conflicts using real Google Calendar API
                     result = await google_calendar_service.check_conflicts(
                         start_time=start_time,
                         end_time=end_time
                     )
+                    logger.info(f"DEBUG: check_conflicts result: {result}")
                     
                     if result.get("success"):
+                        logger.info(f"✅ Checked Google Calendar conflicts: {result.get('conflict_count', 0)} found")
                         result["real_api_used"] = True
+                        # Add alias for validator expectation
                         result["conflict_detected"] = result.get("has_conflicts", False)
                         return result
             except Exception as e:
                 logger.warning(f"Google Calendar conflict check failed, falling back: {e}")
+
         
         # Fallback to backend endpoints
         endpoints_to_try = [
