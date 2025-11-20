@@ -40,6 +40,24 @@ class UpdateEventRequest(BaseModel):
     platform: Optional[str] = None
     color: Optional[str] = None
 
+class ConflictCheckRequest(BaseModel):
+    start: datetime
+    end: datetime
+    exclude_event_id: Optional[str] = None  # Exclude this event when checking (for updates)
+
+class ConflictingEvent(BaseModel):
+    id: str
+    title: str
+    start: datetime
+    end: datetime
+    platform: str
+
+class ConflictResponse(BaseModel):
+    has_conflicts: bool
+    conflicts: List[ConflictingEvent] = []
+    conflict_count: int = 0
+    message: str
+
 # --- Mock Storage ---
 
 MOCK_EVENTS: List[CalendarEvent] = [
@@ -112,3 +130,42 @@ async def delete_event(event_id: str):
         
     MOCK_EVENTS = [e for e in MOCK_EVENTS if e.id != event_id]
     return {"success": True, "id": event_id}
+
+@router.post("/check-conflicts", response_model=ConflictResponse)
+async def check_conflicts(request: ConflictCheckRequest):
+    """
+    Check for scheduling conflicts with existing events.
+    Business Outcome: Prevent users from double-booking.
+    """
+    conflicts = []
+    
+    for event in MOCK_EVENTS:
+        # Skip the event being updated (if checking for update conflicts)
+        if request.exclude_event_id and event.id == request.exclude_event_id:
+            continue
+            
+        # Check if events overlap
+        # Events overlap if: start1 < end2 AND start2 < end1
+        if request.start < event.end and request.end > event.start:
+            conflicts.append(ConflictingEvent(
+                id=event.id,
+                title=event.title,
+                start=event.start,
+                end=event.end,
+                platform=event.platform
+            ))
+    
+    has_conflicts = len(conflicts) > 0
+    
+    if has_conflicts:
+        conflict_titles = [c.title for c in conflicts]
+        message = f"⚠️ Scheduling conflict detected with {len(conflicts)} event(s): {', '.join(conflict_titles)}"
+    else:
+        message = "✅ No conflicts found - time slot is available"
+    
+    return ConflictResponse(
+        has_conflicts=has_conflicts,
+        conflicts=conflicts,
+        conflict_count=len(conflicts),
+        message=message
+    )

@@ -218,6 +218,50 @@ class RealWorldUsageValidator:
                     "natural_language_processing",
                     "production_ready"
                 ]
+            },
+            "calendar_management": {
+                "name": "Calendar Management Workflow",
+                "description": "Test conflict-free meeting scheduling across platforms",
+                "steps": [
+                    {
+                        "step": 1,
+                        "action": "create_calendar_event",
+                        "input": {
+                            "title": "Team Planning Meeting",
+                            "start": "2025-11-20T14:00:00",
+                            "end": "2025-11-20T15:00:00",
+                            "platform": "google"
+                        },
+                        "expected_outputs": ["event_created", "event_id"],
+                        "next_step": 2
+                    },
+                    {
+                        "step": 2,
+                        "action": "check_calendar_conflicts",
+                        "input": {
+                            "start": "2025-11-20T14:30:00",
+                            "end": "2025-11-20T15:30:00"
+                        },
+                        "expected_outputs": ["has_conflicts", "conflict_detected"],
+                        "next_step": 3
+                    },
+                    {
+                        "step": 3,
+                        "action": "check_available_slot",
+                        "input": {
+                            "start": "2025-11-20T16:00:00",
+                            "end": "2025-11-20T17:00:00"
+                        },
+                        "expected_outputs": ["no_conflicts", "slot_available"],
+                        "next_step": None
+                    }
+                ],
+                "marketing_claim_mapping": [
+                    "unified_calendar_management",
+                    "conflict_detection",
+                    "multi_platform_support",
+                    "production_ready"
+                ]
             }
         }
 
@@ -650,6 +694,50 @@ class RealWorldUsageValidator:
                     "min_confidence_met": confidence >= min_confidence
                 }
 
+            elif step["action"] == "create_calendar_event":
+                # Create calendar event
+                api_result = await self._create_calendar_event(step["input"])
+                result["api_response"] = api_result
+                
+                success_checks = 0
+                if "event_created" in step["expected_outputs"] and isinstance(api_result, dict) and api_result.get("success"):
+                    success_checks += 1
+                if "event_id" in step["expected_outputs"] and isinstance(api_result, dict) and "event" in api_result:
+                    success_checks += 1
+                    # Store event ID for later conflict checks
+                    self.last_calendar_event_id = api_result.get("event", {}).get("id")
+                
+                result["success"] = success_checks >= len([exp for exp in step["expected_outputs"] if exp in ["event_created", "event_id"]])
+                result["outputs"] = api_result
+
+            elif step["action"] == "check_calendar_conflicts":
+                # Check for scheduling conflicts - should find conflicts
+                api_result = await self._check_calendar_conflicts(step["input"])
+                result["api_response"] = api_result
+                
+                success_checks = 0
+                if "has_conflicts" in step["expected_outputs"] and isinstance(api_result, dict) and api_result.get("has_conflicts"):
+                    success_checks += 1
+                if "conflict_detected" in step["expected_outputs"] and isinstance(api_result, dict) and api_result.get("conflict_count", 0) > 0:
+                    success_checks += 1
+                
+                result["success"] = success_checks >= len([exp for exp in step["expected_outputs"] if exp in ["has_conflicts", "conflict_detected"]])
+                result["outputs"] = api_result
+
+            elif step["action"] == "check_available_slot":
+                # Check available slot - should find no conflicts
+                api_result = await self._check_calendar_conflicts(step["input"])
+                result["api_response"] = api_result
+                
+                success_checks = 0
+                if "no_conflicts" in step["expected_outputs"] and isinstance(api_result, dict) and not api_result.get("has_conflicts"):
+                    success_checks += 1
+                if "slot_available" in step["expected_outputs"] and isinstance(api_result, dict) and api_result.get("conflict_count", 1) == 0:
+                    success_checks += 1
+                
+                result["success"] = success_checks >= len([exp for exp in step["expected_outputs"] if exp in ["no_conflicts", "slot_available"]])
+                result["outputs"] = api_result
+
             else:
                 # Unknown step action
                 result["error"] = f"Unknown step action: {step['action']}"
@@ -845,10 +933,39 @@ class RealWorldUsageValidator:
             ) as response:
                 if response.status == 200:
                     return await response.json()
+                return f"Error: HTTP {response.status}"
+        except Exception as e:
+            return f"Error executing AI workflow: {str(e)}"
+
+    async def _create_calendar_event(self, event_data: Dict[str, Any]) -> Any:
+        """Create calendar event using real endpoint"""
+        try:
+            async with self.session.post(
+                f"{self.backend_url}/api/v1/calendar/events",
+                json=event_data,
+                timeout=15
+            ) as response:
+                if response.status in [200, 201]:
+                    return await response.json()
                 else:
                     return f"Error: HTTP {response.status}"
         except Exception as e:
-            return f"Error executing AI workflow: {str(e)}"
+            return f"Error creating calendar event: {str(e)}"
+
+    async def _check_calendar_conflicts(self, conflict_data: Dict[str, Any]) -> Any:
+        """Check calendar conflicts using real endpoint"""
+        try:
+            async with self.session.post(
+                f"{self.backend_url}/api/v1/calendar/check-conflicts",
+                json=conflict_data,
+                timeout=15
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    return f"Error: HTTP {response.status}"
+        except Exception as e:
+            return f"Error checking calendar conflicts: {str(e)}"
 
     async def _assign_tasks_to_team(self, assignment_params: Dict[str, Any]) -> Any:
         """Assign tasks to team members"""
