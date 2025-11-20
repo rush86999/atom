@@ -1,16 +1,21 @@
 """
 Unified Search Endpoints for ATOM Application
-Provides hybrid semantic + keyword search across user documents, meetings, and notes.
+Provides hybrid semantic + keyword search across user documents, meetings, and notes using LanceDB.
 """
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+import logging
+
+from .lancedb_handler import get_lancedb_handler
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/lancedb-search", tags=["search"])
 
-# Mock search data
+# Mock search data for seeding
 MOCK_DOCUMENTS = [
     {
         "id": "doc_1",
@@ -89,6 +94,27 @@ MOCK_DOCUMENTS = [
     }
 ]
 
+# Seed data on module load (for demo/validation purposes)
+try:
+    handler = get_lancedb_handler()
+    # Check if table exists and has data
+    stats = handler.get_table_stats("documents")
+    if not stats or stats.get("document_count", 0) == 0:
+        logger.info("Seeding LanceDB with mock documents...")
+        # Flatten metadata for LanceDB
+        seeded_docs = []
+        for doc in MOCK_DOCUMENTS:
+            doc_copy = doc.copy()
+            # Ensure text field exists for embedding
+            doc_copy["text"] = doc["title"] + "\n" + doc["content"]
+            doc_copy["source"] = doc["source_uri"]
+            seeded_docs.append(doc_copy)
+        
+        handler.seed_mock_data(seeded_docs)
+        logger.info("LanceDB seeding complete.")
+except Exception as e:
+    logger.error(f"Failed to seed LanceDB: {e}")
+
 # Pydantic Models
 class SearchFilters(BaseModel):
     doc_type: List[str] = Field(default_factory=list)
@@ -125,117 +151,84 @@ class SuggestionsResponse(BaseModel):
     success: bool
     suggestions: List[str]
 
-def calculate_similarity_score(query: str, document: Dict[str, Any]) -> float:
-    """
-    Mock semantic similarity calculation.
-    In production, this would use vector embeddings and cosine similarity.
-    """
-    query_lower = query.lower()
-    content_lower = (document["title"] + " " + document["content"]).lower()
-    
-    # Simple keyword matching as a proxy for semantic similarity
-    query_words = set(query_lower.split())
-    content_words = set(content_lower.split())
-    
-    if not query_words:
-        return 0.0
-    
-    # Calculate overlap
-    overlap = len(query_words.intersection(content_words))
-    score = min(overlap / len(query_words), 1.0)
-    
-    # Boost score if query appears in title
-    if query_lower in document["title"].lower():
-        score = min(score + 0.3, 1.0)
-    
-    return score
-
-def calculate_keyword_score(query: str, document: Dict[str, Any]) -> float:
-    """Simple keyword-based scoring"""
-    query_lower = query.lower()
-    content = (document["title"] + " " + document["content"]).lower()
-    
-    # Count occurrences
-    count = content.count(query_lower)
-    
-    # Normalize by length
-    score = min(count * 0.2, 1.0)
-    
-    return score
-
-def apply_filters(documents: List[Dict[str, Any]], filters: Optional[SearchFilters]) -> List[Dict[str, Any]]:
-    """Apply search filters to documents"""
-    if not filters:
-        return documents
-    
-    filtered = documents
-    
-    # Filter by document type
-    if filters.doc_type:
-        filtered = [d for d in filtered if d["doc_type"] in filters.doc_type]
-    
-    # Filter by tags
-    if filters.tags:
-        filtered = [
-            d for d in filtered 
-            if any(tag in d["metadata"].get("tags", []) for tag in filters.tags)
-        ]
-    
-    return filtered
-
 @router.post("/hybrid", response_model=SearchResponse)
 async def hybrid_search(request: SearchRequest):
     """
-    Perform hybrid search combining semantic and keyword matching.
+    Perform hybrid search combining semantic and keyword matching using LanceDB.
     """
     try:
-        # Apply filters
-        filtered_docs = apply_filters(MOCK_DOCUMENTS, request.filters)
+        handler = get_lancedb_handler()
         
-        # Calculate scores
-        results = []
-        for doc in filtered_docs:
-            similarity_score = calculate_similarity_score(request.query, doc)
-            keyword_score = calculate_keyword_score(request.query, doc)
+        # Construct filter expression if needed
+        filter_expr = None
+        if request.filters:
+            conditions = []
+            if request.filters.doc_type:
+                types = ", ".join([f"'{t}'" for t in request.filters.doc_type])
+                conditions.append(f"doc_type IN ({types})")
+            # Note: Tag filtering would require more complex SQL or post-processing in LanceDB
             
-            # Combine scores based on search type
+            if conditions:
+                filter_expr = " AND ".join(conditions)
+
+        # Perform vector search
+        results = handler.search("documents", request.query, limit=request.limit, filter_expression=filter_expr)
+        
+        search_results = []
+        for res in results:
+            # Reconstruct document structure
+            metadata = res.get("metadata", {})
+            
+            # Calculate scores (LanceDB returns distance, we converted to similarity in handler)
+            similarity_score = res.get("score", 0.0)
+            
+            # Simple keyword score for hybrid simulation (if not using FTS)
+            # In a real production setup, we'd use LanceDB's FTS or a separate index
+            keyword_score = 0.0
+            content_lower = res.get("text", "").lower()
+            query_lower = request.query.lower()
+            if query_lower in content_lower:
+                keyword_score = 0.5 + (0.1 * content_lower.count(query_lower))
+                keyword_score = min(keyword_score, 1.0)
+            
+            # Combine scores
             if request.search_type == "hybrid":
                 combined_score = (similarity_score * 0.7) + (keyword_score * 0.3)
             elif request.search_type == "semantic":
                 combined_score = similarity_score
-            else:  # keyword
+            else: # keyword
                 combined_score = keyword_score
             
-            # Apply minimum score filter
-            min_score = request.filters.min_score if request.filters else 0.5
-            if combined_score >= min_score:
-                results.append(SearchResult(
-                    id=doc["id"],
-                    title=doc["title"],
-                    content=doc["content"],
-                    doc_type=doc["doc_type"],
-                    source_uri=doc["source_uri"],
-                    similarity_score=similarity_score,
-                    keyword_score=keyword_score,
-                    combined_score=combined_score,
-                    metadata=doc["metadata"]
-                ))
+            # Filter by min_score
+            min_score = request.filters.min_score if request.filters else 0.0
+            if combined_score < min_score:
+                continue
+
+            search_results.append(SearchResult(
+                id=res["id"],
+                title=metadata.get("title", "Untitled"),
+                content=res.get("text", ""), # Or truncate/extract snippet
+                doc_type=metadata.get("doc_type", "unknown"),
+                source_uri=res.get("source", ""),
+                similarity_score=similarity_score,
+                keyword_score=keyword_score,
+                combined_score=combined_score,
+                metadata=metadata
+            ))
         
         # Sort by combined score
-        results.sort(key=lambda x: x.combined_score or 0, reverse=True)
-        
-        # Apply limit
-        results = results[:request.limit]
+        search_results.sort(key=lambda x: x.combined_score or 0, reverse=True)
         
         return SearchResponse(
             success=True,
-            results=results,
-            total_count=len(results),
+            results=search_results,
+            total_count=len(search_results),
             query=request.query,
             search_type=request.search_type
         )
     
     except Exception as e:
+        logger.error(f"Search failed: {e}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 @router.get("/suggestions", response_model=SuggestionsResponse)
@@ -248,6 +241,9 @@ async def get_suggestions(
     Get search suggestions based on partial query.
     """
     try:
+        # For suggestions, we can still use the static list + some DB queries if needed
+        # Keeping it simple for now to ensure speed
+        
         query_lower = query.lower()
         
         # Generate suggestions from document titles and common searches
@@ -264,7 +260,8 @@ async def get_suggestions(
             "user authentication"
         ]
         
-        # Add titles that match the query
+        # Add titles from LanceDB if possible (would require a different query type)
+        # For now, we'll stick to the static list + mock titles we know exist
         for doc in MOCK_DOCUMENTS:
             if query_lower in doc["title"].lower():
                 all_suggestions.append(doc["title"])
