@@ -1,0 +1,129 @@
+{
+  "overall_status": "FAILED",
+  "total_tests": 4,
+  "passed_tests": 1,
+  "business_outcomes_verified": 1,
+  "business_readiness": "Needs Improvement",
+  "duration_seconds": 0.000876,
+  "test_results": [
+    {
+      "test_name": "employee_onboarding_roi",
+      "status": "failed",
+      "business_score": 2.9375,
+      "annual_roi": 293.75,
+      "annual_value": 31500.0,
+      "business_outcome_verified": false,
+      "details": {
+        "workflow_name": "Employee Onboarding Automation",
+        "time_metrics": {
+          "minutes_saved_per_run": 210,
+          "hours_saved_per_run": 3.5,
+          "monthly_frequency": 10,
+          "total_hours_saved_monthly": 35.0,
+          "total_hours_saved_annually": 420.0
+        },
+        "financial_metrics": {
+          "hourly_rate": 75.0,
+          "value_per_run": 262.5,
+          "monthly_value": 2625.0,
+          "annual_value": 31500.0,
+          "implementation_cost": 8000
+        },
+        "roi_metrics": {
+          "monthly_roi_percent": -67.1875,
+          "annual_roi_percent": 293.75,
+          "payback_period_months": 3.0476190476190474,
+          "profit_first_year": 23500.0
+        },
+        "business_value_score": 2.9375,
+        "recommendation": "Excellent ROI - prioritize deployment"
+      }
+    },
+    {
+      "test_name": "cross_platform_productivity",
+      "status": "failed",
+      "business_score": 6.25,
+      "annual_value": 13650.0,
+      "business_outcome_verified": false,
+      "details": {
+        "business_value_score": 6.25,
+        "error": "LLM validation failed: 'NoneType' object has no attribute 'chat'",
+        "fallback_used": true
+      }
+    },
+    {
+      "test_name": "multi_department_roi",
+      "status": "failed",
+      "avg_business_score": 1.5350000000000001,
+      "total_annual_value": 82980.0,
+      "overall_roi": 151.45454545454547,
+      "business_outcome_verified": false,
+      "department_results": [
+        {
+          "department": "HR Department",
+          "business_score": 0.95,
+          "annual_roi": 95.0,
+          "annual_value": 23400.0
+        },
+        {
+          "department": "Sales Operations",
+          "business_score": 1.805,
+          "annual_roi": 180.5,
+          "annual_value": 16830.0
+        },
+        {
+          "department": "IT Operations",
+          "business_score": 1.85,
+          "annual_roi": 185.0,
+          "annual_value": 42750.0
+        }
+      ]
+    },
+    {
+      "test_name": "overall_business_value",
+      "status": "passed",
+      "platform_score": 10.0,
+      "business_outcome_verified": true,
+      "feature_results": [
+        {
+          "feature": "Workflow Automation Platform",
+          "business_score": 10.0,
+          "investment_recommendation": "Priority",
+          "validation": {
+            "feature_name": "Workflow Automation Platform",
+            "business_value_score": 10.0,
+            "annual_cost_savings": "$300,000.00",
+            "revenue_impact": "$450,000.00",
+            "competitive_advantage": "Strong",
+            "investment_recommendation": "Priority",
+            "target_market_size": "SMB",
+            "key_business_benefits": [
+              "Significant monthly cost savings",
+              "High productivity increase",
+              "Excellent error reduction",
+              "Workflow automation capability",
+              "Cross-platform coordination"
+            ],
+            "roi_months_estimate": "< 6 months",
+            "validation_method": "Rule-based analysis",
+            "business_signals": {
+              "workflow_automation_detected": true,
+              "cross_platform_coordination": true,
+              "time_saving_features": true,
+              "error_reduction_features": true,
+              "productivity_gains": false,
+              "scalability_indicators": false
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "executive_summary": {
+    "recommendation": "IMPROVE",
+    "confidence_level": "25%",
+    "key_benefits": [
+      "Needs improvement"
+    ]
+  }
+}
