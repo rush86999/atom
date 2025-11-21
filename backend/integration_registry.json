@@ -1,0 +1,1466 @@
+{
+  "total_services": 116,
+  "by_category": {
+    "communication": 34,
+    "crm": 12,
+    "enterprise": 5,
+    "email": 8,
+    "development": 9,
+    "storage": 8,
+    "ai": 7,
+    "other": 7,
+    "project_management": 15,
+    "finance": 6,
+    "industry": 3,
+    "calendar": 2
+  },
+  "services": {
+    "outlook_integration": {
+      "name": "outlook_integration",
+      "file": "backend/integrations/outlook_integration.py",
+      "classes": [
+        "OutlookIntegration"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "email"
+    },
+    "atom_video_ai_service": {
+      "name": "atom_video_ai_service",
+      "file": "backend/integrations/atom_video_ai_service.py",
+      "classes": [
+        "VideoTaskType",
+        "VideoModelType",
+        "VideoFormat"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "ai"
+    },
+    "google_chat_enhanced_service": {
+      "name": "google_chat_enhanced_service",
+      "file": "backend/integrations/google_chat_enhanced_service.py",
+      "classes": [
+        "GoogleChatEventType",
+        "GoogleChatConnectionStatus",
+        "GoogleChatSpaceType"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "stripe_service": {
+      "name": "stripe_service",
+      "file": "backend/integrations/stripe_service.py",
+      "classes": [
+        "StripeService"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "finance"
+    },
+    "discord_routes": {
+      "name": "discord_routes",
+      "file": "backend/integrations/discord_routes.py",
+      "classes": [
+        "DiscordSearchRequest",
+        "DiscordSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "box_routes": {
+      "name": "box_routes",
+      "file": "backend/integrations/box_routes.py",
+      "classes": [
+        "BoxAuthRequest",
+        "BoxFile",
+        "BoxFolder"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "storage"
+    },
+    "whatsapp_service_manager": {
+      "name": "whatsapp_service_manager",
+      "file": "backend/integrations/whatsapp_service_manager.py",
+      "classes": [
+        "WhatsAppServiceManager"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "figma_routes": {
+      "name": "figma_routes",
+      "file": "backend/integrations/figma_routes.py",
+      "classes": [
+        "FigmaSearchRequest",
+        "FigmaSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "development"
+    },
+    "mailchimp_routes": {
+      "name": "mailchimp_routes",
+      "file": "backend/integrations/mailchimp_routes.py",
+      "classes": [
+        "MailchimpAuthRequest",
+        "MailchimpAudience",
+        "MailchimpContact"
+      ],
+      "auth_type": "api_key",
+      "has_connect": true,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "email"
+    },
+    "quickbooks_routes": {
+      "name": "quickbooks_routes",
+      "file": "backend/integrations/quickbooks_routes.py",
+      "classes": [
+        "QuickbooksSearchRequest",
+        "QuickbooksSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "finance"
+    },
+    "github_routes_fix": {
+      "name": "github_routes_fix",
+      "file": "backend/integrations/github_routes_fix.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "development"
+    },
+    "github_service": {
+      "name": "github_service",
+      "file": "backend/integrations/github_service.py",
+      "classes": [
+        "GitHubService"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "development"
+    },
+    "atom_quickbooks_integration_service": {
+      "name": "atom_quickbooks_integration_service",
+      "file": "backend/integrations/atom_quickbooks_integration_service.py",
+      "classes": [
+        "TransactionType",
+        "AccountType",
+        "FinancialReportType"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "finance"
+    },
+    "whatsapp_websocket_routes": {
+      "name": "whatsapp_websocket_routes",
+      "file": "backend/integrations/whatsapp_websocket_routes.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "email_routes": {
+      "name": "email_routes",
+      "file": "backend/integrations/email_routes.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "other"
+    },
+    "teams_enhanced_service": {
+      "name": "teams_enhanced_service",
+      "file": "backend/integrations/teams_enhanced_service.py",
+      "classes": [
+        "TeamsEventType",
+        "TeamsConnectionStatus",
+        "TeamsPermission"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "jira_routes_fix": {
+      "name": "jira_routes_fix",
+      "file": "backend/integrations/jira_routes_fix.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "slack_routes": {
+      "name": "slack_routes",
+      "file": "backend/integrations/slack_routes.py",
+      "classes": [
+        "SlackMessageRequest",
+        "SlackMessageResponse",
+        "SlackSearchRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "atom_voice_ai_service": {
+      "name": "atom_voice_ai_service",
+      "file": "backend/integrations/atom_voice_ai_service.py",
+      "classes": [
+        "VoiceTaskType",
+        "VoiceModelType",
+        "VoiceLanguage"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "ai"
+    },
+    "trello_service": {
+      "name": "trello_service",
+      "file": "backend/integrations/trello_service.py",
+      "classes": [
+        "TrelloService"
+      ],
+      "auth_type": "api_key",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "atom_zoom_integration": {
+      "name": "atom_zoom_integration",
+      "file": "backend/integrations/atom_zoom_integration.py",
+      "classes": [
+        "ZoomEventType",
+        "ZoomMeetingType",
+        "ZoomUserType"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "atom_enterprise_api_routes": {
+      "name": "atom_enterprise_api_routes",
+      "file": "backend/integrations/atom_enterprise_api_routes.py",
+      "classes": [],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "enterprise"
+    },
+    "shopify_routes": {
+      "name": "shopify_routes",
+      "file": "backend/integrations/shopify_routes.py",
+      "classes": [
+        "ShopifySearchRequest",
+        "ShopifySearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "finance"
+    },
+    "zendesk_routes": {
+      "name": "zendesk_routes",
+      "file": "backend/integrations/zendesk_routes.py",
+      "classes": [
+        "ZendeskSearchRequest",
+        "ZendeskSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "workflow_automation_routes": {
+      "name": "workflow_automation_routes",
+      "file": "backend/integrations/workflow_automation_routes.py",
+      "classes": [
+        "WorkflowAnalysisRequest",
+        "WorkflowGenerationRequest",
+        "OptimizationAnalysisRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "enterprise"
+    },
+    "dropbox_routes": {
+      "name": "dropbox_routes",
+      "file": "backend/integrations/dropbox_routes.py",
+      "classes": [
+        "FileListRequest",
+        "FileUploadRequest",
+        "FileDownloadRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "storage"
+    },
+    "whatsapp_fastapi_routes": {
+      "name": "whatsapp_fastapi_routes",
+      "file": "backend/integrations/whatsapp_fastapi_routes.py",
+      "classes": [
+        "MessageRequest",
+        "BatchMessageRequest",
+        "TemplateRequest"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "outlook_service_enhanced": {
+      "name": "outlook_service_enhanced",
+      "file": "backend/integrations/outlook_service_enhanced.py",
+      "classes": [
+        "EmailImportance",
+        "EventSensitivity",
+        "TaskStatus"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "email"
+    },
+    "whatsapp_flask_routes": {
+      "name": "whatsapp_flask_routes",
+      "file": "backend/integrations/whatsapp_flask_routes.py",
+      "classes": [],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "github_integration": {
+      "name": "github_integration",
+      "file": "backend/integrations/github_integration.py",
+      "classes": [
+        "GithubIntegration"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "development"
+    },
+    "slack_routes_fix": {
+      "name": "slack_routes_fix",
+      "file": "backend/integrations/slack_routes_fix.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "teams_routes": {
+      "name": "teams_routes",
+      "file": "backend/integrations/teams_routes.py",
+      "classes": [
+        "TeamsSearchRequest",
+        "TeamsSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "freshdesk_service": {
+      "name": "freshdesk_service",
+      "file": "backend/integrations/freshdesk_service.py",
+      "classes": [
+        "import",
+        "class",
+        "FreshdeskService"
+      ],
+      "auth_type": "api_key",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "atom_teams_integration": {
+      "name": "atom_teams_integration",
+      "file": "backend/integrations/atom_teams_integration.py",
+      "classes": [
+        "AtomTeamsIntegration",
+        "for"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "salesforce_core_service": {
+      "name": "salesforce_core_service",
+      "file": "backend/integrations/salesforce_core_service.py",
+      "classes": [
+        "SalesforceEnvironment",
+        "SalesforceObject",
+        "class"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "outlook_routes_enhanced": {
+      "name": "outlook_routes_enhanced",
+      "file": "backend/integrations/outlook_routes_enhanced.py",
+      "classes": [
+        "EmailListEnhancedRequest",
+        "EmailSendEnhancedRequest",
+        "CalendarEventEnhancedRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "email"
+    },
+    "zoom_integration_register": {
+      "name": "zoom_integration_register",
+      "file": "backend/integrations/zoom_integration_register.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "microsoft365_routes": {
+      "name": "microsoft365_routes",
+      "file": "backend/integrations/microsoft365_routes.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "other"
+    },
+    "teams_integration": {
+      "name": "teams_integration",
+      "file": "backend/integrations/teams_integration.py",
+      "classes": [
+        "TeamsIntegration"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "xero_routes": {
+      "name": "xero_routes",
+      "file": "backend/integrations/xero_routes.py",
+      "classes": [
+        "XeroSearchRequest",
+        "XeroSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "finance"
+    },
+    "slack_enhanced_service": {
+      "name": "slack_enhanced_service",
+      "file": "backend/integrations/slack_enhanced_service.py",
+      "classes": [
+        "SlackEventType",
+        "SlackPermission",
+        "SlackConnectionStatus"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "google_chat_integration_final_report": {
+      "name": "google_chat_integration_final_report",
+      "file": "backend/integrations/google_chat_integration_final_report.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "discord_enhanced_api_routes": {
+      "name": "discord_enhanced_api_routes",
+      "file": "backend/integrations/discord_enhanced_api_routes.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "ai_routes": {
+      "name": "ai_routes",
+      "file": "backend/integrations/ai_routes.py",
+      "classes": [
+        "NLPCommandRequest",
+        "NLPCommandResponse",
+        "DataIngestRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "ai"
+    },
+    "whatsapp_final_websocket_integration": {
+      "name": "whatsapp_final_websocket_integration",
+      "file": "backend/integrations/whatsapp_final_websocket_integration.py",
+      "classes": [
+        "WhatsAppWebSocketFinal"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "bitbucket_routes": {
+      "name": "bitbucket_routes",
+      "file": "backend/integrations/bitbucket_routes.py",
+      "classes": [
+        "BitbucketSearchRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "development"
+    },
+    "microsoft365_service": {
+      "name": "microsoft365_service",
+      "file": "backend/integrations/microsoft365_service.py",
+      "classes": [
+        "Microsoft365AuthResponse",
+        "Microsoft365User",
+        "Microsoft365Team"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "other"
+    },
+    "freshdesk_routes": {
+      "name": "freshdesk_routes",
+      "file": "backend/integrations/freshdesk_routes.py",
+      "classes": [
+        "FreshdeskAuthRequest",
+        "FreshdeskContact",
+        "FreshdeskTicket"
+      ],
+      "auth_type": "api_key",
+      "has_connect": true,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "github_routes": {
+      "name": "github_routes",
+      "file": "backend/integrations/github_routes.py",
+      "classes": [
+        "UserRequest",
+        "RepoRequest",
+        "CreateRepoRequest"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "development"
+    },
+    "atom_ai_integration": {
+      "name": "atom_ai_integration",
+      "file": "backend/integrations/atom_ai_integration.py",
+      "classes": [
+        "AtomAIIntegration",
+        "for",
+        "AIConversationManager"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "ai"
+    },
+    "atom_education_customization_service": {
+      "name": "atom_education_customization_service",
+      "file": "backend/integrations/atom_education_customization_service.py",
+      "classes": [
+        "EducationComplianceStandard",
+        "StudentStatus",
+        "CourseType"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "industry"
+    },
+    "asana_routes": {
+      "name": "asana_routes",
+      "file": "backend/integrations/asana_routes.py",
+      "classes": [
+        "TaskCreate",
+        "TaskUpdate",
+        "CommentCreate"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "hubspot_service": {
+      "name": "hubspot_service",
+      "file": "backend/integrations/hubspot_service.py",
+      "classes": [
+        "HubSpotService"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "atom_enterprise_unified_service": {
+      "name": "atom_enterprise_unified_service",
+      "file": "backend/integrations/atom_enterprise_unified_service.py",
+      "classes": [
+        "EnterpriseServiceType",
+        "WorkflowSecurityLevel",
+        "ComplianceWorkflowType"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "enterprise"
+    },
+    "google_chat_enhanced_api_routes": {
+      "name": "google_chat_enhanced_api_routes",
+      "file": "backend/integrations/google_chat_enhanced_api_routes.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "teams_enhanced_api_routes": {
+      "name": "teams_enhanced_api_routes",
+      "file": "backend/integrations/teams_enhanced_api_routes.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "atom_healthcare_customization_service": {
+      "name": "atom_healthcare_customization_service",
+      "file": "backend/integrations/atom_healthcare_customization_service.py",
+      "classes": [
+        "HealthcareComplianceStandard",
+        "PatientStatus",
+        "MedicalRecordType"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "industry"
+    },
+    "figma_routes_fix": {
+      "name": "figma_routes_fix",
+      "file": "backend/integrations/figma_routes_fix.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "development"
+    },
+    "atom_zendesk_integration_service": {
+      "name": "atom_zendesk_integration_service",
+      "file": "backend/integrations/atom_zendesk_integration_service.py",
+      "classes": [
+        "ZendeskTicketStatus",
+        "ZendeskTicketPriority",
+        "ZendeskTicketType"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "onedrive_service": {
+      "name": "onedrive_service",
+      "file": "backend/integrations/onedrive_service.py",
+      "classes": [
+        "OneDriveFile",
+        "OneDriveFileList",
+        "OneDriveSearchRequest"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "storage"
+    },
+    "dropbox_service_enhanced": {
+      "name": "dropbox_service_enhanced",
+      "file": "backend/integrations/dropbox_service_enhanced.py",
+      "classes": [
+        "class",
+        "class",
+        "class"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "storage"
+    },
+    "onedrive_routes": {
+      "name": "onedrive_routes",
+      "file": "backend/integrations/onedrive_routes.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "storage"
+    },
+    "slack_service_unified": {
+      "name": "slack_service_unified",
+      "file": "backend/integrations/slack_service_unified.py",
+      "classes": [
+        "SlackOperationType",
+        "class",
+        "SlackError"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "box_service": {
+      "name": "box_service",
+      "file": "backend/integrations/box_service.py",
+      "classes": [
+        "BoxFile",
+        "BoxFolder",
+        "BoxFileList"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "storage"
+    },
+    "teams_service": {
+      "name": "teams_service",
+      "file": "backend/integrations/teams_service.py",
+      "classes": [
+        "TeamsService"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "salesforce_integration_register": {
+      "name": "salesforce_integration_register",
+      "file": "backend/integrations/salesforce_integration_register.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "jira_service": {
+      "name": "jira_service",
+      "file": "backend/integrations/jira_service.py",
+      "classes": [
+        "JiraService"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "atom_telegram_integration": {
+      "name": "atom_telegram_integration",
+      "file": "backend/integrations/atom_telegram_integration.py",
+      "classes": [
+        "TelegramMessageType",
+        "TelegramChatType",
+        "TelegramCommandType"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "atom_finance_customization_service": {
+      "name": "atom_finance_customization_service",
+      "file": "backend/integrations/atom_finance_customization_service.py",
+      "classes": [
+        "FinanceComplianceStandard",
+        "TransactionType",
+        "RiskLevel"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "industry"
+    },
+    "gitlab_routes": {
+      "name": "gitlab_routes",
+      "file": "backend/integrations/gitlab_routes.py",
+      "classes": [
+        "GitlabSearchRequest",
+        "GitlabSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "development"
+    },
+    "whatsapp_routes_extension": {
+      "name": "whatsapp_routes_extension",
+      "file": "backend/integrations/whatsapp_routes_extension.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "outlook_routes": {
+      "name": "outlook_routes",
+      "file": "backend/integrations/outlook_routes.py",
+      "classes": [
+        "EmailListRequest",
+        "EmailSendRequest",
+        "EmailDraftRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "email"
+    },
+    "asana_real_service": {
+      "name": "asana_real_service",
+      "file": "backend/integrations/asana_real_service.py",
+      "classes": [
+        "AsanaRealService"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "salesforce_service": {
+      "name": "salesforce_service",
+      "file": "backend/integrations/salesforce_service.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "asana_service": {
+      "name": "asana_service",
+      "file": "backend/integrations/asana_service.py",
+      "classes": [
+        "AsanaService"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "tableau_routes": {
+      "name": "tableau_routes",
+      "file": "backend/integrations/tableau_routes.py",
+      "classes": [
+        "TableauAuthRequest",
+        "TableauWorkbook",
+        "TableauDatasource"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "other"
+    },
+    "atom_discord_integration": {
+      "name": "atom_discord_integration",
+      "file": "backend/integrations/atom_discord_integration.py",
+      "classes": [
+        "AtomDiscordIntegration",
+        "for"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "google_integration": {
+      "name": "google_integration",
+      "file": "backend/integrations/google_integration.py",
+      "classes": [
+        "GoogleIntegration"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "other"
+    },
+    "atom_whatsapp_integration": {
+      "name": "atom_whatsapp_integration",
+      "file": "backend/integrations/atom_whatsapp_integration.py",
+      "classes": [
+        "WhatsAppMessageType",
+        "WhatsAppChatType",
+        "WhatsAppCommandType"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "trello_routes": {
+      "name": "trello_routes",
+      "file": "backend/integrations/trello_routes.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "zoom_routes": {
+      "name": "zoom_routes",
+      "file": "backend/integrations/zoom_routes.py",
+      "classes": [
+        "ZoomMeetingRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "monday_routes": {
+      "name": "monday_routes",
+      "file": "backend/integrations/monday_routes.py",
+      "classes": [
+        "MondaySearchRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "intercom_routes": {
+      "name": "intercom_routes",
+      "file": "backend/integrations/intercom_routes.py",
+      "classes": [
+        "IntercomAuthRequest",
+        "IntercomContact",
+        "IntercomConversation"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "whatsapp_business_integration": {
+      "name": "whatsapp_business_integration",
+      "file": "backend/integrations/whatsapp_business_integration.py",
+      "classes": [
+        "WhatsAppBusinessIntegration",
+        "and"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "google_drive_routes": {
+      "name": "google_drive_routes",
+      "file": "backend/integrations/google_drive_routes.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "storage"
+    },
+    "google_calendar_service": {
+      "name": "google_calendar_service",
+      "file": "backend/integrations/google_calendar_service.py",
+      "classes": [
+        "GoogleCalendarService"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "calendar"
+    },
+    "jira_routes": {
+      "name": "jira_routes",
+      "file": "backend/integrations/jira_routes.py",
+      "classes": [
+        "JiraSearchRequest",
+        "JiraSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "outlook_service": {
+      "name": "outlook_service",
+      "file": "backend/integrations/outlook_service.py",
+      "classes": [
+        "class",
+        "class",
+        "class"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "email"
+    },
+    "chat_routes": {
+      "name": "chat_routes",
+      "file": "backend/integrations/chat_routes.py",
+      "classes": [
+        "ChatMessageRequest",
+        "ChatMessageResponse",
+        "ChatHistoryRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "other"
+    },
+    "ai_enhanced_service": {
+      "name": "ai_enhanced_service",
+      "file": "backend/integrations/ai_enhanced_service.py",
+      "classes": [
+        "AIModelType",
+        "AITaskType",
+        "AIServiceType"
+      ],
+      "auth_type": "api_key",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "ai"
+    },
+    "notion_service": {
+      "name": "notion_service",
+      "file": "backend/integrations/notion_service.py",
+      "classes": [
+        "NotionService"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "notion_routes_fix": {
+      "name": "notion_routes_fix",
+      "file": "backend/integrations/notion_routes_fix.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "linear_routes": {
+      "name": "linear_routes",
+      "file": "backend/integrations/linear_routes.py",
+      "classes": [
+        "UserRequest",
+        "IssueRequest",
+        "CreateIssueRequest"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "slack_enhanced_api_routes": {
+      "name": "slack_enhanced_api_routes",
+      "file": "backend/integrations/slack_enhanced_api_routes.py",
+      "classes": [],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "linear_routes_fix": {
+      "name": "linear_routes_fix",
+      "file": "backend/integrations/linear_routes_fix.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "atom_workflow_automation_service": {
+      "name": "atom_workflow_automation_service",
+      "file": "backend/integrations/atom_workflow_automation_service.py",
+      "classes": [
+        "WorkflowAutomationType",
+        "AutomationConditionType",
+        "AutomationActionType"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "enterprise"
+    },
+    "hubspot_routes": {
+      "name": "hubspot_routes",
+      "file": "backend/integrations/hubspot_routes.py",
+      "classes": [
+        "HubSpotAuthRequest",
+        "HubSpotContact",
+        "HubSpotCompany"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "atom_voice_video_integration_service": {
+      "name": "atom_voice_video_integration_service",
+      "file": "backend/integrations/atom_voice_video_integration_service.py",
+      "classes": [
+        "VoiceVideoTaskType",
+        "VoiceVideoPlatform",
+        "class"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "ai"
+    },
+    "notion_routes": {
+      "name": "notion_routes",
+      "file": "backend/integrations/notion_routes.py",
+      "classes": [
+        "NotionSearchRequest",
+        "NotionSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "bitbucket_service": {
+      "name": "bitbucket_service",
+      "file": "backend/integrations/bitbucket_service.py",
+      "classes": [
+        "BitbucketService"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "development"
+    },
+    "atom_hubspot_integration_service": {
+      "name": "atom_hubspot_integration_service",
+      "file": "backend/integrations/atom_hubspot_integration_service.py",
+      "classes": [
+        "CampaignType",
+        "LeadStatus",
+        "LifecycleStage"
+      ],
+      "auth_type": "api_key",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "google_drive_service": {
+      "name": "google_drive_service",
+      "file": "backend/integrations/google_drive_service.py",
+      "classes": [
+        "GoogleDriveFile",
+        "GoogleDriveFileList",
+        "GoogleDriveSearchRequest"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "storage"
+    },
+    "monday_service": {
+      "name": "monday_service",
+      "file": "backend/integrations/monday_service.py",
+      "classes": [
+        "MondayService"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "project_management"
+    },
+    "discord_enhanced_service": {
+      "name": "discord_enhanced_service",
+      "file": "backend/integrations/discord_enhanced_service.py",
+      "classes": [
+        "DiscordEventType",
+        "DiscordConnectionStatus",
+        "DiscordChannelType"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "slack_integration": {
+      "name": "slack_integration",
+      "file": "backend/integrations/slack_integration.py",
+      "classes": [
+        "SlackIntegration"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "whatsapp_enhanced_routes": {
+      "name": "whatsapp_enhanced_routes",
+      "file": "backend/integrations/whatsapp_enhanced_routes.py",
+      "classes": [],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "teams_routes_fix": {
+      "name": "teams_routes_fix",
+      "file": "backend/integrations/teams_routes_fix.py",
+      "classes": [],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "gmail_service": {
+      "name": "gmail_service",
+      "file": "backend/integrations/gmail_service.py",
+      "classes": [
+        "GmailService"
+      ],
+      "auth_type": "oauth",
+      "has_connect": false,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "email"
+    },
+    "salesforce_routes": {
+      "name": "salesforce_routes",
+      "file": "backend/integrations/salesforce_routes.py",
+      "classes": [],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "crm"
+    },
+    "atom_communication_apps_lancedb_integration": {
+      "name": "atom_communication_apps_lancedb_integration",
+      "file": "backend/integrations/atom_communication_apps_lancedb_integration.py",
+      "classes": [
+        "CommunicationAppIngestionIntegration"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "other"
+    },
+    "stripe_routes": {
+      "name": "stripe_routes",
+      "file": "backend/integrations/stripe_routes.py",
+      "classes": [],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "finance"
+    },
+    "atom_enterprise_security_service": {
+      "name": "atom_enterprise_security_service",
+      "file": "backend/integrations/atom_enterprise_security_service.py",
+      "classes": [
+        "SecurityLevel",
+        "ComplianceStandard",
+        "ThreatType"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "enterprise"
+    },
+    "atom_google_chat_integration": {
+      "name": "atom_google_chat_integration",
+      "file": "backend/integrations/atom_google_chat_integration.py",
+      "classes": [
+        "AtomGoogleChatIntegration",
+        "for"
+      ],
+      "auth_type": "token",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "communication"
+    },
+    "ai_enhanced_api_routes": {
+      "name": "ai_enhanced_api_routes",
+      "file": "backend/integrations/ai_enhanced_api_routes.py",
+      "classes": [],
+      "auth_type": "api_key",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "ai"
+    },
+    "outlook_calendar_service": {
+      "name": "outlook_calendar_service",
+      "file": "backend/integrations/outlook_calendar_service.py",
+      "classes": [
+        "OutlookCalendarService"
+      ],
+      "auth_type": "token",
+      "has_connect": true,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "calendar"
+    },
+    "gmail_routes": {
+      "name": "gmail_routes",
+      "file": "backend/integrations/gmail_routes.py",
+      "classes": [
+        "GmailSearchRequest",
+        "GmailSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "email"
+    }
+  }
+}
