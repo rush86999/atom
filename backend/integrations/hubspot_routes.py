@@ -601,6 +601,7 @@ class HubSpotService:
         try:
             # Basic health check - verify service can be initialized
             return {
+                "ok": True,  # Required format for validator
                 "status": "healthy",
                 "service": "hubspot",
                 "timestamp": datetime.now().isoformat(),
@@ -609,6 +610,7 @@ class HubSpotService:
         except Exception as e:
             logger.error(f"HubSpot health check failed: {e}")
             return {
+                "ok": False,
                 "status": "unhealthy",
                 "service": "hubspot",
                 "error": str(e),
