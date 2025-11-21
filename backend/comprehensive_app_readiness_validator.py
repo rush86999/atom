@@ -157,6 +157,24 @@ async def run_comprehensive_validation():
                     print(f"      • {rec}")
                 print()
         
+        # Run Business Outcome Validation
+        print("=" * 80)
+        print("BUSINESS OUTCOME VALIDATION")
+        print("=" * 80)
+        print()
+        
+        from independent_ai_validator.core.business_outcome_validator import BusinessOutcomeValidator
+        business_validator = BusinessOutcomeValidator(backend_url="http://localhost:5059")
+        business_results = await business_validator.validate_business_outcomes()
+        
+        print(f"Business Value Score: {business_results['total_value_score']:.2f}/1.0")
+        print()
+        
+        for scenario in business_results["scenarios"]:
+            status = "✓" if scenario["success"] else "✗"
+            print(f"{status} {scenario['scenario']}: {scenario['value_generated']}")
+        print()
+
         # Generate comprehensive report
         print("=" * 80)
         print("VALIDATION SUMMARY")
@@ -168,6 +186,7 @@ async def run_comprehensive_validation():
         critical_results = [r for r in results if any(c.priority == "critical" for c in READINESS_CLAIMS if c.id == r.claim.split()[0])]
         
         print(f"Overall Readiness Score: {avg_score:.2%}")
+        print(f"Business Value Score:  {business_results['total_value_score']:.2%}")
         print()
         
         # Categorize results
@@ -185,12 +204,14 @@ async def run_comprehensive_validation():
         detailed_report = {
             "validation_date": datetime.now().isoformat(),
             "overall_score": avg_score,
+            "business_value_score": business_results['total_value_score'],
             "total_claims_validated": len(results),
             "results_by_category": {
                 "excellent": len(excellent),
                 "good": len(good),
                 "needs_work": len(needs_work)
             },
+            "business_outcomes": business_results,
             "detailed_results": [
                 {
                     "claim": r.claim,
@@ -223,9 +244,9 @@ async def run_comprehensive_validation():
         print("=" * 80)
         print()
         
-        if avg_score >= 0.8:
+        if avg_score >= 0.8 and business_results['total_value_score'] >= 0.8:
             print("✓ APPLICATION IS READY FOR PRODUCTION")
-            print("  All features are implemented and functional.")
+            print("  All features are implemented, functional, and delivering business value.")
             return 0
         elif avg_score >= 0.6:
             print("⚠ APPLICATION IS MOSTLY READY")
