@@ -109,6 +109,7 @@ async def health_check():
     try:
         if not GITHUB_AVAILABLE:
             return {
+                "ok": False,
                 "status": "unhealthy",
                 "error": "GitHub services not available",
                 "timestamp": datetime.utcnow().isoformat()
@@ -118,6 +119,7 @@ async def health_check():
         try:
             service_info = github_service.test_connection()
             return {
+                "ok": True,  # Required format for validator
                 "status": "healthy",
                 "message": "GitHub API is accessible",
                 "service_available": GITHUB_AVAILABLE,
@@ -126,6 +128,7 @@ async def health_check():
             }
         except Exception as e:
             return {
+                "ok": False,
                 "status": "degraded",
                 "error": f"GitHub service error: {str(e)}",
                 "timestamp": datetime.utcnow().isoformat()
@@ -133,6 +136,7 @@ async def health_check():
     
     except Exception as e:
         return {
+            "ok": False,
             "status": "unhealthy",
             "error": str(e),
             "timestamp": datetime.utcnow().isoformat()
