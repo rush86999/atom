@@ -62,18 +62,21 @@ VALIDATION CRITERIA:
 3. **Precision**: Is the claim specific and not misleading?
 4. **Relevance**: Is the evidence relevant to the claim?
 5. **Completeness**: Are there important missing details?
+6. **Business Value Delivery**: Based on the evidence, can this integration realistically achieve the claimed business outcomes (time savings, revenue increase, cost reduction, efficiency gains)? Evaluate if the features/capabilities shown in evidence match the business metrics claimed. If the claim is about an integration being "available" or "working", verify the health endpoint returns success AND the integration has the necessary features to deliver its business value (e.g., task management for PM tools, file operations for storage, etc.).
 
 ANALYSIS TASK:
 1. Evaluate the claim against each validation criterion
 2. Assess the strength and quality of the evidence
 3. Identify any potential gaps or inconsistencies
 4. Determine the overall validity of the claim
-5. Provide specific recommendations for improvement
+5. For integration claims: verify both technical availability AND business capability
+6. Provide specific recommendations for improvement
 
 RESPONSE FORMAT:
 - **Overall Score**: [0.0-1.0] where 1.0 = fully validated, 0.0 = not validated
 - **Evidence Strength**: [STRONG/MODERATE/WEAK/INSUFFICIENT]
 - **Confidence**: [0.0-1.0] how confident are you in this assessment
+- **Business Value Assessment**: Can the integration deliver claimed outcomes?
 - **Reasoning**: Detailed explanation of your analysis
 - **Recommendations**: Specific suggestions for claim improvement
 - **Bias Assessment**: Note any potential biases in your analysis
