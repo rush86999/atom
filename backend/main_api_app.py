@@ -436,6 +436,15 @@ except ImportError as e:
     ZENDESK_AVAILABLE = False
     zendesk_router = None
 
+# Import Airtable integration
+try:
+    from integrations.airtable_routes import router as airtable_router
+    AIRTABLE_AVAILABLE = True
+except ImportError as e:
+    print(f"Airtable integration not available: {e}")
+    AIRTABLE_AVAILABLE = False
+    airtable_router = None
+
 # Import Figma integration
 try:
     from integrations.figma_routes import router as figma_router
@@ -941,6 +950,13 @@ if ZENDESK_AVAILABLE and zendesk_router:
     print("[OK] Zendesk integration routes loaded")
 else:
     print("[WARN] Zendesk integration routes not available")
+
+# Include Airtable API routes
+if AIRTABLE_AVAILABLE and airtable_router:
+    app.include_router(airtable_router)
+    print("[OK] Airtable integration routes loaded")
+else:
+    print("[WARN] Airtable integration routes not available")
 
 # Include Figma API routes
 if FIGMA_AVAILABLE and figma_router:
