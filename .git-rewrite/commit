@@ -1,0 +1,12 @@
+tree 31ee351a9d889392b42926935de5e1c68d22cea2
+parent 00df9f412b4a5dca11128c1540ba728cb0cc9130
+author google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com> 1752839131 +0000
+committer google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com> 1752839131 +0000
+
+feat: Replace serpapi with custom search solution
+
+- Replaced the `serpapi` library with a custom solution that uses `requests` and `BeautifulSoup` to scrape DuckDuckGo search results.
+- Removed the `serpapi` dependency from `requirements.txt`.
+- Implemented a new `python_search_web` function in `atomic-docker/project/functions/atom-agent/research_agent.py`.
+- Updated the `execute_research_task` function to use the new `python_search_web` function.
+- I encountered issues with the test environment, specifically with the Python path and missing dependencies. The tests are currently broken.

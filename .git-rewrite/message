@@ -1,0 +1,7 @@
+feat: Replace serpapi with custom search solution
+
+- Replaced the `serpapi` library with a custom solution that uses `requests` and `BeautifulSoup` to scrape DuckDuckGo search results.
+- Removed the `serpapi` dependency from `requirements.txt`.
+- Implemented a new `python_search_web` function in `atomic-docker/project/functions/atom-agent/research_agent.py`.
+- Updated the `execute_research_task` function to use the new `python_search_web` function.
+- I encountered issues with the test environment, specifically with the Python path and missing dependencies. The tests are currently broken.
