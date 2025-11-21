@@ -373,6 +373,205 @@ except ImportError as e:
     SALESFORCE_AVAILABLE = False
     salesforce_router = None
 
+# Import Teams integration
+try:
+    from integrations.teams_routes import router as teams_router
+    TEAMS_AVAILABLE = True
+except ImportError as e:
+    print(f"Teams integration not available: {e}")
+    TEAMS_AVAILABLE = False
+    teams_router = None
+
+# Import Gmail integration
+try:
+    from integrations.gmail_routes import router as gmail_router
+    GMAIL_AVAILABLE = True
+except ImportError as e:
+    print(f"Gmail integration not available: {e}")
+    GMAIL_AVAILABLE = False
+    gmail_router = None
+
+# Import QuickBooks integration
+try:
+    from integrations.quickbooks_routes import router as quickbooks_router
+    QUICKBOOKS_AVAILABLE = True
+except ImportError as e:
+    print(f"QuickBooks integration not available: {e}")
+    QUICKBOOKS_AVAILABLE = False
+    quickbooks_router = None
+
+# Import Freshdesk integration
+try:
+    from integrations.freshdesk_routes import router as freshdesk_router
+    FRESHDESK_AVAILABLE = True
+except ImportError as e:
+    print(f"Freshdesk integration not available: {e}")
+    FRESHDESK_AVAILABLE = False
+    freshdesk_router = None
+
+# Import Intercom integration
+try:
+    from integrations.intercom_routes import router as intercom_router
+    INTERCOM_AVAILABLE = True
+except ImportError as e:
+    print(f"Intercom integration not available: {e}")
+    INTERCOM_AVAILABLE = False
+    intercom_router = None
+
+# Import Mailchimp integration
+try:
+    from integrations.mailchimp_routes import router as mailchimp_router
+    MAILCHIMP_AVAILABLE = True
+except ImportError as e:
+    print(f"Mailchimp integration not available: {e}")
+    MAILCHIMP_AVAILABLE = False
+    mailchimp_router = None
+
+# Import Zendesk integration
+try:
+    from integrations.zendesk_routes import router as zendesk_router
+    ZENDESK_AVAILABLE = True
+except ImportError as e:
+    print(f"Zendesk integration not available: {e}")
+    ZENDESK_AVAILABLE = False
+    zendesk_router = None
+
+# Import Figma integration
+try:
+    from integrations.figma_routes import router as figma_router
+    FIGMA_AVAILABLE = True
+except ImportError as e:
+    print(f"Figma integration not available: {e}")
+    FIGMA_AVAILABLE = False
+    figma_router = None
+
+# Import Shopify integration
+try:
+    from integrations.shopify_routes import router as shopify_router
+    SHOPIFY_AVAILABLE = True
+except ImportError as e:
+    print(f"Shopify integration not available: {e}")
+    SHOPIFY_AVAILABLE = False
+    shopify_router = None
+
+# Import Xero integration
+try:
+    from integrations.xero_routes import router as xero_router
+    XERO_AVAILABLE = True
+except ImportError as e:
+    print(f"Xero integration not available: {e}")
+    XERO_AVAILABLE = False
+    xero_router = None
+
+# ==================== Phase 11 Integrations ====================
+# Import Asana integration
+try:
+    from integrations.asana_routes import router as asana_router
+    ASANA_AVAILABLE = True
+except ImportError as e:
+    print(f"Asana integration not available: {e}")
+    ASANA_AVAILABLE = False
+    asana_router = None
+
+# Import Jira integration
+try:
+    from integrations.jira_routes import router as jira_router
+    JIRA_AVAILABLE = True
+except ImportError as e:
+    print(f"Jira integration not available: {e}")
+    JIRA_AVAILABLE = False
+    jira_router = None
+
+# Import Monday integration
+try:
+    from integrations.monday_routes import router as monday_router
+    MONDAY_AVAILABLE = True
+except ImportError as e:
+    print(f"Monday integration not available: {e}")
+    MONDAY_AVAILABLE = False
+    monday_router = None
+
+# Import Linear integration
+try:
+    from integrations.linear_routes import router as linear_router
+    LINEAR_AVAILABLE = True
+except ImportError as e:
+    print(f"Linear integration not available: {e}")
+    LINEAR_AVAILABLE = False
+    linear_router = None
+
+# Import Notion integration
+try:
+    from integrations.notion_routes import router as notion_router
+    NOTION_AVAILABLE = True
+except ImportError as e:
+    print(f"Notion integration not available: {e}")
+    NOTION_AVAILABLE = False
+    notion_router = None
+
+# Import Trello integration
+try:
+    from integrations.trello_routes import router as trello_router
+    TRELLO_AVAILABLE = True
+except ImportError as e:
+    print(f"Trello integration not available: {e}")
+    TRELLO_AVAILABLE = False
+    trello_router = None
+
+# Import Dropbox integration
+try:
+    from integrations.dropbox_routes import router as dropbox_router
+    DROPBOX_AVAILABLE = True
+except ImportError as e:
+    print(f"Dropbox integration not available: {e}")
+    DROPBOX_AVAILABLE = False
+    dropbox_router = None
+
+# Import OneDrive integration
+try:
+    from integrations.onedrive_routes import router as onedrive_router
+    ONEDRIVE_AVAILABLE = True
+except ImportError as e:
+    print(f"OneDrive integration not available: {e}")
+    ONEDRIVE_AVAILABLE = False
+    onedrive_router = None
+
+# Import GitHub integration
+try:
+    from integrations.github_routes import router as github_router
+    GITHUB_AVAILABLE = True
+except ImportError as e:
+    print(f"GitHub integration not available: {e}")
+    GITHUB_AVAILABLE = False
+    github_router = None
+
+# Import Plaid integration
+try:
+    from integrations.plaid_routes import router as plaid_router
+    PLAID_AVAILABLE = True
+except ImportError as e:
+    print(f"Plaid integration not available: {e}")
+    PLAID_AVAILABLE = False
+    plaid_router = None
+
+# Import Deepgram integration
+try:
+    from integrations.deepgram_routes import router as deepgram_router
+    DEEPGRAM_AVAILABLE = True
+except ImportError as e:
+    print(f"Deepgram integration not available: {e}")
+    DEEPGRAM_AVAILABLE = False
+    deepgram_router = None
+
+# Import LinkedIn integration
+try:
+    from integrations.linkedin_routes import router as linkedin_router
+    LINKEDIN_AVAILABLE = True
+except ImportError as e:
+    print(f"LinkedIn integration not available: {e}")
+    LINKEDIN_AVAILABLE = False
+    linkedin_router = None
+
 # Import Enhanced AI Workflow endpoints
 try:
     from enhanced_ai_workflow_endpoints import router as enhanced_ai_router
@@ -693,6 +892,119 @@ if SALESFORCE_AVAILABLE and salesforce_router:
     print("[OK] Salesforce integration routes loaded")
 else:
     print("[WARN] Salesforce integration routes not available")
+
+# Include Teams API routes
+if TEAMS_AVAILABLE and teams_router:
+    app.include_router(teams_router)
+    print("[OK] Teams integration routes loaded")
+else:
+    print("[WARN] Teams integration routes not available")
+
+# Include Gmail API routes
+if GMAIL_AVAILABLE and gmail_router:
+    app.include_router(gmail_router)
+    print("[OK] Gmail integration routes loaded")
+else:
+    print("[WARN] Gmail integration routes not available")
+
+# Include QuickBooks API routes
+if QUICKBOOKS_AVAILABLE and quickbooks_router:
+    app.include_router(quickbooks_router)
+    print("[OK] QuickBooks integration routes loaded")
+else:
+    print("[WARN] QuickBooks integration routes not available")
+
+# Include Freshdesk API routes
+if FRESHDESK_AVAILABLE and freshdesk_router:
+    app.include_router(freshdesk_router)
+    print("[OK] Freshdesk integration routes loaded")
+else:
+    print("[WARN] Freshdesk integration routes not available")
+
+# Include Intercom API routes
+if INTERCOM_AVAILABLE and intercom_router:
+    app.include_router(intercom_router)
+    print("[OK] Intercom integration routes loaded")
+else:
+    print("[WARN] Intercom integration routes not available")
+
+# Include Mailchimp API routes
+if MAILCHIMP_AVAILABLE and mailchimp_router:
+    app.include_router(mailchimp_router)
+    print("[OK] Mailchimp integration routes loaded")
+else:
+    print("[WARN] Mailchimp integration routes not available")
+
+# Include Zendesk API routes
+if ZENDESK_AVAILABLE and zendesk_router:
+    app.include_router(zendesk_router)
+    print("[OK] Zendesk integration routes loaded")
+else:
+    print("[WARN] Zendesk integration routes not available")
+
+# Include Figma API routes
+if FIGMA_AVAILABLE and figma_router:
+    app.include_router(figma_router)
+    print("[OK] Figma integration routes loaded")
+else:
+    print("[WARN] Figma integration routes not available")
+
+# Include Shopify API routes
+if SHOPIFY_AVAILABLE and shopify_router:
+    app.include_router(shopify_router)
+    print("[OK] Shopify integration routes loaded")
+else:
+    print("[WARN] Shopify integration routes not available")
+
+# Include Xero API routes
+if XERO_AVAILABLE and xero_router:
+    app.include_router(xero_router)
+    print("[OK] Xero integration routes loaded")
+else:
+    print("[WARN] Xero integration routes not available")
+
+# ==================== Phase 11 Integration Routes ====================
+# Include Jira API routes
+if JIRA_AVAILABLE and jira_router:
+    app.include_router(jira_router)
+    print("[OK] Jira integration routes loaded")
+else:
+    print("[WARN] Jira integration routes not available")
+
+# Include Monday API routes
+if MONDAY_AVAILABLE and monday_router:
+    app.include_router(monday_router)
+    print("[OK] Monday integration routes loaded")
+else:
+    print("[WARN] Monday integration routes not available")
+
+# Include Trello API routes
+if TRELLO_AVAILABLE and trello_router:
+    app.include_router(trello_router)
+    print("[OK] Trello integration routes loaded")
+else:
+    print("[WARN] Trello integration routes not available")
+
+# Include Plaid API routes
+if PLAID_AVAILABLE and plaid_router:
+    app.include_router(plaid_router)
+    print("[OK] Plaid integration routes loaded")
+else:
+    print("[WARN] Plaid integration routes not available")
+
+# Include Deepgram API routes
+if DEEPGRAM_AVAILABLE and deepgram_router:
+    app.include_router(deepgram_router)
+    print("[OK] Deepgram integration routes loaded")
+else:
+    print("[WARN] Deepgram integration routes not available")
+
+# Include LinkedIn API routes
+if LINKEDIN_AVAILABLE and linkedin_router:
+    app.include_router(linkedin_router)
+    print("[OK] LinkedIn integration routes loaded")
+else:
+    print("[WARN] LinkedIn integration routes not available")
 
 # Include GitHub integration routes if available
 try:

@@ -40,43 +40,43 @@ class IndependentValidatorCLI:
         Run independent AI validation
         """
         try:
-            print("🤖 Independent AI Validator for ATOM Marketing Claims")
+            print("[INFO] Independent AI Validator for ATOM Marketing Claims")
             print("=" * 60)
             print("Initializing validation system...")
 
             # Initialize the validator
             if not await self.validator.initialize():
-                print("❌ Failed to initialize validator")
+                print("[ERROR] Failed to initialize validator")
                 return False
 
-            print("✅ Validator initialized successfully")
+            print("[SUCCESS] Validator initialized successfully")
 
             # Check available providers
             available_providers = list(self.validator.providers.keys())
-            print(f"🔧 Available AI Providers: {available_providers}")
+            print(f"[INFO] Available AI Providers: {available_providers}")
 
             # Validate credentials
             credential_status = self.validator.credential_manager.validate_credentials()
-            print(f"🔐 Credential Status: {credential_status}")
+            print(f"[INFO] Credential Status: {credential_status}")
 
             # Run validation
             if claim_ids:
-                print(f"\n🎯 Validating specific claims: {claim_ids}")
+                print(f"\n[INFO] Validating specific claims: {claim_ids}")
                 results = {}
                 for claim_id in claim_ids:
                     print(f"   Validating: {claim_id}...")
                     try:
                         result = await self.validator.validate_claim(claim_id)
                         results[claim_id] = result
-                        print(f"   ✅ {claim_id}: {result.overall_score:.1%}")
+                        print(f"   [PASS] {claim_id}: {result.overall_score:.1%}")
                     except Exception as e:
-                        print(f"   ❌ {claim_id}: Failed - {str(e)}")
+                        print(f"   [FAIL] {claim_id}: Failed - {str(e)}")
             else:
-                print("\n🎯 Validating ALL marketing claims...")
+                print("\n[INFO] Validating ALL marketing claims...")
                 results = await self.validator.validate_all_claims()
 
             # Generate report
-            print(f"\n📊 Generating validation report...")
+            print(f"\n[INFO] Generating validation report...")
             report_data = await self.validator.generate_validation_report(results)
             report = json.loads(report_data)
 
@@ -97,17 +97,17 @@ class IndependentValidatorCLI:
                     f.write(markdown_report)
                 report_file = f"independent_ai_validation_report_{timestamp}.md"
 
-            print(f"\n💾 Report saved to: {report_file}")
+            print(f"\n[INFO] Report saved to: {report_file}")
 
             # Cleanup
             await self.validator.cleanup()
-            print("🧹 Cleanup completed")
+            print("[INFO] Cleanup completed")
 
             return True
 
         except Exception as e:
             logger.error(f"Validation failed: {str(e)}")
-            print(f"❌ Validation failed: {str(e)}")
+            print(f"[ERROR] Validation failed: {str(e)}")
             return False
 
     def display_results(self, report: dict):
@@ -115,7 +115,7 @@ class IndependentValidatorCLI:
         summary = report["summary"]
         metadata = report["metadata"]
 
-        print(f"\n📈 VALIDATION SUMMARY")
+        print(f"\n[INFO] VALIDATION SUMMARY")
         print("-" * 40)
         print(f"Overall Score: {summary['overall_score']:.1%}")
         print(f"Claims Validated: {metadata['total_claims_validated']}")
@@ -124,16 +124,16 @@ class IndependentValidatorCLI:
         print(f"Not Validated: {summary['claims_not_validated']}")
         print(f"Average Confidence: {summary['average_confidence']:.1%}")
 
-        print(f"\n📊 CATEGORY BREAKDOWN")
+        print(f"\n[INFO] CATEGORY BREAKDOWN")
         print("-" * 40)
         for category, score in report["category_scores"].items():
-            status = "✅" if score >= 0.9 else "⚠️" if score >= 0.7 else "❌"
+            status = "[PASS]" if score >= 0.9 else "[WARN]" if score >= 0.7 else "[FAIL]"
             print(f"{status} {category.title()}: {score:.1%}")
 
-        print(f"\n📋 DETAILED RESULTS")
+        print(f"\n[INFO] DETAILED RESULTS")
         print("-" * 40)
         for claim_id, result in report["detailed_results"].items():
-            status = "✅" if result["score"] >= 0.9 else "⚠️" if result["score"] >= 0.7 else "❌"
+            status = "[PASS]" if result["score"] >= 0.9 else "[WARN]" if result["score"] >= 0.7 else "[FAIL]"
             print(f"{status} {claim_id}: {result['score']:.1%} ({result['evidence_strength']})")
 
     def generate_markdown_report(self, report: dict) -> str:
@@ -269,10 +269,10 @@ def main():
         # Just initialize to get claims list
         async def list_claims():
             await cli.validator.initialize()
-            print("\n📋 Available Marketing Claims:")
+            print("\n[INFO] Available Marketing Claims:")
             print("-" * 40)
             for claim_id, claim in cli.validator.claims_database.items():
-                print(f"• {claim_id}: {claim.claim}")
+                print(f"* {claim_id}: {claim.claim}")
                 print(f"  Category: {claim.category}")
                 print(f"  Type: {claim.claim_type}")
                 print()
@@ -287,10 +287,10 @@ def main():
         sys.exit(0 if success else 1)
 
     except KeyboardInterrupt:
-        print("\n⚠️  Validation interrupted by user")
+        print("\n[WARN] Validation interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Fatal error: {str(e)}")
+        print(f"\n[FATAL] Fatal error: {str(e)}")
         logger.exception("Fatal error in main")
         sys.exit(1)
 
