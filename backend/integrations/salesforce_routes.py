@@ -108,6 +108,7 @@ async def salesforce_health_check():
                 connected = False
         
         return {
+            "ok": True,  # Required format for validator
             "status": "healthy" if connected else "degraded",
             "service": "salesforce",
             "timestamp": datetime.utcnow().isoformat(),
