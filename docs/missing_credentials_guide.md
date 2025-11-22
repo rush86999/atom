@@ -38,54 +38,55 @@ This guide documents all required environment variables and credentials for the 
 | `ATOM_ENCRYPTION_KEY` | Key used to encrypt stored tokens (Must be 32 bytes base64) |
 | `NEXTAUTH_SECRET` | Secret for NextAuth.js session encryption |
 
-## 5. Integration Credentials (117 Services)
+## 4. Credentials Status Overview
 
-ATOM supports **117 integrations** across 12 categories. Most follow a standard naming convention for OAuth credentials:
+### ✅ Already Configured (Found in `notes/credentials.md`)
 
-**Standard Convention:**
-- Client ID: `ATOM_[SERVICE_NAME]_CLIENT_ID`
-- Client Secret: `ATOM_[SERVICE_NAME]_CLIENT_SECRET`
-- API Key: `ATOM_[SERVICE_NAME]_API_KEY`
-- Redirect URI: `http://localhost:3000/api/auth/callback/[service_name]`
+The following services already have credentials configured. These are ready to use:
 
-### Communication (34 Services)
+**AI Services:**
+- OpenAI, Anthropic, DeepSeek, Google Gemini, GLM
 
-#### Slack
-- **Environment Variables:** `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`
-- **Setup Instructions:**
-  1. Go to [Slack API Apps](https://api.slack.com/apps)
-  2. Click "Create New App" → "From scratch"
-  3. Name your app and select your workspace
-  4. Navigate to "OAuth & Permissions" → Add redirect URL: `http://localhost:3000/api/auth/callback/slack`
-  5. Under "Scopes" → Add Bot Token Scopes: `channels:read`, `channels:history`, `chat:write`, `users:read`
-  6. Install app to workspace
-  7. Copy **Client ID**, **Client Secret** from "Basic Information"
-  8. Copy **Bot User OAuth Token** from "OAuth & Permissions"
-  9. Copy **Signing Secret** from "Basic Information"
+**Communication:**
+- Slack (Client ID, Secret, Bot Token, Signing Secret)
+- Discord (Bot Token)
 
-#### Discord
-- **Environment Variables:** `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`
-- **Setup Instructions:**
-  1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-  2. Click "New Application" and name it
-  3. Navigate to "OAuth2" → Copy **Client ID** and **Client Secret**
-  4. Add redirect URL: `http://localhost:3000/api/auth/callback/discord`
-  5. Navigate to "Bot" → Click "Add Bot"
-  6. Copy the **Bot Token** (click "Reset Token" if needed)
-  7. Enable required bot permissions: "Send Messages", "Read Message History"
+**Microsoft 365 Suite (Single credential set):**
+- Microsoft Teams, Outlook Email, OneDrive, Outlook Calendar
 
-#### Microsoft Teams
-- **Environment Variables:** `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`
-- **Setup Instructions:**
-  1. Go to [Azure Portal](https://portal.azure.com/) → Azure Active Directory
-  2. Navigate to "App registrations" → "New registration"
-  3. Name your app, select supported account types
-  4. Add redirect URI: `http://localhost:3000/api/auth/callback/microsoft`
-  5. Copy **Application (client) ID** and **Directory (tenant) ID**
-  6. Navigate to "Certificates & secrets" → "New client secret"
-  7. Copy the **Secret Value** immediately (shown only once)
-  8. Navigate to "API permissions" → Add: `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `Chat.ReadWrite`
-  9. Enable "Allow public client flows" under "Authentication"
+**Google Suite (Single credential set):**
+- Google Drive, Gmail, Google Calendar, Google Chat
+
+**Project Management:**
+- Asana, Jira, Monday.com, Notion, Linear
+
+**Development:**
+- GitHub
+
+**Storage:**
+- Box
+
+### ⚠️ Missing Credentials (Setup Required)
+
+The following integrations need credentials. Detailed setup instructions are provided below.
+
+**Communication:** WhatsApp, Telegram, Zoom  
+**Project Management:** Trello  
+**CRM:** Salesforce, HubSpot, Zendesk, Freshdesk, Intercom  
+**Development:** GitLab, Bitbucket, Figma  
+**Storage:** Dropbox  
+**Email:** Mailchimp  
+**Finance:** Stripe, QuickBooks, Xero, Shopify  
+**Other:** Airtable, Tableau, Canva
+
+---
+
+## 5. Setup Instructions for Missing Credentials
+
+### Communication
+
+> **Already Configured:** Slack ✅, Discord ✅, Microsoft Teams ✅  
+> **Need Setup:** WhatsApp, Telegram, Zoom
 
 #### WhatsApp Business
 - **Environment Variables:** `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`
@@ -109,18 +110,6 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Login and navigate to "API development tools"
   7. Create an application and copy **API ID** and **API Hash**
 
-#### Google Chat
-- **Environment Variables:** Uses `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-  2. Create a new project or select existing
-  3. Enable "Google Chat API" from API Library
-  4. Navigate to "Credentials" → "Create Credentials" → "OAuth client ID"
-  5. Application type: "Web application"
-  6. Add redirect URI: `http://localhost:3000/api/auth/callback/google`
-  7. Copy **Client ID** and **Client Secret**
-  8. Configure OAuth consent screen with required scopes
-
 #### Zoom
 - **Environment Variables:** `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_ACCOUNT_ID`
 - **Setup Instructions:**
@@ -132,58 +121,10 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Add required scopes: `meeting:write`, `meeting:read`, `user:read`
   7. Activate the app
 
-### Project Management (15 Services)
+### Project Management
 
-#### Asana
-- **Environment Variables:** `ASANA_CLIENT_ID`, `ASANA_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Go to [Asana Developer Console](https://app.asana.com/0/developer-console)
-  2. Click "Create new app"
-  3. Fill in app name and description
-  4. Copy **Client ID** and **Client Secret**
-  5. Add redirect URL: `http://localhost:3000/api/auth/callback/asana`
-  6. Request required scopes during OAuth flow
-
-#### Jira
-- **Environment Variables:** `JIRA_CLIENT_ID`, `JIRA_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Go to [Atlassian Developer Console](https://developer.atlassian.com/console/myapps/)
-  2. Click "Create" → "OAuth 2.0 integration"
-  3. Name your app and add redirect URL: `http://localhost:3000/api/auth/callback/jira`
-  4. Copy **Client ID** and **Client Secret**
-  5 Navigate to "Permissions" → Add scopes: `read:jira-work`, `write:jira-work`
-  6. Distribute app to your Jira site
-
-#### Monday.com
-- **Environment Variables:** `MONDAY_API_KEY`
-- **Setup Instructions:**
-  1. Go to [Monday.com](https://monday.com/) and login
-  2. Click your avatar → "Developers"
-  3. Click "My Access Tokens" → "Generate"
-  4. Name your token and select required scopes
-  5. Copy the **API Token** (shown only once)
-  6. Alternatively, use OAuth: [Monday Apps](https://monday.com/developers/apps)
-
-#### Notion
-- **Environment Variables:** `NOTION_API_KEY`, `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Go to [Notion Integrations](https://www.notion.so/my-integrations)
-  2. Click "New integration"
-  3. Name your integration and select associated workspace
-  4. Copy the **Internal Integration Token** (for `NOTION_API_KEY`)
-  5. For OAuth: Go to "Distribution" → Enable "Public integration"
-  6. Copy **OAuth Client ID** and **OAuth Client Secret**
-  7. Add redirect URI: `http://localhost:3000/api/auth/callback/notion`
-
-#### Linear
-- **Environment Variables:** `LINEAR_API_KEY`
-- **Setup Instructions:**
-  1. Go to [Linear Settings](https://linear.app/settings/api)
-  2. Scroll to "Personal API keys"
-  3. Click "Create key"
-  4. Name your key and copy the **API Key** (shown only once)
-  5. For OAuth: Create an OAuth application in settings
-  6. Copy Client ID and Client Secret
+> **Already Configured:** Asana ✅, Jira ✅, Monday.com ✅, Notion ✅, Linear ✅  
+> **Need Setup:** Trello
 
 #### Trello
 - **Environment Variables:** `TRELLO_API_KEY`, `TRELLO_TOKEN`
@@ -196,7 +137,10 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Click "Generate a Token" link to get **Token**
   7. Authorize the token for your account
 
-### CRM (12 Services)
+### CRM
+
+> **Already Configured:** None  
+> **Need Setup:** Salesforce, HubSpot, Zendesk, Freshdesk, Intercom
 
 #### Salesforce
 - **Environment Variables:** `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`
@@ -249,19 +193,10 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   5. Add redirect URL: `http://localhost:3000/api/auth/callback/intercom`
   6. Copy **Client ID** and **Client Secret**
 
-### Development (9 Services)
+### Development
 
-#### GitHub
-- **Environment Variables:** `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_ACCESS_TOKEN`
-- **Setup Instructions:**
-  1. Go to [GitHub Settings](https://github.com/settings/developers) → "OAuth Apps"
-  2. Click "New OAuth App"
-  3. Fill in application name and homepage URL
-  4. Set callback URL: `http://localhost:3000/api/auth/callback/github`
-  5. Click "Register application"
-  6. Copy **Client ID** and generate/copy **Client Secret**
-  7. For Personal Access Token: Settings → Developer settings → Personal access tokens → Generate new token
-  8. Select scopes: `repo`, `workflow`, `admin:org`
+> **Already Configured:** GitHub ✅  
+> **Need Setup:** GitLab, Bitbucket, Figma
 
 #### GitLab
 - **Environment Variables:** `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET`
@@ -292,21 +227,10 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   4. Name your token and copy the **Access Token** (shown only once)
   5. For OAuth apps: Use [Figma Developer Platform](https://www.figma.com/developers/api)
 
-### Storage (8 Services)
+### Storage
 
-#### Google Drive
-- **Environment Variables:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-  2. Create a new project or select existing
-  3. Navigate to "APIs & Services" → "Library"
-  4. Search and enable "Google Drive API"
-  5. Go to "Credentials" → "Create Credentials" → "OAuth client ID"
-  6. Configure OAuth consent screen if prompted
-  7. Application type: "Web application"
-  8. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
-  9. Click "Create" and copy **Client ID** and **Client Secret**
-  10. Download credentials JSON and save as `backend/credentials.json`
+> **Already Configured:** Google Drive ✅, Box ✅, OneDrive ✅ (via Microsoft)  
+> **Need Setup:** Dropbox
 
 #### Dropbox
 - **Environment Variables:** `DROPBOX_CLIENT_ID`, `DROPBOX_CLIENT_SECRET`
@@ -321,44 +245,10 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   8. Add redirect URI: `http://localhost:3000/api/auth/callback/dropbox`
   9. Under "Permissions" tab, enable required scopes
 
-#### Box
-- **Environment Variables:** `BOX_CLIENT_ID`, `BOX_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Go to [Box Developer Console](https://app.box.com/developers/console)
-  2. Click "Create New App" → "Custom App"
-  3. Choose "Standard OAuth 2.0 (User Authentication)"
-  4. Name your app and click "Create App"
-  5. Navigate to "Configuration" tab
-  6. Copy **Client ID** and **Client Secret**
-  7. Add redirect URI: `http://localhost:3000/api/auth/callback/box`
-  8. Under "Application Scopes", select required permissions
+### Email
 
-#### OneDrive / Microsoft
-- **Environment Variables:** Uses `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Use the same Azure app created for Microsoft Teams (see Communication section)
-  2. In Azure Portal, navigate to your app → "API permissions"
-  3. Add Microsoft Graph permissions: `Files.ReadWrite`, `Files.ReadWrite.All`
-  4. Grant admin consent for the permissions
-  5. OneDrive will use the same credentials as Microsoft 365 services
-
-### Email (8 Services)
-
-#### Gmail
-- **Environment Variables:** Uses `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Use the same Google Cloud project as Google Drive
-  2. Enable "Gmail API" from API Library
-  3. Same OAuth credentials work for both Gmail and Drive
-  4. Ensure OAuth consent screen includes Gmail scopes
-  5. Required scopes: `https://www.googleapis.com/auth/gmail.readonly`, `https://www.googleapis.com/auth/gmail.send`
-
-#### Outlook
-- **Environment Variables:** Uses `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Use the same Azure app as Microsoft Teams/OneDrive
-  2. Add Microsoft Graph permissions: `Mail.ReadWrite`, `Mail.Send`
-  3. Same credentials work across all Microsoft 365 services
+> **Already Configured:** Gmail ✅ (via Google), Outlook ✅ (via Microsoft)  
+> **Need Setup:** Mailchimp
 
 #### Mailchimp
 - **Environment Variables:** `MAILCHIMP_API_KEY`, `MAILCHIMP_SERVER_PREFIX`
@@ -369,7 +259,10 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   4. Copy the **API Key**
   5. Note your **Server Prefix** (e.g., `us1`, `us2`) from the API key or account settings
 
-### Finance (6 Services)
+### Finance
+
+> **Already Configured:** None  
+> **Need Setup:** Stripe, QuickBooks, Xero, Shopify
 
 #### Stripe
 - **Environment Variables:** `STRIPE_API_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
@@ -415,23 +308,10 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Add redirect URL: `http://localhost:3000/api/auth/callback/shopify`
   7. Note your shop name (e.g., `mystore` from `mystore.myshopify.com`)
 
-### Calendar (2 Services)
+### Calendar
 
-#### Google Calendar
-- **Environment Variables:** Uses `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Use same Google Cloud project as Drive/Gmail
-  2. Enable "Google Calendar API" from API Library
-  3. Same OAuth credentials work for all Google services
-  4. Required scope: `https://www.googleapis.com/auth/calendar`
-  5. Download credentials as `backend/credentials.json`
-
-#### Outlook Calendar
-- **Environment Variables:** Uses `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
-- **Setup Instructions:**
-  1. Use same Azure app as Teams/Outlook
-  2. Ensure `Calendars.ReadWrite` permission is added
-  3. Same credentials work for all Microsoft 365 services
+> **Already Configured:** Google Calendar ✅ (via Google), Outlook Calendar ✅ (via Microsoft)  
+> **Note:** These use the same Google and Microsoft credentials already configured
 
 ### Enterprise & Workflow Automation (5 Services)
 
@@ -442,28 +322,35 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 | **Enterprise Security** | N/A | Internal ATOM security service |
 | **Enterprise Unified** | N/A | Internal ATOM enterprise service |
 
-### AI & Voice (7 Services)
+### Other Services
 
-| Service | Env Vars | Notes |
-|---------|----------|-------|
-| **AI Enhanced Service** | Uses `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` | Leverages configured AI providers |
-| **Voice AI Service** | Uses configured AI services | Text-to-speech and speech-to-text |
-| **Video AI Service** | Uses configured AI services | Video processing and analysis |
+> **Already Configured:** None  
+> **Need Setup:** Airtable, Tableau, Canva
 
-### Industry Customizations (3 Services)
+#### Airtable
+- **Environment Variables:** `AIRTABLE_API_KEY`
+- **Setup Instructions:**
+  1. Login to [Airtable](https://airtable.com/)
+  2. Click on your profile → Account
+  3. Navigate to "API" section
+  4. Generate or copy your **API Key**
 
-| Service | Env Vars | Notes |
-|---------|----------|-------|
-| **Healthcare Customization** | N/A | HIPAA-compliant workflows |
-| **Education Customization** | N/A | FERPA-compliant workflows |
-| **Finance Customization** | N/A | SOX-compliant workflows |
+#### Tableau
+- **Environment Variables:** `TABLEAU_CLIENT_ID`, `TABLEAU_CLIENT_SECRET`
+- **Setup Instructions:**
+  1. Go to [Tableau Developer Portal](https://developer.tableau.com/)
+  2. Create a Connected App
+  3. Copy **Client ID** and **Client Secret**
 
-### Other Services (8)
+#### Canva
+- **Environment Variables:** `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`, `CANVA_TOKEN_ENCRYPTION_KEY`
+- **Setup Instructions:**
+  1. Go to [Canva Developers](https://www.canva.com/developers/)
+  2. Create an app
+  3. Copy **Client ID** and **Client Secret**
+  4. Generate encryption key for token storage
 
-| Service | Env Vars | Setup Guide |
-|---------|----------|-------------|
-| **Airtable** | `AIRTABLE_API_KEY` | Airtable Account > API Documentation |
-| **Tableau** | `TABLEAU_CLIENT_ID`, `TABLEAU_CLIENT_SECRET` | [Tableau Developer](https://developer.tableau.com/) |
+---
 
 ## 6. Feature Flags
 
@@ -475,26 +362,28 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 
 ## 7. Setup Checklist
 
-1. [ ] Set `OPENAI_API_KEY` (Critical for basic functionality)
-2. [ ] Set `ATOM_ENCRYPTION_KEY` (Critical for token storage)
-3. [ ] Configure `LANCEDB_PATH` if using local vector search
-4. [ ] Add integration credentials as needed for features you are testing
-5. [ ] For Google services, ensure `backend/credentials.json` is present
-6. [ ] For Microsoft services, enable "Allow public client flows" in Azure Portal
+### Already Done ✅
+- [x] AI Services configured (OpenAI, Anthropic, DeepSeek, Gemini, GLM)
+- [x] Google suite configured (Drive, Gmail, Calendar, Chat)
+- [x] Microsoft suite configured (Teams, Outlook, OneDrive, Calendar)
+- [x] Project Management: Asana,Jira, Monday, Notion, Linear
+- [x] Development: GitHub  
+- [x] Storage: Box
 
-## 8. Quick Reference: Integration Count by Category
+### Still Needed ⚠️
+- [ ] **Communication:** WhatsApp, Telegram, Zoom
+- [ ] **Project Management:** Trello
+- [ ] **CRM:** Salesforce, HubSpot, Zendesk, Freshdesk, Intercom
+- [ ] **Development:** GitLab, Bitbucket, Figma
+- [ ] **Storage:** Dropbox
+- [ ] **Email:** Mailchimp
+- [ ] **Finance:** Stripe, QuickBooks, Xero, Shopify
+- [ ] **Other:** Airtable, Tableau, Canva
+- [ ] Set `ATOM_ENCRYPTION_KEY` (Generate with: `python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"`)
 
-- Communication: 34 services
-- Project Management: 15 services
-- CRM: 12 services
-- Development: 9 services
-- Email: 8 services
-- Storage: 8 services
-- Other: 8 services
-- AI: 7 services
-- Finance: 6 services
-- Enterprise: 5 services
-- Industry: 3 services
-- Calendar: 2 services
+## 8. Quick Reference
 
-**Total: 117 integrations**
+**Total:** 117 backend integration files discovered  
+**Unique Services:** ~35-40 (many files are multiple implementations of same service)  
+**Already Configured:** 20+ services covering AI, Google Suite, Microsoft Suite, and major PM tools  
+**Missing:** ~15-20 additional third-party services need credentials
