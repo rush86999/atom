@@ -99,11 +99,11 @@ JIRA_BASE_URL=your_jira_base_url
 ### **4. Start Services**
 ```bash
 # Backend (Terminal 1)
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python main_api_app.py
 
 # Frontend (Terminal 2)
-cd /Users/rushiparikh/projects/atom/atom/frontend-nextjs
+cd /Users/developer/projects/atom/atom/frontend-nextjs
 npm run dev
 ```
 

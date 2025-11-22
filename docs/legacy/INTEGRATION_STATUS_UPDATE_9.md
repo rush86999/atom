@@ -281,7 +281,7 @@
 ### **Immediate Action**: Start Asana Integration
 ```bash
 # Verify Asana existing implementation
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python -c "from asana_service import *; print('✅ Asana service available')"
 
 # Test Asana endpoints
