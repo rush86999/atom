@@ -253,7 +253,7 @@
 ### **Immediate Action**: Start GitHub Integration
 ```bash
 # Activate GitHub enhanced service
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python activate_github_integration.py
 
 # Test GitHub endpoints

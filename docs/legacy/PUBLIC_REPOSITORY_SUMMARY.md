@@ -11,8 +11,8 @@ I have successfully removed all personal information from your repository to mai
 ## 🔒 **Privacy Measures Implemented**
 
 ### **✅ Personal Information Removed**
-- Personal names and usernames (`rushiparikh` → `developer`)
-- Personal file paths (`/Users/rushiparikh` → `/home/developer`)
+- Personal names and usernames (`developer` → `developer`)
+- Personal file paths (`/Users/developer` → `/home/developer`)
 - Personal email addresses (`admin@atom.com` → `noreply@atom.com`)
 - Personal directory structures sanitized
 

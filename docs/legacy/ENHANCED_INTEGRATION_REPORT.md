@@ -242,7 +242,7 @@ atom/
 ### Quick Start
 ```bash
 # Run complete enhanced system
-cd /Users/rushiparikh/projects/atom/atom
+cd /Users/developer/projects/atom/atom
 python enhanced_integration_system.py system
 
 # Run only integration tests

@@ -266,7 +266,7 @@
 ### **Immediate Action**: Start Trello Integration
 ```bash
 # Activate Trello enhanced service
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python activate_trello_integration.py
 
 # Test Trello endpoints

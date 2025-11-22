@@ -1,18 +1,18 @@
 {
-  "total_services": 116,
+  "total_services": 117,
   "by_category": {
-    "communication": 34,
-    "crm": 12,
-    "enterprise": 5,
-    "email": 8,
     "development": 9,
-    "storage": 8,
-    "ai": 7,
-    "other": 7,
     "project_management": 15,
+    "email": 8,
+    "crm": 12,
+    "ai": 7,
     "finance": 6,
+    "enterprise": 5,
+    "other": 8,
     "industry": 3,
-    "calendar": 2
+    "calendar": 2,
+    "communication": 34,
+    "storage": 8
   },
   "services": {
     "outlook_integration": {
@@ -907,6 +907,19 @@
       "has_health_check": false,
       "status": "discovered",
       "category": "communication"
+    },
+    "airtable_routes": {
+      "name": "airtable_routes",
+      "file": "backend/integrations/airtable_routes.py",
+      "classes": [
+        "AirtableSearchRequest",
+        "AirtableSearchResponse"
+      ],
+      "auth_type": "unknown",
+      "has_connect": false,
+      "has_health_check": false,
+      "status": "discovered",
+      "category": "other"
     },
     "outlook_routes": {
       "name": "outlook_routes",

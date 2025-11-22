@@ -9,11 +9,11 @@ This repository has been cleaned for public privacy.
 - Personal directory structures
 
 ## Replacements Made
-- `rushiparikh` → `developer`
+- `developer` → `developer`
 - `Rushi Parikh` → `Developer`
-- `/Users/rushiparikh` → `/home/developer`
-- `/Users/rushiparikh/projects/atom` → `/home/developer/projects`
-- `/Users/rushiparikh/atom-production` → `/opt/atom`
+- `/Users/developer` → `/home/developer`
+- `/Users/developer/projects/atom` → `/home/developer/projects`
+- `/Users/developer/atom-production` → `/opt/atom`
 - `admin@atom.com` → `noreply@atom.com`
 - `your_email@gmail.com` → `noreply@atom.com`
 

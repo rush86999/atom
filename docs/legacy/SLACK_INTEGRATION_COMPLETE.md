@@ -125,11 +125,11 @@ DB_PASSWORD=your_password
 ### **3. Start Services**
 ```bash
 # Backend
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python main_api_app.py
 
 # Frontend (separate terminal)
-cd /Users/rushiparikh/projects/atom/atom/frontend-nextjs
+cd /Users/developer/projects/atom/atom/frontend-nextjs
 npm run dev
 ```
 

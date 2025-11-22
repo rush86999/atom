@@ -276,7 +276,7 @@
 ### **Immediate Action**: Start Zoom Integration
 ```bash
 # Activate Zoom enhanced service
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python activate_zoom_integration.py
 
 # Test Zoom endpoints

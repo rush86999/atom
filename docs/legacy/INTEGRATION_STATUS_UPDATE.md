@@ -222,7 +222,7 @@
 ### **Immediate Action**: Start Notion Integration
 ```bash
 # Activate Notion enhanced service
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python activate_notion_integration.py
 
 # Test Notion endpoints
