@@ -39,7 +39,7 @@
 
 ### Step 1: Deploy Production Application
 ```bash
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python production_app.py
 ```
 

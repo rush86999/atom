@@ -231,7 +231,7 @@ JIRA Integration:
 ### ⚡ **Quick Start**
 ```bash
 # Run complete AI-powered system
-cd /Users/rushiparikh/projects/atom/atom
+cd /Users/developer/projects/atom/atom
 python ai_integration_system.py
 
 # Run AI predictions demo

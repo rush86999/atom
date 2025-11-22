@@ -32,7 +32,7 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
    - **Issue**: Pandas 2.3+ hanging on import with Xcode Python 3.9
    - **Solution**: Use Python 3.11 (`/usr/local/bin/python3.11`)
    - **Status**: Database populated and working
-   - **Location**: `/Users/rushiparikh/atom_lancedb` (6 documents)
+   - **Location**: `/Users/developer/atom_lancedb` (6 documents)
    - Files: `backend/scripts/populate_lancedb_no_pandas.py`, `backend/scripts/test_lancedb_search.py`
 
 3. **Integration Testing Framework** (116 Services Discovered)
@@ -152,7 +152,7 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 
 4.  **Hybrid Search (LanceDB)** ✅ RESOLVED:
     - **Status**: Database populated and working.
-    - **Location**: `/Users/rushiparikh/atom_lancedb`
+    - **Location**: `/Users/developer/atom_lancedb`
     - **Command**: `/usr/local/bin/python3.11 backend/scripts/test_lancedb_search.py`
     - **Note**: Use Python 3.11 to avoid pandas import hang.
 

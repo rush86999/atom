@@ -231,7 +231,7 @@
 ### **Immediate Action**: Start Microsoft Teams Integration
 ```bash
 # Complete Teams enhanced service
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python activate_teams_integration.py
 
 # Test Teams endpoints

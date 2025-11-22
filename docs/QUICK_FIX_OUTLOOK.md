@@ -55,19 +55,19 @@ sudo systemctl start postgresql
 createdb atom
 
 # Run quick fix
-cd /Users/rushiparikh/projects/atom/atom
+cd /Users/developer/projects/atom/atom
 python quick_fix_outlook.py
 ```
 
 ### **3. Start Backend API**
 ```bash
-cd /Users/rushiparikh/projects/atom/atom/backend/python-api-service
+cd /Users/developer/projects/atom/atom/backend/python-api-service
 python main_api_app.py
 ```
 
 ### **4. Test Integration**
 ```bash
-cd /Users/rushiparikh/projects/atom/atom
+cd /Users/developer/projects/atom/atom
 python test_outlook_integration.py
 ```
 

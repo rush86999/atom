@@ -51,7 +51,7 @@ The ATOM Platform has been successfully completed with all broken components fix
 
 ### Quick Start (Recommended)
 ```bash
-cd /Users/rushiparikh/projects/atom/atom
+cd /Users/developer/projects/atom/atom
 ./start_atom_final.sh
 ```
 
