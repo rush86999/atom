@@ -38,7 +38,30 @@ This guide documents all required environment variables and credentials for the 
 | `ATOM_ENCRYPTION_KEY` | Key used to encrypt stored tokens (Must be 32 bytes base64) |
 | `NEXTAUTH_SECRET` | Secret for NextAuth.js session encryption |
 
-## 4. Credentials Status Overview
+## 5. OAuth Callback URLs for Local Testing
+
+When setting up OAuth integrations for **local development**, use these callback URLs in your app configurations:
+
+**Standard OAuth Callback Pattern:**
+```
+http://localhost:3000/api/auth/callback/[service_name]
+```
+
+**Common Local Callback URLs:**
+- Slack: `http://localhost:3000/api/auth/callback/slack`
+- Google (Drive, Gmail, Calendar): `http://localhost:3000/api/auth/callback/google`
+- Microsoft (Teams, Outlook, OneDrive): `http://localhost:3000/api/auth/callback/microsoft`
+- GitHub: `http://localhost:3000/api/auth/callback/github`
+- Asana: `http://localhost:3000/api/auth/callback/asana`
+- Jira: `http://localhost:3000/api/auth/callback/jira`
+- Notion: `http://localhost:3000/api/auth/callback/notion`
+- Discord: `http://localhost:3000/api/auth/callback/discord`
+
+**For Production:** Replace `http://localhost:3000` with your production domain, e.g., `https://yourdomain.com`
+
+> **Note:** Some services may require you to explicitly whitelist localhost URLs. For services that don't allow localhost (rare), you may need to use a tunneling service like ngrok during development.
+
+## 6. Credentials Status Overview
 
 ### ✅ Already Configured (Found in `notes/credentials.md`)
 
