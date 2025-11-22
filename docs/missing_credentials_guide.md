@@ -51,7 +51,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 ### Communication (34 Services)
 
 #### Slack
-- **Environment Variables:** `ATOM_SLACK_CLIENT_ID`, `ATOM_SLACK_CLIENT_SECRET`, `ATOM_SLACK_BOT_TOKEN`, `ATOM_SLACK_SIGNING_SECRET`
+- **Environment Variables:** `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`
 - **Setup Instructions:**
   1. Go to [Slack API Apps](https://api.slack.com/apps)
   2. Click "Create New App" → "From scratch"
@@ -64,7 +64,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   9. Copy **Signing Secret** from "Basic Information"
 
 #### Discord
-- **Environment Variables:** `ATOM_DISCORD_CLIENT_ID`, `ATOM_DISCORD_CLIENT_SECRET`, `ATOM_DISCORD_BOT_TOKEN`
+- **Environment Variables:** `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`
 - **Setup Instructions:**
   1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
   2. Click "New Application" and name it
@@ -75,7 +75,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   7. Enable required bot permissions: "Send Messages", "Read Message History"
 
 #### Microsoft Teams
-- **Environment Variables:** `ATOM_MICROSOFT_CLIENT_ID`, `ATOM_MICROSOFT_CLIENT_SECRET`, `ATOM_MICROSOFT_TENANT_ID`
+- **Environment Variables:** `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`
 - **Setup Instructions:**
   1. Go to [Azure Portal](https://portal.azure.com/) → Azure Active Directory
   2. Navigate to "App registrations" → "New registration"
@@ -88,7 +88,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   9. Enable "Allow public client flows" under "Authentication"
 
 #### WhatsApp Business
-- **Environment Variables:** `ATOM_WHATSAPP_PHONE_NUMBER_ID`, `ATOM_WHATSAPP_ACCESS_TOKEN`
+- **Environment Variables:** `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`
 - **Setup Instructions:**
   1. Go to [Meta for Developers](https://developers.facebook.com/)
   2. Create a new app → Select "Business" type
@@ -99,7 +99,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   7. Note: Requires Business verification for production use
 
 #### Telegram
-- **Environment Variables:** `ATOM_TELEGRAM_BOT_TOKEN`, `ATOM_TELEGRAM_API_ID`, `ATOM_TELEGRAM_API_HASH`
+- **Environment Variables:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`
 - **Setup Instructions:**
   1. Open Telegram and search for [@BotFather](https://t.me/botfather)
   2. Send `/newbot` command
@@ -110,7 +110,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   7. Create an application and copy **API ID** and **API Hash**
 
 #### Google Chat
-- **Environment Variables:** Uses `ATOM_GOOGLE_CLIENT_ID`, `ATOM_GOOGLE_CLIENT_SECRET`
+- **Environment Variables:** Uses `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Google Cloud Console](https://console.cloud.google.com/)
   2. Create a new project or select existing
@@ -122,7 +122,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   8. Configure OAuth consent screen with required scopes
 
 #### Zoom
-- **Environment Variables:** `ATOM_ZOOM_CLIENT_ID`, `ATOM_ZOOM_CLIENT_SECRET`, `ATOM_ZOOM_ACCOUNT_ID`
+- **Environment Variables:** `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_ACCOUNT_ID`
 - **Setup Instructions:**
   1. Go to [Zoom App Marketplace](https://marketplace.zoom.us/)
   2. Click "Develop" → "Build App"
@@ -135,7 +135,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 ### Project Management (15 Services)
 
 #### Asana
-- **Environment Variables:** `ATOM_ASANA_CLIENT_ID`, `ATOM_ASANA_CLIENT_SECRET`
+- **Environment Variables:** `ASANA_CLIENT_ID`, `ASANA_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Asana Developer Console](https://app.asana.com/0/developer-console)
   2. Click "Create new app"
@@ -145,7 +145,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Request required scopes during OAuth flow
 
 #### Jira
-- **Environment Variables:** `ATOM_JIRA_CLIENT_ID`, `ATOM_JIRA_CLIENT_SECRET`
+- **Environment Variables:** `JIRA_CLIENT_ID`, `JIRA_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Atlassian Developer Console](https://developer.atlassian.com/console/myapps/)
   2. Click "Create" → "OAuth 2.0 integration"
@@ -155,7 +155,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Distribute app to your Jira site
 
 #### Monday.com
-- **Environment Variables:** `ATOM_MONDAY_API_KEY`
+- **Environment Variables:** `MONDAY_API_KEY`
 - **Setup Instructions:**
   1. Go to [Monday.com](https://monday.com/) and login
   2. Click your avatar → "Developers"
@@ -165,18 +165,18 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Alternatively, use OAuth: [Monday Apps](https://monday.com/developers/apps)
 
 #### Notion
-- **Environment Variables:** `ATOM_NOTION_API_KEY`, `ATOM_NOTION_CLIENT_ID`, `ATOM_NOTION_CLIENT_SECRET`
+- **Environment Variables:** `NOTION_API_KEY`, `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Notion Integrations](https://www.notion.so/my-integrations)
   2. Click "New integration"
   3. Name your integration and select associated workspace
-  4. Copy the **Internal Integration Token** (for `ATOM_NOTION_API_KEY`)
+  4. Copy the **Internal Integration Token** (for `NOTION_API_KEY`)
   5. For OAuth: Go to "Distribution" → Enable "Public integration"
   6. Copy **OAuth Client ID** and **OAuth Client Secret**
   7. Add redirect URI: `http://localhost:3000/api/auth/callback/notion`
 
 #### Linear
-- **Environment Variables:** `ATOM_LINEAR_API_KEY`
+- **Environment Variables:** `LINEAR_API_KEY`
 - **Setup Instructions:**
   1. Go to [Linear Settings](https://linear.app/settings/api)
   2. Scroll to "Personal API keys"
@@ -186,7 +186,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Copy Client ID and Client Secret
 
 #### Trello
-- **Environment Variables:** `ATOM_TRELLO_API_KEY`, `ATOM_TRELLO_TOKEN`
+- **Environment Variables:** `TRELLO_API_KEY`, `TRELLO_TOKEN`
 - **Setup Instructions:**
   1. Go to [Trello Power-Ups Admin](https://trello.com/power-ups/admin)
   2. Click "New" → "Create Power-Up"
@@ -199,7 +199,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 ### CRM (12 Services)
 
 #### Salesforce
-- **Environment Variables:** `ATOM_SALESFORCE_CLIENT_ID`, `ATOM_SALESFORCE_CLIENT_SECRET`
+- **Environment Variables:** `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Login to [Salesforce](https://login.salesforce.com/)
   2. Navigate to Setup → App Manager
@@ -211,7 +211,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   8. Save and copy **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret)
 
 #### HubSpot
-- **Environment Variables:** `ATOM_HUBSPOT_CLIENT_ID`, `ATOM_HUBSPOT_CLIENT_SECRET`
+- **Environment Variables:** `HUBSPOT_CLIENT_ID`, `HUBSPOT_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [HubSpot Developers](https://developers.hubspot.com/)
   2. Click "Create app" → Fill in app information
@@ -221,7 +221,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Copy **Client ID** and **Client Secret** from Auth tab
 
 #### Zendesk
-- **Environment Variables:** `ATOM_ZENDESK_CLIENT_ID`, `ATOM_ZENDESK_CLIENT_SECRET`, `ATOM_ZENDESK_SUBDOMAIN`
+- **Environment Variables:** `ZENDESK_CLIENT_ID`, `ZENDESK_CLIENT_SECRET`, `ZENDESK_SUBDOMAIN`
 - **Setup Instructions:**
   1. Go to Zendesk Admin Center → Apps and integrations → APIs → OAuth Clients
   2. Click "Add OAuth client"
@@ -231,7 +231,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Note your Zendesk subdomain (e.g., `yourcompany` from `yourcompany.zendesk.com`)
 
 #### Freshdesk
-- **Environment Variables:** `ATOM_FRESHDESK_API_KEY`, `ATOM_FRESHDESK_DOMAIN`
+- **Environment Variables:** `FRESHDESK_API_KEY`, `FRESHDESK_DOMAIN`
 - **Setup Instructions:**
   1. Login to your Freshdesk account
   2. Click on your profile picture → Profile settings
@@ -240,7 +240,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   5. Note your Freshdesk domain (e.g., `yourcompany.freshdesk.com`)
 
 #### Intercom
-- **Environment Variables:** `ATOM_INTERCOM_CLIENT_ID`, `ATOM_INTERCOM_CLIENT_SECRET`
+- **Environment Variables:** `INTERCOM_CLIENT_ID`, `INTERCOM_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Intercom Developer Hub](https://developers.intercom.com/)
   2. Click "Your apps" → "New app"
@@ -252,7 +252,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 ### Development (9 Services)
 
 #### GitHub
-- **Environment Variables:** `ATOM_GITHUB_CLIENT_ID`, `ATOM_GITHUB_CLIENT_SECRET`, `ATOM_GITHUB_ACCESS_TOKEN`
+- **Environment Variables:** `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_ACCESS_TOKEN`
 - **Setup Instructions:**
   1. Go to [GitHub Settings](https://github.com/settings/developers) → "OAuth Apps"
   2. Click "New OAuth App"
@@ -264,7 +264,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   8. Select scopes: `repo`, `workflow`, `admin:org`
 
 #### GitLab
-- **Environment Variables:** `ATOM_GITLAB_CLIENT_ID`, `ATOM_GITLAB_CLIENT_SECRET`
+- **Environment Variables:** `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [GitLab Applications](https://gitlab.com/-/profile/applications)
   2. Fill in application name
@@ -274,7 +274,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Copy **Application ID** (Client ID) and **Secret**
 
 #### Bitbucket
-- **Environment Variables:** `ATOM_BITBUCKET_CLIENT_ID`, `ATOM_BITBUCKET_CLIENT_SECRET`
+- **Environment Variables:** `BITBUCKET_CLIENT_ID`, `BITBUCKET_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Bitbucket Settings](https://bitbucket.org/account/settings/oauth-consumers/new)
   2. Fill in OAuth consumer name
@@ -284,7 +284,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Copy **Key** (Client ID) and **Secret**
 
 #### Figma
-- **Environment Variables:** `ATOM_FIGMA_ACCESS_TOKEN`
+- **Environment Variables:** `FIGMA_ACCESS_TOKEN`
 - **Setup Instructions:**
   1. Go to [Figma Account Settings](https://www.figma.com/settings)
   2. Scroll to "Personal access tokens"
@@ -295,7 +295,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 ### Storage (8 Services)
 
 #### Google Drive
-- **Environment Variables:** `ATOM_GOOGLE_CLIENT_ID`, `ATOM_GOOGLE_CLIENT_SECRET`
+- **Environment Variables:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Google Cloud Console](https://console.cloud.google.com/)
   2. Create a new project or select existing
@@ -309,7 +309,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   10. Download credentials JSON and save as `backend/credentials.json`
 
 #### Dropbox
-- **Environment Variables:** `ATOM_DROPBOX_CLIENT_ID`, `ATOM_DROPBOX_CLIENT_SECRET`
+- **Environment Variables:** `DROPBOX_CLIENT_ID`, `DROPBOX_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Dropbox App Console](https://www.dropbox.com/developers/apps)
   2. Click "Create app"
@@ -322,7 +322,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   9. Under "Permissions" tab, enable required scopes
 
 #### Box
-- **Environment Variables:** `ATOM_BOX_CLIENT_ID`, `ATOM_BOX_CLIENT_SECRET`
+- **Environment Variables:** `BOX_CLIENT_ID`, `BOX_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Box Developer Console](https://app.box.com/developers/console)
   2. Click "Create New App" → "Custom App"
@@ -334,7 +334,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   8. Under "Application Scopes", select required permissions
 
 #### OneDrive / Microsoft
-- **Environment Variables:** Uses `ATOM_MICROSOFT_CLIENT_ID`, `ATOM_MICROSOFT_CLIENT_SECRET`
+- **Environment Variables:** Uses `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Use the same Azure app created for Microsoft Teams (see Communication section)
   2. In Azure Portal, navigate to your app → "API permissions"
@@ -345,7 +345,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 ### Email (8 Services)
 
 #### Gmail
-- **Environment Variables:** Uses `ATOM_GOOGLE_CLIENT_ID`, `ATOM_GOOGLE_CLIENT_SECRET`
+- **Environment Variables:** Uses `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Use the same Google Cloud project as Google Drive
   2. Enable "Gmail API" from API Library
@@ -354,14 +354,14 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   5. Required scopes: `https://www.googleapis.com/auth/gmail.readonly`, `https://www.googleapis.com/auth/gmail.send`
 
 #### Outlook
-- **Environment Variables:** Uses `ATOM_MICROSOFT_CLIENT_ID`, `ATOM_MICROSOFT_CLIENT_SECRET`
+- **Environment Variables:** Uses `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Use the same Azure app as Microsoft Teams/OneDrive
   2. Add Microsoft Graph permissions: `Mail.ReadWrite`, `Mail.Send`
   3. Same credentials work across all Microsoft 365 services
 
 #### Mailchimp
-- **Environment Variables:** `ATOM_MAILCHIMP_API_KEY`, `ATOM_MAILCHIMP_SERVER_PREFIX`
+- **Environment Variables:** `MAILCHIMP_API_KEY`, `MAILCHIMP_SERVER_PREFIX`
 - **Setup Instructions:**
   1. Login to [Mailchimp](https://mailchimp.com/)
   2. Navigate to Account → Extras → API keys
@@ -372,18 +372,18 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 ### Finance (6 Services)
 
 #### Stripe
-- **Environment Variables:** `ATOM_STRIPE_API_KEY`, `ATOM_STRIPE_PUBLISHABLE_KEY`, `ATOM_STRIPE_WEBHOOK_SECRET`
+- **Environment Variables:** `STRIPE_API_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
 - **Setup Instructions:**
   1. Go to [Stripe Dashboard](https://dashboard.stripe.com/)
   2. Navigate to Developers → API keys
-  3. Copy **Secret key** (starts with `sk_`) for `ATOM_STRIPE_API_KEY`
-  4. Copy **Publishable key** (starts with `pk_`) for `ATOM_STRIPE_PUBLISHABLE_KEY`
+  3. Copy **Secret key** (starts with `sk_`) for `STRIPE_API_KEY`
+  4. Copy **Publishable key** (starts with `pk_`) for `STRIPE_PUBLISHABLE_KEY`
   5. For webhooks: Developers → Webhooks → Add endpoint
   6. Set endpoint URL: `https://yourdomain.com/api/webhooks/stripe`
-  7. Copy **Signing secret** for `ATOM_STRIPE_WEBHOOK_SECRET`
+  7. Copy **Signing secret** for `STRIPE_WEBHOOK_SECRET`
 
 #### QuickBooks
-- **Environment Variables:** `ATOM_QUICKBOOKS_CLIENT_ID`, `ATOM_QUICKBOOKS_CLIENT_SECRET`
+- **Environment Variables:** `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Intuit Developer Portal](https://developer.intuit.com/)
   2. Create an account or sign in
@@ -395,7 +395,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   8. Select required scopes
 
 #### Xero
-- **Environment Variables:** `ATOM_XERO_CLIENT_ID`, `ATOM_XERO_CLIENT_SECRET`
+- **Environment Variables:** `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Go to [Xero Developer Portal](https://developer.xero.com/app/manage)
   2. Click "New app"
@@ -405,7 +405,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   6. Generate and configure API scopes
 
 #### Shopify
-- **Environment Variables:** `ATOM_SHOPIFY_API_KEY`, `ATOM_SHOPIFY_API_SECRET`, `ATOM_SHOPIFY_SHOP_NAME`
+- **Environment Variables:** `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `SHOPIFY_SHOP_NAME`
 - **Setup Instructions:**
   1. Go to [Shopify Partners](https://partners.shopify.com/)
   2. Navigate to Apps → Create app
@@ -418,7 +418,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 ### Calendar (2 Services)
 
 #### Google Calendar
-- **Environment Variables:** Uses `ATOM_GOOGLE_CLIENT_ID`, `ATOM_GOOGLE_CLIENT_SECRET`
+- **Environment Variables:** Uses `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Use same Google Cloud project as Drive/Gmail
   2. Enable "Google Calendar API" from API Library
@@ -427,7 +427,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
   5. Download credentials as `backend/credentials.json`
 
 #### Outlook Calendar
-- **Environment Variables:** Uses `ATOM_MICROSOFT_CLIENT_ID`, `ATOM_MICROSOFT_CLIENT_SECRET`
+- **Environment Variables:** Uses `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
 - **Setup Instructions:**
   1. Use same Azure app as Teams/Outlook
   2. Ensure `Calendars.ReadWrite` permission is added
@@ -437,7 +437,7 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 
 | Service | Env Vars | Notes |
 |---------|----------|-------|
-| **Microsoft 365** | `ATOM_MICROSOFT_CLIENT_ID`, `ATOM_MICROSOFT_CLIENT_SECRET` | Unified suite covering Teams, Outlook, OneDrive, SharePoint |
+| **Microsoft 365** | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` | Unified suite covering Teams, Outlook, OneDrive, SharePoint |
 | **Workflow Automation** | N/A | Internal ATOM service for workflow orchestration |
 | **Enterprise Security** | N/A | Internal ATOM security service |
 | **Enterprise Unified** | N/A | Internal ATOM enterprise service |
@@ -462,8 +462,8 @@ ATOM supports **117 integrations** across 12 categories. Most follow a standard 
 
 | Service | Env Vars | Setup Guide |
 |---------|----------|-------------|
-| **Airtable** | `ATOM_AIRTABLE_API_KEY` | Airtable Account > API Documentation |
-| **Tableau** | `ATOM_TABLEAU_CLIENT_ID`, `ATOM_TABLEAU_CLIENT_SECRET` | [Tableau Developer](https://developer.tableau.com/) |
+| **Airtable** | `AIRTABLE_API_KEY` | Airtable Account > API Documentation |
+| **Tableau** | `TABLEAU_CLIENT_ID`, `TABLEAU_CLIENT_SECRET` | [Tableau Developer](https://developer.tableau.com/) |
 
 ## 6. Feature Flags
 
