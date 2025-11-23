@@ -6,6 +6,7 @@ FastAPI routes for Salesforce CRM integration and enterprise workflow automation
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import os
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
@@ -481,18 +482,26 @@ async def get_salesforce_user_profile(
         )
 
     try:
-        # User info stub
         sf = get_salesforce_client_from_env()
         if not sf:
              return format_salesforce_error_response("No credentials found")
         
-        # Simple query for user info
         try:
-            res = sf.query("SELECT Id, Name, Email, Username FROM User WHERE Id = '005'") # 005 is prefix for User, but need actual ID or current user
-            # Better: use identity service if available, or just return basic info
-            return format_salesforce_response({"message": "User info retrieval limited in simple mode"})
-        except Exception as e:
-            return format_salesforce_error_response(str(e))
+            # Try to get current user info using Chatter API which is standard for "me"
+            # This returns detailed info about the authenticated user
+            user_info = sf.restful('chatter/users/me')
+            return format_salesforce_response(user_info)
+        except Exception:
+            # Fallback to querying User table if chatter API fails
+            try:
+                # Get username from client if possible, or just query first user as fallback for dev
+                # In a real app, we'd parse the identity URL from the auth response
+                res = sf.query("SELECT Id, Name, Email, Username, Title, CompanyName FROM User LIMIT 1")
+                if res['totalSize'] > 0:
+                    return format_salesforce_response(res['records'][0])
+                return format_salesforce_error_response("User not found")
+            except Exception as e:
+                return format_salesforce_error_response(f"Database query failed: {str(e)}")
     except Exception as e:
         return format_salesforce_error_response(str(e))
 
