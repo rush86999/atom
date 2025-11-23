@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../../lib/auth";
+import { query } from '../../../lib/db';
 
 export default async function handler(
   req: NextApiRequest,
@@ -10,12 +12,9 @@ export default async function handler(
   }
 
   try {
-    const supabase = createServerSupabaseClient({ req, res });
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const session = await getServerSession(req, res, authOptions);
 
-    if (!session) {
+    if (!session || !session.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -23,15 +22,17 @@ export default async function handler(
     const { includeHistory = false, dateRange } = req.query;
 
     // Fetch all accounts for the user
-    const { data: plaidAccounts } = await supabase
-      .from('accounts')
-      .select('balance, account_type')
-      .eq('user_id', userId);
+    const plaidResult = await query(
+      'SELECT balance, account_type FROM accounts WHERE user_id = $1',
+      [userId]
+    );
+    const plaidAccounts = plaidResult.rows;
 
-    const { data: manualAccounts } = await supabase
-      .from('manual_accounts')
-      .select('balance, account_type')
-      .eq('user_id', userId);
+    const manualResult = await query(
+      'SELECT balance, account_type FROM manual_accounts WHERE user_id = $1',
+      [userId]
+    );
+    const manualAccounts = manualResult.rows;
 
     // Calculate net worth
     let totalAssets = 0;
@@ -112,11 +113,11 @@ export default async function handler(
     // Fetch historical snapshots if requested
     let history = [];
     if (includeHistory === 'true' || includeHistory === true) {
-      const { data: snapshots } = await supabase
-        .from('net_worth_snapshots')
-        .select('snapshot_date, net_worth')
-        .eq('user_id', userId)
-        .order('snapshot_date', { ascending: true });
+      const snapshotsResult = await query(
+        'SELECT snapshot_date, net_worth FROM net_worth_snapshots WHERE user_id = $1 ORDER BY snapshot_date ASC',
+        [userId]
+      );
+      const snapshots = snapshotsResult.rows;
 
       history =
         snapshots?.map((snap) => ({

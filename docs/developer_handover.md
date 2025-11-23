@@ -310,8 +310,9 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - **Unified Architecture**: `frontend-nextjs` serves as both the web app and the desktop app (via Tauri wrapper).
 - **Tech Stack**: Next.js (v15.5.0 listed), TypeScript/JavaScript mix.
 - **UI Libraries**: Mixed usage of Tailwind, Chakra UI, MUI, and others. **Recommendation**: Consolidate to Tailwind.
-- **Authentication**: Multiple providers listed (SuperTokens, NextAuth, Supabase). **Recommendation**: Standardize on one.
+- **Authentication**: **NextAuth** is the primary provider for the Web/Desktop app. SuperTokens is present in `project/functions` but not active in the main UI flow.
 
-### Legacy
-- The `/src` directory appears to be legacy/unused and should be ignored in favor of `frontend-nextjs`.
+### Shared Architecture
+- **`/src` Directory**: Contains shared UI components, services, and business logic used by `frontend-nextjs`. **Crucial**: Do not delete.
+- **Path Mappings**: `frontend-nextjs/tsconfig.json` maps `@shared-*` to `../../src/*`.
 
