@@ -263,7 +263,11 @@ class LanceDBMemoryManager:
                     "total_messages": new_count,
                     "status": "active"
                 }
-                # TODO: Implement proper update in LanceDB
+                # Delete existing record
+                self.metadata_table.delete(f"app_type = '{app_type}'")
+                
+                # Add updated record
+                self.metadata_table.add([update_data])
             else:
                 # Create new record
                 metadata = {
