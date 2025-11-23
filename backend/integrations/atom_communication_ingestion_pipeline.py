@@ -14,6 +14,8 @@ import lancedb
 import pyarrow as pa
 import pandas as pd
 from pathlib import Path
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +79,7 @@ class LanceDBMemoryManager:
         self.db = None
         self.connections_table = None
         self.metadata_table = None
+        self.model = None
         
     def initialize(self):
         """Initialize LanceDB connection and tables"""
@@ -84,6 +87,16 @@ class LanceDBMemoryManager:
             self.db = lancedb.connect(str(self.db_path))
             self._create_connections_table()
             self._create_metadata_table()
+            
+            # Initialize embedding model
+            try:
+                logger.info("Loading embedding model (all-mpnet-base-v2)...")
+                self.model = SentenceTransformer('all-mpnet-base-v2')
+                logger.info("Embedding model loaded successfully")
+            except Exception as e:
+                logger.error(f"Error loading embedding model: {str(e)}")
+                return False
+                
             logger.info("LanceDB memory manager initialized successfully")
             return True
         except Exception as e:
@@ -209,17 +222,36 @@ class LanceDBMemoryManager:
             logger.error(f"Error ingesting batch: {str(e)}")
             return False
     
+    def generate_embedding(self, text: str) -> List[float]:
+        """Generate embedding for text content"""
+        try:
+            if not self.model:
+                logger.warning("Embedding model not initialized, returning zero vector")
+                return [0.0] * 768
+                
+            embedding = self.model.encode(text)
+            return embedding.tolist()
+        except Exception as e:
+            logger.error(f"Error generating embedding: {str(e)}")
+            return [0.0] * 768
+
     def search_communications(self, query: str, limit: int = 10, app_type: str = None) -> List[Dict]:
         """Search communications using vector similarity"""
         try:
-            # For now, implement text-based search
-            # TODO: Implement proper vector search with embeddings
+            if not self.connections_table:
+                logger.error("Connections table not initialized")
+                return []
+                
+            # Generate query embedding
+            query_vector = self.generate_embedding(query)
             
-            filter_query = f"content LIKE '%{query}%'"
+            # Perform vector search
+            search_builder = self.connections_table.search(query_vector).limit(limit)
+            
             if app_type:
-                filter_query += f" AND app_type = '{app_type}'"
+                search_builder = search_builder.where(f"app_type = '{app_type}'")
             
-            results = self.connections_table.search().where(filter_query).limit(limit).to_pandas()
+            results = search_builder.to_pandas()
             
             return results.to_dict('records')
             
@@ -418,23 +450,7 @@ class CommunicationIngestionPipeline:
     
     def _generate_embedding(self, text: str) -> List[float]:
         """Generate embedding for text content"""
-        # TODO: Implement actual embedding generation using sentence-transformers, OpenAI, etc.
-        # For now, return mock embedding
-        import hashlib
-        hash_obj = hashlib.md5(text.encode())
-        hash_hex = hash_obj.hexdigest()
-        
-        # Convert hash to float vector of 768 dimensions
-        embedding = []
-        for i in range(0, len(hash_hex), 2):
-            byte_val = int(hash_hex[i:i+2], 16)
-            embedding.append(float(byte_val) / 255.0)
-        
-        # Pad or truncate to 768 dimensions
-        while len(embedding) < 768:
-            embedding.append(0.0)
-        
-        return embedding[:768]
+        return self.memory_manager.generate_embedding(text)
     
     def get_ingestion_stats(self) -> Dict[str, Any]:
         """Get ingestion statistics"""

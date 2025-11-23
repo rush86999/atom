@@ -7,13 +7,29 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+import os
+
+try:
+    from slack_sdk import WebClient
+    from slack_sdk.errors import SlackApiError
+    SLACK_SDK_AVAILABLE = True
+except ImportError:
+    SLACK_SDK_AVAILABLE = False
+    logger.warning("slack_sdk not installed, running in mock mode")
 
 logger = logging.getLogger(__name__)
 
 # Create FastAPI router
 router = APIRouter(prefix="/api/slack", tags=["slack"])
+
+def get_slack_client():
+    """Get Slack WebClient if token is available"""
+    token = os.getenv("SLACK_BOT_TOKEN")
+    if not token:
+        return None
+    return WebClient(token=token)
 
 
 class SlackMessageRequest(BaseModel):
@@ -60,12 +76,15 @@ class SlackChannelResponse(BaseModel):
 @router.get("/status")
 async def slack_status(user_id: str = "test_user"):
     """Get Slack integration status"""
+    client = get_slack_client()
+    is_connected = client is not None and SLACK_SDK_AVAILABLE
+    
     return {
         "ok": True,
         "service": "slack",
         "user_id": user_id,
-        "status": "connected",
-        "message": "Slack integration is available",
+        "status": "connected" if is_connected else "mock_mode",
+        "message": "Slack integration is available" if is_connected else "Running in mock mode (missing SLACK_BOT_TOKEN)",
         "timestamp": datetime.now().isoformat(),
     }
 
@@ -82,6 +101,25 @@ async def send_slack_message(request: SlackMessageRequest):
     """Send a Slack message"""
     logger.info(f"Sending Slack message to channel: {request.channel}")
 
+    client = get_slack_client()
+    if client and SLACK_SDK_AVAILABLE:
+        try:
+            response = client.chat_postMessage(
+                channel=request.channel,
+                text=request.text
+            )
+            return SlackMessageResponse(
+                ok=True,
+                channel=response["channel"],
+                message_id=response["ts"],
+                text=request.text,
+                timestamp=datetime.now().isoformat(),
+            )
+        except SlackApiError as e:
+            logger.error(f"Error sending message: {e.response['error']}")
+            raise HTTPException(status_code=400, detail=f"Slack API Error: {e.response['error']}")
+    
+    # Fallback to mock
     return SlackMessageResponse(
         ok=True,
         channel=request.channel,
