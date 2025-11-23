@@ -465,7 +465,7 @@ async def search_linear(
 async def linear_status():
     """Status check for Linear integration"""
     return {
-        "status": "active",
+        "status": "healthy",
         "service": "linear",
         "version": "1.0.0",
         "business_value": {
