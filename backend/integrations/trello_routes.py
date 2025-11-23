@@ -16,7 +16,7 @@ from trello_enhanced_service import TrelloEnhancedService
 logger = logging.getLogger(__name__)
 
 # Create router
-router = APIRouter(prefix="/api/integrations/trello", tags=["trello"])
+router = APIRouter(prefix="/api/trello", tags=["trello"])
 
 # Service instances
 trello_service = TrelloEnhancedService()
@@ -42,6 +42,11 @@ async def trello_health():
             "oauth_token_configured": bool(oauth_token),
             "service_info": service_info,
             "message": "Trello integration is operational",
+            "business_value": {
+                "project_management": True,
+                "workflow_automation": True,
+                "team_collaboration": True
+            }
         }
     except Exception as e:
         logger.error(f"Trello health check failed: {str(e)}")
@@ -54,6 +59,12 @@ async def trello_health():
                 "message": "Trello integration is experiencing issues",
             },
         )
+
+
+@router.get("/status")
+async def trello_status():
+    """Status check alias for Trello"""
+    return await trello_health()
 
 
 @router.post("/boards")
