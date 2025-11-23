@@ -693,11 +693,15 @@ async def health_check():
     try:
         health = await mailchimp_service.health_check()
         return {"success": True, "data": health}
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Health check failed")
+
+
+@router.get("/status")
+async def mailchimp_status():
+    """Status check alias for Mailchimp"""
+    return await health_check()
 
 
 # Error handlers

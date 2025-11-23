@@ -557,3 +557,17 @@ async def get_stats():
                 "/health",
             ],
         }
+
+@router.get("/health")
+async def intercom_health():
+    """Health check for Intercom integration"""
+    return {
+        "status": "healthy",
+        "service": "intercom",
+        "version": "1.0.0",
+        "business_value": {
+            "customer_support": True,
+            "user_engagement": True,
+            "lead_capture": True
+        }
+    }

@@ -76,6 +76,8 @@ integrations = [
     ("integrations.trello_routes", "router", None),
     ("integrations.airtable_routes", "router", None),
     ("integrations.clickup_routes", "router", None), # Added if exists
+    ("integrations.google_calendar_routes", "router", None),
+    ("integrations.calendly_routes", "router", None),
 
     # Integrations - Communication
     ("integrations.slack_routes", "router", None),
@@ -84,6 +86,8 @@ integrations = [
     ("integrations.gmail_routes", "router", None),
     ("integrations.email_routes", "router", None),
     ("integrations.outlook_routes", "router", None),
+    ("integrations.twilio_routes", "router", None),
+    ("integrations.sendgrid_routes", "router", None),
     
     # Integrations - Storage
     ("integrations.dropbox_routes", "router", None),
@@ -111,7 +115,7 @@ integrations = [
     ("integrations.figma_routes", "router", None),
 
     # Integrations - Marketing & Social
-    ("integrations.mailchimp_routes", "router", None),
+    ("integrations.mailchimp_routes", "router", "/api"),
     ("integrations.linkedin_routes", "router", None),
 
     # Integrations - Other

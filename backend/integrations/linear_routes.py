@@ -423,9 +423,6 @@ async def search_linear(
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
-@router.get("/capabilities")
-async def get_capabilities():
-    """Get available Linear integration capabilities"""
     return {
         "capabilities": [
             {
@@ -462,3 +459,24 @@ async def get_capabilities():
         "version": "1.0.0",
         "status": "active",
     }
+
+
+@router.get("/status")
+async def linear_status():
+    """Status check for Linear integration"""
+    return {
+        "status": "active",
+        "service": "linear",
+        "version": "1.0.0",
+        "business_value": {
+            "issue_tracking": True,
+            "project_management": True,
+            "workflow_automation": True
+        }
+    }
+
+
+@router.get("/health")
+async def linear_health():
+    """Health check for Linear integration"""
+    return await linear_status()
