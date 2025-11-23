@@ -306,6 +306,18 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
     - Heavy use of `try-except` blocks for resilience.
     - API versioning (`/api/v1`) is present.
 
+### 6. Recent Milestones (Completed)
+- **Authentication:** Fully migrated to NextAuth.js (Email/Password + OAuth). Removed Supabase/SuperTokens.
+- **Security:** Upgraded BYOK system to use Fernet (AES-128) encryption. Added `BYOK_ENCRYPTION_KEY`.
+- **Testing:** Achieved 97.9% success rate in E2E tests (Launch Ready).
+- **Desktop App:** Integrated Tauri desktop app into `frontend-nextjs` directory.
+- **UI:** Started migration from Chakra UI to Tailwind CSS (Phase 1: Foundation).
+
+### 7. Known Issues & Next Steps
+- **UI Migration:** Continue Phase 2-4 of Chakra UI -> Tailwind CSS migration.
+- **Credentials:** Ensure `BYOK_ENCRYPTION_KEY` is set in production to persist AI keys.
+- **Email:** Integrate actual email provider (Resend/SendGrid) for password resets.
+
 ### Frontend (Web & Desktop)
 - **Unified Architecture**: `frontend-nextjs` serves as both the web app and the desktop app (via Tauri wrapper).
 - **Tech Stack**: Next.js (v15.5.0 listed), TypeScript/JavaScript mix.
