@@ -150,9 +150,10 @@ class AtomZoomIntegration:
             'webhook_secret': config.get('webhook_secret') or os.getenv('ZOOM_WEBHOOK_SECRET'),
             'webhook_url': config.get('webhook_url') or os.getenv('ZOOM_WEBHOOK_URL'),
             'admin_emails': config.get('admin_emails', []),
-            'account_id': config.get('account_id') or os.getenv('ZOOM_ACCOUNT_ID'),
+            # 'account_id': config.get('account_id') or os.getenv('ZOOM_ACCOUNT_ID'), # Deprecated: Using User OAuth
             'client_id': config.get('client_id') or os.getenv('ZOOM_CLIENT_ID'),
             'client_secret': config.get('client_secret') or os.getenv('ZOOM_CLIENT_SECRET'),
+            'redirect_uri': config.get('redirect_uri') or os.getenv('ZOOM_REDIRECT_URI'),
             'max_participants': config.get('max_participants', 1000),
             'enable_enterprise_features': config.get('enable_enterprise_features', True),
             'security_level': config.get('security_level', 'standard'),
@@ -479,15 +480,18 @@ class AtomZoomIntegration:
             await self._get_oauth_token()
             
             # Test API call
-            api_url = f"{self.zoom_config['api_base_url']}/users/me"
-            headers = {'Authorization': f'Bearer {self.oauth_token}'}
-            
-            response = await self.http_session.get(api_url, headers=headers)
-            
-            if response.status_code == 200:
-                logger.info("Zoom API connection verified")
+            if self.oauth_token:
+                api_url = f"{self.zoom_config['api_base_url']}/users/me"
+                headers = {'Authorization': f'Bearer {self.oauth_token}'}
+                
+                response = await self.http_session.get(api_url, headers=headers)
+                
+                if response.status_code == 200:
+                    logger.info("Zoom API connection verified")
+                else:
+                    logger.error(f"Zoom API connection failed: {response.status_code}")
             else:
-                logger.error(f"Zoom API connection failed: {response.status_code}")
+                logger.warning("Skipping API test - No OAuth token available (User OAuth flow required)")
                 
         except Exception as e:
             logger.error(f"Error testing API connection: {e}")
@@ -498,24 +502,17 @@ class AtomZoomIntegration:
             if self.oauth_token and self.oauth_token_expires and datetime.utcnow() < self.oauth_token_expires:
                 return
             
-            # Get token from client credentials
-            token_url = self.zoom_config['oauth_token_url']
-            data = {
-                'grant_type': 'client_credentials',
-                'client_id': self.zoom_config['client_id'],
-                'client_secret': self.zoom_config['client_secret']
-            }
+            # Deprecated: Server-to-Server OAuth (Client Credentials)
+            # This flow requires ZOOM_ACCOUNT_ID which is no longer used.
+            # We now use User Managed OAuth (Authorization Code) which requires user interaction.
+            # This method now just logs a warning if no token is present, as tokens should be 
+            # injected or retrieved via the ZoomAuthHandler after user login.
             
-            response = await self.http_session.post(token_url, data=data)
+            logger.info("User Managed OAuth configured. Token should be provided via user authentication flow.")
             
-            if response.status_code == 200:
-                token_data = response.json()
-                self.oauth_token = token_data['access_token']
-                self.oauth_token_expires = datetime.utcnow() + timedelta(seconds=token_data['expires_in'])
-                logger.info("OAuth token obtained successfully")
-            else:
-                logger.error(f"Failed to get OAuth token: {response.status_code}")
-                
+            # In a real implementation, we would fetch the stored user token from DB here
+            # For now, we avoid breaking the initialization by not attempting the client_credentials flow
+            
         except Exception as e:
             logger.error(f"Error getting OAuth token: {e}")
     
