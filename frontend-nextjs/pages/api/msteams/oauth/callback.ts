@@ -1,8 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { getSession } from "supertokens-node/nextjs";
+import { getSession } from "supertokens-node/recipe/session";
 import { SessionContainer } from "supertokens-node/recipe/session";
-// TODO: This import is missing - need to implement or remove the functionality
-// import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
+import { executeGraphQLMutation } from '../../../../lib/graphqlClient';
 
 export default async function handler(
   req: NextApiRequest,
@@ -10,7 +9,7 @@ export default async function handler(
 ) {
   let session: SessionContainer;
   try {
-    session = await getSession(req, res, {
+    session = await getSSRSession(req, res, {
       overrideGlobalClaimValidators: () => [],
     });
   } catch (err) {
@@ -60,29 +59,39 @@ export default async function handler(
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
       // Save the tokens to the user_tokens table
-      // TODO: Implement token saving functionality
-      console.log("Would save Microsoft Teams tokens for user:", userId, {
-        accessToken,
-        refreshToken,
-        expiresAt: new Date(Date.now() + data.expires_in * 1000).toISOString(),
-      });
-      /*
       const mutation = `
-                mutation InsertUserToken($userId: String!, $service: String!, $accessToken: String!, $refreshToken: String, $expiresAt: timestamptz!) {
-                    insert_user_tokens_one(object: {user_id: $userId, service: $service, access_token: $accessToken, refresh_token: $refreshToken, expires_at: $expiresAt}) {
-                        id
-                    }
-                }
-            `;
-      const variables = {
-        userId,
-        service: 'msteams',
-        accessToken,
-        refreshToken,
-        expiresAt,
-      };
-      await executeGraphQLQuery(mutation, variables, 'InsertUserToken', userId);
-      */
+        mutation SaveTokens($userId: String!, $service: String!, $accessToken: String!, $refreshToken: String!, $expiresAt: timestamptz!) {
+          insert_user_tokens_one(
+            object: {
+              user_id: $userId,
+              service: $service,
+              access_token: $accessToken,
+              refresh_token: $refreshToken,
+              expires_at: $expiresAt,
+              updated_at: "now()"
+            },
+            on_conflict: {
+              constraint: user_tokens_pkey,
+              update_columns: [access_token, refresh_token, expires_at, updated_at]
+            }
+          ) {
+            id
+          }
+        }
+      `;
+
+      try {
+        await executeGraphQLMutation(mutation, {
+          userId,
+          service: 'msteams',
+          accessToken,
+          refreshToken,
+          expiresAt,
+        });
+      } catch (error) {
+        console.error("Failed to save tokens:", error);
+        // Continue anyway to redirect user, but log the error
+      }
 
       return res.redirect("/Settings/UserViewSettings");
     } else {
