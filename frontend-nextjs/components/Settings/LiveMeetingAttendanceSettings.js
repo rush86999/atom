@@ -10,7 +10,7 @@ const Text_1 = __importDefault(require("@components/common/Text"));
 const Button_1 = __importDefault(require("@components/Button"));
 const Select_1 = __importDefault(require("@components/common/Select"));
 const TextField_1 = __importDefault(require("@components/TextField"));
-const session_1 = require("supertokens-auth-react/recipe/session");
+import { useSession } from "next-auth/react";
 // Matches backend TaskStatus enum
 var TaskStatusEnum;
 (function (TaskStatusEnum) {
@@ -33,7 +33,9 @@ const LiveMeetingAttendanceSettings = () => {
     const [submitError, setSubmitError] = (0, react_1.useState)(null);
     const [currentTask, setCurrentTask] = (0, react_1.useState)(null);
     const [pollingIntervalId, setPollingIntervalId] = (0, react_1.useState)(null);
-    const { userId, isLoading: isLoadingSession } = (0, session_1.useSession)();
+    const { data: session, status } = useSession();
+    const userId = session?.user?.id;
+    const isLoadingSession = status === "loading";
     const fetchAudioDevices = (0, react_1.useCallback)(async () => {
         setIsLoadingDevices(true);
         setDeviceError(null);
