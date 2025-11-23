@@ -316,3 +316,51 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - **`/src` Directory**: Contains shared UI components, services, and business logic used by `frontend-nextjs`. **Crucial**: Do not delete.
 - **Path Mappings**: `frontend-nextjs/tsconfig.json` maps `@shared-*` to `../../src/*`.
 
+## 11. Recent Authentication Improvements (Nov 23, 2025)
+
+### Production Authentication System ✅
+**Migration**: Converted from mock users to production PostgreSQL-backed authentication
+
+**Database Migrations**:
+- `backend/migrations/001_create_users_table.sql` - User authentication table
+- `backend/migrations/002_create_password_reset_tokens.sql` - Password reset tokens
+
+**Key Files**:
+- `frontend-nextjs/lib/auth.ts` - NextAuth configuration with database queries
+- `frontend-nextjs/lib/db.ts` - Direct PostgreSQL connection
+- `frontend-nextjs/pages/api/auth/register.ts` - User registration endpoint
+- `frontend-nextjs/pages/api/auth/forgot-password.ts` - Password reset request
+- `frontend-nextjs/pages/api/auth/reset-password.ts` - Password reset execution
+
+**Features Implemented**:
+- ✅ bcrypt password hashing (10 rounds)
+- ✅ User registration with validation
+- ✅ Complete password reset flow
+- ✅ OAuth providers (Google, GitHub)
+- ✅ Secure token management
+- ✅ JWT sessions
+
+**UI Pages**:
+- `/auth/signin` - Login with email/password or OAuth
+- `/auth/signup` - User registration
+- `/auth/forgot-password` - Request password reset
+- `/auth/reset-password` - Set new password with token
+
+**Environment Variables Required**:
+```bash
+DATABASE_URL=postgresql://user:password@host:port/database
+NEXTAUTH_SECRET=your-secret-key
+NEXTAUTH_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=your-google-client-id (optional)
+GOOGLE_CLIENT_SECRET=your-google-client-secret (optional)
+GITHUB_CLIENT_ID=your-github-client-id (optional)
+GITHUB_CLIENT_SECRET=your-github-client-secret (optional)
+```
+
+**Setup**: See `docs/nextauth_production_setup.md` for complete setup instructions.
+
+**Breaking Changes**: 
+- Mock user (`demo@example.com`) removed
+- Users must register new accounts
+- Supabase and SuperTokens dependencies removed
+
