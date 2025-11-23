@@ -9,11 +9,19 @@ Atom is your intelligent personal assistant that helps you manage your entire li
 ### First Time Setup
 
 1. **Account Creation**
-   - Sign up with your email or use social login
+   - Visit `/auth/signup` to create an account
+   - Sign up with email and password (minimum 8 characters)
+   - Or use social login: Google or GitHub
    - Complete the onboarding wizard to configure your preferences
    - Connect your essential services (calendar, email, etc.)
 
-2. **Dashboard Overview**
+2. **Sign In Options**
+   - Email and password
+   - Google OAuth
+   - GitHub OAuth
+   - Forgot password? Use the password reset flow
+
+3. **Dashboard Overview**
    - Access the main dashboard for an overview of your day
    - View upcoming events, pending tasks, and recent messages
    - Monitor connected services and system status
