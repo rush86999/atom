@@ -31,14 +31,22 @@ This guide documents all required environment variables and credentials for the 
 
 > **Note:** The Independent AI Validator also looks for credentials in `backend/independent_ai_validator/data/credentials.json`.
 
-## 4. Security & Encryption
+## 4. Authentication & Security
 
 | Variable | Description |
 |----------|-------------|
-| `ATOM_ENCRYPTION_KEY` | Key used to encrypt stored tokens (Must be 32 bytes base64) |
-| `NEXTAUTH_SECRET` | Secret for NextAuth.js session encryption |
+| `DATABASE_URL` | PostgreSQL connection string for NextAuth user data and app data |
+| `NEXTAUTH_SECRET` | Secret for NextAuth.js session encryption (Generate: `openssl rand -base64 32`) |
+| `NEXTAUTH_URL` | Canonical URL of your site (e.g., `http://localhost:3000` or `https://yourdomain.com`) |
+| `ATOM_ENCRYPTION_KEY` | Key used to encrypt stored OAuth tokens (Must be 32 bytes base64) |
+
+> **Note:** The application now uses **NextAuth only** for authentication. Supabase and SuperTokens have been removed.
+
+> [!IMPORTANT]
+> **User Registration Required**: After the NextAuth production migration, users must register new accounts. The demo user (`demo@example.com`) has been removed. See `docs/nextauth_production_setup.md` for setup instructions.
 
 ## 5. OAuth Callback URLs for Local Testing
+
 
 When setting up OAuth integrations for **local development**, use these callback URLs in your app configurations:
 

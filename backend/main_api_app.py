@@ -1,635 +1,12 @@
-import time
 import os
+import uvicorn
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from core.integration_loader import IntegrationLoader
 
 # Load environment variables
 load_dotenv()
-
-import uvicorn
-
-# Import our modules
-from core.api_routes import router
-from service_health_endpoints import router as service_health_router
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-
-# Import PDF processing routes
-try:
-    from integrations.pdf_processing import pdf_memory_router, pdf_ocr_router
-
-    PDF_PROCESSING_AVAILABLE = True
-except ImportError as e:
-    print(f"PDF Processing integration not available: {e}")
-    PDF_PROCESSING_AVAILABLE = False
-    pdf_ocr_router = None
-    pdf_memory_router = None
-
-# Import memory integration routes
-try:
-    from integrations.atom_communication_memory_api import atom_memory_router
-
-    ATOM_MEMORY_AVAILABLE = True
-except ImportError as e:
-    print(f"ATOM Communication Memory API not available: {e}")
-    ATOM_MEMORY_AVAILABLE = False
-    atom_memory_router = None
-
-try:
-    from integrations.atom_communication_memory_production_api import (
-        atom_memory_production_router,
-    )
-
-    ATOM_MEMORY_PRODUCTION_AVAILABLE = True
-except ImportError as e:
-    print(f"ATOM Communication Memory Production API not available: {e}")
-    ATOM_MEMORY_PRODUCTION_AVAILABLE = False
-    atom_memory_production_router = None
-
-try:
-    from integrations.atom_communication_memory_webhooks import (
-        atom_memory_webhooks_router,
-    )
-
-    ATOM_MEMORY_WEBHOOKS_AVAILABLE = True
-except ImportError as e:
-    print(f"ATOM Communication Memory Webhooks not available: {e}")
-    ATOM_MEMORY_WEBHOOKS_AVAILABLE = False
-    atom_memory_webhooks_router = None
-
-# Import communication ingestion router
-try:
-    from integrations.atom_communication_apps_lancedb_integration import (
-        communication_ingestion_router,
-    )
-
-    COMMUNICATION_INGESTION_AVAILABLE = True
-except ImportError as e:
-    print(f"Communication ingestion router not available: {e}")
-    COMMUNICATION_INGESTION_AVAILABLE = False
-    communication_ingestion_router = None
-
-# Import enterprise modules
-try:
-    from core.enterprise_user_management import router as enterprise_user_router
-
-    ENTERPRISE_USER_MGMT_AVAILABLE = True
-except ImportError as e:
-    print(f"Enterprise user management not available: {e}")
-    ENTERPRISE_USER_MGMT_AVAILABLE = False
-    enterprise_user_router = None
-
-try:
-    from core.enterprise_security import router as enterprise_security_router
-
-    ENTERPRISE_SECURITY_AVAILABLE = True
-except ImportError as e:
-    print(f"Enterprise security not available: {e}")
-    ENTERPRISE_SECURITY_AVAILABLE = False
-    enterprise_security_router = None
-
-# Import new endpoint modules
-try:
-    from core.service_registry import router as service_registry_router
-
-    SERVICE_REGISTRY_AVAILABLE = True
-except ImportError as e:
-    print(f"Service registry not available: {e}")
-    SERVICE_REGISTRY_AVAILABLE = False
-    service_registry_router = None
-
-try:
-    from core.byok_endpoints import router as byok_router
-
-    BYOK_AVAILABLE = True
-except ImportError as e:
-    print(f"BYOK endpoints not available: {e}")
-    BYOK_AVAILABLE = False
-    byok_router = None
-
-try:
-    from core.system_status import router as system_status_router
-
-    SYSTEM_STATUS_AVAILABLE = True
-except ImportError as e:
-    print(f"System status endpoints not available: {e}")
-    SYSTEM_STATUS_AVAILABLE = False
-    system_status_router = None
-
-try:
-    from core.system_status import router as system_status_router
-
-    SYSTEM_STATUS_AVAILABLE = True
-except ImportError as e:
-    print(f"System status not available: {e}")
-    SYSTEM_STATUS_AVAILABLE = False
-    system_status_router = None
-
-try:
-    from core.workflow_agent_endpoints import router as workflow_agent_router
-    WORKFLOW_AGENT_AVAILABLE = True
-except ImportError as e:
-    print(f"Workflow Agent endpoints not available: {e}")
-    WORKFLOW_AGENT_AVAILABLE = False
-    workflow_agent_router = None
-
-try:
-    from core.workflow_ui_endpoints import router as workflow_ui_router
-    WORKFLOW_UI_AVAILABLE = True
-except ImportError as e:
-    print(f"Workflow UI endpoints not available: {e}")
-    WORKFLOW_UI_AVAILABLE = False
-    workflow_ui_router = None
-
-try:
-    from service_health_endpoints import router as service_health_router
-    SERVICE_HEALTH_AVAILABLE = True
-except ImportError as e:
-    print(f"Service health endpoints not available: {e}")
-    SERVICE_HEALTH_AVAILABLE = False
-    service_health_router = None
-
-# Import Unified Endpoints
-try:
-    from core.unified_task_endpoints import router as unified_task_router, project_router as unified_project_router
-    from core.unified_calendar_endpoints import router as unified_calendar_router
-    from core.unified_search_endpoints import router as unified_search_router
-    UNIFIED_ENDPOINTS_AVAILABLE = True
-except ImportError as e:
-    print(f"Unified endpoints not available: {e}")
-    UNIFIED_ENDPOINTS_AVAILABLE = False
-    unified_task_router = None
-    unified_project_router = None
-    unified_calendar_router = None
-    unified_search_router = None
-
-# Import Missing Endpoints (Project Management Demo)
-try:
-    from core.missing_endpoints import router as missing_endpoints_router
-    MISSING_ENDPOINTS_AVAILABLE = True
-except ImportError as e:
-    print(f"Missing endpoints not available: {e}")
-    MISSING_ENDPOINTS_AVAILABLE = False
-    missing_endpoints_router = None
-
-# Mount system status router if available
-if SYSTEM_STATUS_AVAILABLE and system_status_router:
-    # Mount at root to support /metrics endpoint
-    pass  # We will include it later with other includes or right here
-
-
-try:
-    from core.workflow_endpoints import router as workflow_router
-
-    WORKFLOW_AVAILABLE = True
-except ImportError as e:
-    print(f"Workflow endpoints not available: {e}")
-    WORKFLOW_AVAILABLE = False
-    workflow_router = None
-
-try:
-    from core.analytics_endpoints import router as analytics_router
-
-    ANALYTICS_AVAILABLE = True
-except ImportError as e:
-    print(f"Analytics endpoints not available: {e}")
-    ANALYTICS_AVAILABLE = False
-    analytics_router = None
-
-try:
-    from core.enterprise_endpoints import router as enterprise_router
-
-    ENTERPRISE_AVAILABLE = True
-except ImportError as e:
-    print(f"Enterprise endpoints not available: {e}")
-    ENTERPRISE_AVAILABLE = False
-    enterprise_router = None
-
-try:
-    from core.byok_endpoints import router as byok_router
-
-    BYOK_AVAILABLE = True
-except ImportError as e:
-    print(f"BYOK endpoints not available: {e}")
-    BYOK_AVAILABLE = False
-    byok_router = None
-
-# Import Asana integration
-try:
-    from integrations.asana_routes import router as asana_router
-
-    ASANA_AVAILABLE = True
-except ImportError as e:
-    print(f"Asana integration not available: {e}")
-    ASANA_AVAILABLE = False
-    asana_router = None
-
-# Import Notion integration
-try:
-    from integrations.notion_routes import router as notion_router
-
-    NOTION_AVAILABLE = True
-except ImportError as e:
-    print(f"Notion integration not available: {e}")
-    NOTION_AVAILABLE = False
-    notion_router = None
-
-# Import Linear integration
-try:
-    from integrations.linear_routes import router as linear_router
-
-    LINEAR_AVAILABLE = True
-except ImportError as e:
-    print(f"Linear integration not available: {e}")
-    LINEAR_AVAILABLE = False
-    linear_router = None
-
-# Import Outlook integration
-try:
-    from integrations.outlook_routes import router as outlook_router
-
-    OUTLOOK_AVAILABLE = True
-except ImportError as e:
-    print(f"Outlook integration not available: {e}")
-    OUTLOOK_AVAILABLE = False
-    outlook_router = None
-
-# Import Dropbox integration
-try:
-    from integrations.dropbox_routes import router as dropbox_router
-
-    DROPBOX_AVAILABLE = True
-except ImportError as e:
-    print(f"Dropbox integration not available: {e}")
-    DROPBOX_AVAILABLE = False
-    dropbox_router = None
-
-# Import Google Drive integration
-try:
-    from integrations.google_drive_routes import google_drive_router
-
-    GOOGLE_DRIVE_AVAILABLE = True
-except ImportError as e:
-    print(f"Google Drive integration not available: {e}")
-    GOOGLE_DRIVE_AVAILABLE = False
-    google_drive_router = None
-
-# Import OneDrive integration
-try:
-    from integrations.onedrive_routes import onedrive_router
-
-    ONEDRIVE_AVAILABLE = True
-except ImportError as e:
-    print(f"OneDrive integration not available: {e}")
-    ONEDRIVE_AVAILABLE = False
-    onedrive_router = None
-
-# Import Microsoft 365 integration
-try:
-    from integrations.microsoft365_routes import microsoft365_router
-
-    MICROSOFT365_AVAILABLE = True
-except ImportError as e:
-    print(f"Microsoft 365 integration not available: {e}")
-    MICROSOFT365_AVAILABLE = False
-    microsoft365_router = None
-
-# Import Box integration
-try:
-    from integrations.box_routes import router as box_router
-
-    BOX_AVAILABLE = True
-except ImportError as e:
-    print(f"Box integration not available: {e}")
-    BOX_AVAILABLE = False
-    box_router = None
-
-# Import Stripe integration
-try:
-    from integrations.stripe_routes import router as stripe_router
-
-    STRIPE_AVAILABLE = True
-except ImportError as e:
-    print(f"Stripe integration not available: {e}")
-    STRIPE_AVAILABLE = False
-    stripe_router = None
-
-# Import Salesforce integration
-try:
-    from integrations.salesforce_routes import router as salesforce_router
-
-    SALESFORCE_AVAILABLE = True
-except ImportError as e:
-    print(f"Salesforce integration not available: {e}")
-    SALESFORCE_AVAILABLE = False
-    salesforce_router = None
-
-# Import Email integration
-try:
-    from integrations.email_routes import router as email_router
-    EMAIL_AVAILABLE = True
-except ImportError as e:
-    print(f"Email integration not available: {e}")
-    EMAIL_AVAILABLE = False
-    email_router = None
-
-# Import Slack integration
-try:
-    from integrations.slack_routes import router as slack_router
-    SLACK_AVAILABLE = True
-except ImportError as e:
-    print(f"Slack integration not available: {e}")
-    SLACK_AVAILABLE = False
-    slack_router = None
-
-# Import Zoom integration
-try:
-    from integrations.zoom_routes import router as zoom_router
-
-    ZOOM_AVAILABLE = True
-except ImportError as e:
-    print(f"Zoom integration not available: {e}")
-    ZOOM_AVAILABLE = False
-    zoom_router = None
-
-# Import HubSpot integration
-try:
-    from integrations.hubspot_routes import router as hubspot_router
-
-    HUBSPOT_AVAILABLE = True
-except ImportError as e:
-    print(f"HubSpot integration not available: {e}")
-    HUBSPOT_AVAILABLE = False
-    hubspot_router = None
-
-# Import Salesforce integration
-try:
-    from integrations.salesforce_routes import router as salesforce_router
-
-    SALESFORCE_AVAILABLE = True
-except ImportError as e:
-    print(f"Salesforce integration not available: {e}")
-    SALESFORCE_AVAILABLE = False
-    salesforce_router = None
-
-# Import Teams integration
-try:
-    from integrations.teams_routes import router as teams_router
-    TEAMS_AVAILABLE = True
-except ImportError as e:
-    print(f"Teams integration not available: {e}")
-    TEAMS_AVAILABLE = False
-    teams_router = None
-
-# Import Gmail integration
-try:
-    from integrations.gmail_routes import router as gmail_router
-    GMAIL_AVAILABLE = True
-except ImportError as e:
-    print(f"Gmail integration not available: {e}")
-    GMAIL_AVAILABLE = False
-    gmail_router = None
-
-# Import QuickBooks integration
-try:
-    from integrations.quickbooks_routes import router as quickbooks_router
-    QUICKBOOKS_AVAILABLE = True
-except ImportError as e:
-    print(f"QuickBooks integration not available: {e}")
-    QUICKBOOKS_AVAILABLE = False
-    quickbooks_router = None
-
-# Import Freshdesk integration
-try:
-    from integrations.freshdesk_routes import router as freshdesk_router
-    FRESHDESK_AVAILABLE = True
-except ImportError as e:
-    print(f"Freshdesk integration not available: {e}")
-    FRESHDESK_AVAILABLE = False
-    freshdesk_router = None
-
-# Import Intercom integration
-try:
-    from integrations.intercom_routes import router as intercom_router
-    INTERCOM_AVAILABLE = True
-except ImportError as e:
-    print(f"Intercom integration not available: {e}")
-    INTERCOM_AVAILABLE = False
-    intercom_router = None
-
-# Import Mailchimp integration
-try:
-    from integrations.mailchimp_routes import router as mailchimp_router
-    MAILCHIMP_AVAILABLE = True
-except ImportError as e:
-    print(f"Mailchimp integration not available: {e}")
-    MAILCHIMP_AVAILABLE = False
-    mailchimp_router = None
-
-# Import Zendesk integration
-try:
-    from integrations.zendesk_routes import router as zendesk_router
-    ZENDESK_AVAILABLE = True
-except ImportError as e:
-    print(f"Zendesk integration not available: {e}")
-    ZENDESK_AVAILABLE = False
-    zendesk_router = None
-
-# Import Airtable integration
-try:
-    from integrations.airtable_routes import router as airtable_router
-    AIRTABLE_AVAILABLE = True
-except ImportError as e:
-    print(f"Airtable integration not available: {e}")
-    AIRTABLE_AVAILABLE = False
-    airtable_router = None
-
-# Import Figma integration
-try:
-    from integrations.figma_routes import router as figma_router
-    FIGMA_AVAILABLE = True
-except ImportError as e:
-    print(f"Figma integration not available: {e}")
-    FIGMA_AVAILABLE = False
-    figma_router = None
-
-# Import Shopify integration
-try:
-    from integrations.shopify_routes import router as shopify_router
-    SHOPIFY_AVAILABLE = True
-except ImportError as e:
-    print(f"Shopify integration not available: {e}")
-    SHOPIFY_AVAILABLE = False
-    shopify_router = None
-
-# Import Xero integration
-try:
-    from integrations.xero_routes import router as xero_router
-    XERO_AVAILABLE = True
-except ImportError as e:
-    print(f"Xero integration not available: {e}")
-    XERO_AVAILABLE = False
-    xero_router = None
-
-# ==================== Phase 11 Integrations ====================
-# Import Asana integration
-try:
-    from integrations.asana_routes import router as asana_router
-    ASANA_AVAILABLE = True
-except ImportError as e:
-    print(f"Asana integration not available: {e}")
-    ASANA_AVAILABLE = False
-    asana_router = None
-
-# Import Jira integration
-try:
-    from integrations.jira_routes import router as jira_router
-    JIRA_AVAILABLE = True
-except ImportError as e:
-    print(f"Jira integration not available: {e}")
-    JIRA_AVAILABLE = False
-    jira_router = None
-
-# Import Monday integration
-try:
-    from integrations.monday_routes import router as monday_router
-    MONDAY_AVAILABLE = True
-except ImportError as e:
-    print(f"Monday integration not available: {e}")
-    MONDAY_AVAILABLE = False
-    monday_router = None
-
-# Import Linear integration
-try:
-    from integrations.linear_routes import router as linear_router
-    LINEAR_AVAILABLE = True
-except ImportError as e:
-    print(f"Linear integration not available: {e}")
-    LINEAR_AVAILABLE = False
-    linear_router = None
-
-# Import Notion integration
-try:
-    from integrations.notion_routes import router as notion_router
-    NOTION_AVAILABLE = True
-except ImportError as e:
-    print(f"Notion integration not available: {e}")
-    NOTION_AVAILABLE = False
-    notion_router = None
-
-# Import Trello integration
-try:
-    from integrations.trello_routes import router as trello_router
-    TRELLO_AVAILABLE = True
-except ImportError as e:
-    print(f"Trello integration not available: {e}")
-    TRELLO_AVAILABLE = False
-    trello_router = None
-
-# Import Dropbox integration
-try:
-    from integrations.dropbox_routes import router as dropbox_router
-    DROPBOX_AVAILABLE = True
-except ImportError as e:
-    print(f"Dropbox integration not available: {e}")
-    DROPBOX_AVAILABLE = False
-    dropbox_router = None
-
-# Import OneDrive integration
-try:
-    from integrations.onedrive_routes import router as onedrive_router
-    ONEDRIVE_AVAILABLE = True
-except ImportError as e:
-    print(f"OneDrive integration not available: {e}")
-    ONEDRIVE_AVAILABLE = False
-    onedrive_router = None
-
-# Import GitHub integration
-try:
-    from integrations.github_routes import router as github_router
-    GITHUB_AVAILABLE = True
-except ImportError as e:
-    print(f"GitHub integration not available: {e}")
-    GITHUB_AVAILABLE = False
-    github_router = None
-
-# Import Plaid integration
-try:
-    from integrations.plaid_routes import router as plaid_router
-    PLAID_AVAILABLE = True
-except ImportError as e:
-    print(f"Plaid integration not available: {e}")
-    PLAID_AVAILABLE = False
-    plaid_router = None
-
-# Import Deepgram integration
-try:
-    from integrations.deepgram_routes import router as deepgram_router
-    DEEPGRAM_AVAILABLE = True
-except ImportError as e:
-    print(f"Deepgram integration not available: {e}")
-    DEEPGRAM_AVAILABLE = False
-    deepgram_router = None
-
-# Import LinkedIn integration
-try:
-    from integrations.linkedin_routes import router as linkedin_router
-    LINKEDIN_AVAILABLE = True
-except ImportError as e:
-    print(f"LinkedIn integration not available: {e}")
-    LINKEDIN_AVAILABLE = False
-    linkedin_router = None
-
-# Import Enhanced AI Workflow endpoints
-try:
-    from enhanced_ai_workflow_endpoints import router as enhanced_ai_router
-
-    ENHANCED_AI_AVAILABLE = True
-except ImportError as e:
-    print(f"Enhanced AI workflow endpoints not available: {e}")
-    ENHANCED_AI_AVAILABLE = False
-    enhanced_ai_router = None
-
-# Import service integrations for unified service endpoints
-try:
-    from service_integrations import router as service_integrations_router
-
-    SERVICE_INTEGRATIONS_AVAILABLE = True
-except ImportError as e:
-    print(f"Service integrations not available: {e}")
-    SERVICE_INTEGRATIONS_AVAILABLE = False
-    service_integrations_router = None
-
-# Import Advanced Workflow Orchestrator
-try:
-    from advanced_workflow_api import router as advanced_workflow_router
-
-    ADVANCED_WORKFLOW_AVAILABLE = True
-except ImportError as e:
-    print(f"Advanced workflow orchestrator not available: {e}")
-    ADVANCED_WORKFLOW_AVAILABLE = False
-    advanced_workflow_router = None
-
-# Import Evidence Collection Framework
-try:
-    from evidence_collection_api import router as evidence_router
-
-    EVIDENCE_COLLECTION_AVAILABLE = True
-except ImportError as e:
-    print(f"Evidence collection framework not available: {e}")
-    EVIDENCE_COLLECTION_AVAILABLE = False
-    evidence_router = None
-
-# Import Case Studies Framework
-try:
-    from case_studies_api import router as case_studies_router
-
-    CASE_STUDIES_AVAILABLE = True
-except ImportError as e:
-    print(f"Case studies framework not available: {e}")
-    CASE_STUDIES_AVAILABLE = False
-    case_studies_router = None
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -649,537 +26,136 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Workflow UI routes (Must be before main router to avoid shadowing)
-if WORKFLOW_UI_AVAILABLE and workflow_ui_router:
-    app.include_router(workflow_ui_router)
-    print("[OK] Workflow UI routes loaded")
+# Initialize Integration Loader
+loader = IntegrationLoader()
 
-# Include Workflow Agent router
-if WORKFLOW_AGENT_AVAILABLE and workflow_agent_router:
-    app.include_router(workflow_agent_router)
-
-# Include Unified Endpoints
-if UNIFIED_ENDPOINTS_AVAILABLE:
-    if unified_task_router:
-        app.include_router(unified_task_router)
-    if unified_project_router:
-        app.include_router(unified_project_router)
-    if unified_calendar_router:
-        app.include_router(unified_calendar_router)
-    if unified_search_router:
-        app.include_router(unified_search_router)
-
-# Include Missing Endpoints
-if MISSING_ENDPOINTS_AVAILABLE and missing_endpoints_router:
-    app.include_router(missing_endpoints_router)
-    print("[OK] Project Management Demo endpoints loaded")
-
-# Include main API router (generic)
-app.include_router(router)
-
-# Include Service Health routes
-if SERVICE_REGISTRY_AVAILABLE and service_registry_router:
-    app.include_router(service_registry_router)
-
-if BYOK_AVAILABLE and byok_router:
-    app.include_router(byok_router)
-    print("[OK] BYOK routes loaded")
-
-if SYSTEM_STATUS_AVAILABLE and system_status_router:
-    app.include_router(system_status_router)
-    print("[OK] System Status routes loaded")
-    print("[OK] Service health routes loaded")
-
-# Include API routes
-app.include_router(router, prefix="/api/v1")
-
-# Include Asana integration routes if available
-if ASANA_AVAILABLE and asana_router:
-    app.include_router(asana_router)
-    print("[OK] Asana integration routes loaded")
-else:
-    print("[WARN] Asana integration routes not available")
-
-# Include Notion integration routes if available
-if NOTION_AVAILABLE and notion_router:
-    app.include_router(notion_router)
-    print("[OK] Notion integration routes loaded")
-else:
-    print("[WARN] Notion integration routes not available")
-
-# Include Linear integration routes if available
-if LINEAR_AVAILABLE and linear_router:
-    app.include_router(linear_router)
-    print("[OK] Linear integration routes loaded")
-else:
-    print("[WARN] Linear integration routes not available")
-
-# Include Outlook integration routes if available
-if OUTLOOK_AVAILABLE and outlook_router:
-    app.include_router(outlook_router)
-    print("[OK] Outlook integration routes loaded")
-else:
-    print("[WARN] Outlook integration routes not available")
-
-# Include Dropbox integration routes if available
-if DROPBOX_AVAILABLE and dropbox_router:
-    app.include_router(dropbox_router)
-    print("[OK] Dropbox integration routes loaded")
-else:
-    print("[WARN] Dropbox integration routes not available")
-
-# Include Stripe integration routes if available
-if STRIPE_AVAILABLE and stripe_router:
-    app.include_router(stripe_router)
-    print("[OK] Stripe integration routes loaded")
-else:
-    print("[WARN] Stripe integration routes not available")
-
-# Include Google Drive integration routes if available
-if GOOGLE_DRIVE_AVAILABLE and google_drive_router:
-    app.include_router(google_drive_router)
-    print("[OK] Google Drive integration routes loaded")
-else:
-    print("[WARN] Google Drive integration routes not available")
-
-# Include OneDrive integration routes if available
-if ONEDRIVE_AVAILABLE and onedrive_router:
-    app.include_router(onedrive_router)
-    print("[OK] OneDrive integration routes loaded")
-else:
-    print("[WARN] OneDrive integration routes not available")
-
-# Include Microsoft 365 integration routes if available
-if MICROSOFT365_AVAILABLE and microsoft365_router:
-    app.include_router(microsoft365_router)
-    print("[OK] Microsoft 365 integration routes loaded")
-else:
-    print("[WARN] Microsoft 365 integration routes not available")
-
-# Include Box integration routes if available
-if BOX_AVAILABLE and box_router:
-    app.include_router(box_router)
-    print("[OK] Box integration routes loaded")
-else:
-    print("[WARN] Box integration routes not available")
-
-# Include BYOK routes if available
-if BYOK_AVAILABLE and byok_router:
-    app.include_router(byok_router)
-    print("[OK] BYOK AI provider management routes loaded")
-else:
-    print("[WARN] BYOK AI provider management routes not available")
-
-# Include Service Integrations routes if available
-if SERVICE_INTEGRATIONS_AVAILABLE and service_integrations_router:
-    app.include_router(service_integrations_router)
-    print("[OK] Comprehensive service integrations routes loaded (16 services)")
-else:
-    print("[WARN] Service integrations routes not available")
-
-# Import integration health endpoints
+# Core Routes (Always loaded)
 try:
-    from integration_health_endpoints import router as integration_health_router
-    INTEGRATION_HEALTH_AVAILABLE = True
-    print("[OK] Integration health endpoints imported")
+    from core.api_routes import router as core_router
+    app.include_router(core_router, prefix="/api/v1")
 except ImportError as e:
-    print(f"⚠️ Integration health endpoints not available: {e}")
-    INTEGRATION_HEALTH_AVAILABLE = False
-    integration_health_router = None
+    print(f"[CRITICAL] Core API routes failed to load: {e}")
 
-# Include integration health endpoints
-if INTEGRATION_HEALTH_AVAILABLE and integration_health_router:
-    app.include_router(integration_health_router)
-    print("[OK] Integration health endpoints loaded (33+ services)")
-else:
-    print("[WARN] Integration health endpoints not available")
+# Define Integrations to Load
+# Format: (module_path, router_name, prefix (optional))
+integrations = [
+    # Core Modules
+    ("core.workflow_ui_endpoints", "router", None),
+    ("core.workflow_agent_endpoints", "router", None),
+    ("core.missing_endpoints", "router", None),
+    ("core.service_registry", "router", None),
+    ("core.byok_endpoints", "router", None),
+    ("core.system_status", "router", None),
+    ("service_health_endpoints", "router", None),
+    ("core.workflow_endpoints", "router", None),
+    ("core.analytics_endpoints", "router", None),
+    ("core.enterprise_endpoints", "router", None),
+    ("core.enterprise_user_management", "router", "/api/v1"),
+    ("core.enterprise_security", "router", "/api/v1"),
+    
+    # Unified Endpoints
+    ("core.unified_task_endpoints", "router", None),
+    ("core.unified_task_endpoints", "project_router", None),
+    ("core.unified_calendar_endpoints", "router", None),
+    ("core.unified_search_endpoints", "router", None),
 
-# Import AI workflow endpoints
-try:
-    from enhanced_ai_workflow_endpoints import router as ai_workflow_router
-    AI_WORKFLOW_AVAILABLE = True
-    print("[OK] Enhanced AI workflow endpoints with real AI processing imported")
-except ImportError as e:
-    print(f"⚠️ Enhanced AI workflow endpoints not available: {e}")
-    # Fallback to original endpoints if enhanced ones fail
-    try:
-        from ai_workflow_endpoints import router as ai_workflow_router
-        AI_WORKFLOW_AVAILABLE = True
-        print("⚠️ Using fallback AI workflow endpoints (simulated)")
-    except ImportError as e2:
-        print(f"⚠️ All AI workflow endpoints not available: {e2}")
-        AI_WORKFLOW_AVAILABLE = False
-        ai_workflow_router = None
+    # AI & Workflows
+    ("enhanced_ai_workflow_endpoints", "router", None),
+    ("advanced_workflow_api", "router", None),
+    ("evidence_collection_api", "router", None),
+    ("case_studies_api", "router", None),
+    ("service_integrations", "router", None),
+    ("integration_health_endpoints", "router", None),
 
-# Include AI workflow endpoints
-if AI_WORKFLOW_AVAILABLE and ai_workflow_router:
-    app.include_router(ai_workflow_router)
-    print("[OK] AI workflow endpoints loaded")
-else:
-    print("[WARN] AI workflow endpoints not available")
+    # Integrations - Productivity & PM
+    ("integrations.asana_routes", "router", None),
+    ("integrations.notion_routes", "router", None),
+    ("integrations.linear_routes", "router", None),
+    ("integrations.jira_routes", "router", None),
+    ("integrations.monday_routes", "router", None),
+    ("integrations.trello_routes", "router", None),
+    ("integrations.airtable_routes", "router", None),
+    ("integrations.clickup_routes", "router", None), # Added if exists
 
-# Include Enhanced AI workflow endpoints if available
-if ENHANCED_AI_AVAILABLE and enhanced_ai_router:
-    app.include_router(enhanced_ai_router)
-    print("[OK] Enhanced AI workflow endpoints with real AI processing loaded")
-else:
-    print("[WARN] Enhanced AI workflow endpoints not available")
+    # Integrations - Communication
+    ("integrations.slack_routes", "router", None),
+    ("integrations.zoom_routes", "router", None),
+    ("integrations.teams_routes", "router", None),
+    ("integrations.gmail_routes", "router", None),
+    ("integrations.email_routes", "router", None),
+    ("integrations.outlook_routes", "router", None),
+    
+    # Integrations - Storage
+    ("integrations.dropbox_routes", "router", None),
+    ("integrations.google_drive_routes", "google_drive_router", None),
+    ("integrations.onedrive_routes", "onedrive_router", None),
+    ("integrations.microsoft365_routes", "microsoft365_router", None),
+    ("integrations.box_routes", "router", None),
 
-# Include Advanced Workflow Orchestrator if available
-if ADVANCED_WORKFLOW_AVAILABLE and advanced_workflow_router:
-    app.include_router(advanced_workflow_router)
-    print("[OK] Advanced workflow orchestrator loaded")
-else:
-    print("[WARN] Advanced workflow orchestrator not available")
+    # Integrations - CRM & Support
+    ("integrations.salesforce_routes", "router", None),
+    ("integrations.hubspot_routes", "router", None),
+    ("integrations.zendesk_routes", "router", None),
+    ("integrations.freshdesk_routes", "router", None),
+    ("integrations.intercom_routes", "router", None),
 
-# Include Evidence Collection Framework if available
-if EVIDENCE_COLLECTION_AVAILABLE and evidence_router:
-    app.include_router(evidence_router)
-    print("[OK] Evidence collection framework loaded")
-else:
-    print("[WARN] Evidence collection framework not available")
+    # Integrations - Finance & Commerce
+    ("integrations.stripe_routes", "router", None),
+    ("integrations.shopify_routes", "router", None),
+    ("integrations.xero_routes", "router", None),
+    ("integrations.quickbooks_routes", "router", None),
+    ("integrations.plaid_routes", "router", None),
 
-# Include Case Studies Framework if available
-if CASE_STUDIES_AVAILABLE and case_studies_router:
-    app.include_router(case_studies_router)
-    print("[OK] Real-world case studies framework loaded")
-else:
-    print("[WARN] Case studies framework not available")
+    # Integrations - Dev & Design
+    ("integrations.github_routes", "router", None),
+    ("integrations.figma_routes", "router", None),
 
-# Include PDF processing routes if available
-if PDF_PROCESSING_AVAILABLE and pdf_ocr_router:
-    app.include_router(pdf_ocr_router, prefix="/api/v1")
-    print("[OK] PDF OCR processing routes loaded")
-else:
-    print("[WARN] PDF OCR processing routes not available")
+    # Integrations - Marketing & Social
+    ("integrations.mailchimp_routes", "router", None),
+    ("integrations.linkedin_routes", "router", None),
 
-# Include PDF memory integration routes if available
-if PDF_PROCESSING_AVAILABLE and pdf_memory_router:
-    app.include_router(pdf_memory_router, prefix="/api/v1")
-    print("[OK] PDF memory integration routes loaded")
-else:
-    print("[WARN] PDF memory integration routes not available")
+    # Integrations - Other
+    ("integrations.deepgram_routes", "router", None),
+    ("integrations.tableau_routes", "router", None),
+    
+    # PDF Processing
+    ("integrations.pdf_processing", "pdf_ocr_router", "/api/v1"),
+    ("integrations.pdf_processing", "pdf_memory_router", "/api/v1"),
 
-# Include Salesforce integration routes if available
-if SALESFORCE_AVAILABLE and salesforce_router:
-    app.include_router(salesforce_router)
-    print("[OK] Salesforce integration routes loaded")
-else:
-    print("[WARN] Salesforce integration routes not available")
+    # Memory
+    ("integrations.atom_communication_memory_api", "atom_memory_router", None),
+    ("integrations.atom_communication_memory_production_api", "atom_memory_production_router", None),
+    ("integrations.atom_communication_memory_webhooks", "atom_memory_webhooks_router", None),
+    ("integrations.atom_communication_apps_lancedb_integration", "communication_ingestion_router", None),
+]
 
-# Include Email API routes
-if EMAIL_AVAILABLE and email_router:
-    app.include_router(email_router)
-    print("[OK] Email integration routes loaded (Gmail/Outlook)")
-else:
-    print("[WARN] Email integration routes not available")
+# Load and Mount Integrations
+for entry in integrations:
+    module, router_name, prefix = entry
+    router = loader.load_integration(module, router_name)
+    if router:
+        if prefix:
+            app.include_router(router, prefix=prefix)
+        else:
+            app.include_router(router)
 
-# Include Slack API routes
-if SLACK_AVAILABLE and slack_router:
-    app.include_router(slack_router)
-    print("[OK] Slack integration routes loaded")
-else:
-    print("[WARN] Slack integration routes not available")
-
-# Include Zoom API routes
-if ZOOM_AVAILABLE and zoom_router:
-    app.include_router(zoom_router)
-    print("[OK] Zoom integration routes loaded")
-else:
-    print("[WARN] Zoom integration routes not available")
-
-# Include HubSpot API routes
-if HUBSPOT_AVAILABLE and hubspot_router:
-    app.include_router(hubspot_router)
-    print("[OK] HubSpot integration routes loaded")
-else:
-    print("[WARN] HubSpot integration routes not available")
-
-# Include Salesforce API routes
-if SALESFORCE_AVAILABLE and salesforce_router:
-    app.include_router(salesforce_router)
-    print("[OK] Salesforce integration routes loaded")
-else:
-    print("[WARN] Salesforce integration routes not available")
-
-# Include Teams API routes
-if TEAMS_AVAILABLE and teams_router:
-    app.include_router(teams_router)
-    print("[OK] Teams integration routes loaded")
-else:
-    print("[WARN] Teams integration routes not available")
-
-# Include Gmail API routes
-if GMAIL_AVAILABLE and gmail_router:
-    app.include_router(gmail_router)
-    print("[OK] Gmail integration routes loaded")
-else:
-    print("[WARN] Gmail integration routes not available")
-
-# Include QuickBooks API routes
-if QUICKBOOKS_AVAILABLE and quickbooks_router:
-    app.include_router(quickbooks_router)
-    print("[OK] QuickBooks integration routes loaded")
-else:
-    print("[WARN] QuickBooks integration routes not available")
-
-# Include Freshdesk API routes
-if FRESHDESK_AVAILABLE and freshdesk_router:
-    app.include_router(freshdesk_router)
-    print("[OK] Freshdesk integration routes loaded")
-else:
-    print("[WARN] Freshdesk integration routes not available")
-
-# Include Intercom API routes
-if INTERCOM_AVAILABLE and intercom_router:
-    app.include_router(intercom_router)
-    print("[OK] Intercom integration routes loaded")
-else:
-    print("[WARN] Intercom integration routes not available")
-
-# Include Mailchimp API routes
-if MAILCHIMP_AVAILABLE and mailchimp_router:
-    app.include_router(mailchimp_router)
-    print("[OK] Mailchimp integration routes loaded")
-else:
-    print("[WARN] Mailchimp integration routes not available")
-
-# Include Zendesk API routes
-if ZENDESK_AVAILABLE and zendesk_router:
-    app.include_router(zendesk_router)
-    print("[OK] Zendesk integration routes loaded")
-else:
-    print("[WARN] Zendesk integration routes not available")
-
-# Include Airtable API routes
-if AIRTABLE_AVAILABLE and airtable_router:
-    app.include_router(airtable_router)
-    print("[OK] Airtable integration routes loaded")
-else:
-    print("[WARN] Airtable integration routes not available")
-
-# Include Figma API routes
-if FIGMA_AVAILABLE and figma_router:
-    app.include_router(figma_router)
-    print("[OK] Figma integration routes loaded")
-else:
-    print("[WARN] Figma integration routes not available")
-
-# Include Shopify API routes
-if SHOPIFY_AVAILABLE and shopify_router:
-    app.include_router(shopify_router)
-    print("[OK] Shopify integration routes loaded")
-else:
-    print("[WARN] Shopify integration routes not available")
-
-# Include Xero API routes
-if XERO_AVAILABLE and xero_router:
-    app.include_router(xero_router)
-    print("[OK] Xero integration routes loaded")
-else:
-    print("[WARN] Xero integration routes not available")
-
-# ==================== Phase 11 Integration Routes ====================
-# Include Jira API routes
-if JIRA_AVAILABLE and jira_router:
-    app.include_router(jira_router)
-    print("[OK] Jira integration routes loaded")
-else:
-    print("[WARN] Jira integration routes not available")
-
-# Include Monday API routes
-if MONDAY_AVAILABLE and monday_router:
-    app.include_router(monday_router)
-    print("[OK] Monday integration routes loaded")
-else:
-    print("[WARN] Monday integration routes not available")
-
-# Include Trello API routes
-if TRELLO_AVAILABLE and trello_router:
-    app.include_router(trello_router)
-    print("[OK] Trello integration routes loaded")
-else:
-    print("[WARN] Trello integration routes not available")
-
-# Include Plaid API routes
-if PLAID_AVAILABLE and plaid_router:
-    app.include_router(plaid_router)
-    print("[OK] Plaid integration routes loaded")
-else:
-    print("[WARN] Plaid integration routes not available")
-
-# Include Deepgram API routes
-if DEEPGRAM_AVAILABLE and deepgram_router:
-    app.include_router(deepgram_router)
-    print("[OK] Deepgram integration routes loaded")
-else:
-    print("[WARN] Deepgram integration routes not available")
-
-# Include LinkedIn API routes
-if LINKEDIN_AVAILABLE and linkedin_router:
-    app.include_router(linkedin_router)
-    print("[OK] LinkedIn integration routes loaded")
-else:
-    print("[WARN] LinkedIn integration routes not available")
-
-# Include GitHub integration routes if available
-try:
-    from integrations.github_routes import router as github_router
-
-    GITHUB_AVAILABLE = True
-except ImportError as e:
-    print(f"GitHub integration not available: {e}")
-    GITHUB_AVAILABLE = False
-    github_router = None
-
-if GITHUB_AVAILABLE and github_router:
-    app.include_router(github_router)
-    print("[OK] GitHub integration routes loaded")
-else:
-    print("[WARN] GitHub integration routes not available")
-
-# Include Zoom integration routes if available
-if ZOOM_AVAILABLE and zoom_router:
-    app.include_router(zoom_router)
-    print("[OK] Zoom integration routes loaded")
-else:
-    print("[WARN] Zoom integration routes not available")
-
-# Include ATOM Communication Memory API routes if available
-if ATOM_MEMORY_AVAILABLE and atom_memory_router:
-    app.include_router(atom_memory_router)
-    print("[OK] ATOM Communication Memory API routes loaded")
-else:
-    print("[WARN] ATOM Communication Memory API routes not available")
-
-# Include ATOM Communication Memory Production API routes if available
-if ATOM_MEMORY_PRODUCTION_AVAILABLE and atom_memory_production_router:
-    app.include_router(atom_memory_production_router)
-    print("[OK] ATOM Communication Memory Production API routes loaded")
-else:
-    print("[WARN] ATOM Communication Memory Production API routes not available")
-
-# Include ATOM Communication Memory Webhooks routes if available
-if ATOM_MEMORY_WEBHOOKS_AVAILABLE and atom_memory_webhooks_router:
-    app.include_router(atom_memory_webhooks_router)
-    print("[OK] ATOM Communication Memory Webhooks routes loaded")
-else:
-    print("[WARN] ATOM Communication Memory Webhooks routes not available")
-
-# Include Communication Ingestion routes if available
-if COMMUNICATION_INGESTION_AVAILABLE and communication_ingestion_router:
-    app.include_router(communication_ingestion_router)
-    print("[OK] Communication Ingestion routes loaded")
-else:
-    print("[WARN] Communication Ingestion routes not available")
-
-# Include Tableau integration routes if available
-try:
-    from integrations.tableau_routes import router as tableau_router
-
-    TABLEAU_AVAILABLE = True
-except ImportError as e:
-    print(f"Tableau integration not available: {e}")
-    TABLEAU_AVAILABLE = False
-    tableau_router = None
-
-if TABLEAU_AVAILABLE and tableau_router:
-    app.include_router(tableau_router)
-    print("[OK] Tableau integration routes loaded")
-else:
-    print("[WARN] Tableau integration routes not available")
-
-# Include Box integration routes if available
-try:
-    from integrations.box_routes import router as box_router
-
-    BOX_AVAILABLE = True
-except ImportError as e:
-    print(f"Box integration not available: {e}")
-    BOX_AVAILABLE = False
-    box_router = None
-
-if BOX_AVAILABLE and box_router:
-    app.include_router(box_router)
-    print("[OK] Box integration routes loaded")
-else:
-    print("[WARN] Box integration routes not available")
-
-# Include WhatsApp Business integration routes if available
+# Special Handling: WhatsApp Business
 try:
     from integrations.whatsapp_fastapi_routes import (
         initialize_whatsapp_service,
         register_whatsapp_routes,
     )
-    from integrations.workflow_automation_routes import router as workflow_router
-
-    WHATSAPP_AVAILABLE = True
-    print("[OK] WhatsApp Business FastAPI routes imported")
+    if register_whatsapp_routes(app):
+        print("[OK] WhatsApp Business integration routes loaded")
+        try:
+            if initialize_whatsapp_service():
+                print("[OK] WhatsApp Business service initialized")
+        except Exception as e:
+            print(f"[WARN] WhatsApp Business service initialization error: {e}")
 except ImportError as e:
-    print(f"WhatsApp integration not available: {e}")
-    WHATSAPP_AVAILABLE = False
+    print(f"[WARN] WhatsApp integration not available: {e}")
 
-# Register WhatsApp routes and initialize service
-if WHATSAPP_AVAILABLE:
-    # Register routes with FastAPI app
-    try:
-        whatsapp_routes_registered = register_whatsapp_routes(app)
-        if whatsapp_routes_registered:
-            print("[OK] WhatsApp Business integration routes loaded")
-        else:
-            print("[WARN] WhatsApp Business integration routes failed to load")
-            WHATSAPP_AVAILABLE = False
-    except Exception as e:
-        print(f"[WARN] WhatsApp Business routes registration error: {e}")
-        WHATSAPP_AVAILABLE = False
-
-    # Initialize WhatsApp service
-    try:
-        whatsapp_service_initialized = initialize_whatsapp_service()
-        if whatsapp_service_initialized:
-            print("[OK] WhatsApp Business service initialized")
-        else:
-            print("[WARN] WhatsApp Business service initialization failed")
-    except Exception as e:
-        print(f"[WARN] WhatsApp Business service initialization error: {e}")
-
-# Register workflow automation routes
-# if workflow_router:
-#     app.include_router(workflow_router, prefix="/workflows")
-#     print("✅ Enhanced workflow automation routes loaded")
-# else:
-#     print("⚠️  Workflow automation routes not available")
-
-# Register analytics routes
-if ANALYTICS_AVAILABLE and analytics_router:
-    app.include_router(analytics_router)
-    print("[OK] Real-time analytics routes loaded")
-else:
-    print("[WARN] Real-time analytics routes not available")
-
-# Register enterprise routes
-if ENTERPRISE_AVAILABLE and enterprise_router:
-    app.include_router(enterprise_router)
-    print("[OK] Enterprise reliability routes loaded")
-else:
-    print("[WARN] Enterprise reliability routes not available")
-
-# Register enterprise user management routes
-if ENTERPRISE_USER_MGMT_AVAILABLE and enterprise_user_router:
-    app.include_router(enterprise_user_router, prefix="/api/v1")
-    print("[OK] Enterprise user management routes loaded")
-else:
-    print("[WARN] Enterprise user management routes not available")
-
-# Register enterprise security routes
-if ENTERPRISE_SECURITY_AVAILABLE and enterprise_security_router:
-    app.include_router(enterprise_security_router, prefix="/api/v1")
-    print("[OK] Enterprise security routes loaded")
-else:
-    print("[WARN] Enterprise security routes not available")
-
-
-# Add health endpoint
+# Health Check
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -1187,10 +163,10 @@ async def health_check():
         "status": "healthy",
         "message": "ATOM Platform Backend is running",
         "version": "1.0.0",
+        "loaded_integrations": len(loader.get_loaded_integrations())
     }
 
-
-# Add root endpoint
+# Root Endpoint
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -1200,7 +176,6 @@ async def root():
         "status": "running",
         "docs": "/docs",
     }
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5059)

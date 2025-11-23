@@ -27,6 +27,7 @@ try:
         update_opportunity,
         execute_soql_query
     )
+    from .auth_handler_salesforce import salesforce_auth_handler
 
     SALESFORCE_AVAILABLE = True
 except ImportError as e:
@@ -40,14 +41,24 @@ router = APIRouter(prefix="/api/salesforce", tags=["salesforce"])
 # Dependency for Salesforce access token
 # Dependency for Salesforce access token
 async def get_salesforce_access_token() -> str:
-    """Get Salesforce access token from request headers or session"""
-    # In a real implementation, this would extract the token from headers
-    # or from the user's session based on their authenticated Salesforce account
-    return os.getenv("SALESFORCE_ACCESS_TOKEN", "mock_access_token")
+    """Get Salesforce access token from handler"""
+    try:
+        return await salesforce_auth_handler.ensure_valid_token()
+    except HTTPException:
+        # Fallback for testing/mocking if no token available
+        return os.getenv("SALESFORCE_ACCESS_TOKEN", "mock_access_token")
 
 def get_salesforce_client_from_env() -> Optional[Any]:
-    """Create Salesforce client from environment variables"""
+    """Create Salesforce client using OAuth token"""
     try:
+        if salesforce_auth_handler.is_token_valid():
+            return Salesforce(
+                instance_url=salesforce_auth_handler.instance_url,
+                session_id=salesforce_auth_handler.access_token,
+                version="57.0"
+            )
+            
+        # Fallback to legacy env vars if OAuth not active (for backward compatibility)
         username = os.getenv("SALESFORCE_USERNAME")
         password = os.getenv("SALESFORCE_PASSWORD")
         security_token = os.getenv("SALESFORCE_SECURITY_TOKEN")
@@ -60,8 +71,52 @@ def get_salesforce_client_from_env() -> Optional[Any]:
             )
         return None
     except Exception as e:
-        logging.error(f"Failed to create Salesforce client from env: {e}")
+        logging.error(f"Failed to create Salesforce client: {e}")
         return None
+
+# OAuth Endpoints
+
+@router.get("/auth/url")
+async def get_salesforce_auth_url():
+    """Get Salesforce OAuth authorization URL"""
+    return {
+        "url": salesforce_auth_handler.get_authorization_url(),
+        "service": "salesforce"
+    }
+
+@router.get("/auth/callback")
+async def salesforce_auth_callback(code: str, state: Optional[str] = None):
+    """Handle Salesforce OAuth callback"""
+    try:
+        token_data = await salesforce_auth_handler.exchange_code_for_token(code)
+        return {
+            "ok": True,
+            "message": "Successfully authenticated with Salesforce",
+            "service": "salesforce",
+            "instance_url": token_data.get("instance_url")
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/auth/revoke")
+async def revoke_salesforce_token():
+    """Revoke Salesforce access token"""
+    success = await salesforce_auth_handler.revoke_token()
+    return {
+        "ok": success,
+        "message": "Token revoked" if success else "Failed to revoke token",
+        "service": "salesforce"
+    }
+
+@router.get("/status")
+async def get_salesforce_status():
+    """Get Salesforce connection status"""
+    return {
+        "service": "salesforce",
+        "status": salesforce_auth_handler.get_connection_status()
+    }
 
 
 # Mock functions for response formatting

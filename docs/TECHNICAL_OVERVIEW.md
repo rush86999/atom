@@ -113,11 +113,38 @@
 
 ## Database Schema
 
-### Core Tables
+### Core Tables (NextAuth + Application)
 ```sql
--- User Management
-users (id, email, name, created_at, updated_at)
-oauth_tokens (id, user_id, service, access_token, refresh_token, expires_at)
+-- NextAuth Authentication (Nov 2025)
+users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  name VARCHAR(255),
+  email_verified TIMESTAMP,
+  image TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+)
+
+password_reset_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  token VARCHAR(255) UNIQUE NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+)
+
+-- OAuth Integration Tokens
+oauth_tokens (
+  id UUID,
+  user_id UUID REFERENCES users(id),
+  service VARCHAR(255),
+  access_token TEXT ENCRYPTED,
+  refresh_token TEXT ENCRYPTED,
+  expires_at TIMESTAMP
+)
 
 -- Calendar & Scheduling
 calendar_events (id, user_id, title, start_time, end_time, location, status)
@@ -152,19 +179,40 @@ ai_sessions (id, user_id, title, messages, model, created_at, updated_at)
 
 ## Authentication & Security
 
-### Authentication Flow
+### NextAuth Production System (Nov 2025)
+
+**Authentication Flow:**
 ```
-User → OAuth 2.0 → External Service → Access Token → SuperTokens → Session → API Access
+User → Email/Password or OAuth → NextAuth → bcrypt/OAuth verify → JWT Session → API Access
 ```
 
+**Supported Methods:**
+- Email/password with bcrypt hashing (10 rounds)
+- OAuth 2.0 (Google, GitHub)
+- Password reset with secure tokens (1-hour expiry)
+
+**Key Components:**
+- `frontend-nextjs/lib/auth.ts` - NextAuth configuration
+- `frontend-nextjs/lib/db.ts` - Direct PostgreSQL connection
+- `backend/migrations/` - Database schemas
+
+**API Endpoints:**
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/[...nextauth]` - NextAuth handlers
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset with token
+- `GET /api/auth/callback/{provider}` - OAuth callbacks
+
 ### Security Features
+- **bcrypt Hashing** - Industry-standard password hashing
+- **JWT Sessions** - Stateless session management with secure secrets
 - **OAuth 2.0** - Secure third-party authentication
-- **JWT Tokens** - Stateless session management
+- **Token Encryption** - Service tokens encrypted with AES
 - **Input Validation** - Comprehensive request validation
 - **XSS Prevention** - HTML sanitization and CSP headers
 - **CSRF Protection** - Token-based request verification
 - **Rate Limiting** - API request throttling
-- **Data Encryption** - Sensitive data encryption at rest
+- **Data Encryption** - Sensitive data encrypted at rest
 
 ## Performance Architecture
 
@@ -200,10 +248,11 @@ services:
     ports: ["3000:3000"]
     environment:
       - NODE_ENV=development
+      - NEXTAUTH_URL=http://localhost:3000
   
   backend:
     build: ./backend
-    ports: ["8000:8000"]
+    ports: ["5059:5059"]
     environment:
       - DATABASE_URL=postgresql://...
       - REDIS_URL=redis://...
@@ -325,9 +374,9 @@ jobs:
 - **Python 3.11** - Backend programming language
 - **FastAPI** - Modern Python web framework
 - **PostgreSQL 15** - Primary database
-- **Redis 7** - Caching and session storage
-- **Celery** - Distributed task queue
-- **Prisma** - Database ORM and migrations
+- **Redis 7** - Caching and session storage (optional)
+- **Celery** - Distributed task queue (optional)
+- **SQLAlchemy** - Database ORM
 
 ### Infrastructure & DevOps
 - **Docker** - Containerization
