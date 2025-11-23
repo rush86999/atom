@@ -108,6 +108,12 @@ export default function SignIn() {
                 />
               </FormControl>
 
+              <Box w="100%" textAlign="right">
+                <Link href="/auth/forgot-password" color="blue.500" fontSize="sm">
+                  Forgot password?
+                </Link>
+              </Box>
+
               <Button
                 type="submit"
                 colorScheme="blue"
@@ -118,14 +124,54 @@ export default function SignIn() {
               >
                 Sign In
               </Button>
+
+              <Box w="100%" position="relative" py={2}>
+                <Box
+                  position="absolute"
+                  top="50%"
+                  left="0"
+                  right="0"
+                  borderTop="1px"
+                  borderColor="gray.300"
+                />
+                <Text
+                  position="relative"
+                  bg="white"
+                  px={2}
+                  fontSize="sm"
+                  color="gray.500"
+                  textAlign="center"
+                  display="inline-block"
+                  mx="auto"
+                  width="fit-content"
+                >
+                  Or continue with
+                </Text>
+              </Box>
+
+              <VStack spacing={3} w="100%">
+                <Button
+                  w="100%"
+                  variant="outline"
+                  size="lg"
+                  onClick={() => signIn('google', { callbackUrl: '/' })}
+                >
+                  <Box as="span" mr={2}>🔍</Box>
+                  Sign in with Google
+                </Button>
+
+                <Button
+                  w="100%"
+                  variant="outline"
+                  size="lg"
+                  onClick={() => signIn('github', { callbackUrl: '/' })}
+                >
+                  <Box as="span" mr={2}>⚫</Box>
+                  Sign in with GitHub
+                </Button>
+              </VStack>
             </VStack>
           </form>
-
-          <Box mt={6} textAlign="center">
-            <Text color="gray.600">
-              Demo credentials: demo@atom.com / demo123
-            </Text>
-          </Box>
 
           <Box mt={4} textAlign="center">
             <Text color="gray.600">
