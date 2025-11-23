@@ -42,7 +42,11 @@ This guide documents all required environment variables and credentials for the 
 
 > **Note:** The application now uses **NextAuth only** for authentication. Supabase and SuperTokens have been removed.
 
+> [!IMPORTANT]
+> **User Registration Required**: After the NextAuth production migration, users must register new accounts. The demo user (`demo@example.com`) has been removed. See `docs/nextauth_production_setup.md` for setup instructions.
+
 ## 5. OAuth Callback URLs for Local Testing
+
 
 When setting up OAuth integrations for **local development**, use these callback URLs in your app configurations:
 
