@@ -1,62 +1,59 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { getSession } from "supertokens-node/nextjs";
+import { getSession } from "supertokens-node/recipe/session";
 import { SessionContainer } from "supertokens-node/recipe/session";
-// TODO: These imports are missing - need to implement or remove the functionality
-// import {
-//   executeGraphQLMutation,
-//   executeGraphQLQuery,
-// } from '../../../../project/functions/_libs/graphqlClient';
-// import { encrypt, decrypt } from '../../../../project/functions/_libs/crypto'; // Assuming crypto utils exist
+import {
+  executeGraphQLMutation,
+  executeGraphQLQuery,
+} from '../../../lib/graphqlClient';
+import { encrypt, decrypt } from '../../../lib/crypto';
 
 async function saveCredential(userId: string, service: string, secret: string) {
-  // TODO: Implement credential saving functionality
-  // const encryptedSecret = encrypt(secret);
-  // const mutation = `
-  //       mutation InsertUserCredential($userId: String!, $serviceName: String!, $secret: String!) {
-  //           insert_user_credentials_one(object: {user_id: $userId, service_name: $serviceName, encrypted_secret: $secret}, on_conflict: {constraint: user_credentials_pkey, update_columns: encrypted_secret}) {
-  //               user_id
-  //           }
-  //       }
-  //   `;
-  // const variables = {
-  //   userId,
-  //   serviceName: service,
-  //   secret: encryptedSecret,
-  // };
-  // await executeGraphQLMutation(
-  //   mutation,
-  //   variables,
-  //   'InsertUserCredential',
-  //   userId
-  // );
-  console.log(
-    `Would save credentials for service: ${service}, user: ${userId}`,
-  );
+  const encryptedSecret = encrypt(secret);
+
+  const mutation = `
+    mutation SaveCredential($userId: String!, $service: String!, $secret: String!) {
+      insert_user_credentials_one(
+        object: {
+          user_id: $userId, 
+          service: $service, 
+          encrypted_secret: $secret,
+          updated_at: "now()"
+        }, 
+        on_conflict: {
+          constraint: user_credentials_pkey, 
+          update_columns: [encrypted_secret, updated_at]
+        }
+      ) {
+        id
+      }
+    }
+  `;
+
+  await executeGraphQLMutation(mutation, {
+    userId,
+    service,
+    secret: encryptedSecret,
+  });
 }
 
-async function getCredential(
-  userId: string,
-  service: string,
-): Promise<{ isConnected: boolean; value?: string | null }> {
-  // TODO: Implement credential retrieval functionality
-  // const query = `
-  //       query GetUserSetting($userId: String!, $key: String!) {
-  //           user_settings(where: {user_id: {_eq: $userId}, key: {_eq: $key}}) {
-  //               value
-  //           }
-  //       }
-  //   `;
-  // const variables = {
-  //   userId,
-  //   key: service,
-  // };
-  // const response = await executeGraphQLQuery<{
-  //   user_settings: { value: string }[];
-  // }>(query, variables, 'GetUserSetting', userId);
-  // if (response.user_settings && response.user_settings.length > 0) {
-  //   return { isConnected: true, value: response.user_settings[0].value };
-  // }
-  console.log(`Would get credentials for service: ${service}, user: ${userId}`);
+async function getCredential(userId: string, service: string) {
+  const query = `
+    query GetCredential($userId: String!, $service: String!) {
+      user_credentials_by_pk(user_id: $userId, service: $service) {
+        encrypted_secret
+      }
+    }
+  `;
+
+  const response = await executeGraphQLQuery(query, { userId, service });
+
+  if (response.data?.user_credentials_by_pk?.encrypted_secret) {
+    return {
+      isConnected: true,
+      value: decrypt(response.data.user_credentials_by_pk.encrypted_secret)
+    };
+  }
+
   return { isConnected: false };
 }
 
@@ -66,7 +63,7 @@ export default async function handler(
 ) {
   let session: SessionContainer;
   try {
-    session = await getSession(req, res, {
+    session = await getSSRSession(req, res, {
       overrideGlobalClaimValidators: () => [],
     });
   } catch (err) {

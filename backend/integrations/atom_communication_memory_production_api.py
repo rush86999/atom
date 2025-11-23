@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 import json
 import logging
 import asyncio
+import os
+import jwt
 from dataclasses import asdict
 
 from integrations.atom_communication_ingestion_pipeline import (
@@ -39,12 +41,25 @@ class AtomCommunicationMemoryProductionAPI:
         # Request logging
         # Error handling
         # Monitoring
-        pass
+        self.start_time = datetime.now()
     
     def verify_token(self, credentials: HTTPAuthorizationCredentials = Depends(security)):
         """Verify JWT token"""
-        # TODO: Implement proper JWT verification
-        return credentials.credentials
+        try:
+            token = credentials.credentials
+            secret_key = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
+            payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+            return token
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token has expired")
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        except Exception as e:
+            logger.error(f"Token verification failed: {str(e)}")
+            # For development/testing, allow if DEBUG is True
+            if os.getenv("DEBUG", "False").lower() == "true":
+                return credentials.credentials
+            raise HTTPException(status_code=401, detail="Could not validate credentials")
     
     def setup_routes(self):
         """Setup production API routes"""
@@ -110,7 +125,7 @@ class AtomCommunicationMemoryProductionAPI:
                     },
                     "ingestion_pipeline": stats,
                     "performance": {
-                        "uptime": "N/A",  # TODO: Implement uptime tracking
+                        "uptime": str(datetime.now() - self.start_time),
                         "ingestion_rate": "1000+ messages/second",
                         "search_latency": "< 100ms"
                     }
