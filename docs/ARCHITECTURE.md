@@ -2,148 +2,169 @@
 
 ## Overview
 
-ATOM is a multi-platform AI-powered task orchestration and management system with both web and desktop applications. This document describes the reorganized architecture after consolidation.
+ATOM is a comprehensive AI-powered task orchestration and management platform with web and desktop applications. This document describes the current architecture focusing on the unified authentication system and integration framework.
 
 ## Architecture Overview
 
 ```
 atom/
-├── frontend-nextjs/          # Web application (Next.js + TypeScript)
-├── desktop/tauri/            # Desktop application (Tauri + React + TypeScript)
-├── src/                      # Shared frontend services (TypeScript)
-├── backend/                  # Backend services (Python)
-│   ├── consolidated/         # Consolidated backend structure
-│   ├── python-api-service/   # Main backend for web app
-│   └── integrations/         # Integration services
-└── shared/                   # Shared utilities and configurations
+├── frontend-nextjs/          # Web + Desktop application (Next.js + TypeScript)
+├── src-tauri/                # Desktop wrapper (Tauri + Rust)
+├── src/                      # Shared frontend services and components
+├── backend/                  # Backend services (Python FastAPI)
+│   ├── core/                 # Core backend modules
+│   ├── integrations/         # 100+ integration services
+│   ├── ai/                   # AI/LLM services
+│   └── migrations/           # Database migrations
+├── packages/                 # Shared packages (AI, integrations, utils)
+└── docs/                     # Documentation
+
 ```
 
 ## Application Architecture
 
-### Frontend Web Application (`frontend-nextjs/`)
+### Unified Frontend Application (`frontend-nextjs/`)
 
 **Technology Stack:**
 - Next.js 15.5.0 with TypeScript
 - React 18.2.0
-- Chakra UI for components
-- Various integration libraries (Google APIs, Stripe, etc.)
+- Chakra UI + Tailwind CSS (mixed - consolidation planned)
+- NextAuth for authentication
+
+**Dual Purpose:**
+- **Web App:** Standalone Next.js progressive web application
+- **Desktop App:** Same codebase wrapped by Tauri (`src-tauri/`)
 
 **Key Features:**
-- Multi-tenant web interface
+- 48 integration UI pages
+- Unified task, calendar, and search experiences
 - Real-time collaboration
-- Integration with external services
-- Database-backed persistent storage
+- OAuth 2.0 social login (Google, GitHub)
+- Password reset functionality
 
 **Backend Connection:**
-- Connects to `backend/python-api-service` on port 5058
-- Uses backend database for persistent storage
-- REST API communication
+- REST API to `backend/` on port 5059
+- PostgreSQL database for persistent storage
+- Direct SQL queries via `lib/db.ts`
 
-### Desktop Application (`desktop/tauri/`)
+### Desktop Application (`src-tauri/`)
 
 **Technology Stack:**
-- Tauri 1.0.0 (Rust backend + WebView frontend)
-- React 18.2.0 with TypeScript
-- Local file system storage with encryption
-- Embedded Python backend
+- Tauri wrapper around Next.js frontend
+- Rust backend for system integration
+- Same UI as web app
 
 **Key Features:**
-- Local-first architecture
-- Encrypted local storage
-- Voice/audio processing capabilities
-- Wake word detection
+- Local-first architecture  
+- Native system integration
+- File system access
 - Offline functionality
 
-**Backend Connection:**
-- Embedded Python backend in `src-tauri/python-backend/`
-- Local encrypted JSON storage via Tauri APIs
-- File system access for local data persistence
+## Authentication & Security
+
+### NextAuth Production System
+**Migration Completed:** Nov 23, 2025
+
+**Features:**
+- ✅ Email/password authentication with bcrypt hashing
+- ✅ OAuth providers (Google, GitHub)
+- ✅ User registration API
+- ✅ Password reset flow (forgot password + token-based reset)
+- ✅ JWT session management
+- ✅ PostgreSQL-backed user storage
+
+**Removed:**
+- ❌ Supabase Auth (deprecated)
+- ❌ SuperTokens (deprecated)
+- ❌ Mock users (deprecated)
+
+**Key Files:**
+- `frontend-nextjs/lib/auth.ts` - NextAuth configuration
+- `frontend-nextjs/lib/db.ts` - Direct PostgreSQL connection
+- `backend/migrations/001_create_users_table.sql` - User schema
+- `backend/migrations/002_create_password_reset_tokens.sql` - Reset tokens
+
+**API Endpoints:**
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset with token
+- `/api/auth/callback/{provider}` - OAuth callbacks
+
+### OAuth Integration Storage
+- **Tokens:** Encrypted in database with `ATOM_ENCRYPTION_KEY`
+- **Refresh:** Automatic token refresh via OAuth providers
+- **Revocation:** User can revoke access per integration
 
 ## Service Organization
 
 ### Frontend Services (`src/services/`)
 
-Organized by domain for better maintainability:
+Organized by domain:
 
 ```
 src/services/
-├── ai/                          # AI and ML services
+├── ai/                       # AI and ML services
 │   ├── ChatOrchestrationService.ts
 │   ├── hybridLLMService.ts
-│   ├── llmSettingsManager.ts
-│   ├── nluHybridIntegrationService.ts
-│   ├── nluService.ts
-│   ├── openaiService.ts
-│   ├── skillService.ts
-│   ├── financeAgentService.ts
-│   ├── tradingAgentService.ts
-│   └── trading/                 # Trading-specific services
-├── integrations/                # External service integrations
+│   └── nluService.ts
+├── integrations/             # External service integrations
 │   ├── apiKeyService.ts
 │   ├── authService.ts
 │   └── connection-status-service.ts
-├── workflows/                   # Workflow automation
-│   ├── autonomousWorkflowService.ts
-│   └── workflowService.ts
-└── utils/                       # Utility services (to be populated)
+└── workflows/                # Workflow automation
+    ├── autonomousWorkflowService.ts
+    └── workflowService.ts
 ```
 
 ### Backend Services (`backend/`)
 
-Consolidated structure for better code reuse:
+Modular FastAPI application:
 
 ```
 backend/
-├── consolidated/               # Consolidated backend services
-│   ├── core/                   # Core backend functionality
-│   │   ├── database_manager.py
-│   │   └── auth_service.py
-│   ├── integrations/           # External service integrations
-│   │   ├── asana_service.py
-│   │   ├── asana_routes.py
-│   │   ├── dropbox_service.py
-│   │   ├── dropbox_routes.py
-│   │   ├── outlook_service.py
-│   │   └── outlook_routes.py
-│   ├── workflows/              # Workflow engine
-│   └── api/                    # API endpoints (to be populated)
-├── python-api-service/         # Main backend for web app
-└── integrations/               # Legacy integration services
+├── core/                     # Core backend functionality
+│   ├── integration_loader.py    # Dynamic integration loading
+│   ├── api_routes.py            # Core API endpoints
+│   ├── workflow_ui_endpoints.py
+│   ├── unified_task_endpoints.py
+│   └── database_manager.py
+├── integrations/             # 88 integration route files (344 total files)
+│   ├── *_routes.py          # FastAPI route definitions
+│   └── *_service.py         # Business logic
+├── ai/                       # AI services
+│   └── Multi-provider LLM support
+└── migrations/               # Database schema migrations
 ```
 
 ## Storage Architecture
 
 ### Web Application Storage
-- **Primary**: PostgreSQL/SQLite database via backend
-- **Cache**: In-memory caching for performance
-- **Files**: Cloud storage integration (Dropbox, Google Drive, etc.)
-- **Sessions**: Backend-managed user sessions
+- **Primary**: PostgreSQL database
+  - Users and authentication
+  - Application data
+  - Integration metadata
+- **Cache**: Redis (optional)
+- **Files**: Cloud storage integrations (Google Drive, Dropbox, etc.)
 
-### Desktop Application Storage
-- **Primary**: Encrypted JSON files in app data directory
-- **Encryption**: AES encryption using crypto-js
-- **Location**: Platform-specific app data directories
-- **Backup**: Manual export/import capabilities
+### Desktop Application Storage  
+- **Primary**: Same PostgreSQL database as web
+- **Local Cache**: Encrypted local storage via Tauri
+- **Files** Platform-specific app data directories
 
 ## Integration Patterns
 
-### External Service Integrations
+### Supported Integrations (35-40 services)
 
-**Supported Services:**
-- Asana (project management)
-- Dropbox (file storage)
-- Outlook (email/calendar)
-- GitHub (code management)
-- Slack (team communication)
-- Jira (issue tracking)
-- Notion (documentation)
-- And 180+ other services
+**Project Management:** Asana, Jira, Monday.com, Notion, Linear, Trello, Airtable, ClickUp
+**Communication:** Slack, Teams, Zoom, Discord, Gmail, Outlook, WhatsApp
+**Storage:** Google Drive, Dropbox, OneDrive, Box, SharePoint  
+**CRM:** Salesforce, HubSpot, Zendesk, Freshdesk, Intercom
+**Development:** GitHub, GitLab, Bitbucket, Figma
+**Finance:** Stripe, QuickBooks, Xero, Shopify
+**AI/Voice:** Deepgram, ElevenLabs, AssemblyAI
 
-**Authentication:**
-- OAuth 2.0 for external services
-- API key management with encryption
-- Token refresh and validation
-- Secure credential storage
+### Authentication Pattern
+All integrations use OAuth 2.0:
 
 ### Communication Patterns
 
