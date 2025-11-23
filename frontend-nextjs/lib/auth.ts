@@ -1,6 +1,10 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import GitHubProvider from "next-auth/providers/github";
 import { JWT } from "next-auth/jwt";
+import { query } from "./db";
+import bcrypt from "bcryptjs";
 
 // Extend the built-in session types
 declare module "next-auth" {
@@ -25,18 +29,16 @@ declare module "next-auth/jwt" {
   }
 }
 
-// Mock user database - replace with your actual user service
-const users = [
-  {
-    id: "1",
-    email: "demo@example.com",
-    name: "Demo User",
-    password: "demo123",
-  },
-];
-
 export const authOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID || "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -48,22 +50,39 @@ export const authOptions = {
           return null;
         }
 
-        // Find user in mock database
-        const user = users.find(
-          (u) =>
-            u.email === credentials.email &&
-            u.password === credentials.password,
-        );
+        try {
+          // Query user from database
+          const result = await query(
+            'SELECT id, email, name, password_hash FROM users WHERE email = $1',
+            [credentials.email]
+          );
 
-        if (user) {
+          if (result.rows.length === 0) {
+            return null;
+          }
+
+          const user = result.rows[0];
+
+          // Verify password
+          const isValidPassword = await bcrypt.compare(
+            credentials.password,
+            user.password_hash
+          );
+
+          if (!isValidPassword) {
+            return null;
+          }
+
+          // Return user without password hash
           return {
             id: user.id,
             email: user.email,
             name: user.name,
           };
+        } catch (error) {
+          console.error('Authentication error:', error);
+          return null;
         }
-
-        return null;
       },
     }),
   ],
