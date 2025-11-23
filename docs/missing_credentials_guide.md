@@ -31,6 +31,11 @@ This guide documents all required environment variables and credentials for the 
 
 > **Note:** The Independent AI Validator also looks for credentials in `backend/independent_ai_validator/data/credentials.json`.
 
+> [!NOTE]
+> **Authentication Methods:**
+> *   **AI Providers (BYOK):** Use **API Keys** (copy-paste). This is standard for LLM providers like OpenAI and Anthropic. Keys are encrypted using `BYOK_ENCRYPTION_KEY`.
+> *   **Third-Party Apps:** Use **OAuth 2.0** (Connect button). This is standard for user-facing apps like Slack, Google, and Salesforce. Tokens are encrypted using `ATOM_ENCRYPTION_KEY`.
+
 ## 4. Authentication & Security
 
 | Variable | Description |
@@ -39,6 +44,7 @@ This guide documents all required environment variables and credentials for the 
 | `NEXTAUTH_SECRET` | Secret for NextAuth.js session encryption (Generate: `openssl rand -base64 32`) |
 | `NEXTAUTH_URL` | Canonical URL of your site (e.g., `http://localhost:3000` or `https://yourdomain.com`) |
 | `ATOM_ENCRYPTION_KEY` | Key used to encrypt stored OAuth tokens (Must be 32 bytes base64) |
+| `BYOK_ENCRYPTION_KEY` | Key used to encrypt AI Provider keys (Must be 32 bytes base64) |
 
 > **Note:** The application now uses **NextAuth only** for authentication. Supabase and SuperTokens have been removed.
 
@@ -207,13 +213,16 @@ The following integrations need credentials. Detailed setup instructions are pro
   6. Note your Zendesk subdomain (e.g., `yourcompany` from `yourcompany.zendesk.com`)
 
 #### Freshdesk
-- **Environment Variables:** `FRESHDESK_API_KEY`, `FRESHDESK_DOMAIN`
+- **Environment Variables:** `FRESHDESK_CLIENT_ID`, `FRESHDESK_CLIENT_SECRET`, `FRESHDESK_DOMAIN`
 - **Setup Instructions:**
   1. Login to your Freshdesk account
-  2. Click on your profile picture → Profile settings
-  3. Scroll to "API Key" section
-  4. Copy your **API Key** (generate if not present)
-  5. Note your Freshdesk domain (e.g., `yourcompany.freshdesk.com`)
+  2. Go to **Admin** → **Security** (or search for "OAuth")
+  3. Create a new OAuth Client (or App)
+  4. Fill in app details
+  5. Add redirect URL: `http://localhost:3000/api/auth/callback/freshdesk`
+  6. Select required scopes: `read:tickets`, `write:tickets`, `read:contacts`, `read:agents`
+  7. Copy **Client ID** and **Client Secret**
+  8. Note your Freshdesk domain (e.g., `yourcompany.freshdesk.com`)
 
 #### Intercom
 - **Environment Variables:** `INTERCOM_CLIENT_ID`, `INTERCOM_CLIENT_SECRET`
