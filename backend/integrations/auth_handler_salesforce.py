@@ -6,8 +6,10 @@ OAuth 2.0 authentication handler for Salesforce integration
 import os
 import json
 import logging
+import secrets
 from typing import Dict, Optional, Any
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 import aiohttp
 from fastapi import HTTPException
 
@@ -23,7 +25,7 @@ class SalesforceAuthHandler:
         self.client_id = os.getenv("SALESFORCE_CLIENT_ID", "")
         self.client_secret = os.getenv("SALESFORCE_CLIENT_SECRET", "")
         self.redirect_uri = os.getenv(
-            "SALESFORCE_REDIRECT_URI", "http://localhost:5058/api/auth/salesforce/callback"
+            "SALESFORCE_REDIRECT_URI", "http://localhost:3000/api/auth/callback/salesforce"
         )
         # Default to production, can be overridden or made dynamic for sandbox
         self.base_url = os.getenv("SALESFORCE_AUTH_URL", "https://login.salesforce.com")
@@ -56,6 +58,8 @@ class SalesforceAuthHandler:
 
         if state:
             params["state"] = state
+        else:
+            params["state"] = secrets.token_urlsafe(32)
 
         # Standard Salesforce scopes
         scopes = [
@@ -66,7 +70,7 @@ class SalesforceAuthHandler:
         ]
         params["scope"] = " ".join(scopes)
 
-        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+        query_string = urlencode(params)
         return f"{self.authorize_url}?{query_string}"
 
     async def exchange_code_for_token(self, code: str) -> Dict[str, Any]:
