@@ -2,7 +2,7 @@ import React from "react";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
 import { ChakraProvider } from "@chakra-ui/react";
-import { ToastProvider } from "@/components/ui/use-toast";
+import { ToastProvider } from "../components/ui/use-toast";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
