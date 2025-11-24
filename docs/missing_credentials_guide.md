@@ -283,16 +283,27 @@ The following integrations need credentials. Detailed setup instructions are pro
 
 #### Dropbox
 - **Environment Variables:** `DROPBOX_CLIENT_ID`, `DROPBOX_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/auth/callback/dropbox`
 - **Setup Instructions:**
   1. Go to [Dropbox App Console](https://www.dropbox.com/developers/apps)
   2. Click "Create app"
   3. Choose "Scoped access" API
-  4. Choose "Full Dropbox" or "App folder" access
+  4. Choose "Full Dropbox" or "App folder" access type
   5. Name your app
   6. Navigate to "Settings" tab
   7. Copy **App key** (Client ID) and **App secret** (Client Secret)
-  8. Add redirect URI: `http://localhost:3000/api/auth/callback/dropbox`
-  9. Under "Permissions" tab, enable required scopes
+  8. Add **Redirect URI**: `http://localhost:3000/api/auth/callback/dropbox`
+     - For production: `https://yourdomain.com/api/auth/callback/dropbox`
+  9. Under "Permissions" tab, enable required scopes:
+     - `files.metadata.read` - View file and folder metadata
+     - `files.content.read` - View content of your Dropbox files
+     - `files.content.write` - Edit content of your Dropbox files
+     - `account_info.read` - View account information
+  10. Set environment variables:
+      ```
+      DROPBOX_CLIENT_ID=your_app_key
+      DROPBOX_CLIENT_SECRET=your_app_secret
+      ```
 
 ### Email
 
