@@ -1,36 +1,18 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Card,
-  CardBody,
-  Badge,
-  Icon,
-  useColorModeValue,
-  SimpleGrid,
-  Progress,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  Button,
-  Spinner,
-  Tooltip,
-} from "@chakra-ui/react";
-import {
-  CheckCircleIcon,
-  WarningTwoIcon,
-  TimeIcon,
-  SettingsIcon,
-  ExternalLinkIcon,
-  RepeatIcon,
-} from "@chakra-ui/icons";
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  Settings,
+  ExternalLink,
+  RefreshCw
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Progress } from "../ui/progress";
+import { Spinner } from "../ui/spinner";
+import { Button } from "../ui/button";
+import { Alert, AlertDescription } from "../ui/alert";
 
 interface IntegrationHealth {
   id: string;
@@ -64,9 +46,6 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
 
   const integrationList: Omit<IntegrationHealth, "status" | "lastSync" | "responseTime" | "errorCount">[] = [
     {
@@ -249,26 +228,26 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
   const getStatusColor = (status: IntegrationHealth["status"]) => {
     switch (status) {
       case "healthy":
-        return "green";
+        return "success";
       case "warning":
-        return "yellow";
+        return "warning";
       case "error":
-        return "red";
+        return "destructive";
       default:
-        return "gray";
+        return "secondary";
     }
   };
 
   const getStatusIcon = (status: IntegrationHealth["status"]) => {
     switch (status) {
       case "healthy":
-        return CheckCircleIcon;
+        return CheckCircle;
       case "warning":
-        return WarningTwoIcon;
+        return AlertTriangle;
       case "error":
-        return WarningTwoIcon;
+        return AlertTriangle;
       default:
-        return TimeIcon;
+        return Clock;
     }
   };
 
@@ -289,201 +268,190 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
 
   if (loading) {
     return (
-      <Box textAlign="center" py={8}>
-        <Spinner size="xl" />
-        <Text mt={4}>Loading integration health status...</Text>
-      </Box>
+      <div className="flex flex-col items-center justify-center py-8">
+        <Spinner size="lg" />
+        <p className="mt-4 text-gray-500">Loading integration health status...</p>
+      </div>
     );
   }
 
   return (
-    <Box>
+    <div className="space-y-6">
       {/* Summary Stats */}
-      <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4} mb={6}>
-        <Card bg={bgColor} border="1px" borderColor={borderColor}>
-          <CardBody>
-            <Stat>
-              <StatLabel>Total Integrations</StatLabel>
-              <StatNumber>{totalCount}</StatNumber>
-              <StatHelpText>All configured</StatHelpText>
-            </Stat>
-          </CardBody>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Integrations</p>
+              <div className="text-2xl font-bold">{totalCount}</div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">All configured</p>
+            </div>
+          </CardContent>
         </Card>
 
-        <Card bg={bgColor} border="1px" borderColor={borderColor}>
-          <CardBody>
-            <Stat>
-              <StatLabel>Healthy</StatLabel>
-              <StatNumber color="green.500">{healthyCount}</StatNumber>
-              <StatHelpText>Running smoothly</StatHelpText>
-            </Stat>
-          </CardBody>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Healthy</p>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{healthyCount}</div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Running smoothly</p>
+            </div>
+          </CardContent>
         </Card>
 
-        <Card bg={bgColor} border="1px" borderColor={borderColor}>
-          <CardBody>
-            <Stat>
-              <StatLabel>Warnings</StatLabel>
-              <StatNumber color="yellow.500">{warningCount}</StatNumber>
-              <StatHelpText>Needs attention</StatHelpText>
-            </Stat>
-          </CardBody>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Warnings</p>
+              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{warningCount}</div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Needs attention</p>
+            </div>
+          </CardContent>
         </Card>
 
-        <Card bg={bgColor} border="1px" borderColor={borderColor}>
-          <CardBody>
-            <Stat>
-              <StatLabel>Errors</StatLabel>
-              <StatNumber color="red.500">{errorCount}</StatNumber>
-              <StatHelpText>Requires action</StatHelpText>
-            </Stat>
-          </CardBody>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Errors</p>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{errorCount}</div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Requires action</p>
+            </div>
+          </CardContent>
         </Card>
-      </SimpleGrid>
+      </div>
 
       {/* Health Progress */}
-      <Card bg={bgColor} border="1px" borderColor={borderColor} mb={6}>
-        <CardBody>
-          <VStack spacing={4} align="stretch">
-            <HStack justify="space-between">
-              <Text fontWeight="bold">Overall Health</Text>
-              <Text fontSize="sm" color="gray.500">
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">Overall Health</h3>
+              <span className="text-sm text-gray-500">
                 {healthyCount}/{totalCount} healthy
-              </Text>
-            </HStack>
+              </span>
+            </div>
             <Progress
               value={(healthyCount / totalCount) * 100}
-              colorScheme={
-                healthyCount === totalCount ? "green" :
-                healthyCount > totalCount / 2 ? "yellow" : "red"
+              indicatorClassName={
+                healthyCount === totalCount ? "bg-green-600" :
+                  healthyCount > totalCount / 2 ? "bg-yellow-500" : "bg-red-600"
               }
-              size="lg"
-              borderRadius="md"
+              className="h-3"
             />
-            <HStack justify="space-between" fontSize="sm">
-              <Text>0%</Text>
-              <Text>50%</Text>
-              <Text>100%</Text>
-            </HStack>
-          </VStack>
-        </CardBody>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>0%</span>
+              <span>50%</span>
+              <span>100%</span>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Integration List */}
-      <VStack spacing={4} align="stretch">
-        <HStack justify="space-between">
-          <Text fontWeight="bold" fontSize="lg">Integration Status</Text>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Integration Status</h3>
           <Button
             size="sm"
-            leftIcon={<RepeatIcon />}
+            variant="outline"
             onClick={refreshHealthStatus}
-            isLoading={refreshing}
-            loadingText="Refreshing"
+            disabled={refreshing}
           >
+            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-        </HStack>
+        </div>
 
         {lastUpdated && (
-          <Text fontSize="sm" color="gray.500">
+          <p className="text-sm text-gray-500">
             Last updated: {lastUpdated.toLocaleString()}
-          </Text>
+          </p>
         )}
 
-        {integrations.map((integration) => (
-          <Card
-            key={integration.id}
-            bg={bgColor}
-            border="1px"
-            borderColor={borderColor}
-            _hover={{ shadow: "md" }}
-            transition="all 0.2s"
-          >
-            <CardBody>
-              <HStack spacing={4} align="start">
-                <Icon
-                  as={getStatusIcon(integration.status)}
-                  w={6}
-                  h={6}
-                  color={`${getStatusColor(integration.status)}.500`}
-                />
+        {integrations.map((integration) => {
+          const StatusIcon = getStatusIcon(integration.status);
+          return (
+            <Card
+              key={integration.id}
+              className="hover:shadow-md transition-shadow"
+            >
+              <CardContent className="pt-6">
+                <div className="flex items-start space-x-4">
+                  <StatusIcon
+                    className={`h-6 w-6 text-${getStatusColor(integration.status) === 'success' ? 'green' : getStatusColor(integration.status) === 'warning' ? 'yellow' : 'red'}-500`}
+                  />
 
-                <VStack align="start" flex={1} spacing={2}>
-                  <HStack justify="space-between" width="100%">
-                    <Text fontWeight="bold">{integration.name}</Text>
-                    <HStack spacing={2}>
-                      <Badge colorScheme="blue" size="sm">
-                        {integration.category}
-                      </Badge>
-                      <Badge
-                        colorScheme={getStatusColor(integration.status)}
-                        size="sm"
-                      >
-                        {integration.status.toUpperCase()}
-                      </Badge>
-                      {integration.connected && (
-                        <Badge colorScheme="green" size="sm">
-                          CONNECTED
+                  <div className="flex-1 space-y-2">
+                    <div className="flex justify-between items-center w-full">
+                      <span className="font-bold text-gray-900 dark:text-gray-100">{integration.name}</span>
+                      <div className="flex space-x-2">
+                        <Badge variant="secondary">
+                          {integration.category}
                         </Badge>
-                      )}
-                    </HStack>
-                  </HStack>
+                        <Badge
+                          variant={getStatusColor(integration.status) as any}
+                        >
+                          {integration.status.toUpperCase()}
+                        </Badge>
+                        {integration.connected && (
+                          <Badge variant="success">
+                            CONNECTED
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
 
-                  {showDetails && (
-                    <HStack spacing={6} fontSize="sm" color="gray.600">
-                      <Tooltip label="Last synchronization">
-                        <HStack spacing={1}>
-                          <TimeIcon />
-                          <Text>{formatLastSync(integration.lastSync)}</Text>
-                        </HStack>
-                      </Tooltip>
+                    {showDetails && (
+                      <div className="flex space-x-6 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center space-x-1" title="Last synchronization">
+                          <Clock className="h-4 w-4" />
+                          <span>{formatLastSync(integration.lastSync)}</span>
+                        </div>
 
-                      <Tooltip label="Response time">
-                        <HStack spacing={1}>
-                          <SettingsIcon />
-                          <Text>{formatResponseTime(integration.responseTime)}</Text>
-                        </HStack>
-                      </Tooltip>
+                        <div className="flex items-center space-x-1" title="Response time">
+                          <Settings className="h-4 w-4" />
+                          <span>{formatResponseTime(integration.responseTime)}</span>
+                        </div>
 
-                      {integration.errorCount && integration.errorCount > 0 && (
-                        <Tooltip label="Error count">
-                          <HStack spacing={1}>
-                            <WarningTwoIcon />
-                            <Text>{integration.errorCount} errors</Text>
-                          </HStack>
-                        </Tooltip>
-                      )}
-                    </HStack>
-                  )}
-                </VStack>
-              </HStack>
-            </CardBody>
-          </Card>
-        ))}
-      </VStack>
+                        {integration.errorCount && integration.errorCount > 0 && (
+                          <div className="flex items-center space-x-1 text-red-500" title="Error count">
+                            <AlertTriangle className="h-4 w-4" />
+                            <span>{integration.errorCount} errors</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
       {/* Status Legend */}
-      <Card bg={bgColor} border="1px" borderColor={borderColor} mt={6}>
-        <CardBody>
-          <Text fontWeight="bold" mb={3}>Status Legend</Text>
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-            <HStack>
-              <Icon as={CheckCircleIcon} color="green.500" />
-              <Text fontSize="sm">Healthy - Integration is working properly</Text>
-            </HStack>
-            <HStack>
-              <Icon as={WarningTwoIcon} color="yellow.500" />
-              <Text fontSize="sm">Warning - Minor issues detected</Text>
-            </HStack>
-            <HStack>
-              <Icon as={WarningTwoIcon} color="red.500" />
-              <Text fontSize="sm">Error - Integration requires attention</Text>
-            </HStack>
-          </SimpleGrid>
-        </CardBody>
+      <Card>
+        <CardContent className="pt-6">
+          <h4 className="font-bold mb-3 text-gray-900 dark:text-gray-100">Status Legend</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">Healthy - Integration is working properly</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">Warning - Minor issues detected</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">Error - Integration requires attention</span>
+            </div>
+          </div>
+        </CardContent>
       </Card>
-    </Box>
+    </div>
   );
 };
 
 export default IntegrationHealthDashboard;
+

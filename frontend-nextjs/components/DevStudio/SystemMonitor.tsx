@@ -1,24 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import {
-    Box,
-    SimpleGrid,
-    Text,
-    Stat,
-    StatLabel,
-    StatNumber,
-    StatHelpText,
-    StatArrow,
-    Progress,
-    VStack,
-    HStack,
-    Badge,
-    useColorModeValue,
-    Card,
-    CardHeader,
-    CardBody,
-    Icon,
-} from '@chakra-ui/react';
-import { CheckCircleIcon, WarningIcon, TimeIcon } from '@chakra-ui/icons';
+import { CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { Progress } from '../ui/progress';
+import { Spinner } from '../ui/spinner';
 
 interface SystemStatusData {
     timestamp: string;
@@ -56,9 +41,6 @@ const SystemMonitor = () => {
     const [status, setStatus] = useState<SystemStatusData | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const bgColor = useColorModeValue('white', 'gray.800');
-    const borderColor = useColorModeValue('gray.200', 'gray.700');
-
     const fetchStatus = async () => {
         try {
             const response = await fetch('/api/system/status');
@@ -77,7 +59,11 @@ const SystemMonitor = () => {
     }, []);
 
     if (!status) {
-        return <Progress size="xs" isIndeterminate />;
+        return (
+            <div className="flex justify-center p-4">
+                <Spinner size="sm" />
+            </div>
+        );
     }
 
     const formatUptime = (seconds: number) => {
@@ -91,109 +77,117 @@ const SystemMonitor = () => {
         switch (status?.toLowerCase()) {
             case 'healthy':
             case 'operational':
-                return 'green';
+                return 'success';
             case 'degraded':
-                return 'yellow';
+                return 'warning';
             case 'unhealthy':
             case 'unreachable':
-                return 'red';
+                return 'destructive';
             default:
-                return 'gray';
+                return 'secondary';
         }
     };
 
+    const getProgressColor = (percent: number) => {
+        if (percent > 90) return 'bg-red-600';
+        if (percent > 75) return 'bg-orange-500';
+        return 'bg-blue-600';
+    };
+
     return (
-        <Box p={4}>
-            <HStack justify="space-between" mb={6}>
-                <VStack align="start" spacing={1}>
-                    <Text fontSize="2xl" fontWeight="bold">System Monitor</Text>
-                    <Text fontSize="sm" color="gray.500">Last updated: {new Date(status.timestamp).toLocaleTimeString()}</Text>
-                </VStack>
+        <div className="p-4 space-y-6">
+            <div className="flex justify-between items-center">
+                <div className="space-y-1">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">System Monitor</h2>
+                    <p className="text-sm text-gray-500">Last updated: {new Date(status.timestamp).toLocaleTimeString()}</p>
+                </div>
                 <Badge
-                    colorScheme={getStatusColor(status.overall_status)}
-                    fontSize="lg"
-                    p={2}
-                    borderRadius="md"
+                    variant={getStatusColor(status.overall_status) as any}
+                    className="text-lg px-3 py-1"
                 >
                     System: {status.overall_status.toUpperCase()}
                 </Badge>
-            </HStack>
+            </div>
 
-            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} mb={8}>
-                <Card bg={bgColor} border="1px" borderColor={borderColor}>
-                    <CardBody>
-                        <Stat>
-                            <StatLabel>CPU Usage</StatLabel>
-                            <StatNumber>{status.resources.cpu.percent}%</StatNumber>
-                            <StatHelpText>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                    <CardContent className="pt-6">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">CPU Usage</p>
+                            <div className="text-2xl font-bold">{status.resources.cpu.percent}%</div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {status.resources.cpu.count} Cores Active
-                            </StatHelpText>
-                        </Stat>
-                        <Progress
-                            value={status.resources.cpu.percent}
-                            colorScheme={status.resources.cpu.percent > 80 ? 'red' : 'blue'}
-                            size="sm"
-                            mt={2}
-                            borderRadius="full"
-                        />
-                    </CardBody>
+                            </p>
+                            <Progress
+                                value={status.resources.cpu.percent}
+                                indicatorClassName={getProgressColor(status.resources.cpu.percent)}
+                                className="mt-2"
+                            />
+                        </div>
+                    </CardContent>
                 </Card>
 
-                <Card bg={bgColor} border="1px" borderColor={borderColor}>
-                    <CardBody>
-                        <Stat>
-                            <StatLabel>Memory Usage</StatLabel>
-                            <StatNumber>{status.resources.memory.percent}%</StatNumber>
-                            <StatHelpText>
+                <Card>
+                    <CardContent className="pt-6">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Memory Usage</p>
+                            <div className="text-2xl font-bold">{status.resources.memory.percent}%</div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {status.resources.memory.system_available_mb} MB Available
-                            </StatHelpText>
-                        </Stat>
-                        <Progress
-                            value={status.resources.memory.percent}
-                            colorScheme={status.resources.memory.percent > 80 ? 'orange' : 'purple'}
-                            size="sm"
-                            mt={2}
-                            borderRadius="full"
-                        />
-                    </CardBody>
+                            </p>
+                            <Progress
+                                value={status.resources.memory.percent}
+                                indicatorClassName={getProgressColor(status.resources.memory.percent)}
+                                className="mt-2"
+                            />
+                        </div>
+                    </CardContent>
                 </Card>
 
-                <Card bg={bgColor} border="1px" borderColor={borderColor}>
-                    <CardBody>
-                        <Stat>
-                            <StatLabel>System Uptime</StatLabel>
-                            <StatNumber fontSize="2xl">{formatUptime(status.uptime.system_seconds)}</StatNumber>
-                            <StatHelpText>
+                <Card>
+                    <CardContent className="pt-6">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">System Uptime</p>
+                            <div className="text-2xl font-bold">{formatUptime(status.uptime.system_seconds)}</div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                 Since last reboot
-                            </StatHelpText>
-                        </Stat>
-                        <Box mt={2} h="4px" bg="green.400" borderRadius="full" />
-                    </CardBody>
+                            </p>
+                            <div className="mt-2 h-2 w-full rounded-full bg-green-100 dark:bg-green-900/30">
+                                <div className="h-full w-full rounded-full bg-green-500" />
+                            </div>
+                        </div>
+                    </CardContent>
                 </Card>
-            </SimpleGrid>
+            </div>
 
-            <Text fontSize="xl" fontWeight="bold" mb={4}>Service Health</Text>
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-                {Object.entries(status.services).map(([key, service]) => (
-                    <Card key={key} bg={bgColor} border="1px" borderColor={borderColor}>
-                        <CardBody>
-                            <HStack justify="space-between" mb={2}>
-                                <Text fontWeight="bold">{service.name}</Text>
-                                <Icon
-                                    as={service.status === 'healthy' ? CheckCircleIcon : WarningIcon}
-                                    color={`${getStatusColor(service.status)}.500`}
-                                />
-                            </HStack>
-                            <HStack justify="space-between">
-                                <Badge colorScheme={getStatusColor(service.status)}>{service.status}</Badge>
-                                <Text fontSize="xs" color="gray.500">{service.response_time_ms}ms</Text>
-                            </HStack>
-                        </CardBody>
-                    </Card>
-                ))}
-            </SimpleGrid>
-        </Box>
+            <div className="space-y-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Service Health</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(status.services).map(([key, service]) => (
+                        <Card key={key}>
+                            <CardContent className="pt-6">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="font-bold text-gray-900 dark:text-gray-100">{service.name}</span>
+                                    {service.status === 'healthy' ? (
+                                        <CheckCircle className="h-5 w-5 text-green-500" />
+                                    ) : (
+                                        <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                                    )}
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <Badge variant={getStatusColor(service.status) as any}>
+                                        {service.status}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">{service.response_time_ms}ms</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        </div>
     );
 };
 
 export default SystemMonitor;
+
