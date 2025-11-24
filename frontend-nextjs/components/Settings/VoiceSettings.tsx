@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import Box from '@components/common/Box';
-import Text from '@components/common/Text';
-import Button from '@components/Button';
-import Select from '@components/common/Select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const VoiceSettings = () => {
   const [ttsProvider, setTtsProvider] = useState('elevenlabs');
@@ -69,48 +67,64 @@ const VoiceSettings = () => {
   ];
 
   return (
-    <Box marginTop="m" paddingTop="m" borderTopWidth={1} borderColor="hairline">
-      <Text variant="subHeader" marginBottom="s">
+    <div className="mt-6 pt-6 border-t border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">
         Voice Settings
-      </Text>
-      {message && (
-        <Box backgroundColor="green.100" padding="s" marginBottom="m" borderRadius="s">
-          <Text color="green.700">{message}</Text>
-        </Box>
-      )}
-      {error && (
-        <Box backgroundColor="red.100" padding="s" marginBottom="m" borderRadius="s">
-          <Text color="red.700">{error}</Text>
-        </Box>
-      )}
-      
-      <Select
-        label="TTS Provider"
-        options={providerOptions}
-        value={ttsProvider}
-        onChange={(value) => {
-          setTtsProvider(value as string);
-          setApiKey(''); // Clear API key when provider changes
-        }}
-        placeholder="Select a TTS provider"
-      />
+      </h3>
 
-      <input
-        type="password"
-        value={apiKey}
-        onChange={(e) => setApiKey(e.target.value)}
-        placeholder={`Enter ${providerOptions.find(p => p.value === ttsProvider)?.label} API Key`}
-        style={{
-          width: '100%',
-          padding: '8px',
-          marginTop: '8px',
-          marginBottom: '8px',
-          border: '1px solid #ccc',
-          borderRadius: '4px',
-        }}
-      />
-      <Button onPress={handleSave} variant="primary" title="Save Voice Settings" />
-    </Box>
+      {message && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="tts-provider" className="block text-sm font-medium text-gray-700 mb-2">
+            TTS Provider
+          </label>
+          <select
+            id="tts-provider"
+            value={ttsProvider}
+            onChange={(e) => {
+              setTtsProvider(e.target.value);
+              setApiKey(''); // Clear API key when provider changes
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Select a TTS provider</option>
+            {providerOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="api-key" className="block text-sm font-medium text-gray-700 mb-2">
+            API Key
+          </label>
+          <Input
+            id="api-key"
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={`Enter ${providerOptions.find(p => p.value === ttsProvider)?.label} API Key`}
+          />
+        </div>
+
+        <Button onClick={handleSave} variant="default" className="w-full">
+          Save Voice Settings
+        </Button>
+      </div>
+    </div>
   );
 };
 
