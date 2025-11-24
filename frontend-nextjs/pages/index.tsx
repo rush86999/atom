@@ -1,32 +1,24 @@
 import React, { useEffect } from "react";
 import { getSession } from "next-auth/react";
-import { GetServerSideProps } from "next";
-import {
-  Box,
-  Container,
-  VStack,
-  Heading,
-  Text,
-  Button,
-  Grid,
-  GridItem,
-  Card,
-  CardBody,
-  CardHeader,
-  Icon,
-  Flex,
-} from "@chakra-ui/react";
 import { useRouter } from "next/router";
-
 import {
-  FiSearch,
-  FiMessageSquare,
-  FiCheckSquare,
-  FiPlay,
-  FiCalendar,
-  FiTerminal,
-  FiServer,
-} from "react-icons/fi";
+  Search,
+  MessageSquare,
+  CheckSquare,
+  Play,
+  Calendar,
+  Terminal,
+  Server,
+} from "lucide-react";
+
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardBody,
+  CardTitle,
+  CardContent,
+} from "../components/ui/card";
 
 const Home = () => {
   const router = useRouter();
@@ -46,116 +38,101 @@ const Home = () => {
       title: "Search",
       description:
         "AI-powered search across all your documents, meetings, and notes",
-      icon: FiSearch,
+      icon: Search,
       path: "/search",
-      color: "blue",
+      color: "text-blue-500",
     },
     {
       title: "Communication",
       description: "Unified messaging hub for all your communication platforms",
-      icon: FiMessageSquare,
+      icon: MessageSquare,
       path: "/communication",
-      color: "green",
+      color: "text-green-500",
     },
     {
       title: "Tasks",
       description: "Smart task management with AI-powered prioritization",
-      icon: FiCheckSquare,
+      icon: CheckSquare,
       path: "/tasks",
-      color: "orange",
+      color: "text-orange-500",
     },
     {
       title: "Workflow Automation",
       description: "Create and manage automated workflows across services",
-      icon: FiPlay,
+      icon: Play,
       path: "/automations",
-      color: "purple",
+      color: "text-purple-500",
     },
     {
       title: "Calendar",
       description: "Smart scheduling and calendar management",
-      icon: FiCalendar,
+      icon: Calendar,
       path: "/calendar",
-      color: "red",
+      color: "text-red-500",
     },
     {
       title: "Dev Tools",
       description: "Development utilities and system integration",
-      icon: FiTerminal,
+      icon: Terminal,
       path: "/dev-tools",
-      color: "purple",
+      color: "text-purple-500",
     },
     {
       title: "Dev Status",
       description: "Development environment monitoring and status",
-      icon: FiServer,
+      icon: Server,
       path: "/dev-status",
-      color: "teal",
+      color: "text-teal-500",
     },
   ];
 
   return (
-    <Container maxW="6xl" py={8}>
-      <VStack spacing={8} align="stretch">
-        <Box textAlign="center">
-          <Heading size="2xl" mb={4}>
-            Welcome to ATOM
-          </Heading>
-          <Text fontSize="xl" color="gray.600">
+    <div className="container mx-auto py-8 max-w-6xl">
+      <div className="flex flex-col space-y-8">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold mb-4">Welcome to ATOM</h1>
+          <p className="text-xl text-gray-600">
             Your AI-powered personal automation platform
-          </Text>
-        </Box>
+          </p>
+        </div>
 
-        <Grid
-          templateColumns={{
-            base: "1fr",
-            md: "repeat(2, 1fr)",
-            lg: "repeat(3, 1fr)",
-          }}
-          gap={6}
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (
-            <GridItem key={index}>
+            <div key={index}>
               <Card
-                height="100%"
-                cursor="pointer"
-                _hover={{ transform: "translateY(-4px)", shadow: "lg" }}
-                transition="all 0.2s"
+                className="h-full cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200"
                 onClick={() => router.push(feature.path)}
               >
                 <CardHeader>
-                  <Flex align="center" gap={3}>
-                    <Icon
-                      as={feature.icon}
-                      boxSize={6}
-                      color={`${feature.color}.500`}
-                    />
-                    <Heading size="md">{feature.title}</Heading>
-                  </Flex>
+                  <div className="flex items-center gap-3">
+                    <feature.icon className={`h-6 w-6 ${feature.color}`} />
+                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                  </div>
                 </CardHeader>
-                <CardBody>
-                  <Text color="gray.600">{feature.description}</Text>
-                </CardBody>
+                <CardContent>
+                  <p className="text-gray-600">{feature.description}</p>
+                </CardContent>
               </Card>
-            </GridItem>
+            </div>
           ))}
-        </Grid>
+        </div>
 
-        <Box textAlign="center" mt={8}>
-          <Text fontSize="lg" color="gray.600" mb={4}>
+        <div className="text-center mt-8">
+          <p className="text-lg text-gray-600 mb-4">
             Ready to automate your workflow?
-          </Text>
+          </p>
           <Button
-            colorScheme="blue"
             size="lg"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
             onClick={() => router.push("/automations")}
           >
             Get Started with Automation
           </Button>
-        </Box>
-      </VStack>
-    </Container>
+        </div>
+      </div>
+    </div>
   );
 };
 
 export default Home;
+

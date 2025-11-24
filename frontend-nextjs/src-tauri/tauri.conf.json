@@ -4,9 +4,9 @@
   "version": "1.1.0",
   "identifier": "com.atom.app",
   "build": {
-    "beforeDevCommand": "echo \"CWD: $(pwd)\" && ls -la && cd frontend-nextjs && npm run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:3000",
-    "frontendDist": "../frontend-nextjs/out"
+    "frontendDist": "../out"
   },
   "bundle": {
     "active": true,
