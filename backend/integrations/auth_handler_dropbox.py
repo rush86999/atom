@@ -1,10 +1,9 @@
 """
-Salesforce Authentication Handler
-OAuth 2.0 authentication handler for Salesforce integration
+Dropbox Authentication Handler
+OAuth 2.0 authentication handler for Dropbox integration
 """
 
 import os
-import json
 import logging
 import secrets
 from typing import Dict, Optional, Any
@@ -16,33 +15,31 @@ from fastapi import HTTPException
 logger = logging.getLogger(__name__)
 
 
-class SalesforceAuthHandler:
+class DropboxAuthHandler:
     """
-    Handles Salesforce OAuth 2.0 authentication and token management
+    Handles Dropbox OAuth 2.0 authentication and token management
     """
 
     def __init__(self):
-        self.client_id = os.getenv("SALESFORCE_CLIENT_ID", "")
-        self.client_secret = os.getenv("SALESFORCE_CLIENT_SECRET", "")
+        self.client_id = os.getenv("DROPBOX_CLIENT_ID", "")
+        self.client_secret = os.getenv("DROPBOX_CLIENT_SECRET", "")
         self.redirect_uri = os.getenv(
-            "SALESFORCE_REDIRECT_URI", "http://localhost:3000/api/auth/callback/salesforce"
+            "DROPBOX_REDIRECT_URI", "http://localhost:3000/api/auth/callback/dropbox"
         )
-        # Default to production, can be overridden or made dynamic for sandbox
-        self.base_url = os.getenv("SALESFORCE_AUTH_URL", "https://login.salesforce.com")
-        self.token_url = f"{self.base_url}/services/oauth2/token"
-        self.authorize_url = f"{self.base_url}/services/oauth2/authorize"
-        self.revoke_url = f"{self.base_url}/services/oauth2/revoke"
+        self.authorize_url = "https://www.dropbox.com/oauth2/authorize"
+        self.token_url = "https://api.dropboxapi.com/oauth2/token"
+        self.api_base_url = "https://api.dropboxapi.com/2"
 
         # Token storage (in production, use secure storage/database)
         self.access_token = None
         self.refresh_token = None
-        self.instance_url = None
         self.token_expires_at = None
         self.user_info = None
+        self.account_id = None
 
     def get_authorization_url(self, state: Optional[str] = None) -> str:
         """
-        Generate Salesforce OAuth authorization URL
+        Generate Dropbox OAuth authorization URL
 
         Args:
             state: Optional state parameter for security
@@ -51,24 +48,12 @@ class SalesforceAuthHandler:
             Authorization URL
         """
         params = {
-            "response_type": "code",
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
+            "response_type": "code",
+            "token_access_type": "offline",  # Request refresh token
+            "state": state or secrets.token_urlsafe(32),
         }
-
-        if state:
-            params["state"] = state
-        else:
-            params["state"] = secrets.token_urlsafe(32)
-
-        # Standard Salesforce scopes
-        scopes = [
-            "api",
-            "refresh_token",
-            "offline_access",
-            "web"
-        ]
-        params["scope"] = " ".join(scopes)
 
         query_string = urlencode(params)
         return f"{self.authorize_url}?{query_string}"
@@ -89,8 +74,8 @@ class SalesforceAuthHandler:
             }
 
             data = {
-                "grant_type": "authorization_code",
                 "code": code,
+                "grant_type": "authorization_code",
                 "client_id": self.client_id,
                 "client_secret": self.client_secret,
                 "redirect_uri": self.redirect_uri,
@@ -102,7 +87,7 @@ class SalesforceAuthHandler:
                 ) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        logger.error(f"Salesforce token exchange failed: {error_text}")
+                        logger.error(f"Dropbox token exchange failed: {error_text}")
                         raise HTTPException(
                             status_code=400,
                             detail=f"Token exchange failed: {error_text}",
@@ -113,22 +98,21 @@ class SalesforceAuthHandler:
                     # Store tokens
                     self.access_token = token_data.get("access_token")
                     self.refresh_token = token_data.get("refresh_token")
-                    self.instance_url = token_data.get("instance_url")
+                    self.account_id = token_data.get("account_id")
                     
-                    # Salesforce doesn't always return expires_in, default to 2 hours if missing
-                    # Session timeout is configured in Salesforce org
-                    expires_in = token_data.get("expires_in", 7200) 
+                    # Dropbox access tokens expire after 4 hours (14400 seconds)
+                    expires_in = token_data.get("expires_in", 14400)
                     self.token_expires_at = datetime.now() + timedelta(
-                        seconds=int(expires_in) if expires_in else 7200
+                        seconds=int(expires_in)
                     )
 
                     logger.info(
-                        "Successfully exchanged Salesforce authorization code for tokens"
+                        "Successfully exchanged Dropbox authorization code for tokens"
                     )
                     return token_data
 
         except Exception as e:
-            logger.error(f"Error exchanging Salesforce code for token: {e}")
+            logger.error(f"Error exchanging Dropbox code for token: {e}")
             raise HTTPException(
                 status_code=500, detail=f"Token exchange error: {str(e)}"
             )
@@ -161,7 +145,7 @@ class SalesforceAuthHandler:
                 ) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        logger.error(f"Salesforce token refresh failed: {error_text}")
+                        logger.error(f"Dropbox token refresh failed: {error_text}")
                         raise HTTPException(
                             status_code=400,
                             detail=f"Token refresh failed: {error_text}",
@@ -171,55 +155,48 @@ class SalesforceAuthHandler:
 
                     # Update tokens
                     self.access_token = token_data.get("access_token")
-                    # Salesforce might not return a new refresh token, keep old one if not provided
+                    # Dropbox might not return a new refresh token
                     if token_data.get("refresh_token"):
                         self.refresh_token = token_data.get("refresh_token")
                     
-                    self.instance_url = token_data.get("instance_url", self.instance_url)
-                    
-                    expires_in = token_data.get("expires_in", 7200)
+                    expires_in = token_data.get("expires_in", 14400)
                     self.token_expires_at = datetime.now() + timedelta(
-                        seconds=int(expires_in) if expires_in else 7200
+                        seconds=int(expires_in)
                     )
 
-                    logger.info("Successfully refreshed Salesforce access token")
+                    logger.info("Successfully refreshed Dropbox access token")
                     return token_data
 
         except Exception as e:
-            logger.error(f"Error refreshing Salesforce token: {e}")
+            logger.error(f"Error refreshing Dropbox token: {e}")
             raise HTTPException(
                 status_code=500, detail=f"Token refresh error: {str(e)}"
             )
 
     async def get_user_info(self) -> Dict[str, Any]:
         """
-        Get current user information from Salesforce
+        Get current user information from Dropbox
 
         Returns:
             User information
         """
-        if not self.access_token or not self.instance_url:
-            raise HTTPException(status_code=401, detail="No access token or instance URL available")
+        if not self.access_token:
+            raise HTTPException(status_code=401, detail="No access token available")
 
         try:
-            # Salesforce Identity URL is usually provided in token response as 'id'
-            # But we can also query the User object directly or use the UserInfo endpoint
-            
-            # Using UserInfo endpoint (OpenID Connect)
-            userinfo_url = f"{self.base_url}/services/oauth2/userinfo"
-            
             headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
             }
 
+            # Get current account info
+            url = f"{self.api_base_url}/users/get_current_account"
+
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    userinfo_url, headers=headers
-                ) as response:
+                async with session.post(url, headers=headers) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        logger.error(f"Failed to get Salesforce user info: {error_text}")
+                        logger.error(f"Failed to get Dropbox user info: {error_text}")
                         raise HTTPException(
                             status_code=400,
                             detail=f"Failed to get user info: {error_text}",
@@ -230,7 +207,7 @@ class SalesforceAuthHandler:
                     return user_data
 
         except Exception as e:
-            logger.error(f"Error getting Salesforce user info: {e}")
+            logger.error(f"Error getting Dropbox user info: {e}")
             raise HTTPException(status_code=500, detail=f"User info error: {str(e)}")
 
     async def revoke_token(self) -> bool:
@@ -245,32 +222,30 @@ class SalesforceAuthHandler:
 
         try:
             headers = {
-                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": f"Bearer {self.access_token}",
             }
 
-            data = {"token": self.access_token}
+            url = "https://api.dropboxapi.com/2/auth/token/revoke"
 
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self.revoke_url, headers=headers, data=data
-                ) as response:
+                async with session.post(url, headers=headers) as response:
                     if response.status == 200:
                         # Clear tokens
                         self.access_token = None
                         self.refresh_token = None
                         self.token_expires_at = None
                         self.user_info = None
-                        self.instance_url = None
+                        self.account_id = None
 
-                        logger.info("Successfully revoked Salesforce token")
+                        logger.info("Successfully revoked Dropbox token")
                         return True
                     else:
                         error_text = await response.text()
-                        logger.error(f"Salesforce token revocation failed: {error_text}")
+                        logger.error(f"Dropbox token revocation failed: {error_text}")
                         return False
 
         except Exception as e:
-            logger.error(f"Error revoking Salesforce token: {e}")
+            logger.error(f"Error revoking Dropbox token: {e}")
             return False
 
     def is_token_valid(self) -> bool:
@@ -283,6 +258,7 @@ class SalesforceAuthHandler:
         if not self.access_token or not self.token_expires_at:
             return False
 
+        # Check if token expires in more than 5 minutes
         return datetime.now() < self.token_expires_at - timedelta(minutes=5)
 
     async def ensure_valid_token(self) -> str:
@@ -311,10 +287,10 @@ class SalesforceAuthHandler:
             "connected": self.is_token_valid(),
             "has_access_token": bool(self.access_token),
             "has_refresh_token": bool(self.refresh_token),
-            "instance_url": self.instance_url,
             "token_expires_at": self.token_expires_at.isoformat()
             if self.token_expires_at
             else None,
+            "account_id": self.account_id,
             "user_info_available": bool(self.user_info),
             "client_id_configured": bool(self.client_id),
             "client_secret_configured": bool(self.client_secret),
@@ -322,4 +298,4 @@ class SalesforceAuthHandler:
 
 
 # Global instance
-salesforce_auth_handler = SalesforceAuthHandler()
+dropbox_auth_handler = DropboxAuthHandler()

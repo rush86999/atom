@@ -5,8 +5,10 @@ OAuth 2.0 authentication handler for Figma integration
 
 import os
 import logging
+import secrets
 from typing import Dict, Optional, Any
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 import aiohttp
 from fastapi import HTTPException
 
@@ -48,11 +50,11 @@ class FigmaAuthHandler:
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
             "scope": "file_read",  # Default scope, can be extended with file_write, webhooks, etc.
-            "state": state or "random_state_string",
+            "state": state or secrets.token_urlsafe(32),
             "response_type": "code",
         }
 
-        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+        query_string = urlencode(params)
         return f"{self.authorize_url}?{query_string}"
 
     async def exchange_code_for_token(self, code: str) -> Dict[str, Any]:
@@ -129,6 +131,7 @@ class FigmaAuthHandler:
             }
 
             data = {
+                "grant_type": "refresh_token",
                 "client_id": self.client_id,
                 "client_secret": self.client_secret,
                 "refresh_token": self.refresh_token,
