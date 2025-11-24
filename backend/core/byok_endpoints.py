@@ -84,6 +84,107 @@ class BYOKManager:
         self._load_configuration()
         self._initialize_default_providers()
 
+    def _load_configuration(self):
+        """Load configuration from disk"""
+        # Load providers
+        if os.path.exists(BYOK_CONFIG_FILE):
+            try:
+                with open(BYOK_CONFIG_FILE, "r") as f:
+                    data = json.load(f)
+                    for p_data in data.get("providers", []):
+                        provider = AIProviderConfig(**p_data)
+                        self.providers[provider.id] = provider
+            except Exception as e:
+                logger.error(f"Failed to load BYOK config: {e}")
+
+        # Load API keys
+        if os.path.exists(BYOK_KEYS_FILE):
+            try:
+                with open(BYOK_KEYS_FILE, "r") as f:
+                    data = json.load(f)
+                    for k_id, k_data in data.get("keys", {}).items():
+                        # Convert ISO strings back to datetime
+                        if k_data.get("created_at"):
+                            k_data["created_at"] = datetime.fromisoformat(k_data["created_at"])
+                        if k_data.get("last_used"):
+                            k_data["last_used"] = datetime.fromisoformat(k_data["last_used"])
+                        
+                        api_key = APIKey(**k_data)
+                        self.api_keys[k_id] = api_key
+            except Exception as e:
+                logger.error(f"Failed to load BYOK keys: {e}")
+
+    def _save_configuration(self):
+        """Save configuration to disk"""
+        # Ensure data directory exists
+        os.makedirs(os.path.dirname(BYOK_CONFIG_FILE), exist_ok=True)
+        
+        # Save providers
+        try:
+            with open(BYOK_CONFIG_FILE, "w") as f:
+                json.dump({
+                    "providers": [asdict(p) for p in self.providers.values()]
+                }, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save BYOK config: {e}")
+
+        # Save API keys
+        try:
+            with open(BYOK_KEYS_FILE, "w") as f:
+                # Convert datetime objects to ISO strings for JSON serialization
+                keys_data = {}
+                for k_id, k_obj in self.api_keys.items():
+                    k_dict = asdict(k_obj)
+                    if k_dict.get("created_at"):
+                        k_dict["created_at"] = k_dict["created_at"].isoformat()
+                    if k_dict.get("last_used"):
+                        k_dict["last_used"] = k_dict["last_used"].isoformat()
+                    keys_data[k_id] = k_dict
+                    
+                json.dump({"keys": keys_data}, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save BYOK keys: {e}")
+
+    def _initialize_default_providers(self):
+        """Initialize default AI providers"""
+        defaults = [
+            AIProviderConfig(
+                id="openai",
+                name="OpenAI",
+                description="GPT-4 and GPT-3.5 models",
+                api_key_env_var="OPENAI_API_KEY",
+                supported_tasks=["general", "chat", "code", "analysis"],
+                cost_per_token=0.00003,
+                model="gpt-4-turbo"
+            ),
+            AIProviderConfig(
+                id="anthropic",
+                name="Anthropic",
+                description="Claude 3 Opus, Sonnet, and Haiku",
+                api_key_env_var="ANTHROPIC_API_KEY",
+                supported_tasks=["general", "chat", "code", "analysis", "writing"],
+                cost_per_token=0.000015,
+                model="claude-3-sonnet-20240229"
+            ),
+            AIProviderConfig(
+                id="moonshot",
+                name="Moonshot AI (Kimi)",
+                description="Kimi k1.5 Thinking Model",
+                api_key_env_var="MOONSHOT_API_KEY",
+                base_url="https://api.moonshot.cn/v1",
+                supported_tasks=["general", "chat", "thinking", "reasoning"],
+                cost_per_token=0.00001, # Estimated
+                model="kimi-k2-thinking"
+            )
+        ]
+        
+        for provider in defaults:
+            if provider.id not in self.providers:
+                self.providers[provider.id] = provider
+        
+        # Save defaults
+        self._save_configuration()
+
     def _generate_encryption_key(self) -> str:
         """Generate a secure encryption key for Fernet"""
         return Fernet.generate_key().decode()
