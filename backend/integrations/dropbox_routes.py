@@ -10,6 +10,8 @@ from datetime import datetime
 import logging
 import asyncio
 
+from integrations.auth_handler_dropbox import dropbox_auth_handler
+
 logger = logging.getLogger(__name__)
 
 # Initialize router
@@ -91,6 +93,77 @@ class FileMetadataRequest(BaseModel):
     path: str = Field(..., description="File path")
     include_media_info: bool = Field(False, description="Include media info")
     include_deleted: bool = Field(False, description="Include deleted files")
+
+
+# OAuth Endpoints
+@router.get("/oauth/url", summary="Get Dropbox OAuth URL")
+async def get_dropbox_oauth_url(state: Optional[str] = None):
+    """Get Dropbox OAuth authorization URL"""
+    try:
+        auth_url = dropbox_auth_handler.get_authorization_url(state)
+        return {
+            "success": True,
+            "authorization_url": auth_url,
+            "message": "Redirect user to this URL to authorize Dropbox access"
+        }
+    except Exception as e:
+        logger.error(f"Error generating Dropbox OAuth URL: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/oauth/callback", summary="Dropbox OAuth callback")
+async def dropbox_oauth_callback(code: str = Query(...), state: Optional[str] = None):
+    """Handle Dropbox OAuth callback"""
+    try:
+        token_data = await dropbox_auth_handler.exchange_code_for_token(code)
+        
+        # In production, you would:
+        # 1. Validate the state parameter
+        # 2. Store tokens in database encrypted with ATOM_ENCRYPTION_KEY
+        # 3. Associate tokens with the user
+        
+        return {
+            "success": True,
+            "message": "Successfully connected to Dropbox",
+            "account_id": token_data.get("account_id"),
+            "expires_in": token_data.get("expires_in")
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in Dropbox OAuth callback: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/oauth/status", summary="Get Dropbox OAuth status")
+async def get_dropbox_oauth_status():
+    """Get current Dropbox OAuth connection status"""
+    try:
+        status = dropbox_auth_handler.get_connection_status()
+        return {
+            "success": True,
+            **status
+        }
+    except Exception as e:
+        logger.error(f"Error getting Dropbox OAuth status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/user", summary="Get Dropbox user info")
+async def get_dropbox_user():
+    """Get authenticated Dropbox user information"""
+    try:
+        await dropbox_auth_handler.ensure_valid_token()
+        user_info = await dropbox_auth_handler.get_user_info()
+        return {
+            "success": True,
+            **user_info
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting Dropbox user: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # File endpoints
