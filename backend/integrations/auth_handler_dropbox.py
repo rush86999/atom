@@ -5,8 +5,10 @@ OAuth 2.0 authentication handler for Dropbox integration
 
 import os
 import logging
+import secrets
 from typing import Dict, Optional, Any
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 import aiohttp
 from fastapi import HTTPException
 
@@ -50,10 +52,10 @@ class DropboxAuthHandler:
             "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "token_access_type": "offline",  # Request refresh token
-            "state": state or "random_state_string",
+            "state": state or secrets.token_urlsafe(32),
         }
 
-        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+        query_string = urlencode(params)
         return f"{self.authorize_url}?{query_string}"
 
     async def exchange_code_for_token(self, code: str) -> Dict[str, Any]:
