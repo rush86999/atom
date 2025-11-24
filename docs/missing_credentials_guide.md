@@ -260,13 +260,21 @@ The following integrations need credentials. Detailed setup instructions are pro
   6. Copy **Key** (Client ID) and **Secret**
 
 #### Figma
-- **Environment Variables:** `FIGMA_ACCESS_TOKEN`
+- **Environment Variables:** `FIGMA_CLIENT_ID`, `FIGMA_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/auth/callback/figma`
 - **Setup Instructions:**
-  1. Go to [Figma Account Settings](https://www.figma.com/settings)
-  2. Scroll to "Personal access tokens"
-  3. Click "Generate new token"
-  4. Name your token and copy the **Access Token** (shown only once)
-  5. For OAuth apps: Use [Figma Developer Platform](https://www.figma.com/developers/api)
+  1. Go to [Figma Developer Platform](https://www.figma.com/developers/apps)
+  2. Click "Create new app" or select an existing app
+  3. Navigate to "OAuth" settings
+  4. Add **Redirect URI**: `http://localhost:3000/api/auth/callback/figma`
+     - For production: `https://yourdomain.com/api/auth/callback/figma`
+  5. Copy your **Client ID** and **Client Secret**
+  6. Set environment variables:
+     ```
+     FIGMA_CLIENT_ID=your_client_id
+     FIGMA_CLIENT_SECRET=your_client_secret
+     ```
+  7. **Required Scopes:** `file:read` (minimum), add `file:write` or `webhooks` as needed
 
 ### Storage
 
