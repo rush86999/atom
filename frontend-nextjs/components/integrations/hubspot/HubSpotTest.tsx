@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, VStack, Text, Button } from '@chakra-ui/react';
+import { Button } from '@/components/ui/button';
 import HubSpotSearch from './HubSpotSearch';
 
 // Simple test data
@@ -30,14 +30,16 @@ const HubSpotTest: React.FC = () => {
   };
 
   return (
-    <Box p={4} border="1px" borderColor="gray.200" borderRadius="md">
-      <VStack spacing={4} align="stretch">
-        <Text fontSize="lg" fontWeight="bold">
-          HubSpot Integration Test
-        </Text>
-        <Text fontSize="sm" color="gray.600">
-          This component tests the HubSpotSearch functionality with mock data.
-        </Text>
+    <div className="p-4 border border-gray-200 rounded-md">
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">
+            HubSpot Integration Test
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            This component tests the HubSpotSearch functionality with mock data.
+          </p>
+        </div>
 
         <HubSpotSearch
           data={testContacts}
@@ -48,15 +50,16 @@ const HubSpotTest: React.FC = () => {
         />
 
         <Button
-          colorScheme="blue"
+          variant="default"
           size="sm"
           onClick={() => console.log('Test button clicked')}
         >
           Test Button
         </Button>
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 };
 
 export default HubSpotTest;
+
