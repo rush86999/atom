@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from cryptography.fernet import Fernet
 
 logger = logging.getLogger(__name__)
 
@@ -84,213 +85,33 @@ class BYOKManager:
         self._initialize_default_providers()
 
     def _generate_encryption_key(self) -> str:
-        """Generate a default encryption key for development"""
-        return secrets.token_hex(32)
+        """Generate a secure encryption key for Fernet"""
+        return Fernet.generate_key().decode()
 
-    def _load_configuration(self):
-        """Load BYOK configuration from files"""
+    def _get_fernet(self):
+        """Get Fernet instance with current key"""
         try:
-            # Load provider configuration
-            if os.path.exists(BYOK_CONFIG_FILE):
-                with open(BYOK_CONFIG_FILE, "r") as f:
-                    config_data = json.load(f)
-                    self._load_providers_from_config(config_data)
-
-            # Load API keys
-            if os.path.exists(BYOK_KEYS_FILE):
-                with open(BYOK_KEYS_FILE, "r") as f:
-                    keys_data = json.load(f)
-                    self._load_keys_from_config(keys_data)
-
+            # Ensure key is bytes
+            key = self.encryption_key
+            if isinstance(key, str):
+                key = key.encode()
+            return Fernet(key)
         except Exception as e:
-            logger.error(f"Failed to load BYOK configuration: {e}")
-
-    def _save_configuration(self):
-        """Save BYOK configuration to files"""
-        try:
-            # Save provider configuration
-            config_data = {
-                "providers": {
-                    pid: asdict(provider) for pid, provider in self.providers.items()
-                },
-                "usage_stats": {
-                    pid: asdict(usage) for pid, usage in self.usage_stats.items()
-                },
-            }
-
-            os.makedirs(os.path.dirname(BYOK_CONFIG_FILE), exist_ok=True)
-            with open(BYOK_CONFIG_FILE, "w") as f:
-                json.dump(config_data, f, indent=2, default=str)
-
-            # Save API keys
-            keys_data = {
-                "api_keys": {kid: asdict(key) for kid, key in self.api_keys.items()},
-                "encryption_key_hash": hashlib.sha256(
-                    self.encryption_key.encode()
-                ).hexdigest(),
-            }
-
-            with open(BYOK_KEYS_FILE, "w") as f:
-                json.dump(keys_data, f, indent=2, default=str)
-
-        except Exception as e:
-            logger.error(f"Failed to save BYOK configuration: {e}")
-
-    def _load_providers_from_config(self, config_data: Dict[str, Any]):
-        """Load providers from configuration data"""
-        providers_data = config_data.get("providers", {})
-        for provider_id, provider_data in providers_data.items():
-            try:
-                # Convert string dates back to datetime objects
-                if "last_used" in provider_data and provider_data["last_used"]:
-                    provider_data["last_used"] = datetime.fromisoformat(
-                        provider_data["last_used"]
-                    )
-
-                self.providers[provider_id] = AIProviderConfig(**provider_data)
-            except Exception as e:
-                logger.error(f"Failed to load provider {provider_id}: {e}")
-
-    def _load_keys_from_config(self, keys_data: Dict[str, Any]):
-        """Load API keys from configuration data"""
-        keys_data = keys_data.get("api_keys", {})
-        for key_id, key_data in keys_data.items():
-            try:
-                # Convert string dates back to datetime objects
-                if "created_at" in key_data and key_data["created_at"]:
-                    key_data["created_at"] = datetime.fromisoformat(
-                        key_data["created_at"]
-                    )
-                if "last_used" in key_data and key_data["last_used"]:
-                    key_data["last_used"] = datetime.fromisoformat(
-                        key_data["last_used"]
-                    )
-
-                self.api_keys[key_id] = APIKey(**key_data)
-            except Exception as e:
-                logger.error(f"Failed to load API key {key_id}: {e}")
-
-    def _initialize_default_providers(self):
-        """Initialize default AI providers"""
-        default_providers = [
-            AIProviderConfig(
-                id="glm",
-                name="GLM-4.6",
-                description="GLM-4.6 models for cost-effective AI tasks and document processing",
-                api_key_env_var="GLM_API_KEY",
-                base_url="https://api.z.ai/api/paas/v4",
-                model="glm-4.6",
-                cost_per_token=0.0001,
-                supported_tasks=[
-                    "chat",
-                    "code",
-                    "analysis",
-                    "pdf_processing",
-                    "document_processing",
-                ],
-                max_requests_per_minute=120,
-            ),
-            AIProviderConfig(
-                id="openai",
-                name="OpenAI",
-                description="GPT models for general AI tasks and PDF processing (paused for cost optimization)",
-                api_key_env_var="OPENAI_API_KEY",
-                cost_per_token=0.002,
-                supported_tasks=[
-                    "chat",
-                    "code",
-                    "analysis",
-                    "pdf_ocr",
-                    "image_comprehension",
-                ],
-                max_requests_per_minute=60,
-                is_active=False,  # Paused for cost optimization
-            ),
-            AIProviderConfig(
-                id="anthropic",
-                name="Anthropic Claude",
-                description="Advanced reasoning and document analysis",
-                api_key_env_var="ANTHROPIC_API_KEY",
-                cost_per_token=0.008,
-                supported_tasks=[
-                    "analysis",
-                    "reasoning",
-                    "chat",
-                    "document_processing",
-                ],
-                max_requests_per_minute=40,
-            ),
-            AIProviderConfig(
-                id="google_gemini",
-                name="Google Gemini",
-                description="Document analysis and multimodal AI",
-                api_key_env_var="GOOGLE_API_KEY",
-                cost_per_token=0.0005,
-                supported_tasks=[
-                    "analysis",
-                    "chat",
-                    "documents",
-                    "pdf_processing",
-                    "multimodal",
-                ],
-                max_requests_per_minute=60,
-            ),
-            AIProviderConfig(
-                id="azure_openai",
-                name="Azure OpenAI",
-                description="Enterprise OpenAI services",
-                api_key_env_var="AZURE_OPENAI_API_KEY",
-                base_url=None,  # Will be constructed from resource name
-                cost_per_token=0.002,
-                supported_tasks=["chat", "code", "analysis", "pdf_processing"],
-                max_requests_per_minute=120,
-            ),
-            AIProviderConfig(
-                id="deepseek",
-                name="DeepSeek",
-                description="Cost-effective code generation and analysis",
-                api_key_env_var="DEEPSEEK_API_KEY",
-                cost_per_token=0.0001,
-                supported_tasks=["code", "analysis", "text_processing"],
-                max_requests_per_minute=100,
-            ),
-            AIProviderConfig(
-                id="huggingface",
-                name="Hugging Face",
-                description="Open source models and inference API",
-                api_key_env_var="HUGGINGFACE_API_KEY",
-                cost_per_token=0.0,  # Free tier available
-                supported_tasks=["text_generation", "summarization", "translation"],
-                max_requests_per_minute=30,
-            ),
-        ]
-
-        # Add providers if they don't exist
-        for provider in default_providers:
-            if provider.id not in self.providers:
-                self.providers[provider.id] = provider
-                self.usage_stats[provider.id] = ProviderUsage(provider_id=provider.id)
+            logger.error(f"Invalid encryption key: {e}")
+            # Fallback to a new key if invalid (will invalidate existing data)
+            new_key = Fernet.generate_key()
+            self.encryption_key = new_key.decode()
+            return Fernet(new_key)
 
     def encrypt_api_key(self, api_key: str) -> str:
-        """Encrypt API key (simplified - in production use proper encryption)"""
-        # This is a simplified encryption for demonstration
-        # In production, use proper encryption like Fernet or AES
-        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-        # Simple XOR encryption for demo (not secure for production)
-        encrypted = "".join(
-            chr(ord(c) ^ ord(k))
-            for c, k in zip(api_key, self.encryption_key * len(api_key))
-        )
-        return encrypted
+        """Encrypt API key using Fernet (AES)"""
+        f = self._get_fernet()
+        return f.encrypt(api_key.encode()).decode()
 
     def decrypt_api_key(self, encrypted_key: str) -> str:
-        """Decrypt API key (simplified - in production use proper decryption)"""
-        # Simple XOR decryption for demo (not secure for production)
-        decrypted = "".join(
-            chr(ord(c) ^ ord(k))
-            for c, k in zip(encrypted_key, self.encryption_key * len(encrypted_key))
-        )
-        return decrypted
+        """Decrypt API key using Fernet (AES)"""
+        f = self._get_fernet()
+        return f.decrypt(encrypted_key.encode()).decode()
 
     def store_api_key(
         self,
