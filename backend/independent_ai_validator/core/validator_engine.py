@@ -725,60 +725,64 @@ class IndependentAIValidator:
             
             # Integration            
             # Integration Claims - Real API Verification
-            # All integrations now use live API checks - NO MOCK DATA
+            # Integration endpoints mapping: claim_id -> (endpoint, expected_annual_value)
+            # Fixed: Removed duplicates, corrected Trello path, using Phase 12 values where higher
             integration_endpoints = {
-                # Phase 11 Integrations (original 14)
-                "integration_asana": ("/api/asana/health", 41600),
-                "integration_jira": ("/api/jira/status", 58240),
-                "integration_monday": ("/api/monday/status", 35360),
-                "integration_linear": ("/api/linear/health", 44200),
-                "integration_notion": ("/api/notion/status", 29120),
-                "integration_trello": ("/api/integrations/trello/health", 23400),
+                # Project Management
+                "integration_asana": ("/api/asana/health", 70000),
+                "integration_jira": ("/api/jira/status", 90000),
+                "integration_monday": ("/api/monday/status", 65000),
+                "integration_linear": ("/api/linear/status", 45000),
+                "integration_notion": ("/api/notion/status", 50000),
+                "integration_trello": ("/api/trello/status", 40000),
+                "integration_clickup": ("/api/clickup/status", 60000),
+                
+                # Storage
                 "integration_dropbox": ("/api/dropbox/health", 26520),
                 "integration_onedrive": ("/onedrive/health", 30940),
-                "integration_box": ("/box/health", 33280),
-                "integration_github": ("/api/github/health", 53040),
-                "integration_plaid": ("/api/plaid/status", 62400),
-                "integration_shopify": ("/api/shopify/status", 85280),
-                "integration_deepgram": ("/api/deepgram/status", 34112),
-                "integration_linkedin": ("/api/linkedin/status", 46904),
+                "integration_box": ("/box/health", 55000),
+                "integration_google_drive": ("/google_drive/health", 45000),
                 
-                # Phase 12 Integrations (new 20)
-                "integration_salesforce": ("/api/salesforce/health", 150000),
-                "integration_hubspot": ("/api/hubspot/health", 120000),
-                "integration_slack": ("/api/slack/status", 80000),
-                "integration_zendesk": ("/api/zendesk/status", 95000),
+                # Developer Tools
+                "integration_github": ("/api/github/health", 85000),
+                "integration_gitlab": ("/api/gitlab/status", 80000),
+                "integration_bitbucket": ("/api/bitbucket/status", 75000),
+                
+                # Financial
+                "integration_plaid": ("/api/plaid/status", 62400),
+                "integration_shopify": ("/api/shopify/status", 100000),
                 "integration_stripe": ("/stripe/health", 200000),
+                "integration_quickbooks": ("/api/quickbooks/status", 90000),
+                "integration_xero": ("/api/xero/status", 85000),
+                
+                # Communication
+                "integration_slack": ("/api/slack/status", 80000),
                 "integration_teams": ("/api/teams/status", 85000),
                 "integration_gmail": ("/api/gmail/status", 60000),
                 "integration_zoom": ("/api/zoom/status", 70000),
                 "integration_whatsapp": ("/api/whatsapp/health", 50000),
-                "integration_quickbooks": ("/api/quickbooks/status", 90000),
+                "integration_discord": ("/api/discord/status", 40000),
+                "integration_twilio": ("/api/twilio/status", 85000),
+                "integration_sendgrid": ("/api/sendgrid/status", 60000),
+                
+                # CRM & Support
+                "integration_salesforce": ("/api/salesforce/health", 150000),
+                "integration_hubspot": ("/api/hubspot/health", 120000),
+                "integration_zendesk": ("/api/zendesk/status", 95000),
+                "integration_freshdesk": ("/freshdesk/health", 65000),
+                "integration_intercom": ("/intercom/health", 75000),
+                
+                # Scheduling & Database
                 "integration_google_calendar": ("/api/google-calendar/status", 40000),
                 "integration_calendly": ("/api/calendly/status", 35000),
                 "integration_airtable": ("/api/airtable/status", 45000),
-                "integration_figma": ("/api/figma/status", 55000),
-                "integration_freshdesk": ("/freshdesk/health", 65000),
-                "integration_intercom": ("/intercom/health", 75000),
-                "integration_twilio": ("/api/twilio/status", 85000),
-                "integration_sendgrid": ("/api/sendgrid/status", 60000),
-                "integration_mailchimp": ("/api/mailchimp/status", 50000),
-                "integration_google_drive": ("/google_drive/health", 45000),
                 "integration_tableau": ("/api/tableau/status", 110000),
-                "integration_box": ("/box/health", 55000),
-                "integration_asana": ("/api/asana/health", 70000),
-                "integration_jira": ("/api/jira/status", 90000),
-                "integration_trello": ("/api/trello/status", 40000),
-                "integration_monday": ("/api/monday/status", 65000),
-                "integration_clickup": ("/api/clickup/status", 60000),
-                "integration_notion": ("/api/notion/status", 50000),
-                "integration_linear": ("/api/linear/status", 45000),
-                "integration_gitlab": ("/api/gitlab/status", 80000),
-                "integration_github": ("/api/github/health", 85000),
-                "integration_bitbucket": ("/api/bitbucket/status", 75000),
-                "integration_discord": ("/api/discord/status", 40000),
-                "integration_shopify": ("/api/shopify/status", 100000),
-                "integration_xero": ("/api/xero/status", 85000),
+                
+                # Marketing & Other
+                "integration_mailchimp": ("/api/mailchimp/status", 50000),
+                "integration_figma": ("/api/figma/status", 55000),
+                "integration_deepgram": ("/api/deepgram/status", 34112),
+                "integration_linkedin": ("/api/linkedin/status", 46904),
             }
 
             if claim.id in integration_endpoints:
