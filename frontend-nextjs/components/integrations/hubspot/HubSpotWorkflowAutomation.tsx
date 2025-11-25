@@ -1,59 +1,23 @@
 import React, { useState, useCallback } from "react";
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  Card,
-  CardBody,
-  Button,
-  Input,
-  Select,
-  FormControl,
-  FormLabel,
-  FormHelperText,
-  Switch,
-  Badge,
-  useColorModeValue,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  SimpleGrid,
-  Icon,
-  Flex,
-  Divider,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Portal,
-} from "@chakra-ui/react";
-import {
-  FiPlus,
-  FiPlay,
-  FiPause,
-  FiEdit,
-  FiTrash2,
-  FiZap,
-  FiClock,
-  FiUsers,
-  FiMail,
-  FiTarget,
-} from "react-icons/fi";
+  Plus,
+  Play,
+  Pause,
+  Edit,
+  Trash2,
+  Zap,
+  Clock,
+  Users,
+  Mail,
+  Target,
+  Info,
+} from "lucide-react";
+import { Card, CardContent } from "../../ui/card";
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { Badge } from "../../ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "../../ui/alert";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../ui/tabs";
 
 export interface WorkflowTrigger {
   id: string;
@@ -109,7 +73,7 @@ const HubSpotWorkflowAutomation: React.FC<HubSpotWorkflowAutomationProps> = ({
   onWorkflowDelete,
   onWorkflowToggle,
 }) => {
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState("active");
   const [isCreating, setIsCreating] = useState(false);
   const [newWorkflow, setNewWorkflow] = useState<Omit<Workflow, "id">>({
     name: "",
@@ -121,24 +85,20 @@ const HubSpotWorkflowAutomation: React.FC<HubSpotWorkflowAutomationProps> = ({
     successRate: 100,
   });
 
-  const bgColor = useColorModeValue("white", "gray.800");
-  const cardBg = useColorModeValue("gray.50", "gray.700");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-
   const triggerTypes = [
-    { value: "lead_score", label: "Lead Score", icon: FiTarget },
-    { value: "behavior", label: "Behavior", icon: FiUsers },
-    { value: "engagement", label: "Engagement", icon: FiMail },
-    { value: "company_size", label: "Company Size", icon: FiTarget },
-    { value: "custom", label: "Custom", icon: FiZap },
+    { value: "lead_score", label: "Lead Score", icon: Target },
+    { value: "behavior", label: "Behavior", icon: Users },
+    { value: "engagement", label: "Engagement", icon: Mail },
+    { value: "company_size", label: "Company Size", icon: Target },
+    { value: "custom", label: "Custom", icon: Zap },
   ];
 
   const actionTypes = [
-    { value: "email", label: "Send Email", icon: FiMail },
-    { value: "task", label: "Create Task", icon: FiClock },
-    { value: "notification", label: "Send Notification", icon: FiUsers },
-    { value: "assignment", label: "Assign to Team", icon: FiTarget },
-    { value: "webhook", label: "Webhook", icon: FiZap },
+    { value: "email", label: "Send Email", icon: Mail },
+    { value: "task", label: "Create Task", icon: Clock },
+    { value: "notification", label: "Send Notification", icon: Users },
+    { value: "assignment", label: "Assign to Team", icon: Target },
+    { value: "webhook", label: "Webhook", icon: Zap },
   ];
 
   const handleCreateWorkflow = useCallback(() => {
@@ -177,559 +137,347 @@ const HubSpotWorkflowAutomation: React.FC<HubSpotWorkflowAutomationProps> = ({
     }));
   }, []);
 
-  const getStatusColor = (enabled: boolean) => {
-    return enabled ? "green" : "gray";
+  const getStatusColorScheme = (enabled: boolean) => {
+    return enabled ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
   };
 
-  const getSuccessRateColor = (rate: number) => {
-    if (rate >= 90) return "green";
-    if (rate >= 75) return "yellow";
-    if (rate >= 50) return "orange";
-    return "red";
+  const getSuccessRateColorScheme = (rate: number) => {
+    if (rate >= 90) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+    if (rate >= 75) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
+    if (rate >= 50) return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
+    return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
   };
 
   return (
-    <VStack spacing={6} align="stretch">
+    <div className="space-y-6">
       {/* Header */}
-      <HStack justify="space-between">
-        <VStack align="start" spacing={1}>
-          <Heading size="lg">Workflow Automation</Heading>
-          <Text color="gray.600">
-            Automate your sales and marketing processes with intelligent
-            workflows
-          </Text>
-        </VStack>
-        <Button
-          colorScheme="blue"
-          leftIcon={<Icon as={FiPlus} />}
-          onClick={() => setIsCreating(true)}
-        >
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Workflow Automation</h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Automate your sales and marketing processes with intelligent workflows
+          </p>
+        </div>
+        <Button onClick={() => setIsCreating(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Plus className="mr-2 h-4 w-4" />
           Create Workflow
         </Button>
-      </HStack>
+      </div>
 
-      {/* Workflow Creation Modal */}
+      {/* Workflow Creation Form */}
       {isCreating && (
-        <Card bg={bgColor}>
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <HStack justify="space-between">
-                <Heading size="md">Create New Workflow</Heading>
-                <Button variant="ghost" onClick={() => setIsCreating(false)}>
-                  Cancel
-                </Button>
-              </HStack>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Create New Workflow</h3>
+                <Button variant="outline" onClick={() => setIsCreating(false)}>Cancel</Button>
+              </div>
 
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                <FormControl>
-                  <FormLabel>Workflow Name</FormLabel>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Workflow Name</label>
                   <Input
                     value={newWorkflow.name}
-                    onChange={(e) =>
-                      setNewWorkflow((prev) => ({
-                        ...prev,
-                        name: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => setNewWorkflow((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g., Hot Lead Follow-up"
                   />
-                </FormControl>
+                </div>
 
-                <FormControl>
-                  <FormLabel>Description</FormLabel>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Description</label>
                   <Input
                     value={newWorkflow.description}
-                    onChange={(e) =>
-                      setNewWorkflow((prev) => ({
-                        ...prev,
-                        description: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => setNewWorkflow((prev) => ({ ...prev, description: e.target.value }))}
                     placeholder="Describe what this workflow does"
                   />
-                </FormControl>
-              </SimpleGrid>
+                </div>
+              </div>
 
-              <Divider />
+              <hr className="border-gray-200 dark:border-gray-700" />
 
               {/* Triggers Section */}
-              <VStack align="stretch" spacing={3}>
-                <HStack justify="space-between">
-                  <Heading size="sm">Triggers</Heading>
-                  <Menu>
-                    <MenuButton
-                      as={Button}
-                      size="sm"
-                      leftIcon={<Icon as={FiPlus} />}
-                    >
-                      Add Trigger
-                    </MenuButton>
-                    <Portal>
-                      <MenuList>
-                        {triggerTypes.map((trigger) => (
-                          <MenuItem
-                            key={trigger.value}
-                            icon={<Icon as={trigger.icon} />}
-                            onClick={() =>
-                              handleAddTrigger({
-                                name: `${trigger.label} Trigger`,
-                                type: trigger.value as any,
-                                condition: "equals",
-                                value: "",
-                                enabled: true,
-                              })
-                            }
-                          >
-                            {trigger.label}
-                          </MenuItem>
-                        ))}
-                      </MenuList>
-                    </Portal>
-                  </Menu>
-                </HStack>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Triggers</h4>
+                  <select
+                    className="text-sm border rounded px-2 py-1"
+                    onChange={(e) => {
+                      const type = triggerTypes.find(t => t.value === e.target.value);
+                      if (type) {
+                        handleAddTrigger({
+                          name: `${type.label} Trigger`,
+                          type: e.target.value as any,
+                          condition: "equals",
+                          value: "",
+                          enabled: true,
+                        });
+                        e.target.value = "";
+                      }
+                    }}
+                  >
+                    <option value="">+ Add Trigger</option>
+                    {triggerTypes.map((trigger) => (
+                      <option key={trigger.value} value={trigger.value}>{trigger.label}</option>
+                    ))}
+                  </select>
+                </div>
 
                 {newWorkflow.triggers.map((trigger) => (
-                  <Card key={trigger.id} bg={cardBg}>
-                    <CardBody>
-                      <VStack align="stretch" spacing={2}>
-                        <HStack justify="space-between">
-                          <Text fontWeight="medium">{trigger.name}</Text>
-                          <HStack>
-                            <Switch
-                              size="sm"
-                              isChecked={trigger.enabled}
-                              onChange={() => {
-                                // Toggle trigger enabled state
-                              }}
-                            />
-                            <Button size="sm" variant="ghost" colorScheme="red">
-                              <Icon as={FiTrash2} />
-                            </Button>
-                          </HStack>
-                        </HStack>
-                        <HStack>
-                          <Select size="sm" value={trigger.condition}>
+                  <Card key={trigger.id} className="bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="pt-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <p className="font-medium text-gray-900 dark:text-gray-100">{trigger.name}</p>
+                          <div className="flex items-center space-x-2">
+                            <input type="checkbox" checked={trigger.enabled} onChange={() => { }} className="w-4 h-4" />
+                            <Button size="sm" variant="outline" className="text-red-600"><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <select className="flex-1 text-sm border rounded px-2 py-1" value={trigger.condition}>
                             <option value="equals">Equals</option>
                             <option value="greater_than">Greater Than</option>
                             <option value="less_than">Less Than</option>
                             <option value="contains">Contains</option>
-                          </Select>
-                          <Input
-                            size="sm"
-                            value={trigger.value}
-                            onChange={(e) => {
-                              // Update trigger value
-                            }}
-                            placeholder="Value"
-                          />
-                        </HStack>
-                      </VStack>
-                    </CardBody>
+                          </select>
+                          <Input size="sm" value={trigger.value} onChange={() => { }} placeholder="Value" className="flex-1" />
+                        </div>
+                      </div>
+                    </CardContent>
                   </Card>
                 ))}
-              </VStack>
+              </div>
 
-              <Divider />
+              <hr className="border-gray-200 dark:border-gray-700" />
 
               {/* Actions Section */}
-              <VStack align="stretch" spacing={3}>
-                <HStack justify="space-between">
-                  <Heading size="sm">Actions</Heading>
-                  <Menu>
-                    <MenuButton
-                      as={Button}
-                      size="sm"
-                      leftIcon={<Icon as={FiPlus} />}
-                    >
-                      Add Action
-                    </MenuButton>
-                    <Portal>
-                      <MenuList>
-                        {actionTypes.map((action) => (
-                          <MenuItem
-                            key={action.value}
-                            icon={<Icon as={action.icon} />}
-                            onClick={() =>
-                              handleAddAction({
-                                type: action.value as any,
-                                config: {},
-                                delay: 0,
-                              })
-                            }
-                          >
-                            {action.label}
-                          </MenuItem>
-                        ))}
-                      </MenuList>
-                    </Portal>
-                  </Menu>
-                </HStack>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Actions</h4>
+                  <select
+                    className="text-sm border rounded px-2 py-1"
+                    onChange={(e) => {
+                      const type = actionTypes.find(a => a.value === e.target.value);
+                      if (type) {
+                        handleAddAction({
+                          type: e.target.value as any,
+                          config: {},
+                          delay: 0,
+                        });
+                        e.target.value = "";
+                      }
+                    }}
+                  >
+                    <option value="">+ Add Action</option>
+                    {actionTypes.map((action) => (
+                      <option key={action.value} value={action.value}>{action.label}</option>
+                    ))}
+                  </select>
+                </div>
 
                 {newWorkflow.actions.map((action) => (
-                  <Card key={action.id} bg={cardBg}>
-                    <CardBody>
-                      <VStack align="stretch" spacing={2}>
-                        <HStack justify="space-between">
-                          <Text fontWeight="medium">
-                            {
-                              actionTypes.find((a) => a.value === action.type)
-                                ?.label
-                            }
-                          </Text>
-                          <HStack>
-                            <Input
-                              size="sm"
-                              type="number"
-                              value={action.delay || 0}
-                              onChange={(e) => {
-                                // Update action delay
-                              }}
-                              placeholder="Delay (minutes)"
-                              width="100px"
-                            />
-                            <Button size="sm" variant="ghost" colorScheme="red">
-                              <Icon as={FiTrash2} />
-                            </Button>
-                          </HStack>
-                        </HStack>
-                        {/* Action-specific configuration would go here */}
-                      </VStack>
-                    </CardBody>
+                  <Card key={action.id} className="bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="pt-4">
+                      <div className="flex justify-between items-center">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                          {actionTypes.find((a) => a.value === action.type)?.label}
+                        </p>
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            value={action.delay || 0}
+                            onChange={() => { }}
+                            placeholder="Delay (min)"
+                            className="w-24"
+                          />
+                          <Button size="sm" variant="outline" className="text-red-600"><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </div>
+                    </CardContent>
                   </Card>
                 ))}
-              </VStack>
+              </div>
 
-              <HStack justify="end">
+              <div className="flex justify-end">
                 <Button
-                  colorScheme="blue"
                   onClick={handleCreateWorkflow}
-                  isDisabled={!newWorkflow.name.trim()}
+                  disabled={!newWorkflow.name.trim()}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   Create Workflow
                 </Button>
-              </HStack>
-            </VStack>
-          </CardBody>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       )}
 
       {/* Workflows List */}
-      <Tabs variant="enclosed" colorScheme="blue">
-        <TabList>
-          <Tab>Active Workflows</Tab>
-          <Tab>Workflow Analytics</Tab>
-          <Tab>Templates</Tab>
-        </TabList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="active">Active Workflows</TabsTrigger>
+          <TabsTrigger value="analytics">Workflow Analytics</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+        </TabsList>
 
-        <TabPanels>
-          {/* Active Workflows Tab */}
-          <TabPanel>
-            <VStack spacing={4} align="stretch">
-              {workflows.length === 0 ? (
-                <Card bg={cardBg}>
-                  <CardBody>
-                    <VStack spacing={4} align="center">
-                      <Icon as={FiZap} boxSize={8} color="gray.400" />
-                      <Text textAlign="center" color="gray.600">
-                        No workflows created yet. Create your first workflow to
-                        automate your processes.
-                      </Text>
-                      <Button
-                        colorScheme="blue"
-                        leftIcon={<Icon as={FiPlus} />}
-                        onClick={() => setIsCreating(true)}
-                      >
-                        Create Workflow
-                      </Button>
-                    </VStack>
-                  </CardBody>
-                </Card>
-              ) : (
-                workflows.map((workflow) => (
-                  <Card key={workflow.id} bg={bgColor}>
-                    <CardBody>
-                      <VStack align="stretch" spacing={3}>
-                        <HStack justify="space-between">
-                          <VStack align="start" spacing={1}>
-                            <HStack>
-                              <Text fontWeight="semibold">{workflow.name}</Text>
-                              <Badge
-                                colorScheme={getStatusColor(workflow.enabled)}
-                              >
-                                {workflow.enabled ? "Active" : "Paused"}
-                              </Badge>
-                            </HStack>
-                            <Text fontSize="sm" color="gray.600">
-                              {workflow.description}
-                            </Text>
-                          </VStack>
-                          <HStack>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              leftIcon={
-                                <Icon
-                                  as={workflow.enabled ? FiPause : FiPlay}
-                                />
-                              }
-                              onClick={() =>
-                                onWorkflowToggle?.(
-                                  workflow.id,
-                                  !workflow.enabled,
-                                )
-                              }
-                            >
-                              {workflow.enabled ? "Pause" : "Resume"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              leftIcon={<Icon as={FiEdit} />}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              colorScheme="red"
-                              leftIcon={<Icon as={FiTrash2} />}
-                              onClick={() => onWorkflowDelete?.(workflow.id)}
-                            >
-                              Delete
-                            </Button>
-                          </HStack>
-                        </HStack>
-
-                        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-                          <HStack>
-                            <Icon as={FiZap} color="blue.500" />
-                            <VStack align="start" spacing={0}>
-                              <Text fontSize="sm" color="gray.600">
-                                Triggers
-                              </Text>
-                              <Text fontWeight="medium">
-                                {workflow.triggers.length}
-                              </Text>
-                            </VStack>
-                          </HStack>
-                          <HStack>
-                            <Icon as={FiPlay} color="green.500" />
-                            <VStack align="start" spacing={0}>
-                              <Text fontSize="sm" color="gray.600">
-                                Runs
-                              </Text>
-                              <Text fontWeight="medium">{workflow.runs}</Text>
-                            </VStack>
-                          </HStack>
-                          <HStack>
-                            <Icon as={FiTarget} color="orange.500" />
-                            <VStack align="start" spacing={0}>
-                              <Text fontSize="sm" color="gray.600">
-                                Success Rate
-                              </Text>
-                              <Badge
-                                colorScheme={getSuccessRateColor(
-                                  workflow.successRate,
-                                )}
-                              >
-                                {workflow.successRate}%
-                              </Badge>
-                            </VStack>
-                          </HStack>
-                        </SimpleGrid>
-
-                        {workflow.lastRun && (
-                          <Text fontSize="xs" color="gray.500">
-                            Last run:{" "}
-                            {new Date(workflow.lastRun).toLocaleString()}
-                          </Text>
-                        )}
-                      </VStack>
-                    </CardBody>
-                  </Card>
-                ))
-              )}
-            </VStack>
-          </TabPanel>
-
-          {/* Analytics Tab */}
-          <TabPanel>
-            <Card bg={bgColor}>
-              <CardBody>
-                <VStack spacing={4} align="stretch">
-                  <Heading size="md">Workflow Analytics</Heading>
-                  <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-                    <Card bg={cardBg}>
-                      <CardBody>
-                        <VStack spacing={2} align="center">
-                          <Text
-                            fontSize="2xl"
-                            fontWeight="bold"
-                            color="blue.500"
-                          >
-                            {workflows.length}
-                          </Text>
-                          <Text
-                            fontSize="sm"
-                            color="gray.600"
-                            textAlign="center"
-                          >
-                            Total Workflows
-                          </Text>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                    <Card bg={cardBg}>
-                      <CardBody>
-                        <VStack spacing={2} align="center">
-                          <Text
-                            fontSize="2xl"
-                            fontWeight="bold"
-                            color="green.500"
-                          >
-                            {workflows.filter((w) => w.enabled).length}
-                          </Text>
-                          <Text
-                            fontSize="sm"
-                            color="gray.600"
-                            textAlign="center"
-                          >
-                            Active Workflows
-                          </Text>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                    <Card bg={cardBg}>
-                      <CardBody>
-                        <VStack spacing={2} align="center">
-                          <Text
-                            fontSize="2xl"
-                            fontWeight="bold"
-                            color="orange.500"
-                          >
-                            {workflows.reduce((sum, w) => sum + w.runs, 0)}
-                          </Text>
-                          <Text
-                            fontSize="sm"
-                            color="gray.600"
-                            textAlign="center"
-                          >
-                            Total Executions
-                          </Text>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  </SimpleGrid>
-                </VStack>
-              </CardBody>
+        {/* Active Workflows Tab */}
+        <TabsContent value="active" className="space-y-4 mt-6">
+          {workflows.length === 0 ? (
+            <Card className="bg-gray-50 dark:bg-gray-800">
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center space-y-4">
+                  <Zap className="h-8 w-8 text-gray-400" />
+                  <p className="text-center text-gray-600 dark:text-gray-400">
+                    No workflows created yet. Create your first workflow to automate your processes.
+                  </p>
+                  <Button onClick={() => setIsCreating(true)} className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Workflow
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
-          </TabPanel>
+          ) : (
+            workflows.map((workflow) => (
+              <Card key={workflow.id}>
+                <CardContent className="pt-6">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{workflow.name}</p>
+                          <Badge className={getStatusColorScheme(workflow.enabled)}>
+                            {workflow.enabled ? "Active" : "Paused"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{workflow.description}</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onWorkflowToggle?.(workflow.id, !workflow.enabled)}
+                        >
+                          {workflow.enabled ? <Pause className="mr-1 h-4 w-4" /> : <Play className="mr-1 h-4 w-4" />}
+                          {workflow.enabled ? "Pause" : "Resume"}
+                        </Button>
+                        <Button size="sm" variant="outline"><Edit className="mr-1 h-4 w-4" />Edit</Button>
+                        <Button size="sm" variant="outline" className="text-red-600" onClick={() => onWorkflowDelete?.(workflow.id)}>
+                          <Trash2 className="mr-1 h-4 w-4" />Delete
+                        </Button>
+                      </div>
+                    </div>
 
-          {/* Templates Tab */}
-          <TabPanel>
-            <VStack spacing={4} align="stretch">
-              <Alert status="info">
-                <AlertIcon />
-                <Box>
-                  <AlertTitle>Workflow Templates</AlertTitle>
-                  <AlertDescription>
-                    Pre-built workflow templates to help you get started
-                    quickly.
-                  </AlertDescription>
-                </Box>
-              </Alert>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Zap className="h-4 w-4 text-blue-500" />
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Triggers</p>
+                          <p className="font-medium text-gray-900 dark:text-gray-100">{workflow.triggers.length}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Play className="h-4 w-4 text-green-500" />
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Runs</p>
+                          <p className="font-medium text-gray-900 dark:text-gray-100">{workflow.runs}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Target className="h-4 w-4 text-orange-500" />
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Success Rate</p>
+                          <Badge className={getSuccessRateColorScheme(workflow.successRate)}>
+                            {workflow.successRate}%
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
 
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                {/* Template cards would go here */}
-                <Card
-                  bg={cardBg}
-                  cursor="pointer"
-                  _hover={{ transform: "translateY(-2px)" }}
-                >
-                  <CardBody>
-                    <VStack spacing={3} align="start">
-                      <HStack>
-                        <Icon as={FiMail} color="blue.500" />
-                        <Text fontWeight="semibold">Welcome Sequence</Text>
-                      </HStack>
-                      <Text fontSize="sm" color="gray.600">
-                        Automatically send welcome emails to new contacts
-                      </Text>
-                      <Button size="sm" colorScheme="blue" variant="outline">
-                        Use Template
-                      </Button>
-                    </VStack>
-                  </CardBody>
-                </Card>
+                    {workflow.lastRun && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Last run: {new Date(workflow.lastRun).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
 
-                <Card
-                  bg={cardBg}
-                  cursor="pointer"
-                  _hover={{ transform: "translateY(-2px)" }}
-                >
-                  <CardBody>
-                    <VStack spacing={3} align="start">
-                      <HStack>
-                        <Icon as={FiTarget} color="green.500" />
-                        <Text fontWeight="semibold">Lead Nurturing</Text>
-                      </HStack>
-                      <Text fontSize="sm" color="gray.600">
-                        Nurture leads with educational content and follow-ups
-                      </Text>
-                      <Button size="sm" colorScheme="blue" variant="outline">
-                        Use Template
-                      </Button>
-                    </VStack>
-                  </CardBody>
-                </Card>
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="mt-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Workflow Analytics</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="pt-6">
+                      <div className="flex flex-col items-center space-y-2">
+                        <p className="text-2xl font-bold text-blue-500">{workflows.length}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 text-center">Total Workflows</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="pt-6">
+                      <div className="flex flex-col items-center space-y-2">
+                        <p className="text-2xl font-bold text-green-500">{workflows.filter((w) => w.enabled).length}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 text-center">Active Workflows</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="pt-6">
+                      <div className="flex flex-col items-center space-y-2">
+                        <p className="text-2xl font-bold text-orange-500">{workflows.reduce((sum, w) => sum + w.runs, 0)}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 text-center">Total Executions</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                <Card
-                  bg={cardBg}
-                  cursor="pointer"
-                  _hover={{ transform: "translateY(-2px)" }}
-                >
-                  <CardBody>
-                    <VStack spacing={3} align="start">
-                      <HStack>
-                        <Icon as={FiUsers} color="purple.500" />
-                        <Text fontWeight="semibold">Re-engagement</Text>
-                      </HStack>
-                      <Text fontSize="sm" color="gray.600">
-                        Re-engage inactive contacts with targeted campaigns
-                      </Text>
-                      <Button size="sm" colorScheme="blue" variant="outline">
-                        Use Template
-                      </Button>
-                    </VStack>
-                  </CardBody>
-                </Card>
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="space-y-4 mt-6">
+          <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Workflow Templates</AlertTitle>
+            <AlertDescription>
+              Pre-built workflow templates to help you get started quickly.
+            </AlertDescription>
+          </Alert>
 
-                <Card
-                  bg={cardBg}
-                  cursor="pointer"
-                  _hover={{ transform: "translateY(-2px)" }}
-                >
-                  <CardBody>
-                    <VStack spacing={3} align="start">
-                      <HStack>
-                        <Icon as={FiClock} color="orange.500" />
-                        <Text fontWeight="semibold">Task Automation</Text>
-                      </HStack>
-                      <Text fontSize="sm" color="gray.600">
-                        Automatically create tasks for sales team follow-ups
-                      </Text>
-                      <Button size="sm" colorScheme="blue" variant="outline">
-                        Use Template
-                      </Button>
-                    </VStack>
-                  </CardBody>
-                </Card>
-              </SimpleGrid>
-            </VStack>
-          </TabPanel>
-        </TabPanels>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { icon: Mail, title: "Welcome Sequence", desc: "Automatically send welcome emails to new contacts", color: "text-blue-500" },
+              { icon: Target, title: "Lead Nurturing", desc: "Nurture leads with educational content and follow-ups", color: "text-green-500" },
+              { icon: Users, title: "Re-engagement", desc: "Re-engage inactive contacts with targeted campaigns", color: "text-purple-500" },
+              { icon: Clock, title: "Task Automation", desc: "Automatically create tasks for sales team follow-ups", color: "text-orange-500" },
+            ].map((template, idx) => (
+              <Card key={idx} className="bg-gray-50 dark:bg-gray-800 cursor-pointer hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <template.icon className={`h-4 w-4 ${template.color}`} />
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">{template.title}</p>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{template.desc}</p>
+                    <Button size="sm" variant="outline" className="w-full">Use Template</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
       </Tabs>
-    </VStack>
+    </div>
   );
 };
 
