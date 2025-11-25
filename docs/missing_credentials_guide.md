@@ -215,56 +215,71 @@ The following integrations need credentials. Detailed setup instructions are pro
 
 #### Salesforce
 - **Environment Variables:** `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/salesforce/auth/callback`
 - **Setup Instructions:**
   1. Login to [Salesforce](https://login.salesforce.com/)
   2. Navigate to Setup → App Manager
   3. Click "New Connected App"
   4. Fill in app name, API name, and contact email
   5. Enable "OAuth Settings"
-  6. Add callback URL: `http://localhost:3000/api/auth/callback/salesforce`
+  6. Add callback URL:
+     - Local: `http://localhost:3000/api/integrations/salesforce/auth/callback`
+     - Production: `https://yourdomain.com/api/integrations/salesforce/auth/callback`
   7. Select OAuth scopes: "Full access (full)", "Perform requests at any time (refresh_token, offline_access)"
   8. Save and copy **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret)
 
 #### HubSpot
 - **Environment Variables:** `HUBSPOT_CLIENT_ID`, `HUBSPOT_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/hubspot/callback`
 - **Setup Instructions:**
   1. Go to [HubSpot Developers](https://developers.hubspot.com/)
   2. Click "Create app" → Fill in app information
   3. Navigate to "Auth" tab
-  4. Add redirect URL: `http://localhost:3000/api/auth/callback/hubspot`
+  4. Add redirect URL:
+     - Local: `http://localhost:3000/api/integrations/hubspot/callback`
+     - Production: `https://yourdomain.com/api/integrations/hubspot/callback`
   5. Select required scopes: `crm.objects.contacts.read`, `crm.objects.companies.read`, etc.
   6. Copy **Client ID** and **Client Secret** from Auth tab
 
 #### Zendesk
 - **Environment Variables:** `ZENDESK_CLIENT_ID`, `ZENDESK_CLIENT_SECRET`, `ZENDESK_SUBDOMAIN`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/zendesk/callback`
 - **Setup Instructions:**
   1. Go to Zendesk Admin Center → Apps and integrations → APIs → OAuth Clients
   2. Click "Add OAuth client"
   3. Fill in client name and company
-  4. Set redirect URL: `http://localhost:3000/api/auth/callback/zendesk`
+  4. Set redirect URL:
+     - Local: `http://localhost:3000/api/integrations/zendesk/callback`
+     - Production: `https://yourdomain.com/api/integrations/zendesk/callback`
   5. Copy **Client ID** (Unique Identifier) and **Secret**
   6. Note your Zendesk subdomain (e.g., `yourcompany` from `yourcompany.zendesk.com`)
 
 #### Freshdesk
 - **Environment Variables:** `FRESHDESK_CLIENT_ID`, `FRESHDESK_CLIENT_SECRET`, `FRESHDESK_DOMAIN`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/freshdesk/callback`
 - **Setup Instructions:**
   1. Login to your Freshdesk account
   2. Go to **Admin** → **Security** (or search for "OAuth")
   3. Create a new OAuth Client (or App)
   4. Fill in app details
-  5. Add redirect URL: `http://localhost:3000/api/auth/callback/freshdesk`
+  5. Add redirect URL:
+     - Local: `http://localhost:3000/api/integrations/freshdesk/callback`
+     - Production: `https://yourdomain.com/api/integrations/freshdesk/callback`
   6. Select required scopes: `read:tickets`, `write:tickets`, `read:contacts`, `read:agents`
   7. Copy **Client ID** and **Client Secret**
   8. Note your Freshdesk domain (e.g., `yourcompany.freshdesk.com`)
 
 #### Intercom
 - **Environment Variables:** `INTERCOM_CLIENT_ID`, `INTERCOM_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/intercom/callback`
 - **Setup Instructions:**
   1. Go to [Intercom Developer Hub](https://developers.intercom.com/)
   2. Click "Your apps" → "New app"
   3. Fill in app details and click "Create app"
   4. Navigate to "Authentication" in left sidebar
-  5. Add redirect URL: `http://localhost:3000/api/auth/callback/intercom`
+  5. Add redirect URL:
+     - Local: `http://localhost:3000/api/integrations/intercom/callback`
+     - Production: `https://yourdomain.com/api/integrations/intercom/callback`
   6. Copy **Client ID** and **Client Secret**
 
 ### Development
@@ -274,33 +289,40 @@ The following integrations need credentials. Detailed setup instructions are pro
 
 #### GitLab
 - **Environment Variables:** `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/gitlab/callback`
 - **Setup Instructions:**
   1. Go to [GitLab Applications](https://gitlab.com/-/profile/applications)
   2. Fill in application name
-  3. Add redirect URI: `http://localhost:3000/api/auth/callback/gitlab`
+  3. Add redirect URI:
+     - Local: `http://localhost:3000/api/integrations/gitlab/callback`
+     - Production: `https://yourdomain.com/api/integrations/gitlab/callback`
   4. Select scopes: `api`, `read_repository`, `write_repository`
   5. Click "Save application"
   6. Copy **Application ID** (Client ID) and **Secret**
 
 #### Bitbucket
 - **Environment Variables:** `BITBUCKET_CLIENT_ID`, `BITBUCKET_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/bitbucket/callback`
 - **Setup Instructions:**
   1. Go to [Bitbucket Settings](https://bitbucket.org/account/settings/oauth-consumers/new)
   2. Fill in OAuth consumer name
-  3. Add callback URL: `http://localhost:3000/api/auth/callback/bitbucket`
+  3. Add callback URL:
+     - Local: `http://localhost:3000/api/integrations/bitbucket/callback`
+     - Production: `https://yourdomain.com/api/integrations/bitbucket/callback`
   4. Select permissions: Repository (Read, Write), Account (Read)
   5. Click "Save"
   6. Copy **Key** (Client ID) and **Secret**
 
 #### Figma
 - **Environment Variables:** `FIGMA_CLIENT_ID`, `FIGMA_CLIENT_SECRET`
-- **OAuth Callback URL:** `http://localhost:3000/api/auth/callback/figma`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/figma/callback`
 - **Setup Instructions:**
   1. Go to [Figma Developer Platform](https://www.figma.com/developers/apps)
   2. Click "Create new app" or select an existing app
   3. Navigate to "OAuth" settings
-  4. Add **Redirect URI**: `http://localhost:3000/api/auth/callback/figma`
-     - For production: `https://yourdomain.com/api/auth/callback/figma`
+  4. Add **Redirect URI**:
+     - Local: `http://localhost:3000/api/integrations/figma/callback`
+     - Production: `https://yourdomain.com/api/integrations/figma/callback`
   5. Copy your **Client ID** and **Client Secret**
   6. Set environment variables:
      ```
@@ -359,6 +381,7 @@ The following integrations need credentials. Detailed setup instructions are pro
 
 #### Stripe
 - **Environment Variables:** `STRIPE_API_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/stripe/callback`
 - **Setup Instructions:**
   1. Go to [Stripe Dashboard](https://dashboard.stripe.com/)
   2. Navigate to Developers → API keys
@@ -410,23 +433,29 @@ The following integrations need credentials. Detailed setup instructions are pro
 
 #### Xero
 - **Environment Variables:** `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/xero/auth/callback`
 - **Setup Instructions:**
   1. Go to [Xero Developer Portal](https://developer.xero.com/app/manage)
   2. Click "New app"
   3. Fill in app details
-  4. Add OAuth 2.0 redirect URI: `http://localhost:3000/api/auth/callback/xero`
+  4. Add OAuth 2.0 redirect URI:
+     - Local: `http://localhost:3000/api/integrations/xero/auth/callback`
+     - Production: `https://yourdomain.com/api/integrations/xero/auth/callback`
   5. Copy **Client ID** and **Client Secret**
   6. Generate and configure API scopes
 
 #### Shopify
 - **Environment Variables:** `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `SHOPIFY_SHOP_NAME`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/shopify/callback`
 - **Setup Instructions:**
   1. Go to [Shopify Partners](https://partners.shopify.com/)
   2. Navigate to Apps → Create app
   3. Choose app type: "Public app" or "Custom app"
   4. Fill in app details
   5. Copy **API key** and **API secret**
-  6. Add redirect URL: `http://localhost:3000/api/auth/callback/shopify`
+  6. Add redirect URL:
+     - Local: `http://localhost:3000/api/integrations/shopify/callback`
+     - Production: `https://yourdomain.com/api/integrations/shopify/callback`
   7. Note your shop name (e.g., `mystore` from `mystore.myshopify.com`)
 
 ### Calendar
