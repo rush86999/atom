@@ -51,29 +51,59 @@ This guide documents all required environment variables and credentials for the 
 > [!IMPORTANT]
 > **User Registration Required**: After the NextAuth production migration, users must register new accounts. The demo user (`demo@example.com`) has been removed. See `docs/nextauth_production_setup.md` for setup instructions.
 
-## 5. OAuth Callback URLs for Local Testing
+## 5. OAuth Callback URLs - Standardized Pattern
 
+### Standard Pattern
 
-When setting up OAuth integrations for **local development**, use these callback URLs in your app configurations:
+All OAuth integrations use the **standardized callback pattern**:
 
-**Standard OAuth Callback Pattern:**
 ```
-http://localhost:3000/api/auth/callback/[service_name]
+http://localhost:3000/api/integrations/[service]/callback
 ```
 
-**Common Local Callback URLs:**
-- Slack: `http://localhost:3000/api/auth/callback/slack`
-- Google (Drive, Gmail, Calendar): `http://localhost:3000/api/auth/callback/google`
-- Microsoft (Teams, Outlook, OneDrive): `http://localhost:3000/api/auth/callback/microsoft`
-- GitHub: `http://localhost:3000/api/auth/callback/github`
-- Asana: `http://localhost:3000/api/auth/callback/asana`
-- Jira: `http://localhost:3000/api/auth/callback/jira`
-- Notion: `http://localhost:3000/api/auth/callback/notion`
-- Discord: `http://localhost:3000/api/auth/callback/discord`
+**For Production:** Replace `http://localhost:3000` with your production domain:
+```
+https://yourdomain.com/api/integrations/[service]/callback
+```
 
-**For Production:** Replace `http://localhost:3000` with your production domain, e.g., `https://yourdomain.com`
+### OAuth Callback URL Reference
 
-> **Note:** Some services may require you to explicitly whitelist localhost URLs. For services that don't allow localhost (rare), you may need to use a tunneling service like ngrok during development.
+Use these exact URLs when configuring OAuth apps in provider dashboards:
+
+| Service | Local Development | Production |
+|---------|-------------------|------------|
+| **Communication** |  |  |
+| Slack | `http://localhost:3000/api/integrations/slack/auth/callback` | `https://yourdomain.com/api/integrations/slack/auth/callback` |
+| Zoom | `http://localhost:3000/api/integrations/zoom/callback` | `https://yourdomain.com/api/integrations/zoom/callback` |
+| MS Teams | `http://localhost:3000/api/integrations/msteams/callback` | `https://yourdomain.com/api/integrations/msteams/callback` |
+| **Google Services** |  |  |
+| Gmail | `http://localhost:3000/api/integrations/gmail/callback` | `https://yourdomain.com/api/integrations/gmail/callback` |
+| Google Drive | `http://localhost:3000/api/integrations/google/callback` | `https://yourdomain.com/api/integrations/google/callback` |
+| Google Calendar | `http://localhost:3000/api/integrations/google/callback` | `https://yourdomain.com/api/integrations/google/callback` |
+| **Project Management** |  |  |
+| Jira | `http://localhost:3000/api/integrations/jira/auth/callback` | `https://yourdomain.com/api/integrations/jira/auth/callback` |
+| Linear | `http://localhost:3000/api/integrations/linear/auth/callback` | `https://yourdomain.com/api/integrations/linear/auth/callback` |
+| Notion | `http://localhost:3000/api/integrations/notion/callback` | `https://yourdomain.com/api/integrations/notion/callback` |
+| Monday | `http://localhost:3000/api/integrations/monday/callback` | `https://yourdomain.com/api/integrations/monday/callback` |
+| **CRM** |  |  |
+| Salesforce | `http://localhost:3000/api/integrations/salesforce/auth/callback` | `https://yourdomain.com/api/integrations/salesforce/auth/callback` |
+| HubSpot | `http://localhost:3000/api/integrations/hubspot/callback` | `https://yourdomain.com/api/integrations/hubspot/callback` |
+| Zendesk | `http://localhost:3000/api/integrations/zendesk/callback` | `https://yourdomain.com/api/integrations/zendesk/callback` |
+| **Development** |  |  |
+| GitHub | `http://localhost:3000/api/integrations/github/callback` | `https://yourdomain.com/api/integrations/github/callback` |
+| GitLab | `http://localhost:3000/api/integrations/gitlab/callback` | `https://yourdomain.com/api/integrations/gitlab/callback` |
+| Bitbucket | `http://localhost:3000/api/integrations/bitbucket/callback` | `https://yourdomain.com/api/integrations/bitbucket/callback` |
+| **Finance** |  |  |
+| QuickBooks | `http://localhost:3000/api/integrations/quickbooks/callback` | `https://yourdomain.com/api/integrations/quickbooks/callback` |
+| Xero | `http://localhost:3000/api/integrations/xero/auth/callback` | `https://yourdomain.com/api/integrations/xero/auth/callback` |
+| Stripe | `http://localhost:3000/api/integrations/stripe/callback` | `https://yourdomain.com/api/integrations/stripe/callback` |
+| **Cloud Storage** |  |  |
+| Azure | `http://localhost:3000/api/integrations/azure/auth/callback` | `https://yourdomain.com/api/integrations/azure/auth/callback` |
+
+> **Note:** Some services may require you to explicitly whitelist localhost URLs. For services that don't allow localhost, you may need to use a tunneling service like ngrok during development.
+
+> **Migration Notice:** We're standardizing all OAuth callbacks to `/api/integrations/[service]/callback`. Legacy URLs (e.g., `/api/hubspot/oauth/callback`) will redirect automatically for backward compatibility.
+
 
 ## 6. Credentials Status Overview
 
