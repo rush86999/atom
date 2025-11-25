@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       body: JSON.stringify({
         code,
         state,
-        redirect_uri: 'http://localhost:3000/oauth/gmail/callback',
+        redirect_uri: 'http://localhost:3000/api/integrations/gmail/callback',
       }),
     });
 

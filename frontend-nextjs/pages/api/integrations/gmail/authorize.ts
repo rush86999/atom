@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const userId = req.query.userId as string || 'default-user';
 
     // Add any additional parameters needed
-    const authUrl = `${backendUrl}?user_id=${encodeURIComponent(userId)}&redirect_uri=${encodeURIComponent('http://localhost:3000/oauth/gmail/callback')}`;
+    const authUrl = `${backendUrl}?user_id=${encodeURIComponent(userId)}&redirect_uri=${encodeURIComponent('http://localhost:3000/api/integrations/gmail/callback')}`;
 
     // Redirect to backend OAuth flow
     res.redirect(authUrl);
