@@ -1,31 +1,11 @@
 import React, { useState, useMemo, useCallback } from "react";
-import {
-  Box,
-  Input,
-  VStack,
-  HStack,
-  Text,
-  Badge,
-  Select,
-  Button,
-  Checkbox,
-  CheckboxGroup,
-  Grid,
-  GridItem,
-  Spinner,
-  InputGroup,
-  InputLeftElement,
-  Divider,
-  useColorModeValue,
-  Tag,
-  TagLabel,
-  TagCloseButton,
-  Flex,
-  Icon,
-  Tooltip,
-} from "@chakra-ui/react";
-import { SearchIcon, CloseIcon } from "@chakra-ui/icons";
-import { FiFilter } from "react-icons/fi";
+import { Search, X, Filter } from "lucide-react";
+import { Input } from "../../ui/input";
+import { Button } from "../../ui/button";
+import { Badge } from "../../ui/badge";
+import { Checkbox } from "../../ui/checkbox";
+import { Spinner } from "../../ui/spinner";
+import { Card, CardContent } from "../../ui/card";
 
 export interface HubSpotContact {
   id: string;
@@ -388,55 +368,46 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
     });
   };
 
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-
   return (
-    <Box
-      bg={bgColor}
-      border="1px"
-      borderColor={borderColor}
-      borderRadius="lg"
-      p={4}
-    >
-      <VStack spacing={4} align="stretch">
+    <Card className="w-full">
+      <CardContent className="p-4 space-y-4">
         {/* Search Header */}
-        <HStack justify="space-between">
-          <Text fontSize="lg" fontWeight="semibold">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             HubSpot Search
-          </Text>
-          <HStack>
+          </h3>
+          <div className="flex space-x-2">
             <Button
               size="sm"
               variant="outline"
-              leftIcon={<FiFilter />}
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             >
+              <Filter className="mr-2 h-4 w-4" />
               {showAdvancedFilters ? "Hide Filters" : "Show Filters"}
             </Button>
             <Button size="sm" variant="ghost" onClick={clearFilters}>
               Clear All
             </Button>
-          </HStack>
-        </HStack>
+          </div>
+        </div>
 
         {/* Main Search Input */}
-        <InputGroup>
-          <InputLeftElement pointerEvents="none">
-            <SearchIcon color="gray.400" />
-          </InputLeftElement>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
           <Input
+            className="pl-10"
             placeholder="Search contacts, companies, deals, activities..."
             value={filters.searchQuery}
             onChange={(e) => handleFilterChange("searchQuery", e.target.value)}
           />
-        </InputGroup>
+        </div>
 
         {/* Quick Filters */}
-        <HStack spacing={4} flexWrap="wrap">
-          <Select
-            size="sm"
-            width="auto"
+        <div className="flex flex-wrap gap-4 items-center">
+          <select
+            className="h-9 w-auto rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             value={filters.dataType}
             onChange={(e) =>
               handleFilterChange("dataType", e.target.value as HubSpotDataType)
@@ -447,11 +418,10 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
             <option value="companies">Companies</option>
             <option value="deals">Deals</option>
             <option value="activities">Activities</option>
-          </Select>
+          </select>
 
-          <Select
-            size="sm"
-            width="auto"
+          <select
+            className="h-9 w-auto rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             value={sort.field}
             onChange={(e) => handleSortChange(e.target.value)}
           >
@@ -461,235 +431,275 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
             <option value="amount">Sort by Deal Amount</option>
             <option value="annualRevenue">Sort by Revenue</option>
             <option value="name">Sort by Name</option>
-          </Select>
+          </select>
 
-          <Badge colorScheme={sort.direction === "desc" ? "blue" : "gray"}>
+          <Badge variant={sort.direction === "desc" ? "default" : "secondary"}>
             {sort.direction === "desc" ? "↓ Desc" : "↑ Asc"}
           </Badge>
-        </HStack>
+        </div>
 
         {/* Active Filters */}
         {(filters.industries.length > 0 ||
           filters.countries.length > 0 ||
           filters.lifecycleStages.length > 0 ||
           filters.dealStages.length > 0) && (
-          <HStack spacing={2} flexWrap="wrap">
-            <Text fontSize="sm" color="gray.600">
-              Active filters:
-            </Text>
-            {filters.industries.map((industry) => (
-              <Tag key={industry} size="sm" colorScheme="blue">
-                <TagLabel>Industry: {industry}</TagLabel>
-                <TagCloseButton
-                  onClick={() =>
-                    handleFilterChange(
-                      "industries",
-                      filters.industries.filter((i) => i !== industry),
-                    )
-                  }
-                />
-              </Tag>
-            ))}
-            {filters.countries.map((country) => (
-              <Tag key={country} size="sm" colorScheme="green">
-                <TagLabel>Country: {country}</TagLabel>
-                <TagCloseButton
-                  onClick={() =>
-                    handleFilterChange(
-                      "countries",
-                      filters.countries.filter((c) => c !== country),
-                    )
-                  }
-                />
-              </Tag>
-            ))}
-            {filters.lifecycleStages.map((stage) => (
-              <Tag key={stage} size="sm" colorScheme="purple">
-                <TagLabel>Stage: {stage}</TagLabel>
-                <TagCloseButton
-                  onClick={() =>
-                    handleFilterChange(
-                      "lifecycleStages",
-                      filters.lifecycleStages.filter((s) => s !== stage),
-                    )
-                  }
-                />
-              </Tag>
-            ))}
-            {filters.dealStages.map((stage) => (
-              <Tag key={stage} size="sm" colorScheme="orange">
-                <TagLabel>Deal Stage: {stage}</TagLabel>
-                <TagCloseButton
-                  onClick={() =>
-                    handleFilterChange(
-                      "dealStages",
-                      filters.dealStages.filter((s) => s !== stage),
-                    )
-                  }
-                />
-              </Tag>
-            ))}
-          </HStack>
-        )}
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-sm text-gray-500">
+                Active filters:
+              </span>
+              {filters.industries.map((industry) => (
+                <Badge key={industry} variant="secondary" className="flex items-center gap-1">
+                  Industry: {industry}
+                  <X
+                    className="h-3 w-3 cursor-pointer hover:text-red-500"
+                    onClick={() =>
+                      handleFilterChange(
+                        "industries",
+                        filters.industries.filter((i) => i !== industry),
+                      )
+                    }
+                  />
+                </Badge>
+              ))}
+              {filters.countries.map((country) => (
+                <Badge key={country} variant="outline" className="flex items-center gap-1 border-green-200 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">
+                  Country: {country}
+                  <X
+                    className="h-3 w-3 cursor-pointer hover:text-red-500"
+                    onClick={() =>
+                      handleFilterChange(
+                        "countries",
+                        filters.countries.filter((c) => c !== country),
+                      )
+                    }
+                  />
+                </Badge>
+              ))}
+              {filters.lifecycleStages.map((stage) => (
+                <Badge key={stage} variant="outline" className="flex items-center gap-1 border-purple-200 bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800">
+                  Stage: {stage}
+                  <X
+                    className="h-3 w-3 cursor-pointer hover:text-red-500"
+                    onClick={() =>
+                      handleFilterChange(
+                        "lifecycleStages",
+                        filters.lifecycleStages.filter((s) => s !== stage),
+                      )
+                    }
+                  />
+                </Badge>
+              ))}
+              {filters.dealStages.map((stage) => (
+                <Badge key={stage} variant="outline" className="flex items-center gap-1 border-orange-200 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800">
+                  Deal Stage: {stage}
+                  <X
+                    className="h-3 w-3 cursor-pointer hover:text-red-500"
+                    onClick={() =>
+                      handleFilterChange(
+                        "dealStages",
+                        filters.dealStages.filter((s) => s !== stage),
+                      )
+                    }
+                  />
+                </Badge>
+              ))}
+            </div>
+          )}
 
         {/* Advanced Filters */}
         {showAdvancedFilters && (
-          <Box border="1px" borderColor={borderColor} borderRadius="md" p={4}>
-            <Grid
-              templateColumns="repeat(auto-fit, minmax(200px, 1fr))"
-              gap={4}
-            >
+          <div className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Industry Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Industry
-                </Text>
-                <CheckboxGroup
-                  value={filters.industries}
-                  onChange={(values) =>
-                    handleFilterChange("industries", values)
-                  }
-                >
-                  <VStack align="start" spacing={1}>
-                    {filterOptions.industries.slice(0, 5).map((industry) => (
-                      <Checkbox key={industry} value={industry} size="sm">
+                </p>
+                <div className="space-y-1">
+                  {filterOptions.industries.slice(0, 5).map((industry) => (
+                    <div key={industry} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`industry-${industry}`}
+                        checked={filters.industries.includes(industry)}
+                        onCheckedChange={(checked: boolean) => {
+                          const newIndustries = checked
+                            ? [...filters.industries, industry]
+                            : filters.industries.filter((i) => i !== industry);
+                          handleFilterChange("industries", newIndustries);
+                        }}
+                      />
+                      <label htmlFor={`industry-${industry}`} className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                         {industry}
-                      </Checkbox>
-                    ))}
-                  </VStack>
-                </CheckboxGroup>
-              </GridItem>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Country Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Country
-                </Text>
-                <CheckboxGroup
-                  value={filters.countries}
-                  onChange={(values) => handleFilterChange("countries", values)}
-                >
-                  <VStack align="start" spacing={1}>
-                    {filterOptions.countries.slice(0, 5).map((country) => (
-                      <Checkbox key={country} value={country} size="sm">
+                </p>
+                <div className="space-y-1">
+                  {filterOptions.countries.slice(0, 5).map((country) => (
+                    <div key={country} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`country-${country}`}
+                        checked={filters.countries.includes(country)}
+                        onCheckedChange={(checked: boolean) => {
+                          const newCountries = checked
+                            ? [...filters.countries, country]
+                            : filters.countries.filter((c) => c !== country);
+                          handleFilterChange("countries", newCountries);
+                        }}
+                      />
+                      <label htmlFor={`country-${country}`} className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                         {country}
-                      </Checkbox>
-                    ))}
-                  </VStack>
-                </CheckboxGroup>
-              </GridItem>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Lifecycle Stage Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Lifecycle Stage
-                </Text>
-                <CheckboxGroup
-                  value={filters.lifecycleStages}
-                  onChange={(values) =>
-                    handleFilterChange("lifecycleStages", values)
-                  }
-                >
-                  <VStack align="start" spacing={1}>
-                    {filterOptions.lifecycleStages.map((stage) => (
-                      <Checkbox key={stage} value={stage} size="sm">
+                </p>
+                <div className="space-y-1">
+                  {filterOptions.lifecycleStages.map((stage) => (
+                    <div key={stage} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`stage-${stage}`}
+                        checked={filters.lifecycleStages.includes(stage)}
+                        onCheckedChange={(checked: boolean) => {
+                          const newStages = checked
+                            ? [...filters.lifecycleStages, stage]
+                            : filters.lifecycleStages.filter((s) => s !== stage);
+                          handleFilterChange("lifecycleStages", newStages);
+                        }}
+                      />
+                      <label htmlFor={`stage-${stage}`} className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                         {stage}
-                      </Checkbox>
-                    ))}
-                  </VStack>
-                </CheckboxGroup>
-              </GridItem>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Deal Stage Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Deal Stage
-                </Text>
-                <CheckboxGroup
-                  value={filters.dealStages}
-                  onChange={(values) =>
-                    handleFilterChange("dealStages", values)
-                  }
-                >
-                  <VStack align="start" spacing={1}>
-                    {filterOptions.dealStages.map((stage) => (
-                      <Checkbox key={stage} value={stage} size="sm">
+                </p>
+                <div className="space-y-1">
+                  {filterOptions.dealStages.map((stage) => (
+                    <div key={stage} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`deal-stage-${stage}`}
+                        checked={filters.dealStages.includes(stage)}
+                        onCheckedChange={(checked: boolean) => {
+                          const newStages = checked
+                            ? [...filters.dealStages, stage]
+                            : filters.dealStages.filter((s) => s !== stage);
+                          handleFilterChange("dealStages", newStages);
+                        }}
+                      />
+                      <label htmlFor={`deal-stage-${stage}`} className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                         {stage}
-                      </Checkbox>
-                    ))}
-                  </VStack>
-                </CheckboxGroup>
-              </GridItem>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Owner Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Owner
-                </Text>
-                <CheckboxGroup
-                  value={filters.owners}
-                  onChange={(values) => handleFilterChange("owners", values)}
-                >
-                  <VStack align="start" spacing={1}>
-                    {filterOptions.owners.slice(0, 5).map((owner) => (
-                      <Checkbox key={owner} value={owner} size="sm">
+                </p>
+                <div className="space-y-1">
+                  {filterOptions.owners.slice(0, 5).map((owner) => (
+                    <div key={owner} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`owner-${owner}`}
+                        checked={filters.owners.includes(owner)}
+                        onCheckedChange={(checked: boolean) => {
+                          const newOwners = checked
+                            ? [...filters.owners, owner]
+                            : filters.owners.filter((o) => o !== owner);
+                          handleFilterChange("owners", newOwners);
+                        }}
+                      />
+                      <label htmlFor={`owner-${owner}`} className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                         {owner}
-                      </Checkbox>
-                    ))}
-                  </VStack>
-                </CheckboxGroup>
-              </GridItem>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Company Size Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Company Size
-                </Text>
-                <CheckboxGroup
-                  value={filters.companySizes}
-                  onChange={(values) =>
-                    handleFilterChange("companySizes", values)
-                  }
-                >
-                  <VStack align="start" spacing={1}>
-                    {filterOptions.companySizes.map((size) => (
-                      <Checkbox key={size} value={size} size="sm">
+                </p>
+                <div className="space-y-1">
+                  {filterOptions.companySizes.map((size) => (
+                    <div key={size} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`size-${size}`}
+                        checked={filters.companySizes.includes(size)}
+                        onCheckedChange={(checked: boolean) => {
+                          const newSizes = checked
+                            ? [...filters.companySizes, size]
+                            : filters.companySizes.filter((s) => s !== size);
+                          handleFilterChange("companySizes", newSizes);
+                        }}
+                      />
+                      <label htmlFor={`size-${size}`} className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                         {size}
-                      </Checkbox>
-                    ))}
-                  </VStack>
-                </CheckboxGroup>
-              </GridItem>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Activity Type Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Activity Type
-                </Text>
-                <CheckboxGroup
-                  value={filters.activityTypes}
-                  onChange={(values) =>
-                    handleFilterChange("activityTypes", values)
-                  }
-                >
-                  <VStack align="start" spacing={1}>
-                    {filterOptions.activityTypes.map((type) => (
-                      <Checkbox key={type} value={type} size="sm">
+                </p>
+                <div className="space-y-1">
+                  {filterOptions.activityTypes.map((type) => (
+                    <div key={type} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`type-${type}`}
+                        checked={filters.activityTypes.includes(type)}
+                        onCheckedChange={(checked: boolean) => {
+                          const newTypes = checked
+                            ? [...filters.activityTypes, type]
+                            : filters.activityTypes.filter((t) => t !== type);
+                          handleFilterChange("activityTypes", newTypes);
+                        }}
+                      />
+                      <label htmlFor={`type-${type}`} className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                         {type}
-                      </Checkbox>
-                    ))}
-                  </VStack>
-                </CheckboxGroup>
-              </GridItem>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Revenue Range Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Annual Revenue Range
-                </Text>
-                <HStack spacing={2}>
+                </p>
+                <div className="flex items-center space-x-2">
                   <Input
-                    size="sm"
+                    className="h-8 text-sm"
                     placeholder="Min"
                     type="number"
                     value={filters.minRevenue}
@@ -697,9 +707,9 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
                       handleFilterChange("minRevenue", Number(e.target.value))
                     }
                   />
-                  <Text fontSize="sm">to</Text>
+                  <span className="text-sm text-gray-500">to</span>
                   <Input
-                    size="sm"
+                    className="h-8 text-sm"
                     placeholder="Max"
                     type="number"
                     value={filters.maxRevenue}
@@ -707,17 +717,17 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
                       handleFilterChange("maxRevenue", Number(e.target.value))
                     }
                   />
-                </HStack>
-              </GridItem>
+                </div>
+              </div>
 
               {/* Deal Amount Range Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Deal Amount Range
-                </Text>
-                <HStack spacing={2}>
+                </p>
+                <div className="flex items-center space-x-2">
                   <Input
-                    size="sm"
+                    className="h-8 text-sm"
                     placeholder="Min"
                     type="number"
                     value={filters.minDealAmount}
@@ -728,9 +738,9 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
                       )
                     }
                   />
-                  <Text fontSize="sm">to</Text>
+                  <span className="text-sm text-gray-500">to</span>
                   <Input
-                    size="sm"
+                    className="h-8 text-sm"
                     placeholder="Max"
                     type="number"
                     value={filters.maxDealAmount}
@@ -741,130 +751,81 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
                       )
                     }
                   />
-                </HStack>
-              </GridItem>
+                </div>
+              </div>
 
               {/* Lead Score Filter */}
-              <GridItem>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
+              <div>
+                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
                   Lead Score
-                </Text>
-                <CheckboxGroup
-                  value={filters.leadScores}
-                  onChange={(values) =>
-                    handleFilterChange("leadScores", values.map(Number))
-                  }
-                >
-                  <HStack spacing={2}>
-                    {[1, 2, 3, 4, 5].map((score) => (
-                      <Checkbox key={score} value={score.toString()} size="sm">
+                </p>
+                <div className="flex items-center space-x-4">
+                  {[1, 2, 3, 4, 5].map((score) => (
+                    <div key={score} className="flex items-center space-x-1">
+                      <Checkbox
+                        id={`score-${score}`}
+                        checked={filters.leadScores.includes(score)}
+                        onCheckedChange={(checked: boolean) => {
+                          const newScores = checked
+                            ? [...filters.leadScores, score]
+                            : filters.leadScores.filter((s) => s !== score);
+                          handleFilterChange("leadScores", newScores);
+                        }}
+                      />
+                      <label htmlFor={`score-${score}`} className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                         {score}+
-                      </Checkbox>
-                    ))}
-                  </HStack>
-                </CheckboxGroup>
-              </GridItem>
-            </Grid>
-          </Box>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Results Summary */}
-        <HStack justify="space-between">
-          <Text fontSize="sm" color="gray.600">
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             {loading ? (
-              <HStack>
+              <div className="flex items-center space-x-2">
                 <Spinner size="sm" />
-                <Text>Searching...</Text>
-              </HStack>
+                <span>Searching...</span>
+              </div>
             ) : (
               `Showing ${filteredData.length} of ${totalCount} results`
             )}
-          </Text>
-          <Badge colorScheme="blue" fontSize="sm">
+          </div>
+          <Badge variant="default">
             {filters.dataType.toUpperCase()}
           </Badge>
-        </HStack>
+        </div>
 
         {/* Search Results Preview */}
         {!loading && filteredData.length > 0 && (
-          <Box
-            maxH="200px"
-            overflowY="auto"
-            border="1px"
-            borderColor={borderColor}
-            borderRadius="md"
-            p={2}
-          >
-            <VStack spacing={1} align="stretch">
+          <div className="max-h-[200px] overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md p-2">
+            <div className="space-y-1">
               {filteredData.slice(0, 10).map((item, index) => (
-                <Box
-                  key={`${item.id}-${index}`}
-                  p={2}
-                  borderBottom="1px"
-                  borderColor={borderColor}
-                >
-                  <HStack justify="space-between">
-                    <Text fontSize="sm" fontWeight="medium">
-                      {"firstName" in item
-                        ? `${item.firstName} ${item.lastName}`
-                        : "name" in item
-                          ? item.name
-                          : "subject" in item
-                            ? item.subject
-                            : "Unknown"}
-                    </Text>
-                    <Badge
-                      size="sm"
-                      colorScheme={
-                        "leadScore" in item && item.leadScore >= 4
-                          ? "green"
-                          : "stage" in item
-                            ? "blue"
-                            : "engagementType" in item
-                              ? "purple"
-                              : "gray"
-                      }
-                    >
-                      {"leadScore" in item
-                        ? `Score: ${item.leadScore}`
-                        : "stage" in item
-                          ? item.stage
-                          : "engagementType" in item
-                            ? item.engagementType
-                            : "industry" in item
-                              ? item.industry
-                              : "Contact"}
-                    </Badge>
-                  </HStack>
-                  <Text fontSize="xs" color="gray.600">
-                    {"email" in item
-                      ? item.email
-                      : "domain" in item
-                        ? item.domain
-                        : "amount" in item
-                          ? `$${item.amount.toLocaleString()}`
-                          : "body" in item
-                            ? item.body.substring(0, 50) + "..."
-                            : ""}
-                  </Text>
-                </Box>
+                <div key={index} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md">
+                  {/* Render item details based on type - simplified for preview */}
+                  <div className="font-medium text-sm">
+                    {"name" in item ? item.name : "firstName" in item ? `${item.firstName} ${item.lastName}` : item.subject}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {"company" in item ? item.company : "engagementType" in item ? item.engagementType : ""}
+                  </div>
+                </div>
               ))}
-              {filteredData.length > 10 && (
-                <Text fontSize="xs" color="gray.500" textAlign="center" p={2}>
-                  ... and {filteredData.length - 10} more results
-                </Text>
-              )}
-            </VStack>
-          </Box>
+            </div>
+          </div>
         )}
 
         {!loading && filteredData.length === 0 && filters.searchQuery && (
-          <Text fontSize="sm" color="gray.500" textAlign="center" p={4}>
-            No results found for &quot;{filters.searchQuery}&quot;
-          </Text>
+          <div className="text-sm text-gray-500 text-center p-4">
+            No results found for "{filters.searchQuery}"
+          </div>
         )}
-      </VStack>
-    </Box>
+      </CardContent>
+    </Card>
   );
 };
 
