@@ -1,13 +1,12 @@
 import React from 'react';
-import { Box } from '@chakra-ui/react';
-import KanbanBoard from '../components/Projects/KanbanBoard';
+import ProjectsList from '../components/Projects/ProjectsList';
 
-const Projects = () => {
+const ProjectsPage: React.FC = () => {
     return (
-        <Box p={8}>
-            <KanbanBoard />
-        </Box>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+            <ProjectsList />
+        </div>
     );
 };
 
-export default Projects;
+export default ProjectsPage;
