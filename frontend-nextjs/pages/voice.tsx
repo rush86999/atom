@@ -1,57 +1,55 @@
 import React from 'react';
-import { Box, Tabs, TabList, TabPanels, Tab, TabPanel, VStack, Heading } from '@chakra-ui/react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import WakeWordDetector from '../components/Voice/WakeWordDetector';
 import VoiceCommands from '../components/Voice/VoiceCommands';
 import ChatInterface from '../components/AI/ChatInterface';
 
 const VoicePage: React.FC = () => {
   return (
-    <Box minH="100vh" bg="gray.50" p={6}>
-      <VStack spacing={6} align="stretch">
-        <Heading size="lg">Voice & AI Features</Heading>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="flex flex-col space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Voice & AI Features</h1>
 
-        <Tabs variant="enclosed" colorScheme="blue">
-          <TabList>
-            <Tab>AI Chat</Tab>
-            <Tab>Voice Commands</Tab>
-            <Tab>Wake Word Detection</Tab>
-          </TabList>
+        <Tabs defaultValue="chat" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="chat">AI Chat</TabsTrigger>
+            <TabsTrigger value="commands">Voice Commands</TabsTrigger>
+            <TabsTrigger value="wakeword">Wake Word Detection</TabsTrigger>
+          </TabsList>
 
-          <TabPanels>
-            <TabPanel>
-              <ChatInterface
-                showNavigation={true}
-                availableModels={['gpt-4', 'gpt-3.5-turbo', 'claude-3', 'llama-2']}
-              />
-            </TabPanel>
+          <TabsContent value="chat" className="mt-6">
+            <ChatInterface
+              showNavigation={true}
+              availableModels={['gpt-4', 'gpt-3.5-turbo', 'claude-3', 'llama-2']}
+            />
+          </TabsContent>
 
-            <TabPanel>
-              <VoiceCommands
-                showNavigation={true}
-                onCommandRecognized={(result) => {
-                  console.log('Command recognized:', result);
-                }}
-                onCommandExecute={(command, parameters) => {
-                  console.log('Command executed:', command, parameters);
-                }}
-              />
-            </TabPanel>
+          <TabsContent value="commands" className="mt-6">
+            <VoiceCommands
+              showNavigation={true}
+              onCommandRecognized={(result) => {
+                console.log('Command recognized:', result);
+              }}
+              onCommandExecute={(command, parameters) => {
+                console.log('Command executed:', command, parameters);
+              }}
+            />
+          </TabsContent>
 
-            <TabPanel>
-              <WakeWordDetector
-                showNavigation={true}
-                onDetection={(detection) => {
-                  console.log('Wake word detected:', detection);
-                }}
-                onModelChange={(model) => {
-                  console.log('Model changed:', model);
-                }}
-              />
-            </TabPanel>
-          </TabPanels>
+          <TabsContent value="wakeword" className="mt-6">
+            <WakeWordDetector
+              showNavigation={true}
+              onDetection={(detection) => {
+                console.log('Wake word detected:', detection);
+              }}
+              onModelChange={(model) => {
+                console.log('Model changed:', model);
+              }}
+            />
+          </TabsContent>
         </Tabs>
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 };
 

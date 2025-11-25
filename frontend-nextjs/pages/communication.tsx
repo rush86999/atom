@@ -1,12 +1,11 @@
 import React from 'react';
-import { Box } from '@chakra-ui/react';
 import CommunicationHub from '../components/CommunicationHub';
 
 const CommunicationPage: React.FC = () => {
   return (
-    <Box minH="100vh" bg="gray.50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <CommunicationHub />
-    </Box>
+    </div>
   );
 };
 
