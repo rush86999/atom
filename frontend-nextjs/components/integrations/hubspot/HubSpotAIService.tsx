@@ -1,43 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  Badge,
-  Progress,
-  Card,
-  CardBody,
-  Button,
-  Input,
-  Textarea,
-  Select,
-  FormControl,
-  FormLabel,
-  FormHelperText,
-  Switch,
-  Slider,
-  SliderTrack,
-  SliderFilledTrack,
-  SliderThumb,
-  Tooltip,
-  useColorModeValue,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  SimpleGrid,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  Icon,
-  Flex,
-  Divider,
-} from '@chakra-ui/react';
-import { FiTrendingUp, FiUsers, FiTarget, FiActivity, FiBrain, FiZap } from 'react-icons/fi';
+import { TrendingUp, Users, Target, Activity, Brain, Zap, ArrowUp } from 'lucide-react';
+import { Card, CardContent } from '../../ui/card';
+import { Button } from '../../ui/button';
+import { Badge } from '../../ui/badge';
+import { Progress } from '../../ui/progress';
+import { Input } from '../../ui/input';
+import { Alert, AlertDescription, AlertTitle } from '../../ui/alert';
+import { Slider } from '../../ui/slider';
 
 export interface AILeadScoringConfig {
   enabled: boolean;
@@ -129,10 +98,6 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
 
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const cardBg = useColorModeValue('gray.50', 'gray.700');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-
   const analyzeLead = useCallback(async () => {
     if (!contact) return;
 
@@ -197,16 +162,22 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
     }
   }, [contact, onScoreUpdate]);
 
-  const getScoreColor = (score: number) => {
-    if (score >= config.thresholds.hot) return 'red.500';
-    if (score >= config.thresholds.warm) return 'orange.500';
-    return 'blue.500';
+  const getScoreColorClass = (score: number) => {
+    if (score >= config.thresholds.hot) return 'text-red-500';
+    if (score >= config.thresholds.warm) return 'text-orange-500';
+    return 'text-blue-500';
   };
 
   const getScoreLabel = (score: number) => {
     if (score >= config.thresholds.hot) return 'Hot Lead';
     if (score >= config.thresholds.warm) return 'Warm Lead';
     return 'Cold Lead';
+  };
+
+  const getScoreBadgeColor = (score: number) => {
+    if (score >= config.thresholds.hot) return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+    if (score >= config.thresholds.warm) return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
+    return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
   };
 
   const updateFactorWeight = (factor: keyof AILeadScoringConfig['factors'], value: number) => {
@@ -241,110 +212,101 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
 
   if (!config.enabled) {
     return (
-      <Card bg={cardBg}>
-        <CardBody>
-          <VStack spacing={4} align="center">
-            <Icon as={FiBrain} boxSize={8} color="gray.400" />
-            <Text textAlign="center" color="gray.600">
+      <Card className="bg-gray-50 dark:bg-gray-800">
+        <CardContent className="pt-6">
+          <div className="flex flex-col items-center space-y-4">
+            <Brain className="h-8 w-8 text-gray-400" />
+            <p className="text-center text-gray-600 dark:text-gray-400">
               AI-powered lead scoring is currently disabled
-            </Text>
+            </p>
             <Button
-              colorScheme="blue"
               onClick={() => setConfig(prev => ({ ...prev, enabled: true }))}
+              className="bg-blue-600 hover:bg-blue-700"
             >
               Enable AI Scoring
             </Button>
-          </VStack>
-        </CardBody>
+          </div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <VStack spacing={6} align="stretch">
+    <div className="space-y-6">
       {/* AI Configuration Panel */}
-      <Card bg={bgColor}>
-        <CardBody>
-          <VStack spacing={4} align="stretch">
-            <HStack justify="space-between">
-              <Heading size="md">AI Lead Scoring</Heading>
-              <HStack>
-                <Text fontSize="sm" color="gray.600">Enabled</Text>
-                <Switch
-                  isChecked={config.enabled}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI Lead Scoring</h3>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Enabled</span>
+                <input
+                  type="checkbox"
+                  checked={config.enabled}
                   onChange={(e) => setConfig(prev => ({ ...prev, enabled: e.target.checked }))}
-                  colorScheme="blue"
+                  className="w-10 h-6 bg-gray-200 rounded-full relative cursor-pointer appearance-none checked:bg-blue-600"
                 />
-              </HStack>
-            </HStack>
+              </div>
+            </div>
 
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-              <FormControl>
-                <FormLabel>Scoring Model</FormLabel>
-                <Select
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Scoring Model</label>
+                <select
+                  className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                   value={config.model}
                   onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value as any }))}
                 >
                   <option value="enhanced">Enhanced Scoring</option>
                   <option value="predictive">Predictive Analytics</option>
                   <option value="behavioral">Behavioral Analysis</option>
-                </Select>
-                <FormHelperText>
-                  Choose the AI model for lead scoring
-                </FormHelperText>
-              </FormControl>
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Choose the AI model for lead scoring</p>
+              </div>
 
-              <FormControl>
-                <FormLabel>Custom Analysis Prompt</FormLabel>
-                <Textarea
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Custom Analysis Prompt</label>
+                <textarea
+                  className="w-full h-20 rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none"
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   placeholder="Add specific criteria for AI analysis..."
-                  size="sm"
                 />
-              </FormControl>
-            </SimpleGrid>
+              </div>
+            </div>
 
-            <Divider />
+            <hr className="border-gray-200 dark:border-gray-700" />
 
-            <VStack align="stretch" spacing={4}>
-              <Text fontWeight="semibold">Scoring Factors Weight</Text>
+            <div className="space-y-4">
+              <p className="font-semibold text-gray-900 dark:text-gray-100">Scoring Factors Weight</p>
               {Object.entries(config.factors).map(([factor, weight]) => (
-                <VStack key={factor} align="stretch" spacing={2}>
-                  <HStack justify="space-between">
-                    <Text fontSize="sm" textTransform="capitalize">
-                      {factor}
-                    </Text>
-                    <Text fontSize="sm" fontWeight="medium">
-                      {weight}%
-                    </Text>
-                  </HStack>
+                <div key={factor} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm capitalize text-gray-900 dark:text-gray-100">{factor}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{weight}%</p>
+                  </div>
                   <Slider
                     value={weight}
-                    onChange={(value) => updateFactorWeight(factor as any, value)}
+                    onValueChange={(value) => updateFactorWeight(factor as any, value)}
                     min={0}
                     max={50}
                     step={5}
-                  >
-                    <SliderTrack>
-                      <SliderFilledTrack />
-                    </SliderTrack>
-                    <SliderThumb />
-                  </Slider>
-                </VStack>
+                  />
+                </div>
               ))}
-            </VStack>
+            </div>
 
-            <Divider />
+            <hr className="border-gray-200 dark:border-gray-700" />
 
-            <VStack align="stretch" spacing={4}>
-              <Text fontWeight="semibold">Score Thresholds</Text>
-              <SimpleGrid columns={3} spacing={4}>
+            <div className="space-y-4">
+              <p className="font-semibold text-gray-900 dark:text-gray-100">Score Thresholds</p>
+              <div className="grid grid-cols-3 gap-4">
                 {Object.entries(config.thresholds).map(([threshold, value]) => (
-                  <FormControl key={threshold}>
-                    <FormLabel textTransform="capitalize">
+                  <div key={threshold} className="space-y-2">
+                    <label className="text-sm font-medium capitalize text-gray-900 dark:text-gray-100">
                       {threshold} Lead
-                    </FormLabel>
+                    </label>
                     <Input
                       type="number"
                       value={value}
@@ -352,235 +314,207 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
                       min={0}
                       max={100}
                     />
-                  </FormControl>
+                  </div>
                 ))}
-              </SimpleGrid>
-            </VStack>
+              </div>
+            </div>
 
-            <Divider />
+            <hr className="border-gray-200 dark:border-gray-700" />
 
-            <VStack align="stretch" spacing={3}>
-              <Text fontWeight="semibold">Automation</Text>
+            <div className="space-y-3">
+              <p className="font-semibold text-gray-900 dark:text-gray-100">Automation</p>
               {Object.entries(config.automation).map(([automation, enabled]) => (
-                <HStack key={automation} justify="space-between">
-                  <Text fontSize="sm" textTransform="capitalize">
+                <div key={automation} className="flex justify-between items-center">
+                  <p className="text-sm capitalize text-gray-900 dark:text-gray-100">
                     {automation.replace(/([A-Z])/g, ' $1').trim()}
-                  </Text>
-                  <Switch
-                    isChecked={enabled}
+                  </p>
+                  <input
+                    type="checkbox"
+                    checked={enabled}
                     onChange={() => toggleAutomation(automation as any)}
-                    colorScheme="blue"
+                    className="w-10 h-6 bg-gray-200 rounded-full relative cursor-pointer appearance-none checked:bg-blue-600"
                   />
-                </HStack>
+                </div>
               ))}
-            </VStack>
-          </VStack>
-        </CardBody>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Analysis Controls */}
       {contact && (
-        <Card bg={bgColor}>
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <HStack justify="space-between">
-                <Heading size="md">Lead Analysis</Heading>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Lead Analysis</h3>
                 <Button
-                  colorScheme="blue"
-                  leftIcon={<Icon as={FiBrain} />}
                   onClick={analyzeLead}
-                  isLoading={isAnalyzing}
-                  loadingText="Analyzing..."
+                  disabled={isAnalyzing}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
-                  Analyze Lead
+                  <Brain className="mr-2 h-4 w-4" />
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze Lead'}
                 </Button>
-              </HStack>
+              </div>
 
               {prediction && (
-                <VStack spacing={4} align="stretch">
+                <div className="space-y-4">
                   {/* Score Display */}
-                  <Card bg={cardBg}>
-                    <CardBody>
-                      <VStack spacing={3} align="center">
-                        <Badge
-                          fontSize="lg"
-                          colorScheme={
-                            prediction.leadScore >= config.thresholds.hot ? 'red' :
-                            prediction.leadScore >= config.thresholds.warm ? 'orange' : 'blue'
-                          }
-                          px={4}
-                          py={2}
-                        >
+                  <Card className="bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="pt-6">
+                      <div className="flex flex-col items-center space-y-3">
+                        <Badge className={`text-lg px-4 py-2 ${getScoreBadgeColor(prediction.leadScore)}`}>
                           {getScoreLabel(prediction.leadScore)}
                         </Badge>
-                        <Text fontSize="4xl" fontWeight="bold" color={getScoreColor(prediction.leadScore)}>
+                        <p className={`text-4xl font-bold ${getScoreColorClass(prediction.leadScore)}`}>
                           {prediction.leadScore}
-                        </Text>
-                        <Progress
-                          value={prediction.leadScore}
-                          size="lg"
-                          width="full"
-                          colorScheme={
-                            prediction.leadScore >= config.thresholds.hot ? 'red' :
-                            prediction.leadScore >= config.thresholds.warm ? 'orange' : 'blue'
-                          }
-                        />
-                        <Text fontSize="sm" color="gray.600">
+                        </p>
+                        <Progress value={prediction.leadScore} className="w-full h-3" />
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
                           Confidence: {prediction.confidence}% • Value: ${prediction.predictedValue.toLocaleString()}
-                        </Text>
-                      </VStack>
-                    </CardBody>
+                        </p>
+                      </div>
+                    </CardContent>
                   </Card>
 
                   {/* Key Factors */}
-                  <Card bg={cardBg}>
-                    <CardBody>
-                      <VStack spacing={3} align="stretch">
-                        <Heading size="sm">Key Scoring Factors</Heading>
+                  <Card className="bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="pt-6">
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Key Scoring Factors</h4>
                         {prediction.keyFactors.map((factor, index) => (
-                          <VStack key={index} align="stretch" spacing={1}>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm" fontWeight="medium">
-                                {factor.factor}
-                              </Text>
-                              <Badge colorScheme="blue">
+                          <div key={index} className="space-y-1">
+                            <div className="flex justify-between items-center">
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{factor.factor}</p>
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
                                 {(factor.impact * 100).toFixed(0)}%
                               </Badge>
-                            </HStack>
-                            <Progress value={factor.impact * 100} size="sm" colorScheme="blue" />
-                            <Text fontSize="xs" color="gray.600">
-                              {factor.description}
-                            </Text>
-                          </VStack>
+                            </div>
+                            <Progress value={factor.impact * 100} className="h-2" />
+                            <p className="text-xs text-gray-600 dark:text-gray-400">{factor.description}</p>
+                          </div>
                         ))}
-                      </VStack>
-                    </CardBody>
+                      </div>
+                    </CardContent>
                   </Card>
 
                   {/* Recommendations */}
-                  <Card bg={cardBg}>
-                    <CardBody>
-                      <VStack spacing={3} align="stretch">
-                        <Heading size="sm">AI Recommendations</Heading>
-                        {prediction.recommendations.map((rec, index) => (
-                          <Alert
-                            key={index}
-                            status={
-                              rec.priority === 'high' ? 'warning' :
-                              rec.priority === 'medium' ? 'info' : 'success'
-                            }
-                            borderRadius="md"
-                          >
-                            <AlertIcon />
-                            <Box flex="1">
-                              <AlertTitle fontSize="sm">
-                                {rec.action}
-                              </AlertTitle>
-                              <AlertDescription fontSize="xs">
-                                {rec.description}
-                              </AlertDescription>
-                            </Box>
-                            <Badge
-                              colorScheme={
-                                rec.priority === 'high' ? 'red' :
-                                rec.priority === 'medium' ? 'orange' : 'green'
-                              }
-                            >
-                              {rec.priority}
-                            </Badge>
-                          </Alert>
-                        ))}
-                      </VStack>
-                    </CardBody>
+                  <Card className="bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="pt-6">
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">AI Recommendations</h4>
+                        {prediction.recommendations.map((rec, index) => {
+                          const alertColor = rec.priority === 'high' ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800' :
+                            rec.priority === 'medium' ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' :
+                              'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800';
+                          const badgeColor = rec.priority === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
+                            rec.priority === 'medium' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
+                              'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+
+                          return (
+                            <Alert key={index} className={alertColor}>
+                              <div className="flex items-start justify-between flex-1">
+                                <div className="flex-1">
+                                  <AlertTitle className="text-sm">{rec.action}</AlertTitle>
+                                  <AlertDescription className="text-xs">{rec.description}</AlertDescription>
+                                </div>
+                                <Badge className={badgeColor}>{rec.priority}</Badge>
+                              </div>
+                            </Alert>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
                   </Card>
 
                   {/* Prediction Stats */}
-                  <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-                    <Stat>
-                      <StatLabel>Conversion Probability</StatLabel>
-                      <StatNumber>{prediction.conversionProbability}%</StatNumber>
-                      <StatHelpText>
-                        <StatArrow type="increase" />
-                        Likely to convert
-                      </StatHelpText>
-                    </Stat>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Conversion Probability</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{prediction.conversionProbability}%</p>
+                      <div className="flex items-center text-xs">
+                        <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
+                        <span className="text-gray-600 dark:text-gray-400">Likely to convert</span>
+                      </div>
+                    </div>
 
-                    <Stat>
-                      <StatLabel>Expected Timeline</StatLabel>
-                      <StatNumber>{prediction.timeframe}</StatNumber>
-                      <StatHelpText>
-                        Estimated conversion window
-                      </StatHelpText>
-                    </Stat>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expected Timeline</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{prediction.timeframe}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Estimated conversion window</p>
+                    </div>
 
-                    <Stat>
-                      <StatLabel>Predicted Value</StatLabel>
-                      <StatNumber>${prediction.predictedValue.toLocaleString()}</StatNumber>
-                      <StatHelpText>
-                        <StatArrow type="increase" />
-                        Potential deal size
-                      </StatHelpText>
-                    </Stat>
-                  </SimpleGrid>
-                </VStack>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Predicted Value</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">${prediction.predictedValue.toLocaleString()}</p>
+                      <div className="flex items-center text-xs">
+                        <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
+                        <span className="text-gray-600 dark:text-gray-400">Potential deal size</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
-            </VStack>
-          </CardBody>
+            </div>
+          </CardContent>
         </Card>
       )}
 
       {/* Automation Triggers */}
-      <Card bg={bgColor}>
-        <CardBody>
-          <VStack spacing={4} align="stretch">
-            <Heading size="md">AI Automation Triggers</Heading>
-            <Text fontSize="sm" color="gray.600">
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI Automation Triggers</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Configure automated actions based on AI predictions
-            </Text>
+            </p>
 
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-              <Card bg={cardBg}>
-                <CardBody>
-                  <VStack spacing={3} align="start">
-                    <HStack>
-                      <Icon as={FiZap} color="green.500" />
-                      <Text fontWeight="semibold">Hot Lead Trigger</Text>
-                    </HStack>
-                    <Text fontSize="sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="bg-gray-50 dark:bg-gray-800">
+                <CardContent className="pt-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Zap className="h-4 w-4 text-green-500" />
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">Hot Lead Trigger</p>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       Automatically assign to sales team when lead score exceeds {config.thresholds.hot}
-                    </Text>
-                    <Switch
-                      isChecked={config.automation.autoAssign}
+                    </p>
+                    <input
+                      type="checkbox"
+                      checked={config.automation.autoAssign}
                       onChange={() => toggleAutomation('autoAssign')}
-                      colorScheme="green"
+                      className="w-10 h-6 bg-gray-200 rounded-full relative cursor-pointer appearance-none checked:bg-green-600"
                     />
-                  </VStack>
-                </CardBody>
+                  </div>
+                </CardContent>
               </Card>
 
-              <Card bg={cardBg}>
-                <CardBody>
-                  <VStack spacing={3} align="start">
-                    <HStack>
-                      <Icon as={FiActivity} color="blue.500" />
-                      <Text fontWeight="semibold">Behavioral Trigger</Text>
-                    </HStack>
-                    <Text fontSize="sm">
+              <Card className="bg-gray-50 dark:bg-gray-800">
+                <CardContent className="pt-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Activity className="h-4 w-4 text-blue-500" />
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">Behavioral Trigger</p>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       Trigger follow-up sequences based on engagement patterns
-                    </Text>
-                    <Switch
-                      isChecked={config.automation.autoFollowup}
+                    </p>
+                    <input
+                      type="checkbox"
+                      checked={config.automation.autoFollowup}
                       onChange={() => toggleAutomation('autoFollowup')}
-                      colorScheme="blue"
+                      className="w-10 h-6 bg-gray-200 rounded-full relative cursor-pointer appearance-none checked:bg-blue-600"
                     />
-                  </VStack>
-                </CardBody>
+                  </div>
+                </CardContent>
               </Card>
-            </SimpleGrid>
-          </VStack>
-        </CardBody>
+            </div>
+          </div>
+        </CardContent>
       </Card>
-    </VStack>
+    </div>
   );
 };
 

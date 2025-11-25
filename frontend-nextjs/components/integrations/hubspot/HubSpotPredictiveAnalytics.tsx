@@ -1,59 +1,23 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  Card,
-  CardBody,
-  Button,
-  Select,
-  FormControl,
-  FormLabel,
-  FormHelperText,
-  Switch,
-  Badge,
-  Progress,
-  useColorModeValue,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  SimpleGrid,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  Icon,
-  Flex,
-  Divider,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
-  Tooltip,
-  Slider,
-  SliderTrack,
-  SliderFilledTrack,
-  SliderThumb,
-} from '@chakra-ui/react';
-import {
-  FiTrendingUp,
-  FiTrendingDown,
-  FiTarget,
-  FiDollarSign,
-  FiUsers,
-  FiCalendar,
-  FiBarChart2,
-  FiClock,
-  FiAlertTriangle,
-  FiCheckCircle,
-} from 'react-icons/fi';
+  TrendingUp,
+  TrendingDown,
+  Target,
+  DollarSign,
+  Users,
+  Calendar,
+  BarChart2,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  Info,
+} from 'lucide-react';
+import { Card, CardContent } from '../../ui/card';
+import { Button } from '../../ui/button';
+import { Badge } from '../../ui/badge';
+import { Progress } from '../../ui/progress';
+import { Alert, AlertDescription, AlertTitle } from '../../ui/alert';
+import { Slider } from '../../ui/slider';
 
 export interface PredictiveModel {
   id: string;
@@ -112,10 +76,6 @@ const HubSpotPredictiveAnalytics: React.FC<HubSpotPredictiveAnalyticsProps> = ({
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [confidenceThreshold, setConfidenceThreshold] = useState(80);
 
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const cardBg = useColorModeValue('gray.50', 'gray.700');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-
   const activeModels = useMemo(() =>
     models.filter(model => model.status === 'active'),
     [models]
@@ -128,27 +88,31 @@ const HubSpotPredictiveAnalytics: React.FC<HubSpotPredictiveAnalyticsProps> = ({
 
   const getModelStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'green';
-      case 'training': return 'yellow';
-      case 'needs_attention': return 'red';
-      default: return 'gray';
+      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'training': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'needs_attention': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
     }
   };
 
   const getModelStatusIcon = (status: string) => {
     switch (status) {
-      case 'active': return FiCheckCircle;
-      case 'training': return FiClock;
-      case 'needs_attention': return FiAlertTriangle;
-      default: return FiAlertTriangle;
+      case 'active': return CheckCircle;
+      case 'training': return Clock;
+      case 'needs_attention': return AlertTriangle;
+      default: return AlertTriangle;
     }
   };
 
-  const getPredictionColor = (prediction: number, modelType: string) => {
+  const getPredictionColorScheme = (prediction: number, modelType: string) => {
     if (modelType === 'churn') {
-      return prediction > 0.7 ? 'red' : prediction > 0.3 ? 'orange' : 'green';
+      return prediction > 0.7 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
+        prediction > 0.3 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
+          'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
     }
-    return prediction > 0.7 ? 'green' : prediction > 0.3 ? 'orange' : 'red';
+    return prediction > 0.7 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+      prediction > 0.3 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
+        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
   };
 
   const calculateForecastAccuracy = useCallback(() => {
@@ -167,50 +131,51 @@ const HubSpotPredictiveAnalytics: React.FC<HubSpotPredictiveAnalyticsProps> = ({
   }, [forecast]);
 
   const forecastAccuracy = calculateForecastAccuracy();
+  const StatusIcon = (status: string) => getModelStatusIcon(status);
 
   return (
-    <VStack spacing={6} align="stretch">
+    <div className="space-y-6">
       {/* Header */}
-      <VStack align="start" spacing={2}>
-        <Heading size="lg">Predictive Analytics</Heading>
-        <Text color="gray.600">
+      <div className="space-y-2">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Predictive Analytics</h2>
+        <p className="text-gray-600 dark:text-gray-400">
           AI-powered predictions for conversions, churn, and customer lifetime value
-        </Text>
-      </VStack>
+        </p>
+      </div>
 
       {/* Model Selection & Controls */}
-      <Card bg={bgColor}>
-        <CardBody>
-          <VStack spacing={4} align="stretch">
-            <HStack justify="space-between">
-              <Heading size="md">Analytics Configuration</Heading>
-              <Button colorScheme="blue" size="sm">
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Analytics Configuration</h3>
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                 Train New Model
               </Button>
-            </HStack>
+            </div>
 
-            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-              <FormControl>
-                <FormLabel>Prediction Model</FormLabel>
-                <Select
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Prediction Model</label>
+                <select
+                  className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  placeholder="Select a model"
                 >
+                  <option value="">Select a model</option>
                   {activeModels.map(model => (
                     <option key={model.id} value={model.id}>
                       {model.name} ({model.type})
                     </option>
                   ))}
-                </Select>
-                <FormHelperText>
-                  Choose which predictive model to use
-                </FormHelperText>
-              </FormControl>
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Choose which predictive model to use</p>
+              </div>
 
-              <FormControl>
-                <FormLabel>Timeframe</FormLabel>
-                <Select
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Timeframe</label>
+                <select
+                  className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                   value={timeframe}
                   onChange={(e) => setTimeframe(e.target.value as any)}
                 >
@@ -218,317 +183,277 @@ const HubSpotPredictiveAnalytics: React.FC<HubSpotPredictiveAnalyticsProps> = ({
                   <option value="30d">30 Days</option>
                   <option value="90d">90 Days</option>
                   <option value="1y">1 Year</option>
-                </Select>
-                <FormHelperText>
-                  Prediction timeframe
-                </FormHelperText>
-              </FormControl>
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Prediction timeframe</p>
+              </div>
 
-              <FormControl>
-                <FormLabel>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   Confidence Threshold: {confidenceThreshold}%
-                </FormLabel>
+                </label>
                 <Slider
                   value={confidenceThreshold}
-                  onChange={setConfidenceThreshold}
+                  onValueChange={setConfidenceThreshold}
                   min={50}
                   max={95}
                   step={5}
-                >
-                  <SliderTrack>
-                    <SliderFilledTrack />
-                  </SliderTrack>
-                  <SliderThumb />
-                </Slider>
-                <FormHelperText>
-                  Minimum confidence for predictions
-                </FormHelperText>
-              </FormControl>
-            </SimpleGrid>
-          </VStack>
-        </CardBody>
+                  className="mt-2"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">Minimum confidence for predictions</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Model Performance */}
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Active Models */}
-        <Card bg={bgColor}>
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <Heading size="md">Active Models</Heading>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text gray-900 dark:text-gray-100">Active Models</h3>
               {models.length === 0 ? (
-                <Alert status="info">
-                  <AlertIcon />
-                  <Box>
-                    <AlertTitle>No Models Available</AlertTitle>
-                    <AlertDescription>
-                      Train your first predictive model to get started.
-                    </AlertDescription>
-                  </Box>
+                <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>No Models Available</AlertTitle>
+                  <AlertDescription>
+                    Train your first predictive model to get started.
+                  </AlertDescription>
                 </Alert>
               ) : (
-                models.map(model => (
-                  <Card key={model.id} bg={cardBg}>
-                    <CardBody>
-                      <VStack align="stretch" spacing={3}>
-                        <HStack justify="space-between">
-                          <VStack align="start" spacing={1}>
-                            <HStack>
-                              <Text fontWeight="semibold">{model.name}</Text>
-                              <Badge colorScheme={getModelStatusColor(model.status)}>
-                                {model.status.replace('_', ' ')}
-                              </Badge>
-                            </HStack>
-                            <Text fontSize="sm" color="gray.600" textTransform="capitalize">
-                              {model.type.replace('_', ' ')} prediction
-                            </Text>
-                          </VStack>
-                          <Icon as={getModelStatusIcon(model.status)}
-                                color={`${getModelStatusColor(model.status)}.500`} />
-                        </HStack>
+                models.map(model => {
+                  const Icon = getModelStatusIcon(model.status);
+                  return (
+                    <Card key={model.id} className="bg-gray-50 dark:bg-gray-800">
+                      <CardContent className="pt-6">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <p className="font-semibold text-gray-900 dark:text-gray-100">{model.name}</p>
+                                <Badge className={getModelStatusColor(model.status)}>
+                                  {model.status.replace('_', ' ')}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
+                                {model.type.replace('_', ' ')} prediction
+                              </p>
+                            </div>
+                            <Icon className="h-5 w-5 text-current" />
+                          </div>
 
-                        <VStack align="stretch" spacing={2}>
-                          <HStack justify="space-between">
-                            <Text fontSize="sm">Accuracy</Text>
-                            <Text fontSize="sm" fontWeight="medium">
-                              {model.accuracy}%
-                            </Text>
-                          </HStack>
-                          <Progress value={model.accuracy} size="sm" colorScheme="blue" />
-                        </VStack>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <p className="text-sm text-gray-900 dark:text-gray-100">Accuracy</p>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{model.accuracy}%</p>
+                            </div>
+                            <Progress value={model.accuracy} className="h-2" />
+                          </div>
 
-                        <SimpleGrid columns={2} spacing={2}>
-                          <VStack align="start" spacing={0}>
-                            <Text fontSize="xs" color="gray.600">Precision</Text>
-                            <Text fontSize="sm" fontWeight="medium">
-                              {(model.performance.precision * 100).toFixed(1)}%
-                            </Text>
-                          </VStack>
-                          <VStack align="start" spacing={0}>
-                            <Text fontSize="xs" color="gray.600">Recall</Text>
-                            <Text fontSize="sm" fontWeight="medium">
-                              {(model.performance.recall * 100).toFixed(1)}%
-                            </Text>
-                          </VStack>
-                        </SimpleGrid>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-0">
+                              <p className="text-xs text-gray-600 dark:text-gray-400">Precision</p>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {(model.performance.precision * 100).toFixed(1)}%
+                              </p>
+                            </div>
+                            <div className="space-y-0">
+                              <p className="text-xs text-gray-600 dark:text-gray-400">Recall</p>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {(model.performance.recall * 100).toFixed(1)}%
+                              </p>
+                            </div>
+                          </div>
 
-                        <HStack justify="end">
-                          <Button size="sm" variant="outline" colorScheme="blue">
-                            Retrain
-                          </Button>
-                          <Button size="sm" colorScheme="blue">
-                            Generate Predictions
-                          </Button>
-                        </HStack>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-                ))
+                          <div className="flex justify-end space-x-2">
+                            <Button size="sm" variant="outline">Retrain</Button>
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">Generate Predict ions</Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
               )}
-            </VStack>
-          </CardBody>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Forecast Accuracy */}
-        <Card bg={bgColor}>
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <Heading size="md">Forecast Performance</Heading>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Forecast Performance</h3>
 
-              <SimpleGrid columns={2} spacing={4}>
-                <Stat>
-                  <StatLabel>Forecast Accuracy</StatLabel>
-                  <StatNumber>{forecastAccuracy.toFixed(1)}%</StatNumber>
-                  <StatHelpText>
-                    <StatArrow type={forecastAccuracy > 85 ? 'increase' : 'decrease'} />
-                    Historical accuracy
-                  </StatHelpText>
-                </Stat>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Forecast Accuracy</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{forecastAccuracy.toFixed(1)}%</p>
+                  <div className="flex items-center text-xs">
+                    {forecastAccuracy > 85 ? (
+                      <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
+                    ) : (
+                      <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
+                    )}
+                    <span className="text-gray-600 dark:text-gray-400">Historical accuracy</span>
+                  </div>
+                </div>
 
-                <Stat>
-                  <StatLabel>Active Predictions</StatLabel>
-                  <StatNumber>{highConfidencePredictions.length}</StatNumber>
-                  <StatHelpText>
-                    High confidence results
-                  </StatHelpText>
-                </Stat>
-              </SimpleGrid>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Predictions</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{highConfidencePredictions.length}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">High confidence results</p>
+                </div>
+              </div>
 
-              <Divider />
+              <hr className="border-gray-200 dark:border-gray-700" />
 
-              <VStack align="stretch" spacing={3}>
-                <Text fontWeight="semibold">Model Performance Metrics</Text>
-                {selectedModel && (
-                  (() => {
-                    const model = models.find(m => m.id === selectedModel);
-                    if (!model) return null;
+              <div className="space-y-3">
+                <p className="font-semibold text-gray-900 dark:text-gray-100">Model Performance Metrics</p>
+                {selectedModel && (() => {
+                  const model = models.find(m => m.id === selectedModel);
+                  if (!model) return null;
 
-                    return (
-                      <SimpleGrid columns={2} spacing={4}>
-                        <VStack align="start" spacing={1}>
-                          <Text fontSize="sm" color="gray.600">F1 Score</Text>
-                          <Progress
-                            value={model.performance.f1Score * 100}
-                            size="sm"
-                            colorScheme="green"
-                            width="full"
-                          />
-                          <Text fontSize="sm">{(model.performance.f1Score * 100).toFixed(1)}%</Text>
-                        </VStack>
-                        <VStack align="start" spacing={1}>
-                          <Text fontSize="sm" color="gray.600">AUC Score</Text>
-                          <Progress
-                            value={model.performance.auc * 100}
-                            size="sm"
-                            colorScheme="purple"
-                            width="full"
-                          />
-                          <Text fontSize="sm">{(model.performance.auc * 100).toFixed(1)}%</Text>
-                        </VStack>
-                      </SimpleGrid>
-                    );
-                  })()
-                )}
-              </VStack>
+                  return (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">F1 Score</p>
+                        <Progress value={model.performance.f1Score * 100} className="h-2" />
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{(model.performance.f1Score * 100).toFixed(1)}%</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">AUC Score</p>
+                        <Progress value={model.performance.auc * 100} className="h-2" />
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{(model.performance.auc * 100).toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
 
-              <Divider />
+              <hr className="border-gray-200 dark:border-gray-700" />
 
-              <VStack align="stretch" spacing={3}>
-                <Text fontWeight="semibold">Key Insights</Text>
-                <Alert status="info" size="sm">
-                  <AlertIcon />
-                  <Box>
-                    <AlertTitle fontSize="sm">Conversion Trends</AlertTitle>
-                    <AlertDescription fontSize="xs">
-                      High-value leads are 3.2x more likely to convert when contacted within 24 hours
-                    </AlertDescription>
-                  </Box>
+              <div className="space-y-3">
+                <p className="font-semibold text-gray-900 dark:text-gray-100">Key Insights</p>
+                <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle className="text-sm">Conversion Trends</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    High-value leads are 3.2x more likely to convert when contacted within 24 hours
+                  </AlertDescription>
                 </Alert>
-                <Alert status="warning" size="sm">
-                  <AlertIcon />
-                  <Box>
-                    <AlertTitle fontSize="sm">Churn Risk</AlertTitle>
-                    <AlertDescription fontSize="xs">
-                      15% of customers show elevated churn risk in next 30 days
-                    </AlertDescription>
-                  </Box>
+                <Alert variant="default" className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle className="text-sm">Churn Risk</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    15% of customers show elevated churn risk in next 30 days
+                  </AlertDescription>
                 </Alert>
-              </VStack>
-            </VStack>
-          </CardBody>
+              </div>
+            </div>
+          </CardContent>
         </Card>
-      </SimpleGrid>
+      </div>
 
       {/* Predictions Table */}
       {predictions.length > 0 && (
-        <Card bg={bgColor}>
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <HStack justify="space-between">
-                <Heading size="md">Recent Predictions</Heading>
-                <Badge colorScheme="blue">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Predictions</h3>
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
                   {highConfidencePredictions.length} High Confidence
                 </Badge>
-              </HStack>
+              </div>
 
-              <TableContainer>
-                <Table variant="simple" size="sm">
-                  <Thead>
-                    <Tr>
-                      <Th>Contact</Th>
-                      <Th>Prediction</Th>
-                      <Th>Confidence</Th>
-                      <Th>Key Factors</Th>
-                      <Th>Recommendation</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100">Contact</th>
+                      <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100">Prediction</th>
+                      <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100">Confidence</th>
+                      <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100">Key Factors</th>
+                      <th className="text-left p-2 font-medium text-gray-900 dark:text-gray-100">Recommendation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {predictions.slice(0, 10).map((prediction, index) => (
-                      <Tr key={index}>
-                        <Td>
-                          <Text fontWeight="medium">Contact #{prediction.contactId.slice(-6)}</Text>
-                        </Td>
-                        <Td>
-                          <Badge
-                            colorScheme={getPredictionColor(prediction.prediction, 'conversion')}
-                          >
+                      <tr key={index} className="border-b border-gray-100 dark:border-gray-800">
+                        <td className="p-2">
+                          <p className="font-medium text-gray-900 dark:text-gray-100">Contact #{prediction.contactId.slice(-6)}</p>
+                        </td>
+                        <td className="p-2">
+                          <Badge className={getPredictionColorScheme(prediction.prediction, 'conversion')}>
                             {(prediction.prediction * 100).toFixed(1)}%
                           </Badge>
-                        </Td>
-                        <Td>
-                          <HStack>
-                            <Progress
-                              value={prediction.confidence}
-                              size="sm"
-                              width="60px"
-                              colorScheme={prediction.confidence >= 80 ? 'green' : 'yellow'}
-                            />
-                            <Text>{prediction.confidence}%</Text>
-                          </HStack>
-                        </Td>
-                        <Td>
-                          <Tooltip label={prediction.factors.map(f => `${f.feature}: ${f.value}`).join(', ')}>
-                            <Text fontSize="sm" noOfLines={1}>
-                              {prediction.factors.slice(0, 2).map(f => f.feature).join(', ')}
-                            </Text>
-                          </Tooltip>
-                        </Td>
-                        <Td>
-                          <Text fontSize="sm" noOfLines={2}>
+                        </td>
+                        <td className="p-2">
+                          <div className="flex items-center space-x-2">
+                            <Progress value={prediction.confidence} className="h-2 w-16" />
+                            <span className="text-gray-900 dark:text-gray-100">{prediction.confidence}%</span>
+                          </div>
+                        </td>
+                        <td className="p-2">
+                          <p className="text-gray-600 dark:text-gray-400 truncate max-w-[200px]" title={prediction.factors.map(f => `${f.feature}: ${f.value}`).join(', ')}>
+                            {prediction.factors.slice(0, 2).map(f => f.feature).join(', ')}
+                          </p>
+                        </td>
+                        <td className="p-2">
+                          <p className="text-gray-600 dark:text-gray-400 line-clamp-2">
                             {prediction.recommendation}
-                          </Text>
-                        </Td>
-                      </Tr>
+                          </p>
+                        </td>
+                      </tr>
                     ))}
-                  </Tbody>
-                </Table>
-              </TableContainer>
-            </VStack>
-          </CardBody>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       )}
 
       {/* Forecast Visualization */}
       {forecast.length > 0 && (
-        <Card bg={bgColor}>
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <Heading size="md">Revenue Forecast</Heading>
-              <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Revenue Forecast</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {forecast.slice(-4).map((period, index) => (
-                  <Card key={index} bg={cardBg}>
-                    <CardBody>
-                      <VStack spacing={2} align="center">
-                        <Text fontSize="sm" fontWeight="medium" color="gray.600">
-                          {period.period}
-                        </Text>
-                        <Text fontSize="xl" fontWeight="bold" color="blue.500">
-                          ${period.predicted.toLocaleString()}
-                        </Text>
+                  <Card key={index} className="bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="pt-6">
+                      <div className="flex flex-col items-center space-y-2">
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{period.period}</p>
+                        <p className="text-xl font-bold text-blue-500">${period.predicted.toLocaleString()}</p>
                         {period.actual && (
-                          <HStack>
-                            <Icon
-                              as={period.actual >= period.predicted ? FiTrendingUp : FiTrendingDown}
-                              color={period.actual >= period.predicted ? 'green.500' : 'red.500'}
-                            />
-                            <Text fontSize="sm" color="gray.600">
+                          <div className="flex items-center space-x-1">
+                            {period.actual >= period.predicted ? (
+                              <TrendingUp className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <TrendingDown className="h-4 w-4 text-red-500" />
+                            )}
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
                               Actual: ${period.actual.toLocaleString()}
-                            </Text>
-                          </HStack>
+                            </p>
+                          </div>
                         )}
-                        <Badge colorScheme={period.confidence >= 80 ? 'green' : 'yellow'}>
+                        <Badge className={period.confidence >= 80 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'}>
                           {period.confidence}% confidence
                         </Badge>
-                      </VStack>
-                    </CardBody>
+                      </div>
+                    </CardContent>
                   </Card>
                 ))}
-              </SimpleGrid>
-            </VStack>
-          </CardBody>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       )}
-    </VStack>
+    </div>
   );
 };
 
