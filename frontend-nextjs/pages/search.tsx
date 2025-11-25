@@ -1,30 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Box,
-  Input,
-  Button,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  Card,
-  CardBody,
-  Stack,
-  Badge,
-  Flex,
-  Spinner,
-  Alert,
-  AlertIcon,
-  Select,
-  Checkbox,
-  CheckboxGroup,
-  RangeSlider,
-  RangeSliderTrack,
-  RangeSliderFilledTrack,
-  RangeSliderThumb,
-  Tooltip,
-} from "@chakra-ui/react";
-import { SearchIcon, ChevronDownIcon, StarIcon } from "@chakra-ui/icons";
+import { Search, ChevronDown, Star } from "lucide-react";
+import { Card, CardContent } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import { Spinner } from "../components/ui/spinner";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Checkbox } from "../components/ui/checkbox";
+import { Slider } from "../components/ui/slider";
 
 interface SearchResult {
   id: string;
@@ -148,17 +131,33 @@ const SearchPage: React.FC = () => {
       const data = await response.json();
 
       if (data.success) {
-        setResults(data.results || []);
+        setResults(data.results);
+        setShowSuggestions(false);
       } else {
-        setError(data.error || "Search failed");
-        setResults([]);
+        setError(data.message || "Search failed");
       }
     } catch (err) {
-      setError("Failed to perform search");
+      setError("Failed to perform search. Please try again.");
       console.error("Search error:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (filterName: string, value: any) => {
+    setFilters((prev) => ({
+      ...prev,
+      [filterName]: value,
+    }));
+  };
+
+  const handleDocTypeToggle = (type: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      doc_type: prev.doc_type.includes(type)
+        ? prev.doc_type.filter((t) => t !== type)
+        : [...prev.doc_type, type],
+    }));
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -167,43 +166,38 @@ const SearchPage: React.FC = () => {
     handleSearch(suggestion);
   };
 
-  const handleFilterChange = (key: keyof SearchFilters, value: any) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
   const formatScore = (score: number) => {
-    return (score * 100).toFixed(1) + "%";
+    return (score * 100).toFixed(0) + "%";
   };
 
   const getDocTypeColor = (docType: string) => {
-    const colors: { [key: string]: string } = {
-      document: "blue",
-      meeting: "green",
-      note: "purple",
-      email: "orange",
-      pdf: "red",
+    const colors: Record<string, string> = {
+      document: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+      meeting: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+      note: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+      email: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
+      pdf: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     };
-    return colors[docType] || "gray";
+    return colors[docType] || "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
   };
 
   return (
-    <Box maxW="1200px" mx="auto" p={6}>
-      {/* Header */}
-      <VStack spacing={6} align="stretch">
-        <Heading size="xl" color="blue.600">
-          Advanced Search
-        </Heading>
-        <Text fontSize="lg" color="gray.600">
-          Search across all your documents, meetings, and notes with AI-powered
-          hybrid search
-        </Text>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            AI-Powered Search
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Search across all your documents, meetings, and notes with AI-powered
+            hybrid search
+          </p>
+        </div>
 
         {/* Search Bar */}
-        <Box position="relative">
-          <HStack spacing={4}>
+        <div className="relative">
+          <div className="flex gap-4">
             <Input
               placeholder="Search across documents, meetings, notes..."
               value={query}
@@ -212,233 +206,221 @@ const SearchPage: React.FC = () => {
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
-              size="lg"
-              borderRadius="lg"
-              boxShadow="md"
+              className="text-lg shadow-md"
             />
-            <Select
+            <select
+              className="w-52 h-12 rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={searchType}
               onChange={(e) => setSearchType(e.target.value as any)}
-              width="200px"
             >
               <option value="hybrid">Hybrid Search</option>
               <option value="semantic">Semantic Search</option>
               <option value="keyword">Keyword Search</option>
-            </Select>
+            </select>
             <Button
-              leftIcon={<SearchIcon />}
-              colorScheme="blue"
-              size="lg"
               onClick={() => handleSearch()}
-              isLoading={loading}
-              loadingText="Searching..."
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 px-8"
+              size="lg"
             >
-              Search
+              {loading ? (
+                <>
+                  <Spinner className="mr-2 h-4 w-4" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="mr-2 h-4 w-4" />
+                  Search
+                </>
+              )}
             </Button>
-          </HStack>
+          </div>
 
           {/* Search Suggestions */}
           {showSuggestions &&
             (suggestions.length > 0 || query.length === 0) && (
-              <Card
-                position="absolute"
-                top="100%"
-                left={0}
-                right={0}
-                zIndex={10}
-                mt={2}
-                boxShadow="xl"
-              >
-                <CardBody>
-                  <VStack align="stretch" spacing={2}>
+              <Card className="absolute top-full left-0 right-0 z-10 mt-2 shadow-xl">
+                <CardContent className="pt-4">
+                  <div className="space-y-2">
                     {query.length === 0 && (
                       <>
-                        <Text fontWeight="bold" color="gray.600">
+                        <p className="font-bold text-gray-600 dark:text-gray-400 text-sm">
                           Popular Searches
-                        </Text>
+                        </p>
                         {popularSearches.map((search, index) => (
-                          <Text
+                          <p
                             key={index}
-                            p={2}
-                            borderRadius="md"
-                            _hover={{ bg: "gray.100", cursor: "pointer" }}
+                            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
                             onClick={() => handleSuggestionClick(search)}
                           >
                             {search}
-                          </Text>
+                          </p>
                         ))}
                       </>
                     )}
                     {suggestions.map((suggestion, index) => (
-                      <Text
+                      <p
                         key={index}
-                        p={2}
-                        borderRadius="md"
-                        _hover={{ bg: "gray.100", cursor: "pointer" }}
+                        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
                         onClick={() => handleSuggestionClick(suggestion)}
                       >
                         {suggestion}
-                      </Text>
+                      </p>
                     ))}
-                  </VStack>
-                </CardBody>
+                  </div>
+                </CardContent>
               </Card>
             )}
-        </Box>
+        </div>
 
         {/* Filters */}
         <Card>
-          <CardBody>
-            <VStack align="stretch" spacing={4}>
-              <Heading size="md">Filters</Heading>
-              <HStack spacing={6} wrap="wrap">
-                <VStack align="start" spacing={2}>
-                  <Text fontWeight="medium">Document Type</Text>
-                  <CheckboxGroup
-                    value={filters.doc_type}
-                    onChange={(value) => handleFilterChange("doc_type", value)}
-                  >
-                    <Stack spacing={2}>
-                      {["document", "meeting", "note", "email", "pdf"].map(
-                        (type) => (
-                          <Checkbox key={type} value={type}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </Checkbox>
-                        ),
-                      )}
-                    </Stack>
-                  </CheckboxGroup>
-                </VStack>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters</h3>
+              <div className="flex gap-6 flex-wrap">
+                <div className="space-y-2">
+                  <p className="font-medium text-gray-900 dark:text-gray-100">Document Type</p>
+                  <div className="space-y-2">
+                    {["document", "meeting", "note", "email", "pdf"].map((type) => (
+                      <div key={type} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`type-${type}`}
+                          checked={filters.doc_type.includes(type)}
+                          onCheckedChange={() => handleDocTypeToggle(type)}
+                        />
+                        <label
+                          htmlFor={`type-${type}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer capitalize text-gray-900 dark:text-gray-100"
+                        >
+                          {type}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                <VStack align="start" spacing={2}>
-                  <Text fontWeight="medium">Minimum Relevance</Text>
-                  <RangeSlider
-                    value={[filters.min_score * 100]}
-                    onChange={([value]) =>
+                <div className="space-y-2">
+                  <p className="font-medium text-gray-900 dark:text-gray-100">Minimum Relevance</p>
+                  <Slider
+                    value={filters.min_score * 100}
+                    onValueChange={(value) =>
                       handleFilterChange("min_score", value / 100)
                     }
                     min={0}
                     max={100}
                     step={5}
-                    width="200px"
-                  >
-                    <RangeSliderTrack>
-                      <RangeSliderFilledTrack />
-                    </RangeSliderTrack>
-                    <Tooltip label={`${(filters.min_score * 100).toFixed(0)}%`}>
-                      <RangeSliderThumb boxSize={6} index={0} />
-                    </Tooltip>
-                  </RangeSlider>
-                  <Text fontSize="sm" color="gray.600">
+                    className="w-52"
+                  />
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     {formatScore(filters.min_score)} and above
-                  </Text>
-                </VStack>
-              </HStack>
-            </VStack>
-          </CardBody>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Error Display */}
         {error && (
-          <Alert status="error" borderRadius="lg">
-            <AlertIcon />
-            {error}
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {/* Results */}
-        <Box>
+        <div>
           {loading ? (
-            <Flex justify="center" align="center" height="200px">
-              <Spinner size="xl" color="blue.500" />
-            </Flex>
+            <div className="flex justify-center items-center h-52">
+              <Spinner className="h-12 w-12 text-blue-500" />
+            </div>
           ) : results.length > 0 ? (
-            <VStack spacing={4} align="stretch">
-              <Flex justify="space-between" align="center">
-                <Text color="gray.600">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <p className="text-gray-600 dark:text-gray-400">
                   Found {results.length} results for &quot;{query}&quot;
-                </Text>
-                <Button variant="outline" size="sm" leftIcon={<ChevronDownIcon />}>
+                </p>
+                <Button variant="outline" size="sm">
+                  <ChevronDown className="mr-2 h-4 w-4" />
                   Export Results
                 </Button>
-              </Flex>
+              </div>
 
               {results.map((result) => (
                 <Card
                   key={result.id}
-                  boxShadow="md"
-                  _hover={{ boxShadow: "lg" }}
-                  transition="all 0.2s"
+                  className="shadow-md hover:shadow-lg transition-shadow"
                 >
-                  <CardBody>
-                    <VStack align="start" spacing={3}>
-                      <Flex justify="space-between" width="100%" align="start">
-                        <Heading size="md" color="blue.700">
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-400">
                           {result.title}
-                        </Heading>
-                        <Badge colorScheme={getDocTypeColor(result.doc_type)}>
+                        </h3>
+                        <Badge className={getDocTypeColor(result.doc_type)}>
                           {result.doc_type}
                         </Badge>
-                      </Flex>
+                      </div>
 
-                      <Text color="gray.700" noOfLines={3}>
+                      <p className="text-gray-700 dark:text-gray-300 line-clamp-3">
                         {result.content}
-                      </Text>
+                      </p>
 
-                      <Flex gap={4} wrap="wrap">
-                        <HStack>
-                          <StarIcon color="yellow.500" />
-                          <Text fontSize="sm" color="gray.600">
+                      <div className="flex gap-4 flex-wrap">
+                        <div className="flex items-center space-x-1">
+                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
                             Relevance:{" "}
                             {formatScore(
                               result.combined_score || result.similarity_score,
                             )}
-                          </Text>
-                        </HStack>
+                          </p>
+                        </div>
 
                         {result.metadata.author && (
-                          <Text fontSize="sm" color="gray.600">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
                             Author: {result.metadata.author}
-                          </Text>
+                          </p>
                         )}
 
-                        <Text fontSize="sm" color="gray.600">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
                           Created:{" "}
                           {new Date(
                             result.metadata.created_at,
                           ).toLocaleDateString()}
-                        </Text>
-                      </Flex>
+                        </p>
+                      </div>
 
                       {result.metadata.tags &&
                         result.metadata.tags.length > 0 && (
-                          <Flex gap={2} wrap="wrap">
+                          <div className="flex gap-2 flex-wrap">
                             {result.metadata.tags.map((tag, index) => (
                               <Badge
                                 key={index}
-                                variant="subtle"
-                                colorScheme="gray"
+                                variant="secondary"
+                                className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
                               >
                                 {tag}
                               </Badge>
                             ))}
-                          </Flex>
+                          </div>
                         )}
-                    </VStack>
-                  </CardBody>
+                    </div>
+                  </CardContent>
                 </Card>
               ))}
-            </VStack>
+            </div>
           ) : query && !loading ? (
-            <Flex justify="center" align="center" height="200px">
-              <Text color="gray.500" fontSize="lg">
+            <div className="flex justify-center items-center h-52">
+              <p className="text-gray-500 text-lg">
                 No results found for &quot;{query}&quot;
-              </Text>
-            </Flex>
+              </p>
+            </div>
           ) : null}
-        </Box>
-      </VStack>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 };
 
