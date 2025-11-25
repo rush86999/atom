@@ -178,14 +178,17 @@ The following integrations need credentials. Detailed setup instructions are pro
   7. Create an application and copy **API ID** and **API Hash**
 
 #### Zoom
-- **Environment Variables:** `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_REDIRECT_URI`
+- **Environment Variables:** `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/zoom/callback`
 - **Setup Instructions:**
   1. Go to [Zoom App Marketplace](https://marketplace.zoom.us/)
   2. Click "Develop" → "Build App"
   3. Choose "OAuth" app type (User-managed app)
   4. Fill in app information
   5. Copy **Client ID** and **Client Secret**
-  6. Add redirect URI: `http://localhost:3000/api/auth/callback/zoom` (or your production URL)
+  6. Add redirect URI: 
+     - Local: `http://localhost:3000/api/integrations/zoom/callback`
+     - Production: `https://yourdomain.com/api/integrations/zoom/callback`
   7. Add required scopes: `meeting:write`, `meeting:read`, `user:read`
   8. Activate the app
 
