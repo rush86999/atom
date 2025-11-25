@@ -337,15 +337,36 @@ The following integrations need credentials. Detailed setup instructions are pro
 
 #### QuickBooks
 - **Environment Variables:** `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/auth/callback/quickbooks`
 - **Setup Instructions:**
   1. Go to [Intuit Developer Portal](https://developer.intuit.com/)
-  2. Create an account or sign in
-  3. Click "Create an app"
-  4. Select "QuickBooks Online and Payments"
-  5. Navigate to "Keys & credentials"
-  6. Copy **Client ID** and **Client Secret**
-  7. Add redirect URI: `http://localhost:3000/api/auth/callback/quickbooks`
-  8. Select required scopes
+  2. Create an account or sign in with your Intuit ID
+  3. Click "My Apps" → **"Create an app"**
+  4. Select **"QuickBooks Online and Payments"** as the platform
+  5. Fill in app information:
+     - **App name**: Your app name (e.g., "ATOM Integration")
+     - **App description**: Brief description of your integration
+  6. Navigate to **"Keys & credentials"** tab (or "Development" tab)
+  7. Copy your **Client ID** and **Client Secret**
+     - Note: Use "Development" keys for testing, "Production" keys for live use
+  8. Under **"Redirect URIs"**, add:
+     - For local development: `http://localhost:3000/api/auth/callback/quickbooks`
+     - For production: `https://yourdomain.com/api/auth/callback/quickbooks`
+  9. **Required Scopes** (automatically included with QuickBooks Online API):
+     - `com.intuit.quickbooks.accounting` - Access to accounting data
+     - `com.intuit.quickbooks.payment` - Access to payment data (if using payments)
+  10. Set environment variables:
+      ```
+      QUICKBOOKS_CLIENT_ID=your_client_id
+      QUICKBOOKS_CLIENT_SECRET=your_client_secret
+      ```
+  11. **Important Notes:**
+      - QuickBooks uses OAuth 2.0 with OpenID Connect
+      - Access tokens expire after 1 hour; refresh tokens last 100 days
+      - You must request a new refresh token before the 100-day expiration
+      - Test with QuickBooks Sandbox companies before production
+      - Production apps require Intuit approval (app review process)
+
 
 #### Xero
 - **Environment Variables:** `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`
