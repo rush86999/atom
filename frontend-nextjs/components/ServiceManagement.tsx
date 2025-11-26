@@ -75,7 +75,6 @@ import {
   WarningTwoIcon,
   InfoIcon,
   StarIcon,
-  TimeIcon,
 } from "@chakra-ui/icons";
 
 interface Service {
@@ -813,7 +812,7 @@ const ServiceManagement: React.FC = () => {
                     <CardFooter>
                       <HStack spacing={2} w="full">
                         {service.status === "connected" ||
-                        service.status === "active" ? (
+                          service.status === "active" ? (
                           <>
                             <Button
                               size="sm"

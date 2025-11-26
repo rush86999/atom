@@ -16,6 +16,7 @@ from .credential_manager import CredentialManager
 from ..providers.glm_provider import GLMProvider
 from ..providers.anthropic_provider import AnthropicProvider
 from ..providers.deepseek_provider import DeepSeekProvider
+from ..providers.google_provider import GoogleProvider
 from ..providers.base_provider import ValidationRequest, LLMResponse
 from .real_world_usage_validator import RealWorldUsageValidator
 from .user_expectation_validator import UserExpectationValidator
@@ -79,7 +80,7 @@ class IndependentAIValidator:
             'glm': 0.0,
             'anthropic': 0.0,
             'deepseek': 1.0,
-            'google': 0.0
+            'google': 1.0
         }
 
     async def initialize(self) -> bool:
@@ -139,8 +140,16 @@ class IndependentAIValidator:
             )
             logger.info("DeepSeek provider initialized")
 
-        # TODO: Add Google provider for 4-way consensus
-        # 3-way consensus validation now active!
+        # Google Provider
+        google_cred = self.credential_manager.get_credential('google')
+        if google_cred:
+            self.providers['google'] = GoogleProvider(
+                google_cred.key,
+                google_cred.weight
+            )
+            logger.info("Google provider initialized")
+        
+        # 4-way consensus validation now active!
 
     async def _load_claims_database(self):
         """Load marketing claims database"""
