@@ -64,6 +64,12 @@ async def get_access_token(user_id: Optional[str] = Query(None, description="Use
     if user_id and user_id in _token_store:
         return _token_store[user_id]
         
+    # Check environment variable for production/local dev
+    import os
+    env_token = os.getenv("ASANA_ACCESS_TOKEN")
+    if env_token:
+        return env_token
+
     # Return a placeholder that would be replaced by real token
     # This allows the validator to pass without full auth setup
     return "mock_access_token_placeholder"
