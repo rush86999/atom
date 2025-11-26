@@ -26,7 +26,7 @@ async def run_validation():
     print("-" * 40)
     
     for scenario in results["scenarios"]:
-        status = "✅ PASS" if scenario["success"] else "❌ FAIL"
+        status = "[PASS]" if scenario["success"] else "[FAIL]"
         print(f"{status} | {scenario['scenario']}")
         print(f"   Metric: {scenario['metric']}")
         print(f"   Benchmark (Manual): {scenario['benchmark_manual']}")

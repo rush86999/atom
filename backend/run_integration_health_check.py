@@ -140,10 +140,10 @@ class IntegrationHealthChecker:
         print(f"Readiness Score: {summary['readiness_score']:.1f}%\n")
         
         print("Status Breakdown:")
-        print(f"  ✅ Ready:        {summary['ready']}")
-        print(f"  ⚠️  Partial:      {summary['partial']}")
-        print(f"  ❌ Incomplete:   {summary['incomplete']}")
-        print(f"  🗑️  Missing:      {summary['file_missing']}")
+        print(f"  [READY]:        {summary['ready']}")
+        print(f"  [PARTIAL]:      {summary['partial']}")
+        print(f"  [INCOMPLETE]:   {summary['incomplete']}")
+        print(f"  [MISSING]:      {summary['file_missing']}")
         
         print("\nTop Categories:")
         for cat, count in sorted(report["by_category"].items(), key=lambda x: -x[1])[:5]:
@@ -160,8 +160,8 @@ class IntegrationHealthChecker:
             cat_services = [r for r in self.results.values() if r["category"] == cat]
             ready = sum(1 for s in cat_services if s["status"] == "READY")
             total = len(cat_services)
-            status_emoji = "✅" if ready == total else "⚠️"
-            print(f"  {status_emoji} {cat.replace('_', ' ').title()}: {ready}/{total}")
+            status_label = "[OK]" if ready == total else "[WARN]"
+            print(f"  {status_label} {cat.replace('_', ' ').title()}: {ready}/{total}")
 
 async def main():
     checker = IntegrationHealthChecker()
@@ -185,18 +185,18 @@ async def main():
     # Save detailed report
     report_path = Path("backend/integration_health_report.json")
     report_path.write_text(json.dumps(report, indent=2))
-    print(f"\n✅ Detailed report saved: {report_path}")
+    print(f"\n[OK] Detailed report saved: {report_path}")
     
     # Return exit code based on readiness
     readiness = report["summary"]["readiness_score"]
     if readiness >= 80:
-        print("\n✅ Integration health: EXCELLENT")
+        print("\n[OK] Integration health: EXCELLENT")
         return 0
     elif readiness >= 60:
-        print("\n⚠️  Integration health: GOOD")
+        print("\n[WARN] Integration health: GOOD")
         return 0
     else:
-        print("\n❌ Integration health: NEEDS WORK")
+        print("\n[FAIL] Integration health: NEEDS WORK")
         return 1
 
 if __name__ == "__main__":

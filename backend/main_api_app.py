@@ -1,12 +1,14 @@
 import os
+from pathlib import Path
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.integration_loader import IntegrationLoader
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from project root
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -131,6 +133,9 @@ integrations = [
     ("integrations.atom_communication_memory_production_api", "atom_memory_production_router", None),
     ("integrations.atom_communication_memory_webhooks", "atom_memory_webhooks_router", None),
     ("integrations.atom_communication_apps_lancedb_integration", "communication_ingestion_router", None),
+    
+    # OAuth Authentication
+    ("oauth_routes", "router", None),
 ]
 
 # Load and Mount Integrations

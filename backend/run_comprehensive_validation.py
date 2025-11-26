@@ -63,9 +63,48 @@ async def main():
             results[name] = {"status": "PENDING", "reason": "Script not implemented"}
             continue
         
-        # For now, just log what would run
-        # TODO: Actually execute the scripts
-        results[name] = {"status": "PENDING", "reason": "Execution not implemented"}
+        # Execute the script
+        try:
+            print(f"   Executing {script}...")
+            cwd = None
+            
+            # Use python for .py files, cargo for .rs files (via test)
+            if script.suffix == '.py':
+                cmd = [sys.executable, str(script)]
+            elif script.suffix == '.rs':
+                # For Rust tests, we typically run cargo test
+                cmd = ["cargo", "test", "--test", script.stem]
+                # Adjust working directory for cargo
+                cwd = "src-tauri"
+            else:
+                cmd = [str(script)]
+
+            # Run the command
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=cwd
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode == 0:
+                results[name] = {"status": "PASS", "details": "Execution successful"}
+                print("   [PASS]")
+            else:
+                results[name] = {
+                    "status": "FAIL", 
+                    "reason": f"Exit code {process.returncode}",
+                    "stderr": stderr.decode().strip()[-200:] if stderr else "No error output"
+                }
+                print("   [FAIL]")
+                if stderr:
+                    print(f"   Error: {stderr.decode().strip()[-200:]}")
+
+        except Exception as e:
+            results[name] = {"status": "ERROR", "reason": str(e)}
+            print(f"   [ERROR]: {e}")
     
     # Generate summary report
     total_duration = (datetime.now() - total_start).total_seconds()
@@ -75,8 +114,8 @@ async def main():
     print(f"{'=' * 80}\n")
     
     for name, result in results.items():
-        status_emoji = "✅" if result["status"] == "PASS" else "⚠️"
-        print(f"{status_emoji} {name.replace('_', ' ').title()}: {result['status']}")
+        status_label = "[PASS]" if result["status"] == "PASS" else "[FAIL]"
+        print(f"{status_label} {name.replace('_', ' ').title()}: {result['status']}")
     
     print(f"\nTotal Time: {total_duration:.2f}s")
     

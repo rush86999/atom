@@ -16,7 +16,7 @@ try:
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
-    print("⚠️  Playwright not installed. Run: pip install playwright && playwright install")
+    print("[WARN] Playwright not installed. Run: pip install playwright && playwright install")
 
 class WebAppBusinessValueTester:
     """E2E tester for web app business value scenarios"""
@@ -201,8 +201,8 @@ class WebAppBusinessValueTester:
             result = await test_coro
             self.results.append(result)
             
-            status_emoji = "✅" if result["status"] == "pass" else "❌" if result["status"] == "fail" else "⚠️"
-            print(f"{status_emoji} {result['test']}: {result['status'].upper()}")
+            status_label = "[PASS]" if result["status"] == "pass" else "[FAIL]" if result["status"] == "fail" else "[WARN]"
+            print(f"{status_label} {result['test']}: {result['status'].upper()}")
             
             if "metrics" in result:
                 for key, value in result["metrics"].items():
@@ -227,7 +227,7 @@ class WebAppBusinessValueTester:
 
 async def main():
     if not PLAYWRIGHT_AVAILABLE:
-        print("❌ Playwright not installed")
+        print("[FAIL] Playwright not installed")
         print("Install: pip install playwright && playwright install")
         return 1
     
@@ -245,12 +245,12 @@ async def main():
         # Save report
         report_path = Path("backend/web_app_e2e_report.json")
         report_path.write_text(json.dumps(report, indent=2))
-        print(f"\n✅ Report saved: {report_path}")
+        print(f"\n[OK] Report saved: {report_path}")
         
         return 0 if report['score'] >= 80 else 1
         
     except Exception as e:
-        print(f"❌ Test suite failed: {e}")
+        print(f"[FAIL] Test suite failed: {e}")
         return 1
 
 if __name__ == "__main__":
