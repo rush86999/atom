@@ -4,10 +4,8 @@ import Cors from "cors";
 import { exchangeCodeForTokens } from "@lib/api-backend-helper"; // Removed unused Google-specific helpers for now
 import { dayjs } from "@lib/date-utils";
 
-import { superTokensNextWrapper } from "supertokens-node/nextjs";
-import { verifySession } from "supertokens-node/recipe/session/framework/express";
-import supertokens from "supertokens-node";
-import { backendConfig } from "../../../../../config/backendConfig"; // Adjusted path
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../../auth/[...nextauth]";
 import { Credentials as OAuth2Token } from "google-auth-library";
 
 // Assuming these are needed for GraphQL client used by saveUserTokensInternal
@@ -24,8 +22,6 @@ const cors = Cors({
   // Allow all origins for simplicity in dev, or specify your frontend URL
   // origin: process.env.NODE_ENV === 'production' ? ["https://atomiclife.app", /\.atomiclife\.app$/] : "*",
 });
-
-supertokens.init(backendConfig());
 
 function runMiddleware(
   req: NextApiRequest,
@@ -156,19 +152,10 @@ export default async function handler(
   try {
     await runMiddleware(req, res, cors);
 
-    await superTokensNextWrapper(
-      async (next) => {
-        return await verifySession()(req as any, res as any, next);
-      },
-      req,
-      res,
-    );
-
-    const session = req.session;
-    const userId = session?.getUserId();
+    const session = await getServerSession(req, res, authOptions);
     const operationName = "GoogleCalendarAuthCallback"; // For logging context
 
-    if (!userId) {
+    if (!session || !session.user) {
       appServiceLogger.error(
         `[${operationName}] User not authenticated in callback. Session may be missing or invalid.`,
         { headers: req.headers },
@@ -177,6 +164,8 @@ export default async function handler(
         "/User/Login/UserLogin?error=session_expired_oauth_callback",
       );
     }
+
+    const userId = session.user.id;
     appServiceLogger.info(`[${operationName}] Processing callback for user.`, {
       userId,
     });
