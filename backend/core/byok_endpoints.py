@@ -35,6 +35,7 @@ class AIProviderConfig:
     rate_limit_window: int = 60
     is_active: bool = True
     requires_encryption: bool = True
+    reasoning_level: int = 1  # 1=Low, 2=Medium, 3=High, 4=Very High
 
     def __post_init__(self):
         if self.supported_tasks is None:
@@ -155,7 +156,8 @@ class BYOKManager:
                 api_key_env_var="OPENAI_API_KEY",
                 supported_tasks=["general", "chat", "code", "analysis"],
                 cost_per_token=0.00003,
-                model="gpt-4-turbo"
+                model="gpt-4-turbo",
+                reasoning_level=3
             ),
             AIProviderConfig(
                 id="anthropic",
@@ -164,7 +166,8 @@ class BYOKManager:
                 api_key_env_var="ANTHROPIC_API_KEY",
                 supported_tasks=["general", "chat", "code", "analysis", "writing"],
                 cost_per_token=0.000015,
-                model="claude-3-sonnet-20240229"
+                model="claude-3-sonnet-20240229",
+                reasoning_level=2
             ),
             AIProviderConfig(
                 id="moonshot",
@@ -174,7 +177,8 @@ class BYOKManager:
                 base_url="https://api.moonshot.cn/v1",
                 supported_tasks=["general", "chat", "thinking", "reasoning"],
                 cost_per_token=0.00001, # Estimated
-                model="kimi-k2-thinking"
+                model="kimi-k2-thinking",
+                reasoning_level=4
             )
         ]
         
@@ -297,7 +301,7 @@ class BYOKManager:
             usage.failed_requests += 1
 
     def get_optimal_provider(
-        self, task_type: str, budget_constraint: float = None
+        self, task_type: str, budget_constraint: float = None, min_reasoning_level: int = 1
     ) -> str:
         """Get the optimal provider for a given task type"""
         suitable_providers = []
@@ -307,6 +311,10 @@ class BYOKManager:
                 continue
 
             if task_type in provider.supported_tasks:
+                # Check reasoning level
+                if provider.reasoning_level < min_reasoning_level:
+                    continue
+
                 # Check if we have API keys for this provider
                 if self.get_api_key(provider_id):
                     suitable_providers.append((provider_id, provider))

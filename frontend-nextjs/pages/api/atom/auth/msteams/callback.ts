@@ -6,10 +6,8 @@ import {
   AuthenticationResult,
   AuthorizationCodeRequest,
 } from "@azure/msal-node";
-import { superTokensNextWrapper } from "supertokens-node/nextjs";
-import { verifySession } from "supertokens-node/recipe/session/framework/express"; // For state validation if needed, though state contains userId
-import supertokens from "supertokens-node";
-import { backendConfig } from "../../../../../config/backendConfig"; // Adjusted path
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../../auth/[...nextauth]";
 import { logger } from "@lib/logger";
 import { Credentials as OAuth2Token } from "google-auth-library"; // Re-using this type for structure, though not strictly Google
 import { postgraphileGraphUrl, postgraphileAdminSecret } from "@lib/constants";
@@ -33,8 +31,6 @@ const MSTEAMS_SCOPES = [
 ]; // Ensure offline_access for refresh token
 
 const MSTEAMS_TOKEN_SERVICE_NAME = "msteams_graph"; // Or 'microsoft_graph'
-
-supertokens.init(backendConfig());
 
 const msalConfig: Configuration = {
   auth: {
@@ -157,35 +153,20 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  // It's important to verify the session of the user who initiated the flow,
-  // usually by checking the 'state' parameter returned by Microsoft.
-  // The 'state' should match what was sent in the initiate step (e.g., SuperTokens userId).
   const receivedState = req.query.state as string;
-  // TODO: Securely validate the state parameter against a stored value from the initiate step if not using userId directly.
-  // For now, we assume state IS the userId for simplicity as set in initiate.ts
 
-  // Verify SuperTokens session for the user ID passed in state
-  // This ensures the callback is for a valid, currently logged-in user session.
-  let session;
-  try {
-    session = await superTokensNextWrapper(
-      async (next) =>
-        verifySession({ sessionRequired: true })(req as any, res as any, next),
-      req,
-      res,
-    );
-  } catch (error) {
-    // verifySession throws if no session
+  const session = await getServerSession(req, res, authOptions);
+
+  if (!session || !session.user) {
     logger.error(
-      "[MSTeamsAuthCallback] SuperTokens session verification failed in callback:",
-      error,
+      "[MSTeamsAuthCallback] Session verification failed in callback - user not authenticated"
     );
     return res
       .status(401)
       .redirect("/Auth/UserLogin?error=session_expired_oauth");
   }
 
-  const sessionUserId = session?.getUserId();
+  const sessionUserId = session.user.id;
 
   if (!sessionUserId || sessionUserId !== receivedState) {
     logger.error(

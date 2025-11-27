@@ -1,7 +1,7 @@
 import React from "react";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
-import { ChakraProvider } from "@chakra-ui/react";
+
 import { ToastProvider } from "../components/ui/use-toast";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
@@ -32,11 +32,9 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
 
   return (
     <SessionProvider session={session}>
-      <ChakraProvider>
-        <ToastProvider>
-          <Component {...pageProps} />
-        </ToastProvider>
-      </ChakraProvider>
+      <ToastProvider>
+        <Component {...pageProps} />
+      </ToastProvider>
     </SessionProvider>
   );
 }
