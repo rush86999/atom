@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { getSession } from "supertokens-node/nextjs";
-import { SessionContainer } from "supertokens-node/recipe/session";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../auth/[...nextauth]";
 // TODO: Projects health API temporarily disabled due to missing dependencies
 /*
 import { queryNotionTasks } from "../../../../project/functions/atom-agent/skills/notionAndResearchSkills";
@@ -15,16 +15,13 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  let session: SessionContainer;
-  try {
-    session = await getSession(req, res, {
-      overrideGlobalClaimValidators: () => [],
-    });
-  } catch (err) {
+  const session = await getServerSession(req, res, authOptions);
+
+  if (!session || !session.user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const userId = session.getUserId();
+  const userId = session.user.id;
   const {
     notionApiKey,
     notionDatabaseId,

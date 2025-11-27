@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { getSession } from "supertokens-node/nextjs";
-import { SessionContainer } from "supertokens-node/recipe/session";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../auth/[...nextauth]";
 // TODO: Pocket OAuth implementation pending dependencies
 // import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
 // import PocketAPI from 'pocket-api';
@@ -9,16 +9,13 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  let session: SessionContainer;
-  try {
-    session = await getSession(req, res, {
-      overrideGlobalClaimValidators: () => [],
-    });
-  } catch (err) {
+  const session = await getServerSession(req, res, authOptions);
+
+  if (!session || !session.user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const userId = session.getUserId();
+  const userId = session.user.id;
   const { code } = req.query;
 
   const consumerKey = process.env.POCKET_CONSUMER_KEY;
