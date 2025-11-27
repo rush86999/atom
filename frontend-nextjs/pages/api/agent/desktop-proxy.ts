@@ -1,22 +1,19 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { handleMessage, HandleMessageResponse } from "./handler";
-import { getSession } from "supertokens-node/nextjs";
-import { SessionContainer } from "supertokens-node/recipe/session";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../auth/[...nextauth]";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  let session: SessionContainer;
-  try {
-    session = await getSession(req, res, {
-      overrideGlobalClaimValidators: () => [],
-    });
-  } catch (err) {
+  const session = await getServerSession(req, res, authOptions);
+
+  if (!session || !session.user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const userId = session.getUserId();
+  const userId = session.user.id;
 
   if (req.method === "POST") {
     const { message, settings } = req.body;

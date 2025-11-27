@@ -1,77 +1,17 @@
 import React, { useState, useEffect } from "react";
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Button,
-  Heading,
-  Card,
-  CardBody,
-  CardHeader,
-  Badge,
-  Icon,
-  useToast,
-  SimpleGrid,
-  Progress,
-  Divider,
-  useColorModeValue,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Input,
-  Select,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  Alert,
-  AlertIcon,
-  Spinner,
-  Flex,
-  Avatar,
-  Tag,
-  Switch,
-  Textarea,
-} from "@chakra-ui/react";
-import {
-  CheckCircleIcon,
-  WarningIcon,
-  TimeIcon,
-  ArrowForwardIcon,
-  PlusSquareIcon,
-  // DollarIcon not available, using Money as alternative
-  // Note: No money icon available in current version, using Star as placeholder
-  StarIcon,
-  UserIcon,
-  SettingsIcon,
-  ChevronDownIcon,
-  SearchIcon,
-  ChevronUpIcon,
-} from "@chakra-ui/icons";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, CheckCircle, AlertTriangle, Clock, ArrowRight, PlusSquare, Star, User, Settings, ChevronDown, Search, ChevronUp, Trash2, Edit, Eye, Mail, Phone, Calendar, MessageSquare } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface StripePayment {
   id: string;
@@ -148,9 +88,9 @@ const StripeIntegration: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const toast = useToast();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
+  const { toast } = useToast();
+  // const bgColor = useColorModeValue("white", "gray.800"); // Removed
+  // const borderColor = useColorModeValue("gray.200", "gray.700"); // Removed
 
   // Mock data for demonstration
   const mockPayments: StripePayment[] = [
@@ -472,477 +412,474 @@ const StripeIntegration: React.FC = () => {
   }
 
   return (
-    <Box minH="100vh" bg={bgColor} p={6}>
-      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
+    <div className="min-h-screen bg-white p-6">
+      <div className="max-w-[1400px] mx-auto space-y-8">
         {/* Header */}
-        <VStack align="start" spacing={2}>
-          <Heading size="2xl">Stripe Integration</Heading>
-          <Text color="gray.600" fontSize="lg">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold">Stripe Integration</h1>
+          <p className="text-gray-600 text-lg">
             Complete payment processing and financial management
-          </Text>
-        </VStack>
+          </p>
+        </div>
 
         {/* Quick Stats */}
         {analytics && (
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Total Revenue</StatLabel>
-                  <StatNumber>
-                    {formatCurrency(analytics.totalRevenue)}
-                  </StatNumber>
-                  <StatHelpText>
-                    <StatArrow
-                      type={
-                        analytics.revenueGrowth > 0 ? "increase" : "decrease"
-                      }
-                    />
-                    {Math.abs(analytics.revenueGrowth)}%
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                  <div className="text-2xl font-bold">{formatCurrency(analytics.totalRevenue)}</div>
+                  <div className="flex items-center text-xs">
+                    {analytics.revenueGrowth > 0 ? (
+                      <ArrowRight className="mr-1 h-4 w-4 rotate-[-45deg] text-green-500" />
+                    ) : (
+                      <ArrowRight className="mr-1 h-4 w-4 rotate-[45deg] text-red-500" />
+                    )}
+                    <span className={analytics.revenueGrowth > 0 ? "text-green-500" : "text-red-500"}>
+                      {Math.abs(analytics.revenueGrowth)}%
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
 
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Monthly Recurring</StatLabel>
-                  <StatNumber>
-                    {formatCurrency(analytics.monthlyRecurringRevenue)}
-                  </StatNumber>
-                  <StatHelpText>Active subscriptions</StatHelpText>
-                </Stat>
-              </CardBody>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Monthly Recurring</p>
+                  <div className="text-2xl font-bold">{formatCurrency(analytics.monthlyRecurringRevenue)}</div>
+                  <p className="text-xs text-muted-foreground">Active subscriptions</p>
+                </div>
+              </CardContent>
             </Card>
 
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Active Customers</StatLabel>
-                  <StatNumber>{analytics.activeCustomers}</StatNumber>
-                  <StatHelpText>
-                    <StatArrow
-                      type={
-                        analytics.customerGrowth > 0 ? "increase" : "decrease"
-                      }
-                    />
-                    {Math.abs(analytics.customerGrowth)}%
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Active Customers</p>
+                  <div className="text-2xl font-bold">{analytics.activeCustomers}</div>
+                  <div className="flex items-center text-xs">
+                    {analytics.customerGrowth > 0 ? (
+                      <ArrowRight className="mr-1 h-4 w-4 rotate-[-45deg] text-green-500" />
+                    ) : (
+                      <ArrowRight className="mr-1 h-4 w-4 rotate-[45deg] text-red-500" />
+                    )}
+                    <span className={analytics.customerGrowth > 0 ? "text-green-500" : "text-red-500"}>
+                      {Math.abs(analytics.customerGrowth)}%
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
 
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Success Rate</StatLabel>
-                  <StatNumber>{analytics.paymentSuccessRate}%</StatNumber>
-                  <StatHelpText>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
+                  <div className="text-2xl font-bold">{analytics.paymentSuccessRate}%</div>
+                  <p className="text-xs text-muted-foreground">
                     Of {analytics.totalPayments} payments
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
+                  </p>
+                </div>
+              </CardContent>
             </Card>
-          </SimpleGrid>
+          </div>
         )}
 
         {/* Main Content Tabs */}
-        <Card>
-          <CardHeader>
-            <Tabs variant="enclosed" onChange={setActiveTab}>
-              <TabList>
-                <Tab>Payments</Tab>
-                <Tab>Customers</Tab>
-                <Tab>Subscriptions</Tab>
-                <Tab>Products</Tab>
-                <Tab>Analytics</Tab>
-              </TabList>
-            </Tabs>
-          </CardHeader>
+        <Tabs defaultValue="payments" className="w-full" onValueChange={(val) => setActiveTab(["payments", "customers", "subscriptions", "products", "analytics"].indexOf(val))}>
+          <TabsList className="grid w-full grid-cols-5 mb-4">
+            <TabsTrigger value="payments">Payments</TabsTrigger>
+            <TabsTrigger value="customers">Customers</TabsTrigger>
+            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+            <TabsTrigger value="products">Products</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
 
-          <CardBody>
-            <TabPanels>
+          <Card>
+            <CardContent className="p-6">
               {/* Payments Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <HStack justify="space-between">
-                    <Heading size="lg">Payment Management</Heading>
-                    <Button
-                      colorScheme="blue"
-                      leftIcon={<PlusSquareIcon />}
-                      onClick={() => setIsCreatePaymentOpen(true)}
-                    >
+              <TabsContent value="payments" className="mt-0">
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-semibold">Payment Management</h2>
+                    <Button onClick={() => setIsCreatePaymentOpen(true)}>
+                      <PlusSquare className="mr-2 h-4 w-4" />
                       Create Payment
                     </Button>
-                  </HStack>
+                  </div>
 
-                  <HStack spacing={4}>
+                  <div className="flex items-center space-x-4">
                     <Input
                       placeholder="Search payments..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-sm"
                     />
                     <Select
                       value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      width="200px"
+                      onValueChange={(value) => setStatusFilter(value)}
                     >
-                      <option value="all">All Status</option>
-                      <option value="succeeded">Succeeded</option>
-                      <option value="failed">Failed</option>
-                      <option value="pending">Pending</option>
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="All Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="succeeded">Succeeded</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                      </SelectContent>
                     </Select>
-                  </HStack>
+                  </div>
 
-                  <Table variant="simple">
-                    <Thead>
-                      <Tr>
-                        <Th>ID</Th>
-                        <Th>Amount</Th>
-                        <Th>Customer</Th>
-                        <Th>Description</Th>
-                        <Th>Status</Th>
-                        <Th>Date</Th>
-                        <Th>Actions</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {filteredPayments.map((payment) => (
-                        <Tr key={payment.id}>
-                          <Td>
-                            <Text fontSize="sm" fontFamily="mono">
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-muted/50 text-muted-foreground">
+                        <tr>
+                          <th className="h-12 px-4 font-medium">ID</th>
+                          <th className="h-12 px-4 font-medium">Amount</th>
+                          <th className="h-12 px-4 font-medium">Customer</th>
+                          <th className="h-12 px-4 font-medium">Description</th>
+                          <th className="h-12 px-4 font-medium">Status</th>
+                          <th className="h-12 px-4 font-medium">Date</th>
+                          <th className="h-12 px-4 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredPayments.map((payment) => (
+                          <tr key={payment.id} className="border-t hover:bg-muted/50">
+                            <td className="p-4 font-mono text-xs">
                               {payment.id.substring(0, 12)}...
-                            </Text>
-                          </Td>
-                          <Td>{formatCurrency(payment.amount)}</Td>
-                          <Td>
-                            {payment.customer ? (
-                              <HStack spacing={2}>
-                                <Avatar
-                                  size="xs"
-                                  src={payment.customer.avatar_url}
-                                />
-                                <Text fontSize="sm">
-                                  {payment.customer.name}
-                                </Text>
-                              </HStack>
-                            ) : (
-                              <Text color="gray.500">Anonymous</Text>
-                            )}
-                          </Td>
-                          <Td>
-                            <Text fontSize="sm" noOfLines={2}>
-                              {payment.description}
-                            </Text>
-                          </Td>
-                          <Td>
-                            <Badge
-                              colorScheme={
-                                payment.status === "succeeded"
-                                  ? "green"
-                                  : payment.status === "failed"
-                                    ? "red"
-                                    : "yellow"
-                              }
-                            >
-                              {payment.status}
-                            </Badge>
-                          </Td>
-                          <Td>{formatDate(payment.created)}</Td>
-                          <Td>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                window.open(payment.receipt_url, "_blank")
-                              }
-                            >
-                              Receipt
-                            </Button>
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                </VStack>
-              </TabPanel>
+                            </td>
+                            <td className="p-4">{formatCurrency(payment.amount)}</td>
+                            <td className="p-4">
+                              {payment.customer ? (
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={payment.customer.avatar_url} />
+                                    <AvatarFallback>{payment.customer.name[0]}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm">{payment.customer.name}</span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Anonymous</span>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              <span className="line-clamp-2 text-sm">
+                                {payment.description}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <Badge
+                                variant={
+                                  payment.status === "succeeded"
+                                    ? "default"
+                                    : payment.status === "failed"
+                                      ? "destructive"
+                                      : "secondary"
+                                }
+                                className={
+                                  payment.status === "succeeded"
+                                    ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                    : payment.status === "pending"
+                                      ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+                                      : ""
+                                }
+                              >
+                                {payment.status}
+                              </Badge>
+                            </td>
+                            <td className="p-4">{formatDate(payment.created)}</td>
+                            <td className="p-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  window.open(payment.receipt_url, "_blank")
+                                }
+                              >
+                                Receipt
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </TabsContent>
 
               {/* Customers Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <HStack justify="space-between">
-                    <Heading size="lg">Customer Management</Heading>
-                    <Button
-                      colorScheme="blue"
-                      leftIcon={<PlusSquareIcon />}
-                      onClick={() => setIsCreateCustomerOpen(true)}
-                    >
+              <TabsContent value="customers" className="mt-0">
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-semibold">Customer Management</h2>
+                    <Button onClick={() => setIsCreateCustomerOpen(true)}>
+                      <PlusSquare className="mr-2 h-4 w-4" />
                       Add Customer
                     </Button>
-                  </HStack>
+                  </div>
 
-                  <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {customers.map((customer) => (
                       <Card key={customer.id}>
-                        <CardBody>
-                          <VStack spacing={4} align="start">
-                            <HStack spacing={3} w="full">
-                              <Avatar size="md" src={customer.avatar_url} />
-                              <VStack align="start" spacing={0}>
-                                <Heading size="md">{customer.name}</Heading>
-                                <Text color="gray.600" fontSize="sm">
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={customer.avatar_url} />
+                                <AvatarFallback>{customer.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h3 className="font-semibold">{customer.name}</h3>
+                                <p className="text-sm text-muted-foreground">
                                   {customer.email}
-                                </Text>
-                              </VStack>
-                            </HStack>
+                                </p>
+                              </div>
+                            </div>
 
-                            <VStack spacing={2} align="start" w="full">
-                              <HStack justify="space-between" w="full">
-                                <Text fontWeight="medium">Balance:</Text>
-                                <Text>{formatCurrency(customer.balance)}</Text>
-                              </HStack>
-                              <HStack justify="space-between" w="full">
-                                <Text fontWeight="medium">Subscriptions:</Text>
-                                <Text>{customer.subscriptions_count}</Text>
-                              </HStack>
-                              <HStack justify="space-between" w="full">
-                                <Text fontWeight="medium">Created:</Text>
-                                <Text fontSize="sm">
+                            <div className="space-y-2 w-full">
+                              <div className="flex justify-between w-full">
+                                <span className="font-medium">Balance:</span>
+                                <span>{formatCurrency(customer.balance)}</span>
+                              </div>
+                              <div className="flex justify-between w-full">
+                                <span className="font-medium">Subscriptions:</span>
+                                <span>{customer.subscriptions_count}</span>
+                              </div>
+                              <div className="flex justify-between w-full">
+                                <span className="font-medium">Created:</span>
+                                <span className="text-sm">
                                   {formatDate(customer.created)}
-                                </Text>
-                              </HStack>
-                            </VStack>
+                                </span>
+                              </div>
+                            </div>
 
                             <Button
                               size="sm"
-                              colorScheme="blue"
                               variant="outline"
-                              w="full"
+                              className="w-full"
                               onClick={() => setSelectedCustomer(customer)}
                             >
                               View Details
                             </Button>
-                          </VStack>
-                        </CardBody>
+                          </div>
+                        </CardContent>
                       </Card>
                     ))}
-                  </SimpleGrid>
-                </VStack>
-              </TabPanel>
+                  </div>
+                </div>
+              </TabsContent>
 
               {/* Subscriptions Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <Heading size="lg">Subscription Management</Heading>
-                  <Table variant="simple">
-                    <Thead>
-                      <Tr>
-                        <Th>Plan</Th>
-                        <Th>Customer</Th>
-                        <Th>Status</Th>
-                        <Th>Amount</Th>
-                        <Th>Next Payment</Th>
-                        <Th>Actions</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {subscriptions.map((subscription) => (
-                        <Tr key={subscription.id}>
-                          <Td>
-                            <Text fontWeight="medium">
-                              {subscription.plan_name}
-                            </Text>
-                            <Text fontSize="sm" color="gray.600">
-                              {subscription.plan_description}
-                            </Text>
-                          </Td>
-                          <Td>
-                            <HStack spacing={2}>
-                              <Avatar
-                                size="xs"
-                                src={subscription.customer.avatar_url}
-                              />
-                              <Text fontSize="sm">
-                                {subscription.customer.name}
-                              </Text>
-                            </HStack>
-                          </Td>
-                          <Td>
-                            <Badge
-                              colorScheme={
-                                subscription.status === "active"
-                                  ? "green"
-                                  : subscription.status === "canceled"
-                                    ? "red"
-                                    : "yellow"
-                              }
-                            >
-                              {subscription.status}
-                            </Badge>
-                          </Td>
-                          <Td>{formatCurrency(subscription.amount)}</Td>
-                          <Td>{formatDate(subscription.next_payment_date)}</Td>
-                          <Td>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                handleSubscriptionAction(subscription)
-                              }
-                            >
-                              Manage
-                            </Button>
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                </VStack>
-              </TabPanel>
+              <TabsContent value="subscriptions" className="mt-0">
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-semibold">Subscription Management</h2>
+                    <Button onClick={() => setIsCreateSubscriptionOpen(true)}>
+                      <PlusSquare className="mr-2 h-4 w-4" />
+                      Create Subscription
+                    </Button>
+                  </div>
+
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-muted/50 text-muted-foreground">
+                        <tr>
+                          <th className="h-12 px-4 font-medium">ID</th>
+                          <th className="h-12 px-4 font-medium">Customer</th>
+                          <th className="h-12 px-4 font-medium">Plan</th>
+                          <th className="h-12 px-4 font-medium">Status</th>
+                          <th className="h-12 px-4 font-medium">Amount</th>
+                          <th className="h-12 px-4 font-medium">Next Payment</th>
+                          <th className="h-12 px-4 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subscriptions.map((sub) => (
+                          <tr key={sub.id} className="border-t hover:bg-muted/50">
+                            <td className="p-4 font-mono text-xs">
+                              {sub.id.substring(0, 12)}...
+                            </td>
+                            <td className="p-4">
+                              {sub.customer ? (
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={sub.customer.avatar_url} />
+                                    <AvatarFallback>{sub.customer.name[0]}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm">{sub.customer.name}</span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Anonymous</span>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              <div className="font-medium">{sub.plan_name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {sub.plan_description}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <Badge
+                                variant={
+                                  sub.status === "active"
+                                    ? "default"
+                                    : sub.status === "canceled"
+                                      ? "destructive"
+                                      : "secondary"
+                                }
+                                className={
+                                  sub.status === "active"
+                                    ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                    : sub.status === "past_due"
+                                      ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                      : ""
+                                }
+                              >
+                                {sub.status}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              {formatCurrency(sub.amount)} / {sub.interval}
+                            </td>
+                            <td className="p-4">{formatDate(sub.next_payment_date)}</td>
+                            <td className="p-4">
+                              <Select
+                                onValueChange={(value) =>
+                                  handleSubscriptionAction(sub.id, value)
+                                }
+                              >
+                                <SelectTrigger className="w-[130px]">
+                                  <SelectValue placeholder="Actions" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="cancel">Cancel</SelectItem>
+                                  <SelectItem value="pause">Pause</SelectItem>
+                                  <SelectItem value="upgrade">Upgrade</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </TabsContent>
 
               {/* Products Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <HStack justify="space-between">
-                    <Heading size="lg">Product Catalog</Heading>
-                    <Button
-                      colorScheme="blue"
-                      leftIcon={<PlusSquareIcon />}
-                      onClick={() => setIsCreateProductOpen(true)}
-                    >
-                      Add Product
+              <TabsContent value="products" className="mt-0">
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-semibold">Product Management</h2>
+                    <Button onClick={() => setIsCreateProductOpen(true)}>
+                      <PlusSquare className="mr-2 h-4 w-4" />
+                      Create Product
                     </Button>
-                  </HStack>
+                  </div>
 
-                  <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {products.map((product) => (
                       <Card key={product.id}>
-                        <CardBody>
-                          <VStack spacing={4} align="start">
-                            {product.images && product.images.length > 0 && (
-                              <Box
-                                as="img"
-                                src={product.images[0]}
-                                alt={product.name}
-                                w="full"
-                                h="120px"
-                                objectFit="cover"
-                                borderRadius="md"
-                              />
-                            )}
-                            <VStack spacing={2} align="start" w="full">
-                              <Heading size="md">{product.name}</Heading>
-                              <Text color="gray.600" noOfLines={3}>
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            <div className="aspect-video relative rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                              {product.images && product.images.length > 0 ? (
+                                <img
+                                  src={product.images[0]}
+                                  alt={product.name}
+                                  className="object-cover w-full h-full"
+                                />
+                              ) : (
+                                <Star className="h-8 w-8 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-lg">{product.name}</h3>
+                              <p className="text-sm text-muted-foreground line-clamp-2">
                                 {product.description}
-                              </Text>
-                            </VStack>
-
-                            <HStack justify="space-between" w="full">
-                              <Text fontWeight="bold">
+                              </p>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-lg">
                                 {formatCurrency(product.price)}
-                              </Text>
-                              <Badge
-                                colorScheme={product.active ? "green" : "red"}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedProduct(product)}
                               >
-                                {product.active ? "Active" : "Inactive"}
-                              </Badge>
-                            </HStack>
-
-                            <Button
-                              size="sm"
-                              colorScheme="blue"
-                              variant="outline"
-                              w="full"
-                              onClick={() => setSelectedProduct(product)}
-                            >
-                              Edit Product
-                            </Button>
-                          </VStack>
-                        </CardBody>
+                                Edit
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
                       </Card>
                     ))}
-                  </SimpleGrid>
-                </VStack>
-              </TabPanel>
+                  </div>
+                </div>
+              </TabsContent>
 
-              {/* Analytics Tab */}
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
-                  <Heading size="lg">Financial Analytics</Heading>
-                  <Text color="gray.600">
-                    Detailed analytics and insights for your Stripe account
-                  </Text>
-                  <Card>
-                    <CardBody>
-                      <VStack spacing={4} align="center">
-                        <Text fontSize="lg" fontWeight="medium">
-                          Analytics Dashboard
-                        </Text>
-                        <Text color="gray.600" textAlign="center">
-                          Financial analytics and insights will be displayed
-                          here. This feature is currently under development.
-                        </Text>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-                </VStack>
-              </TabPanel>
-            </TabPanels>
-          </CardBody>
-        </Card>
+              {/* Analytics Tab - Placeholder */}
+              <TabsContent value="analytics" className="mt-0">
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="rounded-full bg-muted p-4 mb-4">
+                    <Star className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Analytics Dashboard</h3>
+                  <p className="text-muted-foreground max-w-sm mt-2">
+                    Detailed analytics and reporting features coming soon.
+                  </p>
+                </div>
+              </TabsContent>
+            </CardContent>
+          </Card>
+        </Tabs>
 
         {/* Create Payment Modal */}
-        <Modal
-          isOpen={isCreatePaymentOpen}
-          onClose={() => setIsCreatePaymentOpen(false)}
-        >
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Create Payment</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>Amount</FormLabel>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={newPaymentAmount}
-                    onChange={(e) => setNewPaymentAmount(e.target.value)}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Currency</FormLabel>
-                  <Select
-                    value={newPaymentCurrency}
-                    onChange={(e) => setNewPaymentCurrency(e.target.value)}
-                  >
-                    <option value="usd">USD</option>
-                    <option value="eur">EUR</option>
-                    <option value="gbp">GBP</option>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Description</FormLabel>
-                  <Textarea
-                    placeholder="Payment description..."
-                    value={newPaymentDescription}
-                    onChange={(e) => setNewPaymentDescription(e.target.value)}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
+        <Dialog open={isCreatePaymentOpen} onOpenChange={setIsCreatePaymentOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Payment</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Amount</label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={newPaymentAmount}
+                  onChange={(e) => setNewPaymentAmount(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Currency</label>
+                <Input
+                  placeholder="USD"
+                  value={newPaymentCurrency}
+                  onChange={(e) => setNewPaymentCurrency(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Description</label>
+                <Textarea
+                  placeholder="Payment description"
+                  value={newPaymentDescription}
+                  onChange={(e) => setNewPaymentDescription(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
               <Button
                 variant="outline"
-                mr={3}
                 onClick={() => setIsCreatePaymentOpen(false)}
               >
                 Cancel
               </Button>
               <Button
-                colorScheme="blue"
                 onClick={() =>
                   createPayment(
                     parseFloat(newPaymentAmount),
@@ -950,113 +887,99 @@ const StripeIntegration: React.FC = () => {
                     newPaymentDescription,
                   )
                 }
-                isDisabled={!newPaymentAmount}
+                disabled={!newPaymentAmount}
               >
                 Create Payment
               </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Create Customer Modal */}
-        <Modal
-          isOpen={isCreateCustomerOpen}
-          onClose={() => setIsCreateCustomerOpen(false)}
-        >
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Add Customer</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>Name</FormLabel>
-                  <Input
-                    placeholder="Customer name"
-                    value={newCustomerName}
-                    onChange={(e) => setNewCustomerName(e.target.value)}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Email</FormLabel>
-                  <Input
-                    type="email"
-                    placeholder="customer@example.com"
-                    value={newCustomerEmail}
-                    onChange={(e) => setNewCustomerEmail(e.target.value)}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
+        <Dialog open={isCreateCustomerOpen} onOpenChange={setIsCreateCustomerOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Customer</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Name</label>
+                <Input
+                  placeholder="Customer name"
+                  value={newCustomerName}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Email</label>
+                <Input
+                  type="email"
+                  placeholder="customer@example.com"
+                  value={newCustomerEmail}
+                  onChange={(e) => setNewCustomerEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
               <Button
                 variant="outline"
-                mr={3}
                 onClick={() => setIsCreateCustomerOpen(false)}
               >
                 Cancel
               </Button>
               <Button
-                colorScheme="blue"
                 onClick={() =>
                   createCustomer(newCustomerName, newCustomerEmail)
                 }
-                isDisabled={!newCustomerName || !newCustomerEmail}
+                disabled={!newCustomerName || !newCustomerEmail}
               >
                 Add Customer
               </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Create Product Modal */}
-        <Modal
-          isOpen={isCreateProductOpen}
-          onClose={() => setIsCreateProductOpen(false)}
-        >
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Add Product</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel>Product Name</FormLabel>
-                  <Input
-                    placeholder="Product name"
-                    value={newProductName}
-                    onChange={(e) => setNewProductName(e.target.value)}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Description</FormLabel>
-                  <Textarea
-                    placeholder="Product description"
-                    value={newProductDescription}
-                    onChange={(e) => setNewProductDescription(e.target.value)}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Price</FormLabel>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={newProductPrice}
-                    onChange={(e) => setNewProductPrice(e.target.value)}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
+        <Dialog open={isCreateProductOpen} onOpenChange={setIsCreateProductOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Product</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Product Name</label>
+                <Input
+                  placeholder="Product name"
+                  value={newProductName}
+                  onChange={(e) => setNewProductName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Description</label>
+                <Textarea
+                  placeholder="Product description"
+                  value={newProductDescription}
+                  onChange={(e) => setNewProductDescription(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Price</label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={newProductPrice}
+                  onChange={(e) => setNewProductPrice(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
               <Button
                 variant="outline"
-                mr={3}
                 onClick={() => setIsCreateProductOpen(false)}
               >
                 Cancel
               </Button>
               <Button
-                colorScheme="blue"
                 onClick={() =>
                   createProduct(
                     newProductName,
@@ -1064,15 +987,15 @@ const StripeIntegration: React.FC = () => {
                     parseFloat(newProductPrice),
                   )
                 }
-                isDisabled={!newProductName || !newProductPrice}
+                disabled={!newProductName || !newProductPrice}
               >
                 Add Product
               </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-      </VStack>
-    </Box>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
   );
 };
 
