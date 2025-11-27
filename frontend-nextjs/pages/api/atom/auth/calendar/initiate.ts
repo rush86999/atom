@@ -3,12 +3,8 @@ import qs from 'qs';
 import Cors from 'cors';
 import { generateGoogleAuthUrl } from '@lib/api-backend-helper';
 
-import { superTokensNextWrapper } from 'supertokens-node/nextjs';
-import { verifySession } from 'supertokens-node/recipe/session/framework/express';
-import supertokens from 'supertokens-node';
-import { backendConfig } from '../../../../../config/backendConfig'; // Adjusted path
-
-supertokens.init(backendConfig());
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../../auth/[...nextauth]";
 
 // Initializing the cors middleware
 const cors = Cors({
@@ -41,16 +37,13 @@ export default async function handler(
   try {
     await runMiddleware(req, res, cors);
 
-    await superTokensNextWrapper(
-      async (next) => {
-        // Added type assertion for req and res as per SuperTokens examples for Next.js
-        return await verifySession()(req as any, res as any, next);
-      },
-      req,
-      res
-    );
+    const session = await getServerSession(req, res, authOptions);
 
-    const userId = req.session?.getUserId(); // Use optional chaining and get userId
+    if (!session || !session.user) {
+      return res.status(401).json({ message: 'Authentication required.' });
+    }
+
+    const userId = session.user.id;
 
     if (!userId) {
       // It's generally better to return a 401 Unauthorized status

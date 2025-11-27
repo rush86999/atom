@@ -1,76 +1,65 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Button,
-  Heading,
-  Card,
-  CardBody,
-  CardHeader,
-  Badge,
-  Icon,
-  useToast,
-  SimpleGrid,
-  Divider,
-  useColorModeValue,
-  Stack,
-  Flex,
-  Spacer,
-  Progress,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Code,
-  IconButton,
-  Tooltip,
-} from "@chakra-ui/react";
-import {
-  FiServer,
-  FiCpu,
-  FiDatabase,
-  FiGitBranch,
-  FiPackage,
-  FiShield,
-  FiMonitor,
-  FiRefreshCw,
-  FiPlay,
-  FiStopCircle,
-  FiCheckCircle,
-  FiXCircle,
-  FiAlertTriangle,
-  FiInfo,
-  FiTerminal,
-  FiFolder,
-} from "react-icons/fi";
+  Server,
+  Cpu,
+  Database,
+  GitBranch,
+  Package,
+  Shield,
+  Monitor,
+  RefreshCw,
+  Play,
+  StopCircle,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Info,
+  Terminal,
+  Folder,
+  Activity
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
 
 // Tauri imports for desktop functionality
 const { invoke } =
   typeof window !== "undefined" ? require("@tauri-apps/api") : { invoke: null };
 
+interface ServiceStatus {
+  name: string;
+  status: string;
+  responseTime: number | null;
+  lastCheck: Date;
+  error?: string;
+}
+
+interface BuildStatus {
+  lastBuild: Date;
+  buildTime: string;
+  status: string;
+  tests: {
+    total: number;
+    passed: number;
+    failed: number;
+    coverage: string;
+  };
+}
+
 const DevStatus = () => {
   const toast = useToast();
   const [systemStatus, setSystemStatus] = useState<any>(null);
-  const [servicesStatus, setServicesStatus] = useState<any>({});
-  const [buildStatus, setBuildStatus] = useState<any>({});
+  const [servicesStatus, setServicesStatus] = useState<Record<string, ServiceStatus>>({});
+  const [buildStatus, setBuildStatus] = useState<BuildStatus>({
+    lastBuild: new Date(),
+    buildTime: "",
+    status: "",
+    tests: { total: 0, passed: 0, failed: 0, coverage: "0%" }
+  });
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
@@ -114,20 +103,19 @@ const DevStatus = () => {
       toast({
         title: "Error",
         description: "Failed to load system status",
-        status: "error",
-        duration: 3000,
+        variant: "error",
       });
     } finally {
       setIsRefreshing(false);
     }
-  }, []);
+  }, [toast]);
 
   // Simulate service health check
   const checkService = async (
     name: string,
     url: string | null,
     isRunning: boolean = false,
-  ) => {
+  ): Promise<ServiceStatus> => {
     if (url) {
       try {
         const response = await fetch(url, { method: "HEAD" });
@@ -136,7 +124,7 @@ const DevStatus = () => {
           status: response.ok ? "healthy" : "unhealthy",
           responseTime: Math.random() * 100 + 50, // ms
           lastCheck: new Date(),
-        } as const;
+        };
       } catch (error) {
         return {
           name,
@@ -144,7 +132,7 @@ const DevStatus = () => {
           responseTime: null,
           lastCheck: new Date(),
           error: (error as Error).message,
-        } as const;
+        };
       }
     } else {
       return {
@@ -152,7 +140,7 @@ const DevStatus = () => {
         status: isRunning ? "healthy" : "unknown",
         responseTime: null,
         lastCheck: new Date(),
-      } as const;
+      };
     }
   };
 
@@ -161,16 +149,16 @@ const DevStatus = () => {
     switch (status?.toLowerCase()) {
       case "healthy":
       case "success":
-        return "green";
+        return "bg-green-500";
       case "warning":
       case "degraded":
-        return "yellow";
+        return "bg-yellow-500";
       case "unhealthy":
       case "error":
       case "failed":
-        return "red";
+        return "bg-red-500";
       default:
-        return "gray";
+        return "bg-gray-500";
     }
   };
 
@@ -179,16 +167,16 @@ const DevStatus = () => {
     switch (status?.toLowerCase()) {
       case "healthy":
       case "success":
-        return FiCheckCircle;
+        return CheckCircle;
       case "warning":
       case "degraded":
-        return FiAlertTriangle;
+        return AlertTriangle;
       case "unhealthy":
       case "error":
       case "failed":
-        return FiXCircle;
+        return XCircle;
       default:
-        return FiInfo;
+        return Info;
     }
   };
 
@@ -198,433 +186,349 @@ const DevStatus = () => {
     return () => clearInterval(interval);
   }, [loadSystemStatus]);
 
-  const serviceList = Object.values(servicesStatus) as Array<{
-    name: string;
-    status: string;
-    responseTime: number | null;
-    lastCheck: Date;
-    error?: string;
-  }>;
+  const serviceList = Object.values(servicesStatus);
 
   return (
-    <Box p={6} maxW="1200px" mx="auto">
-      <VStack spacing={6} align="stretch">
+    <div className="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
+      <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <Flex align="center" justify="space-between">
-          <Box>
-            <Heading size="xl" mb={2}>
-              Development Status
-            </Heading>
-            <Text color="gray.600">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Development Status</h1>
+            <p className="text-gray-500 dark:text-gray-400">
               Real-time monitoring of development environment and services
-            </Text>
-          </Box>
+            </p>
+          </div>
           <Button
-            leftIcon={<FiRefreshCw />}
             onClick={loadSystemStatus}
-            isLoading={isRefreshing}
-            colorScheme="blue"
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
           >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-        </Flex>
+        </div>
 
         {/* System Overview */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardBody>
-              <Stat>
-                <StatLabel>Platform</StatLabel>
-                <StatNumber fontSize="xl">
-                  {systemStatus?.platform
-                    ? systemStatus.platform.toUpperCase()
-                    : "Web"}
-                </StatNumber>
-                <StatHelpText>
-                  <StatArrow type="increase" />
-                  {systemStatus?.architecture || "Unknown"}
-                </StatHelpText>
-              </Stat>
-            </CardBody>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between space-y-0 pb-2">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Platform</p>
+                <Monitor className="h-4 w-4 text-gray-500" />
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {systemStatus?.platform ? systemStatus.platform.toUpperCase() : "Web"}
+              </div>
+              <div className="flex items-center pt-1 text-xs text-gray-500">
+                <Activity className="mr-1 h-3 w-3 text-green-500" />
+                {systemStatus?.architecture || "Unknown"}
+              </div>
+            </CardContent>
           </Card>
 
           <Card>
-            <CardBody>
-              <Stat>
-                <StatLabel>Services</StatLabel>
-                <StatNumber fontSize="xl">
-                  {serviceList.filter((s) => s.status === "healthy").length}/
-                  {serviceList.length}
-                </StatNumber>
-                <StatHelpText>Healthy Services</StatHelpText>
-              </Stat>
-            </CardBody>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between space-y-0 pb-2">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Services</p>
+                <Server className="h-4 w-4 text-gray-500" />
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {serviceList.filter((s) => s.status === "healthy").length}/{serviceList.length}
+              </div>
+              <p className="text-xs text-gray-500 pt-1">Healthy Services</p>
+            </CardContent>
           </Card>
 
           <Card>
-            <CardBody>
-              <Stat>
-                <StatLabel>Test Coverage</StatLabel>
-                <StatNumber fontSize="xl">
-                  {buildStatus.tests?.coverage || "0%"}
-                </StatNumber>
-                <StatHelpText>
-                  {buildStatus.tests?.passed}/{buildStatus.tests?.total} tests
-                  passed
-                </StatHelpText>
-              </Stat>
-            </CardBody>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between space-y-0 pb-2">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Test Coverage</p>
+                <Shield className="h-4 w-4 text-gray-500" />
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {buildStatus.tests?.coverage || "0%"}
+              </div>
+              <p className="text-xs text-gray-500 pt-1">
+                {buildStatus.tests?.passed}/{buildStatus.tests?.total} tests passed
+              </p>
+            </CardContent>
           </Card>
 
           <Card>
-            <CardBody>
-              <Stat>
-                <StatLabel>Last Update</StatLabel>
-                <StatNumber fontSize="xl">
-                  {lastUpdate.toLocaleTimeString()}
-                </StatNumber>
-                <StatHelpText>{lastUpdate.toLocaleDateString()}</StatHelpText>
-              </Stat>
-            </CardBody>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between space-y-0 pb-2">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Update</p>
+                <RefreshCw className="h-4 w-4 text-gray-500" />
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {lastUpdate.toLocaleTimeString()}
+              </div>
+              <p className="text-xs text-gray-500 pt-1">{lastUpdate.toLocaleDateString()}</p>
+            </CardContent>
           </Card>
-        </SimpleGrid>
+        </div>
 
-        <Tabs colorScheme="blue">
-          <TabList>
-            <Tab>
-              <Icon as={FiServer} mr={2} />
+        <Tabs defaultValue="services" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+            <TabsTrigger value="services" className="flex items-center gap-2">
+              <Server className="h-4 w-4" />
               Services
-            </Tab>
-            <Tab>
-              <Icon as={FiPackage} mr={2} />
+            </TabsTrigger>
+            <TabsTrigger value="build" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
               Build Status
-            </Tab>
-            <Tab>
-              <Icon as={FiCpu} mr={2} />
+            </TabsTrigger>
+            <TabsTrigger value="system" className="flex items-center gap-2">
+              <Cpu className="h-4 w-4" />
               System Info
-            </Tab>
-          </TabList>
+            </TabsTrigger>
+          </TabsList>
 
-          <TabPanels>
-            {/* Services Panel */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-                  {serviceList.map((service: any, index) => (
-                    <Card
-                      key={index}
-                      borderLeft="4px"
-                      borderLeftColor={getStatusColor(service.status)}
-                    >
-                      <CardBody>
-                        <HStack justify="space-between" mb={3}>
-                          <Heading size="md">{service.name}</Heading>
-                          <Icon
-                            as={getStatusIcon(service.status)}
-                            color={`${getStatusColor(service.status)}.500`}
-                          />
-                        </HStack>
-                        <VStack align="stretch" spacing={2}>
-                          <HStack justify="space-between">
-                            <Text color="gray.600">Status:</Text>
-                            <Badge colorScheme={getStatusColor(service.status)}>
+          {/* Services Panel */}
+          <TabsContent value="services" className="space-y-6 mt-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {serviceList.map((service, index) => {
+                const StatusIcon = getStatusIcon(service.status);
+                const statusColor = getStatusColor(service.status);
+
+                return (
+                  <Card key={index} className="border-l-4" style={{ borderLeftColor: statusColor.replace('bg-', 'var(--') }}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{service.name}</h3>
+                        <StatusIcon className={`h-5 w-5 ${statusColor.replace('bg-', 'text-')}`} />
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Status:</span>
+                          <Badge className={`${statusColor} text-white hover:${statusColor}`}>
+                            {service.status}
+                          </Badge>
+                        </div>
+                        {service.responseTime && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">Response Time:</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {service.responseTime.toFixed(0)}ms
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Last Check:</span>
+                          <span className="text-sm text-gray-900 dark:text-gray-100">
+                            {service.lastCheck.toLocaleTimeString()}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Service Health Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Service Health Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="relative w-full overflow-auto">
+                  <table className="w-full caption-bottom text-sm">
+                    <thead className="[&_tr]:border-b">
+                      <tr className="border-b transition-colors hover:bg-gray-100/50 data-[state=selected]:bg-gray-100 dark:hover:bg-gray-800/50 dark:data-[state=selected]:bg-gray-800">
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Service</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Status</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Response Time</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Last Check</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="[&_tr:last-child]:border-0">
+                      {serviceList.map((service, index) => (
+                        <tr key={index} className="border-b transition-colors hover:bg-gray-100/50 data-[state=selected]:bg-gray-100 dark:hover:bg-gray-800/50 dark:data-[state=selected]:bg-gray-800">
+                          <td className="p-4 align-middle font-medium">{service.name}</td>
+                          <td className="p-4 align-middle">
+                            <Badge className={`${getStatusColor(service.status)} text-white hover:${getStatusColor(service.status)}`}>
                               {service.status}
                             </Badge>
-                          </HStack>
-                          {service.responseTime && (
-                            <HStack justify="space-between">
-                              <Text color="gray.600">Response Time:</Text>
-                              <Text fontWeight="medium">
-                                {service.responseTime.toFixed(0)}ms
-                              </Text>
-                            </HStack>
-                          )}
-                          <HStack justify="space-between">
-                            <Text color="gray.600">Last Check:</Text>
-                            <Text fontSize="sm">
-                              {service.lastCheck.toLocaleTimeString()}
-                            </Text>
-                          </HStack>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </SimpleGrid>
+                          </td>
+                          <td className="p-4 align-middle">
+                            {service.responseTime ? `${service.responseTime.toFixed(0)}ms` : "N/A"}
+                          </td>
+                          <td className="p-4 align-middle">{service.lastCheck.toLocaleTimeString()}</td>
+                          <td className="p-4 align-middle">
+                            <Button variant="outline" size="sm">
+                              Restart
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                {/* Service Health Summary */}
+          {/* Build Status Panel */}
+          <TabsContent value="build" className="space-y-6 mt-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Last Build</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 dark:text-gray-400">Status:</span>
+                    <Badge className={`${getStatusColor(buildStatus.status)} text-white hover:${getStatusColor(buildStatus.status)}`}>
+                      {buildStatus.status}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 dark:text-gray-400">Time:</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{buildStatus.buildTime}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 dark:text-gray-400">Completed:</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      {buildStatus.lastBuild ? buildStatus.lastBuild.toLocaleString() : "Never"}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Test Results</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 dark:text-gray-400">Total Tests:</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{buildStatus.tests?.total}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 dark:text-gray-400">Passed:</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">{buildStatus.tests?.passed}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 dark:text-gray-400">Failed:</span>
+                    <span className="font-medium text-red-600 dark:text-red-400">{buildStatus.tests?.failed}</span>
+                  </div>
+                  <Progress
+                    value={(buildStatus.tests?.passed / buildStatus.tests?.total) * 100 || 0}
+                    className="h-2"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Build Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-4">
+                  <Button className="bg-green-600 hover:bg-green-700 text-white">
+                    <Play className="mr-2 h-4 w-4" />
+                    Start Build
+                  </Button>
+                  <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:hover:bg-red-900/20">
+                    <StopCircle className="mr-2 h-4 w-4" />
+                    Stop Build
+                  </Button>
+                  <Button variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-900 dark:hover:bg-blue-900/20">
+                    <Package className="mr-2 h-4 w-4" />
+                    Package Release
+                  </Button>
+                  <Button variant="outline" className="text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700 dark:border-purple-900 dark:hover:bg-purple-900/20">
+                    <Terminal className="mr-2 h-4 w-4" />
+                    Run Tests
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* System Info Panel */}
+          <TabsContent value="system" className="space-y-6 mt-6">
+            {systemStatus ? (
+              <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <Heading size="md">Service Health Summary</Heading>
+                    <CardTitle>Platform Information</CardTitle>
                   </CardHeader>
-                  <CardBody>
-                    <Table variant="simple">
-                      <Thead>
-                        <Tr>
-                          <Th>Service</Th>
-                          <Th>Status</Th>
-                          <Th>Response Time</Th>
-                          <Th>Last Check</Th>
-                          <Th>Actions</Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {serviceList.map((service: any, index) => (
-                          <Tr key={index}>
-                            <Td fontWeight="medium">{service.name}</Td>
-                            <Td>
-                              <Badge
-                                colorScheme={getStatusColor(service.status)}
-                              >
-                                {service.status}
-                              </Badge>
-                            </Td>
-                            <Td>
-                              {service.responseTime
-                                ? `${service.responseTime.toFixed(0)}ms`
-                                : "N/A"}
-                            </Td>
-                            <Td>{service.lastCheck.toLocaleTimeString()}</Td>
-                            <Td>
-                              <Button size="sm" variant="outline">
-                                Restart
-                              </Button>
-                            </Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  </CardBody>
+                  <CardContent className="space-y-3">
+                    {Object.entries(systemStatus).map(([key, value]) => (
+                      <div key={key} className="flex justify-between items-center">
+                        <span className="font-medium capitalize text-gray-700 dark:text-gray-300">
+                          {key.replace(/_/g, " ")}:
+                        </span>
+                        <span className="text-gray-900 dark:text-gray-100">{String(value)}</span>
+                      </div>
+                    ))}
+                  </CardContent>
                 </Card>
-              </VStack>
-            </TabPanel>
 
-            {/* Build Status Panel */}
-            <TabPanel>
-              <VStack spacing={6} align="stretch">
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <Card>
-                    <CardHeader>
-                      <Heading size="md">Last Build</Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack align="stretch" spacing={4}>
-                        <HStack justify="space-between">
-                          <Text color="gray.600">Status:</Text>
-                          <Badge
-                            colorScheme={getStatusColor(buildStatus.status)}
-                            size="lg"
-                          >
-                            {buildStatus.status}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Capabilities</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {systemStatus.features &&
+                      Object.entries(systemStatus.features).map(([feature, enabled]) => (
+                        <div key={feature} className="flex justify-between items-center">
+                          <span className="text-gray-700 dark:text-gray-300">
+                            {feature.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                          </span>
+                          <Badge className={enabled ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"}>
+                            {enabled ? "Enabled" : "Disabled"}
                           </Badge>
-                        </HStack>
-                        <HStack justify="space-between">
-                          <Text color="gray.600">Time:</Text>
-                          <Text fontWeight="medium">
-                            {buildStatus.buildTime}
-                          </Text>
-                        </HStack>
-                        <HStack justify="space-between">
-                          <Text color="gray.600">Completed:</Text>
-                          <Text fontSize="sm">
-                            {buildStatus.lastBuild
-                              ? buildStatus.lastBuild.toLocaleString()
-                              : "Never"}
-                          </Text>
-                        </HStack>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <Heading size="md">Test Results</Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack align="stretch" spacing={4}>
-                        <HStack justify="space-between">
-                          <Text color="gray.600">Total Tests:</Text>
-                          <Text fontWeight="medium">
-                            {buildStatus.tests?.total}
-                          </Text>
-                        </HStack>
-                        <HStack justify="space-between">
-                          <Text color="gray.600">Passed:</Text>
-                          <Text fontWeight="medium" color="green.500">
-                            {buildStatus.tests?.passed}
-                          </Text>
-                        </HStack>
-                        <HStack justify="space-between">
-                          <Text color="gray.600">Failed:</Text>
-                          <Text fontWeight="medium" color="red.500">
-                            {buildStatus.tests?.failed}
-                          </Text>
-                        </HStack>
-                        <Progress
-                          value={
-                            (buildStatus.tests?.passed /
-                              buildStatus.tests?.total) *
-                              100 || 0
-                          }
-                          colorScheme="green"
-                          size="sm"
-                          borderRadius="md"
-                        />
-                      </VStack>
-                    </CardBody>
-                  </Card>
-                </SimpleGrid>
-
-                <Card>
-                  <CardHeader>
-                    <Heading size="md">Build Actions</Heading>
-                  </CardHeader>
-                  <CardBody>
-                    <HStack spacing={4}>
-                      <Button leftIcon={<FiPlay />} colorScheme="green">
-                        Start Build
-                      </Button>
-                      <Button
-                        leftIcon={<FiStopCircle />}
-                        colorScheme="red"
-                        variant="outline"
-                      >
-                        Stop Build
-                      </Button>
-                      <Button
-                        leftIcon={<FiPackage />}
-                        colorScheme="blue"
-                        variant="outline"
-                      >
-                        Package Release
-                      </Button>
-                      <Button
-                        leftIcon={<FiTerminal />}
-                        colorScheme="purple"
-                        variant="outline"
-                      >
-                        Run Tests
-                      </Button>
-                    </HStack>
-                  </CardBody>
+                        </div>
+                      ))}
+                  </CardContent>
                 </Card>
-              </VStack>
-            </TabPanel>
+              </div>
+            ) : (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Web Environment</AlertTitle>
+                <AlertDescription>
+                  System information is only available in the desktop application.
+                </AlertDescription>
+              </Alert>
+            )}
 
-            {/* System Info Panel */}
-            <TabPanel>
-              <VStack spacing={6} align="stretch">
-                {systemStatus ? (
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    <Card>
-                      <CardHeader>
-                        <Heading size="md">Platform Information</Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack align="stretch" spacing={3}>
-                          {Object.entries(systemStatus).map(([key, value]) => (
-                            <HStack key={key} justify="space-between">
-                              <Text
-                                fontWeight="medium"
-                                textTransform="capitalize"
-                              >
-                                {key.replace(/_/g, " ")}:
-                              </Text>
-                              <Text>{String(value)}</Text>
-                            </HStack>
-                          ))}
-                        </VStack>
-                      </CardBody>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <Heading size="md">Capabilities</Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack align="stretch" spacing={2}>
-                          {systemStatus.features &&
-                            Object.entries(systemStatus.features).map(
-                              ([feature, enabled]) => (
-                                <HStack key={feature} justify="space-between">
-                                  <Text>
-                                    {feature
-                                      .split("_")
-                                      .map(
-                                        (word) =>
-                                          word.charAt(0).toUpperCase() +
-                                          word.slice(1),
-                                      )
-                                      .join(" ")}
-                                  </Text>
-                                  <Badge
-                                    colorScheme={enabled ? "green" : "red"}
-                                  >
-                                    {enabled ? "Enabled" : "Disabled"}
-                                  </Badge>
-                                </HStack>
-                              ),
-                            )}
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  </SimpleGrid>
-                ) : (
-                  <Alert status="info">
-                    <AlertIcon />
-                    <Box>
-                      <AlertTitle>Web Environment</AlertTitle>
-                      <AlertDescription>
-                        System information is only available in the desktop
-                        application.
-                      </AlertDescription>
-                    </Box>
-                  </Alert>
-                )}
-
-                {/* Development Tools Quick Access */}
-                <Card>
-                  <CardHeader>
-                    <Heading size="md">Quick Actions</Heading>
-                  </CardHeader>
-                  <CardBody>
-                    <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4}>
-                      <Button
-                        leftIcon={<FiTerminal />}
-                        colorScheme="blue"
-                        variant="outline"
-                      >
-                        Dev Tools
-                      </Button>
-                      <Button
-                        leftIcon={<FiFolder />}
-                        colorScheme="green"
-                        variant="outline"
-                      >
-                        File Explorer
-                      </Button>
-                      <Button
-                        leftIcon={<FiDatabase />}
-                        colorScheme="purple"
-                        variant="outline"
-                      >
-                        Database
-                      </Button>
-                      <Button
-                        leftIcon={<FiGitBranch />}
-                        colorScheme="orange"
-                        variant="outline"
-                      >
-                        Git Status
-                      </Button>
-                    </SimpleGrid>
-                  </CardBody>
-                </Card>
-              </VStack>
-            </TabPanel>
-          </TabPanels>
+            {/* Development Tools Quick Access */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Terminal className="h-4 w-4" />
+                    Dev Tools
+                  </Button>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Folder className="h-4 w-4" />
+                    File Explorer
+                  </Button>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    Database
+                  </Button>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <GitBranch className="h-4 w-4" />
+                    Git Status
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 };
 

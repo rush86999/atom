@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -16,29 +20,76 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@pages/*": ["pages/*"],
-      "@layouts/*": ["layouts/*"],
-      "@components/*": ["components/*"],
-      "@config/*": ["config/*"],
-      "@lib/*": ["lib/*"],
-      "@assets/*": ["public/assets/*"],
-      "@models": ["src/models"],
-      "@styles/*": ["styles/*"],
-      "@shared/*": ["../../src/ui-shared/*"],
-      "@shared-components/*": ["../../src/ui-shared/components/*"],
-      "@shared-hooks/*": ["../../src/ui-shared/hooks/*"],
-      "@shared-services/*": ["../../src/services/*"],
-      "@shared-ai/*": ["../../src/services/ai/*"],
-      "@shared-integrations/*": ["../../src/services/integrations/*"],
-      "@shared-workflows/*": ["../../src/services/workflows/*"],
-      "@shared-utils/*": ["../../src/services/utils/*"],
-      "@/orchestration/*": ["../../src/orchestration/*"],
-      "@/llm/*": ["../../src/llm/*"],
-      "@/utils/*": ["../../src/utils/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@pages/*": [
+        "pages/*"
+      ],
+      "@layouts/*": [
+        "layouts/*"
+      ],
+      "@components/*": [
+        "components/*"
+      ],
+      "@config/*": [
+        "config/*"
+      ],
+      "@lib/*": [
+        "lib/*"
+      ],
+      "@assets/*": [
+        "public/assets/*"
+      ],
+      "@models": [
+        "src/models"
+      ],
+      "@styles/*": [
+        "styles/*"
+      ],
+      "@shared/*": [
+        "../../src/ui-shared/*"
+      ],
+      "@shared-components/*": [
+        "../../src/ui-shared/components/*"
+      ],
+      "@shared-hooks/*": [
+        "../../src/ui-shared/hooks/*"
+      ],
+      "@shared-services/*": [
+        "../../src/services/*"
+      ],
+      "@shared-ai/*": [
+        "../../src/services/ai/*"
+      ],
+      "@shared-integrations/*": [
+        "../../src/services/integrations/*"
+      ],
+      "@shared-workflows/*": [
+        "../../src/services/workflows/*"
+      ],
+      "@shared-utils/*": [
+        "../../src/services/utils/*"
+      ],
+      "@/orchestration/*": [
+        "../../src/orchestration/*"
+      ],
+      "@/llm/*": [
+        "../../src/llm/*"
+      ],
+      "@/utils/*": [
+        "../../src/utils/*"
+      ]
     },
     "jsx": "preserve",
     "incremental": true
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

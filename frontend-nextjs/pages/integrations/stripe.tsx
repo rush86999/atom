@@ -1,21 +1,20 @@
 import React from "react";
-import { Box, VStack, Heading, Text } from "@chakra-ui/react";
 import StripeIntegration from "../../components/StripeIntegration";
 
 const StripeIntegrationPage: React.FC = () => {
   return (
-    <Box minH="100vh" bg="white" p={6}>
-      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
-        <VStack align="start" spacing={2}>
-          <Heading size="2xl">Stripe Integration</Heading>
-          <Text color="gray.600" fontSize="lg">
+    <div className="min-h-screen bg-white p-6">
+      <div className="max-w-[1400px] mx-auto space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold">Stripe Integration</h1>
+          <p className="text-gray-600 text-lg">
             Complete payment processing and financial management platform
-          </Text>
-        </VStack>
+          </p>
+        </div>
 
         <StripeIntegration />
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 };
 

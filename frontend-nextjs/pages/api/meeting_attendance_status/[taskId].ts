@@ -1,9 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { Pool } from 'pg';
-import { getSession } from 'supertokens-node/nextjs';
-import { SessionRequest } from 'supertokens-node/framework/express'; // May not be needed if getSession works directly with NextApiRequest
-import supertokens from 'supertokens-node';
-import { backendConfig } from '../../../config/backendConfig'; // Corrected path
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../auth/[...nextauth]";
 import appServiceLogger from '../../../lib/logger'; // Import the shared logger
 
 // Define a type for the expected response data
@@ -31,15 +29,14 @@ type ErrorResponse = {
 let pool: Pool | null = null;
 
 try {
-  supertokens.init(backendConfig()); // Initialize Supertokens
   pool = new Pool(); // Reads environment variables automatically
   appServiceLogger.info(
-    'PostgreSQL Pool and Supertokens initialized successfully for meeting_attendance_status API.'
+    'PostgreSQL Pool initialized successfully for meeting_attendance_status API.'
   );
 } catch (error: any) {
   appServiceLogger.fatal(
     { error: error.message, stack: error.stack, details: error },
-    'Failed to initialize PostgreSQL Pool or Supertokens. API will not function correctly.'
+    'Failed to initialize PostgreSQL Pool. API will not function correctly.'
   );
   // If pool init fails, subsequent calls will also fail the !pool check.
 }
@@ -61,27 +58,16 @@ export default async function handler(
       .json({ error: 'Database connection not configured.' });
   }
 
-  let session;
-  try {
-    session = await getSession(req as any, res as any, true);
-  } catch (error: any) {
-    appServiceLogger.error(`[${operationName}] Supertokens getSession error.`, {
-      error: error.message,
-      stack: error.stack,
-      details: error,
-    });
-    return res
-      .status(500)
-      .json({ error: 'Authentication error', details: error.message });
-  }
+  const session = await getServerSession(req, res, authOptions);
 
-  if (!session) {
+  if (!session || !session.user) {
     appServiceLogger.warn(
       `[${operationName}] Unauthorized attempt: No active session.`
     );
     return res.status(401).json({ error: 'Unauthorized. Please log in.' });
   }
-  const authenticatedUserId = session.getUserId();
+
+  const authenticatedUserId = session.user.id;
   appServiceLogger.info(`[${operationName}] Request received for user.`, {
     authenticatedUserId,
     taskId: req.query.taskId,
