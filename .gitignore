@@ -681,3 +681,8 @@ backend/REAL_API_INTEGRATION_SUCCESS_20251119.md
 
 # HubSpot config file
 hubspot.config.yml
+
+# OAuth tokens (contains sensitive credentials)
+backend/oauth_tokens.json
+oauth_tokens.json
+backend/workflows.json

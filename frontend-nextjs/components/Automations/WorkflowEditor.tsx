@@ -49,6 +49,7 @@ import {
   DrawerCloseButton
 } from '@chakra-ui/react';
 import { AddIcon, EditIcon, DeleteIcon, DragHandleIcon, SettingsIcon, ViewIcon, CopyIcon } from '@chakra-ui/icons';
+import IntegrationSelector from './IntegrationSelector';
 
 interface WorkflowNode {
   id: string;
@@ -258,7 +259,7 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
     }));
   };
 
-  const handleSaveWorkflow = () => {
+  const handleSaveWorkflow = async () => {
     if (!currentWorkflow.name.trim()) {
       toast({
         title: 'Workflow name required',
@@ -279,13 +280,41 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
       return;
     }
 
-    onSave?.(currentWorkflow);
-    toast({
-      title: 'Workflow saved',
-      status: 'success',
-      duration: 2000,
-      isClosable: true,
-    });
+    try {
+      setLoading(true);
+      const response = await fetch('/api/v1/workflows', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(currentWorkflow),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save workflow');
+      }
+
+      const savedWorkflow = await response.json();
+      setCurrentWorkflow(savedWorkflow);
+
+      onSave?.(savedWorkflow);
+      toast({
+        title: 'Workflow saved',
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error saving workflow',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTestWorkflow = () => {
@@ -357,37 +386,114 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
               </FormControl>
 
               {selectedNode.type === 'trigger' && (
-                <FormControl>
-                  <FormLabel>Trigger Type</FormLabel>
-                  <Select
-                    value={formData.triggerType || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, triggerType: e.target.value }))}
-                  >
-                    <option value="">Select trigger type</option>
-                    {availableTriggers.map(trigger => (
-                      <option key={trigger.id} value={trigger.id}>
-                        {trigger.name}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
+                <VStack spacing={4} align="stretch">
+                  <FormControl>
+                    <FormLabel>Trigger Type</FormLabel>
+                    <Select
+                      value={formData.triggerType || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, triggerType: e.target.value }))}
+                    >
+                      <option value="">Select trigger type</option>
+                      {availableTriggers.map(trigger => (
+                        <option key={trigger.id} value={trigger.id}>
+                          {trigger.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  {formData.triggerType && (
+                    <FormControl>
+                      <FormLabel>Select Integration</FormLabel>
+                      <IntegrationSelector
+                        selectedIntegrationId={formData.integrationId}
+                        onSelect={(id) => setFormData(prev => ({ ...prev, integrationId: id }))}
+                      />
+                    </FormControl>
+                  )}
+                </VStack>
               )}
 
               {selectedNode.type === 'action' && (
-                <FormControl>
-                  <FormLabel>Action Type</FormLabel>
-                  <Select
-                    value={formData.actionType || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, actionType: e.target.value }))}
-                  >
-                    <option value="">Select action type</option>
-                    {availableActions.map(action => (
-                      <option key={action.id} value={action.id}>
-                        {action.name}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
+                <VStack spacing={4} align="stretch">
+                  <FormControl>
+                    <FormLabel>Action Type</FormLabel>
+                    <Select
+                      value={formData.actionType || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, actionType: e.target.value }))}
+                    >
+                      <option value="">Select action type</option>
+                      {availableActions.map(action => (
+                        <option key={action.id} value={action.id}>
+                          {action.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  {formData.actionType && (
+                    <FormControl>
+                      <FormLabel>Select Integration</FormLabel>
+                      <IntegrationSelector
+                        selectedIntegrationId={formData.integrationId}
+                        onSelect={(id) => setFormData(prev => ({ ...prev, integrationId: id }))}
+                      />
+                    </FormControl>
+                  )}
+
+                  {/* Dynamic Action Fields */}
+                  {formData.actionType === 'send_email' && (
+                    <>
+                      <FormControl>
+                        <FormLabel>To</FormLabel>
+                        <Input
+                          value={formData.to || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, to: e.target.value }))}
+                          placeholder="recipient@example.com"
+                        />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Subject</FormLabel>
+                        <Input
+                          value={formData.subject || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+                          placeholder="Email subject"
+                        />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Body</FormLabel>
+                        <Textarea
+                          value={formData.body || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, body: e.target.value }))}
+                          placeholder="Email content"
+                          rows={4}
+                        />
+                      </FormControl>
+                    </>
+                  )}
+
+                  {formData.actionType === 'notify' && (
+                    <>
+                      <FormControl>
+                        <FormLabel>Channel</FormLabel>
+                        <Input
+                          value={formData.channel || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, channel: e.target.value }))}
+                          placeholder="#general or @user"
+                        />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Message</FormLabel>
+                        <Textarea
+                          value={formData.message || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+                          placeholder="Notification message"
+                          rows={3}
+                        />
+                      </FormControl>
+                    </>
+                  )}
+                </VStack>
               )}
 
               {selectedNode.type === 'condition' && (

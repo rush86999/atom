@@ -22,6 +22,7 @@ from slack_sdk.web.async_client import AsyncWebClient
 import redis
 import jwt
 from cryptography.fernet import Fernet
+from core.token_storage import token_storage
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -159,15 +160,15 @@ class SlackFile:
     pretty_type: str
     size: int
     url_private: str
-    url_private_download: Optional[str] = None
     permalink: str
-    permalink_public: Optional[str] = None
     user_id: str
     user_name: str
-    channel_id: Optional[str] = None
-    workspace_id: str = None
     timestamp: str
     created: datetime
+    url_private_download: Optional[str] = None
+    permalink_public: Optional[str] = None
+    channel_id: Optional[str] = None
+    workspace_id: str = None
     is_public: bool = False
     is_editable: bool = True
     external_type: Optional[str] = None
@@ -361,6 +362,29 @@ class SlackEnhancedService:
                     return SlackWorkspace(**json.loads(cached))
         except Exception as e:
             logger.error(f"Error getting workspace {workspace_id}: {e}")
+        
+        # Fallback: Check central token storage
+        try:
+            stored_token = token_storage.get_token("slack")
+            if stored_token:
+                # Check if this token belongs to the requested workspace
+                team_id = stored_token.get("team", {}).get("id")
+                if team_id == workspace_id:
+                    logger.info(f"Found workspace {workspace_id} in token storage")
+                    return SlackWorkspace(
+                        team_id=team_id,
+                        team_name=stored_token.get("team", {}).get("name"),
+                        domain=stored_token.get("team", {}).get("domain", ""),
+                        url=f"https://{stored_token.get('team', {}).get('domain', '')}.slack.com",
+                        access_token=stored_token.get("access_token"),
+                        bot_token=stored_token.get("bot_user_id"),
+                        user_id=stored_token.get("authed_user", {}).get("id"),
+                        scopes=stored_token.get("scope", "").split(","),
+                        is_active=True
+                    )
+        except Exception as e:
+            logger.error(f"Error checking token storage for workspace {workspace_id}: {e}")
+            
         return None
     
     def _save_workspace(self, workspace: SlackWorkspace) -> bool:

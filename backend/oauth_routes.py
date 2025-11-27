@@ -13,6 +13,7 @@ from core.oauth_handler import (
     SLACK_OAUTH_CONFIG,
     GITHUB_OAUTH_CONFIG,
 )
+from core.token_storage import token_storage
 import logging
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,33 @@ async def google_oauth_initiate():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/google/callback")
+async def google_oauth_callback_get(code: str = Query(...), state: str = Query(None)):
+    """Handle Google OAuth callback (GET from OAuth provider)"""
+    try:
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(GOOGLE_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+        
+        # Store tokens securely
+        token_storage.save_token("google", tokens)
+        
+        logger.info("Google OAuth successful - tokens received and stored")
+        logger.debug(f"Access token: {tokens.get('access_token', '')[:20]}...")
+        
+        # Redirect to frontend success page
+        return RedirectResponse(url="http://localhost:3000/oauth/success?provider=google")
+    
+    except HTTPException as e:
+        logger.error(f"Google OAuth callback failed: {e.detail}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={e.detail}")
+    except Exception as e:
+        logger.error(f"Google OAuth callback error: {e}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={str(e)}")
+
+
 @router.post("/google/callback")
 async def google_oauth_callback(request: Request):
     """Handle Google OAuth callback"""
@@ -48,9 +76,10 @@ async def google_oauth_callback(request: Request):
         handler = OAuthHandler(GOOGLE_OAUTH_CONFIG)
         tokens = await handler.exchange_code_for_tokens(code)
         
-        # TODO: Store tokens securely in database
-        # For now, log success and return tokens (or success status)
-        logger.info("Google OAuth successful - tokens received")
+        # Store tokens securely
+        token_storage.save_token("google", tokens)
+        
+        logger.info("Google OAuth successful - tokens received and stored")
         logger.debug(f"Access token: {tokens.get('access_token', '')[:20]}...")
         
         return {"status": "success", "provider": "google", "tokens": tokens}
@@ -91,7 +120,10 @@ async def microsoft_oauth_callback(request: Request):
         handler = OAuthHandler(MICROSOFT_OAUTH_CONFIG)
         tokens = await handler.exchange_code_for_tokens(code)
         
-        logger.info("Microsoft OAuth successful - tokens received")
+        # Store tokens securely
+        token_storage.save_token("microsoft", tokens)
+        
+        logger.info("Microsoft OAuth successful - tokens received and stored")
         return {"status": "success", "provider": "microsoft", "tokens": tokens}
     
     except HTTPException as e:
@@ -130,7 +162,10 @@ async def salesforce_oauth_callback(request: Request):
         handler = OAuthHandler(SALESFORCE_OAUTH_CONFIG)
         tokens = await handler.exchange_code_for_tokens(code)
         
-        logger.info("Salesforce OAuth successful - tokens received")
+        # Store tokens securely
+        token_storage.save_token("salesforce", tokens)
+        
+        logger.info("Salesforce OAuth successful - tokens received and stored")
         return {"status": "success", "provider": "salesforce", "tokens": tokens}
     
     except HTTPException as e:
@@ -169,7 +204,10 @@ async def slack_oauth_callback(request: Request):
         handler = OAuthHandler(SLACK_OAUTH_CONFIG)
         tokens = await handler.exchange_code_for_tokens(code)
         
-        logger.info("Slack OAuth successful - tokens received")
+        # Store tokens securely
+        token_storage.save_token("slack", tokens)
+        
+        logger.info("Slack OAuth successful - tokens received and stored")
         return {"status": "success", "provider": "slack", "tokens": tokens}
     
     except HTTPException as e:
@@ -208,7 +246,10 @@ async def github_oauth_callback(request: Request):
         handler = OAuthHandler(GITHUB_OAUTH_CONFIG)
         tokens = await handler.exchange_code_for_tokens(code)
         
-        logger.info("GitHub OAuth successful - tokens received")
+        # Store tokens securely
+        token_storage.save_token("github", tokens)
+        
+        logger.info("GitHub OAuth successful - tokens received and stored")
         return {"status": "success", "provider": "github", "tokens": tokens}
     
     except HTTPException as e:

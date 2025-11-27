@@ -35,6 +35,14 @@ loader = IntegrationLoader()
 try:
     from core.api_routes import router as core_router
     app.include_router(core_router, prefix="/api/v1")
+
+    from core.workflow_endpoints import router as workflow_router
+    app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
+
+    # Include OAuth routers
+    from oauth_routes import router as oauth_router # Assuming oauth_routes is a top-level module
+    app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
+
 except ImportError as e:
     print(f"[CRITICAL] Core API routes failed to load: {e}")
 

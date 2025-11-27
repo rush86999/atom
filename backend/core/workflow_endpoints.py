@@ -1,56 +1,95 @@
-
-from fastapi import APIRouter, HTTPException
-from typing import List, Dict, Any
+from fastapi import APIRouter, HTTPException, Depends
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+from datetime import datetime
+import uuid
+import json
+import os
 
 router = APIRouter()
 
-# Sample workflow templates
-WORKFLOW_TEMPLATES = [
-    {
-        "id": "daily_standup",
-        "name": "Daily Standup Automation",
-        "description": "Automate daily standup preparation and reporting",
-        "services": ["slack", "google_calendar", "asana"],
-        "trigger": "scheduled:09:00"
-    },
-    {
-        "id": "meeting_followup",
-        "name": "Meeting Follow-up",
-        "description": "Automate meeting follow-up tasks",
-        "services": ["google_calendar", "gmail", "asana"],
-        "trigger": "calendar_event_ended"
-    },
-    {
-        "id": "code_review",
-        "name": "Code Review Automation",
-        "description": "Automate code review process",
-        "services": ["github", "slack"],
-        "trigger": "github:pull_request_opened"
-    }
-]
+# Simple file-based storage for MVP
+WORKFLOWS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "workflows.json")
 
-@router.get("/api/workflows/templates")
-async def get_workflow_templates():
-    """Get available workflow templates"""
-    return {
-        "templates": WORKFLOW_TEMPLATES,
-        "total_templates": len(WORKFLOW_TEMPLATES)
-    }
+class WorkflowNode(BaseModel):
+    id: str
+    type: str
+    title: str
+    description: str
+    position: Dict[str, float]
+    config: Dict[str, Any]
+    connections: List[str]
 
-@router.get("/api/workflows/templates/{template_id}")
-async def get_workflow_template(template_id: str):
-    """Get specific workflow template"""
-    template = next((t for t in WORKFLOW_TEMPLATES if t["id"] == template_id), None)
-    if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
-    return template
+class WorkflowConnection(BaseModel):
+    id: str
+    source: str
+    target: str
+    condition: Optional[str] = None
 
-@router.post("/api/workflows/execute")
-async def execute_workflow(workflow_data: Dict[Any, Any]):
-    """Execute a workflow"""
-    return {
-        "success": True,
-        "execution_id": f"exec_{int(time.time())}",
-        "status": "started",
-        "message": "Workflow execution started"
-    }
+class WorkflowDefinition(BaseModel):
+    id: Optional[str] = None
+    name: str
+    description: str
+    version: str
+    nodes: List[WorkflowNode]
+    connections: List[WorkflowConnection]
+    triggers: List[str]
+    enabled: bool
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+def load_workflows() -> List[Dict]:
+    if not os.path.exists(WORKFLOWS_FILE):
+        return []
+    try:
+        with open(WORKFLOWS_FILE, 'r') as f:
+            return json.load(f)
+    except:
+        return []
+
+def save_workflows(workflows: List[Dict]):
+    with open(WORKFLOWS_FILE, 'w') as f:
+        json.dump(workflows, f, indent=2)
+
+@router.get("/workflows", response_model=List[WorkflowDefinition])
+async def get_workflows():
+    return load_workflows()
+
+@router.get("/workflows/{workflow_id}", response_model=WorkflowDefinition)
+async def get_workflow(workflow_id: str):
+    workflows = load_workflows()
+    workflow = next((w for w in workflows if w['id'] == workflow_id), None)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return workflow
+
+@router.post("/workflows", response_model=WorkflowDefinition)
+async def create_workflow(workflow: WorkflowDefinition):
+    workflows = load_workflows()
+    
+    # Generate ID if new
+    if not workflow.id:
+        workflow.id = str(uuid.uuid4())
+        workflow.createdAt = datetime.now().isoformat()
+    
+    workflow.updatedAt = datetime.now().isoformat()
+    
+    # Check if exists (update)
+    existing_index = next((i for i, w in enumerate(workflows) if w['id'] == workflow.id), -1)
+    
+    workflow_dict = workflow.dict()
+    
+    if existing_index >= 0:
+        workflows[existing_index] = workflow_dict
+    else:
+        workflows.append(workflow_dict)
+    
+    save_workflows(workflows)
+    return workflow_dict
+
+@router.delete("/workflows/{workflow_id}")
+async def delete_workflow(workflow_id: str):
+    workflows = load_workflows()
+    workflows = [w for w in workflows if w['id'] != workflow_id]
+    save_workflows(workflows)
+    return {"status": "success"}

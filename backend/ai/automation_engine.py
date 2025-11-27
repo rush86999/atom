@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
+from integrations.gmail_service import get_gmail_service
+from integrations.slack_enhanced_service import SlackEnhancedService
+from core.oauth_handler import SLACK_OAUTH_CONFIG
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +42,7 @@ class PlatformType(Enum):
     SLACK = "slack"
     TEAMS = "teams"
     DISCORD = "discord"
+    GMAIL = "gmail"
     GOOGLE_CHAT = "google_chat"
     TELEGRAM = "telegram"
     WHATSAPP = "whatsapp"
@@ -140,13 +144,35 @@ class AutomationEngine:
     def __init__(self):
         self.workflows: Dict[str, AutomationWorkflow] = {}
         self.executions: Dict[str, WorkflowExecution] = {}
+        self.slack_service = SlackEnhancedService({
+            "client_id": SLACK_OAUTH_CONFIG.client_id,
+            "client_secret": SLACK_OAUTH_CONFIG.client_secret,
+            "signing_secret": "dummy", # Not needed for sending messages
+            "redirect_uri": SLACK_OAUTH_CONFIG.redirect_uri
+        })
         self.platform_connectors = self._initialize_platform_connectors()
         self.action_handlers = self._initialize_action_handlers()
 
     def _initialize_platform_connectors(self) -> Dict[PlatformType, callable]:
         """Initialize platform action connectors"""
         # In production, these would be actual API connectors
-        return {platform: self._mock_platform_connector for platform in PlatformType}
+        connectors = {platform: self._mock_platform_connector for platform in PlatformType}
+        
+        # Override with real connectors where available
+        connectors[PlatformType.SLACK] = self._slack_connector
+        # Gmail is not in PlatformType enum explicitly but might be mapped from GOOGLE_DRIVE or added
+        # Assuming we use a generic google connector or add GMAIL to enum if needed.
+        # For now, let's add a specific check in the mock connector or just use _gmail_connector if we add GMAIL type.
+        # But wait, PlatformType doesn't have GMAIL. It has GOOGLE_CHAT, GOOGLE_DRIVE.
+        # I should probably add GMAIL to PlatformType or just map it.
+        # Let's assume we can use a custom string or just add it.
+        # For this task, I'll add GMAIL to PlatformType enum first.
+        
+        # Override with real connectors where available
+        connectors[PlatformType.SLACK] = self._slack_connector
+        connectors[PlatformType.GMAIL] = self._gmail_connector
+        
+        return connectors
 
     def _initialize_action_handlers(self) -> Dict[ActionType, callable]:
         """Initialize action handler functions"""
@@ -403,13 +429,6 @@ class AutomationEngine:
             "output_data": {"transformed": True, **data},
         }
 
-    async def _mock_platform_connector(
-        self, operation: str, entity: str, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Mock platform connector for testing"""
-        # Simulate API call delay
-        await asyncio.sleep(0.1)
-
         return {
             "operation": operation,
             "entity": entity,
@@ -417,6 +436,58 @@ class AutomationEngine:
             "timestamp": datetime.now().isoformat(),
             "data": data,
         }
+
+    async def _slack_connector(
+        self, operation: str, entity: str, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Real Slack connector"""
+        if operation == "notify":
+            channel = data.get("channel")
+            message = data.get("message")
+            # We need a workspace_id. For MVP, we might need to look it up or pass it in data.
+            # If not provided, we might default to the first available workspace in token storage?
+            # Or just fail if not provided.
+            # Let's try to get it from data or token storage.
+            workspace_id = data.get("workspace_id")
+            
+            # If no workspace_id, try to find one from token storage (hack for MVP)
+            if not workspace_id:
+                from core.token_storage import token_storage
+                token = token_storage.get_token("slack")
+                if token:
+                    workspace_id = token.get("team", {}).get("id")
+            
+            if workspace_id and channel and message:
+                result = await self.slack_service.send_message(workspace_id, channel, message)
+                return {"success": result.get("ok", False), "data": result}
+            else:
+                raise ValueError("Missing workspace_id, channel, or message for Slack notification")
+        
+        return await self._mock_platform_connector(operation, entity, data)
+
+    async def _gmail_connector(
+        self, operation: str, entity: str, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Real Gmail connector"""
+        service = get_gmail_service()
+        
+        if operation == "notify" or operation == "create":
+            to = data.get("to")
+            subject = data.get("subject")
+            body = data.get("body") or data.get("message")
+            
+            if to and subject and body:
+                result = service.send_message(to, subject, body)
+                return {"success": bool(result), "data": result}
+            else:
+                raise ValueError("Missing to, subject, or body for Gmail message")
+                
+        elif operation == "search":
+            query = data.get("query", "")
+            messages = service.search_messages(query)
+            return {"success": True, "data": messages, "count": len(messages)}
+            
+        return await self._mock_platform_connector(operation, entity, data)
 
     def get_workflow(self, workflow_id: str) -> Optional[AutomationWorkflow]:
         """Get workflow by ID"""

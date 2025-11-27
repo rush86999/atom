@@ -39,43 +39,43 @@ async def get_current_user():
     return {"user": {"id": "current_user_id", "email": "user@example.com"}}
 
 
-# Workflow endpoints
+# Workflow endpoints - DEPRECATED: Moved to workflow_endpoints.py
 # In-memory workflow storage (for testing - would use DB in production)
-_workflows = {}
-_workflow_counter = 0
+# _workflows = {}
+# _workflow_counter = 0
 
-@router.post("/workflows")
-async def create_workflow(workflow: WorkflowCreate):
-    global _workflow_counter
-    _workflow_counter += 1
-    workflow_id = f"workflow_{_workflow_counter}"
-    
-    workflow_data = {
-        "id": workflow_id,
-        "name": workflow.name,
-        "description": workflow.description,
-        "steps": workflow.steps or [],
-        "created_at": "2025-11-18T23:00:00Z",
-        "status": "active"
-    }
-    
-    # Store workflow in memory
-    _workflows[workflow_id] = workflow_data
-    
-    return {"workflow": workflow_data}
-
-
-@router.get("/workflows")
-async def get_workflows():
-    return {"workflows": list(_workflows.values()), "count": len(_workflows)}
+# @router.post("/workflows")
+# async def create_workflow(workflow: WorkflowCreate):
+#     global _workflow_counter
+#     _workflow_counter += 1
+#     workflow_id = f"workflow_{_workflow_counter}"
+#     
+#     workflow_data = {
+#         "id": workflow_id,
+#         "name": workflow.name,
+#         "description": workflow.description,
+#         "steps": workflow.steps or [],
+#         "created_at": "2025-11-18T23:00:00Z",
+#         "status": "active"
+#     }
+#     
+#     # Store workflow in memory
+#     _workflows[workflow_id] = workflow_data
+#     
+#     return {"workflow": workflow_data}
 
 
-@router.get("/workflows/{workflow_id}")
-async def get_workflow(workflow_id: str):
-    """Get workflow by ID - fixes critical retrieval bug"""
-    if workflow_id not in _workflows:
-        raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
-    return {"workflow": _workflows[workflow_id]}
+# @router.get("/workflows")
+# async def get_workflows():
+#     return {"workflows": list(_workflows.values()), "count": len(_workflows)}
+
+
+# @router.get("/workflows/{workflow_id}")
+# async def get_workflow(workflow_id: str):
+#     """Get workflow by ID - fixes critical retrieval bug"""
+#     if workflow_id not in _workflows:
+#         raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+#     return {"workflow": _workflows[workflow_id]}
 
 
 @router.post("/workflows/execute")
