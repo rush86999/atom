@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Body
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -126,12 +126,12 @@ async def execute_workflow(workflow_id: str, input_data: Optional[Dict[str, Any]
         engine = AutomationEngine()
         
         # Execute workflow
-        results = await engine.execute_workflow_definition(workflow, input_data or {})
+        results = await engine.execute_workflow_definition(workflow, input_data or {}, execution_id=execution_id)
         
         return ExecutionResult(
             execution_id=execution_id,
             workflow_id=workflow_id,
-            status="success",
+            status="success", # This should ideally come from the engine result
             started_at=started_at,
             completed_at=datetime.now().isoformat(),
             results=results,
@@ -148,4 +148,66 @@ async def execute_workflow(workflow_id: str, input_data: Optional[Dict[str, Any]
             results=[],
             errors=[str(e)]
         )
+
+@router.get("/workflows/{workflow_id}/executions", response_model=List[Dict[str, Any]])
+async def get_workflow_executions(workflow_id: str):
+    """Get execution history for a workflow"""
+    from ai.automation_engine import AutomationEngine
+    engine = AutomationEngine()
+    executions = engine.get_execution_history(workflow_id)
+    return [e.to_dict() for e in executions]
+
+@router.get("/workflows/executions/{execution_id}", response_model=Dict[str, Any])
+async def get_execution_details(execution_id: str):
+    """Get details of a specific execution"""
+    from ai.automation_engine import AutomationEngine
+    engine = AutomationEngine()
+    if execution_id not in engine.executions:
+        raise HTTPException(status_code=404, detail="Execution not found")
+    return engine.executions[execution_id].to_dict()
+
+# Scheduling Endpoints
+
+@router.post("/workflows/{workflow_id}/schedule")
+async def schedule_workflow(workflow_id: str, schedule_config: Dict[str, Any] = Body(...)):
+    """
+    Schedule a workflow execution.
+    
+    schedule_config should contain:
+    - trigger_type: 'cron', 'interval', or 'date'
+    - trigger_config: Dict with trigger params (e.g. {'minutes': 30} for interval)
+    - input_data: Optional input data
+    """
+    from ai.workflow_scheduler import workflow_scheduler
+    
+    try:
+        trigger_type = schedule_config.get('trigger_type')
+        trigger_config = schedule_config.get('trigger_config')
+        input_data = schedule_config.get('input_data')
+        
+        if not trigger_type or not trigger_config:
+            raise HTTPException(status_code=400, detail="Missing trigger_type or trigger_config")
+            
+        job_id = workflow_scheduler.schedule_workflow(workflow_id, trigger_type, trigger_config, input_data)
+        
+        return {"success": True, "job_id": job_id, "message": f"Workflow scheduled with ID {job_id}"}
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Scheduling failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/workflows/{workflow_id}/schedule/{job_id}")
+async def unschedule_workflow(workflow_id: str, job_id: str):
+    """Remove a scheduled workflow job"""
+    from ai.workflow_scheduler import workflow_scheduler
+    workflow_scheduler.remove_schedule(job_id)
+    return {"success": True, "message": "Schedule removed"}
+
+@router.get("/scheduler/jobs")
+async def list_scheduled_jobs():
+    """List all scheduled jobs"""
+    from ai.workflow_scheduler import workflow_scheduler
+    return workflow_scheduler.list_jobs()
 

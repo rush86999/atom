@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import uuid
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -128,6 +129,7 @@ class WorkflowExecution:
     actions_executed: List[str] = None
     errors: List[str] = None
     results: Dict[str, Any] = None
+    duration_ms: float = 0.0
 
     def __post_init__(self):
         if self.actions_executed is None:
@@ -137,6 +139,38 @@ class WorkflowExecution:
         if self.results is None:
             self.results = {}
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "execution_id": self.execution_id,
+            "workflow_id": self.workflow_id,
+            "trigger_data": self.trigger_data,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "status": self.status,
+            "actions_executed": self.actions_executed,
+            "errors": self.errors,
+            "results": self.results,
+            "duration_ms": self.duration_ms
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'WorkflowExecution':
+        """Create from dictionary"""
+        execution = cls(
+            execution_id=data["execution_id"],
+            workflow_id=data["workflow_id"],
+            trigger_data=data.get("trigger_data", {}),
+            start_time=datetime.fromisoformat(data["start_time"]) if data.get("start_time") else datetime.now(),
+            status=data.get("status", "unknown")
+        )
+        execution.end_time = datetime.fromisoformat(data["end_time"]) if data.get("end_time") else None
+        execution.actions_executed = data.get("actions_executed", [])
+        execution.errors = data.get("errors", [])
+        execution.results = data.get("results", {})
+        execution.duration_ms = data.get("duration_ms", 0.0)
+        return execution
+
 
 class AutomationEngine:
     """Cross-Platform Automation Engine for ATOM Platform"""
@@ -144,6 +178,9 @@ class AutomationEngine:
     def __init__(self):
         self.workflows: Dict[str, AutomationWorkflow] = {}
         self.executions: Dict[str, WorkflowExecution] = {}
+        self.executions_file = "executions.json"
+        self._load_executions()
+        
         self.slack_service = SlackEnhancedService({
             "client_id": SLACK_OAUTH_CONFIG.client_id,
             "client_secret": SLACK_OAUTH_CONFIG.client_secret,
@@ -152,6 +189,32 @@ class AutomationEngine:
         })
         self.platform_connectors = self._initialize_platform_connectors()
         self.action_handlers = self._initialize_action_handlers()
+
+    def _load_executions(self):
+        """Load executions from file"""
+        try:
+            if os.path.exists(self.executions_file):
+                with open(self.executions_file, 'r') as f:
+                    data = json.load(f)
+                    for exec_data in data:
+                        execution = WorkflowExecution.from_dict(exec_data)
+                        self.executions[execution.execution_id] = execution
+                logger.info(f"Loaded {len(self.executions)} executions from {self.executions_file}")
+        except Exception as e:
+            logger.error(f"Error loading executions: {e}")
+
+    def _save_execution(self, execution: WorkflowExecution):
+        """Save execution to file"""
+        try:
+            self.executions[execution.execution_id] = execution
+            
+            # Convert all executions to dict list
+            data = [e.to_dict() for e in self.executions.values()]
+            
+            with open(self.executions_file, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            logger.error(f"Error saving execution: {e}")
 
     def _initialize_platform_connectors(self) -> Dict[PlatformType, callable]:
         """Initialize platform action connectors"""
@@ -283,6 +346,11 @@ class AutomationEngine:
             execution.errors.append(f"Workflow execution failed: {str(e)}")
             logger.error(f"Workflow execution failed: {str(e)}")
 
+        # Calculate duration
+        if execution.end_time and execution.start_time:
+            execution.duration_ms = (execution.end_time - execution.start_time).total_seconds() * 1000
+
+        self._save_execution(execution)
         return execution
 
     async def _check_conditions(
@@ -411,8 +479,8 @@ class AutomationEngine:
         return {
             "success": True,
             "synced_items": 5,
-            "source_platform": source_platform.value if source_platform else "unknown",
-            "target_platform": target_platform.value,
+            "input_data": data,
+            "output_data": {"transformed": True, **data},
         }
 
     async def _handle_transform_action(
@@ -430,6 +498,13 @@ class AutomationEngine:
             "output_data": {"transformed": True, **data},
         }
 
+    async def _mock_platform_connector(
+        self, operation: str, entity: str, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Mock connector for platforms without real implementation"""
+        logger.info(
+            f"Mock execution for platform: {operation} on {entity}"
+        )
         return {
             "operation": operation,
             "entity": entity,
@@ -531,6 +606,117 @@ class AutomationEngine:
             return True
         return False
 
+    async def execute_workflow_definition(self, workflow_def: Dict[str, Any], input_data: Dict[str, Any] = None, execution_id: str = None) -> Dict[str, Any]:
+        """
+        Execute a workflow from its definition (as stored in workflows.json)
+        
+        Args:
+            workflow_def: Workflow definition with nodes and connections
+            input_data: Optional input data for the workflow
+            execution_id: Optional ID for this execution
+            
+        Returns:
+            Execution results and metadata
+        """
+        results = []
+        input_data = input_data or {}
+        execution_id = execution_id or str(uuid.uuid4())
+        
+        logger.info(f"Executing workflow: {workflow_def.get('name')} (ID: {execution_id})")
+        
+        # Create execution record
+        execution = WorkflowExecution(
+            execution_id=execution_id,
+            workflow_id=workflow_def.get('id'),
+            trigger_data=input_data,
+            start_time=datetime.now(),
+            status="running"
+        )
+        self.executions[execution_id] = execution
+        
+        # Execute each node in order
+        for node in workflow_def.get('nodes', []):
+            node_result = {
+                "node_id": node['id'],
+                "node_type": node['type'],
+                "node_title": node['title'],
+                "status": "pending",
+                "output": None,
+                "error": None
+            }
+            
+            try:
+                if node['type'] == 'action':
+                    # Get node configuration
+                    config = node.get('config', {})
+                    action_type = config.get('actionType')
+                    integration_id = config.get('integrationId')
+                    
+                    logger.info(f"Executing action node: {node['title']} (action: {action_type}, integration: {integration_id})")
+                    
+                    # Execute based on action type and integration
+                    if action_type == 'send_email' and integration_id == 'gmail':
+                        # Execute Gmail send email
+                        gmail_service = get_gmail_service()
+                        result = gmail_service.send_message(
+                            to=config.get('to', ''),
+                            subject=config.get('subject', 'No Subject'),
+                            body=config.get('body', '')
+                        )
+                        node_result['output'] = result
+                        node_result['status'] = "success"
+                        
+                    elif action_type == 'notify' and integration_id == 'slack':
+                        # Execute Slack notification
+                        result = await self.slack_service.send_message(
+                            channel=config.get('channel', '#general'),
+                            message=config.get('message', '')
+                        )
+                        node_result['output'] = result
+                        node_result['status'] = "success"
+                        
+                    else:
+                        # Unsupported action type
+                        node_result['status'] = "skipped"
+                        node_result['output'] = f"Action type '{action_type}' with integration '{integration_id}' not yet implemented"
+                        
+                elif node['type'] == 'trigger':
+                    # Trigger nodes don't execute, they just define when the workflow runs
+                    node_result['status'] = "success"
+                    node_result['output'] = "Trigger node (manual execution)"
+                    
+                else:
+                    # Other node types (condition, delay, etc.)
+                    node_result['status'] = "skipped"
+                    node_result['output'] = f"Node type '{node['type']}' not yet implemented"
+                    
+            except Exception as e:
+                logger.error(f"Error executing node {node['id']}: {e}")
+                node_result['status'] = "failed"
+                node_result['error'] = str(e)
+                execution.errors.append(f"Node {node['id']}: {str(e)}")
+            
+            results.append(node_result)
+            execution.actions_executed.append(node['id'])
+            execution.results[node['id']] = node_result
+            
+            # If any node fails, mark execution as failed (or continue based on policy)
+            if node_result['status'] == 'failed':
+                execution.status = "failed"
+        
+        # Finalize execution record
+        if execution.status == "running":
+            execution.status = "completed"
+            
+        execution.end_time = datetime.now()
+        if execution.start_time:
+            execution.duration_ms = (execution.end_time - execution.start_time).total_seconds() * 1000
+            
+        self._save_execution(execution)
+        
+        logger.info(f"Workflow execution complete with {len(results)} nodes processed")
+        return results
+
     def get_execution_history(
         self, workflow_id: str, limit: int = 10
     ) -> List[WorkflowExecution]:
@@ -540,6 +726,9 @@ class AutomationEngine:
         ]
         executions.sort(key=lambda x: x.start_time, reverse=True)
         return executions[:limit]
+
+
+
 
 
 # Example usage and testing
@@ -609,84 +798,5 @@ async def main():
     print
 
 
-async def execute_workflow_definition(self, workflow_def: Dict[str, Any], input_data: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-    """
-    Execute a workflow from its definition (as stored in workflows.json)
-    
-    Args:
-        workflow_def: Workflow definition with nodes and connections
-        input_data: Optional input data for the workflow
-        
-    Returns:
-        List of execution results for each node
-    """
-    results = []
-    input_data = input_data or {}
-    
-    logger.info(f"Executing workflow: {workflow_def.get('name')}")
-    
-    # Execute each node in order
-    for node in workflow_def.get('nodes', []):
-        node_result = {
-            "node_id": node['id'],
-            "node_type": node['type'],
-            "node_title": node['title'],
-            "status": "pending",
-            "output": None,
-            "error": None
-        }
-        
-        try:
-            if node['type'] == 'action':
-                # Get node configuration
-                config = node.get('config', {})
-                action_type = config.get('actionType')
-                integration_id = config.get('integrationId')
-                
-                logger.info(f"Executing action node: {node['title']} (action: {action_type}, integration: {integration_id})")
-                
-                # Execute based on action type and integration
-                if action_type == 'send_email' and integration_id == 'gmail':
-                    # Execute Gmail send email
-                    gmail_service = get_gmail_service()
-                    result = gmail_service.send_message(
-                        to=config.get('to', ''),
-                        subject=config.get('subject', 'No Subject'),
-                        body=config.get('body', '')
-                    )
-                    node_result['output'] = result
-                    node_result['status'] = "success"
-                    
-                elif action_type == 'notify' and integration_id == 'slack':
-                    # Execute Slack notification
-                    result = await self.slack_service.send_message(
-                        channel=config.get('channel', '#general'),
-                        message=config.get('message', '')
-                    )
-                    node_result['output'] = result
-                    node_result['status'] = "success"
-                    
-                else:
-                    # Unsupported action type
-                    node_result['status'] = "skipped"
-                    node_result['output'] = f"Action type '{action_type}' with integration '{integration_id}' not yet implemented"
-                    
-            elif node['type'] == 'trigger':
-                # Trigger nodes don't execute, they just define when the workflow runs
-                node_result['status'] = "success"
-                node_result['output'] = "Trigger node (manual execution)"
-                
-            else:
-                # Other node types (condition, delay, etc.)
-                node_result['status'] = "skipped"
-                node_result['output'] = f"Node type '{node['type']}' not yet implemented"
-                
-        except Exception as e:
-            logger.error(f"Error executing node {node['id']}: {e}")
-            node_result['status'] = "failed"
-            node_result['error'] = str(e)
-            
-        results.append(node_result)
-        
-    logger.info(f"Workflow execution complete with {len(results)} nodes processed")
-    return results
+if __name__ == "__main__":
+    asyncio.run(main())
