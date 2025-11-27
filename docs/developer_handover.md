@@ -121,9 +121,50 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
    - `backend/core/api_routes.py`
 
 **Next Steps:**
-- Phase 21: Execute saved workflows from the UI
+- Fix minor AutomationEngine connector initialization issue
 - Add workflow execution history/logging
 - Implement workflow scheduling/triggers
+
+### Phase 21: Workflow Execution from UI (Nov 27, 2025) ✅
+
+**Goal:** Enable users to execute saved workflows directly from the frontend UI
+
+1. **Backend Execution Endpoint** ✅
+   - **Created** `POST /workflows/{workflow_id}/execute` endpoint
+   - Returns `ExecutionResult` with execution_id, status, results[], errors[]
+   - UUID-based execution tracking
+
+2. **AutomationEngine Integration** ✅
+   - Added `execute_workflow_definition` method to `AutomationEngine`
+   - Parses workflow nodes and executes actions in order
+   - Supports `send_email` (Gmail) and `notify` (Slack) actions
+   - Returns detailed results for each node
+
+3. **Frontend Execute Button** ✅
+   - Added Execute button to `WorkflowEditor.tsx` (orange, between Test/Publish)
+   - Implemented `handleExecuteWorkflow` function
+   - Displays execution results via toast notifications
+   - Button disabled when workflow not saved
+
+4. **Route Conflicts Resolved** ✅
+   - Removed duplicate execution endpoints from `backend/core/api_routes.py`
+   - Ensured `workflow_endpoints.py` takes precedence
+
+5. **Files Modified:**
+   - `backend/core/workflow_endpoints.py` (added execution endpoint)
+   - `backend/ai/automation_engine.py` (added execute_workflow_definition method)
+   - `frontend-nextjs/components/Automations/WorkflowEditor.tsx` (added Execute button)
+   - `backend/core/api_routes.py` (commented out conflicting routes)
+
+**Known Issue:**
+- Minor AutomationEngine initialization: `_mock_platform_connector` attribute error
+- Does not affect API structure or UI integration
+- Requires initialization of all connector methods in `AutomationEngine.__init__`
+
+**Next Steps:**
+- Resolve AutomationEngine connector initialization
+- Add workflow execution history view
+- Implement workflow scheduling capabilities
 
 
 

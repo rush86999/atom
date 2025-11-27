@@ -5,6 +5,9 @@ from datetime import datetime
 import uuid
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -93,3 +96,56 @@ async def delete_workflow(workflow_id: str):
     workflows = [w for w in workflows if w['id'] != workflow_id]
     save_workflows(workflows)
     return {"status": "success"}
+
+class ExecutionResult(BaseModel):
+    execution_id: str
+    workflow_id: str
+    status: str
+    started_at: str
+    completed_at: Optional[str] = None
+    results: List[Dict[str, Any]] = []
+    errors: List[str] = []
+
+@router.post("/workflows/{workflow_id}/execute", response_model=ExecutionResult)
+async def execute_workflow(workflow_id: str, input_data: Optional[Dict[str, Any]] = None):
+    """Execute a workflow by ID"""
+    from ai.automation_engine import AutomationEngine
+    
+    # Load workflow
+    workflows = load_workflows()
+    workflow = next((w for w in workflows if w['id'] == workflow_id), None)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    # Create execution record
+    execution_id = str(uuid.uuid4())
+    started_at = datetime.now().isoformat()
+    
+    try:
+        # Initialize engine
+        engine = AutomationEngine()
+        
+        # Execute workflow
+        results = await engine.execute_workflow_definition(workflow, input_data or {})
+        
+        return ExecutionResult(
+            execution_id=execution_id,
+            workflow_id=workflow_id,
+            status="success",
+            started_at=started_at,
+            completed_at=datetime.now().isoformat(),
+            results=results,
+            errors=[]
+        )
+    except Exception as e:
+        logger.error(f"Workflow execution failed: {e}")
+        return ExecutionResult(
+            execution_id=execution_id,
+            workflow_id=workflow_id,
+            status="failed",
+            started_at=started_at,
+            completed_at=datetime.now().isoformat(),
+            results=[],
+            errors=[str(e)]
+        )
+

@@ -78,34 +78,34 @@ async def get_current_user():
 #     return {"workflow": _workflows[workflow_id]}
 
 
-@router.post("/workflows/execute")
-async def execute_workflow(request: Dict[str, Any]):
-    """Execute a workflow by ID or definition"""
-    workflow_id = request.get("workflow_id")
-    
-    # Simulate execution
-    return {
-        "execution_id": f"exec_{int(time.time())}",
-        "workflow_id": workflow_id,
-        "status": "completed",
-        "result": {"success": True, "steps_completed": 3},
-        "started_at": datetime.now().isoformat(),
-        "completed_at": datetime.now().isoformat()
-    }
+# @router.post("/workflows/execute")
+# async def execute_workflow(request: Dict[str, Any]):
+#     """Execute a workflow by ID or definition"""
+#     workflow_id = request.get("workflow_id")
+#     
+#     # Simulate execution
+#     return {
+#         "execution_id": f"exec_{int(time.time())}",
+#         "workflow_id": workflow_id,
+#         "status": "completed",
+#         "result": {"success": True, "steps_completed": 3},
+#         "started_at": datetime.now().isoformat(),
+#         "completed_at": datetime.now().isoformat()
+#     }
 
 
-@router.post("/workflows/{workflow_id}/execute")
-async def execute_workflow_by_id(workflow_id: str):
-    """Execute a workflow by ID (path parameter)"""
-    # Simulate execution
-    return {
-        "execution_id": f"exec_{int(time.time())}",
-        "workflow_id": workflow_id,
-        "status": "completed",
-        "result": {"success": True, "steps_completed": 3},
-        "started_at": datetime.now().isoformat(),
-        "completed_at": datetime.now().isoformat()
-    }
+# @router.post("/workflows/{workflow_id}/execute")
+# async def execute_workflow_by_id(workflow_id: str):
+#     """Execute a workflow by ID (path parameter)"""
+#     # Simulate execution
+#     return {
+#         "execution_id": f"exec_{int(time.time())}",
+#         "workflow_id": workflow_id,
+#         "status": "completed",
+#         "result": {"success": True, "steps_completed": 3},
+#         "started_at": datetime.now().isoformat(),
+#         "completed_at": datetime.now().isoformat()
+#     }
 
 
 

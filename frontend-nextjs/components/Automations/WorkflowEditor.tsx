@@ -327,6 +327,63 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
     });
   };
 
+  const handleExecuteWorkflow = async () => {
+    if (!currentWorkflow.id) {
+      toast({
+        title: 'Please save workflow first',
+        status: 'warning',
+        duration: 2000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/v1/workflows/${currentWorkflow.id}/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to execute workflow');
+      }
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        toast({
+          title: 'Workflow executed successfully!',
+          description: `${result.results.length} nodes processed`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        toast({
+          title: 'Workflow execution failed',
+          description: result.errors?.[0] || 'Unknown error',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error executing workflow',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePublishWorkflow = () => {
     onPublish?.(currentWorkflow);
     toast({
@@ -584,6 +641,14 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
                 onClick={handleTestWorkflow}
               >
                 Test
+              </Button>
+              <Button
+                colorScheme="orange"
+                size={compactView ? "sm" : "md"}
+                onClick={handleExecuteWorkflow}
+                isDisabled={!currentWorkflow.id}
+              >
+                Execute
               </Button>
               <Button
                 colorScheme="purple"

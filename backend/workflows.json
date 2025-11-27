@@ -10,5 +10,152 @@
     "enabled": true,
     "createdAt": "2025-11-27T08:06:02.259059",
     "updatedAt": "2025-11-27T08:06:02.259059"
+  },
+  {
+    "id": "d329c3ee-da79-4f1a-9085-2f93997a33a1",
+    "name": "Test Email Workflow",
+    "description": "Sends a test email via Gmail",
+    "version": "1.0.0",
+    "nodes": [
+      {
+        "id": "trigger_1",
+        "type": "trigger",
+        "title": "Manual Trigger",
+        "description": "Start workflow manually",
+        "position": {
+          "x": 100.0,
+          "y": 100.0
+        },
+        "config": {
+          "triggerType": "manual"
+        },
+        "connections": [
+          "action_1"
+        ]
+      },
+      {
+        "id": "action_1",
+        "type": "action",
+        "title": "Send Test Email",
+        "description": "Send email via Gmail",
+        "position": {
+          "x": 300.0,
+          "y": 100.0
+        },
+        "config": {
+          "actionType": "send_email",
+          "integrationId": "gmail",
+          "to": "atom.ai.assistant@gmail.com",
+          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
+          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
+        },
+        "connections": []
+      }
+    ],
+    "connections": [],
+    "triggers": [
+      "manual"
+    ],
+    "enabled": true,
+    "createdAt": "2025-11-27T08:43:14.308852",
+    "updatedAt": "2025-11-27T08:43:14.308852"
+  },
+  {
+    "id": "399d556b-c3d9-4f3e-aa0b-6820b46132e8",
+    "name": "Test Email Workflow",
+    "description": "Sends a test email via Gmail",
+    "version": "1.0.0",
+    "nodes": [
+      {
+        "id": "trigger_1",
+        "type": "trigger",
+        "title": "Manual Trigger",
+        "description": "Start workflow manually",
+        "position": {
+          "x": 100.0,
+          "y": 100.0
+        },
+        "config": {
+          "triggerType": "manual"
+        },
+        "connections": [
+          "action_1"
+        ]
+      },
+      {
+        "id": "action_1",
+        "type": "action",
+        "title": "Send Test Email",
+        "description": "Send email via Gmail",
+        "position": {
+          "x": 300.0,
+          "y": 100.0
+        },
+        "config": {
+          "actionType": "send_email",
+          "integrationId": "gmail",
+          "to": "atom.ai.assistant@gmail.com",
+          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
+          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
+        },
+        "connections": []
+      }
+    ],
+    "connections": [],
+    "triggers": [
+      "manual"
+    ],
+    "enabled": true,
+    "createdAt": "2025-11-27T08:46:35.023590",
+    "updatedAt": "2025-11-27T08:46:35.023590"
+  },
+  {
+    "id": "218703a9-310d-4a38-b208-816df0c186ea",
+    "name": "Test Email Workflow",
+    "description": "Sends a test email via Gmail",
+    "version": "1.0.0",
+    "nodes": [
+      {
+        "id": "trigger_1",
+        "type": "trigger",
+        "title": "Manual Trigger",
+        "description": "Start workflow manually",
+        "position": {
+          "x": 100.0,
+          "y": 100.0
+        },
+        "config": {
+          "triggerType": "manual"
+        },
+        "connections": [
+          "action_1"
+        ]
+      },
+      {
+        "id": "action_1",
+        "type": "action",
+        "title": "Send Test Email",
+        "description": "Send email via Gmail",
+        "position": {
+          "x": 300.0,
+          "y": 100.0
+        },
+        "config": {
+          "actionType": "send_email",
+          "integrationId": "gmail",
+          "to": "atom.ai.assistant@gmail.com",
+          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
+          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
+        },
+        "connections": []
+      }
+    ],
+    "connections": [],
+    "triggers": [
+      "manual"
+    ],
+    "enabled": true,
+    "createdAt": "2025-11-27T08:47:46.716789",
+    "updatedAt": "2025-11-27T08:47:46.716789"
   }
 ]
