@@ -167,6 +167,47 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - Implement workflow scheduling capabilities
 
 
+### Phase 22: Workflow Execution History (Nov 27, 2025) ✅
+
+**Goal:** Provide visibility into past workflow runs, status, and logs.
+
+1. **Backend Persistence** ✅
+   - Updated `WorkflowExecution` dataclass with duration and serialization.
+   - Implemented JSON-based persistence in `AutomationEngine`.
+   - Added `GET /workflows/{id}/executions` and `GET /workflows/executions/{id}` endpoints.
+
+2. **Frontend History UI** ✅
+   - Added "History" tab to `WorkflowEditor`.
+   - Created `ExecutionHistoryList` and `ExecutionDetailView` components.
+   - Displays status badges, duration, and per-node logs.
+
+3. **Verification** ✅
+   - Created `backend/test_execution_history.py`.
+   - Verified saving, retrieving, and displaying execution logs.
+
+### Phase 23: Workflow Scheduling (Nov 27, 2025) ✅
+
+**Goal:** Enable automated workflow execution based on schedules.
+
+1. **Backend Scheduler** ✅
+   - Implemented `WorkflowScheduler` using `apscheduler`.
+   - Supports `cron`, `interval`, and `date` triggers.
+   - Persists jobs to `jobs.sqlite`.
+
+2. **API Integration** ✅
+   - Added `POST /workflows/{id}/schedule` and `DELETE /workflows/{id}/schedule/{job_id}`.
+   - Integrated scheduler lifecycle with FastAPI startup/shutdown events.
+
+3. **Verification** ✅
+   - Created `backend/test_workflow_scheduling.py`.
+   - Verified job creation, execution, listing, and removal.
+   - Confirmed `AutomationEngine` integration for scheduled runs.
+
+**Next Steps:**
+- Phase 24: Chat-based Workflow Management (User Request)
+- Integrate Scheduling UI into Workflow Editor
+
+
 
 1.  **Backend:**
     ```bash

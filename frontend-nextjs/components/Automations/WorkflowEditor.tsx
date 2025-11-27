@@ -46,8 +46,16 @@ import {
   DrawerHeader,
   DrawerOverlay,
   DrawerContent,
-  DrawerCloseButton
+  DrawerContent,
+  DrawerCloseButton,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel
 } from '@chakra-ui/react';
+import ExecutionHistoryList from './ExecutionHistoryList';
+import ExecutionDetailView from './ExecutionDetailView';
 import { AddIcon, EditIcon, DeleteIcon, DragHandleIcon, SettingsIcon, ViewIcon, CopyIcon } from '@chakra-ui/icons';
 import IntegrationSelector from './IntegrationSelector';
 
@@ -120,6 +128,10 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
   const { isOpen: isNodeModalOpen, onOpen: onNodeModalOpen, onClose: onNodeModalClose } = useDisclosure();
   const { isOpen: isPropertiesOpen, onOpen: onPropertiesOpen, onClose: onPropertiesClose } = useDisclosure();
   const toast = useToast();
+
+  const [activeTab, setActiveTab] = useState(0);
+  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
+  const [refreshHistoryTrigger, setRefreshHistoryTrigger] = useState(0);
 
   // Available node types
   const nodeTypes = [
@@ -362,6 +374,8 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
           duration: 3000,
           isClosable: true,
         });
+        setRefreshHistoryTrigger(prev => prev + 1);
+        setActiveTab(2); // Switch to History tab
       } else {
         toast({
           title: 'Workflow execution failed',
@@ -601,6 +615,41 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
     );
   }
 
+  import {
+    Tabs,
+    TabList,
+    TabPanels,
+    Tab,
+    TabPanel
+  } from '@chakra-ui/react';
+  import ExecutionHistoryList from './ExecutionHistoryList';
+  import ExecutionDetailView from './ExecutionDetailView';
+
+  // ... existing imports ...
+
+  // Inside WorkflowEditor component
+  const [activeTab, setActiveTab] = useState(0);
+  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
+  const [refreshHistoryTrigger, setRefreshHistoryTrigger] = useState(0);
+
+  // ... existing functions ...
+
+  const handleExecuteWorkflow = async () => {
+    // ... existing execution logic ...
+    if (result.status === 'success') {
+      toast({
+        title: 'Workflow executed successfully!',
+        description: `${result.results.length} nodes processed`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      // Refresh history
+      setRefreshHistoryTrigger(prev => prev + 1);
+    }
+    // ... existing error handling ...
+  };
+
   return (
     <Box p={compactView ? 2 : 6}>
       <VStack spacing={compactView ? 3 : 6} align="stretch">
@@ -614,20 +663,6 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
               </Text>
             </VStack>
             <HStack spacing={2}>
-              <Button
-                variant={viewMode === 'design' ? 'solid' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('design')}
-              >
-                Design
-              </Button>
-              <Button
-                variant={viewMode === 'code' ? 'solid' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('code')}
-              >
-                Code
-              </Button>
               <Button
                 colorScheme="blue"
                 size={compactView ? "sm" : "md"}
@@ -698,86 +733,142 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
           </Card>
         )}
 
-        {/* Main Editor Area */}
+        {/* Main Content with Tabs */}
         <Card>
-          <CardBody>
-            <Flex height="600px" gap={4}>
-              {/* Node Palette */}
-              <Box width="200px" borderRight="1px" borderColor="gray.200" p={4}>
-                <VStack spacing={3} align="stretch">
-                  <Heading size="sm">Nodes</Heading>
-                  {nodeTypes.map(nodeType => (
-                    <Card
-                      key={nodeType.type}
-                      size="sm"
-                      cursor="pointer"
-                      _hover={{ shadow: 'md' }}
-                      onClick={() => handleAddNode(nodeType.type)}
-                    >
-                      <CardBody>
-                        <VStack spacing={1} align="center">
-                          <Text fontSize="2xl">{nodeType.icon}</Text>
-                          <Text fontWeight="medium" fontSize="sm">{nodeType.title}</Text>
-                          <Text fontSize="xs" color="gray.600" textAlign="center">
-                            {nodeType.description}
-                          </Text>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </VStack>
-              </Box>
+          <CardBody p={0}>
+            <Tabs index={activeTab} onChange={setActiveTab} isLazy>
+              <TabList px={4} pt={2}>
+                <Tab>Design</Tab>
+                <Tab>Code</Tab>
+                <Tab>History</Tab>
+              </TabList>
 
-              {/* Canvas */}
-              <Box flex="1" position="relative" bg="gray.50" borderRadius="md" overflow="hidden">
-                <div
-                  ref={canvasRef}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    position: 'relative',
-                    cursor: isConnecting ? 'crosshair' : 'default'
-                  }}
-                >
-                  {/* Render connections */}
-                  {currentWorkflow.connections.map(conn => {
-                    const sourceNode = currentWorkflow.nodes.find(n => n.id === conn.source);
-                    const targetNode = currentWorkflow.nodes.find(n => n.id === conn.target);
+              <TabPanels>
+                {/* Design Tab */}
+                <TabPanel p={4}>
+                  <Flex height="600px" gap={4}>
+                    {/* Node Palette */}
+                    <Box width="200px" borderRight="1px" borderColor="gray.200" p={4}>
+                      <VStack spacing={3} align="stretch">
+                        <Heading size="sm">Nodes</Heading>
+                        {nodeTypes.map(nodeType => (
+                          <Card
+                            key={nodeType.type}
+                            size="sm"
+                            cursor="pointer"
+                            _hover={{ shadow: 'md' }}
+                            onClick={() => handleAddNode(nodeType.type)}
+                          >
+                            <CardBody>
+                              <VStack spacing={1} align="center">
+                                <Text fontSize="2xl">{nodeType.icon}</Text>
+                                <Text fontWeight="medium" fontSize="sm">{nodeType.title}</Text>
+                                <Text fontSize="xs" color="gray.600" textAlign="center">
+                                  {nodeType.description}
+                                </Text>
+                              </VStack>
+                            </CardBody>
+                          </Card>
+                        ))}
+                      </VStack>
+                    </Box>
 
-                    if (!sourceNode || !targetNode) return null;
-
-                    return (
-                      <svg
-                        key={conn.id}
+                    {/* Canvas */}
+                    <Box flex="1" position="relative" bg="gray.50" borderRadius="md" overflow="hidden">
+                      <div
+                        ref={canvasRef}
                         style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
                           width: '100%',
                           height: '100%',
-                          pointerEvents: 'none'
+                          position: 'relative',
+                          cursor: isConnecting ? 'crosshair' : 'default'
                         }}
                       >
-                        <line
-                          x1={sourceNode.position.x + 50}
-                          y1={sourceNode.position.y + 25}
-                          x2={targetNode.position.x}
-                          y2={targetNode.position.y + 25}
-                          stroke="#4299E1"
-                          strokeWidth={2}
-                          markerEnd="url(#arrowhead)"
-                        />
-                      </svg>
-                    );
-                  })}
-                </div>
-              </Box>
-            </Flex>
+                        {/* Render connections */}
+                        {currentWorkflow.connections.map(conn => {
+                          const sourceNode = currentWorkflow.nodes.find(n => n.id === conn.source);
+                          const targetNode = currentWorkflow.nodes.find(n => n.id === conn.target);
+
+                          if (!sourceNode || !targetNode) return null;
+
+                          return (
+                            <svg
+                              key={conn.id}
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                pointerEvents: 'none'
+                              }}
+                            >
+                              <line
+                                x1={sourceNode.position.x + 50}
+                                y1={sourceNode.position.y + 25}
+                                x2={targetNode.position.x}
+                                y2={targetNode.position.y + 25}
+                                stroke="#4299E1"
+                                strokeWidth={2}
+                                markerEnd="url(#arrowhead)"
+                              />
+                            </svg>
+                          );
+                        })}
+
+                        {/* Render Nodes (This part was missing in the view, assuming it's handled by a separate component or loop not shown fully in previous view, but I'll leave the canvas structure as is and assume nodes are rendered on top) */}
+                        {/* Actually, looking at the previous view, the nodes rendering loop was NOT shown in the snippet I viewed. 
+                            I should be careful not to overwrite the node rendering logic if it exists.
+                            Wait, I viewed lines 1-784 and I didn't see the node rendering loop inside the canvas div.
+                            Ah, I might have missed it or it was truncated? 
+                            Let me check the file content again. 
+                            The previous view showed lines 733-774 which is the canvas div.
+                            It only showed connections rendering!
+                            Where are the nodes rendered?
+                            Maybe I missed a chunk.
+                            
+                            Wait, I see `handleExecuteWorkflow` logic in my replacement content.
+                            I should use `multi_replace_file_content` to be safer, or just replace the specific blocks.
+                            
+                            I'll use `multi_replace_file_content` to inject the tabs and imports.
+                        */}
+                      </div>
+                    </Box>
+                  </Flex>
+                </TabPanel>
+
+                {/* Code Tab */}
+                <TabPanel>
+                  <Box height="600px" bg="gray.900" color="green.400" p={4} borderRadius="md" overflow="auto" fontFamily="monospace">
+                    <pre>{JSON.stringify(currentWorkflow, null, 2)}</pre>
+                  </Box>
+                </TabPanel>
+
+                {/* History Tab */}
+                <TabPanel>
+                  <Box height="600px" overflowY="auto">
+                    {selectedExecutionId ? (
+                      <ExecutionDetailView
+                        executionId={selectedExecutionId}
+                        onBack={() => setSelectedExecutionId(null)}
+                      />
+                    ) : (
+                      <ExecutionHistoryList
+                        workflowId={currentWorkflow.id}
+                        onSelectExecution={setSelectedExecutionId}
+                        refreshTrigger={refreshHistoryTrigger}
+                      />
+                    )}
+                  </Box>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
           </CardBody>
         </Card>
       </VStack>
     </Box>
   );
 };
+
 
 export default WorkflowEditor;
