@@ -48,11 +48,11 @@ class WorkflowScheduler:
         
         try:
             # Instantiate engine on demand to ensure fresh state and avoid circular imports at module level
-            from backend.ai.automation_engine import AutomationEngine
+            from ai.automation_engine import AutomationEngine
             engine = AutomationEngine()
             
             # Load workflows
-            from backend.core.workflow_endpoints import load_workflows
+            from core.workflow_endpoints import load_workflows
             workflows = load_workflows()
             workflow_def = next((w for w in workflows if w['id'] == workflow_id), None)
             

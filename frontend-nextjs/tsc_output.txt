@@ -1,0 +1,526 @@
+node_modules/@types/node/buffer.d.ts(531,19): error TS2430: Interface 'Buffer' incorrectly extends interface 'Uint8Array<ArrayBufferLike>'.
+  The types of 'slice(...).buffer' are incompatible between these types.
+    Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+      Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+        Types of property '[Symbol.toStringTag]' are incompatible.
+          Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+node_modules/@types/node/fs/promises.d.ts(49,66): error TS2344: Type 'Buffer' does not satisfy the constraint 'ArrayBufferView'.
+  Type 'Buffer' is not assignable to type 'Uint8Array<ArrayBufferLike> | DataView<ArrayBufferLike>'.
+    Type 'Buffer' is not assignable to type 'Uint8Array<ArrayBufferLike>'.
+      The types of 'slice(...).buffer' are incompatible between these types.
+        Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+          Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+            Types of property '[Symbol.toStringTag]' are incompatible.
+              Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+node_modules/@types/node/fs/promises.d.ts(211,49): error TS2344: Type 'Buffer' does not satisfy the constraint 'ArrayBufferView'.
+  Type 'Buffer' is not assignable to type 'Uint8Array<ArrayBufferLike> | DataView<ArrayBufferLike>'.
+    Type 'Buffer' is not assignable to type 'Uint8Array<ArrayBufferLike>'.
+      The types of 'slice(...).buffer' are incompatible between these types.
+        Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+          Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+            Types of property '[Symbol.toStringTag]' are incompatible.
+              Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+node_modules/@types/node/globals.d.ts(47,11): error TS2300: Duplicate identifier 'AbortController'.
+node_modules/@types/node/globals.d.ts(60,11): error TS2300: Duplicate identifier 'AbortSignal'.
+node_modules/@types/node/globals.d.ts(67,13): error TS2300: Duplicate identifier 'AbortController'.
+node_modules/@types/node/globals.d.ts(72,13): error TS2300: Duplicate identifier 'AbortSignal'.
+node_modules/@types/node/globals.d.ts(72,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'AbortSignal' must be of type '{ new (): AbortSignal; prototype: AbortSignal; abort(reason?: any): AbortSignal; any(signals: AbortSignal[]): AbortSignal; timeout(milliseconds: number): AbortSignal; }', but here has type '{ new (): AbortSignal; prototype: AbortSignal; }'.
+node_modules/@types/node/module.d.ts(106,13): error TS2386: Overload signatures must all be optional or required.
+node_modules/@types/react-native-vector-icons/Icon.d.ts(4,5): error TS2724: '"react-native"' has no exported member named 'TabBarIOSItemProps'. Did you mean 'TabBarIOSItemProperties'?
+node_modules/@types/react-native/BatchedBridge.d.ts(8,15): error TS2300: Duplicate identifier 'MessageQueue'.
+node_modules/@types/react-native/BatchedBridge.d.ts(18,20): error TS2300: Duplicate identifier 'BatchedBridge'.
+node_modules/@types/react-native/BatchedBridge.d.ts(22,20): error TS2300: Duplicate identifier 'MessageQueue'.
+node_modules/@types/react-native/Codegen.d.ts(1,1): error TS6200: Definitions of the following identifiers conflict with those in another file: codegenNativeCommands, NativeComponentType, codegenNativeComponent, BubblingEventHandler, DirectEventHandler, Double, Float, Int32, UnsafeObject, DefaultTypes, WithDefault
+node_modules/@types/react-native/Devtools.d.ts(2,17): error TS2300: Duplicate identifier 'StackFrame'.
+node_modules/@types/react-native/globals.d.ts(10,1): error TS6200: Definitions of the following identifiers conflict with those in another file: FormDataValue, FormDataPart, BodyInit_, HeadersInit_, RequestCredentials_, RequestMode_, ResponseType_, WebsocketMessageEventListener, WebsocketErrorEventListener, WebsocketOpenEventListener, WebsocketCloseEventListener, WebsocketEventListener
+node_modules/@types/react-native/globals.d.ts(58,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'Blob' must be of type '{ new (blobParts?: BlobPart[], options?: BlobPropertyBag): Blob; prototype: Blob; }', but here has type '{ new (blobParts?: (string | Blob)[], options?: BlobOptions): Blob; prototype: Blob; }'.
+node_modules/@types/react-native/globals.d.ts(77,15): error TS2300: Duplicate identifier 'FormData'.
+node_modules/@types/react-native/globals.d.ts(101,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'Headers' must be of type '{ new (init?: HeadersInit): Headers; prototype: Headers; }', but here has type '{ new (init?: HeadersInit_): Headers; prototype: Headers; }'.
+node_modules/@types/react-native/globals.d.ts(113,5): error TS2374: Duplicate index signature for type 'string'.
+node_modules/@types/react-native/globals.d.ts(135,5): error TS2717: Subsequent property declarations must have the same type.  Property 'body' must be of type 'BodyInit', but here has type 'BodyInit_'.
+node_modules/@types/react-native/globals.d.ts(137,5): error TS2717: Subsequent property declarations must have the same type.  Property 'headers' must be of type 'HeadersInit', but here has type 'HeadersInit_'.
+node_modules/@types/react-native/globals.d.ts(143,5): error TS2717: Subsequent property declarations must have the same type.  Property 'window' must be of type 'null', but here has type 'any'.
+node_modules/@types/react-native/globals.d.ts(157,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'Request' must be of type '{ new (input: RequestInfo | URL, init?: RequestInit): Request; prototype: Request; }', but here has type '{ new (input: string | Request, init?: RequestInit): Request; prototype: Request; }'.
+node_modules/@types/react-native/globals.d.ts(162,14): error TS2300: Duplicate identifier 'RequestInfo'.
+node_modules/@types/react-native/globals.d.ts(165,5): error TS2717: Subsequent property declarations must have the same type.  Property 'headers' must be of type 'HeadersInit', but here has type 'HeadersInit_'.
+node_modules/@types/react-native/globals.d.ts(181,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'Response' must be of type '{ new (body?: BodyInit, init?: ResponseInit): Response; prototype: Response; error(): Response; json(data: any, init?: ResponseInit): Response; redirect(url: string | URL, status?: number): Response; }', but here has type '{ new (body?: BodyInit_, init?: ResponseInit): Response; prototype: Response; error: () => Response; redirect: (url: string, status?: number) => Response; }'.
+node_modules/@types/react-native/globals.d.ts(258,5): error TS2717: Subsequent property declarations must have the same type.  Property 'abort' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/@types/react-native/globals.d.ts(259,5): error TS2717: Subsequent property declarations must have the same type.  Property 'error' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/@types/react-native/globals.d.ts(260,5): error TS2717: Subsequent property declarations must have the same type.  Property 'load' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/@types/react-native/globals.d.ts(261,5): error TS2717: Subsequent property declarations must have the same type.  Property 'loadend' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/@types/react-native/globals.d.ts(262,5): error TS2717: Subsequent property declarations must have the same type.  Property 'loadstart' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/@types/react-native/globals.d.ts(263,5): error TS2717: Subsequent property declarations must have the same type.  Property 'progress' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/@types/react-native/globals.d.ts(264,5): error TS2717: Subsequent property declarations must have the same type.  Property 'timeout' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/@types/react-native/globals.d.ts(305,14): error TS2300: Duplicate identifier 'XMLHttpRequestResponseType'.
+node_modules/@types/react-native/globals.d.ts(312,15): error TS2300: Duplicate identifier 'URL'.
+node_modules/@types/react-native/globals.d.ts(337,15): error TS2300: Duplicate identifier 'URLSearchParams'.
+node_modules/@types/react-native/globals.d.ts(382,5): error TS2717: Subsequent property declarations must have the same type.  Property 'onopen' must be of type '(this: WebSocket, ev: Event) => any', but here has type '() => void'.
+node_modules/@types/react-native/globals.d.ts(383,5): error TS2717: Subsequent property declarations must have the same type.  Property 'onmessage' must be of type '(this: WebSocket, ev: MessageEvent<any>) => any', but here has type '(event: WebSocketMessageEvent) => void'.
+node_modules/@types/react-native/globals.d.ts(384,5): error TS2717: Subsequent property declarations must have the same type.  Property 'onerror' must be of type '(this: WebSocket, ev: Event) => any', but here has type '(event: WebSocketErrorEvent) => void'.
+node_modules/@types/react-native/globals.d.ts(385,5): error TS2717: Subsequent property declarations must have the same type.  Property 'onclose' must be of type '(this: WebSocket, ev: CloseEvent) => any', but here has type '(event: WebSocketCloseEvent) => void'.
+node_modules/@types/react-native/globals.d.ts(386,5): error TS2717: Subsequent property declarations must have the same type.  Property 'addEventListener' must be of type '{ <K extends keyof WebSocketEventMap>(type: K, listener: (this: WebSocket, ev: WebSocketEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void; (type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void; }', but here has type 'WebsocketEventListener'.
+node_modules/@types/react-native/globals.d.ts(387,5): error TS2717: Subsequent property declarations must have the same type.  Property 'removeEventListener' must be of type '{ <K extends keyof WebSocketEventMap>(type: K, listener: (this: WebSocket, ev: WebSocketEventMap[K]) => any, options?: boolean | EventListenerOptions): void; (type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void; }', but here has type 'WebsocketEventListener'.
+node_modules/@types/react-native/globals.d.ts(390,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'WebSocket' must be of type '{ new (url: string | URL, protocols?: string | string[]): WebSocket; prototype: WebSocket; readonly CONNECTING: 0; readonly OPEN: 1; readonly CLOSING: 2; readonly CLOSED: 3; }', but here has type '{ new (uri: string, protocols?: string | string[], options?: { [optionName: string]: any; headers: { [headerName: string]: string; }; }): WebSocket; prototype: WebSocket; readonly CLOSED: number; readonly CLOSING: number; readonly CONNECTING: number; readonly OPEN: number; }'.
+node_modules/@types/react-native/globals.d.ts(414,15): error TS2300: Duplicate identifier 'AbortSignal'.
+node_modules/@types/react-native/globals.d.ts(414,15): error TS2420: Class 'AbortSignal' incorrectly implements interface 'EventTarget'.
+  Property 'dispatchEvent' is missing in type 'AbortSignal' but required in type 'EventTarget'.
+node_modules/@types/react-native/globals.d.ts(449,15): error TS2300: Duplicate identifier 'AbortController'.
+node_modules/@types/react-native/globals.d.ts(474,14): error TS2717: Subsequent property declarations must have the same type.  Property 'error' must be of type 'DOMException', but here has type 'Error'.
+node_modules/@types/react-native/globals.d.ts(481,14): error TS2717: Subsequent property declarations must have the same type.  Property 'readyState' must be of type '0 | 2 | 1', but here has type 'number'.
+node_modules/@types/react-native/index.d.ts(9873,11): error TS2451: Cannot redeclare block-scoped variable 'originalXMLHttpRequest'.
+node_modules/@types/react-native/index.d.ts(9875,11): error TS2451: Cannot redeclare block-scoped variable '__BUNDLE_START_TIME__'.
+node_modules/@types/react-native/index.d.ts(9876,11): error TS2451: Cannot redeclare block-scoped variable 'ErrorUtils'.
+node_modules/@types/react-native/index.d.ts(9883,11): error TS2451: Cannot redeclare block-scoped variable '__DEV__'.
+node_modules/@types/react-native/index.d.ts(9885,11): error TS2451: Cannot redeclare block-scoped variable 'HermesInternal'.
+node_modules/@types/react-native/LaunchScreen.d.ts(4,18): error TS2451: Cannot redeclare block-scoped variable 'Header'.
+node_modules/@types/react-native/LaunchScreen.d.ts(5,18): error TS2451: Cannot redeclare block-scoped variable 'LearnMoreLinks'.
+node_modules/@types/react-native/LaunchScreen.d.ts(6,18): error TS2451: Cannot redeclare block-scoped variable 'Colors'.
+node_modules/@types/react-native/LaunchScreen.d.ts(7,18): error TS2451: Cannot redeclare block-scoped variable 'DebugInstructions'.
+node_modules/@types/react-native/LaunchScreen.d.ts(8,18): error TS2451: Cannot redeclare block-scoped variable 'ReloadInstructions'.
+node_modules/@types/react-native/legacy-properties.d.ts(1,1): error TS6200: Definitions of the following identifiers conflict with those in another file: TextProperties, TextPropertiesIOS, TextPropertiesAndroid, AccessibilityProperties, AccessibilityPropertiesIOS, AccessibilityPropertiesAndroid, TextInputProperties, TextInputIOSProperties, TextInputAndroidProperties, ViewProperties, ViewPropertiesIOS, ViewPropertiesAndroid, ScrollViewProperties, ScrollViewPropertiesIOS, ScrollViewPropertiesAndroid, InputAccessoryViewProperties, ActivityIndicatorProperties, ActivityIndicatorIOSProperties, DatePickerIOSProperties, DrawerLayoutAndroidProperties, ProgressBarAndroidProperties, ProgressViewIOSProperties, RefreshControlProperties, RefreshControlPropertiesIOS, RefreshControlPropertiesAndroid, SliderProperties, SliderPropertiesIOS, SliderPropertiesAndroid, ImagePropertiesSourceOptions, ImageProperties, ImagePropertiesIOS, ImagePropertiesAndroid, ImageBackgroundProperties, FlatListProperties, VirtualizedListProperties, SectionListProperties, ModalProperties, TouchableWithoutFeedbackProperties, TouchableHighlightProperties, TouchableOpacityProperties, TouchableNativeFeedbackProperties, ButtonProperties, StatusBarProperties, StatusBarPropertiesIOS, StatusBarPropertiesAndroid, SwitchProperties, SwitchPropertiesIOS
+node_modules/@types/react-native/legacy-properties.d.ts(17,5): error TS2724: '"react-native"' has no exported member named 'ListViewProps'. Did you mean 'ViewProps'?
+node_modules/@types/react-native/legacy-properties.d.ts(18,5): error TS2724: '"react-native"' has no exported member named 'MaskedViewIOSProps'. Did you mean 'MaskedViewIOSProperties'?
+node_modules/@types/react-native/legacy-properties.d.ts(20,5): error TS2724: '"react-native"' has no exported member named 'NavigatorIOSProps'. Did you mean 'NavigatorIOSProperties'?
+node_modules/@types/react-native/legacy-properties.d.ts(23,5): error TS2724: '"react-native"' has no exported member named 'RecyclerViewBackedScrollViewProps'. Did you mean 'RecyclerViewBackedScrollViewProperties'?
+node_modules/@types/react-native/legacy-properties.d.ts(34,5): error TS2724: '"react-native"' has no exported member named 'SnapshotViewIOSProps'. Did you mean 'SnapshotViewIOSProperties'?
+node_modules/@types/react-native/legacy-properties.d.ts(38,5): error TS2724: '"react-native"' has no exported member named 'SwitchIOSProps'. Did you mean 'SwitchProps'?
+node_modules/@types/react-native/legacy-properties.d.ts(41,5): error TS2724: '"react-native"' has no exported member named 'TabBarIOSItemProps'. Did you mean 'TabBarIOSItemProperties'?
+node_modules/@types/react-native/legacy-properties.d.ts(42,5): error TS2305: Module '"react-native"' has no exported member 'TabBarIOSProps'.
+node_modules/@types/react-native/legacy-properties.d.ts(53,5): error TS2724: '"react-native"' has no exported member named 'ViewPagerAndroidProps'. Did you mean 'ViewPagerAndroidProperties'?
+node_modules/@types/react/global.d.ts(155,11): error TS2300: Duplicate identifier 'FormData'.
+node_modules/react-clock/dist/cjs/Clock.d.ts(1,8): error TS1259: Module '"/Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/react-native/types/index.d.ts(200,9): error TS2451: Cannot redeclare block-scoped variable 'originalXMLHttpRequest'.
+node_modules/react-native/types/index.d.ts(202,9): error TS2451: Cannot redeclare block-scoped variable '__BUNDLE_START_TIME__'.
+node_modules/react-native/types/index.d.ts(203,9): error TS2451: Cannot redeclare block-scoped variable 'ErrorUtils'.
+node_modules/react-native/types/index.d.ts(210,9): error TS2451: Cannot redeclare block-scoped variable '__DEV__'.
+node_modules/react-native/types/index.d.ts(212,9): error TS2451: Cannot redeclare block-scoped variable 'HermesInternal'.
+node_modules/react-native/types/modules/BatchedBridge.d.ts(17,15): error TS2300: Duplicate identifier 'MessageQueue'.
+node_modules/react-native/types/modules/BatchedBridge.d.ts(27,18): error TS2300: Duplicate identifier 'BatchedBridge'.
+node_modules/react-native/types/modules/BatchedBridge.d.ts(31,18): error TS2300: Duplicate identifier 'MessageQueue'.
+node_modules/react-native/types/modules/Codegen.d.ts(10,1): error TS6200: Definitions of the following identifiers conflict with those in another file: codegenNativeCommands, NativeComponentType, codegenNativeComponent, BubblingEventHandler, DirectEventHandler, Double, Float, Int32, UnsafeObject, DefaultTypes, WithDefault
+node_modules/react-native/types/modules/Devtools.d.ts(11,15): error TS2300: Duplicate identifier 'StackFrame'.
+node_modules/react-native/types/modules/globals.d.ts(19,1): error TS6200: Definitions of the following identifiers conflict with those in another file: FormDataValue, FormDataPart, BodyInit_, HeadersInit_, RequestCredentials_, RequestMode_, ResponseType_, WebsocketMessageEventListener, WebsocketErrorEventListener, WebsocketOpenEventListener, WebsocketCloseEventListener, WebsocketEventListener
+node_modules/react-native/types/modules/globals.d.ts(78,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'Blob' must be of type '{ new (blobParts?: BlobPart[], options?: BlobPropertyBag): Blob; prototype: Blob; }', but here has type '{ new (blobParts?: (string | Blob)[], options?: BlobOptions): Blob; prototype: Blob; }'.
+node_modules/react-native/types/modules/globals.d.ts(97,15): error TS2300: Duplicate identifier 'FormData'.
+node_modules/react-native/types/modules/globals.d.ts(121,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'Headers' must be of type '{ new (init?: HeadersInit): Headers; prototype: Headers; }', but here has type '{ new (init?: HeadersInit_): Headers; prototype: Headers; }'.
+node_modules/react-native/types/modules/globals.d.ts(133,3): error TS2374: Duplicate index signature for type 'string'.
+node_modules/react-native/types/modules/globals.d.ts(155,3): error TS2717: Subsequent property declarations must have the same type.  Property 'body' must be of type 'BodyInit', but here has type 'BodyInit_'.
+node_modules/react-native/types/modules/globals.d.ts(157,3): error TS2717: Subsequent property declarations must have the same type.  Property 'headers' must be of type 'HeadersInit', but here has type 'HeadersInit_'.
+node_modules/react-native/types/modules/globals.d.ts(163,3): error TS2717: Subsequent property declarations must have the same type.  Property 'window' must be of type 'null', but here has type 'any'.
+node_modules/react-native/types/modules/globals.d.ts(177,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'Request' must be of type '{ new (input: RequestInfo | URL, init?: RequestInit): Request; prototype: Request; }', but here has type '{ new (input: string | Request, init?: RequestInit): Request; prototype: Request; }'.
+node_modules/react-native/types/modules/globals.d.ts(182,14): error TS2300: Duplicate identifier 'RequestInfo'.
+node_modules/react-native/types/modules/globals.d.ts(185,3): error TS2717: Subsequent property declarations must have the same type.  Property 'headers' must be of type 'HeadersInit', but here has type 'HeadersInit_'.
+node_modules/react-native/types/modules/globals.d.ts(201,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'Response' must be of type '{ new (body?: BodyInit, init?: ResponseInit): Response; prototype: Response; error(): Response; json(data: any, init?: ResponseInit): Response; redirect(url: string | URL, status?: number): Response; }', but here has type '{ new (body?: BodyInit_, init?: ResponseInit): Response; prototype: Response; error: () => Response; redirect: (url: string, status?: number) => Response; }'.
+node_modules/react-native/types/modules/globals.d.ts(263,12): error TS2717: Subsequent property declarations must have the same type.  Property 'DONE' must be of type '4', but here has type 'number'.
+node_modules/react-native/types/modules/globals.d.ts(264,12): error TS2717: Subsequent property declarations must have the same type.  Property 'HEADERS_RECEIVED' must be of type '2', but here has type 'number'.
+node_modules/react-native/types/modules/globals.d.ts(265,12): error TS2717: Subsequent property declarations must have the same type.  Property 'LOADING' must be of type '3', but here has type 'number'.
+node_modules/react-native/types/modules/globals.d.ts(266,12): error TS2717: Subsequent property declarations must have the same type.  Property 'OPENED' must be of type '1', but here has type 'number'.
+node_modules/react-native/types/modules/globals.d.ts(267,12): error TS2717: Subsequent property declarations must have the same type.  Property 'UNSENT' must be of type '0', but here has type 'number'.
+node_modules/react-native/types/modules/globals.d.ts(280,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'XMLHttpRequest' must be of type '{ new (): XMLHttpRequest; prototype: XMLHttpRequest; readonly UNSENT: 0; readonly OPENED: 1; readonly HEADERS_RECEIVED: 2; readonly LOADING: 3; readonly DONE: 4; }', but here has type '{ new (): XMLHttpRequest; prototype: XMLHttpRequest; readonly DONE: number; readonly HEADERS_RECEIVED: number; readonly LOADING: number; readonly OPENED: number; readonly UNSENT: number; }'.
+node_modules/react-native/types/modules/globals.d.ts(291,3): error TS2717: Subsequent property declarations must have the same type.  Property 'abort' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/react-native/types/modules/globals.d.ts(292,3): error TS2717: Subsequent property declarations must have the same type.  Property 'error' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/react-native/types/modules/globals.d.ts(293,3): error TS2717: Subsequent property declarations must have the same type.  Property 'load' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/react-native/types/modules/globals.d.ts(294,3): error TS2717: Subsequent property declarations must have the same type.  Property 'loadend' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/react-native/types/modules/globals.d.ts(295,3): error TS2717: Subsequent property declarations must have the same type.  Property 'loadstart' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/react-native/types/modules/globals.d.ts(296,3): error TS2717: Subsequent property declarations must have the same type.  Property 'progress' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/react-native/types/modules/globals.d.ts(297,3): error TS2717: Subsequent property declarations must have the same type.  Property 'timeout' must be of type 'ProgressEvent<XMLHttpRequestEventTarget>', but here has type 'ProgressEvent<EventTarget>'.
+node_modules/react-native/types/modules/globals.d.ts(350,14): error TS2300: Duplicate identifier 'XMLHttpRequestResponseType'.
+node_modules/react-native/types/modules/globals.d.ts(363,15): error TS2300: Duplicate identifier 'URL'.
+node_modules/react-native/types/modules/globals.d.ts(388,15): error TS2300: Duplicate identifier 'URLSearchParams'.
+node_modules/react-native/types/modules/globals.d.ts(446,3): error TS2717: Subsequent property declarations must have the same type.  Property 'onopen' must be of type '(this: WebSocket, ev: Event) => any', but here has type '() => void'.
+node_modules/react-native/types/modules/globals.d.ts(447,3): error TS2717: Subsequent property declarations must have the same type.  Property 'onmessage' must be of type '(this: WebSocket, ev: MessageEvent<any>) => any', but here has type '(event: WebSocketMessageEvent) => void'.
+node_modules/react-native/types/modules/globals.d.ts(448,3): error TS2717: Subsequent property declarations must have the same type.  Property 'onerror' must be of type '(this: WebSocket, ev: Event) => any', but here has type '(event: WebSocketErrorEvent) => void'.
+node_modules/react-native/types/modules/globals.d.ts(449,3): error TS2717: Subsequent property declarations must have the same type.  Property 'onclose' must be of type '(this: WebSocket, ev: CloseEvent) => any', but here has type '(event: WebSocketCloseEvent) => void'.
+node_modules/react-native/types/modules/globals.d.ts(450,3): error TS2717: Subsequent property declarations must have the same type.  Property 'addEventListener' must be of type '{ <K extends keyof WebSocketEventMap>(type: K, listener: (this: WebSocket, ev: WebSocketEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void; (type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void; }', but here has type 'WebsocketEventListener'.
+node_modules/react-native/types/modules/globals.d.ts(451,3): error TS2717: Subsequent property declarations must have the same type.  Property 'removeEventListener' must be of type '{ <K extends keyof WebSocketEventMap>(type: K, listener: (this: WebSocket, ev: WebSocketEventMap[K]) => any, options?: boolean | EventListenerOptions): void; (type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void; }', but here has type 'WebsocketEventListener'.
+node_modules/react-native/types/modules/globals.d.ts(454,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'WebSocket' must be of type '{ new (url: string | URL, protocols?: string | string[]): WebSocket; prototype: WebSocket; readonly CONNECTING: 0; readonly OPEN: 1; readonly CLOSING: 2; readonly CLOSED: 3; }', but here has type '{ new (uri: string, protocols?: string | string[], options?: { [optionName: string]: any; headers: { [headerName: string]: string; }; }): WebSocket; prototype: WebSocket; readonly CLOSED: number; readonly CLOSING: number; readonly CONNECTING: number; readonly OPEN: number; }'.
+node_modules/react-native/types/modules/globals.d.ts(478,15): error TS2300: Duplicate identifier 'AbortSignal'.
+node_modules/react-native/types/modules/globals.d.ts(478,15): error TS2420: Class 'AbortSignal' incorrectly implements interface 'EventTarget'.
+  Property 'dispatchEvent' is missing in type 'AbortSignal' but required in type 'EventTarget'.
+node_modules/react-native/types/modules/globals.d.ts(513,15): error TS2300: Duplicate identifier 'AbortController'.
+node_modules/react-native/types/modules/globals.d.ts(538,12): error TS2717: Subsequent property declarations must have the same type.  Property 'error' must be of type 'DOMException', but here has type 'Error'.
+node_modules/react-native/types/modules/globals.d.ts(547,12): error TS2717: Subsequent property declarations must have the same type.  Property 'readyState' must be of type '0 | 2 | 1', but here has type 'number'.
+node_modules/react-native/types/modules/globals.d.ts(554,12): error TS2717: Subsequent property declarations must have the same type.  Property 'DONE' must be of type '2', but here has type 'number'.
+node_modules/react-native/types/modules/globals.d.ts(555,12): error TS2717: Subsequent property declarations must have the same type.  Property 'EMPTY' must be of type '0', but here has type 'number'.
+node_modules/react-native/types/modules/globals.d.ts(556,12): error TS2717: Subsequent property declarations must have the same type.  Property 'LOADING' must be of type '1', but here has type 'number'.
+node_modules/react-native/types/modules/globals.d.ts(571,13): error TS2403: Subsequent variable declarations must have the same type.  Variable 'FileReader' must be of type '{ new (): FileReader; prototype: FileReader; readonly EMPTY: 0; readonly LOADING: 1; readonly DONE: 2; }', but here has type '{ new (): FileReader; prototype: FileReader; readonly DONE: number; readonly EMPTY: number; readonly LOADING: number; }'.
+node_modules/react-native/types/modules/LaunchScreen.d.ts(13,16): error TS2451: Cannot redeclare block-scoped variable 'Header'.
+node_modules/react-native/types/modules/LaunchScreen.d.ts(14,16): error TS2451: Cannot redeclare block-scoped variable 'LearnMoreLinks'.
+node_modules/react-native/types/modules/LaunchScreen.d.ts(15,16): error TS2451: Cannot redeclare block-scoped variable 'Colors'.
+node_modules/react-native/types/modules/LaunchScreen.d.ts(16,16): error TS2451: Cannot redeclare block-scoped variable 'DebugInstructions'.
+node_modules/react-native/types/modules/LaunchScreen.d.ts(17,16): error TS2451: Cannot redeclare block-scoped variable 'ReloadInstructions'.
+node_modules/react-native/types/public/DeprecatedPropertiesAlias.d.ts(10,1): error TS6200: Definitions of the following identifiers conflict with those in another file: TextProperties, TextPropertiesIOS, TextPropertiesAndroid, AccessibilityProperties, AccessibilityPropertiesIOS, AccessibilityPropertiesAndroid, TextInputProperties, TextInputIOSProperties, TextInputAndroidProperties, ViewProperties, ViewPropertiesIOS, ViewPropertiesAndroid, ScrollViewProperties, ScrollViewPropertiesIOS, ScrollViewPropertiesAndroid, InputAccessoryViewProperties, ActivityIndicatorProperties, ActivityIndicatorIOSProperties, DatePickerIOSProperties, DrawerLayoutAndroidProperties, ProgressBarAndroidProperties, ProgressViewIOSProperties, RefreshControlProperties, RefreshControlPropertiesIOS, RefreshControlPropertiesAndroid, SliderProperties, SliderPropertiesIOS, SliderPropertiesAndroid, ImagePropertiesSourceOptions, ImageProperties, ImagePropertiesIOS, ImagePropertiesAndroid, ImageBackgroundProperties, FlatListProperties, VirtualizedListProperties, SectionListProperties, ModalProperties, TouchableWithoutFeedbackProperties, TouchableHighlightProperties, TouchableOpacityProperties, TouchableNativeFeedbackProperties, ButtonProperties, StatusBarProperties, StatusBarPropertiesIOS, StatusBarPropertiesAndroid, SwitchProperties, SwitchPropertiesIOS
+node_modules/typescript/lib/lib.dom.d.ts(2717,11): error TS2300: Duplicate identifier 'AbortController'.
+node_modules/typescript/lib/lib.dom.d.ts(2732,13): error TS2300: Duplicate identifier 'AbortController'.
+node_modules/typescript/lib/lib.dom.d.ts(2746,11): error TS2300: Duplicate identifier 'AbortSignal'.
+node_modules/typescript/lib/lib.dom.d.ts(2773,13): error TS2300: Duplicate identifier 'AbortSignal'.
+node_modules/typescript/lib/lib.dom.d.ts(12219,11): error TS2300: Duplicate identifier 'FormData'.
+node_modules/typescript/lib/lib.dom.d.ts(12263,13): error TS2300: Duplicate identifier 'FormData'.
+node_modules/typescript/lib/lib.dom.d.ts(32640,11): error TS2300: Duplicate identifier 'URL'.
+node_modules/typescript/lib/lib.dom.d.ts(32722,13): error TS2300: Duplicate identifier 'URL'.
+node_modules/typescript/lib/lib.dom.d.ts(32759,11): error TS2300: Duplicate identifier 'URLSearchParams'.
+node_modules/typescript/lib/lib.dom.d.ts(32812,13): error TS2300: Duplicate identifier 'URLSearchParams'.
+node_modules/typescript/lib/lib.dom.d.ts(39228,6): error TS2300: Duplicate identifier 'RequestInfo'.
+node_modules/typescript/lib/lib.dom.d.ts(39429,6): error TS2300: Duplicate identifier 'XMLHttpRequestResponseType'.
+node_modules/typescript/lib/lib.dom.iterable.d.ts(153,11): error TS2300: Duplicate identifier 'FormData'.
+node_modules/typescript/lib/lib.dom.iterable.d.ts(418,11): error TS2300: Duplicate identifier 'URLSearchParams'.
+pages/integrations/salesforce.tsx(6,8): error TS1259: Module '"/Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+pages/integrations/salesforce.tsx(35,58): error TS2307: Cannot find module '@/components/ui/card' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(36,24): error TS2307: Cannot find module '@/components/ui/button' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(37,23): error TS2307: Cannot find module '@/components/ui/input' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(38,79): error TS2307: Cannot find module '@/components/ui/select' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(39,23): error TS2307: Cannot find module '@/components/ui/badge' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(40,58): error TS2307: Cannot find module '@/components/ui/tabs' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(48,8): error TS2307: Cannot find module '@/components/ui/dialog' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(49,23): error TS2307: Cannot find module '@/components/ui/label' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(50,26): error TS2307: Cannot find module '@/components/ui/textarea' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(51,26): error TS2307: Cannot find module '@/components/ui/use-toast' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(52,53): error TS2307: Cannot find module '@/components/ui/avatar' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(53,53): error TS2307: Cannot find module '@/components/ui/alert' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(54,26): error TS2307: Cannot find module '@/components/ui/progress' or its corresponding type declarations.
+pages/integrations/salesforce.tsx(923,5): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(924,7): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(926,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(927,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(928,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(929,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(931,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(932,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(933,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(939,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(940,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(945,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(947,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(951,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(957,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(963,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(964,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(965,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(967,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(968,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(969,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(979,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(980,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(981,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(982,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(983,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(984,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(985,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(990,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(998,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1006,11): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1008,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1009,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1010,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1011,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1012,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1013,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1014,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1018,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1019,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1020,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1021,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1022,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1023,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1029,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1030,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1031,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1032,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1033,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1034,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1038,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1039,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1040,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1041,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1042,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1043,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1050,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1051,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1052,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1053,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1054,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1055,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1056,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1057,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1060,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1061,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1062,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1063,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1064,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1066,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1067,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1068,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1069,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1070,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1071,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1074,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1075,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1076,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1083,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1084,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1085,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1090,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1091,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1092,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1093,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1094,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1095,27): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1096,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1097,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1098,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1099,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1100,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1101,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1102,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1105,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1107,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1108,31): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1109,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1110,35): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1116,31): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1117,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1118,35): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1119,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1124,39): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1130,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1131,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1132,35): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1136,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1137,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1138,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1139,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1140,35): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1145,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1160,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1161,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1162,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1163,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1164,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1166,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1167,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1168,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1169,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1170,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1171,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1174,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1175,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1176,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1183,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1184,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1185,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1190,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1191,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1192,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1193,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1194,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1195,27): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1196,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1197,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1198,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1199,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1200,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1201,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1202,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1205,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1207,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1208,31): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1209,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1210,35): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1216,31): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1217,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1218,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1219,35): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1223,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1224,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1225,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1227,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1232,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1233,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1234,35): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1239,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1255,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1256,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1257,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1258,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1260,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1261,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1262,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1263,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1264,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1276,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1277,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1278,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1293,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1294,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1295,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1296,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1308,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1309,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1310,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1321,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1322,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1323,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1324,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1334,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1335,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1336,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1347,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1348,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1349,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1350,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1361,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1362,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1363,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1366,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1367,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1368,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1371,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1372,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1373,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1387,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1388,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1389,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1390,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1401,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1402,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1403,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1404,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1405,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1408,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1409,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1412,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1413,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1414,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1422,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1423,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1424,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1425,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1430,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1431,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1432,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1433,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1440,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1441,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1448,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1458,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1469,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1482,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1483,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1484,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1498,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1499,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1502,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1513,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1514,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1515,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1516,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1518,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1519,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1520,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1521,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1535,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1536,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1537,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1549,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1551,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1558,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1559,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1560,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1561,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1573,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1574,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1575,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1589,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1590,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1591,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1592,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1603,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1604,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1605,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1606,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1607,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1608,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1609,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1610,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1611,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1612,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1615,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1616,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1617,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1633,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1634,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1635,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1636,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1647,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1648,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1649,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1652,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1653,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1654,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1665,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1666,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1667,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1668,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1669,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1670,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1671,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1676,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1677,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1678,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1692,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1693,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1696,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1707,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1708,15): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1709,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1710,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1712,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1713,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1714,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1715,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1729,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1730,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1731,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1732,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1743,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1744,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1745,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1746,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1749,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1750,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1751,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1762,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1763,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1764,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1765,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1766,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1767,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1772,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1773,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1774,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1775,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1787,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1788,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1789,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1803,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1804,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1805,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1806,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1818,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1819,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1820,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1834,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1835,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1836,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1837,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1847,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1848,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1858,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1868,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1879,23): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1892,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1893,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1894,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1908,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1909,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+pages/integrations/salesforce.tsx(1912,19): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.

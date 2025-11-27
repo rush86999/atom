@@ -15,7 +15,9 @@ from dataclasses import dataclass
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import httpx
+import httpx
 import aiohttp
+from backend.advanced_workflow_orchestrator import orchestrator
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -37,7 +39,10 @@ class WorkflowExecution(BaseModel):
     tasks_created: int
     execution_time_ms: float
     ai_generated_tasks: List[str]
+    ai_generated_tasks: List[str]
     confidence_score: float
+    steps_executed: Optional[List[Dict[str, Any]]] = None
+    orchestration_type: str = "simple"
 
 class NLUProcessing(BaseModel):
     request_id: str
@@ -377,6 +382,62 @@ Return your response as a JSON object with this format:
             # Fallback: create basic task from input
             return [f"Handle: {input_text[:100]}"]
 
+    async def break_down_task(self, user_query: str, provider: str = "moonshot") -> List[Dict[str, Any]]:
+        """
+        Break down a complex task into manageable steps using a high-reasoning model.
+        Returns a list of steps, each with a description and complexity score (1-4).
+        """
+        system_prompt = """You are an expert task planner. Your goal is to break down a complex user query into a series of logical, manageable steps.
+For each step, you must assign a 'complexity' score from 1 to 4:
+1 = Low complexity (simple formatting, basic data retrieval, simple text generation) - Can be handled by cheaper models (e.g. Haiku, GPT-3.5)
+2 = Medium complexity (standard analysis, summarization, single-step reasoning) - Can be handled by standard models (e.g. Sonnet, GPT-4o-mini)
+3 = High complexity (complex analysis, code generation, multi-step reasoning) - Requires strong models (e.g. GPT-4, Opus)
+4 = Very High complexity (deep reasoning, strategic planning, complex problem solving) - Requires reasoning models (e.g. o1, Kimi k1.5)
+
+Domain Specific Guidelines:
+- Dev Studio: Code generation steps are usually High (3) or Very High (4). Documentation is Medium (2).
+- Scheduling: Conflict resolution is High (3). Simple booking is Low (1).
+- Finance: Financial analysis/forecasting is High (3) or Very High (4). Expense categorization is Medium (2).
+- Project Management: Critical path analysis is High (3). Task creation is Low (1).
+- Marketing: Campaign strategy is Very High (4). Content generation is Medium (2) or High (3).
+
+Return your response as a JSON object with this format:
+{
+    "steps": [
+        {
+            "step_id": "step_1",
+            "description": "Detailed description of what to do in this step",
+            "complexity": 1,
+            "step_type": "api_call/analysis/generation/etc"
+        },
+        ...
+    ]
+}"""
+
+        try:
+            logger.info(f"Breaking down task: {user_query} using provider: {provider}")
+            result = await self.process_with_nlu(user_query, provider, system_prompt=system_prompt)
+            
+            if 'steps' in result:
+                return result['steps']
+            else:
+                # Fallback if structure is missing
+                return [{
+                    "step_id": "step_1",
+                    "description": f"Process request: {user_query}",
+                    "complexity": 2,
+                    "step_type": "general"
+                }]
+        except Exception as e:
+            logger.error(f"Error breaking down task: {e}")
+            # Fallback on error
+            return [{
+                "step_id": "step_1",
+                "description": f"Handle request: {user_query}",
+                "complexity": 2,
+                "step_type": "general"
+            }]
+
 # Global AI service instance
 ai_service = RealAIWorkflowService()
 
@@ -462,23 +523,58 @@ async def execute_ai_workflow(request: Dict[str, Any]):
 
     natural_language_input = request.get("input", "Create a task for team meeting tomorrow")
     ai_provider = request.get("provider", "deepseek")
+    use_advanced = request.get("use_advanced_orchestration", False)
 
     try:
-        # Generate real tasks using AI
-        ai_generated_tasks = await ai_service.generate_workflow_tasks(natural_language_input, ai_provider)
-
-        execution_time = (time.time() - start_time) * 1000  # Convert to ms
-
-        return WorkflowExecution(
-            workflow_id=f"workflow_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            status="completed",
-            ai_provider_used=ai_provider,
-            natural_language_input=natural_language_input,
-            tasks_created=len(ai_generated_tasks),
-            execution_time_ms=execution_time,
-            ai_generated_tasks=ai_generated_tasks,
-            confidence_score=0.85  # Real confidence from AI processing
-        )
+        if use_advanced:
+            # Use Advanced Workflow Orchestrator
+            logger.info(f"Using Advanced Orchestrator for: {natural_language_input}")
+            
+            # 1. Generate dynamic workflow
+            workflow_def = await orchestrator.generate_dynamic_workflow(natural_language_input)
+            
+            # 2. Execute workflow
+            context = await orchestrator.execute_workflow(
+                workflow_def.workflow_id, 
+                {"text": natural_language_input}
+            )
+            
+            execution_time = (time.time() - start_time) * 1000
+            
+            # Extract tasks/steps for response
+            tasks = [step.description for step in workflow_def.steps]
+            
+            return WorkflowExecution(
+                workflow_id=context.workflow_id,
+                status=context.status.value,
+                ai_provider_used="dynamic (multi-model)",
+                natural_language_input=natural_language_input,
+                tasks_created=len(tasks),
+                execution_time_ms=execution_time,
+                ai_generated_tasks=tasks,
+                confidence_score=0.95,
+                steps_executed=context.execution_history,
+                orchestration_type="advanced_dynamic"
+            )
+            
+        else:
+            # Simple execution (legacy)
+            # Generate real tasks using AI
+            ai_generated_tasks = await ai_service.generate_workflow_tasks(natural_language_input, ai_provider)
+    
+            execution_time = (time.time() - start_time) * 1000  # Convert to ms
+    
+            return WorkflowExecution(
+                workflow_id=f"workflow_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                status="completed",
+                ai_provider_used=ai_provider,
+                natural_language_input=natural_language_input,
+                tasks_created=len(ai_generated_tasks),
+                execution_time_ms=execution_time,
+                ai_generated_tasks=ai_generated_tasks,
+                confidence_score=0.85,
+                orchestration_type="simple"
+            )
 
     except Exception as e:
         execution_time = (time.time() - start_time) * 1000

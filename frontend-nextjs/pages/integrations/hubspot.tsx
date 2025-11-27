@@ -1,22 +1,29 @@
 import React from "react";
-import { Box, VStack, Heading, Text } from "@chakra-ui/react";
 import HubSpotIntegration from "../../components/integrations/hubspot/HubSpotIntegration";
+import Head from "next/head";
 
 const HubSpotIntegrationPage: React.FC = () => {
   return (
-    <Box minH="100vh" bg="white" p={6}>
-      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
-        <VStack align="start" spacing={2}>
-          <Heading size="2xl">HubSpot Integration</Heading>
-          <Text color="gray.600" fontSize="lg">
-            Complete CRM and marketing automation platform with advanced search
-            capabilities
-          </Text>
-        </VStack>
+    <>
+      <Head>
+        <title>HubSpot Integration | ATOM</title>
+        <meta name="description" content="Complete CRM and marketing automation platform with advanced search capabilities" />
+      </Head>
 
-        <HubSpotIntegration />
-      </VStack>
-    </Box>
+      <div className="min-h-screen bg-white p-6">
+        <div className="max-w-[1400px] mx-auto space-y-8">
+          <div className="flex flex-col space-y-2">
+            <h1 className="text-4xl font-bold">HubSpot Integration</h1>
+            <p className="text-lg text-gray-600">
+              Complete CRM and marketing automation platform with advanced search
+              capabilities
+            </p>
+          </div>
+
+          <HubSpotIntegration />
+        </div>
+      </div>
+    </>
   );
 };
 

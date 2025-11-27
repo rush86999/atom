@@ -1,7 +1,7 @@
 import handler from '../[taskId]'; // Adjust path to your API route
 import { createMocks, RequestMethod } from 'node-mocks-http';
 import { Pool } from 'pg';
-import { getSession } from 'supertokens-node/nextjs';
+import { getServerSession } from 'next-auth/next';
 import { appServiceLogger } from '../../../../lib/logger'; // Actual logger
 
 // Mock pg Pool
@@ -21,9 +21,9 @@ jest.mock('pg', () => {
   };
 });
 
-// Mock Supertokens getSession
-jest.mock('supertokens-node/nextjs');
-const mockedGetSession = getSession as jest.Mock;
+// Mock NextAuth getServerSession
+jest.mock('next-auth/next');
+const mockedGetServerSession = getServerSession as jest.Mock;
 
 // Mock the logger
 jest.mock('../../../../lib/logger', () => ({
@@ -56,13 +56,13 @@ describe('/api/meeting_attendance_status/[taskId] API Endpoint', () => {
     mockQuery.mockReset();
     mockRelease.mockReset();
     mockConnect.mockClear(); // Clear connect mock calls too
-    mockedGetSession.mockReset();
+    mockedGetServerSession.mockReset();
     Object.values(mockedLogger).forEach((mockFn) => mockFn.mockReset());
 
     // Default successful session
-    mockedGetSession.mockResolvedValue({
-      getUserId: () => userId,
-      // Add other session methods if your handler uses them
+    mockedGetServerSession.mockResolvedValue({
+      user: { id: userId },
+      // Add other session properties if needed
     });
   });
 
@@ -77,7 +77,7 @@ describe('/api/meeting_attendance_status/[taskId] API Endpoint', () => {
   });
 
   it('should return 401 if session is not found', async () => {
-    mockedGetSession.mockResolvedValueOnce(null);
+    mockedGetServerSession.mockResolvedValueOnce(null);
     const { req, res } = createMocks({ method: 'GET', query: { taskId } });
     await handler(req as any, res as any);
     expect(res._getStatusCode()).toBe(401);
@@ -160,9 +160,9 @@ describe('/api/meeting_attendance_status/[taskId] API Endpoint', () => {
     );
   });
 
-  it('should return 500 if Supertokens getSession fails', async () => {
-    const sessionError = new Error('Supertokens down');
-    mockedGetSession.mockRejectedValueOnce(sessionError);
+  it('should return 500 if NextAuth getServerSession fails', async () => {
+    const sessionError = new Error('NextAuth session error');
+    mockedGetServerSession.mockRejectedValueOnce(sessionError);
     const { req, res } = createMocks({ method: 'GET', query: { taskId } });
 
     await handler(req as any, res as any);
@@ -170,7 +170,7 @@ describe('/api/meeting_attendance_status/[taskId] API Endpoint', () => {
     expect(res._getStatusCode()).toBe(500);
     expect(JSON.parse(res._getData()).error).toBe('Authentication error');
     expect(mockedLogger.error).toHaveBeenCalledWith(
-      expect.stringContaining('Supertokens getSession error.'),
+      expect.stringContaining('Error during session validation.'),
       expect.objectContaining({ error: sessionError.message })
     );
   });

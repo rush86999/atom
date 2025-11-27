@@ -1,51 +1,22 @@
 import React, { useState } from "react";
 import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Card,
-  CardBody,
-  Button,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  SimpleGrid,
-  Progress,
-  Badge,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
-  IconButton,
-  useToast,
-  Flex,
-  CardHeader,
-} from "@chakra-ui/react";
-import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
+  Plus,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  DollarSign,
+  CreditCard,
+  Wallet
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Modal, ModalFooter } from "@/components/ui/modal";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Transaction {
   id: string;
@@ -141,8 +112,13 @@ const FinancePage: React.FC = () => {
     },
   ]);
 
-  const [activeTab, setActiveTab] = useState(0);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
+    type: "expense",
+    category: "Food",
+    account: "Checking"
+  });
+
   const toast = useToast();
 
   const totalIncome = transactions
@@ -163,19 +139,34 @@ const FinancePage: React.FC = () => {
     }).format(amount);
   };
 
-  const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
-    const newTransaction: Transaction = {
-      ...transaction,
+  const handleAddTransaction = () => {
+    if (!newTransaction.description || !newTransaction.amount) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields",
+        variant: "error",
+      });
+      return;
+    }
+
+    const transaction: Transaction = {
       id: Date.now().toString(),
+      date: new Date().toISOString().split("T")[0],
+      description: newTransaction.description || "",
+      amount: Number(newTransaction.amount),
+      type: newTransaction.type as "income" | "expense",
+      category: newTransaction.category || "Other",
+      account: newTransaction.account || "Checking",
     };
-    setTransactions((prev) => [...prev, newTransaction]);
-    onClose();
+
+    setTransactions((prev) => [...prev, transaction]);
+    setIsModalOpen(false);
+    setNewTransaction({ type: "expense", category: "Food", account: "Checking" });
 
     toast({
       title: "Transaction added",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
+      description: "Your transaction has been recorded successfully.",
+      variant: "success",
     });
   };
 
@@ -184,332 +175,283 @@ const FinancePage: React.FC = () => {
 
     toast({
       title: "Transaction deleted",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
+      description: "The transaction has been removed.",
+      variant: "success",
     });
   };
 
   const getBudgetProgressColor = (spent: number, amount: number) => {
     const percentage = (spent / amount) * 100;
-    if (percentage >= 90) return "red";
-    if (percentage >= 75) return "orange";
-    return "green";
+    if (percentage >= 90) return "bg-red-500";
+    if (percentage >= 75) return "bg-orange-500";
+    return "bg-green-500";
   };
 
   return (
-    <Box minH="100vh" bg="gray.50" p={4}>
-      <VStack spacing={6} align="stretch">
+    <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-900">
+      <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <Flex justify="space-between" align="center">
-          <VStack align="start" spacing={1}>
-            <Heading size="xl">Financial Dashboard</Heading>
-            <Text color="gray.600">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Financial Dashboard</h1>
+            <p className="text-gray-500 dark:text-gray-400">
               Manage your finances and track your goals
-            </Text>
-          </VStack>
-          <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onOpen}>
+            </p>
+          </div>
+          <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
             Add Transaction
           </Button>
-        </Flex>
+        </div>
 
         {/* Navigation Tabs */}
-        <Card>
-          <CardBody>
-            <Tabs variant="enclosed" onChange={setActiveTab}>
-              <TabList>
-                <Tab>Overview</Tab>
-                <Tab>Transactions</Tab>
-                <Tab>Budgets</Tab>
-                <Tab>Goals</Tab>
-              </TabList>
-            </Tabs>
-          </CardBody>
-        </Card>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 lg:w-[400px]">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+            <TabsTrigger value="budgets">Budgets</TabsTrigger>
+            <TabsTrigger value="goals">Goals</TabsTrigger>
+          </TabsList>
 
-        {/* Overview Tab */}
-        {activeTab === 0 && (
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Total Income</StatLabel>
-                  <StatNumber color="green.500">
-                    {formatCurrency(totalIncome)}
-                  </StatNumber>
-                  <StatHelpText>
-                    <StatArrow type="increase" />
-                    This period
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Total Expenses</StatLabel>
-                  <StatNumber color="red.500">
-                    {formatCurrency(totalExpenses)}
-                  </StatNumber>
-                  <StatHelpText>
-                    <StatArrow type="decrease" />
-                    This period
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Net Cash Flow</StatLabel>
-                  <StatNumber
-                    color={netCashFlow >= 0 ? "green.500" : "red.500"}
-                  >
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-4 mt-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between space-y-0 pb-2">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Income</p>
+                    <DollarSign className="h-4 w-4 text-green-500" />
+                  </div>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalIncome)}</div>
+                  <div className="flex items-center pt-1 text-xs text-gray-500">
+                    <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
+                    <span className="text-green-500 font-medium">This period</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between space-y-0 pb-2">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Expenses</p>
+                    <CreditCard className="h-4 w-4 text-red-500" />
+                  </div>
+                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalExpenses)}</div>
+                  <div className="flex items-center pt-1 text-xs text-gray-500">
+                    <ArrowDown className="mr-1 h-3 w-3 text-red-500" />
+                    <span className="text-red-500 font-medium">This period</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between space-y-0 pb-2">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Net Cash Flow</p>
+                    <Wallet className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <div className={`text-2xl font-bold ${netCashFlow >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                     {formatCurrency(netCashFlow)}
-                  </StatNumber>
-                  <StatHelpText>
+                  </div>
+                  <p className="text-xs text-gray-500 pt-1">
                     {savingsRate.toFixed(1)}% savings rate
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Account Balance</StatLabel>
-                  <StatNumber color="blue.500">
-                    {formatCurrency(3500)}
-                  </StatNumber>
-                  <StatHelpText>Checking account</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-          </SimpleGrid>
-        )}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between space-y-0 pb-2">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Account Balance</p>
+                    <Wallet className="h-4 w-4 text-purple-500" />
+                  </div>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(3500)}</div>
+                  <p className="text-xs text-gray-500 pt-1">Checking account</p>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
-        {/* Transactions Tab */}
-        {activeTab === 1 && (
-          <Card>
-            <CardHeader>
-              <Heading size="md">Recent Transactions</Heading>
-            </CardHeader>
-            <CardBody>
-              <TableContainer>
-                <Table variant="simple">
-                  <Thead>
-                    <Tr>
-                      <Th>Date</Th>
-                      <Th>Description</Th>
-                      <Th>Category</Th>
-                      <Th isNumeric>Amount</Th>
-                      <Th>Account</Th>
-                      <Th>Actions</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {transactions.map((transaction) => (
-                      <Tr key={transaction.id}>
-                        <Td>{transaction.date}</Td>
-                        <Td>{transaction.description}</Td>
-                        <Td>
-                          <Badge colorScheme="blue">
-                            {transaction.category}
-                          </Badge>
-                        </Td>
-                        <Td isNumeric>
-                          <Text
-                            color={
-                              transaction.type === "income"
-                                ? "green.500"
-                                : "red.500"
-                            }
-                            fontWeight="bold"
-                          >
+          {/* Transactions Tab */}
+          <TabsContent value="transactions" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="relative w-full overflow-auto">
+                  <table className="w-full caption-bottom text-sm">
+                    <thead className="[&_tr]:border-b">
+                      <tr className="border-b transition-colors hover:bg-gray-100/50 data-[state=selected]:bg-gray-100 dark:hover:bg-gray-800/50 dark:data-[state=selected]:bg-gray-800">
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Date</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Description</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Category</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-gray-500 dark:text-gray-400">Amount</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Account</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="[&_tr:last-child]:border-0">
+                      {transactions.map((transaction) => (
+                        <tr key={transaction.id} className="border-b transition-colors hover:bg-gray-100/50 data-[state=selected]:bg-gray-100 dark:hover:bg-gray-800/50 dark:data-[state=selected]:bg-gray-800">
+                          <td className="p-4 align-middle">{transaction.date}</td>
+                          <td className="p-4 align-middle font-medium">{transaction.description}</td>
+                          <td className="p-4 align-middle">
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300">
+                              {transaction.category}
+                            </Badge>
+                          </td>
+                          <td className={`p-4 align-middle text-right font-bold ${transaction.type === "income" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                             {transaction.type === "income" ? "+" : "-"}
                             {formatCurrency(transaction.amount)}
-                          </Text>
-                        </Td>
-                        <Td>{transaction.account}</Td>
-                        <Td>
-                          <HStack spacing={1}>
-                            <IconButton
-                              aria-label="Delete transaction"
-                              icon={<DeleteIcon />}
-                              size="xs"
+                          </td>
+                          <td className="p-4 align-middle">{transaction.account}</td>
+                          <td className="p-4 align-middle">
+                            <Button
                               variant="ghost"
-                              colorScheme="red"
-                              onClick={() =>
-                                handleDeleteTransaction(transaction.id)
-                              }
-                            />
-                          </HStack>
-                        </Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
-              </TableContainer>
-            </CardBody>
-          </Card>
-        )}
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              onClick={() => handleDeleteTransaction(transaction.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Budgets Tab */}
-        {activeTab === 2 && (
-          <Card>
-            <CardHeader>
-              <Heading size="md">Budget Overview</Heading>
-            </CardHeader>
-            <CardBody>
-              <VStack spacing={4} align="stretch">
+          {/* Budgets Tab */}
+          <TabsContent value="budgets" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Budget Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 {budgets.map((budget) => {
                   const spentPercentage = (budget.spent / budget.amount) * 100;
                   return (
-                    <Box
-                      key={budget.id}
-                      p={4}
-                      borderWidth="1px"
-                      borderRadius="md"
-                    >
-                      <Flex justify="space-between" align="center" mb={2}>
-                        <Box>
-                          <Text fontWeight="bold">{budget.name}</Text>
-                          <Text fontSize="sm" color="gray.600">
-                            {budget.category}
-                          </Text>
-                        </Box>
-                        <Badge
-                          colorScheme={getBudgetProgressColor(
-                            budget.spent,
-                            budget.amount,
-                          )}
-                        >
+                    <div key={budget.id} className="space-y-2 rounded-lg border p-4 dark:border-gray-700">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{budget.name}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{budget.category}</p>
+                        </div>
+                        <Badge className={`${getBudgetProgressColor(budget.spent, budget.amount)} text-white`}>
                           {spentPercentage.toFixed(0)}%
                         </Badge>
-                      </Flex>
-                      <Progress
-                        value={spentPercentage}
-                        colorScheme={getBudgetProgressColor(
-                          budget.spent,
-                          budget.amount,
-                        )}
-                        size="lg"
-                        mb={2}
-                      />
-                      <Flex justify="space-between">
-                        <Text fontSize="sm">
-                          Spent: {formatCurrency(budget.spent)}
-                        </Text>
-                        <Text fontSize="sm">
-                          Budget: {formatCurrency(budget.amount)}
-                        </Text>
-                        <Text fontSize="sm">
-                          Remaining:{" "}
-                          {formatCurrency(budget.amount - budget.spent)}
-                        </Text>
-                      </Flex>
-                    </Box>
+                      </div>
+                      <Progress value={spentPercentage} className="h-3" />
+                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                        <span>Spent: {formatCurrency(budget.spent)}</span>
+                        <span>Budget: {formatCurrency(budget.amount)}</span>
+                        <span>Remaining: {formatCurrency(budget.amount - budget.spent)}</span>
+                      </div>
+                    </div>
                   );
                 })}
-              </VStack>
-            </CardBody>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Goals Tab */}
-        {activeTab === 3 && (
-          <Card>
-            <CardHeader>
-              <Heading size="md">Financial Goals</Heading>
-            </CardHeader>
-            <CardBody>
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                {goals.map((goal) => (
-                  <Box key={goal.id} p={4} borderWidth="1px" borderRadius="md">
-                    <Text fontWeight="bold" mb={2}>
-                      {goal.name}
-                    </Text>
-                    <Progress
-                      value={goal.progress}
-                      colorScheme="green"
-                      size="lg"
-                      mb={2}
-                    />
-                    <Flex justify="space-between" mb={1}>
-                      <Text fontSize="sm">
-                        {formatCurrency(goal.currentAmount)}
-                      </Text>
-                      <Text fontSize="sm">
-                        {formatCurrency(goal.targetAmount)}
-                      </Text>
-                    </Flex>
-                    <Text fontSize="xs" color="gray.500" textAlign="center">
-                      {goal.progress}% complete
-                    </Text>
-                  </Box>
-                ))}
-              </SimpleGrid>
-            </CardBody>
-          </Card>
-        )}
-      </VStack>
+          {/* Goals Tab */}
+          <TabsContent value="goals" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Financial Goals</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {goals.map((goal) => (
+                    <div key={goal.id} className="space-y-3 rounded-lg border p-4 dark:border-gray-700">
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">{goal.name}</p>
+                        <span className="text-xs text-gray-500">{goal.progress}% complete</span>
+                      </div>
+                      <Progress value={goal.progress} className="h-3" />
+                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                        <span>{formatCurrency(goal.currentAmount)}</span>
+                        <span>Target: {formatCurrency(goal.targetAmount)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
-      {/* Add Transaction Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} size="md">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Add New Transaction</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4}>
-              <FormControl>
-                <FormLabel>Description</FormLabel>
-                <Input placeholder="Enter description" />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Amount</FormLabel>
-                <Input type="number" placeholder="0.00" />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Type</FormLabel>
-                <Select>
-                  <option value="income">Income</option>
-                  <option value="expense">Expense</option>
-                </Select>
-              </FormControl>
-              <FormControl>
-                <FormLabel>Category</FormLabel>
-                <Select>
-                  <option value="Salary">Salary</option>
-                  <option value="Food">Food</option>
-                  <option value="Utilities">Utilities</option>
-                  <option value="Entertainment">Entertainment</option>
-                </Select>
-              </FormControl>
-            </VStack>
-          </ModalBody>
+        {/* Add Transaction Modal */}
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Add New Transaction"
+        >
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Description</label>
+              <Input
+                placeholder="Enter description"
+                value={newTransaction.description || ""}
+                onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Amount</label>
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={newTransaction.amount || ""}
+                onChange={(e) => setNewTransaction({ ...newTransaction, amount: Number(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Type</label>
+              <Select
+                value={newTransaction.type}
+                onValueChange={(value) => setNewTransaction({ ...newTransaction, type: value as "income" | "expense" })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Category</label>
+              <Select
+                value={newTransaction.category}
+                onValueChange={(value) => setNewTransaction({ ...newTransaction, category: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Salary">Salary</SelectItem>
+                  <SelectItem value="Food">Food</SelectItem>
+                  <SelectItem value="Utilities">Utilities</SelectItem>
+                  <SelectItem value="Entertainment">Entertainment</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button
-              colorScheme="blue"
-              onClick={() =>
-                handleAddTransaction({
-                  date: new Date().toISOString().split("T")[0],
-                  description: "New Transaction",
-                  amount: 100,
-                  type: "expense",
-                  category: "Other",
-                  account: "Checking",
-                })
-              }
-            >
+            <Button onClick={handleAddTransaction}>
               Add Transaction
             </Button>
           </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </Box>
+        </Modal>
+      </div>
+    </div>
   );
 };
 

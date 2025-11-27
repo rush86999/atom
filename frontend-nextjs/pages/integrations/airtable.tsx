@@ -1,63 +1,54 @@
 import React from "react";
-import {
-  Box,
-  Container,
-  Heading,
-  Text,
-  useColorModeValue,
-} from "@chakra-ui/react";
+import Head from "next/head";
 
 /**
  * Airtable Integration Page
  * Next.js page component for Airtable data management integration
  */
 const AirtableIntegrationPage: React.FC = () => {
-  const bgColor = useColorModeValue("gray.50", "gray.900");
-  const textColor = useColorModeValue("gray.800", "gray.100");
-
   return (
-    <Box bg={bgColor} minH="100vh" py={8}>
-      <Container maxW="container.xl">
-        <Box textAlign="center" mb={8}>
-          <Heading as="h1" size="2xl" color={textColor} mb={4}>
-            Airtable Integration
-          </Heading>
-          <Text fontSize="xl" color="gray.600">
-            Connect and manage your Airtable bases
-          </Text>
-        </Box>
+    <>
+      <Head>
+        <title>Airtable Integration | ATOM</title>
+        <meta name="description" content="Connect and manage your Airtable bases" />
+      </Head>
 
-        <Box
-          bg="white"
-          borderRadius="lg"
-          boxShadow="sm"
-          p={8}
-          borderWidth="1px"
-          borderColor="gray.200"
-        >
-          <Heading size="lg" mb={4}>
-            Airtable Data Management
-          </Heading>
-          <Text mb={6}>
-            Airtable integration is coming soon. This page will allow you to:
-          </Text>
-          <Box as="ul" pl={4}>
-            <Text as="li" mb={2}>
-              • Connect to your Airtable bases
-            </Text>
-            <Text as="li" mb={2}>
-              • View and manage tables and records
-            </Text>
-            <Text as="li" mb={2}>
-              • Sync data between Airtable and other services
-            </Text>
-            <Text as="li" mb={2}>
-              • Create automated workflows with Airtable data
-            </Text>
-          </Box>
-        </Box>
-      </Container>
-    </Box>
+      <div className="bg-gray-50 min-h-screen py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-800 mb-4">
+              Airtable Integration
+            </h1>
+            <p className="text-xl text-gray-600">
+              Connect and manage your Airtable bases
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
+            <h2 className="text-2xl font-semibold mb-4">
+              Airtable Data Management
+            </h2>
+            <p className="mb-6">
+              Airtable integration is coming soon. This page will allow you to:
+            </p>
+            <ul className="pl-4 space-y-2">
+              <li className="text-gray-700">
+                • Connect to your Airtable bases
+              </li>
+              <li className="text-gray-700">
+                • View and manage tables and records
+              </li>
+              <li className="text-gray-700">
+                • Sync data between Airtable and other services
+              </li>
+              <li className="text-gray-700">
+                • Create automated workflows with Airtable data
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 

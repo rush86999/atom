@@ -5,84 +5,61 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Button,
-  Heading,
-  Card,
-  CardBody,
-  CardHeader,
-  Badge,
-  Icon,
-  useToast,
-  SimpleGrid,
-  Divider,
-  useColorModeValue,
-  Stack,
-  Flex,
-  Spacer,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  Select,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Textarea,
-  useDisclosure,
-  Progress,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatGroup,
-  Tag,
-  TagLabel,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Avatar,
-  Spinner,
-  Alert,
-  AlertIcon,
-  TableContainer,
-  Link,
-} from "@chakra-ui/react";
+  CheckCircle,
+  AlertTriangle,
+  ArrowRight,
+  Plus,
+  Search,
+  Settings,
+  RefreshCw,
+  Clock,
+  Star,
+  Eye,
+  Edit,
+  Trash2,
+  MessageSquare,
+  Mail,
+  Phone,
+  Calendar,
+  User,
+  Briefcase,
+  Building,
+  Globe,
+  MapPin,
+  DollarSign,
+  Target,
+  Users,
+  FileText,
+  LayoutDashboard,
+} from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  GenericAvatarIcon,
-  CheckCircleIcon,
-  WarningTwoIcon,
-  ArrowForwardIcon,
-  AddIcon,
-  SearchIcon,
-  SettingsIcon,
-  RepeatIcon,
-  TimeIcon,
-  StarIcon,
-  ViewIcon,
-  EditIcon,
-  DeleteIcon,
-  ChatIcon,
-  EmailIcon,
-  PhoneIcon,
-  CalendarIcon,
-} from "@chakra-ui/icons";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+
+// Helper hook for modal state
+function useDisclosure() {
+  const [isOpen, setIsOpen] = useState(false);
+  const onOpen = () => setIsOpen(true);
+  const onClose = () => setIsOpen(false);
+  return { isOpen, onOpen, onClose };
+}
 
 interface SalesforceLead {
   id: string;
@@ -326,6 +303,7 @@ const SalesforceIntegration: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAccount, setSelectedAccount] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedType, setSelectedType] = useState("all");
 
   // Form states
   const [leadForm, setLeadForm] = useState({
@@ -393,8 +371,6 @@ const SalesforceIntegration: React.FC = () => {
   } = useDisclosure();
 
   const toast = useToast();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
 
   // Check connection status
   const checkConnection = async () => {
@@ -616,7 +592,7 @@ const SalesforceIntegration: React.FC = () => {
         toast({
           title: "Success",
           description: "Lead created successfully",
-          status: "success",
+          variant: "success",
           duration: 3000,
         });
         onLeadClose();
@@ -646,7 +622,7 @@ const SalesforceIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to create lead",
-        status: "error",
+        variant: "error",
         duration: 3000,
       });
     }
@@ -672,7 +648,7 @@ const SalesforceIntegration: React.FC = () => {
         toast({
           title: "Success",
           description: "Opportunity created successfully",
-          status: "success",
+          variant: "success",
           duration: 3000,
         });
         onOpportunityClose();
@@ -694,7 +670,7 @@ const SalesforceIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to create opportunity",
-        status: "error",
+        variant: "error",
         duration: 3000,
       });
     }
@@ -720,7 +696,7 @@ const SalesforceIntegration: React.FC = () => {
         toast({
           title: "Success",
           description: "Account created successfully",
-          status: "success",
+          variant: "success",
           duration: 3000,
         });
         onAccountClose();
@@ -746,7 +722,7 @@ const SalesforceIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to create account",
-        status: "error",
+        variant: "error",
         duration: 3000,
       });
     }
@@ -944,1374 +920,1008 @@ const SalesforceIntegration: React.FC = () => {
   };
 
   return (
-    <Box minH="100vh" bg={bgColor} p={6}>
-      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
+    <div className="min-h-screen bg-background p-6">
+      <div className="flex flex-col gap-8 max-w-[1400px] mx-auto">
         {/* Header */}
-        <VStack align="start" spacing={4}>
-          <HStack spacing={4}>
-            <Icon as={GenericAvatarIcon} w={8} h={8} color="#00A1E0" />
-            <VStack align="start" spacing={1}>
-              <Heading size="2xl">Salesforce Integration</Heading>
-              <Text color="gray.600" fontSize="lg">
+        <div className="flex flex-col gap-4 items-start">
+          <div className="flex items-center gap-4">
+            <div className="text-[#00A1E0]">
+              <LayoutDashboard className="w-8 h-8" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <h1 className="text-3xl font-bold tracking-tight">Salesforce Integration</h1>
+              <p className="text-lg text-muted-foreground">
                 Customer relationship management and sales platform
-              </Text>
-            </VStack>
-          </HStack>
+              </p>
+            </div>
+          </div>
 
-          <HStack spacing={4}>
+          <div className="flex items-center gap-4">
             <Badge
-              colorScheme={healthStatus === "healthy" ? "green" : "red"}
-              display="flex"
-              alignItems="center"
+              variant={healthStatus === "healthy" ? "success" : "destructive"}
+              className="flex items-center gap-1"
             >
               {healthStatus === "healthy" ? (
-                <CheckCircleIcon mr={1} />
+                <CheckCircle className="w-3 h-3 mr-1" />
               ) : (
-                <WarningTwoIcon mr={1} />
+                <AlertTriangle className="w-3 h-3 mr-1" />
               )}
               {connected ? "Connected" : "Disconnected"}
             </Badge>
             <Button
               variant="outline"
               size="sm"
-              leftIcon={<RepeatIcon />}
               onClick={checkConnection}
+              className="gap-2"
             >
+              <RefreshCw className="w-4 h-4" />
               Refresh Status
             </Button>
-          </HStack>
+          </div>
 
           {userProfile && (
-            <HStack spacing={4}>
-              <Avatar name={userProfile.Name} />
-              <VStack align="start" spacing={0}>
-                <Text fontWeight="bold">{userProfile.Name}</Text>
-                <Text fontSize="sm" color="gray.600">
+            <div className="flex items-center gap-4">
+              <Avatar>
+                <AvatarFallback>{userProfile.Name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="font-bold">{userProfile.Name}</span>
+                <span className="text-sm text-muted-foreground">
                   {userProfile.Title || userProfile.Email}
-                </Text>
-              </VStack>
-            </HStack>
+                </span>
+              </div>
+            </div>
           )}
-        </VStack>
+        </div>
 
         {!connected ? (
           // Connection Required State
           <Card>
-            <CardBody>
-              <VStack spacing={6} py={8}>
-                <Icon as={GenericAvatarIcon} w={16} h={16} color="gray.400" />
-                <VStack spacing={2}>
-                  <Heading size="lg">Connect Salesforce</Heading>
-                  <Text color="gray.600" textAlign="center">
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-6 py-8 items-center text-center">
+                <LayoutDashboard className="w-16 h-16 text-muted-foreground" />
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-2xl font-bold">Connect Salesforce</h2>
+                  <p className="text-muted-foreground">
                     Connect your Salesforce organization to manage leads,
                     opportunities, and customers
-                  </Text>
-                </VStack>
+                  </p>
+                </div>
                 <Button
-                  colorScheme="blue"
                   size="lg"
-                  leftIcon={<ArrowForwardIcon />}
                   onClick={() =>
-                    (window.location.href =
-                      "/api/integrations/salesforce/auth/start")
+                  (window.location.href =
+                    "/api/integrations/salesforce/auth/start")
                   }
+                  className="gap-2"
                 >
+                  <ArrowRight className="w-4 h-4" />
                   Connect Salesforce Organization
                 </Button>
-              </VStack>
-            </CardBody>
+              </div>
+            </CardContent>
           </Card>
         ) : (
           // Connected State
           <>
             {/* Services Overview */}
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
-                <CardBody>
-                  <Stat>
-                    <StatLabel>Leads</StatLabel>
-                    <StatNumber>{totalLeads}</StatNumber>
-                    <StatHelpText>{openLeads} open</StatHelpText>
-                  </Stat>
-                </CardBody>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-muted-foreground">Leads</span>
+                    <span className="text-2xl font-bold">{totalLeads}</span>
+                    <span className="text-xs text-muted-foreground">{openLeads} open</span>
+                  </div>
+                </CardContent>
               </Card>
               <Card>
-                <CardBody>
-                  <Stat>
-                    <StatLabel>Opportunities</StatLabel>
-                    <StatNumber>{totalOpportunities}</StatNumber>
-                    <StatHelpText>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-muted-foreground">Opportunities</span>
+                    <span className="text-2xl font-bold">{totalOpportunities}</span>
+                    <span className="text-xs text-muted-foreground">
                       {formatCurrency(totalAmount)} total
-                    </StatHelpText>
-                  </Stat>
-                </CardBody>
+                    </span>
+                  </div>
+                </CardContent>
               </Card>
               <Card>
-                <CardBody>
-                  <Stat>
-                    <StatLabel>Accounts</StatLabel>
-                    <StatNumber>{totalAccounts}</StatNumber>
-                    <StatHelpText>{totalContacts} contacts</StatHelpText>
-                  </Stat>
-                </CardBody>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-muted-foreground">Accounts</span>
+                    <span className="text-2xl font-bold">{totalAccounts}</span>
+                    <span className="text-xs text-muted-foreground">{totalContacts} contacts</span>
+                  </div>
+                </CardContent>
               </Card>
               <Card>
-                <CardBody>
-                  <Stat>
-                    <StatLabel>Support Cases</StatLabel>
-                    <StatNumber>{openCases}</StatNumber>
-                    <StatHelpText>Open tickets</StatHelpText>
-                  </Stat>
-                </CardBody>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-muted-foreground">Support Cases</span>
+                    <span className="text-2xl font-bold">{openCases}</span>
+                    <span className="text-xs text-muted-foreground">Open tickets</span>
+                  </div>
+                </CardContent>
               </Card>
-            </SimpleGrid>
+            </div>
 
             {/* Main Content Tabs */}
-            <Tabs variant="enclosed">
-              <TabList>
-                <Tab>Leads</Tab>
-                <Tab>Opportunities</Tab>
-                <Tab>Accounts</Tab>
-                <Tab>Contacts</Tab>
-                <Tab>Cases</Tab>
-                <Tab>Users</Tab>
-              </TabList>
+            <Tabs defaultValue="leads" className="w-full">
+              <TabsList>
+                <TabsTrigger value="leads">Leads</TabsTrigger>
+                <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
+                <TabsTrigger value="accounts">Accounts</TabsTrigger>
+                <TabsTrigger value="contacts">Contacts</TabsTrigger>
+                <TabsTrigger value="cases">Cases</TabsTrigger>
+                <TabsTrigger value="users">Users</TabsTrigger>
+              </TabsList>
+              {/* Leads Tab */}
+              <TabsContent value="leads" className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="Open - Not Contacted">Open - Not Contacted</SelectItem>
+                      <SelectItem value="Working - Contacted">Working - Contacted</SelectItem>
+                      <SelectItem value="Nurturing">Nurturing</SelectItem>
+                      <SelectItem value="Qualified">Qualified</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search leads..."
+                      value={searchQuery}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                      className="pl-8 w-[300px]"
+                    />
+                  </div>
+                  <div className="flex-1" />
+                  <Button onClick={onLeadOpen} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Create Lead
+                  </Button>
+                </div>
 
-              <TabPanels>
-                {/* Leads Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <HStack spacing={4}>
-                      <Select
-                        placeholder="Filter by status"
-                        value={selectedStatus}
-                        onChange={(e) => setSelectedStatus(e.target.value)}
-                        width="200px"
-                      >
-                        <option value="">All Status</option>
-                        <option value="Open - Not Contacted">
-                          Open - Not Contacted
-                        </option>
-                        <option value="Working - Contacted">
-                          Working - Contacted
-                        </option>
-                        <option value="Nurturing">Nurturing</option>
-                        <option value="Qualified">Qualified</option>
-                      </Select>
-                      <InputGroup>
-                        <InputLeftElement>
-                          <SearchIcon />
-                        </InputLeftElement>
-                        <Input
-                          placeholder="Search opportunities..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                      </InputGroup>
-                      <Spacer />
-                      <Button
-                        colorScheme="blue"
-                        leftIcon={<AddIcon />}
-                        onClick={onLeadOpen}
-                      >
-                        Create Lead
-                      </Button>
-                    </HStack>
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="rounded-md border">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-muted/50 text-muted-foreground">
+                          <tr>
+                            <th className="h-12 px-4 align-middle font-medium">Name</th>
+                            <th className="h-12 px-4 align-middle font-medium">Company</th>
+                            <th className="h-12 px-4 align-middle font-medium">Status</th>
+                            <th className="h-12 px-4 align-middle font-medium">Email</th>
+                            <th className="h-12 px-4 align-middle font-medium">Phone</th>
+                            <th className="h-12 px-4 align-middle font-medium">Owner</th>
+                            <th className="h-12 px-4 align-middle font-medium">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {loading.leads ? (
+                            <tr>
+                              <td colSpan={7} className="p-4 text-center">
+                                <div className="flex justify-center">
+                                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredLeads.map((lead) => (
+                              <tr key={lead.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                <td className="p-4 align-middle">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {lead.FirstName && `${lead.FirstName} `}
+                                      {lead.LastName}
+                                    </span>
+                                    {lead.IsConverted && (
+                                      <Badge variant="secondary" className="w-fit mt-1">
+                                        Converted
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-4 align-middle">{lead.Company}</td>
+                                <td className="p-4 align-middle">
+                                  <Badge variant="outline">
+                                    {lead.Status}
+                                  </Badge>
+                                </td>
+                                <td className="p-4 align-middle">{lead.Email}</td>
+                                <td className="p-4 align-middle">{lead.Phone}</td>
+                                <td className="p-4 align-middle">{lead.Owner?.Name}</td>
+                                <td className="p-4 align-middle">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-2"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    Details
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Name</Th>
-                                <Th>Company</Th>
-                                <Th>Status</Th>
-                                <Th>Email</Th>
-                                <Th>Phone</Th>
-                                <Th>Owner</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {loading.leads ? (
-                                <Tr>
-                                  <Td colSpan={7}>
-                                    <Spinner size="xl" />
-                                  </Td>
-                                </Tr>
-                              ) : (
-                                filteredLeads.map((lead) => (
-                                  <Tr key={lead.id}>
-                                    <Td>
-                                      <VStack align="start" spacing={0}>
-                                        <Text fontWeight="medium">
-                                          {lead.FirstName &&
-                                            `${lead.FirstName} `}
-                                          {lead.LastName}
-                                        </Text>
-                                        {lead.IsConverted && (
-                                          <Badge colorScheme="green" size="sm">
-                                            Converted
-                                          </Badge>
-                                        )}
-                                      </VStack>
-                                    </Td>
-                                    <Td>{lead.Company}</Td>
-                                    <Td>
-                                      <Tag
-                                        colorScheme={getLeadStatusColor(
-                                          lead.Status,
-                                        )}
-                                        size="sm"
-                                      >
-                                        {lead.Status}
-                                      </Tag>
-                                    </Td>
-                                    <Td>{lead.Email}</Td>
-                                    <Td>{lead.Phone}</Td>
-                                    <Td>{lead.Owner?.Name}</Td>
-                                    <Td>
-                                      <HStack>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          leftIcon={<ViewIcon />}
-                                        >
-                                          Details
-                                        </Button>
-                                      </HStack>
-                                    </Td>
-                                  </Tr>
-                                ))
-                              )}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
+              {/* Accounts Tab */}
+              <TabsContent value="accounts" className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <Select value={selectedType} onValueChange={setSelectedType}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="Customer">Customer</SelectItem>
+                      <SelectItem value="Partner">Partner</SelectItem>
+                      <SelectItem value="Prospect">Prospect</SelectItem>
+                      <SelectItem value="Competitor">Competitor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search accounts..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 w-[300px]"
+                    />
+                  </div>
+                  <div className="flex-1" />
+                  <Button onClick={onAccountOpen} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Create Account
+                  </Button>
+                </div>
 
-                {/* Opportunities Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <HStack spacing={4}>
-                      <Input
-                        placeholder="Search opportunities..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftAddon={<SearchIcon />}
-                      />
-                      <Spacer />
-                      <Button
-                        colorScheme="blue"
-                        leftIcon={<AddIcon />}
-                        onClick={onOpportunityOpen}
-                      >
-                        Create Opportunity
-                      </Button>
-                    </HStack>
-
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Name</Th>
-                                <Th>Account</Th>
-                                <Th>Amount</Th>
-                                <Th>Close Date</Th>
-                                <Th>Stage</Th>
-                                <Th>Probability</Th>
-                                <Th>Owner</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {loading.opportunities ? (
-                                <Tr>
-                                  <Td colSpan={8}>
-                                    <Spinner size="xl" />
-                                  </Td>
-                                </Tr>
-                              ) : (
-                                filteredOpportunities.map((opp) => (
-                                  <Tr key={opp.id}>
-                                    <Td>
-                                      <HStack>
-                                        <Text fontWeight="medium">
-                                          {opp.Name}
-                                        </Text>
-                                        {opp.IsWon && (
-                                          <Badge colorScheme="green" size="sm">
-                                            Won
-                                          </Badge>
-                                        )}
-                                      </HStack>
-                                    </Td>
-                                    <Td>{opp.AccountName}</Td>
-                                    <Td>
-                                      {formatCurrency(
-                                        opp.Amount || 0,
-                                        opp.CurrencyIsoCode,
-                                      )}
-                                    </Td>
-                                    <Td>{formatDate(opp.CloseDate)}</Td>
-                                    <Td>
-                                      <Tag
-                                        colorScheme={getOpportunityStageColor(
-                                          opp.StageName,
-                                        )}
-                                        size="sm"
-                                      >
-                                        {opp.StageName}
-                                      </Tag>
-                                    </Td>
-                                    <Td>{opp.Probability}%</Td>
-                                    <Td>{opp.Owner?.Name}</Td>
-                                    <Td>
-                                      <HStack>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          leftIcon={<ViewIcon />}
-                                        >
-                                          Details
-                                        </Button>
-                                      </HStack>
-                                    </Td>
-                                  </Tr>
-                                ))
-                              )}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
-                {/* Accounts Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <HStack spacing={4}>
-                      <Input
-                        placeholder="Search accounts..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftAddon={<SearchIcon />}
-                      />
-                      <Spacer />
-                      <Button
-                        colorScheme="blue"
-                        leftIcon={<AddIcon />}
-                        onClick={onAccountOpen}
-                      >
-                        Create Account
-                      </Button>
-                    </HStack>
-
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Name</Th>
-                                <Th>Type</Th>
-                                <Th>Industry</Th>
-                                <Th>Phone</Th>
-                                <Th>Website</Th>
-                                <Th>Employees</Th>
-                                <Th>Annual Revenue</Th>
-                                <Th>Owner</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {loading.accounts ? (
-                                <Tr>
-                                  <Td colSpan={9}>
-                                    <Spinner size="xl" />
-                                  </Td>
-                                </Tr>
-                              ) : (
-                                filteredAccounts.map((account) => (
-                                  <Tr key={account.id}>
-                                    <Td>
-                                      <Text fontWeight="medium">
-                                        {account.Name}
-                                      </Text>
-                                    </Td>
-                                    <Td>{account.Type}</Td>
-                                    <Td>{account.Industry}</Td>
-                                    <Td>{account.Phone}</Td>
-                                    <Td>
-                                      {account.Website && (
-                                        <Link
-                                          href={account.Website}
-                                          isExternal
-                                          color="blue.500"
-                                        >
-                                          {account.Website}
-                                        </Link>
-                                      )}
-                                    </Td>
-                                    <Td>{account.NumberOfEmployees}</Td>
-                                    <Td>
-                                      {formatCurrency(
-                                        account.AnnualRevenue || 0,
-                                      )}
-                                    </Td>
-                                    <Td>{account.Owner?.Name}</Td>
-                                    <Td>
-                                      <HStack>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          leftIcon={<ViewIcon />}
-                                        >
-                                          Details
-                                        </Button>
-                                      </HStack>
-                                    </Td>
-                                  </Tr>
-                                ))
-                              )}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
-                {/* Contacts Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <HStack spacing={4}>
-                      <Select
-                        placeholder="Filter by account"
-                        value={selectedAccount}
-                        onChange={(e) => setSelectedAccount(e.target.value)}
-                        width="200px"
-                      >
-                        <option value="">All Accounts</option>
-                        {accounts.map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.Name}
-                          </option>
-                        ))}
-                      </Select>
-                      <Input
-                        placeholder="Search contacts..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftAddon={<SearchIcon />}
-                      />
-                    </HStack>
-
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Name</Th>
-                                <Th>Account</Th>
-                                <Th>Title</Th>
-                                <Th>Email</Th>
-                                <Th>Phone</Th>
-                                <Th>Department</Th>
-                                <Th>Owner</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {loading.contacts ? (
-                                <Tr>
-                                  <Td colSpan={8}>
-                                    <Spinner size="xl" />
-                                  </Td>
-                                </Tr>
-                              ) : (
-                                filteredContacts.map((contact) => (
-                                  <Tr key={contact.id}>
-                                    <Td>
-                                      <Text fontWeight="medium">
-                                        {contact.FirstName &&
-                                          `${contact.FirstName} `}
-                                        {contact.LastName}
-                                      </Text>
-                                    </Td>
-                                    <Td>{contact.AccountName}</Td>
-                                    <Td>{contact.Title}</Td>
-                                    <Td>{contact.Email}</Td>
-                                    <Td>{contact.Phone}</Td>
-                                    <Td>{contact.Department}</Td>
-                                    <Td>{contact.Owner?.Name}</Td>
-                                    <Td>
-                                      <HStack>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          leftIcon={<ViewIcon />}
-                                        >
-                                          Details
-                                        </Button>
-                                      </HStack>
-                                    </Td>
-                                  </Tr>
-                                ))
-                              )}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
-                {/* Cases Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <HStack spacing={4}>
-                      <InputGroup>
-                        <InputLeftElement>
-                          <SearchIcon />
-                        </InputLeftElement>
-                        <Input
-                          placeholder="Search users..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                      </InputGroup>
-                    </HStack>
-
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Case Number</Th>
-                                <Th>Subject</Th>
-                                <Th>Status</Th>
-                                <Th>Priority</Th>
-                                <Th>Account</Th>
-                                <Th>Contact</Th>
-                                <Th>Created</Th>
-                                <Th>Owner</Th>
-                                <Th>Actions</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {loading.cases ? (
-                                <Tr>
-                                  <Td colSpan={10}>
-                                    <Spinner size="xl" />
-                                  </Td>
-                                </Tr>
-                              ) : (
-                                filteredCases.map((case_) => (
-                                  <Tr key={case_.id}>
-                                    <Td>
-                                      <Text
-                                        fontWeight="medium"
-                                        color="blue.600"
-                                      >
-                                        {case_.CaseNumber}
-                                      </Text>
-                                    </Td>
-                                    <Td>{case_.Subject}</Td>
-                                    <Td>
-                                      <Tag
-                                        colorScheme={getCaseStatusColor(
-                                          case_.Status,
-                                        )}
-                                        size="sm"
-                                      >
-                                        {case_.Status}
-                                      </Tag>
-                                    </Td>
-                                    <Td>
-                                      <Tag
-                                        colorScheme={getCasePriorityColor(
-                                          case_.Priority,
-                                        )}
-                                        size="sm"
-                                      >
-                                        {case_.Priority}
-                                      </Tag>
-                                    </Td>
-                                    <Td>{case_.AccountName}</Td>
-                                    <Td>{case_.ContactName}</Td>
-                                    <Td>{formatDate(case_.CreatedDate)}</Td>
-                                    <Td>{case_.Owner?.Name}</Td>
-                                    <Td>
-                                      <HStack>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          leftIcon={<ViewIcon />}
-                                        >
-                                          Details
-                                        </Button>
-                                      </HStack>
-                                    </Td>
-                                  </Tr>
-                                ))
-                              )}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-
-                {/* Users Tab */}
-                <TabPanel>
-                  <VStack spacing={6} align="stretch">
-                    <HStack spacing={4}>
-                      <Input
-                        placeholder="Search users..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        leftAddon={<SearchIcon />}
-                      />
-                    </HStack>
-
-                    <Card>
-                      <CardBody>
-                        <TableContainer>
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th>Name</Th>
-                                <Th>Username</Th>
-                                <Th>Email</Th>
-                                <Th>Title</Th>
-                                <Th>Department</Th>
-                                <Th>Profile</Th>
-                                <Th>Status</Th>
-                                <Th>Last Login</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {loading.users ? (
-                                <Tr>
-                                  <Td colSpan={8}>
-                                    <Spinner size="xl" />
-                                  </Td>
-                                </Tr>
-                              ) : (
-                                filteredUsers.map((user) => (
-                                  <Tr key={user.id}>
-                                    <Td>
-                                      <HStack>
-                                        <Avatar name={user.Name} size="sm" />
-                                        <Text fontWeight="medium">
-                                          {user.Name}
-                                        </Text>
-                                      </HStack>
-                                    </Td>
-                                    <Td>{user.Username}</Td>
-                                    <Td>{user.Email}</Td>
-                                    <Td>{user.Title}</Td>
-                                    <Td>{user.Department}</Td>
-                                    <Td>{user.Profile?.Name}</Td>
-                                    <Td>
-                                      <Tag
-                                        colorScheme={
-                                          user.IsActive ? "green" : "red"
-                                        }
-                                        size="sm"
-                                      >
-                                        {user.IsActive ? "Active" : "Inactive"}
-                                      </Tag>
-                                    </Td>
-                                    <Td>
-                                      {user.LastLoginDate
-                                        ? formatDate(user.LastLoginDate)
-                                        : "Never"}
-                                    </Td>
-                                  </Tr>
-                                ))
-                              )}
-                            </Tbody>
-                          </Table>
-                        </TableContainer>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                </TabPanel>
-              </TabPanels>
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="rounded-md border">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-muted/50 text-muted-foreground">
+                          <tr>
+                            <th className="h-12 px-4 align-middle font-medium">Name</th>
+                            <th className="h-12 px-4 align-middle font-medium">Type</th>
+                            <th className="h-12 px-4 align-middle font-medium">Industry</th>
+                            <th className="h-12 px-4 align-middle font-medium">Phone</th>
+                            <th className="h-12 px-4 align-middle font-medium">Website</th>
+                            <th className="h-12 px-4 align-middle font-medium">Owner</th>
+                            <th className="h-12 px-4 align-middle font-medium">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {loading.accounts ? (
+                            <tr>
+                              <td colSpan={7} className="p-4 text-center">
+                                <div className="flex justify-center">
+                                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredAccounts.map((account) => (
+                              <tr key={account.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                <td className="p-4 align-middle font-medium">{account.Name}</td>
+                                <td className="p-4 align-middle">
+                                  <Badge variant="outline">
+                                    {account.Type}
+                                  </Badge>
+                                </td>
+                                <td className="p-4 align-middle">{account.Industry}</td>
+                                <td className="p-4 align-middle">{account.Phone}</td>
+                                <td className="p-4 align-middle">
+                                  {account.Website && (
+                                    <a href={account.Website} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
+                                      {account.Website}
+                                    </a>
+                                  )}
+                                </td>
+                                <td className="p-4 align-middle">{account.Owner?.Name}</td>
+                                <td className="p-4 align-middle">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-2"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    Details
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
             </Tabs>
 
             {/* Create Lead Modal */}
-            <Modal isOpen={isLeadOpen} onClose={onLeadClose} size="xl">
-              <ModalOverlay />
-              <ModalContent>
-                <ModalHeader>Create Lead</ModalHeader>
-                <ModalCloseButton />
-                <ModalBody>
-                  <VStack spacing={4}>
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>First Name</FormLabel>
-                        <Input
-                          placeholder="First name"
-                          value={leadForm.FirstName}
-                          onChange={(e) =>
-                            setLeadForm({
-                              ...leadForm,
-                              FirstName: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                      <FormControl isRequired>
-                        <FormLabel>Last Name</FormLabel>
-                        <Input
-                          placeholder="Last name"
-                          value={leadForm.LastName}
-                          onChange={(e) =>
-                            setLeadForm({
-                              ...leadForm,
-                              LastName: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                    </HStack>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Company</FormLabel>
-                        <Input
-                          placeholder="Company name"
-                          value={leadForm.Company}
-                          onChange={(e) =>
-                            setLeadForm({
-                              ...leadForm,
-                              Company: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Title</FormLabel>
-                        <Input
-                          placeholder="Job title"
-                          value={leadForm.Title}
-                          onChange={(e) =>
-                            setLeadForm({ ...leadForm, Title: e.target.value })
-                          }
-                        />
-                      </FormControl>
-                    </HStack>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Email</FormLabel>
-                        <Input
-                          type="email"
-                          placeholder="email@example.com"
-                          value={leadForm.Email}
-                          onChange={(e) =>
-                            setLeadForm({ ...leadForm, Email: e.target.value })
-                          }
-                        />
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Phone</FormLabel>
-                        <Input
-                          placeholder="Phone number"
-                          value={leadForm.Phone}
-                          onChange={(e) =>
-                            setLeadForm({ ...leadForm, Phone: e.target.value })
-                          }
-                        />
-                      </FormControl>
-                    </HStack>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Industry</FormLabel>
-                        <Select
-                          value={leadForm.Industry}
-                          onChange={(e) =>
-                            setLeadForm({
-                              ...leadForm,
-                              Industry: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="">Select Industry</option>
-                          <option value="Technology">Technology</option>
-                          <option value="Financial Services">
-                            Financial Services
-                          </option>
-                          <option value="Healthcare">Healthcare</option>
-                          <option value="Manufacturing">Manufacturing</option>
-                          <option value="Retail">Retail</option>
-                        </Select>
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Annual Revenue</FormLabel>
-                        <Input
-                          placeholder="1000000"
-                          value={leadForm.AnnualRevenue}
-                          onChange={(e) =>
-                            setLeadForm({
-                              ...leadForm,
-                              AnnualRevenue: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                    </HStack>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Lead Source</FormLabel>
-                        <Select
-                          value={leadForm.LeadSource}
-                          onChange={(e) =>
-                            setLeadForm({
-                              ...leadForm,
-                              LeadSource: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="">Select Source</option>
-                          <option value="Web">Web</option>
-                          <option value="Phone">Phone</option>
-                          <option value="Partner">Partner</option>
-                          <option value="Public Relations">
-                            Public Relations
-                          </option>
-                          <option value="Seminar">Seminar</option>
-                          <option value="Trade Show">Trade Show</option>
-                        </Select>
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Rating</FormLabel>
-                        <Select
-                          value={leadForm.Rating}
-                          onChange={(e) =>
-                            setLeadForm({ ...leadForm, Rating: e.target.value })
-                          }
-                        >
-                          <option value="">Select Rating</option>
-                          <option value="Hot">Hot</option>
-                          <option value="Warm">Warm</option>
-                          <option value="Cold">Cold</option>
-                        </Select>
-                      </FormControl>
-                    </HStack>
-
-                    <FormControl>
-                      <FormLabel>Address</FormLabel>
-                      <VStack spacing={2}>
-                        <Input
-                          placeholder="Street"
-                          value={leadForm.Street}
-                          onChange={(e) =>
-                            setLeadForm({ ...leadForm, Street: e.target.value })
-                          }
-                        />
-                        <HStack spacing={2}>
-                          <Input
-                            placeholder="City"
-                            value={leadForm.City}
-                            onChange={(e) =>
-                              setLeadForm({ ...leadForm, City: e.target.value })
-                            }
-                          />
-                          <Input
-                            placeholder="State"
-                            value={leadForm.State}
-                            onChange={(e) =>
-                              setLeadForm({
-                                ...leadForm,
-                                State: e.target.value,
-                              })
-                            }
-                          />
-                          <Input
-                            placeholder="Postal Code"
-                            value={leadForm.PostalCode}
-                            onChange={(e) =>
-                              setLeadForm({
-                                ...leadForm,
-                                PostalCode: e.target.value,
-                              })
-                            }
-                          />
-                        </HStack>
-                        <Input
-                          placeholder="Country"
-                          value={leadForm.Country}
-                          onChange={(e) =>
-                            setLeadForm({
-                              ...leadForm,
-                              Country: e.target.value,
-                            })
-                          }
-                        />
-                      </VStack>
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel>Description</FormLabel>
-                      <Textarea
-                        placeholder="Additional information..."
-                        value={leadForm.Description}
-                        onChange={(e) =>
+            <Dialog open={isLeadOpen} onOpenChange={(open: boolean) => !open && onLeadClose()}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Lead</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        placeholder="First name"
+                        value={leadForm.FirstName}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setLeadForm({
                             ...leadForm,
-                            Description: e.target.value,
+                            FirstName: e.target.value,
                           })
                         }
-                        rows={3}
                       />
-                    </FormControl>
-                  </VStack>
-                </ModalBody>
-                <ModalFooter>
-                  <Button variant="outline" mr={3} onClick={onLeadClose}>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName" className="required">Last Name *</Label>
+                      <Input
+                        id="lastName"
+                        placeholder="Last name"
+                        value={leadForm.LastName}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setLeadForm({
+                            ...leadForm,
+                            LastName: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="company">Company</Label>
+                      <Input
+                        id="company"
+                        placeholder="Company name"
+                        value={leadForm.Company}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setLeadForm({
+                            ...leadForm,
+                            Company: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Title</Label>
+                      <Input
+                        id="title"
+                        placeholder="Job title"
+                        value={leadForm.Title}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setLeadForm({ ...leadForm, Title: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="email@example.com"
+                        value={leadForm.Email}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setLeadForm({ ...leadForm, Email: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input
+                        id="phone"
+                        placeholder="Phone number"
+                        value={leadForm.Phone}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setLeadForm({ ...leadForm, Phone: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="industry">Industry</Label>
+                      <select
+                        id="industry"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={leadForm.Industry}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setLeadForm({
+                            ...leadForm,
+                            Industry: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select Industry</option>
+                        <option value="Technology">Technology</option>
+                        <option value="Financial Services">
+                          Financial Services
+                        </option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Manufacturing">Manufacturing</option>
+                        <option value="Retail">Retail</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="revenue">Annual Revenue</Label>
+                      <Input
+                        id="revenue"
+                        placeholder="1000000"
+                        value={leadForm.AnnualRevenue}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setLeadForm({
+                            ...leadForm,
+                            AnnualRevenue: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="leadSource">Lead Source</Label>
+                      <select
+                        id="leadSource"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={leadForm.LeadSource}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setLeadForm({
+                            ...leadForm,
+                            LeadSource: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select Source</option>
+                        <option value="Web">Web</option>
+                        <option value="Phone">Phone</option>
+                        <option value="Partner">Partner</option>
+                        <option value="Public Relations">
+                          Public Relations
+                        </option>
+                        <option value="Seminar">Seminar</option>
+                        <option value="Trade Show">Trade Show</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="rating">Rating</Label>
+                      <select
+                        id="rating"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={leadForm.Rating}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setLeadForm({ ...leadForm, Rating: e.target.value })
+                        }
+                      >
+                        <option value="">Select Rating</option>
+                        <option value="Hot">Hot</option>
+                        <option value="Warm">Warm</option>
+                        <option value="Cold">Cold</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Address</Label>
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Street"
+                        value={leadForm.Street}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setLeadForm({ ...leadForm, Street: e.target.value })
+                        }
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input
+                          placeholder="City"
+                          value={leadForm.City}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setLeadForm({ ...leadForm, City: e.target.value })
+                          }
+                        />
+                        <Input
+                          placeholder="State"
+                          value={leadForm.State}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setLeadForm({
+                              ...leadForm,
+                              State: e.target.value,
+                            })
+                          }
+                        />
+                        <Input
+                          placeholder="Postal Code"
+                          value={leadForm.PostalCode}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setLeadForm({
+                              ...leadForm,
+                              PostalCode: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <Input
+                        placeholder="Country"
+                        value={leadForm.Country}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setLeadForm({
+                            ...leadForm,
+                            Country: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Additional information..."
+                      value={leadForm.Description}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        setLeadForm({
+                          ...leadForm,
+                          Description: e.target.value,
+                        })
+                      }
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={onLeadClose}>
                     Cancel
                   </Button>
                   <Button
-                    colorScheme="blue"
                     onClick={createLead}
                     disabled={!leadForm.LastName}
                   >
                     Create Lead
                   </Button>
-                </ModalFooter>
-              </ModalContent>
-            </Modal>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Create Opportunity Modal */}
-            <Modal
-              isOpen={isOpportunityOpen}
-              onClose={onOpportunityClose}
-              size="xl"
-            >
-              <ModalOverlay />
-              <ModalContent>
-                <ModalHeader>Create Opportunity</ModalHeader>
-                <ModalCloseButton />
-                <ModalBody>
-                  <VStack spacing={4}>
-                    <FormControl isRequired>
-                      <FormLabel>Opportunity Name</FormLabel>
+            <Dialog open={isOpportunityOpen} onOpenChange={(open: boolean) => !open && onOpportunityClose()}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Opportunity</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="oppName" className="required">Opportunity Name *</Label>
+                    <Input
+                      id="oppName"
+                      placeholder="Opportunity name"
+                      value={opportunityForm.Name}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setOpportunityForm({
+                          ...opportunityForm,
+                          Name: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="oppAccount" className="required">Account *</Label>
+                    <select
+                      id="oppAccount"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={opportunityForm.AccountId}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        setOpportunityForm({
+                          ...opportunityForm,
+                          AccountId: e.target.value,
+                        })
+                      }
+                      required
+                    >
+                      <option value="">Select Account</option>
+                      {accounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.Name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="oppAmount">Amount</Label>
                       <Input
-                        placeholder="Opportunity name"
-                        value={opportunityForm.Name}
-                        onChange={(e) =>
+                        id="oppAmount"
+                        placeholder="100000"
+                        value={opportunityForm.Amount}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setOpportunityForm({
                             ...opportunityForm,
-                            Name: e.target.value,
+                            Amount: e.target.value,
                           })
                         }
                       />
-                    </FormControl>
-
-                    <FormControl isRequired>
-                      <FormLabel>Account</FormLabel>
-                      <Select
-                        value={opportunityForm.AccountId}
-                        onChange={(e) =>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="oppCloseDate">Close Date</Label>
+                      <Input
+                        id="oppCloseDate"
+                        type="date"
+                        value={opportunityForm.CloseDate}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setOpportunityForm({
                             ...opportunityForm,
-                            AccountId: e.target.value,
+                            CloseDate: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="oppStage">Stage</Label>
+                      <select
+                        id="oppStage"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={opportunityForm.StageName}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setOpportunityForm({
+                            ...opportunityForm,
+                            StageName: e.target.value,
                           })
                         }
                       >
-                        <option value="">Select Account</option>
-                        {accounts.map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.Name}
-                          </option>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Amount</FormLabel>
-                        <Input
-                          placeholder="100000"
-                          value={opportunityForm.Amount}
-                          onChange={(e) =>
-                            setOpportunityForm({
-                              ...opportunityForm,
-                              Amount: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Close Date</FormLabel>
-                        <Input
-                          type="date"
-                          value={opportunityForm.CloseDate}
-                          onChange={(e) =>
-                            setOpportunityForm({
-                              ...opportunityForm,
-                              CloseDate: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                    </HStack>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Stage</FormLabel>
-                        <Select
-                          value={opportunityForm.StageName}
-                          onChange={(e) =>
-                            setOpportunityForm({
-                              ...opportunityForm,
-                              StageName: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="Prospecting">Prospecting</option>
-                          <option value="Qualification">Qualification</option>
-                          <option value="Needs Analysis">Needs Analysis</option>
-                          <option value="Value Proposition">
-                            Value Proposition
-                          </option>
-                          <option value="Id. Decision Makers">
-                            Id. Decision Makers
-                          </option>
-                          <option value="Perception Analysis">
-                            Perception Analysis
-                          </option>
-                          <option value="Proposal/Price Quote">
-                            Proposal/Price Quote
-                          </option>
-                          <option value="Negotiation/Review">
-                            Negotiation/Review
-                          </option>
-                          <option value="Closed Won">Closed Won</option>
-                          <option value="Closed Lost">Closed Lost</option>
-                        </Select>
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Probability (%)</FormLabel>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={opportunityForm.Probability}
-                          onChange={(e) =>
-                            setOpportunityForm({
-                              ...opportunityForm,
-                              Probability: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                    </HStack>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Type</FormLabel>
-                        <Select
-                          value={opportunityForm.Type}
-                          onChange={(e) =>
-                            setOpportunityForm({
-                              ...opportunityForm,
-                              Type: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="New Customer">New Customer</option>
-                          <option value="Existing Business">
-                            Existing Business
-                          </option>
-                          <option value="Partner">Partner</option>
-                        </Select>
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Lead Source</FormLabel>
-                        <Select
-                          value={opportunityForm.LeadSource}
-                          onChange={(e) =>
-                            setOpportunityForm({
-                              ...opportunityForm,
-                              LeadSource: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="">Select Source</option>
-                          <option value="Web">Web</option>
-                          <option value="Phone">Phone</option>
-                          <option value="Partner">Partner</option>
-                          <option value="Public Relations">
-                            Public Relations
-                          </option>
-                          <option value="Seminar">Seminar</option>
-                          <option value="Trade Show">Trade Show</option>
-                        </Select>
-                      </FormControl>
-                    </HStack>
-
-                    <FormControl>
-                      <FormLabel>Description</FormLabel>
-                      <Textarea
-                        placeholder="Opportunity description..."
-                        value={opportunityForm.Description}
-                        onChange={(e) =>
+                        <option value="Prospecting">Prospecting</option>
+                        <option value="Qualification">Qualification</option>
+                        <option value="Needs Analysis">Needs Analysis</option>
+                        <option value="Value Proposition">Value Proposition</option>
+                        <option value="Id. Decision Makers">Id. Decision Makers</option>
+                        <option value="Perception Analysis">Perception Analysis</option>
+                        <option value="Proposal/Price Quote">Proposal/Price Quote</option>
+                        <option value="Negotiation/Review">Negotiation/Review</option>
+                        <option value="Closed Won">Closed Won</option>
+                        <option value="Closed Lost">Closed Lost</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="oppProb">Probability (%)</Label>
+                      <Input
+                        id="oppProb"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={opportunityForm.Probability}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setOpportunityForm({
                             ...opportunityForm,
-                            Description: e.target.value,
+                            Probability: e.target.value,
                           })
                         }
-                        rows={3}
                       />
-                    </FormControl>
-                  </VStack>
-                </ModalBody>
-                <ModalFooter>
-                  <Button variant="outline" mr={3} onClick={onOpportunityClose}>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="oppType">Type</Label>
+                      <select
+                        id="oppType"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={opportunityForm.Type}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setOpportunityForm({
+                            ...opportunityForm,
+                            Type: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="New Customer">New Customer</option>
+                        <option value="Existing Business">Existing Business</option>
+                        <option value="Partner">Partner</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="oppLeadSource">Lead Source</Label>
+                      <select
+                        id="oppLeadSource"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={opportunityForm.LeadSource}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setOpportunityForm({
+                            ...opportunityForm,
+                            LeadSource: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select Source</option>
+                        <option value="Web">Web</option>
+                        <option value="Phone">Phone</option>
+                        <option value="Partner">Partner</option>
+                        <option value="Public Relations">Public Relations</option>
+                        <option value="Seminar">Seminar</option>
+                        <option value="Trade Show">Trade Show</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="oppDesc">Description</Label>
+                    <Textarea
+                      id="oppDesc"
+                      placeholder="Opportunity description..."
+                      value={opportunityForm.Description}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        setOpportunityForm({
+                          ...opportunityForm,
+                          Description: e.target.value,
+                        })
+                      }
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={onOpportunityClose}>
                     Cancel
                   </Button>
                   <Button
-                    colorScheme="blue"
                     onClick={createOpportunity}
-                    disabled={
-                      !opportunityForm.Name || !opportunityForm.AccountId
-                    }
+                    disabled={!opportunityForm.Name || !opportunityForm.AccountId}
                   >
                     Create Opportunity
                   </Button>
-                </ModalFooter>
-              </ModalContent>
-            </Modal>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Create Account Modal */}
-            <Modal isOpen={isAccountOpen} onClose={onAccountClose} size="xl">
-              <ModalOverlay />
-              <ModalContent>
-                <ModalHeader>Create Account</ModalHeader>
-                <ModalCloseButton />
-                <ModalBody>
-                  <VStack spacing={4}>
-                    <FormControl isRequired>
-                      <FormLabel>Account Name</FormLabel>
+            <Dialog open={isAccountOpen} onOpenChange={(open: boolean) => !open && onAccountClose()}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Account</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="accName" className="required">Account Name *</Label>
+                    <Input
+                      id="accName"
+                      placeholder="Account name"
+                      value={accountForm.Name}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setAccountForm({
+                          ...accountForm,
+                          Name: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="accType">Type</Label>
+                      <select
+                        id="accType"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={accountForm.Type}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setAccountForm({
+                            ...accountForm,
+                            Type: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select Type</option>
+                        <option value="Partner">Partner</option>
+                        <option value="Customer">Customer</option>
+                        <option value="Competitor">Competitor</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="accIndustry">Industry</Label>
+                      <select
+                        id="accIndustry"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={accountForm.Industry}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setAccountForm({
+                            ...accountForm,
+                            Industry: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select Industry</option>
+                        <option value="Technology">Technology</option>
+                        <option value="Financial Services">Financial Services</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Manufacturing">Manufacturing</option>
+                        <option value="Retail">Retail</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="accPhone">Phone</Label>
                       <Input
-                        placeholder="Account name"
-                        value={accountForm.Name}
-                        onChange={(e) =>
+                        id="accPhone"
+                        placeholder="Phone number"
+                        value={accountForm.Phone}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setAccountForm({
                             ...accountForm,
-                            Name: e.target.value,
+                            Phone: e.target.value,
                           })
                         }
                       />
-                    </FormControl>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Type</FormLabel>
-                        <Select
-                          value={accountForm.Type}
-                          onChange={(e) =>
-                            setAccountForm({
-                              ...accountForm,
-                              Type: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="">Select Type</option>
-                          <option value="Partner">Partner</option>
-                          <option value="Customer">Customer</option>
-                          <option value="Competitor">Competitor</option>
-                        </Select>
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Industry</FormLabel>
-                        <Select
-                          value={accountForm.Industry}
-                          onChange={(e) =>
-                            setAccountForm({
-                              ...accountForm,
-                              Industry: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="">Select Industry</option>
-                          <option value="Technology">Technology</option>
-                          <option value="Financial Services">
-                            Financial Services
-                          </option>
-                          <option value="Healthcare">Healthcare</option>
-                          <option value="Manufacturing">Manufacturing</option>
-                          <option value="Retail">Retail</option>
-                        </Select>
-                      </FormControl>
-                    </HStack>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Phone</FormLabel>
-                        <Input
-                          placeholder="Phone number"
-                          value={accountForm.Phone}
-                          onChange={(e) =>
-                            setAccountForm({
-                              ...accountForm,
-                              Phone: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Website</FormLabel>
-                        <Input
-                          placeholder="https://www.example.com"
-                          value={accountForm.Website}
-                          onChange={(e) =>
-                            setAccountForm({
-                              ...accountForm,
-                              Website: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                    </HStack>
-
-                    <HStack spacing={4} width="full">
-                      <FormControl>
-                        <FormLabel>Annual Revenue</FormLabel>
-                        <Input
-                          placeholder="1000000"
-                          value={accountForm.AnnualRevenue}
-                          onChange={(e) =>
-                            setAccountForm({
-                              ...accountForm,
-                              AnnualRevenue: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Number of Employees</FormLabel>
-                        <Input
-                          placeholder="100"
-                          value={accountForm.NumberOfEmployees}
-                          onChange={(e) =>
-                            setAccountForm({
-                              ...accountForm,
-                              NumberOfEmployees: e.target.value,
-                            })
-                          }
-                        />
-                      </FormControl>
-                    </HStack>
-
-                    <FormControl>
-                      <FormLabel>Billing Address</FormLabel>
-                      <VStack spacing={2}>
-                        <Input
-                          placeholder="Street"
-                          value={accountForm.BillingStreet}
-                          onChange={(e) =>
-                            setAccountForm({
-                              ...accountForm,
-                              BillingStreet: e.target.value,
-                            })
-                          }
-                        />
-                        <HStack spacing={2}>
-                          <Input
-                            placeholder="City"
-                            value={accountForm.BillingCity}
-                            onChange={(e) =>
-                              setAccountForm({
-                                ...accountForm,
-                                BillingCity: e.target.value,
-                              })
-                            }
-                          />
-                          <Input
-                            placeholder="State"
-                            value={accountForm.BillingState}
-                            onChange={(e) =>
-                              setAccountForm({
-                                ...accountForm,
-                                BillingState: e.target.value,
-                              })
-                            }
-                          />
-                          <Input
-                            placeholder="Postal Code"
-                            value={accountForm.BillingPostalCode}
-                            onChange={(e) =>
-                              setAccountForm({
-                                ...accountForm,
-                                BillingPostalCode: e.target.value,
-                              })
-                            }
-                          />
-                        </HStack>
-                        <Input
-                          placeholder="Country"
-                          value={accountForm.BillingCountry}
-                          onChange={(e) =>
-                            setAccountForm({
-                              ...accountForm,
-                              BillingCountry: e.target.value,
-                            })
-                          }
-                        />
-                      </VStack>
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel>Description</FormLabel>
-                      <Textarea
-                        placeholder="Account description..."
-                        value={accountForm.Description}
-                        onChange={(e) =>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="accWebsite">Website</Label>
+                      <Input
+                        id="accWebsite"
+                        placeholder="https://www.example.com"
+                        value={accountForm.Website}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           setAccountForm({
                             ...accountForm,
-                            Description: e.target.value,
+                            Website: e.target.value,
                           })
                         }
-                        rows={3}
                       />
-                    </FormControl>
-                  </VStack>
-                </ModalBody>
-                <ModalFooter>
-                  <Button variant="outline" mr={3} onClick={onAccountClose}>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="accRevenue">Annual Revenue</Label>
+                      <Input
+                        id="accRevenue"
+                        placeholder="1000000"
+                        value={accountForm.AnnualRevenue}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAccountForm({
+                            ...accountForm,
+                            AnnualRevenue: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="accEmployees">Number of Employees</Label>
+                      <Input
+                        id="accEmployees"
+                        placeholder="100"
+                        value={accountForm.NumberOfEmployees}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAccountForm({
+                            ...accountForm,
+                            NumberOfEmployees: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Billing Address</Label>
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Street"
+                        value={accountForm.BillingStreet}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAccountForm({
+                            ...accountForm,
+                            BillingStreet: e.target.value,
+                          })
+                        }
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input
+                          placeholder="City"
+                          value={accountForm.BillingCity}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setAccountForm({
+                              ...accountForm,
+                              BillingCity: e.target.value,
+                            })
+                          }
+                        />
+                        <Input
+                          placeholder="State"
+                          value={accountForm.BillingState}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setAccountForm({
+                              ...accountForm,
+                              BillingState: e.target.value,
+                            })
+                          }
+                        />
+                        <Input
+                          placeholder="Postal Code"
+                          value={accountForm.BillingPostalCode}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setAccountForm({
+                              ...accountForm,
+                              BillingPostalCode: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <Input
+                        placeholder="Country"
+                        value={accountForm.BillingCountry}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAccountForm({
+                            ...accountForm,
+                            BillingCountry: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="accDesc">Description</Label>
+                    <Textarea
+                      id="accDesc"
+                      placeholder="Account description..."
+                      value={accountForm.Description}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        setAccountForm({
+                          ...accountForm,
+                          Description: e.target.value,
+                        })
+                      }
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={onAccountClose}>
                     Cancel
                   </Button>
                   <Button
-                    colorScheme="blue"
                     onClick={createAccount}
                     disabled={!accountForm.Name}
                   >
                     Create Account
                   </Button>
-                </ModalFooter>
-              </ModalContent>
-            </Modal>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </>
         )}
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 };
 
