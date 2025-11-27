@@ -56,6 +56,7 @@ import {
 } from '@chakra-ui/react';
 import ExecutionHistoryList from './ExecutionHistoryList';
 import ExecutionDetailView from './ExecutionDetailView';
+import WorkflowScheduler from './WorkflowScheduler';
 import { AddIcon, EditIcon, DeleteIcon, DragHandleIcon, SettingsIcon, ViewIcon, CopyIcon } from '@chakra-ui/icons';
 import IntegrationSelector from './IntegrationSelector';
 
@@ -741,6 +742,7 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
                 <Tab>Design</Tab>
                 <Tab>Code</Tab>
                 <Tab>History</Tab>
+                <Tab>Schedule</Tab>
               </TabList>
 
               <TabPanels>
@@ -860,6 +862,14 @@ const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
                       />
                     )}
                   </Box>
+                </TabPanel>
+
+                {/* Schedule Tab */}
+                <TabPanel p={6}>
+                  <WorkflowScheduler
+                    workflowId={currentWorkflow.id}
+                    workflowName={currentWorkflow.name}
+                  />
                 </TabPanel>
               </TabPanels>
             </Tabs>
