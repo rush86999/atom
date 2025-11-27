@@ -18,6 +18,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from core.token_storage import token_storage
+from core.oauth_handler import GOOGLE_OAUTH_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -40,30 +42,71 @@ class GmailService:
         """Authenticate with Gmail API"""
         try:
             creds = None
-            if os.path.exists(self.token_path):
+            
+            # 1. Try to load from secure token storage first
+            stored_token = token_storage.get_token("google")
+            if stored_token:
+                logger.info("Found Google token in secure storage")
+                creds = Credentials(
+                    token=stored_token.get("access_token"),
+                    refresh_token=stored_token.get("refresh_token"),
+                    token_uri=GOOGLE_OAUTH_CONFIG.token_url,
+                    client_id=GOOGLE_OAUTH_CONFIG.client_id,
+                    client_secret=GOOGLE_OAUTH_CONFIG.client_secret,
+                    scopes=self.scopes
+                )
+            
+            # 2. Fallback to file-based token (legacy)
+            elif os.path.exists(self.token_path):
+                logger.info(f"Loading Google token from file: {self.token_path}")
                 creds = Credentials.from_authorized_user_file(self.token_path, self.scopes)
             
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
+                    logger.info("Refreshing expired Google token")
                     creds.refresh(Request())
+                    
+                    # Update storage if we used it
+                    if stored_token:
+                        new_token_data = {
+                            "access_token": creds.token,
+                            "refresh_token": creds.refresh_token,
+                            "token_uri": creds.token_uri,
+                            "client_id": creds.client_id,
+                            "client_secret": creds.client_secret,
+                            "scopes": creds.scopes
+                        }
+                        token_storage.save_token("google", new_token_data)
                 else:
                     if not os.path.exists(self.credentials_path):
-                        raise FileNotFoundError(f"Credentials file not found: {self.credentials_path}")
+                        # If we have OAUTH config, we might not need credentials file
+                        if not GOOGLE_OAUTH_CONFIG.is_configured():
+                            raise FileNotFoundError(f"Credentials file not found: {self.credentials_path}")
                     
-                    flow = Flow.from_client_secrets_file(self.credentials_path, self.scopes)
-                    flow.redirect_uri = 'http://localhost:8080/oauth/gmail/callback'
-                    auth_url, _ = flow.authorization_url(prompt='consent')
-                    raise Exception(f"Authorization required. Visit: {auth_url}")
+                    if os.path.exists(self.credentials_path):
+                        flow = Flow.from_client_secrets_file(self.credentials_path, self.scopes)
+                        flow.redirect_uri = 'http://localhost:8080/oauth/gmail/callback'
+                        auth_url, _ = flow.authorization_url(prompt='consent')
+                        raise Exception(f"Authorization required. Visit: {auth_url}")
+                    else:
+                         if GOOGLE_OAUTH_CONFIG.is_configured():
+                             logger.info("Google OAuth configured but no token found. Waiting for authentication.")
+                         else:
+                             raise Exception("Google OAuth not configured and no credentials found.")
                 
-                with open(self.token_path, 'w') as token:
-                    token.write(creds.to_json())
+                # Save to file if we are using file mode
+                if not stored_token and self.token_path and creds:
+                     with open(self.token_path, 'w') as token:
+                        token.write(creds.to_json())
             
             self.service = build('gmail', 'v1', credentials=creds)
             logger.info("Gmail authentication successful")
             
         except Exception as e:
-            logger.error(f"Gmail authentication failed: {e}")
-            raise
+            logger.warning(f"Gmail authentication failed during initialization: {e}")
+            self.service = None
+            # Do not raise exception to allow app startup without Gmail credentials
+            # Operations requiring Gmail will fail later if not authenticated
     
     def test_connection(self) -> Dict[str, Any]:
         """Test Gmail API connection"""
