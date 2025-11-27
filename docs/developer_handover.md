@@ -1,22 +1,22 @@
 # Developer Handover & Status Report
 
 **Date:** November 27, 2025  
-<<<<<<< HEAD
-**Latest Update:** Phase 20 Complete - Frontend Workflow Creation  
-=======
-**Latest Update:** Chakra UI Migration Complete + SuperTokens Cleanup Phase 1 & 2 (Simple API Routes) Complete
->>>>>>> a5eab3d3 (feat: Complete Chakra UI migration + SuperTokens Phase 1 & 2)
+**Latest Update:** Phase 24 Complete - Chat-based Workflow Management & Scheduling UI  
 **Project:** Atom (Advanced Task Orchestration & Management)
 
 ## 1. Project Overview
 Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped in Tauri for desktop) and a Python FastAPI backend. It integrates with 116+ services and uses local/remote LLMs for natural language understanding and workflow generation.
 
-## 2. Current Status - Phase 20 Complete
+## 2. Current Status - Phases 20-24 Complete
 
 **Phases Completed:**
 - ✅ Phase 1-18: (Previous milestones - see git history)
 - ✅ **Phase 19: Workflow Execution Testing** - Real email sent via AutomationEngine
 - ✅ **Phase 20: Frontend Workflow Creation** - UI for creating workflows
+- ✅ **Phase 21: Workflow Execution from UI** - Execute button and real execution
+- ✅ **Phase 22: Workflow Execution History** - History tab and persistence
+- ✅ **Phase 23: Workflow Scheduling** - Backend scheduler with APScheduler
+- ✅ **Phase 24: Chat-based Workflow Management & Scheduling UI** - AI-powered workflow creation via chat + visual scheduling interface
 
 ### Recent Major Milestones (Nov 20, 2025 - Latest Session)
 
@@ -207,9 +207,59 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
    - Verified job creation, execution, listing, and removal.
    - Confirmed `AutomationEngine` integration for scheduled runs.
 
-**Next Steps:**
-- Phase 24: Chat-based Workflow Management (User Request)
-- Integrate Scheduling UI into Workflow Editor
+**Next Steps (as of November 27, 2025):**
+- Phase 24: Chat-based Workflow Management ✅ **COMPLETE**
+- Scheduling UI Integration ✅ **COMPLETE**
+- Phase 25: Consider workflow templates, analytics, or chat-based scheduling commands
+
+### Phase 24: Chat-based Workflow Management & Scheduling UI (Nov 27, 2025) ✅
+
+**Goal:** Make Chat the primary interface for workflow creation and add visual scheduling UI.
+
+1. **Fixed AutomationEngine Initialization** ✅
+   - Resolved Gmail authentication error by removing corrupt `token.json`
+   - Engine now gracefully handles missing credentials
+
+2. **Verified Backend Scheduler** ✅
+   - Fixed import paths in `ai/workflow_scheduler.py` (removed `backend.` prefix)
+   - Created `backend/verify_scheduler.py` test script
+   - Confirmed scheduler executes workflows on schedule
+
+3. **AI-Powered Chat Workflow Creation** ✅
+   - Enhanced `/api/workflow-agent/chat` endpoint
+   - Uses `RealAIWorkflowService` for NLU (DeepSeek AI)
+   - Extracts intent and tasks from natural language
+   - Generates workflow definitions with proper node structure
+   - Persists workflows to `workflows.json`
+   - Supports "create workflow", "list workflows" commands
+
+4. **Scheduling UI** ✅
+   - Created `WorkflowScheduler.tsx` component
+   - Three scheduling modes:
+     * **Interval**: Run every X days/hours/minutes
+     * **Cron**: Advanced scheduling with presets or custom expressions
+     * **Date**: One-time execution at specific date/time
+   - Scheduled jobs management (view, delete)
+   - Integrated as 4th tab in `WorkflowEditor`
+
+5. **Files Modified:**
+   - `backend/core/workflow_agent_endpoints.py` (enhanced chat)
+   - `backend/ai/workflow_scheduler.py` (fixed imports)
+   - `frontend-nextjs/components/Automations/WorkflowScheduler.tsx` (new)
+   - `frontend-nextjs/components/Automations/WorkflowEditor.tsx` (added Schedule tab)
+
+6. **Files Created:**
+   - `backend/test_engine_deep.py`
+   - `backend/verify_scheduler.py`
+   - `backend/test_chat_endpoint.py`
+
+**User Impact:**
+- Create workflows via natural language ("Create a workflow to send daily reports")
+- Schedule workflows with visual interface (interval/cron/date)
+- View and manage all scheduled jobs
+- Complete workflow lifecycle: Create → Edit → Execute → Schedule
+
+**Next Steps (as of November 27, 2025):**
 
 ### Phase 15: Chakra UI Migration (Nov 27, 2025) ✅ **COMPLETE**
 
