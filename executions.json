@@ -1,0 +1,36 @@
+[
+  {
+    "execution_id": "a2ac8d39-7576-4969-bbdc-0fb760b57854",
+    "workflow_id": "9a461719-ea31-441c-90f4-a275929077a4",
+    "trigger_data": {
+      "test": "data"
+    },
+    "start_time": "2025-11-27T12:10:59.646554",
+    "end_time": "2025-11-27T12:10:59.646614",
+    "status": "completed",
+    "actions_executed": [
+      "trigger_1",
+      "action_1"
+    ],
+    "errors": [],
+    "results": {
+      "trigger_1": {
+        "node_id": "trigger_1",
+        "node_type": "trigger",
+        "node_title": "Manual Trigger",
+        "status": "success",
+        "output": "Trigger node (manual execution)",
+        "error": null
+      },
+      "action_1": {
+        "node_id": "action_1",
+        "node_type": "action",
+        "node_title": "Test Action",
+        "status": "skipped",
+        "output": "Action type 'transform_data' with integration 'builtin' not yet implemented",
+        "error": null
+      }
+    },
+    "duration_ms": 0.060000000000000005
+  }
+]

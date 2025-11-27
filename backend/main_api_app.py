@@ -51,7 +51,7 @@ except ImportError as e:
 integrations = [
     # Core Modules
     ("core.workflow_ui_endpoints", "router", None),
-    ("core.workflow_agent_endpoints", "router", None),
+    ("core.atom_agent_endpoints", "router", None),
     ("core.missing_endpoints", "router", None),
     ("core.service_registry", "router", None),
     ("core.byok_endpoints", "router", None),

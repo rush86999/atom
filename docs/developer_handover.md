@@ -199,17 +199,6 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
    - Integrated scheduler lifecycle with FastAPI startup/shutdown events.
 
 3. **Verification** ✅
-   - Created `backend/test_workflow_scheduling.py`.
-   - Verified job creation, execution, listing, and removal.
-   - Confirmed `AutomationEngine` integration for scheduled runs.
-
-**Next Steps:**
-- Phase 24: Chat-based Workflow Management (User Request)
-- Integrate Scheduling UI into Workflow Editor
-
-
-
-1.  **Backend:**
     ```bash
     cd atom/backend
     python main_api_app.py
