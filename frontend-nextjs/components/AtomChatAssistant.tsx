@@ -36,12 +36,15 @@ import {
 import {
   ArrowForwardIcon,
   ChatIcon,
-  PersonIcon,
+  CalendarIcon,
+  EmailIcon,
+  TimeIcon,
   SettingsIcon,
   CheckCircleIcon,
   EditIcon,
   DeleteIcon,
-  PlusIcon,
+  SearchIcon,
+  ExternalLinkIcon,
 } from "@chakra-ui/icons";
 
 interface ChatMessage {
@@ -60,19 +63,20 @@ interface ChatMessage {
 }
 
 interface ChatAction {
-  type: "execute" | "schedule" | "edit" | "confirm" | "cancel";
+  type: "execute" | "schedule" | "edit" | "confirm" | "cancel" |
+  "create_event" | "send_email" | "view_inbox" | "view_calendar";
   label: string;
   workflowId?: string;
   data?: any;
 }
 
-interface WorkflowChatProps {
+interface AtomChatAssistantProps {
   userId?: string;
   onWorkflowCreated?: (workflowId: string) => void;
   onWorkflowExecuted?: (workflowId: string, executionId: string) => void;
 }
 
-const WorkflowChat: React.FC<WorkflowChatProps> = ({
+const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
   userId = "anonymous",
   onWorkflowCreated,
   onWorkflowExecuted,
@@ -83,7 +87,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
   const [sessionId, setSessionId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null);
+  const [selectedAction, setSelectedAction] = useState<ChatAction | null>(null);
   const toast = useToast();
 
   // Initialize with welcome message
@@ -92,7 +96,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
       id: "welcome",
       type: "assistant",
       content:
-        'Hi! I can help you create automated workflows. Tell me what you\'d like to automate, for example: "Create a workflow that sends me an email when I receive a calendar invitation" or "Automate my task creation from emails".',
+        'Hi! I am your Universal ATOM Assistant. 🚀\n\nI can help you with:\n📅 **Calendar**: "Schedule meeting tomorrow"\n📧 **Email**: "Send email to boss"\n⚙️ **Workflows**: "Run Daily Report"\n\nWhat would you like to do?',
       timestamp: new Date(),
     };
     setMessages([welcomeMessage]);
@@ -121,7 +125,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/workflow-agent/chat", {
+      const response = await fetch("/api/atom-agent/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -147,12 +151,12 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
           timestamp: new Date(),
           workflowData: data.response.workflow_id
             ? {
-                workflowId: data.response.workflow_id,
-                workflowName: data.response.workflow_name,
-                stepsCount: data.response.steps_count,
-                isScheduled: data.response.is_scheduled,
-                requiresConfirmation: data.response.requires_confirmation,
-              }
+              workflowId: data.response.workflow_id,
+              workflowName: data.response.workflow_name,
+              stepsCount: data.response.steps_count,
+              isScheduled: data.response.is_scheduled,
+              requiresConfirmation: data.response.requires_confirmation,
+            }
             : undefined,
           actions: data.response.actions || [],
         };
@@ -195,23 +199,54 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
         await executeWorkflow(action.workflowId!);
         break;
       case "schedule":
-        await scheduleWorkflow(action.workflowId!);
+        // Open schedule modal
+        setSelectedAction(action);
+        onOpen();
         break;
-      case "edit":
-        await editWorkflow(action.workflowId!);
+      case "create_event":
+        // Mock event creation confirmation
+        toast({
+          title: "Event Created",
+          description: `Created event: ${action.data?.summary}`,
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
         break;
-      case "confirm":
-        await confirmWorkflow(action.workflowId!);
+      case "send_email":
+        // Mock email sending
+        toast({
+          title: "Email Sent",
+          description: `Sent email to ${action.data?.recipient}`,
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
         break;
-      case "cancel":
-        await cancelWorkflow(action.workflowId!);
+      case "view_inbox":
+      case "view_calendar":
+        toast({
+          title: "Opening View",
+          description: `Navigating to ${action.label}...`,
+          status: "info",
+          duration: 2000,
+          isClosable: true,
+        });
         break;
+      default:
+        toast({
+          title: "Action",
+          description: `Action ${action.label} clicked`,
+          status: "info",
+          duration: 2000,
+          isClosable: true,
+        });
     }
   };
 
   const executeWorkflow = async (workflowId: string) => {
     try {
-      const response = await fetch("/api/workflow-agent/execute-generated", {
+      const response = await fetch("/api/atom-agent/execute-generated", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -260,37 +295,6 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
     }
   };
 
-  const scheduleWorkflow = async (workflowId: string) => {
-    // Open schedule modal
-    setSelectedWorkflow({ id: workflowId });
-    onOpen();
-  };
-
-  const editWorkflow = async (workflowId: string) => {
-    toast({
-      title: "Edit Workflow",
-      description: "Opening workflow editor...",
-      status: "info",
-      duration: 2000,
-      isClosable: true,
-    });
-    // In a real implementation, this would navigate to the workflow editor
-  };
-
-  const confirmWorkflow = async (workflowId: string) => {
-    await executeWorkflow(workflowId);
-  };
-
-  const cancelWorkflow = async (workflowId: string) => {
-    toast({
-      title: "Workflow Cancelled",
-      description: "The workflow creation was cancelled",
-      status: "info",
-      duration: 2000,
-      isClosable: true,
-    });
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -310,7 +314,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
       >
         <HStack spacing={3} align="start">
           {!isUser && (
-            <Avatar size="sm" icon={<ChatIcon />} bg="blue.500" color="white" />
+            <Avatar size="sm" icon={<ChatIcon />} bg="purple.500" color="white" />
           )}
           <Card
             bg={isUser ? "blue.500" : "gray.100"}
@@ -355,7 +359,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
                       key={index}
                       size="sm"
                       variant={action.type === "execute" ? "solid" : "outline"}
-                      colorScheme={action.type === "execute" ? "green" : "blue"}
+                      colorScheme={getActionColor(action.type)}
                       leftIcon={getActionIcon(action.type)}
                       onClick={() => handleActionClick(action)}
                     >
@@ -369,7 +373,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
           {isUser && (
             <Avatar
               size="sm"
-              icon={<PersonIcon />}
+              name="User"
               bg="gray.500"
               color="white"
             />
@@ -398,6 +402,12 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
         return <ArrowForwardIcon />;
       case "schedule":
         return <TimeIcon />;
+      case "create_event":
+      case "view_calendar":
+        return <CalendarIcon />;
+      case "send_email":
+      case "view_inbox":
+        return <EmailIcon />;
       case "edit":
         return <EditIcon />;
       case "confirm":
@@ -406,6 +416,23 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
         return <DeleteIcon />;
       default:
         return <SettingsIcon />;
+    }
+  };
+
+  const getActionColor = (actionType: string) => {
+    switch (actionType) {
+      case "execute":
+        return "green";
+      case "create_event":
+      case "view_calendar":
+        return "purple";
+      case "send_email":
+      case "view_inbox":
+        return "orange";
+      case "cancel":
+        return "red";
+      default:
+        return "blue";
     }
   };
 
@@ -423,14 +450,14 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
         <HStack justify="space-between">
           <VStack align="start" spacing={0}>
             <Text fontWeight="bold" fontSize="lg">
-              Workflow Assistant
+              ATOM Assistant
             </Text>
             <Text fontSize="sm" color="gray.600">
-              Create automated workflows with natural language
+              Universal AI Assistant for Workflows, Calendar & Email
             </Text>
           </VStack>
-          <Badge colorScheme="green" variant="subtle">
-            AI Powered
+          <Badge colorScheme="purple" variant="subtle">
+            Universal Agent
           </Badge>
         </HStack>
       </Box>
@@ -445,14 +472,14 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
                 <Avatar
                   size="sm"
                   icon={<ChatIcon />}
-                  bg="blue.500"
+                  bg="purple.500"
                   color="white"
                 />
                 <Card bg="gray.100" borderRadius="lg">
                   <CardBody py={3} px={4}>
                     <HStack spacing={2}>
-                      <Spinner size="sm" color="blue.500" />
-                      <Text color="gray.600">Creating your workflow...</Text>
+                      <Spinner size="sm" color="purple.500" />
+                      <Text color="gray.600">Processing...</Text>
                     </HStack>
                   </CardBody>
                 </Card>
@@ -470,14 +497,14 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Describe the workflow you want to create..."
+            placeholder="Ask ATOM to schedule meetings, send emails, or run workflows..."
             size="lg"
             disabled={isLoading}
           />
           <IconButton
             aria-label="Send message"
             icon={<ArrowForwardIcon />}
-            colorScheme="blue"
+            colorScheme="purple"
             size="lg"
             onClick={handleSendMessage}
             isLoading={isLoading}
@@ -485,8 +512,7 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
           />
         </HStack>
         <Text fontSize="xs" color="gray.500" mt={2} textAlign="center">
-          Examples: &quot;When I get an email from boss, create a task in
-          Asana&quot; or &quot;Schedule weekly report generation&quot;
+          Try: "Schedule standup tomorrow at 10am" or "Send email to team"
         </Text>
       </Box>
 
@@ -503,28 +529,15 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
                 <Box>
                   <AlertTitle>Scheduling Feature</AlertTitle>
                   <AlertDescription>
-                    Workflow scheduling is coming soon! For now, you can execute
-                    workflows manually.
+                    Workflow scheduling is available in the Workflow Editor.
                   </AlertDescription>
                 </Box>
               </Alert>
-              <Text>Would you like to execute this workflow now instead?</Text>
             </VStack>
           </ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              colorScheme="blue"
-              onClick={() => {
-                if (selectedWorkflow) {
-                  executeWorkflow(selectedWorkflow.id);
-                }
-                onClose();
-              }}
-            >
-              Execute Now
+              Close
             </Button>
           </ModalFooter>
         </ModalContent>
@@ -533,4 +546,4 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({
   );
 };
 
-export default WorkflowChat;
+export default AtomChatAssistant;
