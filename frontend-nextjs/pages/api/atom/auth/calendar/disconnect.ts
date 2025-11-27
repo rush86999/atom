@@ -1,9 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { google } from "googleapis";
-import { superTokensNextWrapper } from "supertokens-node/nextjs";
-import { verifySession } from "supertokens-node/recipe/session/framework/express";
-import supertokens from "supertokens-node";
-import { backendConfig } from "../../../../../config/backendConfig"; // Adjusted path
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../../auth/[...nextauth]";
 import {
   ATOM_GOOGLE_CALENDAR_CLIENT_ID,
   ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
@@ -14,8 +12,6 @@ import {
   executeGraphQLMutation,
   executeGraphQLQuery,
 } from "@lib/graphqlClient";
-
-supertokens.init(backendConfig());
 
 const GOOGLE_CALENDAR_SERVICE_NAME = "google_calendar";
 
@@ -126,23 +122,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  await superTokensNextWrapper(
-    async (next) => verifySession()(req as any, res as any, next),
-    req,
-    res,
-  );
+  const session = await getServerSession(req, res, authOptions);
 
-  if (req.method !== "POST") {
-    res.setHeader("Allow", ["POST"]);
-    return res
-      .status(405)
-      .json({ success: false, message: `Method ${req.method} Not Allowed` });
-  }
-
-  const session = req.session;
-  const userId = session?.getUserId();
-
-  if (!userId) {
+  if (!session || !session.user) {
     console.error(
       "DISCONNECT: User not authenticated for disconnect operation.",
     );
@@ -150,6 +132,8 @@ export default async function handler(
       .status(401)
       .json({ success: false, message: "User not authenticated." });
   }
+
+  const userId = session.user.id;
 
   try {
     const getTokenQuery = `

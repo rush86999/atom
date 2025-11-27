@@ -5,10 +5,8 @@ import {
   LogLevel,
   AuthorizationUrlRequest,
 } from "@azure/msal-node";
-import { superTokensNextWrapper } from "supertokens-node/nextjs";
-import { verifySession } from "supertokens-node/recipe/session/framework/express";
-import supertokens from "supertokens-node";
-import { backendConfig } from "../../../../../config/backendConfig"; // Adjusted path
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../../auth/[...nextauth]";
 import { logger } from "@lib/logger";
 
 // TODO: Move these to a central constants file and manage via environment variables
@@ -29,8 +27,6 @@ const MSTEAMS_SCOPES = [
   "User.Read",
   "offline_access",
 ];
-
-supertokens.init(backendConfig());
 
 const msalConfig: Configuration = {
   auth: {
@@ -53,17 +49,14 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  await superTokensNextWrapper(
-    async (next) => verifySession()(req as any, res as any, next),
-    req,
-    res,
-  );
+  const session = await getServerSession(req, res, authOptions);
 
-  const userId = req.session?.getUserId();
-  if (!userId) {
+  if (!session || !session.user) {
     logger.warn("[MSTeamsAuthInitiate] User not authenticated.");
     return res.status(401).json({ message: "Authentication required." });
   }
+
+  const userId = session.user.id;
 
   if (
     !MSTEAMS_CLIENT_ID ||

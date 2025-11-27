@@ -16,6 +16,7 @@ from enum import Enum
 from fastapi import HTTPException
 import aiohttp
 import uuid
+from backend.core.byok_endpoints import get_byok_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -101,7 +102,7 @@ class AdvancedWorkflowOrchestrator:
         """Initialize AI service for NLU processing"""
         try:
             # Import the enhanced AI workflow service
-            from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+            from backend.enhanced_ai_workflow_endpoints import RealAIWorkflowService
             self.ai_service = RealAIWorkflowService()
         except Exception as e:
             logger.warning(f"Could not initialize AI service: {e}")
@@ -377,7 +378,88 @@ class AdvancedWorkflowOrchestrator:
         # Register workflows
         self.workflows[customer_support_workflow.workflow_id] = customer_support_workflow
         self.workflows[project_management_workflow.workflow_id] = project_management_workflow
+        self.workflows[customer_support_workflow.workflow_id] = customer_support_workflow
+        self.workflows[project_management_workflow.workflow_id] = project_management_workflow
         self.workflows[sales_lead_workflow.workflow_id] = sales_lead_workflow
+
+    async def generate_dynamic_workflow(self, user_query: str) -> WorkflowDefinition:
+        """
+        Dynamically generate a workflow from a user query using high-reasoning AI.
+        Breaks down the task into steps and assigns appropriate models based on complexity.
+        """
+        if not self.ai_service:
+            raise ValueError("AI service not initialized")
+
+        # 1. Get a high-reasoning provider for the planning phase
+        byok_manager = get_byok_manager()
+        try:
+            # Try to get a level 4 (reasoning) provider, fallback to level 3 (high)
+            planner_provider_id = byok_manager.get_optimal_provider("reasoning", min_reasoning_level=4)
+            if not planner_provider_id:
+                planner_provider_id = byok_manager.get_optimal_provider("analysis", min_reasoning_level=3)
+            
+            # If still no provider, use default
+            if not planner_provider_id:
+                planner_provider_id = "openai" # Default fallback
+                
+            planner_provider = byok_manager.providers.get(planner_provider_id)
+            logger.info(f"Using {planner_provider.name if planner_provider else planner_provider_id} for task planning")
+            
+        except Exception as e:
+            logger.warning(f"Failed to select optimal planner: {e}")
+            planner_provider_id = "openai"
+
+        # 2. Break down the task
+        steps_data = await self.ai_service.break_down_task(user_query, provider=planner_provider_id)
+        
+        # 3. Convert to WorkflowDefinition
+        workflow_id = f"dynamic_{uuid.uuid4().hex[:8]}"
+        workflow_steps = []
+        
+        for i, step_data in enumerate(steps_data):
+            step_id = step_data.get("step_id", f"step_{i+1}")
+            complexity = step_data.get("complexity", 2)
+            description = step_data.get("description", "Process step")
+            
+            # Map step type to WorkflowStepType (simplified)
+            step_type_str = step_data.get("step_type", "general").lower()
+            if "email" in step_type_str:
+                wf_step_type = WorkflowStepType.EMAIL_SEND
+            elif "slack" in step_type_str:
+                wf_step_type = WorkflowStepType.SLACK_NOTIFICATION
+            elif "api" in step_type_str:
+                wf_step_type = WorkflowStepType.API_CALL
+            else:
+                wf_step_type = WorkflowStepType.NLU_ANALYSIS
+            
+            # Determine next steps
+            next_steps = []
+            if i < len(steps_data) - 1:
+                next_steps = [steps_data[i+1].get("step_id", f"step_{i+2}")]
+                
+            workflow_steps.append(WorkflowStep(
+                step_id=step_id,
+                step_type=wf_step_type,
+                description=description,
+                parameters={
+                    "complexity": complexity, # Store complexity for execution
+                    "original_instruction": description
+                },
+                next_steps=next_steps
+            ))
+            
+        workflow = WorkflowDefinition(
+            workflow_id=workflow_id,
+            name=f"Dynamic Workflow: {user_query[:30]}...",
+            description=f"Generated from query: {user_query}",
+            steps=workflow_steps,
+            start_step=workflow_steps[0].step_id if workflow_steps else "end"
+        )
+        
+        # Cache the workflow
+        self.workflows[workflow_id] = workflow
+        
+        return workflow
 
     async def execute_workflow(self, workflow_id: str, input_data: Dict[str, Any],
                              execution_context: Optional[Dict[str, Any]] = None) -> WorkflowContext:
@@ -555,11 +637,40 @@ class AdvancedWorkflowOrchestrator:
             return {"status": "skipped", "message": "AI service not available"}
 
         input_text = context.input_data.get("text", str(context.input_data))
+        
+        # Determine optimal provider based on complexity
+        complexity = step.parameters.get("complexity", 2)
+        provider_id = "openai" # Default
+        
+        try:
+            byok_manager = get_byok_manager()
+            # Map complexity 1-4 to reasoning levels
+            # 1 -> Level 1 (Low)
+            # 2 -> Level 2 (Medium)
+            # 3 -> Level 3 (High)
+            # 4 -> Level 4 (Reasoning)
+            
+            # For NLU analysis, we generally want at least level 2 unless it's very simple
+            min_level = max(1, complexity)
+            
+            optimal_id = byok_manager.get_optimal_provider("analysis", min_reasoning_level=min_level)
+            if optimal_id:
+                provider_id = optimal_id
+                logger.info(f"Selected provider {provider_id} for step {step.step_id} (Complexity: {complexity})")
+        except Exception as e:
+            logger.warning(f"Provider selection failed: {e}")
+            provider_id = context.variables.get("preferred_ai_provider", "openai")
 
         try:
+            # Use the specific instruction if available (from dynamic workflow)
+            instruction = step.parameters.get("original_instruction")
+            if instruction:
+                # Prepend instruction to input
+                input_text = f"Instruction: {instruction}\n\nInput Data: {input_text}"
+
             nlu_result = await self.ai_service.process_with_nlu(
                 input_text,
-                context.variables.get("preferred_ai_provider", "openai")
+                provider_id
             )
 
             # Update context with NLU results
@@ -574,6 +685,8 @@ class AdvancedWorkflowOrchestrator:
             return {
                 "status": "completed",
                 "nlu_result": nlu_result,
+                "provider_used": provider_id,
+                "complexity_level": complexity,
                 "intent": nlu_result.get("intent"),
                 "entities": nlu_result.get("entities", []),
                 "confidence": nlu_result.get("confidence", 0.8)
