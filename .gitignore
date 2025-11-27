@@ -686,3 +686,15 @@ hubspot.config.yml
 backend/oauth_tokens.json
 oauth_tokens.json
 backend/workflows.json
+
+# Runtime workflow data
+executions.json
+jobs.sqlite
+workflows.json
+
+# Test scripts (optional - keep local)
+backend/reproduce_issue.py
+backend/test_engine_deep.py
+backend/verify_scheduler.py
+backend/test_chat_endpoint.py
+
