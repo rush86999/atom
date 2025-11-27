@@ -194,5 +194,18 @@ async def root():
         "docs": "/docs",
     }
 
+# Scheduler Lifecycle
+@app.on_event("startup")
+async def start_scheduler():
+    from ai.workflow_scheduler import workflow_scheduler
+    workflow_scheduler.start()
+    print("[OK] Workflow Scheduler started")
+
+@app.on_event("shutdown")
+async def stop_scheduler():
+    from ai.workflow_scheduler import workflow_scheduler
+    workflow_scheduler.shutdown()
+    print("[OK] Workflow Scheduler shutdown")
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5059)
