@@ -48,7 +48,7 @@ import {
 } from "@chakra-ui/icons";
 import { AddIcon } from "@chakra-ui/icons";
 
-interface ChatMessage {
+interface AtomChatMessage {
   id: string;
   type: "user" | "assistant" | "system";
   content: string;
@@ -82,7 +82,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
   onWorkflowCreated,
   onWorkflowExecuted,
 }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<AtomChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
@@ -93,7 +93,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
 
   // Initialize session and load history
   useEffect(() => {
-    const welcomeMessage: ChatMessage = {
+    const welcomeMessage: AtomChatMessage = {
       id: "welcome",
       type: "assistant",
       content:
@@ -161,7 +161,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
-    const userMessage: ChatMessage = {
+    const userMessage: AtomChatMessage = {
       id: `user_${Date.now()}`,
       type: "user",
       content: inputMessage,
@@ -192,7 +192,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
       const data = await response.json();
 
       if (data.success) {
-        const assistantMessage: ChatMessage = {
+        const assistantMessage: AtomChatMessage = {
           id: `assistant_${Date.now()}`,
           type: "assistant",
           content: data.response.message,
@@ -228,7 +228,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
         isClosable: true,
       });
 
-      const errorMessage: ChatMessage = {
+      const errorMessage: AtomChatMessage = {
         id: `error_${Date.now()}`,
         type: "assistant",
         content:
@@ -321,7 +321,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
         }
 
         // Add execution confirmation message
-        const executionMessage: ChatMessage = {
+        const executionMessage: AtomChatMessage = {
           id: `execution_${Date.now()}`,
           type: "assistant",
           content: `Workflow execution started! You can monitor the progress in the Workflow Automation tab.`,
@@ -351,7 +351,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
   };
 
   const handleNewChat = () => {
-    const welcomeMessage: ChatMessage = {
+    const welcomeMessage: AtomChatMessage = {
       id: "welcome",
       type: "assistant",
       content:
@@ -373,7 +373,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
     });
   };
 
-  const renderMessage = (message: ChatMessage) => {
+  const renderMessage = (message: AtomChatMessage) => {
     const isUser = message.type === "user";
 
     return (
@@ -425,7 +425,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
             {message.actions && message.actions.length > 0 && (
               <CardFooter pt={0} px={4} pb={3}>
                 <HStack spacing={2} wrap="wrap">
-                  {message.actions.map((action, index) => (
+                  {message.actions.map((action: ChatAction, index: number) => (
                     <Button
                       key={index}
                       size="sm"

@@ -207,6 +207,9 @@ class WebAppBusinessValueTester:
             if "metrics" in result:
                 for key, value in result["metrics"].items():
                     print(f"   {key}: {value}")
+            
+            if result["status"] == "fail" and "error" in result:
+                print(f"   Error: {result['error']}")
             print()
         
         await self.teardown()
