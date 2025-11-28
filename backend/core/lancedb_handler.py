@@ -597,6 +597,11 @@ def get_chat_history_manager() -> ChatHistoryManager:
     """Get global chat history manager instance"""
     return chat_history_manager
 
+# Global chat context manager (uses lancedb_handler)
+from core.chat_context_manager import ChatContextManager
+import core.chat_context_manager
+core.chat_context_manager.chat_context_manager = ChatContextManager(lancedb_handler)
+
 # Utility functions
 def embed_documents_batch(texts: List[str], model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> Optional[np.ndarray]:
     """Embed a batch of texts"""

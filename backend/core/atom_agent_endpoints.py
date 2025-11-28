@@ -32,6 +32,7 @@ from dataclasses import asdict
 # Import chat history management
 from core.lancedb_handler import get_chat_history_manager
 from core.chat_session_manager import get_chat_session_manager
+from core.chat_context_manager import get_chat_context_manager
 
 # Initialize AI service
 ai_service = RealAIWorkflowService()
@@ -39,6 +40,7 @@ ai_service = RealAIWorkflowService()
 # Initialize chat history components
 chat_history = get_chat_history_manager()
 session_manager = get_chat_session_manager()
+context_manager = get_chat_context_manager()
 
 router = APIRouter(prefix="/api/atom-agent", tags=["atom_agent"])
 
@@ -64,9 +66,11 @@ def save_chat_interaction(
     user_message: str,
     assistant_message: str,
     intent: str = None,
-    entities: Dict[str, Any] = None
+    entities: Dict[str, Any] = None,
+    result_data: Dict[str, Any] = None
 ):
     """Helper to save both user and assistant messages"""
+    logger.info(f"save_chat_interaction called: session_id={session_id}, intent={intent}")
     try:
         # Save user message
         chat_history.save_message(
@@ -77,13 +81,26 @@ def save_chat_interaction(
             metadata={"intent": intent, "entities": entities} if intent else {}
         )
         
+        # Extract output entities from result_data
+        output_metadata = {"intent": intent}
+        if result_data and "response" in result_data:
+            response_data = result_data["response"]
+            # Extract common IDs if present
+            if "workflow_id" in response_data:
+                output_metadata["workflow_id"] = response_data["workflow_id"]
+                output_metadata["workflow_name"] = response_data.get("workflow_name")
+            if "task_id" in response_data:
+                output_metadata["task_id"] = response_data["task_id"]
+            if "schedule_id" in response_data:
+                output_metadata["schedule_id"] = response_data["schedule_id"]
+        
         # Save assistant response
         chat_history.save_message(
             session_id=session_id,
             user_id=user_id,
             role="assistant",
             content=assistant_message,
-            metadata={"intent": intent}
+            metadata=output_metadata
         )
         
         # Update session activity
@@ -128,6 +145,44 @@ async def chat_with_agent(request: ChatRequest):
         
         intent = intent_response.get("intent")
         entities = intent_response.get("entities", {})
+        
+        # Context Resolution: Check for references if entities are missing or contain pronouns
+        # We check if the message contains common reference words
+        lower_msg = request.message.lower()
+        has_reference = any(word in lower_msg for word in ["that", "this", "it", "the workflow", "the task"])
+        
+        if has_reference:
+            # Try to resolve workflow reference
+            if intent in ["SCHEDULE_WORKFLOW", "RUN_WORKFLOW", "CANCEL_SCHEDULE"] or (intent == "UNKNOWN" and "workflow" in lower_msg):
+                # Check if we have a specific name/ID, or if the extracted ref is just a placeholder
+                current_ref = entities.get("workflow_ref") or entities.get("workflow_name")
+                is_placeholder = not current_ref or any(w in str(current_ref).lower() for w in ["that", "this", "it", "the workflow"])
+                
+                logger.info(f"Context check: ref='{current_ref}', is_placeholder={is_placeholder}")
+                
+                if is_placeholder:
+                    logger.info("Attempting to resolve reference...")
+                    resolved = await context_manager.resolve_reference(request.message, session_id, "workflow")
+                    if resolved:
+                        logger.info(f"Resolved workflow reference: {resolved}")
+                        # If we found a workflow ID, inject it
+                        if resolved.get("id"):
+                            entities["workflow_id"] = resolved["id"]
+                            # Also set name if available to help handlers that look for name
+                            if resolved.get("name"):
+                                entities["workflow_name"] = resolved["name"]
+                                # CRITICAL: Update workflow_ref so handlers use the resolved name/ID
+                                entities["workflow_ref"] = resolved["id"]
+                                
+            # Try to resolve task reference
+            elif intent in ["COMPLETE_TASK", "DELETE_TASK"]:
+                current_ref = entities.get("task_id") or entities.get("task_ref")
+                is_placeholder = not current_ref or any(w in str(current_ref).lower() for w in ["that", "this", "it", "the task"])
+                
+                if is_placeholder:
+                    resolved = await context_manager.resolve_reference(request.message, session_id, "task")
+                    if resolved and resolved.get("id"):
+                         entities["task_id"] = resolved["id"]
         
         logger.info(f"Classified intent: {intent}, entities: {entities}")
         
@@ -201,7 +256,8 @@ async def chat_with_agent(request: ChatRequest):
                 user_message=request.message,
                 assistant_message=assistant_msg,
                 intent=intent,
-                entities=entities
+                entities=entities,
+                result_data=result
             )
         
         # Add session_id to response
