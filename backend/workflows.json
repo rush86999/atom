@@ -673,5 +673,230 @@
     "start_step": "step_1",
     "triggers": [],
     "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_7b5ad537",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_535a85ee",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_0a8f9c86",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_79e9f427",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_d70f5db1",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_047c2017",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_1c353cd9",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_28a7f2aa",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_6ce00b8b",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
   }
 ]

@@ -62,5 +62,77 @@
     "last_active": "2025-11-28T03:03:06.214306",
     "metadata": {},
     "message_count": 1
+  },
+  {
+    "session_id": "9e9736a1-deae-40a1-962b-c590a5a16619",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T12:26:42.439883",
+    "last_active": "2025-11-28T12:26:42.529923",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "f65186a0-627c-4bcc-b03e-6a3d66039b0c",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T12:32:02.732693",
+    "last_active": "2025-11-28T12:32:02.769839",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "3087178a-1008-41e6-9156-07efa798b318",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T12:34:50.508141",
+    "last_active": "2025-11-28T12:34:50.524665",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "067e3e33-c61e-43d5-a8d6-885319975185",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T12:37:15.276725",
+    "last_active": "2025-11-28T12:37:15.293270",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "c7988bea-0b13-4e83-90c7-f767dea8e0a8",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T12:46:45.412312",
+    "last_active": "2025-11-28T12:46:45.443598",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "254c81d0-8ad4-482b-a482-3f40a6daeaea",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T12:50:23.672815",
+    "last_active": "2025-11-28T12:50:23.702474",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "d61a496c-85a0-41b3-be89-888887e920f2",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T12:53:40.349964",
+    "last_active": "2025-11-28T12:53:40.480742",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "2769e13f-df62-4db5-b98b-54e7ccaf1962",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T12:55:26.897530",
+    "last_active": "2025-11-28T12:55:26.924427",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "4be5214f-fca9-4e35-9e4e-9d911e7c116e",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T12:57:01.412415",
+    "last_active": "2025-11-28T12:57:01.436824",
+    "metadata": {},
+    "message_count": 1
   }
 ]
