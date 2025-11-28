@@ -61,6 +61,7 @@ class LanceDBHandler:
         self.openai_client = None
         
         # Initialize LanceDB if available
+        logger.info(f"LanceDBHandler initialized. ID: {id(self)}. LANCEDB_AVAILABLE: {LANCEDB_AVAILABLE}")
         if LANCEDB_AVAILABLE:
             self._initialize_db()
         
@@ -147,7 +148,7 @@ class LanceDBHandler:
     def create_table(self, table_name: str, schema: Optional[Dict[str, Any]] = None,
                     vector_size: int = 384) -> Optional[Table]:
         """Create a new table"""
-        if not self.db:
+        if self.db is None:
             logger.error("LanceDB not initialized")
             return None
         
@@ -158,17 +159,18 @@ class LanceDBHandler:
                 if self.embedding_provider == "openai":
                     vector_size = 1536
                 
-                schema = {
-                    "id": str,
-                    "text": str,
-                    "source": str,
-                    "metadata": str,
-                    "created_at": str,
-                    "vector": Vector(vector_size)
-                }
+                # Create PyArrow schema
+                schema = pa.schema([
+                    pa.field("id", pa.string()),
+                    pa.field("text", pa.string()),
+                    pa.field("source", pa.string()),
+                    pa.field("metadata", pa.string()),
+                    pa.field("created_at", pa.string()),
+                    pa.field("vector", pa.list_(pa.float32(), vector_size))
+                ])
             
             # Create table
-            table = self.db.create_table(table_name, schema=schema, exist_ok=True)
+            table = self.db.create_table(table_name, schema=schema, mode="overwrite")
             logger.info(f"Table '{table_name}' created/accessed successfully")
             return table
             
@@ -178,7 +180,8 @@ class LanceDBHandler:
     
     def get_table(self, table_name: str) -> Optional[Table]:
         """Get existing table"""
-        if not self.db:
+        logger.info(f"get_table called on instance {id(self)}. self.db is {self.db}")
+        if self.db is None:
             logger.error("LanceDB not initialized")
             return None
         
@@ -194,7 +197,7 @@ class LanceDBHandler:
     
     def drop_table(self, table_name: str) -> bool:
         """Drop a table"""
-        if not self.db:
+        if self.db is None:
             logger.error("LanceDB not initialized")
             return False
         
@@ -232,7 +235,8 @@ class LanceDBHandler:
     def add_document(self, table_name: str, text: str, source: str = "",
                     metadata: Dict[str, Any] = None, doc_id: str = None) -> bool:
         """Add a document to the vector database"""
-        if not self.db:
+        logger.info(f"add_document called for table '{table_name}'")
+        if self.db is None:
             return False
         
         try:
@@ -266,7 +270,7 @@ class LanceDBHandler:
             
             # Add to table
             table.add([record])
-            logger.debug(f"Document added to '{table_name}': {doc_id}")
+            logger.info(f"Document added to '{table_name}': {doc_id}")
             return True
             
         except Exception as e:
@@ -275,7 +279,7 @@ class LanceDBHandler:
     
     def add_documents_batch(self, table_name: str, documents: List[Dict[str, Any]]) -> int:
         """Add multiple documents in batch"""
-        if not self.db:
+        if self.db is None:
             return 0
         
         try:
@@ -323,7 +327,7 @@ class LanceDBHandler:
     def search(self, table_name: str, query: str, limit: int = 10,
               filter_expression: str = None) -> List[Dict[str, Any]]:
         """Search for similar documents"""
-        if not self.db:
+        if self.db is None:
             return []
         
         try:
@@ -386,7 +390,7 @@ class ChatHistoryManager:
     
     def _ensure_table(self):
         """Ensure chat_messages table exists"""
-        if not self.db.db:
+        if self.db.db is None:
             logger.warning("LanceDB not initialized, chat history disabled")
             return
             
@@ -416,10 +420,12 @@ class ChatHistoryManager:
         - task_id: str
         - schedule_id: str
         """
-        if not self.db.db:
+        if self.db.db is None:
+            logger.error("save_message: DB is None")
             return False
         
         try:
+            logger.info(f"save_message: Saving {role} message for session {session_id}")
             # Prepare metadata
             msg_metadata = metadata or {}
             msg_metadata.update({
