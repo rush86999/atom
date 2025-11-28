@@ -54,7 +54,7 @@ class WorkflowScheduler:
             # Load workflows
             from core.workflow_endpoints import load_workflows
             workflows = load_workflows()
-            workflow_def = next((w for w in workflows if w['id'] == workflow_id), None)
+            workflow_def = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
             
             if workflow_def:
                 # Execute with a special execution ID prefix
@@ -99,6 +99,52 @@ class WorkflowScheduler:
             id=job_id,
             replace_existing=True
         )
+        return job_id
+
+    def schedule_workflow_cron(self, job_id: str, workflow_id: str, cron_expression: str):
+        """Schedule a workflow using cron expression"""
+        self.scheduler.add_job(
+            self._execute_job,
+            CronTrigger.from_crontab(cron_expression),
+            args=[workflow_id],
+            id=job_id,
+            replace_existing=True
+        )
+        logger.info(f"Scheduled cron job {job_id} for workflow {workflow_id}: {cron_expression}")
+        return job_id
+
+    def schedule_workflow_interval(self, job_id: str, workflow_id: str, interval_minutes: int):
+        """Schedule a workflow using interval"""
+        self.scheduler.add_job(
+            self._execute_job,
+            IntervalTrigger(minutes=interval_minutes),
+            args=[workflow_id],
+            id=job_id,
+            replace_existing=True
+        )
+        logger.info(f"Scheduled interval job {job_id} for workflow {workflow_id}: {interval_minutes}m")
+        return job_id
+
+    def schedule_workflow_once(self, job_id: str, workflow_id: str, run_date: str):
+        """Schedule a workflow once at a specific date"""
+        self.scheduler.add_job(
+            self._execute_job,
+            DateTrigger(run_date=run_date),
+            args=[workflow_id],
+            id=job_id,
+            replace_existing=True
+        )
+        logger.info(f"Scheduled one-time job {job_id} for workflow {workflow_id} at {run_date}")
+        return job_id
+
+    def remove_job(self, job_id: str) -> bool:
+        """Remove a scheduled job"""
+        try:
+            self.scheduler.remove_job(job_id)
+            logger.info(f"Removed job {job_id}")
+            return True
+        except Exception:
+            return False
         
         logger.info(f"Scheduled workflow {workflow_id} with {trigger_type} trigger (Job ID: {job_id})")
         return job_id

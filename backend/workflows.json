@@ -73,5 +73,405 @@
     "start_step": "step_1",
     "triggers": [],
     "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_d228857f",
+    "name": "Dynamic Workflow: create a workflow to check ser...",
+    "description": "Generated from query: create a workflow to check server status",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to check server status",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to check server status"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_eabf680c",
+    "name": "Dynamic Workflow: schedule the dynamic workflow:...",
+    "description": "Generated from query: schedule the dynamic workflow: create a workflow to check ser... to run every weekday at 9am",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: schedule the dynamic workflow: create a workflow to check ser... to run every weekday at 9am",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: schedule the dynamic workflow: create a workflow to check ser... to run every weekday at 9am"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_17a4418e",
+    "name": "Dynamic Workflow: schedule dynamic workflow: cre...",
+    "description": "Generated from query: schedule dynamic workflow: create a workflow to check ser... tomorrow maybe",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: schedule dynamic workflow: create a workflow to check ser... tomorrow maybe",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: schedule dynamic workflow: create a workflow to check ser... tomorrow maybe"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_5fe1928a",
+    "name": "Dynamic Workflow: create a new workflow for serv...",
+    "description": "Generated from query: create a new workflow for server monitoring",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a new workflow for server monitoring",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a new workflow for server monitoring"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_c29554b0",
+    "name": "Dynamic Workflow: schedule the dynamic workflow:...",
+    "description": "Generated from query: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_982a3afb",
+    "name": "Dynamic Workflow: schedule dynamic workflow: cre...",
+    "description": "Generated from query: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_a98e79d5",
+    "name": "Dynamic Workflow: create a new workflow for serv...",
+    "description": "Generated from query: create a new workflow for server monitoring",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a new workflow for server monitoring",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a new workflow for server monitoring"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_96856c07",
+    "name": "Dynamic Workflow: schedule the dynamic workflow:...",
+    "description": "Generated from query: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_050bfba6",
+    "name": "Dynamic Workflow: schedule dynamic workflow: cre...",
+    "description": "Generated from query: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_c4c4d19d",
+    "name": "Dynamic Workflow: create a new workflow for serv...",
+    "description": "Generated from query: create a new workflow for server monitoring",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a new workflow for server monitoring",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a new workflow for server monitoring"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_dcc4083f",
+    "name": "Dynamic Workflow: schedule the dynamic workflow:...",
+    "description": "Generated from query: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_febfeb52",
+    "name": "Dynamic Workflow: schedule dynamic workflow: cre...",
+    "description": "Generated from query: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_9090c455",
+    "name": "Dynamic Workflow: create a new workflow for serv...",
+    "description": "Generated from query: create a new workflow for server monitoring",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a new workflow for server monitoring",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a new workflow for server monitoring"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_e6b0d886",
+    "name": "Dynamic Workflow: create a new workflow for serv...",
+    "description": "Generated from query: create a new workflow for server monitoring",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a new workflow for server monitoring",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a new workflow for server monitoring"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_7a4eaff4",
+    "name": "Dynamic Workflow: create a new workflow for serv...",
+    "description": "Generated from query: create a new workflow for server monitoring",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a new workflow for server monitoring",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a new workflow for server monitoring"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_9ea1de95",
+    "name": "Dynamic Workflow: create a new workflow for serv...",
+    "description": "Generated from query: create a new workflow for server monitoring",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a new workflow for server monitoring",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a new workflow for server monitoring"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
   }
 ]

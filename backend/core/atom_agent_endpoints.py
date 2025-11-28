@@ -20,9 +20,9 @@ from core.unified_task_endpoints import get_tasks, create_task, CreateTaskReques
 from integrations.quickbooks_routes import list_quickbooks_items
 
 # Import System and Search services
-from backend.core.system_status import SystemStatus
-from backend.core.unified_search_endpoints import hybrid_search as unified_hybrid_search
-from backend.core.unified_search_endpoints import SearchRequest
+from core.system_status import SystemStatus
+from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
+from core.unified_search_endpoints import SearchRequest
 
 # Import AI service for intent classification
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
@@ -141,17 +141,43 @@ async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> 
     
     system_prompt = """You are ATOM, an intelligent personal assistant for task orchestration and management.
     Classify the user's intent into one of these categories:
-    - Workflows: CREATE_WORKFLOW, LIST_WORKFLOWS, RUN_WORKFLOW, SCHEDULE_WORKFLOW, GET_HISTORY
-    - Calendar: CREATE_EVENT, LIST_EVENTS
-    - Email: SEND_EMAIL, SEARCH_EMAILS
-    - Tasks: CREATE_TASK, LIST_TASKS
-    - Finance: GET_TRANSACTIONS, CHECK_BALANCE, INVOICE_STATUS
-    - System: GET_SYSTEM_STATUS
-    - Search: SEARCH_PLATFORM
-    - General: HELP, UNKNOWN
     
-    Respond ONLY with valid JSON in this format:
-    {"intent": "CREATE_WORKFLOW", "entities": {"description": "Send an email to sales every day"}}
+    **Workflows:**
+    - CREATE_WORKFLOW: User wants to create a new workflow
+    - LIST_WORKFLOWS: User wants to see existing workflows
+    - RUN_WORKFLOW: User wants to execute a workflow now
+    - SCHEDULE_WORKFLOW: User wants to schedule when a workflow runs
+    - GET_HISTORY: User wants to see workflow execution history
+    - CANCEL_SCHEDULE: User wants to stop a scheduled workflow
+    
+    **Calendar:** CREATE_EVENT, LIST_EVENTS
+    **Email:** SEND_EMAIL, SEARCH_EMAILS
+    **Tasks:** CREATE_TASK, LIST_TASKS
+   **Finance:** GET_TRANSACTIONS, CHECK_BALANCE, INVOICE_STATUS
+    **System:** GET_SYSTEM_STATUS
+    **Search:** SEARCH_PLATFORM
+    **General:** HELP, UNKNOWN
+    
+    **For SCHEDULE_WORKFLOW, extract:**
+    - workflow_ref: Name or ID of workflow to schedule (e.g., "daily report", "backup workflow")
+    - time_expression: The natural language schedule (e.g., "every weekday at 9am", "daily at 5pm", "every Monday")
+    
+    **Scheduling Patterns Recognition:**
+    - Time-based: "daily", "every day", "at 9am", "5pm"
+    - Day-based: "Monday", "weekday", "weekend", "every Tuesday"
+    - Interval: "every 2 hours", "every 30 minutes"
+    - Complex: "every weekday at 9am", "first Monday of month"
+    
+    **Examples:**
+    Input: "Schedule the daily report to run every weekday at 9am"
+    Output: {"intent": "SCHEDULE_WORKFLOW", "entities": {"workflow_ref": "daily report", "time_expression": "every weekday at 9am"}}
+    
+    Input: "Run backup workflow every 2 hours"
+    Output: {"intent": "SCHEDULE_WORKFLOW", "entities": {"workflow_ref": "backup workflow", "time_expression": "every 2 hours"}}
+    
+    **CRITICAL:** If the user says "Schedule..." or "Set a schedule for...", the intent is ALWAYS SCHEDULE_WORKFLOW, never CREATE_WORKFLOW.
+    
+    Respond ONLY with valid JSON: {"intent": "INTENT_NAME", "entities": {...}}
     """
     
     try:
@@ -207,14 +233,38 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
     msg = message.lower()
     
     # Workflow Intents
-    if "create" in msg and "workflow" in msg:
+    if "schedule" in msg and ("workflow" in msg or "run" in msg):
+        # Try to extract time expression using patterns
+        try:
+            from core.time_expression_parser import parse_with_patterns
+            time_info = parse_with_patterns(msg)
+            
+            workflow_ref = msg.replace("schedule", "").replace("workflow", "").strip()
+            time_expression = msg
+            
+            if time_info and "matched_text" in time_info:
+                # Remove the time expression from the message to get the workflow ref
+                workflow_ref = msg.replace(time_info["matched_text"], "")
+                workflow_ref = workflow_ref.replace("schedule", "").replace("to run", "")
+                # Remove leading "the" and "workflow" if it appears as a standalone word at start
+                import re
+                workflow_ref = re.sub(r'^\s*the\s+', '', workflow_ref.strip())
+                workflow_ref = re.sub(r'^\s*workflow\s+', '', workflow_ref)
+                
+                # Clean up multiple spaces
+                workflow_ref = " ".join(workflow_ref.split())
+                time_expression = time_info["matched_text"]
+        except ImportError:
+            workflow_ref = msg.replace("schedule", "").replace("workflow", "").strip()
+            time_expression = msg
+            
+        return {"intent": "SCHEDULE_WORKFLOW", "entities": {"workflow_ref": workflow_ref, "time_expression": time_expression}}
+    elif "create" in msg and "workflow" in msg:
         return {"intent": "CREATE_WORKFLOW", "entities": {"description": msg}}
     elif "list" in msg and "workflow" in msg:
         return {"intent": "LIST_WORKFLOWS", "entities": {}}
     elif "run" in msg and "workflow" in msg:
         return {"intent": "RUN_WORKFLOW", "entities": {"workflow_ref": msg.replace("run workflow", "").strip()}}
-    elif "schedule" in msg and "workflow" in msg:
-        return {"intent": "SCHEDULE_WORKFLOW", "entities": {"workflow_ref": msg.replace("schedule workflow", "").strip()}}
     elif "history" in msg or "execution" in msg:
         return {"intent": "GET_HISTORY", "entities": {}}
         
@@ -354,7 +404,90 @@ async def handle_run_workflow(request: ChatRequest, entities: Dict[str, Any]) ->
         return {"success": False, "response": {"message": f"❌ Failed: {str(e)}", "actions": []}}
 
 async def handle_schedule_workflow(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
-    return {"success": True, "response": {"message": "You can schedule workflows in the Editor's Schedule tab.", "actions": []}}
+    """Schedule a workflow using natural language time expression"""
+    workflow_ref = entities.get("workflow_ref") or entities.get("workflow_name")
+    time_expression = entities.get("time_expression") or entities.get("schedule")
+    
+    if not workflow_ref or not time_expression:
+        return {
+            "success": False,
+            "response": {
+                "message": "Please specify which workflow to schedule and when (e.g., 'Schedule daily report every weekday at 9am')",
+                "actions": []
+            }
+        }
+    
+    # Find the workflow
+    workflows = load_workflows()
+    workflow = next((w for w in workflows if workflow_ref.lower() in w['name'].lower() or workflow_ref in w['workflow_id']), None)
+    
+    if not workflow:
+        return {
+            "success": False,
+            "response": {
+                "message": f"Workflow '{workflow_ref}' not found.",
+                "actions": []
+            }
+        }
+    
+    # Parse the time expression
+    from core.time_expression_parser import parse_time_expression
+    schedule_info = await parse_time_expression(time_expression, ai_service)
+    
+    if not schedule_info:
+        return {
+            "success": False,
+            "response": {
+                "message": f"I couldn't understand the schedule '{time_expression}'. Try phrases like 'daily at 9am' or 'every Monday'.",
+                "actions": []
+            }
+        }
+    
+    # Register with scheduler
+    job_id = f"{workflow['workflow_id']}_{uuid.uuid4().hex[:8]}"
+    
+    try:
+        if schedule_info["schedule_type"] == "cron":
+            workflow_scheduler.schedule_workflow_cron(
+                job_id=job_id,
+                workflow_id=workflow['workflow_id'],
+                cron_expression=schedule_info["cron_expression"]
+            )
+        elif schedule_info["schedule_type"] == "interval":
+            workflow_scheduler.schedule_workflow_interval(
+                job_id=job_id,
+                workflow_id=workflow['workflow_id'],
+                interval_minutes=schedule_info["interval_minutes"]
+            )
+        elif schedule_info["schedule_type"] == "date":
+            workflow_scheduler.schedule_workflow_once(
+                job_id=job_id,
+                workflow_id=workflow['workflow_id'],
+                run_date=schedule_info["run_date"]
+            )
+            
+        return {
+            "success": True,
+            "response": {
+                "message": f"✅ Scheduled '{workflow['name']}' to run {schedule_info['human_readable']}",
+                "schedule_id": job_id,
+                "workflow_id": workflow['workflow_id'],
+                "schedule": schedule_info['human_readable'],
+                "actions": [
+                    {"type": "view_schedules", "label": "View All Schedules"},
+                    {"type": "cancel_schedule", "label": "Cancel This Schedule", "scheduleId": job_id}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Scheduling failed: {e}")
+        return {
+            "success": False,
+            "response": {
+                "message": f"Failed to schedule workflow: {str(e)}",
+                "actions": []
+            }
+        }
 
 async def handle_get_history(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     workflow_ref = entities.get("workflow_ref", "")
@@ -363,7 +496,23 @@ async def handle_get_history(request: ChatRequest, entities: Dict[str, Any]) -> 
     return {"success": True, "response": {"message": f"History for {workflow_ref} is available in the Editor.", "actions": []}}
 
 async def handle_cancel_schedule(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
-    return {"success": True, "response": {"message": "Please use the Schedule tab to cancel.", "actions": []}}
+    """Cancel a scheduled workflow"""
+    schedule_id = entities.get("schedule_id")
+    workflow_ref = entities.get("workflow_ref")
+    
+    if schedule_id:
+        success = workflow_scheduler.remove_job(schedule_id)
+        if success:
+            return {"success": True, "response": {"message": f"✅ Schedule {schedule_id} cancelled.", "actions": []}}
+        else:
+            return {"success": False, "response": {"message": f"Could not find schedule {schedule_id}.", "actions": []}}
+            
+    if workflow_ref:
+        # This is harder because we need to find jobs for the workflow
+        # For now, simpler to ask user to check the list
+        return {"success": True, "response": {"message": "Please go to the Schedule tab to manage specific schedules.", "actions": []}}
+        
+    return {"success": False, "response": {"message": "Please specify which schedule to cancel.", "actions": []}}
 
 async def handle_get_status(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     return {"success": True, "response": {"message": "Check the Workflow Editor for detailed status.", "actions": []}}
