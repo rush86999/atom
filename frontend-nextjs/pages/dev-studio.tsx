@@ -9,7 +9,6 @@ const DevStudio = () => {
 
     return (
         <Box minH="100vh" bg={bg} p={8}>
-            {/* @ts-ignore */}
             <Tabs variant="enclosed" colorScheme="teal" isLazy>
                 <TabList>
                     <Tab fontWeight="bold">AI Providers (BYOK)</Tab>

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-28T08:25:49.673491",
+  "timestamp": "2025-11-28T09:35:24.620376",
   "total_tests": 3,
   "passed": 0,
   "failed": 3,
@@ -10,21 +10,21 @@
       "category": "calendar",
       "status": "fail",
       "metrics": {},
-      "error": "Page.wait_for_selector: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"calendar-view\\\"]\") to be visible\n"
+      "error": "Page.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"new-event-btn\\\"]\")\n"
     },
     {
       "test": "Unified Search",
       "category": "search",
       "status": "fail",
       "metrics": {},
-      "error": "Page.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"search-input\\\"]\")\n"
+      "error": "Page.wait_for_selector: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"search-results\\\"]\") to be visible\n"
     },
     {
       "test": "Task Management Sync",
       "category": "tasks",
       "status": "fail",
       "metrics": {},
-      "error": "Page.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"new-task-btn\\\"]\")\n"
+      "error": "Page.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"task-title\\\"]\")\n"
     }
   ]
 }

@@ -102,11 +102,10 @@ const BYOKManager = () => {
             } else {
                 throw new Error(data.detail || "Failed to add key");
             }
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        } catch (error: any) {
             toast({
                 title: "Error adding key",
-                description: errorMessage,
+                description: error.message,
                 variant: "error",
                 duration: 3000,
             });
