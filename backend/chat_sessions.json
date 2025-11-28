@@ -6,5 +6,61 @@
     "last_active": "2025-11-28T01:36:49.970553",
     "metadata": {},
     "message_count": 2
+  },
+  {
+    "session_id": "d0a88b3f-0f9d-46f2-b00d-9a9964b9c188",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T01:55:14.057464",
+    "last_active": "2025-11-28T01:55:14.102669",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "e5760f97-76f6-4667-925d-7a06b33ed908",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T01:57:30.962134",
+    "last_active": "2025-11-28T01:57:30.990518",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "5dc0fc46-223f-4ffa-8ffe-2b9043704281",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T01:58:55.737877",
+    "last_active": "2025-11-28T01:58:55.754010",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "c27d1cb2-bfc0-4d4f-8041-0d32edf2faf6",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T02:01:21.791384",
+    "last_active": "2025-11-28T02:01:21.804366",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "5debc31a-357c-4823-834a-0441755f63ce",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T02:03:31.894351",
+    "last_active": "2025-11-28T02:03:31.924874",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "cf67d158-c853-46c6-8500-b673c48d2833",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T02:58:35.802819",
+    "last_active": "2025-11-28T02:58:35.842138",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "9844f5a8-e2cb-4cae-aec5-5d6326ab2ffc",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T03:03:06.196603",
+    "last_active": "2025-11-28T03:03:06.214306",
+    "metadata": {},
+    "message_count": 1
   }
 ]
