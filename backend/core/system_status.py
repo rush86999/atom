@@ -3,7 +3,10 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List
 
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
@@ -37,7 +40,7 @@ class SystemStatus:
                     "pid": os.getpid(),
                     "create_time": datetime.fromtimestamp(
                         psutil.Process().create_time()
-                    ).isoformat(),
+                    ).isoformat() if psutil else datetime.now().isoformat(),
                 },
             }
         except Exception as e:
@@ -47,6 +50,9 @@ class SystemStatus:
     def get_resource_usage() -> Dict[str, Any]:
         """Get system resource usage"""
         try:
+            if not psutil:
+                return {"error": "psutil not installed"}
+                
             process = psutil.Process()
             memory_info = process.memory_info()
 
@@ -205,8 +211,8 @@ async def get_system_status():
             "uptime": {
                 "process_seconds": round(
                     time.time() - psutil.Process().create_time(), 2
-                ),
-                "system_seconds": round(time.time() - psutil.boot_time(), 2),
+                ) if psutil else 0,
+                "system_seconds": round(time.time() - psutil.boot_time(), 2) if psutil else 0,
             },
             "version": {"api": "1.0.0", "platform": "ATOM v1.0.0"},
         }
