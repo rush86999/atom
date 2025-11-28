@@ -46,6 +46,7 @@ import {
   SearchIcon,
   ExternalLinkIcon,
 } from "@chakra-ui/icons";
+import { AddIcon } from "@chakra-ui/icons";
 
 interface ChatMessage {
   id: string;
@@ -90,7 +91,7 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
   const [selectedAction, setSelectedAction] = useState<ChatAction | null>(null);
   const toast = useToast();
 
-  // Initialize with welcome message
+  // Initialize session and load history
   useEffect(() => {
     const welcomeMessage: ChatMessage = {
       id: "welcome",
@@ -99,11 +100,58 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
         'Hi! I am your Universal ATOM Assistant. 🚀\n\nI can help you with:\n📅 **Calendar**: "Schedule meeting tomorrow"\n📧 **Email**: "Send email to boss"\n⚙️ **Workflows**: "Run Daily Report"\n\nWhat would you like to do?',
       timestamp: new Date(),
     };
-    setMessages([welcomeMessage]);
-    setSessionId(
-      `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    );
+
+    // Check for existing session in localStorage
+    const storedSessionId = localStorage.getItem('atom_chat_session_id');
+
+    if (storedSessionId) {
+      // Resume existing session
+      setSessionId(storedSessionId);
+      loadSessionHistory(storedSessionId, welcomeMessage);
+    } else {
+      // Create new session
+      const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setSessionId(newSessionId);
+      localStorage.setItem('atom_chat_session_id', newSessionId);
+      setMessages([welcomeMessage]);
+    }
   }, []);
+
+  // Load session history from backend
+  const loadSessionHistory = async (sessionId: string, welcomeMessage: ChatMessage) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/atom-agent/sessions/${sessionId}/history`);
+      const data = await response.json();
+
+      if (data.success && data.messages && data.messages.length > 0) {
+        // Convert backend messages to frontend format
+        const chatMessages: ChatMessage[] = data.messages.map((msg: any) => ({
+          id: msg.id || `msg_${Date.now()}_${Math.random()}`,
+          type: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content || '',
+          timestamp: new Date(msg.timestamp),
+          workflowData: msg.metadata?.workflow_id ? {
+            workflowId: msg.metadata.workflow_id,
+            workflowName: msg.metadata.workflow_name,
+            stepsCount: msg.metadata.steps_count,
+            isScheduled: msg.metadata.is_scheduled,
+          } : undefined,
+          actions: msg.metadata?.actions || [],
+        }));
+
+        setMessages(chatMessages);
+      } else {
+        // No history or error, show welcome message
+        setMessages([welcomeMessage]);
+      }
+    } catch (error) {
+      console.error('Failed to load session history:', error);
+      setMessages([welcomeMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -302,6 +350,29 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
     }
   };
 
+  const handleNewChat = () => {
+    const welcomeMessage: ChatMessage = {
+      id: "welcome",
+      type: "assistant",
+      content:
+        'Hi! I am your Universal ATOM Assistant. 🚀\n\nI can help you with:\n📅 **Calendar**: "Schedule meeting tomorrow"\n📧 **Email**: "Send email to boss"\n⚙️ **Workflows**: "Run Daily Report"\n\nWhat would you like to do?',
+      timestamp: new Date(),
+    };
+
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setSessionId(newSessionId);
+    localStorage.setItem('atom_chat_session_id', newSessionId);
+    setMessages([welcomeMessage]);
+
+    toast({
+      title: "New Chat Started",
+      description: "Previous conversation has been saved",
+      status: "success",
+      duration: 2000,
+      isClosable: true,
+    });
+  };
+
   const renderMessage = (message: ChatMessage) => {
     const isUser = message.type === "user";
 
@@ -456,9 +527,20 @@ const AtomChatAssistant: React.FC<AtomChatAssistantProps> = ({
               Universal AI Assistant for Workflows, Calendar & Email
             </Text>
           </VStack>
-          <Badge colorScheme="purple" variant="subtle">
-            Universal Agent
-          </Badge>
+          <HStack>
+            <Badge colorScheme="purple" variant="subtle">
+              Universal Agent
+            </Badge>
+            <Button
+              size="sm"
+              leftIcon={<AddIcon />}
+              onClick={handleNewChat}
+              variant="outline"
+              colorScheme="purple"
+            >
+              New Chat
+            </Button>
+          </HStack>
         </HStack>
       </Box>
 

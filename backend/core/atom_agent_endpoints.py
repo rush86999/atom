@@ -108,6 +108,61 @@ def save_chat_interaction(
     except Exception as e:
         logger.error(f"Failed to save chat interaction: {e}")
 
+@router.get("/sessions/{session_id}/history")
+async def get_session_history(session_id: str):
+    """
+    Retrieve conversation history for a specific session.
+    Returns all messages in chronological order.
+    """
+    try:
+        # Verify session exists
+        session = session_manager.get_session(session_id)
+        if not session:
+            return {
+                "success": False,
+                "error": "Session not found"
+            }
+        
+        # Retrieve messages from LanceDB
+        messages = chat_history.get_session_history(session_id, limit=100)
+        
+        # Convert to frontend-friendly format
+        formatted_messages = []
+        for msg in messages:
+            formatted_msg = {
+                "id": msg.get("id", ""),
+                "role": msg.get("role", "assistant"),
+                "content": msg.get("text", ""),
+                "timestamp": msg.get("created_at", datetime.utcnow().isoformat()),
+                "metadata": {}
+            }
+            
+            # Parse metadata if it exists
+            if "metadata" in msg and msg["metadata"]:
+                try:
+                    if isinstance(msg["metadata"], str):
+                        formatted_msg["metadata"] = json.loads(msg["metadata"])
+                    else:
+                        formatted_msg["metadata"] = msg["metadata"]
+                except:
+                    pass
+            
+            formatted_messages.append(formatted_msg)
+        
+        return {
+            "success": True,
+            "session": session,
+            "messages": formatted_messages,
+            "count": len(formatted_messages)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to retrieve session history: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 @router.post("/chat")
 async def chat_with_agent(request: ChatRequest):
     """
