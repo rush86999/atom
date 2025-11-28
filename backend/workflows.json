@@ -473,5 +473,30 @@
     "start_step": "step_1",
     "triggers": [],
     "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_0b138ed7",
+    "name": "Dynamic Workflow: create a workflow to backup fi...",
+    "description": "Generated from query: create a workflow to backup files",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to backup files",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to backup files"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
   }
 ]

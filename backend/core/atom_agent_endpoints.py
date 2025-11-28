@@ -29,8 +29,16 @@ from enhanced_ai_workflow_endpoints import RealAIWorkflowService
 from advanced_workflow_orchestrator import orchestrator
 from dataclasses import asdict
 
+# Import chat history management
+from core.lancedb_handler import get_chat_history_manager
+from core.chat_session_manager import get_chat_session_manager
+
 # Initialize AI service
 ai_service = RealAIWorkflowService()
+
+# Initialize chat history components
+chat_history = get_chat_history_manager()
+session_manager = get_chat_session_manager()
 
 router = APIRouter(prefix="/api/atom-agent", tags=["atom_agent"])
 
@@ -43,12 +51,45 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     user_id: str
-    session_id: str
-    conversation_history: List[ChatMessage]
+    session_id: Optional[str] = None  # Now optional, will create if not provided
+    conversation_history: List[ChatMessage] = []  # Deprecated, loaded from storage
 
 class ExecuteGeneratedRequest(BaseModel):
     workflow_id: str
     input_data: Dict[str, Any]
+
+def save_chat_interaction(
+    session_id: str,
+    user_id: str,
+    user_message: str,
+    assistant_message: str,
+    intent: str = None,
+    entities: Dict[str, Any] = None
+):
+    """Helper to save both user and assistant messages"""
+    try:
+        # Save user message
+        chat_history.save_message(
+            session_id=session_id,
+            user_id=user_id,
+            role="user",
+            content=user_message,
+            metadata={"intent": intent, "entities": entities} if intent else {}
+        )
+        
+        # Save assistant response
+        chat_history.save_message(
+            session_id=session_id,
+            user_id=user_id,
+            role="assistant",
+            content=assistant_message,
+            metadata={"intent": intent}
+        )
+        
+        # Update session activity
+        session_manager.update_session_activity(session_id)
+    except Exception as e:
+        logger.error(f"Failed to save chat interaction: {e}")
 
 @router.post("/chat")
 async def chat_with_agent(request: ChatRequest):
@@ -57,13 +98,32 @@ async def chat_with_agent(request: ChatRequest):
     Uses LLM to interpret intent and interact with platform features.
     """
     try:
+        # Session management: create or load session
+        if not request.session_id:
+            # Create new session
+            session_id = session_manager.create_session(request.user_id)
+        else:
+            session_id = request.session_id
+            # Verify session exists
+            session = session_manager.get_session(session_id)
+            if not session:
+               # Session doesn't exist, create new one
+                session_id = session_manager.create_session(request.user_id)
+        
+        # Load conversation history from LanceDB (replaces passed history)
+        stored_history = chat_history.get_session_history(session_id, limit=20)
+        conversation_history = [
+            ChatMessage(role=msg["role"], content=msg["text"])
+            for msg in stored_history
+        ]
+        
         # Initialize AI sessions if needed
         await ai_service.initialize_sessions()
         
         # Use LLM to classify intent
         intent_response = await classify_intent_with_llm(
             request.message, 
-            request.conversation_history
+            conversation_history
         )
         
         intent = intent_response.get("intent")
@@ -73,64 +133,82 @@ async def chat_with_agent(request: ChatRequest):
         
         # Route to appropriate handler based on intent
         if intent == "LIST_WORKFLOWS":
-            return await handle_list_workflows(request)
+            result = await handle_list_workflows(request)
         elif intent == "RUN_WORKFLOW":
-            return await handle_run_workflow(request, entities)
+            result = await handle_run_workflow(request, entities)
         elif intent == "SCHEDULE_WORKFLOW":
-            return await handle_schedule_workflow(request, entities)
+            result = await handle_schedule_workflow(request, entities)
         elif intent == "GET_HISTORY":
-            return await handle_get_history(request, entities)
+            result = await handle_get_history(request, entities)
         elif intent == "CANCEL_SCHEDULE":
-            return await handle_cancel_schedule(request, entities)
+            result = await handle_cancel_schedule(request, entities)
         elif intent == "GET_STATUS":
-            return await handle_get_status(request, entities)
+            result = await handle_get_status(request, entities)
             
         # Calendar Intents
         elif intent == "CREATE_EVENT":
-            return await handle_create_event(request, entities)
+            result = await handle_create_event(request, entities)
         elif intent == "LIST_EVENTS":
-            return await handle_list_events(request, entities)
+            result = await handle_list_events(request, entities)
             
         # Email Intents
         elif intent == "SEND_EMAIL":
-            return await handle_send_email(request, entities)
+            result = await handle_send_email(request, entities)
         elif intent == "SEARCH_EMAILS":
-            return await handle_search_emails(request, entities)
+            result = await handle_search_emails(request, entities)
             
         # Task Intents
         elif intent in ["CREATE_TASK", "LIST_TASKS"]:
-            return await handle_task_intent(intent, entities, request)
+            result = await handle_task_intent(intent, entities, request)
             
         # Finance Intents
         elif intent in ["GET_TRANSACTIONS", "CHECK_BALANCE", "INVOICE_STATUS"]:
-            return await handle_finance_intent(intent, entities, request)
+            result = await handle_finance_intent(intent, entities, request)
             
             
         # System Intents (Phase 25C)
         elif intent == "GET_SYSTEM_STATUS":
-            return await handle_system_status(request)
+            result = await handle_system_status(request)
             
         # Search Intents (Phase 25C)
         elif intent == "SEARCH_PLATFORM":
-            return await handle_platform_search(request, entities)
+            result = await handle_platform_search(request, entities)
             
         # Workflow Creation (Phase 26)
         elif intent == "CREATE_WORKFLOW":
-            return await handle_create_workflow(request, entities)
+            result = await handle_create_workflow(request, entities)
 
             
         elif intent == "HELP":
-            return handle_help_request()
+            result = handle_help_request()
         
         else:
             # Default: Offer suggestions
-            return {
+            result = {
                 "success": True,
                 "response": {
                     "message": "I can help you with Workflows, Calendar, Email, Tasks, and Finance. Try asking me something!",
                     "actions": []
                 }
             }
+        
+        # Save chat interaction
+        if result and result.get("success"):
+            assistant_msg = result.get("response", {}).get("message", "")
+            save_chat_interaction(
+                session_id=session_id,
+                user_id=request.user_id,
+                user_message=request.message,
+                assistant_message=assistant_msg,
+                intent=intent,
+                entities=entities
+            )
+        
+        # Add session_id to response
+        if result:
+            result["session_id"] = session_id
+        
+        return result
 
     except Exception as e:
         logger.error(f"Error in chat agent: {str(e)}")
