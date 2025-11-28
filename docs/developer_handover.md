@@ -1,13 +1,13 @@
 # Developer Handover & Status Report
 
 **Date:** November 27, 2025  
-**Latest Update:** Phase 26 Complete - Unified Chat Interface  
+**Latest Update:** Phase 27 Complete - Advanced Workflow Scheduling via Chat  
 **Project:** Atom (Advanced Task Orchestration & Management)
 
 ## 1. Project Overview
 Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped in Tauri for desktop) and a Python FastAPI backend. It integrates with 116+ services and uses local/remote LLMs for natural language understanding and workflow generation.
 
-## 2. Current Status - Phases 20-26 Complete
+## 2. Current Status - Phases 20-27 Complete
 
 **Phases Completed:**
 - ✅ Phase 1-18: (Previous milestones - see git history)
@@ -15,11 +15,12 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - ✅ **Phase 20: Frontend Workflow Creation** - UI for creating workflows
 - ✅ **Phase 21: Workflow Execution from UI** - Execute button and real execution
 - ✅ **Phase 22: Workflow Execution History** - History tab and persistence
-- ✅ **Phase 23: Workflow Scheduling** - Backend scheduler with APScheduler
+-✅ **Phase 23: Workflow Scheduling** - Backend scheduler with APScheduler
 - ✅ **Phase 24: Chat-based Workflow Management & Scheduling UI** - AI-powered workflow creation via chat + visual scheduling interface
 - ✅ **Phase 25B: Finance & Tasks Integration** - Added finance and task management to Universal ATOM Agent
 - ✅ **Phase 25C: System & Search Integration** - Added system status and platform search capabilities
 - ✅ **Phase 26: Unified Chat Interface** - Merged workflow creation, finance, tasks, system, and search into single `/api/atom-agent/chat` endpoint
+- ✅ **Phase 27: Advanced Workflow Scheduling via Chat** - Natural language workflow scheduling ("Schedule X every weekday at 9am")
 
 ### Recent Major Milestones (Nov 20, 2025 - Latest Session)
 
@@ -261,6 +262,83 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - Schedule workflows with visual interface (interval/cron/date)
 - View and manage all scheduled jobs
 - Complete workflow lifecycle: Create → Edit → Execute → Schedule
+
+**Next Steps (as of November 27, 2025):**
+
+### Phase 27: Advanced Workflow Scheduling via Chat (Nov 27, 2025) ✅
+
+**Goal:** Enable natural language workflow scheduling through the unified chat interface
+
+1. **Natural Language Time Expression Parser** ✅
+   - Created `backend/core/time_expression_parser.py` (236 lines)
+   - Two-tier parsing system:
+     * Pattern matching (fast path): Regex for common expressions
+     * LLM fallback (slow path): Handles complex cases
+   - Supported patterns:
+     * Daily: "daily at 9am" → cron `0 9 * * *`
+     * Weekdays: "every weekday at 5pm" → cron `0 17 * * 1-5`
+     * Specific days: "every Monday" → cron `0 0 * * 1`
+     * Intervals: "every 2 hours" → interval 120 minutes
+     * Monthly: "first day of month" → cron `0 0 1 * *`
+
+2. **Enhanced Intent Classification** ✅
+   - Updated system prompt with scheduling instructions
+   - Added `CANCEL_SCHEDULE` intent
+   - Reordered fallback checks to prioritize `SCHEDULE_WORKFLOW` over `CREATE_WORKFLOW`
+   - Integrated `parse_with_patterns` for clean entity extraction
+   - Smart text cleaning preserves workflow names while removing command keywords
+
+3. **Workflow Scheduler Enhancements** ✅
+   - Added convenience methods to `WorkflowScheduler`:
+     * `schedule_workflow_cron(job_id, workflow_id, cron_expression)`
+     * `schedule_workflow_interval(job_id, workflow_id, interval_minutes)`
+     * `schedule_workflow_once(job_id, workflow_id, run_date)`
+     * `remove_job(job_id) -> bool`
+   - Fixed workflow ID lookup to handle both `id` and `workflow_id` keys
+   - Added detailed logging for all scheduling operations
+
+4. **Schedule Handler Implementation** ✅
+   - Enhanced `handle_schedule_workflow` in `atom_agent_endpoints.py`
+   - Workflow flow:
+     1. Extract workflow reference and time expression from entities
+     2. Find workflow using partial name matching
+     3. Parse time expression using `parse_time_expression`
+     4. Register schedule with APScheduler
+     5. Return confirmation with human-readable description
+   - Response includes schedule_id for management and cancellation
+
+5. **Robustness Improvements** ✅
+   - Made `psutil` optional in `system_status.py` to prevent startup failures
+   - Fixed import paths (removed `backend.` prefix)
+   - Graceful degradation when dependencies missing
+
+6. **Files Created:**
+   - `backend/core/time_expression_parser.py` (236 lines)
+   - `backend/test_chat_scheduling.py` (113 lines - verification)
+
+7. **Files Modified:**
+   - `backend/core/atom_agent_endpoints.py` (scheduling logic, intent classification)
+   - `backend/ai/workflow_scheduler.py` (added convenience methods)
+   - `backend/core/system_status.py` (optional psutil)
+
+**User Impact:**
+- Schedule workflows conversationally: "Schedule daily report every weekday at 9am"
+- Natural language time expressions automatically converted to cron/interval
+- Complete conversational workflow lifecycle: Create → Schedule → Execute
+- No need to understand cron syntax or navigate scheduling UI
+
+**Example Usage:**
+```
+User: "Schedule the daily report workflow to run every weekday at 9am"
+ATOM: "✅ Scheduled 'Daily Report' to run Every weekday at 09:00"
+      [View All Schedules] [Cancel This Schedule]
+```
+
+**Technical Achievements:**
+- Two-tier parsing (regex + LLM) ensures fast response for common cases
+- Robust fallback intent classification handles API key failures gracefully
+- Workflow name extraction preserves complex names despite command keywords
+- APScheduler integration provides persistent, reliable scheduling
 
 **Next Steps (as of November 27, 2025):**
 
