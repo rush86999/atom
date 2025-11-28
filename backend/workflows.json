@@ -973,5 +973,30 @@
     "start_step": "step_1",
     "triggers": [],
     "version": "1.0"
+  },
+  {
+    "workflow_id": "dynamic_19d8d477",
+    "name": "Dynamic Workflow: create a backup workflow...",
+    "description": "Generated from query: create a backup workflow",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a backup workflow",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a backup workflow"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
   }
 ]
