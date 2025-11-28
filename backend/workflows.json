@@ -1,514 +1,77 @@
 [
   {
-    "id": "50458b15-19b7-422a-bedc-8830f89058e9",
-    "name": "Test Workflow API",
-    "description": "Created via test script",
-    "version": "1.0.0",
-    "nodes": [],
-    "connections": [],
+    "workflow_id": "dynamic_dd187ff0",
+    "name": "Dynamic Workflow: create a workflow to send an e...",
+    "description": "Generated from query: create a workflow to send an email to boss@company.com every monday",
+    "steps": [
+      {
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to send an email to boss@company.com every monday",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to send an email to boss@company.com every monday"
+        },
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
+      }
+    ],
+    "start_step": "step_1",
     "triggers": [],
-    "enabled": true,
-    "createdAt": "2025-11-27T08:06:02.259059",
-    "updatedAt": "2025-11-27T08:06:02.259059"
+    "version": "1.0"
   },
   {
-    "id": "d329c3ee-da79-4f1a-9085-2f93997a33a1",
-    "name": "Test Email Workflow",
-    "description": "Sends a test email via Gmail",
-    "version": "1.0.0",
-    "nodes": [
+    "workflow_id": "dynamic_9bfc7d59",
+    "name": "Dynamic Workflow: create a workflow to send an e...",
+    "description": "Generated from query: create a workflow to send an email to boss@company.com every monday",
+    "steps": [
       {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Manual Trigger",
-        "description": "Start workflow manually",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to send an email to boss@company.com every monday",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to send an email to boss@company.com every monday"
         },
-        "config": {
-          "triggerType": "manual"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Send Test Email",
-        "description": "Send email via Gmail",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "send_email",
-          "integrationId": "gmail",
-          "to": "atom.ai.assistant@gmail.com",
-          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
-          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
-        },
-        "connections": []
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
       }
     ],
-    "connections": [],
-    "triggers": [
-      "manual"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T08:43:14.308852",
-    "updatedAt": "2025-11-27T08:43:14.308852"
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
   },
   {
-    "id": "399d556b-c3d9-4f3e-aa0b-6820b46132e8",
-    "name": "Test Email Workflow",
-    "description": "Sends a test email via Gmail",
-    "version": "1.0.0",
-    "nodes": [
+    "workflow_id": "dynamic_b7064b2a",
+    "name": "Dynamic Workflow: create a workflow to send an e...",
+    "description": "Generated from query: create a workflow to send an email to boss@company.com every monday",
+    "steps": [
       {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Manual Trigger",
-        "description": "Start workflow manually",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
+        "step_id": "step_1",
+        "step_type": "nlu_analysis",
+        "description": "Handle request: create a workflow to send an email to boss@company.com every monday",
+        "parameters": {
+          "complexity": 2,
+          "original_instruction": "Handle request: create a workflow to send an email to boss@company.com every monday"
         },
-        "config": {
-          "triggerType": "manual"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Send Test Email",
-        "description": "Send email via Gmail",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "send_email",
-          "integrationId": "gmail",
-          "to": "atom.ai.assistant@gmail.com",
-          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
-          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
-        },
-        "connections": []
+        "conditions": {},
+        "parallel_steps": [],
+        "next_steps": [],
+        "retry_count": 0,
+        "max_retries": 3,
+        "timeout_seconds": 30
       }
     ],
-    "connections": [],
-    "triggers": [
-      "manual"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T08:46:35.023590",
-    "updatedAt": "2025-11-27T08:46:35.023590"
-  },
-  {
-    "id": "218703a9-310d-4a38-b208-816df0c186ea",
-    "name": "Test Email Workflow",
-    "description": "Sends a test email via Gmail",
-    "version": "1.0.0",
-    "nodes": [
-      {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Manual Trigger",
-        "description": "Start workflow manually",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
-        },
-        "config": {
-          "triggerType": "manual"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Send Test Email",
-        "description": "Send email via Gmail",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "send_email",
-          "integrationId": "gmail",
-          "to": "atom.ai.assistant@gmail.com",
-          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
-          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
-        },
-        "connections": []
-      }
-    ],
-    "connections": [],
-    "triggers": [
-      "manual"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T08:47:46.716789",
-    "updatedAt": "2025-11-27T08:47:46.716789"
-  },
-  {
-    "id": "05565a81-1448-4d7a-aa5c-489e49ac2ed6",
-    "name": "Test Email Workflow",
-    "description": "Sends a test email via Gmail",
-    "version": "1.0.0",
-    "nodes": [
-      {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Manual Trigger",
-        "description": "Start workflow manually",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
-        },
-        "config": {
-          "triggerType": "manual"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Send Test Email",
-        "description": "Send email via Gmail",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "send_email",
-          "integrationId": "gmail",
-          "to": "atom.ai.assistant@gmail.com",
-          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
-          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
-        },
-        "connections": []
-      }
-    ],
-    "connections": [],
-    "triggers": [
-      "manual"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T09:12:33.090706",
-    "updatedAt": "2025-11-27T09:12:33.090706"
-  },
-  {
-    "id": "082adbf7-60e6-476f-ae9a-88ddd9c9e433",
-    "name": "Test Email Workflow",
-    "description": "Sends a test email via Gmail",
-    "version": "1.0.0",
-    "nodes": [
-      {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Manual Trigger",
-        "description": "Start workflow manually",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
-        },
-        "config": {
-          "triggerType": "manual"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Send Test Email",
-        "description": "Send email via Gmail",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "send_email",
-          "integrationId": "gmail",
-          "to": "atom.ai.assistant@gmail.com",
-          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
-          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
-        },
-        "connections": []
-      }
-    ],
-    "connections": [],
-    "triggers": [
-      "manual"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T09:16:09.226467",
-    "updatedAt": "2025-11-27T09:16:09.226467"
-  },
-  {
-    "id": "6e1fefae-489e-4add-8f07-f7d11f986163",
-    "name": "Test Email Workflow",
-    "description": "Sends a test email via Gmail",
-    "version": "1.0.0",
-    "nodes": [
-      {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Manual Trigger",
-        "description": "Start workflow manually",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
-        },
-        "config": {
-          "triggerType": "manual"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Send Test Email",
-        "description": "Send email via Gmail",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "send_email",
-          "integrationId": "gmail",
-          "to": "atom.ai.assistant@gmail.com",
-          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
-          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
-        },
-        "connections": []
-      }
-    ],
-    "connections": [],
-    "triggers": [
-      "manual"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T11:44:43.248162",
-    "updatedAt": "2025-11-27T11:44:43.248162"
-  },
-  {
-    "id": "554c8ce5-2f36-4907-b647-6cf8f3dcc35b",
-    "name": "Test Email Workflow",
-    "description": "Sends a test email via Gmail",
-    "version": "1.0.0",
-    "nodes": [
-      {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Manual Trigger",
-        "description": "Start workflow manually",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
-        },
-        "config": {
-          "triggerType": "manual"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Send Test Email",
-        "description": "Send email via Gmail",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "send_email",
-          "integrationId": "gmail",
-          "to": "atom.ai.assistant@gmail.com",
-          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
-          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
-        },
-        "connections": []
-      }
-    ],
-    "connections": [],
-    "triggers": [
-      "manual"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T11:47:52.805287",
-    "updatedAt": "2025-11-27T11:47:52.805287"
-  },
-  {
-    "id": "59a93f61-0d15-45df-ac9a-3493ca750f18",
-    "name": "Test Email Workflow",
-    "description": "Sends a test email via Gmail",
-    "version": "1.0.0",
-    "nodes": [
-      {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Manual Trigger",
-        "description": "Start workflow manually",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
-        },
-        "config": {
-          "triggerType": "manual"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Send Test Email",
-        "description": "Send email via Gmail",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "send_email",
-          "integrationId": "gmail",
-          "to": "atom.ai.assistant@gmail.com",
-          "subject": "\ud83c\udf89 Phase 21 Test: Workflow Execution from UI",
-          "body": "Success! This email was sent via the workflow execution endpoint.\\n\\nPhase 21 is working!"
-        },
-        "connections": []
-      }
-    ],
-    "connections": [],
-    "triggers": [
-      "manual"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T11:50:27.380556",
-    "updatedAt": "2025-11-27T11:50:27.380556"
-  },
-  {
-    "id": "1002a23d-a325-4138-bbb5-a4cf9853438c",
-    "name": "Scheduled Test Workflow",
-    "description": "Testing scheduling",
-    "version": "1.0.0",
-    "nodes": [
-      {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Scheduled Trigger",
-        "description": "Trigger description",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
-        },
-        "config": {
-          "triggerType": "schedule"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Test Action",
-        "description": "Action description",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "transform_data",
-          "integrationId": "builtin",
-          "transformation_type": "uppercase"
-        },
-        "connections": []
-      }
-    ],
-    "connections": [
-      {
-        "id": "conn_1",
-        "source": "trigger_1",
-        "target": "action_1",
-        "condition": null
-      }
-    ],
-    "triggers": [
-      "schedule"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T13:06:14.195321",
-    "updatedAt": "2025-11-27T13:06:16.246173"
-  },
-  {
-    "id": "b6997320-f09c-41cb-9793-4c74b8ad0759",
-    "name": "Scheduled Test Workflow",
-    "description": "Testing scheduling",
-    "version": "1.0.0",
-    "nodes": [
-      {
-        "id": "trigger_1",
-        "type": "trigger",
-        "title": "Scheduled Trigger",
-        "description": "Trigger description",
-        "position": {
-          "x": 100.0,
-          "y": 100.0
-        },
-        "config": {
-          "triggerType": "schedule"
-        },
-        "connections": [
-          "action_1"
-        ]
-      },
-      {
-        "id": "action_1",
-        "type": "action",
-        "title": "Test Action",
-        "description": "Action description",
-        "position": {
-          "x": 300.0,
-          "y": 100.0
-        },
-        "config": {
-          "actionType": "transform_data",
-          "integrationId": "builtin",
-          "transformation_type": "uppercase"
-        },
-        "connections": []
-      }
-    ],
-    "connections": [
-      {
-        "id": "conn_1",
-        "source": "trigger_1",
-        "target": "action_1",
-        "condition": null
-      }
-    ],
-    "triggers": [
-      "schedule"
-    ],
-    "enabled": true,
-    "createdAt": "2025-11-27T13:07:15.862981",
-    "updatedAt": "2025-11-27T13:07:17.903148"
+    "start_step": "step_1",
+    "triggers": [],
+    "version": "1.0"
   }
 ]

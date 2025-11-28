@@ -7,17 +7,17 @@ import logging
 import json
 
 # Import workflow management components
-from backend.core.workflow_endpoints import load_workflows
-from backend.ai.automation_engine import AutomationEngine
-from backend.ai.workflow_scheduler import workflow_scheduler
+from core.workflow_endpoints import load_workflows, save_workflows
+from ai.automation_engine import AutomationEngine
+from ai.workflow_scheduler import workflow_scheduler
 
 # Import Calendar and Email services
-from backend.integrations.google_calendar_service import GoogleCalendarService
-from backend.integrations.gmail_service import GmailService
+from integrations.google_calendar_service import GoogleCalendarService
+from integrations.gmail_service import GmailService
 
 # Import Task and Finance services
-from backend.core.unified_task_endpoints import get_tasks, create_task, CreateTaskRequest
-from backend.integrations.quickbooks_routes import list_quickbooks_items
+from core.unified_task_endpoints import get_tasks, create_task, CreateTaskRequest
+from integrations.quickbooks_routes import list_quickbooks_items
 
 # Import System and Search services
 from backend.core.system_status import SystemStatus
@@ -26,6 +26,8 @@ from backend.core.unified_search_endpoints import SearchRequest
 
 # Import AI service for intent classification
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+from advanced_workflow_orchestrator import orchestrator
+from dataclasses import asdict
 
 # Initialize AI service
 ai_service = RealAIWorkflowService()
@@ -103,13 +105,19 @@ async def chat_with_agent(request: ChatRequest):
         elif intent in ["GET_TRANSACTIONS", "CHECK_BALANCE", "INVOICE_STATUS"]:
             return await handle_finance_intent(intent, entities, request)
             
-        # System Intents
+            
+        # System Intents (Phase 25C)
         elif intent == "GET_SYSTEM_STATUS":
             return await handle_system_status(request)
             
-        # Search Intents
+        # Search Intents (Phase 25C)
         elif intent == "SEARCH_PLATFORM":
             return await handle_platform_search(request, entities)
+            
+        # Workflow Creation (Phase 26)
+        elif intent == "CREATE_WORKFLOW":
+            return await handle_create_workflow(request, entities)
+
             
         elif intent == "HELP":
             return handle_help_request()
@@ -133,7 +141,7 @@ async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> 
     
     system_prompt = """You are ATOM, an intelligent personal assistant for task orchestration and management.
     Classify the user's intent into one of these categories:
-    - Workflows: LIST_WORKFLOWS, RUN_WORKFLOW, SCHEDULE_WORKFLOW, GET_HISTORY
+    - Workflows: CREATE_WORKFLOW, LIST_WORKFLOWS, RUN_WORKFLOW, SCHEDULE_WORKFLOW, GET_HISTORY
     - Calendar: CREATE_EVENT, LIST_EVENTS
     - Email: SEND_EMAIL, SEARCH_EMAILS
     - Tasks: CREATE_TASK, LIST_TASKS
@@ -143,12 +151,12 @@ async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> 
     - General: HELP, UNKNOWN
     
     Respond ONLY with valid JSON in this format:
-    {"intent": "CREATE_EVENT", "entities": {"summary": "Team Standup", "start_time": "tomorrow 10am"}}
+    {"intent": "CREATE_WORKFLOW", "entities": {"description": "Send an email to sales every day"}}
     """
     
     try:
         # Use BYOK system to get optimal provider for chat tasks
-        from backend.core.byok_endpoints import get_byok_manager
+        from core.byok_endpoints import get_byok_manager
         byok = get_byok_manager()
         
         try:
@@ -199,7 +207,9 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
     msg = message.lower()
     
     # Workflow Intents
-    if "list" in msg and "workflow" in msg:
+    if "create" in msg and "workflow" in msg:
+        return {"intent": "CREATE_WORKFLOW", "entities": {"description": msg}}
+    elif "list" in msg and "workflow" in msg:
         return {"intent": "LIST_WORKFLOWS", "entities": {}}
     elif "run" in msg and "workflow" in msg:
         return {"intent": "RUN_WORKFLOW", "entities": {"workflow_ref": msg.replace("run workflow", "").strip()}}
@@ -250,6 +260,58 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
 
 # --- Workflow Handlers ---
 
+async def handle_create_workflow(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate a new workflow from natural language description"""
+    description = entities.get("description", request.message)
+    
+    try:
+        # Use the orchestrator to generate the workflow definition
+        workflow_obj = await orchestrator.generate_dynamic_workflow(description)
+        
+        if not workflow_obj:
+            return {
+                "success": False, 
+                "response": {
+                    "message": "I couldn't understand how to create that workflow. Could you be more specific?", 
+                    "actions": []
+                }
+            }
+            
+        # Convert dataclass to dict for storage (handle enums)
+        from enum import Enum
+        workflow_def = asdict(workflow_obj, dict_factory=lambda x: {
+            k: v.value if isinstance(v, Enum) else v for k, v in x
+        })
+        
+        # Save the generated workflow
+        workflows = load_workflows()
+        workflows.append(workflow_def)
+        save_workflows(workflows)
+        
+        return {
+            "success": True,
+            "response": {
+                "message": f"✅ I've created a workflow: **{workflow_def['name']}**\n\nIt includes {len(workflow_def.get('steps', []))} steps to achieve your goal.",
+                "workflow_id": workflow_def['workflow_id'],
+                "workflow_name": workflow_def['name'],
+                "steps_count": len(workflow_def.get('steps', [])),
+                "actions": [
+                    {"type": "execute", "label": "Run Now", "workflowId": workflow_def['workflow_id']},
+                    {"type": "edit", "label": "Edit Workflow", "workflowId": workflow_def['workflow_id']},
+                    {"type": "schedule", "label": "Schedule", "workflowId": workflow_def['workflow_id']}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Workflow creation failed: {e}")
+        return {
+            "success": False, 
+            "response": {
+                "message": f"Failed to create workflow: {str(e)}", 
+                "actions": []
+            }
+        }
+
 async def handle_list_workflows(request: ChatRequest) -> Dict[str, Any]:
     """List all available workflows"""
     workflows = load_workflows()
@@ -261,7 +323,7 @@ async def handle_list_workflows(request: ChatRequest) -> Dict[str, Any]:
         "success": True,
         "response": {
             "message": f"Found {len(workflows)} workflows:\n\n{workflow_list}",
-            "actions": [{"type": "run", "label": f"Run {wf['name']}", "workflowId": wf['id']} for wf in workflows[:3]]
+            "actions": [{"type": "run", "label": f"Run {wf['name']}", "workflowId": wf['workflow_id']} for wf in workflows[:3]]
         }
     }
 
@@ -272,7 +334,7 @@ async def handle_run_workflow(request: ChatRequest, entities: Dict[str, Any]) ->
         return {"success": False, "response": {"message": "Please specify which workflow to run.", "actions": []}}
     
     workflows = load_workflows()
-    workflow = next((w for w in workflows if workflow_ref.lower() in w['name'].lower() or workflow_ref in w['id']), None)
+    workflow = next((w for w in workflows if workflow_ref.lower() in w['name'].lower() or workflow_ref in w['workflow_id']), None)
     
     if not workflow:
         return {"success": False, "response": {"message": f"Workflow '{workflow_ref}' not found.", "actions": []}}

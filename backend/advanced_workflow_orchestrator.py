@@ -16,7 +16,7 @@ from enum import Enum
 from fastapi import HTTPException
 import aiohttp
 import uuid
-from backend.core.byok_endpoints import get_byok_manager
+from core.byok_endpoints import get_byok_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ class AdvancedWorkflowOrchestrator:
         """Initialize AI service for NLU processing"""
         try:
             # Import the enhanced AI workflow service
-            from backend.enhanced_ai_workflow_endpoints import RealAIWorkflowService
+            from enhanced_ai_workflow_endpoints import RealAIWorkflowService
             self.ai_service = RealAIWorkflowService()
         except Exception as e:
             logger.warning(f"Could not initialize AI service: {e}")

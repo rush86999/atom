@@ -17,7 +17,7 @@ from pydantic import BaseModel
 import httpx
 import httpx
 import aiohttp
-from backend.advanced_workflow_orchestrator import orchestrator
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -529,6 +529,7 @@ async def execute_ai_workflow(request: Dict[str, Any]):
         if use_advanced:
             # Use Advanced Workflow Orchestrator
             logger.info(f"Using Advanced Orchestrator for: {natural_language_input}")
+            from advanced_workflow_orchestrator import orchestrator
             
             # 1. Generate dynamic workflow
             workflow_def = await orchestrator.generate_dynamic_workflow(natural_language_input)
