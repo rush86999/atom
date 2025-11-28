@@ -375,12 +375,227 @@ class LanceDBHandler:
         """Seed mock data for validation"""
         return self.add_documents_batch("documents", documents)
 
-# Global instance for easy access
+# Chat History Extension for LanceDBHandler
+class ChatHistoryManager:
+    """Manages chat history using LanceDB for semantic search"""
+    
+    def __init__(self, lancedb_handler: LanceDBHandler):
+        self.db = lancedb_handler
+        self.table_name = "chat_messages"
+        self._ensure_table()
+    
+    def _ensure_table(self):
+        """Ensure chat_messages table exists"""
+        if not self.db.db:
+            logger.warning("LanceDB not initialized, chat history disabled")
+            return
+            
+        try:
+            # Create table if it doesn't exist
+            if self.table_name not in self.db.db.table_names():
+                self.db.create_table(self.table_name)
+                logger.info(f"Created chat_messages table")
+        except Exception as e:
+            logger.error(f"Failed to ensure chat_messages table: {e}")
+    
+    def save_message(
+        self,
+        session_id: str,
+        user_id: str,
+        role: str,  # "user" or "assistant"
+        content: str,
+        metadata: Dict[str, Any] = None
+    ) -> bool:
+        """
+        Save a chat message with automatic embedding.
+        
+        metadata can include:
+        - intent: str
+        - entities: dict (workflow_ids, task_ids, etc.)
+        - workflow_id: str
+        - task_id: str
+        - schedule_id: str
+        """
+        if not self.db.db:
+            return False
+        
+        try:
+            # Prepare metadata
+            msg_metadata = metadata or {}
+            msg_metadata.update({
+                "session_id": session_id,
+                "user_id": user_id,
+                "role": role
+            })
+            
+            # Create unique message ID
+            message_id = f"{session_id}_{datetime.utcnow().timestamp()}"
+            
+            # Save using existing add_document method
+            success = self.db.add_document(
+                table_name=self.table_name,
+                text=content,
+                source=f"chat_{role}",
+                metadata=msg_metadata,
+                doc_id=message_id
+            )
+            
+            if success:
+                logger.debug(f"Saved chat message: {message_id}")
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to save chat message: {e}")
+            return False
+    
+    def get_session_history(
+        self,
+        session_id: str,
+        limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve recent messages from a session (chronological order).
+        
+        Returns list of messages with:
+        - id, text, source, role, created_at, metadata
+        """
+        if not self.db.db:
+            return []
+        
+        try:
+            table = self.db.get_table(self.table_name)
+            if not table:
+                return []
+            
+            # Query all messages for session (LanceDB doesn't have chronological sorting built-in)
+            # So we'll fetch all and sort in memory
+            # For better performance with large histories, consider using filter + limit
+            
+            results = table.search().where(f"metadata LIKE '%{session_id}%'").limit(limit * 2).to_pandas()
+            
+            # Parse and filter
+            messages = []
+            for _, row in results.iterrows():
+                try:
+                    metadata = json.loads(row['metadata']) if row['metadata'] else {}
+                    if metadata.get('session_id') == session_id:
+                        messages.append({
+                            "id": row['id'],
+                            "text": row['text'],
+                            "role": metadata.get('role', 'unknown'),
+                            "created_at": row['created_at'],
+                            "metadata": metadata
+                        })
+                except Exception as e:
+                    logger.warning(f"Error parsing message: {e}")
+                    continue
+            
+            # Sort by created_at
+            messages.sort(key=lambda x: x['created_at'])
+            
+            return messages[-limit:]  # Return most recent
+            
+        except Exception as e:
+            logger.error(f"Failed to get session history: {e}")
+            return []
+    
+    def search_relevant_context(
+        self,
+        query: str,
+        session_id: str = None,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Find semantically similar messages using vector search.
+        
+        If session_id provided, search within that session only.
+        Otherwise, search across all sessions.
+        """
+        if not self.db.db:
+            return []
+        
+        try:
+            # Use existing search method
+            filter_expr = None
+            if session_id:
+                filter_expr = f"metadata LIKE '%{session_id}%'"
+            
+            results = self.db.search(
+                table_name=self.table_name,
+                query=query,
+                limit=limit,
+                filter_expression=filter_expr
+            )
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Failed to search relevant context: {e}")
+            return []
+    
+    def get_entity_mentions(
+        self,
+        entity_type: str,  # "workflow_id", "task_id", "schedule_id"
+        entity_id: str,
+        session_id: str = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Find all messages mentioning a specific entity.
+        """
+        if not self.db.db:
+            return []
+        
+        try:
+            table = self.db.get_table(self.table_name)
+            if not table:
+                return []
+            
+            # Search for entity_id in metadata
+            filter_expr = f"metadata LIKE '%{entity_id}%'"
+            results = table.search().where(filter_expr).limit(50).to_pandas()
+            
+            # Parse and filter
+            messages = []
+            for _, row in results.iterrows():
+                try:
+                    metadata = json.loads(row['metadata']) if row['metadata'] else {}
+                    
+                    # Check if this message mentions the entity
+                    if metadata.get(entity_type) == entity_id:
+                        # Filter by session if provided
+                        if session_id is None or metadata.get('session_id') == session_id:
+                            messages.append({
+                                "id": row['id'],
+                                "text": row['text'],
+                                "role": metadata.get('role'),
+                                "created_at": row['created_at'],
+                                "metadata": metadata
+                            })
+                except Exception as e:
+                    logger.warning(f"Error parsing message: {e}")
+                    continue
+            
+            # Sort by created_at
+            messages.sort(key=lambda x: x['created_at'])
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Failed to get entity mentions: {e}")
+            return []
+
+# Global instance for easy access (must be first)
 lancedb_handler = LanceDBHandler()
 
 def get_lancedb_handler() -> LanceDBHandler:
     """Get LanceDB handler instance"""
     return lancedb_handler
+
+# Global chat history manager (uses lancedb_handler)
+chat_history_manager = ChatHistoryManager(lancedb_handler)
+
+def get_chat_history_manager() -> ChatHistoryManager:
+    """Get global chat history manager instance"""
+    return chat_history_manager
 
 # Utility functions
 def embed_documents_batch(texts: List[str], model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> Optional[np.ndarray]:
