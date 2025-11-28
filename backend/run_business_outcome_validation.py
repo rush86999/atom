@@ -17,7 +17,9 @@ async def run_validation():
     print("-" * 80)
     
     validator = BusinessOutcomeValidator("http://localhost:5059")
+    print("Validator initialized. Starting validation...")
     results = await validator.validate_business_outcomes()
+    print("Validation returned results.")
     
     print(f"\nValidation Complete at {results['timestamp']}")
     print(f"Total Value Score: {results['total_value_score']:.2f}/1.0\n")

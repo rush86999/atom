@@ -7,7 +7,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  output: 'export',
+  // output: 'export', // Disabled to allow API routes and rewrites
   images: {
     unoptimized: true,
   },
@@ -15,9 +15,6 @@ const nextConfig = {
   experimental: {
     externalDir: true,
   },
-  // Rewrites are not supported in static export
-  // The frontend must use absolute URLs or a different mechanism for API calls in the desktop app
-  /*
   async rewrites() {
     return [
       {
@@ -44,9 +41,12 @@ const nextConfig = {
         source: "/api/workflow-agent/:path*",
         destination: "http://127.0.0.1:5059/api/workflow-agent/:path*",
       },
+      {
+        source: "/api/atom-agent/:path*",
+        destination: "http://127.0.0.1:5059/api/atom-agent/:path*",
+      },
     ];
   },
-  */
 };
 
 module.exports = nextConfig;

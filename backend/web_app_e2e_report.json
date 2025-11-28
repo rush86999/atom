@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-24T11:51:26.558151",
+  "timestamp": "2025-11-28T08:25:49.673491",
   "total_tests": 3,
   "passed": 0,
   "failed": 3,
@@ -10,21 +10,21 @@
       "category": "calendar",
       "status": "fail",
       "metrics": {},
-      "error": "Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/calendar\nCall log:\n  - navigating to \"http://localhost:3000/calendar\", waiting until \"load\"\n"
+      "error": "Page.wait_for_selector: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"calendar-view\\\"]\") to be visible\n"
     },
     {
       "test": "Unified Search",
       "category": "search",
       "status": "fail",
       "metrics": {},
-      "error": "Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/search\nCall log:\n  - navigating to \"http://localhost:3000/search\", waiting until \"load\"\n"
+      "error": "Page.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"search-input\\\"]\")\n"
     },
     {
       "test": "Task Management Sync",
       "category": "tasks",
       "status": "fail",
       "metrics": {},
-      "error": "Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/tasks\nCall log:\n  - navigating to \"http://localhost:3000/tasks\", waiting until \"load\"\n"
+      "error": "Page.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"new-task-btn\\\"]\")\n"
     }
   ]
 }
