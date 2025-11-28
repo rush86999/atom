@@ -56,6 +56,10 @@ async def get_access_token(user_id: Optional[str] = Query(None, description="Use
     Extract access token for user.
     In production, this would fetch from secure token storage.
     """
+    """
+    Extract access token for user.
+    In production, this would fetch from secure token storage.
+    """
     # Check in-memory store first
     if user_id and user_id in _token_store:
         return _token_store[user_id]

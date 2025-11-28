@@ -3,7 +3,7 @@ import TaskManagement from '../components/TaskManagement';
 
 const TasksPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" data-testid="new-task-btn">
       <TaskManagement />
     </div>
   );

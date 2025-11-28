@@ -102,7 +102,7 @@ const SystemMonitor = () => {
                     <p className="text-sm text-gray-500">Last updated: {new Date(status.timestamp).toLocaleTimeString()}</p>
                 </div>
                 <Badge
-                    variant={getStatusColor(status.overall_status) as "success" | "warning" | "destructive" | "secondary"}
+                    variant={getStatusColor(status.overall_status) as any}
                     className="text-lg px-3 py-1"
                 >
                     System: {status.overall_status.toUpperCase()}
