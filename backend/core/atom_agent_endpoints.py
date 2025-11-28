@@ -19,6 +19,11 @@ from backend.integrations.gmail_service import GmailService
 from backend.core.unified_task_endpoints import get_tasks, create_task, CreateTaskRequest
 from backend.integrations.quickbooks_routes import list_quickbooks_items
 
+# Import System and Search services
+from backend.core.system_status import SystemStatus
+from backend.core.unified_search_endpoints import hybrid_search as unified_hybrid_search
+from backend.core.unified_search_endpoints import SearchRequest
+
 # Import AI service for intent classification
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
 
@@ -98,6 +103,14 @@ async def chat_with_agent(request: ChatRequest):
         elif intent in ["GET_TRANSACTIONS", "CHECK_BALANCE", "INVOICE_STATUS"]:
             return await handle_finance_intent(intent, entities, request)
             
+        # System Intents
+        elif intent == "GET_SYSTEM_STATUS":
+            return await handle_system_status(request)
+            
+        # Search Intents
+        elif intent == "SEARCH_PLATFORM":
+            return await handle_platform_search(request, entities)
+            
         elif intent == "HELP":
             return handle_help_request()
         
@@ -125,6 +138,8 @@ async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> 
     - Email: SEND_EMAIL, SEARCH_EMAILS
     - Tasks: CREATE_TASK, LIST_TASKS
     - Finance: GET_TRANSACTIONS, CHECK_BALANCE, INVOICE_STATUS
+    - System: GET_SYSTEM_STATUS
+    - Search: SEARCH_PLATFORM
     - General: HELP, UNKNOWN
     
     Respond ONLY with valid JSON in this format:
@@ -218,6 +233,16 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
         return {"intent": "CHECK_BALANCE", "entities": {}}
     elif "invoice" in msg:
         return {"intent": "INVOICE_STATUS", "entities": {}}
+        
+    # System Intents
+    elif "system" in msg and ("status" in msg or "health" in msg or "performance" in msg):
+        return {"intent": "GET_SYSTEM_STATUS", "entities": {}}
+        
+    # Search Intents
+    elif "search" in msg or "find" in msg:
+        # Extract search query
+        query = msg.replace("search", "").replace("find", "").strip()
+        return {"intent": "SEARCH_PLATFORM", "entities": {"query": query}}
         
     # Default to unknown
     return {"intent": "UNKNOWN", "entities": {}}
@@ -445,6 +470,8 @@ def handle_help_request() -> Dict[str, Any]:
                 "**Email**: 'Find emails from boss'\\n"
                 "**Tasks**: 'Create task in Asana'\\n"
                 "**Finance**: 'Show recent transactions'\\n"
+                "**System**: 'Show system status'\\n"
+                "**Search**: 'Search for project documents'\\n"
                 "**Workflows**: 'Run Daily Report'\\n\\n"
                 "Just ask me anything!"
             ),
@@ -475,3 +502,102 @@ async def execute_generated_workflow(request: ExecuteGeneratedRequest):
     except Exception as e:
         logger.error(f"Execution failed: {e}")
         return {"success": False, "error": str(e)}
+
+# --- System & Search Handlers (Phase 25C) ---
+
+async def handle_system_status(request: ChatRequest) -> Dict[str, Any]:
+    """Handle system status request"""
+    try:
+        # Get comprehensive system status
+        overall_status = SystemStatus.get_overall_status()
+        system_info = SystemStatus.get_system_info()
+        resource_usage = SystemStatus.get_resource_usage()
+        service_status = SystemStatus.get_service_status()
+        
+        # Count healthy services
+        healthy_services = sum(1 for s in service_status.values() if s.get("status") in ["healthy", "operational"])
+        total_services = len(service_status)
+        
+        message = f"**System Status: {overall_status.upper()}**\n\n"
+        message += f"Services: {healthy_services}/{total_services} healthy\n"
+        message += f"CPU: {resource_usage.get('cpu', {}).get('percent', 0):.1f}%\n"
+        message += f"Memory: {resource_usage.get('memory', {}).get('percent', 0):.1f}%\n"
+        message += f"Platform: {system_info.get('platform', {}).get('system', 'Unknown')}"
+        
+        return {
+            "success": True,
+            "response": {
+                "message": message,
+                "data": {
+                    "overall_status": overall_status,
+                    "services": service_status,
+                    "resources": resource_usage
+                },
+                "actions": []
+            }
+        }
+    except Exception as e:
+        logger.error(f"System status check failed: {e}")
+        return {
+            "success": False,
+            "response": {
+                "message": f"Failed to get system status: {str(e)}",
+                "actions": []
+            }
+        }
+
+async def handle_platform_search(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle platform-wide search request"""
+    try:
+        query = entities.get("query", request.message)
+        
+        # Create search request
+        search_req = SearchRequest(
+            query=query,
+            user_id=request.user_id,
+            limit=10,
+            search_type="hybrid"
+        )
+        
+        # Perform search
+        search_response = await unified_hybrid_search(search_req)
+        
+        if search_response.success and search_response.results:
+            message = f"Found {len(search_response.results)} results for '{query}':\n\n"
+            for i, result in enumerate(search_response.results[:5], 1):
+                doc_type = result.metadata.get("type", "document") if result.metadata else "document"
+                snippet = result.text[:100] + "..." if len(result.text) > 100 else result.text
+                message += f"{i}. [{doc_type.title()}] {snippet}\n"
+            
+            if len(search_response.results) > 5:
+                message += f"\n...and {len(search_response.results) - 5} more results."
+            
+            return {
+                "success": True,
+                "response": {
+                    "message": message,
+                    "data": {
+                        "results": [r.dict() for r in search_response.results],
+                        "total_count": search_response.total_count
+                    },
+                    "actions": []
+                }
+            }
+        else:
+            return {
+                "success": True,
+                "response": {
+                    "message": f"No results found for '{query}'.",
+                    "actions": []
+                }
+            }
+            
+    except Exception as e:
+        logger.error(f"Platform search failed: {e}")
+        return {
+            "success": False,
+            "response": {
+                "message": f"Search failed: {str(e)}",
+                "actions": []
+            }
+        }
