@@ -342,6 +342,55 @@ ATOM: "✅ Scheduled 'Daily Report' to run Every weekday at 09:00"
 
 **Next Steps (as of November 27, 2025):**
 
+### Phase 28: Chat History & Context Resolution (Nov 28, 2025) ✅
+
+**Goal:** Implement persistent chat history and context-aware responses (e.g., "schedule that workflow").
+
+1. **Persistent Chat History** ✅
+   - **Hybrid Storage**:
+     * **LanceDB**: Stores message content + vector embeddings for semantic search (`./data/atom_memory/chat_messages`)
+     * **JSON**: Stores lightweight session metadata for fast lookup (`backend/chat_sessions.json`)
+   - **Session Management**:
+     * Auto-creates sessions on first message
+     * Persists `session_id` across browser refreshes
+     * Tracks message count and last active timestamp
+
+2. **Context Resolution Engine** ✅
+   - **Created** `backend/core/chat_context_manager.py`
+   - **Logic**:
+     * Detects reference words: "that", "this", "it", "the workflow"
+     * Queries LanceDB for recent messages in current session
+     * Extracts entities (workflow IDs, names) from metadata
+     * Injects resolved IDs into current request entities
+   - **Example**:
+     * User: "Create a backup workflow" (ID: `dynamic_123`)
+     * User: "Schedule that workflow"
+     * System: Resolves "that workflow" → `dynamic_123`
+
+3. **LanceDB Infrastructure Improvements** ✅
+   - **Fixed Critical Bugs**:
+     * `LanceDBConnection` boolean evaluation (fixed `if not db` → `if db is None`)
+     * PyArrow schema generation (replaced dict schema with `pa.schema`)
+     * Initialization order (deferred `ChatContextManager` init)
+   - **Added**: Robust error handling and comprehensive debug logging
+
+4. **Files Created:**
+   - `backend/core/chat_session_manager.py`
+   - `backend/core/chat_context_manager.py`
+   - `backend/test_chat_history.py` (verification)
+   - `backend/test_chat_context.py` (verification)
+
+5. **Files Modified:**
+   - `backend/core/lancedb_handler.py` (major updates)
+   - `backend/core/atom_agent_endpoints.py` (integration)
+
+**User Impact:**
+- **Continuity**: Chat history is preserved across sessions.
+- **Natural Interaction**: Users can refer to previous items naturally ("run it", "schedule that").
+- **Reliability**: Robust storage ensures no data loss.
+
+**Next Steps (as of November 28, 2025):**
+
 ### Phase 15: Chakra UI Migration (Nov 27, 2025) ✅ **COMPLETE**
 
 **Goal:** Migrate entire frontend from Chakra UI to Tailwind CSS + custom UI components
