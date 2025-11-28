@@ -134,5 +134,29 @@
     "last_active": "2025-11-28T12:57:01.436824",
     "metadata": {},
     "message_count": 1
+  },
+  {
+    "session_id": "c4b3e8e8-0c6f-452c-ad9e-b48a1a3665ae",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T13:12:51.599869",
+    "last_active": "2025-11-28T13:12:51.664473",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "4880afe2-953f-480b-85f3-fd861bf06894",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T13:15:20.536337",
+    "last_active": "2025-11-28T13:15:20.680954",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "c2aa8626-5e3b-42bb-aeb0-6117417aa0fa",
+    "user_id": "test_user_context",
+    "created_at": "2025-11-28T13:17:32.770095",
+    "last_active": "2025-11-28T13:17:36.336491",
+    "metadata": {},
+    "message_count": 2
   }
 ]

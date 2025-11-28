@@ -225,7 +225,7 @@ class LanceDBHandler:
                 return self.embedder.encode(text, convert_to_numpy=True)
             
             else:
-                logger.error("No embedding provider available")
+                logger.error(f"No embedding provider available. Provider: {self.embedding_provider}, Embedder: {self.embedder}")
                 return None
                 
         except Exception as e:
@@ -235,15 +235,14 @@ class LanceDBHandler:
     def add_document(self, table_name: str, text: str, source: str = "",
                     metadata: Dict[str, Any] = None, doc_id: str = None) -> bool:
         """Add a document to the vector database"""
-        logger.info(f"add_document called for table '{table_name}'")
         if self.db is None:
             return False
         
         try:
             table = self.get_table(table_name)
-            if not table:
+            if table is None:
                 table = self.create_table(table_name)
-                if not table:
+                if table is None:
                     return False
             
             # Generate embedding
@@ -269,10 +268,16 @@ class LanceDBHandler:
             }
             
             # Add to table
-            table.add([record])
-            logger.info(f"Document added to '{table_name}': {doc_id}")
-            return True
-            
+            try:
+                table.add([record])
+                logger.info(f"Document added to '{table_name}': {doc_id}")
+                return True
+            except Exception as e:
+                logger.error(f"CRITICAL: Failed to add record to table '{table_name}': {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return False
+                
         except Exception as e:
             logger.error(f"Failed to add document to '{table_name}': {e}")
             return False
@@ -332,7 +337,7 @@ class LanceDBHandler:
         
         try:
             table = self.get_table(table_name)
-            if not table:
+            if table is None:
                 logger.warning(f"Table '{table_name}' does not exist")
                 return []
             
