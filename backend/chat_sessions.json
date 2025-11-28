@@ -158,5 +158,13 @@
     "last_active": "2025-11-28T13:17:36.336491",
     "metadata": {},
     "message_count": 2
+  },
+  {
+    "session_id": "47f92f95-c23d-44db-8326-fe5a6af30a84",
+    "user_id": "test_user",
+    "created_at": "2025-11-28T13:47:41.026471",
+    "last_active": "2025-11-28T13:47:41.403734",
+    "metadata": {},
+    "message_count": 1
   }
 ]
