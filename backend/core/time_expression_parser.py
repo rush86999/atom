@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # Common time expression patterns
 TIME_PATTERNS = {
     # Daily patterns
-    r"(daily|every day)(?:\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?": {
+    r"(?:daily|every day)(?:\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?": {
         "type": "cron",
         "template": lambda h, m: f"{m or 0} {h} * * *"
     },
