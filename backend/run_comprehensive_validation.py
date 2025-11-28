@@ -87,15 +87,7 @@ async def main():
                 cwd=cwd
             )
             
-            try:
-                stdout, stderr = await process.communicate()
-            except ValueError as e:
-                # Handle Windows pipe error: "I/O operation on closed pipe"
-                if "closed pipe" in str(e):
-                    stdout = b""
-                    stderr = str(e).encode()
-                else:
-                    raise e
+            stdout, stderr = await process.communicate()
             
             if process.returncode == 0:
                 results[name] = {"status": "PASS", "details": "Execution successful"}

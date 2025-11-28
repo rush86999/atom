@@ -199,6 +199,7 @@ const SearchPage: React.FC = () => {
         <div className="relative">
           <div className="flex gap-4">
             <Input
+              data-testid="search-input"
               placeholder="Search across documents, meetings, notes..."
               value={query}
               onChange={(e) => {
