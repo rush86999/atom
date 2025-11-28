@@ -391,6 +391,39 @@ ATOM: "✅ Scheduled 'Daily Report' to run Every weekday at 09:00"
 
 **Next Steps (as of November 28, 2025):**
 
+### Phase 29: Frontend Chat History Integration (Nov 28, 2025) ✅
+
+**Goal:** Integrate backend chat history persistence with the Next.js frontend for seamless conversation continuity.
+
+1. **Backend Enhancements** ✅
+   - **New Endpoint**: `GET /api/atom-agent/sessions/{session_id}/history`
+   - **Functionality**:
+     * Retrieves full conversation history from LanceDB
+     * Formats messages with metadata (workflow IDs, scheduling info)
+     * Handles non-existent sessions gracefully
+
+2. **Frontend Integration** ✅
+   - **Session Persistence**:
+     * `AtomChatAssistant.tsx` now persists `sessionId` in `localStorage`
+     * Automatically resumes previous session on page reload
+   - **History Loading**:
+     * Fetches and displays previous messages on component mount
+     * Preserves context and workflow references
+   - **UI Improvements**:
+     * Added "New Chat" button to header for starting fresh sessions
+
+3. **User Impact**
+   - **Continuity**: Conversations are no longer lost on refresh.
+   - **Usability**: Users can easily start new chats or continue old ones.
+
+4. **Files Modified:**
+   - `backend/core/atom_agent_endpoints.py`
+   - `frontend-nextjs/components/AtomChatAssistant.tsx`
+
+**Note:** Phase 30 (AtomChatAssistant Tailwind Migration) was deferred to a dedicated session due to complexity.
+
+**Next Steps (as of November 28, 2025):**
+
 ### Phase 15: Chakra UI Migration (Nov 27, 2025) ✅ **COMPLETE**
 
 **Goal:** Migrate entire frontend from Chakra UI to Tailwind CSS + custom UI components
