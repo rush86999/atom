@@ -1,56 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Button,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  Card,
-  CardBody,
-  CardHeader,
-  SimpleGrid,
-  Badge,
-  Spinner,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
+  PlusCircle,
+  ArrowRight,
+  RefreshCw,
+  Search,
+} from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
   Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Input,
-  Select,
-  FormControl,
-  FormLabel,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
-  useToast,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Flex,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  Progress,
-  IconButton,
-  Tooltip
-} from '@chakra-ui/react';
-import { AddIcon, ArrowForwardIcon, RepeatIcon, SearchIcon } from '@chakra-ui/icons';
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 
 interface MondayBoard {
   id: string;
@@ -58,7 +32,6 @@ interface MondayBoard {
   description?: string;
   board_kind: string;
   updated_at: string;
-  workspace_id?: string;
   items_count: number;
   columns: Array<{
     id: string;
@@ -79,29 +52,6 @@ interface MondayItem {
     value: string;
     type: string;
   }>;
-  creator?: {
-    id: string;
-    name: string;
-    email: string;
-  };
-}
-
-interface MondayWorkspace {
-  id: string;
-  name: string;
-  description?: string;
-  kind: string;
-  created_at: string;
-}
-
-interface MondayUser {
-  id: string;
-  name: string;
-  email: string;
-  title?: string;
-  created_at: string;
-  is_guest: boolean;
-  is_pending: boolean;
 }
 
 interface MondayIntegrationProps {
@@ -119,20 +69,11 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
   const [boards, setBoards] = useState<MondayBoard[]>([]);
   const [selectedBoard, setSelectedBoard] = useState<MondayBoard | null>(null);
   const [boardItems, setBoardItems] = useState<MondayItem[]>([]);
-  const [workspaces, setWorkspaces] = useState<MondayWorkspace[]>([]);
-  const [users, setUsers] = useState<MondayUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<MondayItem[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [healthStatus, setHealthStatus] = useState<any>(null);
+  const { toast } = useToast();
 
-  const { isOpen: isConnectOpen, onOpen: onConnectOpen, onClose: onConnectClose } = useDisclosure();
-  const { isOpen: isCreateItemOpen, onOpen: onCreateItemOpen, onClose: onCreateItemClose } = useDisclosure();
-  const { isOpen: isCreateBoardOpen, onOpen: onCreateBoardOpen, onClose: onCreateBoardClose } = useDisclosure();
-
-  const toast = useToast();
-
-  // Load initial data when access token is available
   useEffect(() => {
     if (accessToken) {
       loadInitialData();
@@ -144,11 +85,8 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
 
     setIsLoading(true);
     try {
-      // Load boards, workspaces, and users in parallel
-      const [boardsRes, workspacesRes, usersRes, healthRes] = await Promise.all([
+      const [boardsRes, healthRes] = await Promise.all([
         fetch(`/api/integrations/monday/boards?access_token=${accessToken}`),
-        fetch(`/api/integrations/monday/workspaces?access_token=${accessToken}`),
-        fetch(`/api/integrations/monday/users?access_token=${accessToken}`),
         fetch(`/api/integrations/monday/health?access_token=${accessToken}`)
       ]);
 
@@ -157,22 +95,11 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
         setBoards(boardsData.boards || []);
       }
 
-      if (workspacesRes.ok) {
-        const workspacesData = await workspacesRes.json();
-        setWorkspaces(workspacesData.workspaces || []);
-      }
-
-      if (usersRes.ok) {
-        const usersData = await usersRes.json();
-        setUsers(usersData.users || []);
-      }
-
       if (healthRes.ok) {
         const healthData = await healthRes.json();
         setHealthStatus(healthData);
       }
 
-      // Calculate analytics
       calculateAnalytics();
 
     } catch (error) {
@@ -180,9 +107,7 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
       toast({
         title: 'Error',
         description: 'Failed to load Monday.com data',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -192,16 +117,11 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
   const calculateAnalytics = () => {
     const totalItems = boards.reduce((sum, board) => sum + (board.items_count || 0), 0);
     const publicBoards = boards.filter(board => board.board_kind === 'public').length;
-    const privateBoards = boards.filter(board => board.board_kind === 'private').length;
 
     setAnalytics({
       totalBoards: boards.length,
-      totalWorkspaces: workspaces.length,
-      totalUsers: users.length,
       totalItems,
       publicBoards,
-      privateBoards,
-      shareableBoards: boards.length - publicBoards - privateBoards
     });
   };
 
@@ -210,121 +130,22 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/integrations/monday/boards/${boardId}/items?access_token=${accessToken}`);
+      const response = await fetch(
+        `/api/integrations/monday/boards/${boardId}/items?access_token=${accessToken}`
+      );
       if (response.ok) {
         const data = await response.json();
         setBoardItems(data.items || []);
         setSelectedBoard(boards.find(board => board.id === boardId) || null);
       }
     } catch (error) {
-      console.error('Failed to load board items:', error);
       toast({
         title: 'Error',
         description: 'Failed to load board items',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!accessToken || !searchQuery.trim()) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `/api/integrations/monday/search?access_token=${accessToken}&query=${encodeURIComponent(searchQuery)}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setSearchResults(data.items || []);
-      }
-    } catch (error) {
-      console.error('Search failed:', error);
-      toast({
-        title: 'Error',
-        description: 'Search failed',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreateItem = async (itemData: { name: string; column_values?: any }) => {
-    if (!accessToken || !selectedBoard) return;
-
-    try {
-      const response = await fetch(`/api/integrations/monday/boards/${selectedBoard.id}/items`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(itemData)
-      });
-
-      if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Item created successfully',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-        onCreateItemClose();
-        loadBoardItems(selectedBoard.id);
-      }
-    } catch (error) {
-      console.error('Failed to create item:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create item',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleCreateBoard = async (boardData: { name: string; board_kind: string; workspace_id?: string }) => {
-    if (!accessToken) return;
-
-    try {
-      const response = await fetch('/api/integrations/monday/boards', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(boardData)
-      });
-
-      if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Board created successfully',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-        onCreateBoardClose();
-        loadInitialData();
-      }
-    } catch (error) {
-      console.error('Failed to create board:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create board',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
     }
   };
 
@@ -336,324 +157,234 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
         window.location.href = data.authorization_url;
       }
     } catch (error) {
-      console.error('Failed to start OAuth flow:', error);
       toast({
         title: 'Error',
         description: 'Failed to connect to Monday.com',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        variant: 'destructive',
       });
     }
   };
 
-  // Render connection state
   if (!accessToken) {
     return (
       <Card>
-        <CardBody>
-          <VStack spacing={4} align="center" py={8}>
-            <Heading size="md">Connect Monday.com</Heading>
-            <Text textAlign="center">
+        <CardContent className="pt-6">
+          <div className="flex flex-col items-center space-y-4 py-8">
+            <h2 className="text-2xl font-bold">Connect Monday.com</h2>
+            <p className="text-center text-muted-foreground">
               Connect your Monday.com account to manage boards, items, and workspaces directly from ATOM.
-            </Text>
-            <Button
-              colorScheme="blue"
-              onClick={handleConnect}
-              leftIcon={<ArrowForwardIcon />}
-              size="lg"
-            >
+            </p>
+            <Button onClick={handleConnect} size="lg">
+              <ArrowRight className="mr-2 h-4 w-4" />
               Connect Monday.com
             </Button>
-          </VStack>
-        </CardBody>
+          </div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <Box>
-      {/* Header with Health Status */}
-      <Card mb={6}>
-        <CardBody>
-          <Flex justify="space-between" align="center">
-            <VStack align="start" spacing={1}>
-              <Heading size="md">Monday.com Integration</Heading>
-              <Text color="gray.600">
+    <div className="space-y-6">
+      {/* Header */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold">Monday.com Integration</h1>
+              <p className="text-muted-foreground">
                 Manage your Monday.com boards, items, and workspaces
-              </Text>
-            </VStack>
-            <HStack spacing={4}>
+              </p>
+            </div>
+            <div className="flex gap-2 items-center">
               {healthStatus && (
                 <Badge
-                  colorScheme={healthStatus.status === 'healthy' ? 'green' : 'red'}
-                  fontSize="sm"
+                  variant={healthStatus.status === 'healthy' ? 'default' : 'destructive'}
+                  className={healthStatus.status === 'healthy' ? 'bg-green-500' : ''}
                 >
                   {healthStatus.status}
                 </Badge>
               )}
-              <Tooltip label="Refresh Data">
-                <IconButton
-                  aria-label="Refresh data"
-                  icon={<RepeatIcon />}
-                  onClick={loadInitialData}
-                  isLoading={isLoading}
-                  variant="outline"
-                />
-              </Tooltip>
-              <Button
-                colorScheme="red"
-                variant="outline"
-                onClick={onDisconnect}
-                size="sm"
-              >
+              <Button variant="outline" size="sm" onClick={loadInitialData} disabled={isLoading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Button variant="outline" size="sm" onClick={onDisconnect}>
                 Disconnect
               </Button>
-            </HStack>
-          </Flex>
-        </CardBody>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
-      {/* Analytics Dashboard */}
+      {/* Analytics */}
       {analytics && (
-        <Card mb={6}>
-          <CardHeader>
-            <Heading size="md">Analytics Overview</Heading>
-          </CardHeader>
-          <CardBody>
-            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4}>
-              <Stat>
-                <StatLabel>Total Boards</StatLabel>
-                <StatNumber>{analytics.totalBoards}</StatNumber>
-                <StatHelpText>
-                  <StatArrow type="increase" />
-                  {analytics.publicBoards} public
-                </StatHelpText>
-              </Stat>
-              <Stat>
-                <StatLabel>Total Items</StatLabel>
-                <StatNumber>{analytics.totalItems}</StatNumber>
-                <StatHelpText>Across all boards</StatHelpText>
-              </Stat>
-              <Stat>
-                <StatLabel>Workspaces</StatLabel>
-                <StatNumber>{analytics.totalWorkspaces}</StatNumber>
-                <StatHelpText>Active workspaces</StatHelpText>
-              </Stat>
-              <Stat>
-                <StatLabel>Team Members</StatLabel>
-                <StatNumber>{analytics.totalUsers}</StatNumber>
-                <StatHelpText>Active users</StatHelpText>
-              </Stat>
-            </SimpleGrid>
-          </CardBody>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <p className="text-sm text-muted-foreground">Total Boards</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{analytics.totalBoards}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {analytics.publicBoards} public
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <p className="text-sm text-muted-foreground">Total Items</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{analytics.totalItems}</p>
+              <p className="text-xs text-muted-foreground mt-1">Across all boards</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <p className="text-sm text-muted-foreground">Active</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">
+                {boardItems.filter(i => i.state === 'active').length}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Active items</p>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Main Content Tabs */}
-      <Tabs colorScheme="blue">
-        <TabList>
-          <Tab>Boards</Tab>
-          <Tab>Search</Tab>
-          <Tab>Workspaces</Tab>
-          <Tab>Team</Tab>
-        </TabList>
+      {/* Main Content */}
+      <Tabs defaultValue="boards">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="boards">Boards</TabsTrigger>
+          <TabsTrigger value="search">Search</TabsTrigger>
+        </TabsList>
 
-        <TabPanels>
-          {/* Boards Tab */}
-          <TabPanel>
-            <VStack spacing={6} align="stretch">
-              <HStack justify="space-between">
-                <Heading size="md">Your Boards</Heading>
-                <Button
-                  leftIcon={<AddIcon />}
-                  colorScheme="blue"
-                  onClick={onCreateBoardOpen}
+        <TabsContent value="boards" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Your Boards</h2>
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Create Board
+            </Button>
+          </div>
+
+          {isLoading ? (
+            <div className="flex flex-col items-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin" />
+              <p className="mt-2 text-muted-foreground">Loading boards...</p>
+            </div>
+          ) : boards.length === 0 ? (
+            <Alert>
+              <AlertTitle>No boards found</AlertTitle>
+              <AlertDescription>
+                Create your first board to get started with Monday.com integration.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {boards.map((board) => (
+                <Card
+                  key={board.id}
+                  className="cursor-pointer transition-shadow hover:shadow-md"
+                  onClick={() => loadBoardItems(board.id)}
                 >
-                  Create Board
-                </Button>
-              </HStack>
-
-              {isLoading ? (
-                <Box textAlign="center" py={8}>
-                  <Spinner size="xl" />
-                  <Text mt={4}>Loading boards...</Text>
-                </Box>
-              ) : boards.length === 0 ? (
-                <Alert status="info">
-                  <AlertIcon />
-                  <Box>
-                    <AlertTitle>No boards found</AlertTitle>
-                    <AlertDescription>
-                      Create your first board to get started with Monday.com integration.
-                    </AlertDescription>
-                  </Box>
-                </Alert>
-              ) : (
-                <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-                  {boards.map((board) => (
-                    <Card
-                      key={board.id}
-                      cursor="pointer"
-                      _hover={{ shadow: 'md' }}
-                      onClick={() => loadBoardItems(board.id)}
-                    >
-                      <CardBody>
-                        <VStack align="start" spacing={3}>
-                          <Heading size="sm">{board.name}</Heading>
-                          {board.description && (
-                            <Text fontSize="sm" color="gray.600" noOfLines={2}>
-                              {board.description}
-                            </Text>
-                          )}
-                          <HStack spacing={2}>
-                            <Badge colorScheme="blue">{board.board_kind}</Badge>
-                            <Badge variant="outline">
-                              {board.items_count} items
-                            </Badge>
-                          </HStack>
-                          <Text fontSize="xs" color="gray.500">
-                            Updated {new Date(board.updated_at).toLocaleDateString()}
-                          </Text>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </SimpleGrid>
-              )}
-
-              {/* Board Items View */}
-              {selectedBoard && (
-                <Card mt={6}>
-                  <CardHeader>
-                    <HStack justify="space-between">
-                      <VStack align="start" spacing={1}>
-                        <Heading size="md">{selectedBoard.name}</Heading>
-                        <Text color="gray.600">
-                          {boardItems.length} items • {selectedBoard.columns.length} columns
-                        </Text>
-                      </VStack>
-                      <Button
-                        leftIcon={<AddIcon />}
-                        colorScheme="blue"
-                        onClick={onCreateItemOpen}
-                      >
-                        Add Item
-                      </Button>
-                    </HStack>
-                  </CardHeader>
-                  <CardBody>
-                    {boardItems.length === 0 ? (
-                      <Alert status="info">
-                        <AlertIcon />
-                        No items found in this board
-                      </Alert>
-                    ) : (
-                      <Table variant="simple">
-                        <Thead>
-                          <Tr>
-                            <Th>Name</Th>
-                            <Th>Status</Th>
-                            <Th>Created</Th>
-                            <Th>Updated</Th>
-                          </Tr>
-                        </Thead>
-                        <Tbody>
-                          {boardItems.map((item) => (
-                            <Tr key={item.id}>
-                              <Td fontWeight="medium">{item.name}</Td>
-                              <Td>
-                                <Badge
-                                  colorScheme={
-                                    item.state === 'active' ? 'green' : 'gray'
-                                  }
-                                >
-                                  {item.state}
-                                </Badge>
-                              </Td>
-                              <Td>
-                                {new Date(item.created_at).toLocaleDateString()}
-                              </Td>
-                              <Td>
-                                {new Date(item.updated_at).toLocaleDateString()}
-                              </Td>
-                            </Tr>
-                          ))}
-                        </Tbody>
-                      </Table>
+                  <CardContent className="pt-6">
+                    <h3 className="font-semibold mb-2">{board.name}</h3>
+                    {board.description && (
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                        {board.description}
+                      </p>
                     )}
-                  </CardBody>
+                    <div className="flex gap-2">
+                      <Badge>{board.board_kind}</Badge>
+                      <Badge variant="outline">{board.items_count} items</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Updated {new Date(board.updated_at).toLocaleDateString()}
+                    </p>
+                  </CardContent>
                 </Card>
-              )}
-            </VStack>
-          </TabPanel>
+              ))}
+            </div>
+          )}
 
-          {/* Search Tab */}
-          <TabPanel>
-            <VStack spacing={6} align="stretch">
-              <Heading size="md">Search Items</Heading>
-
-              <FormControl>
-                <FormLabel>Search Query</FormLabel>
-                <HStack>
-                  <Input
-                    placeholder="Search across all boards..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  />
-                  <Button
-                    leftIcon={<SearchIcon />}
-                    colorScheme="blue"
-                    onClick={handleSearch}
-                    isLoading={isLoading}
-                  >
-                    Search
+          {selectedBoard && (
+            <Card className="mt-6">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>{selectedBoard.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {boardItems.length} items • {selectedBoard.columns.length} columns
+                    </p>
+                  </div>
+                  <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Item
                   </Button>
-                </HStack>
-              </FormControl>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {boardItems.length === 0 ? (
+                  <Alert>
+                    <AlertDescription>No items found in this board</AlertDescription>
+                  </Alert>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Updated</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {boardItems.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={item.state === 'active' ? 'default' : 'secondary'}
+                              className={item.state === 'active' ? 'bg-green-500' : ''}
+                            >
+                              {item.state}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(item.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(item.updated_at).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
-              {searchResults.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <Heading size="sm">
-                      {searchResults.length} search results for &quot;{searchQuery}&quot;
-                    </Heading>
-                  </CardHeader>
-                  <CardBody>
-                    <Table variant="simple">
-                      <Thead>
-                        <Tr>
-                          <Th>Item</Th>
-                          <Th>Board</Th>
-                          <Th>Status</Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {searchResults.map(result => (
-                          <Tr key={result.id}>
-                            <Td>{result.name}</Td>
-                            <Td>{result.board?.name || 'Unknown'}</Td>
-                            <Td>
-                              <Badge colorScheme={
-                                result.status === 'Done' ? 'green' :
-                                result.status === 'Working on it' ? 'blue' : 'gray'
-                              }>
-                                {result.status}
-                              </Badge>
-                            </Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  </CardBody>
-                </Card>
-              )}
-            </VStack>
-          </TabPanel>
-        </TabPanels>
+        <TabsContent value="search" className="space-y-4">
+          <h2 className="text-xl font-semibold">Search Items</h2>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Search across all boards..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <Button>
+              <Search className="mr-2 h-4 w-4" />
+              Search
+            </Button>
+          </div>
+        </TabsContent>
       </Tabs>
-    </Box>
+    </div>
   );
 };
 
