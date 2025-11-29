@@ -1,40 +1,33 @@
 import React, { useState, useEffect } from 'react';
+import { Trash2, RefreshCw, Clock, Repeat, Calendar } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-    Box,
-    VStack,
-    HStack,
-    Heading,
-    Text,
-    Button,
-    FormControl,
-    FormLabel,
-    Input,
     Select,
-    Badge,
-    Card,
-    CardBody,
-    CardHeader,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
     Table,
-    Thead,
-    Tbody,
-    Tr,
-    Th,
-    Td,
-    IconButton,
-    useToast,
-    Spinner,
-    Alert,
-    AlertIcon,
-    AlertTitle,
-    AlertDescription,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import {
     Tabs,
-    TabList,
-    TabPanels,
-    Tab,
-    TabPanel,
-    SimpleGrid
-} from '@chakra-ui/react';
-import { DeleteIcon, TimeIcon, RepeatIcon, CalendarIcon } from '@chakra-ui/icons';
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ScheduleConfig {
     trigger_type: 'cron' | 'interval' | 'date';
@@ -61,18 +54,15 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
     const [loading, setLoading] = useState(false);
     const [scheduledJobs, setScheduledJobs] = useState<ScheduledJob[]>([]);
     const [refreshing, setRefreshing] = useState(false);
-    const toast = useToast();
+    const { toast } = useToast();
 
-    // Interval settings
     const [intervalMinutes, setIntervalMinutes] = useState(30);
     const [intervalHours, setIntervalHours] = useState(0);
     const [intervalDays, setIntervalDays] = useState(0);
 
-    // Cron settings
-    const [cronExpression, setCronExpression] = useState('0 9 * * *'); // Daily at 9 AM
-    const [cronPreset, setCronPreset] = useState('custom');
+    const [cronExpression, setCronExpression] = useState('0 9 * * *');
+    const [cronPreset, setCronPreset] = useState('daily_9am');
 
-    // Date settings
     const [runDate, setRunDate] = useState('');
     const [runTime, setRunTime] = useState('');
 
@@ -95,7 +85,6 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
             const response = await fetch('/api/v1/scheduler/jobs');
             if (response.ok) {
                 const allJobs = await response.json();
-                // Filter jobs for this workflow (job IDs start with job_{workflowId}_)
                 const workflowJobs = allJobs.filter((job: ScheduledJob) =>
                     job.id.includes(workflowId)
                 );
@@ -113,9 +102,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
             toast({
                 title: 'Error',
                 description: 'Workflow must be saved first',
-                status: 'error',
-                duration: 3000,
-                isClosable: true,
+                variant: 'destructive',
             });
             return;
         }
@@ -138,9 +125,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
 
                     scheduleConfig = {
                         trigger_type: 'interval',
-                        trigger_config: {
-                            seconds: totalSeconds
-                        }
+                        trigger_config: { seconds: totalSeconds }
                     };
                     break;
 
@@ -149,7 +134,6 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
                         throw new Error('Please enter a cron expression');
                     }
 
-                    // Parse cron expression
                     const cronParts = cronExpression.trim().split(' ');
                     if (cronParts.length !== 5) {
                         throw new Error('Invalid cron expression format (use 5 fields)');
@@ -172,8 +156,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
                         throw new Error('Please specify both date and time');
                     }
 
-                    const runDateTimeStr = `${runDate}T${runTime}:00`;
-                    const runDateTime = new Date(runDateTimeStr);
+                    const runDateTime = new Date(`${runDate}T${runTime}:00`);
 
                     if (runDateTime <= new Date()) {
                         throw new Error('Run time must be in the future');
@@ -193,9 +176,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
 
             const response = await fetch(`/api/v1/workflows/${workflowId}/schedule`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(scheduleConfig),
             });
 
@@ -209,15 +190,10 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
             toast({
                 title: 'Workflow Scheduled',
                 description: `Job ID: ${result.job_id}`,
-                status: 'success',
-                duration: 4000,
-                isClosable: true,
             });
 
-            // Refresh the job list
             await loadScheduledJobs();
 
-            // Reset form
             if (scheduleType === 'date') {
                 setRunDate('');
                 setRunTime('');
@@ -226,9 +202,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
             toast({
                 title: 'Scheduling Failed',
                 description: error instanceof Error ? error.message : 'Unknown error',
-                status: 'error',
-                duration: 4000,
-                isClosable: true,
+                variant: 'destructive',
             });
         } finally {
             setLoading(false);
@@ -245,314 +219,265 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
                 throw new Error('Failed to delete schedule');
             }
 
-            toast({
-                title: 'Schedule Deleted',
-                status: 'success',
-                duration: 2000,
-                isClosable: true,
-            });
-
+            toast({ title: 'Schedule Deleted' });
             await loadScheduledJobs();
         } catch (error) {
             toast({
                 title: 'Error',
                 description: error instanceof Error ? error.message : 'Failed to delete schedule',
-                status: 'error',
-                duration: 3000,
-                isClosable: true,
+                variant: 'destructive',
             });
         }
     };
 
-    const formatNextRunTime = (isoString: string | null): string => {
-        if (!isoString) return 'Never';
-        const date = new Date(isoString);
-        return date.toLocaleString();
-    };
-
     return (
-        <VStack spacing={6} align="stretch">
-            <Box>
-                <Heading size="md" mb={2}>Schedule Workflow</Heading>
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-xl font-semibold mb-2">Schedule Workflow</h2>
                 {workflowName && (
-                    <Text color="gray.600" fontSize="sm">
-                        Workflow: {workflowName}
-                    </Text>
+                    <p className="text-sm text-muted-foreground">Workflow: {workflowName}</p>
                 )}
-            </Box>
+            </div>
 
-            <Tabs variant="enclosed" colorScheme="blue">
-                <TabList>
-                    <Tab onClick={() => setScheduleType('interval')}>
-                        <HStack>
-                            <RepeatIcon />
-                            <Text>Interval</Text>
-                        </HStack>
-                    </Tab>
-                    <Tab onClick={() => setScheduleType('cron')}>
-                        <HStack>
-                            <TimeIcon />
-                            <Text>Cron</Text>
-                        </HStack>
-                    </Tab>
-                    <Tab onClick={() => setScheduleType('date')}>
-                        <HStack>
-                            <CalendarIcon />
-                            <Text>Specific Date</Text>
-                        </HStack>
-                    </Tab>
-                </TabList>
+            <Tabs defaultValue="interval" onValueChange={(v) => setScheduleType(v as any)}>
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="interval">
+                        <Repeat className="mr-2 h-4 w-4" />
+                        Interval
+                    </TabsTrigger>
+                    <TabsTrigger value="cron">
+                        <Clock className="mr-2 h-4 w-4" />
+                        Cron
+                    </TabsTrigger>
+                    <TabsTrigger value="date">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Specific Date
+                    </TabsTrigger>
+                </TabsList>
 
-                <TabPanels>
-                    {/* Interval Tab */}
-                    <TabPanel>
-                        <Card>
-                            <CardHeader>
-                                <Heading size="sm">Run at Regular Intervals</Heading>
-                            </CardHeader>
-                            <CardBody>
-                                <VStack spacing={4} align="stretch">
-                                    <Alert status="info" variant="left-accent">
-                                        <AlertIcon />
-                                        <Box>
-                                            <AlertTitle>Interval Schedule</AlertTitle>
-                                            <AlertDescription>
-                                                The workflow will run repeatedly at the specified interval.
-                                            </AlertDescription>
-                                        </Box>
-                                    </Alert>
+                <TabsContent value="interval">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Run at Regular Intervals</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Alert>
+                                <AlertTitle>Interval Schedule</AlertTitle>
+                                <AlertDescription>
+                                    The workflow will run repeatedly at the specified interval.
+                                </AlertDescription>
+                            </Alert>
 
-                                    <SimpleGrid columns={3} spacing={4}>
-                                        <FormControl>
-                                            <FormLabel>Days</FormLabel>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                value={intervalDays}
-                                                onChange={(e) => setIntervalDays(parseInt(e.target.value) || 0)}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Hours</FormLabel>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                max="23"
-                                                value={intervalHours}
-                                                onChange={(e) => setIntervalHours(parseInt(e.target.value) || 0)}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Minutes</FormLabel>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                max="59"
-                                                value={intervalMinutes}
-                                                onChange={(e) => setIntervalMinutes(parseInt(e.target.value) || 0)}
-                                            />
-                                        </FormControl>
-                                    </SimpleGrid>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <Label>Days</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        value={intervalDays}
+                                        onChange={(e) => setIntervalDays(parseInt(e.target.value) || 0)}
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Hours</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        max="23"
+                                        value={intervalHours}
+                                        onChange={(e) => setIntervalHours(parseInt(e.target.value) || 0)}
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Minutes</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        max="59"
+                                        value={intervalMinutes}
+                                        onChange={(e) => setIntervalMinutes(parseInt(e.target.value) || 0)}
+                                    />
+                                </div>
+                            </div>
 
-                                    <Text fontSize="sm" color="gray.600">
-                                        Total: {intervalDays}d {intervalHours}h {intervalMinutes}m
-                                    </Text>
+                            <p className="text-sm text-muted-foreground">
+                                Total: {intervalDays}d {intervalHours}h {intervalMinutes}m
+                            </p>
 
-                                    <Button
-                                        colorScheme="blue"
-                                        onClick={handleSchedule}
-                                        isLoading={loading}
-                                        loadingText="Scheduling..."
-                                    >
-                                        Schedule Workflow
-                                    </Button>
-                                </VStack>
-                            </CardBody>
-                        </Card>
-                    </TabPanel>
+                            <Button onClick={handleSchedule} disabled={loading}>
+                                {loading ? 'Scheduling...' : 'Schedule Workflow'}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-                    {/* Cron Tab */}
-                    <TabPanel>
-                        <Card>
-                            <CardHeader>
-                                <Heading size="sm">Schedule with Cron Expression</Heading>
-                            </CardHeader>
-                            <CardBody>
-                                <VStack spacing={4} align="stretch">
-                                    <Alert status="info" variant="left-accent">
-                                        <AlertIcon />
-                                        <Box>
-                                            <AlertTitle>Cron Schedule</AlertTitle>
-                                            <AlertDescription>
-                                                Use cron expressions for complex scheduling patterns.
-                                            </AlertDescription>
-                                        </Box>
-                                    </Alert>
+                <TabsContent value="cron">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Schedule with Cron Expression</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Alert>
+                                <AlertTitle>Cron Schedule</AlertTitle>
+                                <AlertDescription>
+                                    Use cron expressions for complex scheduling patterns.
+                                </AlertDescription>
+                            </Alert>
 
-                                    <FormControl>
-                                        <FormLabel>Preset Schedules</FormLabel>
-                                        <Select
-                                            value={cronPreset}
-                                            onChange={(e) => {
-                                                const preset = cronPresets.find(p => p.value === e.target.value);
-                                                setCronPreset(e.target.value);
-                                                if (preset && preset.expression) {
-                                                    setCronExpression(preset.expression);
-                                                }
-                                            }}
-                                        >
-                                            {cronPresets.map(preset => (
-                                                <option key={preset.value} value={preset.value}>
-                                                    {preset.label}
-                                                </option>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
+                            <div>
+                                <Label>Preset Schedules</Label>
+                                <Select
+                                    value={cronPreset}
+                                    onValueChange={(value) => {
+                                        const preset = cronPresets.find(p => p.value === value);
+                                        setCronPreset(value);
+                                        if (preset && preset.expression) {
+                                            setCronExpression(preset.expression);
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {cronPresets.map(preset => (
+                                            <SelectItem key={preset.value} value={preset.value}>
+                                                {preset.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                                    <FormControl>
-                                        <FormLabel>Cron Expression</FormLabel>
-                                        <Input
-                                            value={cronExpression}
-                                            onChange={(e) => {
-                                                setCronExpression(e.target.value);
-                                                setCronPreset('custom');
-                                            }}
-                                            placeholder="0 9 * * *"
-                                            fontFamily="monospace"
-                                        />
-                                        <Text fontSize="xs" color="gray.600" mt={1}>
-                                            Format: minute hour day month day_of_week (e.g., "0 9 * * *" = Daily at 9 AM)
-                                        </Text>
-                                    </FormControl>
+                            <div>
+                                <Label>Cron Expression</Label>
+                                <Input
+                                    value={cronExpression}
+                                    onChange={(e) => {
+                                        setCronExpression(e.target.value);
+                                        setCronPreset('custom');
+                                    }}
+                                    placeholder="0 9 * * *"
+                                    className="font-mono"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Format: minute hour day month day_of_week (e.g., "0 9 * * *" = Daily at 9 AM)
+                                </p>
+                            </div>
 
-                                    <Button
-                                        colorScheme="blue"
-                                        onClick={handleSchedule}
-                                        isLoading={loading}
-                                        loadingText="Scheduling..."
-                                    >
-                                        Schedule Workflow
-                                    </Button>
-                                </VStack>
-                            </CardBody>
-                        </Card>
-                    </TabPanel>
+                            <Button onClick={handleSchedule} disabled={loading}>
+                                {loading ? 'Scheduling...' : 'Schedule Workflow'}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-                    {/* Date Tab */}
-                    <TabPanel>
-                        <Card>
-                            <CardHeader>
-                                <Heading size="sm">Run Once at Specific Time</Heading>
-                            </CardHeader>
-                            <CardBody>
-                                <VStack spacing={4} align="stretch">
-                                    <Alert status="info" variant="left-accent">
-                                        <AlertIcon />
-                                        <Box>
-                                            <AlertTitle>One-Time Schedule</AlertTitle>
-                                            <AlertDescription>
-                                                The workflow will run once at the specified date and time.
-                                            </AlertDescription>
-                                        </Box>
-                                    </Alert>
+                <TabsContent value="date">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Run Once at Specific Time</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Alert>
+                                <AlertTitle>One-Time Schedule</AlertTitle>
+                                <AlertDescription>
+                                    The workflow will run once at the specified date and time.
+                                </AlertDescription>
+                            </Alert>
 
-                                    <FormControl>
-                                        <FormLabel>Date</FormLabel>
-                                        <Input
-                                            type="date"
-                                            value={runDate}
-                                            onChange={(e) => setRunDate(e.target.value)}
-                                            min={new Date().toISOString().split('T')[0]}
-                                        />
-                                    </FormControl>
+                            <div>
+                                <Label>Date</Label>
+                                <Input
+                                    type="date"
+                                    value={runDate}
+                                    onChange={(e) => setRunDate(e.target.value)}
+                                    min={new Date().toISOString().split('T')[0]}
+                                />
+                            </div>
 
-                                    <FormControl>
-                                        <FormLabel>Time</FormLabel>
-                                        <Input
-                                            type="time"
-                                            value={runTime}
-                                            onChange={(e) => setRunTime(e.target.value)}
-                                        />
-                                    </FormControl>
+                            <div>
+                                <Label>Time</Label>
+                                <Input
+                                    type="time"
+                                    value={runTime}
+                                    onChange={(e) => setRunTime(e.target.value)}
+                                />
+                            </div>
 
-                                    {runDate && runTime && (
-                                        <Text fontSize="sm" color="gray.600">
-                                            Will run at: {new Date(`${runDate}T${runTime}`).toLocaleString()}
-                                        </Text>
-                                    )}
+                            {runDate && runTime && (
+                                <p className="text-sm text-muted-foreground">
+                                    Will run at: {new Date(`${runDate}T${runTime}`).toLocaleString()}
+                                </p>
+                            )}
 
-                                    <Button
-                                        colorScheme="blue"
-                                        onClick={handleSchedule}
-                                        isLoading={loading}
-                                        loadingText="Scheduling..."
-                                    >
-                                        Schedule Workflow
-                                    </Button>
-                                </VStack>
-                            </CardBody>
-                        </Card>
-                    </TabPanel>
-                </TabPanels>
+                            <Button onClick={handleSchedule} disabled={loading}>
+                                {loading ? 'Scheduling...' : 'Schedule Workflow'}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
 
-            {/* Scheduled Jobs List */}
             <Card>
                 <CardHeader>
-                    <HStack justify="space-between">
-                        <Heading size="sm">Scheduled Jobs</Heading>
-                        <IconButton
-                            aria-label="Refresh"
-                            icon={<RepeatIcon />}
+                    <div className="flex justify-between items-center">
+                        <CardTitle className="text-base">Scheduled Jobs</CardTitle>
+                        <Button
+                            variant="outline"
                             size="sm"
                             onClick={loadScheduledJobs}
-                            isLoading={refreshing}
-                        />
-                    </HStack>
+                            disabled={refreshing}
+                        >
+                            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                        </Button>
+                    </div>
                 </CardHeader>
-                <CardBody>
+                <CardContent>
                     {scheduledJobs.length === 0 ? (
-                        <Text color="gray.500" textAlign="center" py={4}>
+                        <p className="text-muted-foreground text-center py-4">
                             No scheduled jobs for this workflow
-                        </Text>
+                        </p>
                     ) : (
-                        <Table variant="simple" size="sm">
-                            <Thead>
-                                <Tr>
-                                    <Th>Job ID</Th>
-                                    <Th>Next Run</Th>
-                                    <Th>Trigger</Th>
-                                    <Th width="100px">Actions</Th>
-                                </Tr>
-                            </Thead>
-                            <Tbody>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Job ID</TableHead>
+                                    <TableHead>Next Run</TableHead>
+                                    <TableHead>Trigger</TableHead>
+                                    <TableHead className="w-24">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {scheduledJobs.map((job) => (
-                                    <Tr key={job.id}>
-                                        <Td fontFamily="monospace" fontSize="xs">{job.id}</Td>
-                                        <Td>{formatNextRunTime(job.next_run_time)}</Td>
-                                        <Td>
-                                            <Badge colorScheme="blue" fontSize="xs">
+                                    <TableRow key={job.id}>
+                                        <TableCell className="font-mono text-xs">{job.id}</TableCell>
+                                        <TableCell>
+                                            {job.next_run_time
+                                                ? new Date(job.next_run_time).toLocaleString()
+                                                : 'Never'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="secondary">
                                                 {job.trigger.split('[')[0]}
                                             </Badge>
-                                        </Td>
-                                        <Td>
-                                            <IconButton
-                                                aria-label="Delete schedule"
-                                                icon={<DeleteIcon />}
-                                                size="sm"
-                                                colorScheme="red"
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button
                                                 variant="ghost"
+                                                size="sm"
                                                 onClick={() => handleDeleteSchedule(job.id)}
-                                            />
-                                        </Td>
-                                    </Tr>
+                                            >
+                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </Tbody>
+                            </TableBody>
                         </Table>
                     )}
-                </CardBody>
+                </CardContent>
             </Card>
-        </VStack>
+        </div>
     );
 };
 
