@@ -7,6 +7,8 @@ import { ChatMessage, ChatMessageData, ChatAction } from "./GlobalChat/ChatMessa
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
+import { useRouter } from 'next/router';
+
 interface GlobalChatWidgetProps {
     userId?: string;
 }
@@ -18,6 +20,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const [sessionId, setSessionId] = useState<string>("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
+    const router = useRouter();
 
     // Initialize session
     useEffect(() => {
@@ -99,6 +102,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     message: text,
                     user_id: userId,
                     session_id: sessionId,
+                    current_page: router.asPath, // Send current page context
                     conversation_history: messages.slice(-10).map(msg => ({
                         role: msg.type === "user" ? "user" : "assistant",
                         content: msg.content,
