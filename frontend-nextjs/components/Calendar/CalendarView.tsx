@@ -6,8 +6,25 @@ import startOfWeek from 'date-fns/startOfWeek';
 import getDay from 'date-fns/getDay';
 import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { Box, useColorModeValue, Spinner, Center, Text, Button, Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton, FormControl, FormLabel, Input, Select, useDisclosure, useToast } from '@chakra-ui/react';
-import { AddIcon } from '@chakra-ui/icons';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { Plus, Loader2 } from "lucide-react";
 
 const locales = {
     'en-US': enUS,
@@ -36,8 +53,8 @@ interface CalendarEvent {
 const CalendarView = () => {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [loading, setLoading] = useState(true);
-    const { isOpen, onOpen, onClose } = useDisclosure();
-    const toast = useToast();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { toast } = useToast();
 
     // New Event Form State
     const [newEvent, setNewEvent] = useState({
@@ -48,9 +65,6 @@ const CalendarView = () => {
         location: '',
         color: '#3182CE'
     });
-
-    const bgColor = useColorModeValue('white', 'gray.800');
-    const borderColor = useColorModeValue('gray.200', 'gray.700');
 
     const fetchEvents = async () => {
         try {
@@ -70,9 +84,7 @@ const CalendarView = () => {
             console.error("Failed to fetch events:", error);
             toast({
                 title: "Error fetching events",
-                status: "error",
-                duration: 3000,
-                isClosable: true,
+                variant: "destructive",
             });
         } finally {
             setLoading(false);
@@ -101,11 +113,9 @@ const CalendarView = () => {
             if (data.success) {
                 toast({
                     title: "Event created",
-                    status: "success",
-                    duration: 3000,
-                    isClosable: true,
+                    description: "Your event has been successfully scheduled.",
                 });
-                onClose();
+                setIsModalOpen(false);
                 fetchEvents(); // Refresh events
                 // Reset form
                 setNewEvent({
@@ -120,117 +130,114 @@ const CalendarView = () => {
         } catch (error) {
             toast({
                 title: "Error creating event",
-                status: "error",
-                duration: 3000,
-                isClosable: true,
+                variant: "destructive",
             });
         }
     };
 
     if (loading) {
         return (
-            <Center h="500px">
-                <Spinner size="xl" />
-            </Center>
+            <div className="h-[500px] flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
         );
     }
 
     return (
-        <Box
-            h="80vh"
-            p={4}
-            bg={bgColor}
-            borderRadius="lg"
-            border="1px"
-            borderColor={borderColor}
-            boxShadow="sm"
-        >
-            <Box mb={4} display="flex" justifyContent="space-between" alignItems="center">
-                <Text fontSize="2xl" fontWeight="bold">Calendar</Text>
-                <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onOpen}>
+        <div className="h-[80vh] p-4 bg-white dark:bg-gray-900 rounded-lg border shadow-sm flex flex-col">
+            <div className="mb-4 flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Calendar</h2>
+                <Button onClick={() => setIsModalOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
                     New Event
                 </Button>
-            </Box>
+            </div>
 
-            <Calendar
-                localizer={localizer}
-                events={events}
-                startAccessor="start"
-                endAccessor="end"
-                style={{ height: 'calc(100% - 60px)' }}
-                eventPropGetter={(event) => ({
-                    style: {
-                        backgroundColor: event.color || '#3182CE',
-                    },
-                })}
-            />
+            <div className="flex-1 calendar-container">
+                <Calendar
+                    localizer={localizer}
+                    events={events}
+                    startAccessor="start"
+                    endAccessor="end"
+                    style={{ height: '100%' }}
+                    eventPropGetter={(event) => ({
+                        style: {
+                            backgroundColor: event.color || '#3182CE',
+                        },
+                    })}
+                />
+            </div>
 
-            <Modal isOpen={isOpen} onClose={onClose}>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Create New Event</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody pb={6}>
-                        <FormControl>
-                            <FormLabel>Title</FormLabel>
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create New Event</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Title</Label>
                             <Input
                                 placeholder="Meeting with Team"
                                 value={newEvent.title}
                                 onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
                             />
-                        </FormControl>
+                        </div>
 
-                        <FormControl mt={4}>
-                            <FormLabel>Start Time</FormLabel>
+                        <div className="space-y-2">
+                            <Label>Start Time</Label>
                             <Input
                                 type="datetime-local"
                                 value={newEvent.start}
                                 onChange={(e) => setNewEvent({ ...newEvent, start: e.target.value })}
                             />
-                        </FormControl>
+                        </div>
 
-                        <FormControl mt={4}>
-                            <FormLabel>End Time</FormLabel>
+                        <div className="space-y-2">
+                            <Label>End Time</Label>
                             <Input
                                 type="datetime-local"
                                 value={newEvent.end}
                                 onChange={(e) => setNewEvent({ ...newEvent, end: e.target.value })}
                             />
-                        </FormControl>
+                        </div>
 
-                        <FormControl mt={4}>
-                            <FormLabel>Description</FormLabel>
+                        <div className="space-y-2">
+                            <Label>Description</Label>
                             <Input
                                 placeholder="Details about the event"
                                 value={newEvent.description}
                                 onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
                             />
-                        </FormControl>
+                        </div>
 
-                        <FormControl mt={4}>
-                            <FormLabel>Color</FormLabel>
+                        <div className="space-y-2">
+                            <Label>Color</Label>
                             <Select
                                 value={newEvent.color}
-                                onChange={(e) => setNewEvent({ ...newEvent, color: e.target.value })}
+                                onValueChange={(value) => setNewEvent({ ...newEvent, color: value })}
                             >
-                                <option value="#3182CE">Blue</option>
-                                <option value="#38A169">Green</option>
-                                <option value="#E53E3E">Red</option>
-                                <option value="#D69E2E">Yellow</option>
-                                <option value="#805AD5">Purple</option>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select color" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="#3182CE">Blue</SelectItem>
+                                    <SelectItem value="#38A169">Green</SelectItem>
+                                    <SelectItem value="#E53E3E">Red</SelectItem>
+                                    <SelectItem value="#D69E2E">Yellow</SelectItem>
+                                    <SelectItem value="#805AD5">Purple</SelectItem>
+                                </SelectContent>
                             </Select>
-                        </FormControl>
-                    </ModalBody>
+                        </div>
+                    </div>
 
-                    <ModalFooter>
-                        <Button colorScheme="blue" mr={3} onClick={handleCreateEvent}>
-                            Save
-                        </Button>
-                        <Button onClick={onClose}>Cancel</Button>
-                    </ModalFooter>
-                </ModalContent>
-            </Modal>
-        </Box>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                        <Button onClick={handleCreateEvent}>Save</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
     );
 };
 

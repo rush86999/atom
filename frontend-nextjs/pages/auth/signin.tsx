@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/router";
+import Link from "next/link";
 import { GetServerSideProps } from "next";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -105,12 +106,6 @@ export default function SignIn() {
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-            </div>
-
-            <div className="text-right">
-              <a href="/auth/forgot-password" className="text-sm text-blue-500 hover:text-blue-600">
-                Forgot password?
-              </a>
             </div>
 
             <button

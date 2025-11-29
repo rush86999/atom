@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { Pool } from 'pg';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]";
+import { authOptions } from "../auth/[...nextauth]";
 import appServiceLogger from '../../../lib/logger'; // Import the shared logger
 
 // Define a type for the expected response data
