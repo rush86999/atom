@@ -163,11 +163,24 @@ export const authOptions: NextAuthOptions = {
       }
       return true; // Allow sign-in
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
-        token.backendToken = (user as any).token;
+        // @ts-ignore
+        token.backendToken = user.token || user.backendToken;
+
+        // Record session in database
+        try {
+          const { query } = await import('../../../lib/db');
+          // Use a hash of the token or a unique ID as session identifier
+          // Since we don't have the actual session token here (it's generated later),
+          // we'll use a combination of user ID and a timestamp/random string stored in the token
+          // For now, we'll just update the last login time
+          await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+        } catch (e) {
+          console.error('Failed to update last login:', e);
+        }
       }
       return token;
     },
