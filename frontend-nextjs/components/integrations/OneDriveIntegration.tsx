@@ -1,33 +1,26 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Button,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  Spinner,
-  Alert,
-  AlertIcon,
   Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Badge,
-  IconButton,
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  useToast,
-} from "@chakra-ui/react";
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
 import {
-  ChevronRightIcon,
-  ChevronDownIcon,
-  ArrowForwardIcon,
-  RepeatIcon,
-} from "@chakra-ui/icons";
+  ChevronRight,
+  ExternalLink,
+  RefreshCw,
+  Loader2,
+  Folder,
+  FileText,
+  Download,
+  AlertTriangle,
+} from "lucide-react";
 
 interface OneDriveFile {
   id: string;
@@ -75,7 +68,7 @@ const OneDriveIntegration: React.FC = () => {
     undefined,
   );
   const [error, setError] = useState<string | null>(null);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const fetchConnectionStatus = async () => {
     try {
@@ -178,8 +171,6 @@ const OneDriveIntegration: React.FC = () => {
         toast({
           title: "Disconnected",
           description: "OneDrive has been disconnected",
-          status: "success",
-          duration: 3000,
         });
         await fetchConnectionStatus();
         setFiles([]);
@@ -192,8 +183,7 @@ const OneDriveIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to disconnect OneDrive",
-        status: "error",
-        duration: 3000,
+        variant: "destructive",
       });
     }
   };
@@ -219,8 +209,6 @@ const OneDriveIntegration: React.FC = () => {
         toast({
           title: "File Ingested",
           description: `${file.name} has been added to search index`,
-          status: "success",
-          duration: 3000,
         });
       } else {
         throw new Error("Failed to ingest file");
@@ -229,8 +217,7 @@ const OneDriveIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to ingest file",
-        status: "error",
-        duration: 3000,
+        variant: "destructive",
       });
     }
   };
@@ -260,199 +247,196 @@ const OneDriveIntegration: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Box textAlign="center" py={8}>
-        <Spinner size="xl" />
-        <Text mt={4}>Loading OneDrive integration...</Text>
-      </Box>
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        <p className="mt-4 text-gray-500">Loading OneDrive integration...</p>
+      </div>
     );
   }
 
   return (
-    <Box p={6}>
-      <VStack spacing={6} align="stretch">
-        <Box>
-          <Heading size="lg" mb={2}>
-            OneDrive Integration
-          </Heading>
-          <Text color="gray.600">
-            Connect your OneDrive to search and manage files directly within
-            ATOM
-          </Text>
-        </Box>
+    <div className="p-6 space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-2xl font-bold tracking-tight">
+          OneDrive Integration
+        </h2>
+        <p className="text-gray-500">
+          Connect your OneDrive to search and manage files directly within ATOM
+        </p>
+      </div>
 
-        <Box p={4} borderWidth={1} borderRadius="md" bg="white">
-          <Heading size="md" mb={4}>
-            Connection Status
-          </Heading>
+      <div className="p-6 border rounded-lg bg-white dark:bg-gray-900 space-y-4">
+        <h3 className="text-lg font-semibold">Connection Status</h3>
 
-          {error && (
-            <Alert status="error" mb={4}>
-              <AlertIcon />
-              {error}
-            </Alert>
-          )}
+        {error && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-          {connectionStatus?.is_connected ? (
-            <VStack align="start" spacing={3}>
-              <HStack>
-                <Badge colorScheme="green">Connected</Badge>
-                <Text>
-                  as {connectionStatus.email || connectionStatus.display_name}
-                </Text>
-              </HStack>
-              {connectionStatus.drive_type && (
-                <Text color="gray.600">
-                  Drive Type: {connectionStatus.drive_type}
-                </Text>
-              )}
-              <Button
-                colorScheme="red"
-                variant="outline"
-                size="sm"
-                onClick={handleDisconnect}
-              >
-                Disconnect OneDrive
-              </Button>
-            </VStack>
-          ) : (
-            <VStack align="start" spacing={3}>
-              <Badge colorScheme="red">Not Connected</Badge>
-              {connectionStatus?.reason && (
-                <Text color="gray.600">{connectionStatus.reason}</Text>
-              )}
-              <Button colorScheme="blue" onClick={handleConnect}>
-                Connect OneDrive
-              </Button>
-            </VStack>
-          )}
-        </Box>
-
-        {connectionStatus?.is_connected && (
-          <Box p={4} borderWidth={1} borderRadius="md" bg="white">
-            <Heading size="md" mb={4}>
-              Files & Folders
-            </Heading>
-
-            <Breadcrumb
-              spacing={2}
-              mb={4}
-              separator={<ChevronRightIcon color="gray.500" />}
+        {connectionStatus?.is_connected ? (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Badge className="bg-green-500 hover:bg-green-600">Connected</Badge>
+              <span className="text-sm text-gray-600">
+                as {connectionStatus.email || connectionStatus.display_name}
+              </span>
+            </div>
+            {connectionStatus.drive_type && (
+              <p className="text-sm text-gray-600">
+                Drive Type: {connectionStatus.drive_type}
+              </p>
+            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDisconnect}
             >
-              {pathHistory.map((item, index) => (
-                <BreadcrumbItem key={item.id || "root"}>
-                  <BreadcrumbLink
-                    onClick={() => handleBreadcrumbClick(index)}
-                    color={
-                      index === pathHistory.length - 1 ? "gray.700" : "blue.500"
-                    }
-                    cursor={
-                      index === pathHistory.length - 1 ? "default" : "pointer"
-                    }
-                    fontWeight={
-                      index === pathHistory.length - 1 ? "bold" : "normal"
-                    }
-                  >
-                    {item.name}
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-              ))}
-            </Breadcrumb>
+              Disconnect OneDrive
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Badge variant="destructive">Not Connected</Badge>
+              {connectionStatus?.reason && (
+                <span className="text-sm text-gray-600">{connectionStatus.reason}</span>
+              )}
+            </div>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleConnect}>
+              Connect OneDrive
+            </Button>
+          </div>
+        )}
+      </div>
 
-            {isLoadingFiles && files.length === 0 ? (
-              <Box textAlign="center" py={8}>
-                <Spinner size="lg" />
-                <Text mt={2}>Loading files...</Text>
-              </Box>
-            ) : files.length === 0 ? (
-              <Box textAlign="center" py={8}>
-                <Text color="gray.500">No files found in this folder</Text>
-              </Box>
-            ) : (
-              <>
-                <Table variant="simple">
-                  <Thead>
-                    <Tr>
-                      <Th>Name</Th>
-                      <Th>Type</Th>
-                      <Th>Modified</Th>
-                      <Th>Size</Th>
-                      <Th>Actions</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
+      {connectionStatus?.is_connected && (
+        <div className="p-6 border rounded-lg bg-white dark:bg-gray-900 space-y-4">
+          <h3 className="text-lg font-semibold">Files & Folders</h3>
+
+          <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-4">
+            {pathHistory.map((item, index) => (
+              <React.Fragment key={item.id || "root"}>
+                {index > 0 && <ChevronRight className="h-4 w-4" />}
+                <button
+                  onClick={() => handleBreadcrumbClick(index)}
+                  className={`hover:underline ${index === pathHistory.length - 1
+                      ? "font-semibold text-gray-900 dark:text-gray-100 cursor-default"
+                      : "text-blue-500 cursor-pointer"
+                    }`}
+                  disabled={index === pathHistory.length - 1}
+                >
+                  {item.name}
+                </button>
+              </React.Fragment>
+            ))}
+          </nav>
+
+          {isLoadingFiles && files.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <p className="mt-2 text-gray-500">Loading files...</p>
+            </div>
+          ) : files.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No files found in this folder</p>
+            </div>
+          ) : (
+            <>
+              <div className="border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Modified</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {files.map((file) => (
-                      <Tr
+                      <TableRow
                         key={file.id}
-                        _hover={{ bg: "gray.50" }}
-                        cursor={file.is_folder ? "pointer" : "default"}
-                        onClick={() => handleFileClick(file)}
+                        className={
+                          file.is_folder
+                            ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                            : ""
+                        }
+                        onClick={() => file.is_folder && handleFileClick(file)}
                       >
-                        <Td>
-                          <HStack>
-                            <Text fontSize="lg">{file.icon}</Text>
-                            <Text fontWeight="medium">{file.name}</Text>
-                          </HStack>
-                        </Td>
-                        <Td>
-                          <Badge colorScheme={file.is_folder ? "blue" : "gray"}>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-lg">{file.icon}</span>
+                            <span className="font-medium">{file.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={file.is_folder ? "default" : "secondary"}>
                             {file.is_folder ? "Folder" : "File"}
                           </Badge>
-                        </Td>
-                        <Td>{formatDate(file.modified_time)}</Td>
-                        <Td>{formatFileSize(file.size)}</Td>
-                        <Td>
-                          <HStack spacing={2}>
+                        </TableCell>
+                        <TableCell>{formatDate(file.modified_time)}</TableCell>
+                        <TableCell>{formatFileSize(file.size)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
                             {!file.is_folder && file.web_url && (
-                              <IconButton
-                                aria-label="Open in OneDrive"
-                                icon={<ArrowForwardIcon />}
+                              <Button
                                 size="sm"
                                 variant="ghost"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   window.open(file.web_url, "_blank");
                                 }}
-                              />
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
                             )}
                             {!file.is_folder && (
-                              <IconButton
-                                aria-label="Ingest file"
-                                icon={<ChevronDownIcon />}
+                              <Button
                                 size="sm"
                                 variant="ghost"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleIngestFile(file);
                                 }}
-                              />
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
                             )}
-                          </HStack>
-                        </Td>
-                      </Tr>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </Tbody>
+                  </TableBody>
                 </Table>
+              </div>
 
-                {nextPageToken && (
-                  <Box textAlign="center" mt={4}>
-                    <Button
-                      onClick={() =>
-                        fetchFiles(currentFolderId, nextPageToken, true)
-                      }
-                      isLoading={isLoadingFiles}
-                      leftIcon={<RepeatIcon />}
-                      variant="outline"
-                    >
-                      Load More Files
-                    </Button>
-                  </Box>
-                )}
-              </>
-            )}
-          </Box>
-        )}
-      </VStack>
-    </Box>
+              {nextPageToken && (
+                <div className="flex justify-center mt-4">
+                  <Button
+                    onClick={() =>
+                      fetchFiles(currentFolderId, nextPageToken, true)
+                    }
+                    disabled={isLoadingFiles}
+                    variant="outline"
+                  >
+                    {isLoadingFiles ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Load More Files
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 
