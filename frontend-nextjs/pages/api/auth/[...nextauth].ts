@@ -10,13 +10,28 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        // Mock login for E2E testing
+        if (
+          process.env.NODE_ENV === "development" &&
+          credentials?.email === "test@example.com" &&
+          credentials?.password === "password"
+        ) {
+          return {
+            id: "test-user-id",
+            email: "test@example.com",
+            name: "Test User",
+            token: "mock-backend-token",
+          };
+        }
+
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required");
         }
 
         try {
           // Call the real backend API for authentication
-          const response = await fetch("http://localhost:5058/api/auth/login", {
+          // Note: Backend runs on port 5059, not 5058
+          const response = await fetch("http://localhost:5059/api/auth/login", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

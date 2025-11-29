@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import TaskManagement, { Task, Project } from "./shared/TaskManagement";
-import { useToast } from "@chakra-ui/react";
+import { useToast } from "@/components/ui/use-toast";
 
 const TaskManagementWrapper: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -40,8 +40,7 @@ const TaskManagementWrapper: React.FC = () => {
       console.error("Error fetching data:", error);
       toast({
         title: "Error fetching data",
-        status: "error",
-        duration: 3000,
+        variant: "error",
       });
     } finally {
       setLoading(false);
@@ -77,13 +76,13 @@ const TaskManagementWrapper: React.FC = () => {
               : p
           ));
         }
-        toast({ title: "Task created", status: "success", duration: 2000 });
+        toast({ title: "Task created" });
       } else {
         throw new Error("Failed to create task");
       }
     } catch (error) {
       console.error("Error creating task:", error);
-      toast({ title: "Failed to create task", status: "error", duration: 3000 });
+      toast({ title: "Failed to create task", variant: "error" });
     }
   };
 
@@ -104,13 +103,13 @@ const TaskManagementWrapper: React.FC = () => {
           updatedAt: new Date(data.task.updatedAt)
         };
         setTasks((prev) => prev.map(t => t.id === taskId ? updatedTask : t));
-        toast({ title: "Task updated", status: "success", duration: 2000 });
+        toast({ title: "Task updated" });
       } else {
         throw new Error("Failed to update task");
       }
     } catch (error) {
       console.error("Error updating task:", error);
-      toast({ title: "Failed to update task", status: "error", duration: 3000 });
+      toast({ title: "Failed to update task", variant: "error" });
     }
   };
 
@@ -126,13 +125,13 @@ const TaskManagementWrapper: React.FC = () => {
           ...p,
           tasks: p.tasks.filter(t => t.id !== taskId)
         })));
-        toast({ title: "Task deleted", status: "success", duration: 2000 });
+        toast({ title: "Task deleted" });
       } else {
         throw new Error("Failed to delete task");
       }
     } catch (error) {
       console.error("Error deleting task:", error);
-      toast({ title: "Failed to delete task", status: "error", duration: 3000 });
+      toast({ title: "Failed to delete task", variant: "error" });
     }
   };
 
@@ -148,13 +147,13 @@ const TaskManagementWrapper: React.FC = () => {
         const data = await response.json();
         const newProject = { ...data.project, tasks: [] };
         setProjects((prev) => [...prev, newProject]);
-        toast({ title: "Project created", status: "success", duration: 2000 });
+        toast({ title: "Project created" });
       } else {
         throw new Error("Failed to create project");
       }
     } catch (error) {
       console.error("Error creating project:", error);
-      toast({ title: "Failed to create project", status: "error", duration: 3000 });
+      toast({ title: "Failed to create project", variant: "error" });
     }
   };
 
@@ -169,13 +168,13 @@ const TaskManagementWrapper: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setProjects((prev) => prev.map(p => p.id === projectId ? { ...p, ...data.project } : p));
-        toast({ title: "Project updated", status: "success", duration: 2000 });
+        toast({ title: "Project updated" });
       } else {
         throw new Error("Failed to update project");
       }
     } catch (error) {
       console.error("Error updating project:", error);
-      toast({ title: "Failed to update project", status: "error", duration: 3000 });
+      toast({ title: "Failed to update project", variant: "error" });
     }
   };
 

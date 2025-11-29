@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import SharedCalendarManagement, { CalendarEvent } from "./shared/CalendarManagement";
-import { useToast } from "@chakra-ui/react";
+import { useToast } from "@/components/ui/use-toast";
 
 const CalendarManagement: React.FC = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -23,8 +23,7 @@ const CalendarManagement: React.FC = () => {
         console.error("Failed to fetch events");
         toast({
           title: "Error fetching events",
-          status: "error",
-          duration: 3000,
+          variant: "error",
         });
       }
     } catch (error) {
@@ -54,13 +53,13 @@ const CalendarManagement: React.FC = () => {
           end: new Date(data.event.end)
         };
         setEvents((prev) => [...prev, newEvent]);
-        toast({ title: "Event created", status: "success", duration: 2000 });
+        toast({ title: "Event created" });
       } else {
         throw new Error("Failed to create event");
       }
     } catch (error) {
       console.error("Error creating event:", error);
-      toast({ title: "Failed to create event", status: "error", duration: 3000 });
+      toast({ title: "Failed to create event", variant: "error" });
     }
   };
 
@@ -80,13 +79,13 @@ const CalendarManagement: React.FC = () => {
           end: new Date(data.event.end)
         };
         setEvents((prev) => prev.map(e => e.id === eventId ? updatedEvent : e));
-        toast({ title: "Event updated", status: "success", duration: 2000 });
+        toast({ title: "Event updated" });
       } else {
         throw new Error("Failed to update event");
       }
     } catch (error) {
       console.error("Error updating event:", error);
-      toast({ title: "Failed to update event", status: "error", duration: 3000 });
+      toast({ title: "Failed to update event", variant: "error" });
     }
   };
 
@@ -98,13 +97,13 @@ const CalendarManagement: React.FC = () => {
 
       if (response.ok) {
         setEvents((prev) => prev.filter(e => e.id !== eventId));
-        toast({ title: "Event deleted", status: "success", duration: 2000 });
+        toast({ title: "Event deleted" });
       } else {
         throw new Error("Failed to delete event");
       }
     } catch (error) {
       console.error("Error deleting event:", error);
-      toast({ title: "Failed to delete event", status: "error", duration: 3000 });
+      toast({ title: "Failed to delete event", variant: "error" });
     }
   };
 

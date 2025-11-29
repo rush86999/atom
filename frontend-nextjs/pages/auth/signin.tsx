@@ -1,22 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import {
-  Box,
-  Button,
-  Container,
-  FormControl,
-  FormLabel,
-  Input,
-  VStack,
-  Heading,
-  Text,
-  useToast,
-  Alert,
-  AlertIcon,
-  Link,
-} from "@chakra-ui/react";
 import { GetServerSideProps } from "next";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -53,9 +39,7 @@ export default function SignIn() {
       } else {
         toast({
           title: "Successfully signed in!",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
+          variant: "success",
         });
         router.push("/");
       }
@@ -67,129 +51,116 @@ export default function SignIn() {
   };
 
   return (
-    <Container maxW="md" py={12}>
-      <VStack spacing={8}>
-        <Box textAlign="center">
-          <Heading size="xl" mb={2}>
-            Sign In to ATOM
-          </Heading>
-          <Text color="gray.600">Access your personal automation platform</Text>
-        </Box>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-2">Sign In to ATOM</h1>
+          <p className="text-gray-600">Access your personal automation platform</p>
+        </div>
 
-        <Box w="100%" p={8} bg="white" borderRadius="lg" boxShadow="md">
-          <form onSubmit={handleSubmit}>
-            <VStack spacing={4}>
-              {error && (
-                <Alert status="error" borderRadius="md">
-                  <AlertIcon />
-                  {error}
-                </Alert>
-              )}
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                {error}
+              </div>
+            )}
 
-              <FormControl isRequired>
-                <FormLabel>Email</FormLabel>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  size="lg"
-                />
-              </FormControl>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
 
-              <FormControl isRequired>
-                <FormLabel>Password</FormLabel>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  size="lg"
-                />
-              </FormControl>
-
-              <Box w="100%" textAlign="right">
-                <Link href="/auth/forgot-password" color="blue.500" fontSize="sm">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-sm text-blue-600 hover:text-blue-500"
+                >
                   Forgot password?
                 </Link>
-              </Box>
+              </div>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
 
-              <Button
-                type="submit"
-                colorScheme="blue"
-                size="lg"
-                w="100%"
-                isLoading={isLoading}
-                loadingText="Signing in..."
+            <div className="text-right">
+              <a href="/auth/forgot-password" className="text-sm text-blue-500 hover:text-blue-600">
+                Forgot password?
+              </a>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? "Signing in..." : "Sign In"}
+            </button>
+
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => signIn('google', { callbackUrl: '/' })}
+                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                Sign In
-              </Button>
+                <span className="mr-2">🔍</span>
+                Sign in with Google
+              </button>
 
-              <Box w="100%" position="relative" py={2}>
-                <Box
-                  position="absolute"
-                  top="50%"
-                  left="0"
-                  right="0"
-                  borderTop="1px"
-                  borderColor="gray.300"
-                />
-                <Text
-                  position="relative"
-                  bg="white"
-                  px={2}
-                  fontSize="sm"
-                  color="gray.500"
-                  textAlign="center"
-                  display="inline-block"
-                  mx="auto"
-                  width="fit-content"
-                >
-                  Or continue with
-                </Text>
-              </Box>
-
-              <VStack spacing={3} w="100%">
-                <Button
-                  w="100%"
-                  variant="outline"
-                  size="lg"
-                  onClick={() => signIn('google', { callbackUrl: '/' })}
-                >
-                  <Box as="span" mr={2}>🔍</Box>
-                  Sign in with Google
-                </Button>
-
-                <Button
-                  w="100%"
-                  variant="outline"
-                  size="lg"
-                  onClick={() => signIn('github', { callbackUrl: '/' })}
-                >
-                  <Box as="span" mr={2}>⚫</Box>
-                  Sign in with GitHub
-                </Button>
-              </VStack>
-            </VStack>
+              <button
+                type="button"
+                onClick={() => signIn('github', { callbackUrl: '/' })}
+                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <span className="mr-2">⚫</span>
+                Sign in with GitHub
+              </button>
+            </div>
           </form>
 
-          <Box mt={4} textAlign="center">
-            <Text color="gray.600">
+          <div className="mt-4 text-center">
+            <p className="text-gray-600 text-sm">
               Don&apos;t have an account?{" "}
-              <Link
-                href="/auth/signup"
-                color="blue.500"
-                fontWeight="medium"
-                textDecoration="underline"
-              >
+              <a href="/auth/signup" className="text-blue-500 font-medium hover:text-blue-600 underline">
                 Sign up
-              </Link>
-            </Text>
-          </Box>
-        </Box>
-      </VStack>
-    </Container>
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
-
-

@@ -1,22 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import {
-  Box,
-  Button,
-  Container,
-  FormControl,
-  FormLabel,
-  Input,
-  VStack,
-  Heading,
-  Text,
-  useToast,
-  Alert,
-  AlertIcon,
-  Link,
-} from "@chakra-ui/react";
-import { GetServerSideProps } from "next";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
+import { AlertCircle, Loader2 } from "lucide-react";
+import Link from "next/link";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -26,7 +17,7 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  const toast = useToast();
+  const { toast } = useToast();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -37,8 +28,6 @@ export default function SignUp() {
     };
     checkSession();
   }, [router]);
-
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,17 +62,12 @@ export default function SignUp() {
         toast({
           title: "Account created successfully!",
           description: "Please sign in with your new credentials",
-          status: "success",
-          duration: 5000,
-          isClosable: true,
         });
         router.push("/auth/signin");
       } else {
         toast({
           title: "Welcome to ATOM!",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
+          description: "Your account has been created successfully.",
         });
         router.push("/");
       }
@@ -95,102 +79,112 @@ export default function SignUp() {
   };
 
   return (
-    <Container maxW="md" py={12}>
-      <VStack spacing={8}>
-        <Box textAlign="center">
-          <Heading size="xl" mb={2}>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="w-full max-w-md space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
             Create Account
-          </Heading>
-          <Text color="gray.600">Join the ATOM automation platform</Text>
-        </Box>
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Join the ATOM automation platform
+          </p>
+        </div>
 
-        <Box w="100%" p={8} bg="white" borderRadius="lg" boxShadow="md">
-          <form onSubmit={handleSubmit}>
-            <VStack spacing={4}>
-              {error && (
-                <Alert status="error" borderRadius="md">
-                  <AlertIcon />
-                  {error}
-                </Alert>
+        {/* Form Card */}
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter your full name"
+                required
+                className="h-12"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+                className="h-12"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Create a password"
+                required
+                className="h-12"
+              />
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Must be at least 6 characters
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm your password"
+                required
+                className="h-12"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 text-base"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Create Account"
               )}
-
-              <FormControl isRequired>
-                <FormLabel>Full Name</FormLabel>
-                <Input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your full name"
-                  size="lg"
-                />
-              </FormControl>
-
-              <FormControl isRequired>
-                <FormLabel>Email</FormLabel>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  size="lg"
-                />
-              </FormControl>
-
-              <FormControl isRequired>
-                <FormLabel>Password</FormLabel>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Create a password"
-                  size="lg"
-                />
-                <Text fontSize="sm" color="gray.600" mt={1}>
-                  Must be at least 6 characters
-                </Text>
-              </FormControl>
-
-              <FormControl isRequired>
-                <FormLabel>Confirm Password</FormLabel>
-                <Input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm your password"
-                  size="lg"
-                />
-              </FormControl>
-
-              <Button
-                type="submit"
-                colorScheme="blue"
-                size="lg"
-                w="100%"
-                isLoading={isLoading}
-                loadingText="Creating account..."
-              >
-                Create Account
-              </Button>
-            </VStack>
+            </Button>
           </form>
 
-          <Box mt={6} textAlign="center">
-            <Text color="gray.600">
+          <div className="mt-6 text-center">
+            <p className="text-gray-600 dark:text-gray-400">
               Already have an account?{" "}
               <Link
                 href="/auth/signin"
-                color="blue.500"
-                fontWeight="medium"
-                textDecoration="underline"
+                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium underline"
               >
                 Sign in
               </Link>
-            </Text>
-          </Box>
-        </Box>
-      </VStack>
-    </Container>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
-
-

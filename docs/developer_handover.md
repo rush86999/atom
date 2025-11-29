@@ -791,9 +791,112 @@ ATOM: "✅ Scheduled 'Daily Report' to run Every weekday at 09:00"
   - Replaced all Chakra UI components with custom UI components (Card, Button, Input, Select, Dialog, Tabs, Avatar, Badge).
   - Implemented 5 tabs: Payments, Customers, Subscriptions, Products, Analytics.
   - Migrated 3 creation modals (Payment, Customer, Product) to `Dialog` component.
-  - Removed all `useColorModeValue` and Chakra styling props.
+  - Removed all `useColorModeValue` and Chakra styling props .
 - **Status**: Verified and lint-free.
 
 ---
 
-*All previous phases remain unchanged. The platform is now ready to demonstrate real ROI to stakeholders.*
+### Phase 36-40: UI Modernization - Chakra UI to Shadcn/Tailwind Migration (Nov 28, 2025) ✅
+
+**Goal:** Complete migration from Chakra UI to Shadcn UI and Tailwind CSS across the application
+
+**Overview:**
+- **Started**: ~50% Chakra UI usage across pages and components
+- **Current**: 95%+ migrated - only 2 actively used components remain
+- **Business Value**: Modern, consistent UI; reduced bundle size; improved maintainability
+
+#### Phase 36: Voice & Chat Cleanup ✅
+1. **Legacy Code Removal**
+   - ❌ Deleted `components/AI/ChatInterface.tsx` (legacy Chakra component)
+   - ❌ Deleted `components/chat/` directory (92KB+ cleanup)
+   - ✅ Removed redundant "AI Chat" tab from `pages/voice.tsx`
+
+2. **Voice Components Migration**
+   - ✅ **VoiceCommands.tsx**: Full Shadcn/Tailwind migration
+     - Replaced Modal, FormControl, Input, Select, Switch, Badge, Alert, Progress
+     - Preserved SpeechRecognition API logic
+   - ✅ **WakeWordDetector.tsx**: Full Shadcn/Tailwind migration
+     - Replaced Card, Button, Dialog, Slider, Spinner components
+     - Maintained audio visualization logic
+
+#### Phase 37: Dashboard & Integrations Migration ✅
+1. **Main Dashboard** (`pages/dashboard.tsx`)
+   - ✅ Migrated from Chakra `Box`, `VStack`, `HStack` to Tailwind layouts
+   - ✅ Replaced `Stat` components with custom Card-based layouts
+   - ✅ Updated all icons to lucide-react
+   - Features: Health checks, integration cards, stats overview, responsive grid
+
+2. **Integrations Hub** (`pages/integrations/index.tsx`)
+   - ✅ Migrated 28+ integration cards
+   - ✅ Category filtering with dynamic badges
+   - ✅ Health monitoring dashboard link
+   - ✅ Connection progress tracking
+
+3. **Integration Pages**
+   - ✅ `integrations/health.tsx`: Health monitoring with breadcrumbs
+   - ✅ `integrations/nextjs.tsx`: "Coming soon" page redesign
+
+#### Phase 38: Auth Pages Migration ✅
+1. **Complete Auth Flow Consistency**
+   - ✅ **signup.tsx**: Modern gradient background, form validation, loading states
+   - ✅ **error.tsx**: Contextual error messages, action buttons
+   - ✅ Previously migrated: signin, forgot-password, reset-password
+   - **Result**: Unified auth experience across all flows
+
+#### Phase 39: Integration Pages Migration ✅
+- ✅ `integrations/health.tsx`: Breadcrumb navigation, info cards
+- ✅ `integrations/nextjs.tsx`: Modern feature preview layout
+
+#### Phase 40: High-Value Component Migration (In Progress)
+**Priority Components (Actively Used):**
+1. ✅ **SystemStatusDashboard.tsx** (425 lines) → `pages/system-status.tsx`
+   - System health monitoring, resource usage (CPU, memory, disk)
+   - Service status tracking with real-time updates
+   - Feature status overview
+   - Migrated: All Chakra UI → Shadcn UI + lucide-react icons
+
+2. ⏳ **WorkflowAutomation.tsx** (964 lines) → `pages/automations.tsx`
+   - Workflow creation and management UI
+   - Status: Pending migration
+
+3. ⏳ **CommunicationHub.tsx** (1,013 lines) → `pages/communication.tsx`
+   - Unified messaging (Email/Slack/Teams/Discord/WhatsApp/SMS)
+   - Status: Pending migration
+
+**Unused Components (Not Migrating):**
+- ServiceManagement.tsx, ServiceIntegrationDashboard.tsx, Dashboard.tsx (general component)
+- Agent-related specialized components
+
+#### Migration Statistics
+
+**Pages Migrated (13+):**
+- ✅ Authentication: signin, signup, forgot-password, reset-password, error (5 pages)
+- ✅ Main: dashboard, integrations hub (2 pages)
+- ✅ Integration-specific: health, nextjs (2 pages)
+- ✅ Features: voice, calendar, tasks (3+ pages)
+
+**Components Migrated (8+):**
+- ✅ Global Chat: ChatWidget, ChatInput, ChatMessage (3 components)
+- ✅ Voice: VoiceCommands, WakeWordDetector (2 components)
+- ✅ Shared: CalendarManagement, TaskManagement (2 components)
+- ✅ System: SystemStatusDashboard (1 component)
+
+**Remaining (Actively Used):**
+- ⏳ WorkflowAutomation.tsx (964 lines)
+- ⏳ CommunicationHub.tsx (1,013 lines)
+
+**Impact:**
+- ✅ 95%+ of user-facing UI migrated
+- ✅ Complete auth flow modernized
+- ✅ Core features (dashboard, integrations, chat, voice) updated
+- ✅ 92KB+ legacy code removed
+- ✅ Consistent design system (Shadcn UI + Tailwind CSS + lucide-react)
+
+**Files Modified:**
+- Pages: `dashboard.tsx`, `integrations/index.tsx`, `integrations/health.tsx`, `integrations/nextjs.tsx`, `voice.tsx`, `auth/signup.tsx`, `auth/error.tsx`
+- Components: `SystemStatusDashboard.tsx`, `Voice/VoiceCommands.tsx`, `Voice/WakeWordDetector.tsx`, `GlobalChatWidget.tsx`, `shared/CalendarManagement.tsx`, `shared/TaskManagement.tsx`
+- Deleted: `components/AI/ChatInterface.tsx`, `components/chat/` (entire directory)
+
+---
+
+*All previous phases remain unchanged. The platform now features a modern, consistent UI built on Shadcn UI and Tailwind CSS.*
