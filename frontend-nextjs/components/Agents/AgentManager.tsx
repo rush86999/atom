@@ -1,45 +1,46 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
-  Box,
-  VStack,
-  HStack,
-  Heading,
-  Text,
   Card,
   CardHeader,
-  CardBody,
-  Badge,
-  Button,
-  IconButton,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
-  FormControl,
-  FormLabel,
-  Input,
+  CardContent,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
   Select,
-  Textarea,
-  Switch,
-  Progress,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Alert,
-  AlertIcon,
-  SimpleGrid,
-  Flex,
-  Spinner,
-  useToast,
-} from "@chakra-ui/react";
-import { AddIcon, EditIcon, DeleteIcon, SettingsIcon } from "@chakra-ui/icons";
-import { TriangleUpIcon, TriangleDownIcon } from "@chakra-ui/icons";
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Play,
+  Square,
+  Settings,
+  AlertTriangle,
+  Bot,
+  Activity,
+  CheckCircle,
+  Clock,
+  Zap,
+} from "lucide-react";
 
 interface Agent {
   id: string;
@@ -79,8 +80,8 @@ const AgentManager: React.FC<AgentManagerProps> = ({
   const [agents, setAgents] = useState<Agent[]>(initialAgents);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const toast = useToast();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { toast } = useToast();
 
   const [newAgent, setNewAgent] = useState({
     name: "",
@@ -109,9 +110,7 @@ const AgentManager: React.FC<AgentManagerProps> = ({
       toast({
         title: "Validation Error",
         description: "Name and role are required",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
+        variant: "destructive",
       });
       return;
     }
@@ -148,23 +147,18 @@ const AgentManager: React.FC<AgentManagerProps> = ({
             maxTokens: 1000,
           },
         });
-        onClose();
+        setIsModalOpen(false);
 
         toast({
           title: "Agent Created",
           description: `${createdAgent.name} has been created successfully`,
-          status: "success",
-          duration: 3000,
-          isClosable: true,
         });
       }, 1000);
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to create agent",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -184,9 +178,7 @@ const AgentManager: React.FC<AgentManagerProps> = ({
 
     toast({
       title: "Agent Deleted",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
+      description: "Agent has been removed successfully",
     });
   };
 
@@ -196,9 +188,7 @@ const AgentManager: React.FC<AgentManagerProps> = ({
 
     toast({
       title: "Agent Started",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
+      description: "Agent is now active and processing tasks",
     });
   };
 
@@ -208,9 +198,7 @@ const AgentManager: React.FC<AgentManagerProps> = ({
 
     toast({
       title: "Agent Stopped",
-      status: "info",
-      duration: 2000,
-      isClosable: true,
+      description: "Agent has been deactivated",
     });
   };
 
@@ -226,303 +214,319 @@ const AgentManager: React.FC<AgentManagerProps> = ({
   const getStatusColor = (status: Agent["status"]) => {
     switch (status) {
       case "active":
-        return "green";
+        return "bg-green-500 hover:bg-green-600";
       case "inactive":
-        return "gray";
+        return "bg-gray-500 hover:bg-gray-600";
       case "error":
-        return "red";
+        return "bg-red-500 hover:bg-red-600";
       default:
-        return "gray";
+        return "bg-gray-500 hover:bg-gray-600";
     }
   };
 
   return (
-    <Box p={6}>
-      <VStack spacing={6} align="stretch">
-        {/* Header */}
-        <Flex justify="space-between" align="center">
-          <VStack align="start" spacing={1}>
-            <Heading size="lg">Agent Manager</Heading>
-            <Text color="gray.600">Manage and monitor your AI agents</Text>
-          </VStack>
-          <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onOpen}>
-            Create Agent
-          </Button>
-        </Flex>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold tracking-tight">Agent Manager</h2>
+          <p className="text-gray-500">Manage and monitor your AI agents</p>
+        </div>
+        <Button onClick={() => setIsModalOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Create Agent
+        </Button>
+      </div>
 
-        {/* Agent Grid */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-          {agents.map((agent) => (
-            <Card key={agent.id} size="lg">
-              <CardHeader>
-                <Flex justify="space-between" align="center">
-                  <VStack align="start" spacing={1}>
-                    <Heading size="md">{agent.name}</Heading>
-                    <Text color="gray.600" fontSize="sm">
-                      {agent.role}
-                    </Text>
-                  </VStack>
-                  <Badge colorScheme={getStatusColor(agent.status)}>
-                    {agent.status}
-                  </Badge>
-                </Flex>
-              </CardHeader>
-              <CardBody>
-                <VStack spacing={4} align="stretch">
-                  {/* Capabilities */}
-                  <Box>
-                    <Text fontWeight="medium" mb={2}>
-                      Capabilities
-                    </Text>
-                    <HStack spacing={1} flexWrap="wrap">
-                      {agent.capabilities.map((capability) => (
-                        <Badge key={capability} colorScheme="blue" size="sm">
-                          {capability.replace("_", " ")}
-                        </Badge>
-                      ))}
-                    </HStack>
-                  </Box>
+      {/* Agent Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {agents.map((agent) => (
+          <Card key={agent.id} className="flex flex-col">
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg flex items-center">
+                    <Bot className="w-5 h-5 mr-2 text-blue-500" />
+                    {agent.name}
+                  </CardTitle>
+                  <CardDescription>{agent.role}</CardDescription>
+                </div>
+                <Badge className={getStatusColor(agent.status)}>
+                  {agent.status}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 space-y-6">
+              {/* Capabilities */}
+              <div className="space-y-2">
+                <p className="font-medium text-sm">Capabilities</p>
+                <div className="flex flex-wrap gap-1">
+                  {agent.capabilities.map((capability) => (
+                    <Badge key={capability} variant="secondary" className="text-xs">
+                      {capability.replace("_", " ")}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
 
-                  {/* Performance */}
-                  <Box>
-                    <Text fontWeight="medium" mb={2}>
-                      Performance
-                    </Text>
-                    <VStack spacing={2} align="stretch">
-                      <Flex justify="space-between">
-                        <Text fontSize="sm">Tasks Completed</Text>
-                        <Text fontSize="sm" fontWeight="medium">
-                          {agent.performance.tasksCompleted}
-                        </Text>
-                      </Flex>
-                      <Flex justify="space-between">
-                        <Text fontSize="sm">Success Rate</Text>
-                        <Text fontSize="sm" fontWeight="medium">
-                          {agent.performance.successRate}%
-                        </Text>
-                      </Flex>
-                      <Flex justify="space-between">
-                        <Text fontSize="sm">Avg Response</Text>
-                        <Text fontSize="sm" fontWeight="medium">
-                          {agent.performance.avgResponseTime}ms
-                        </Text>
-                      </Flex>
-                    </VStack>
-                  </Box>
+              {/* Performance */}
+              <div className="space-y-2">
+                <p className="font-medium text-sm">Performance</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 flex items-center">
+                      <CheckCircle className="w-3 h-3 mr-1" /> Tasks Completed
+                    </span>
+                    <span className="font-medium">
+                      {agent.performance.tasksCompleted}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 flex items-center">
+                      <Activity className="w-3 h-3 mr-1" /> Success Rate
+                    </span>
+                    <span className="font-medium">
+                      {agent.performance.successRate}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 flex items-center">
+                      <Clock className="w-3 h-3 mr-1" /> Avg Response
+                    </span>
+                    <span className="font-medium">
+                      {agent.performance.avgResponseTime}ms
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-                  {/* Actions */}
-                  <HStack spacing={2}>
-                    {agent.status === "active" ? (
-                      <IconButton
-                        aria-label="Stop agent"
-                        icon={<TriangleDownIcon />}
-                        colorScheme="red"
-                        size="sm"
-                        onClick={() => handleStopAgent(agent.id)}
-                      />
-                    ) : (
-                      <IconButton
-                        aria-label="Start agent"
-                        icon={<TriangleUpIcon />}
-                        colorScheme="green"
-                        size="sm"
-                        onClick={() => handleStartAgent(agent.id)}
-                      />
-                    )}
-                    <IconButton
-                      aria-label="Edit agent"
-                      icon={<EditIcon />}
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedAgent(agent);
-                        onOpen();
-                      }}
-                    />
-                    <IconButton
-                      aria-label="Delete agent"
-                      icon={<DeleteIcon />}
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="red"
-                      onClick={() => handleDeleteAgent(agent.id)}
-                    />
-                  </HStack>
-                </VStack>
-              </CardBody>
-            </Card>
-          ))}
-        </SimpleGrid>
-
-        {agents.length === 0 && (
-          <Card>
-            <CardBody textAlign="center" py={10}>
-              <VStack spacing={4}>
-                <Heading size="md" color="gray.500">
-                  No Agents Created
-                </Heading>
-                <Text color="gray.600">
-                  Create your first agent to get started with multi-agent
-                  automation
-                </Text>
+              {/* Actions */}
+              <div className="flex items-center justify-end space-x-2 pt-2">
+                {agent.status === "active" ? (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleStopAgent(agent.id)}
+                  >
+                    <Square className="w-4 h-4 mr-2" />
+                    Stop
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => handleStartAgent(agent.id)}
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Start
+                  </Button>
+                )}
                 <Button
-                  leftIcon={<AddIcon />}
-                  colorScheme="blue"
-                  onClick={onOpen}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedAgent(agent);
+                    setNewAgent({
+                      name: agent.name,
+                      role: agent.role,
+                      capabilities: agent.capabilities,
+                      config: agent.config,
+                    });
+                    setIsModalOpen(true);
+                  }}
                 >
-                  Create First Agent
+                  <Edit className="w-4 h-4" />
                 </Button>
-              </VStack>
-            </CardBody>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => handleDeleteAgent(agent.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
           </Card>
-        )}
-      </VStack>
+        ))}
+      </div>
+
+      {agents.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+            <Bot className="w-12 h-12 text-gray-400" />
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-medium">No Agents Created</h3>
+              <p className="text-gray-500">
+                Create your first agent to get started with multi-agent automation
+              </p>
+            </div>
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create First Agent
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Create/Edit Agent Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            {selectedAgent ? "Edit Agent" : "Create New Agent"}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <VStack spacing={4} align="stretch">
-              <FormControl isRequired>
-                <FormLabel>Agent Name</FormLabel>
-                <Input
-                  value={newAgent.name}
-                  onChange={(e) =>
-                    setNewAgent((prev) => ({ ...prev, name: e.target.value }))
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedAgent ? "Edit Agent" : "Create New Agent"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label>Agent Name <span className="text-red-500">*</span></Label>
+              <Input
+                value={newAgent.name}
+                onChange={(e) =>
+                  setNewAgent((prev) => ({ ...prev, name: e.target.value }))
+                }
+                placeholder="Enter agent name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Role <span className="text-red-500">*</span></Label>
+              <Input
+                value={newAgent.role}
+                onChange={(e) =>
+                  setNewAgent((prev) => ({ ...prev, role: e.target.value }))
+                }
+                placeholder="Enter agent role"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Capabilities</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {availableCapabilities.map((capability) => (
+                  <Button
+                    key={capability}
+                    size="sm"
+                    variant={
+                      newAgent.capabilities.includes(capability)
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() => toggleCapability(capability)}
+                    className="justify-start text-xs"
+                    type="button"
+                  >
+                    {newAgent.capabilities.includes(capability) && (
+                      <CheckCircle className="w-3 h-3 mr-2" />
+                    )}
+                    {capability.replace("_", " ")}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 border rounded-md p-4 bg-gray-50 dark:bg-gray-900">
+              <div className="flex items-center space-x-2">
+                <Settings className="w-4 h-4" />
+                <Label className="font-semibold">Model Configuration</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Model</Label>
+                <Select
+                  value={newAgent.config.model}
+                  onValueChange={(value) =>
+                    setNewAgent((prev) => ({
+                      ...prev,
+                      config: { ...prev.config, model: value },
+                    }))
                   }
-                  placeholder="Enter agent name"
-                />
-              </FormControl>
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gpt-4">GPT-4</SelectItem>
+                    <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                    <SelectItem value="claude-2">Claude 2</SelectItem>
+                    <SelectItem value="llama-2">Llama 2</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <FormControl isRequired>
-                <FormLabel>Role</FormLabel>
-                <Input
-                  value={newAgent.role}
-                  onChange={(e) =>
-                    setNewAgent((prev) => ({ ...prev, role: e.target.value }))
-                  }
-                  placeholder="Enter agent role"
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel>Capabilities</FormLabel>
-                <SimpleGrid columns={2} spacing={2}>
-                  {availableCapabilities.map((capability) => (
-                    <Button
-                      key={capability}
-                      size="sm"
-                      variant={
-                        newAgent.capabilities.includes(capability)
-                          ? "solid"
-                          : "outline"
-                      }
-                      colorScheme={
-                        newAgent.capabilities.includes(capability)
-                          ? "blue"
-                          : "gray"
-                      }
-                      onClick={() => toggleCapability(capability)}
-                    >
-                      {capability.replace("_", " ")}
-                    </Button>
-                  ))}
-                </SimpleGrid>
-              </FormControl>
-
-              <FormControl>
-                <FormLabel>Model Configuration</FormLabel>
-                <VStack spacing={3} align="stretch">
-                  <Select
-                    value={newAgent.config.model}
-                    onChange={(e) =>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label>Temperature</Label>
+                    <span className="text-sm text-gray-500">{newAgent.config.temperature}</span>
+                  </div>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={[newAgent.config.temperature]}
+                    onValueChange={(value) =>
                       setNewAgent((prev) => ({
                         ...prev,
-                        config: { ...prev.config, model: e.target.value },
+                        config: {
+                          ...prev.config,
+                          temperature: value[0],
+                        },
                       }))
                     }
-                  >
-                    <option value="gpt-4">GPT-4</option>
-                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                    <option value="claude-2">Claude 2</option>
-                    <option value="llama-2">Llama 2</option>
-                  </Select>
+                  />
+                </div>
 
-                  <Box>
-                    <FormLabel>
-                      Temperature: {newAgent.config.temperature}
-                    </FormLabel>
-                    <Input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={newAgent.config.temperature}
-                      onChange={(e) =>
-                        setNewAgent((prev) => ({
-                          ...prev,
-                          config: {
-                            ...prev.config,
-                            temperature: parseFloat(e.target.value),
-                          },
-                        }))
-                      }
-                    />
-                  </Box>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label>Max Tokens</Label>
+                    <span className="text-sm text-gray-500">{newAgent.config.maxTokens}</span>
+                  </div>
+                  <Slider
+                    min={100}
+                    max={4000}
+                    step={100}
+                    value={[newAgent.config.maxTokens]}
+                    onValueChange={(value) =>
+                      setNewAgent((prev) => ({
+                        ...prev,
+                        config: {
+                          ...prev.config,
+                          maxTokens: value[0],
+                        },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            </div>
 
-                  <Box>
-                    <FormLabel>
-                      Max Tokens: {newAgent.config.maxTokens}
-                    </FormLabel>
-                    <Input
-                      type="range"
-                      min="100"
-                      max="4000"
-                      step="100"
-                      value={newAgent.config.maxTokens}
-                      onChange={(e) =>
-                        setNewAgent((prev) => ({
-                          ...prev,
-                          config: {
-                            ...prev.config,
-                            maxTokens: parseInt(e.target.value),
-                          },
-                        }))
-                      }
-                    />
-                  </Box>
-                </VStack>
-              </FormControl>
-
-              <Alert status="info">
-                <AlertIcon />
+            <Alert>
+              <Zap className="h-4 w-4" />
+              <AlertTitle>Note</AlertTitle>
+              <AlertDescription>
                 Agents can be started and stopped as needed. Active agents will
                 process tasks automatically.
-              </Alert>
+              </AlertDescription>
+            </Alert>
+          </div>
 
-              <HStack spacing={3} justify="flex-end">
-                <Button variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-                <Button
-                  colorScheme="blue"
-                  onClick={handleCreateAgent}
-                  isLoading={isLoading}
-                  isDisabled={!newAgent.name.trim() || !newAgent.role.trim()}
-                >
-                  {selectedAgent ? "Update Agent" : "Create Agent"}
-                </Button>
-              </HStack>
-            </VStack>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </Box>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateAgent}
+              disabled={isLoading || !newAgent.name.trim() || !newAgent.role.trim()}
+            >
+              {isLoading && <Activity className="mr-2 h-4 w-4 animate-spin" />}
+              {selectedAgent ? "Update Agent" : "Create Agent"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
