@@ -1,0 +1,106 @@
+{
+  "generated_at": "2025-11-29T16:38:25.945998",
+  "oauth_integrations": [
+    {
+      "name": "Salesforce",
+      "value": 100,
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
+    },
+    {
+      "name": "HubSpot",
+      "value": 88,
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
+    },
+    {
+      "name": "Zoom",
+      "value": 32,
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
+    },
+    {
+      "name": "QuickBooks",
+      "value": 35,
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
+    },
+    {
+      "name": "Google",
+      "value": 220,
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
+    },
+    {
+      "name": "Microsoft/Azure",
+      "value": 120,
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
+    },
+    {
+      "name": "Slack",
+      "value": 50,
+      "status": "MISSING",
+      "client_id_set": "",
+      "client_secret_set": ""
+    },
+    {
+      "name": "GitHub",
+      "value": 40,
+      "status": "MISSING",
+      "client_id_set": "",
+      "client_secret_set": ""
+    },
+    {
+      "name": "Notion",
+      "value": 60,
+      "status": "MISSING",
+      "client_id_set": "",
+      "client_secret_set": ""
+    },
+    {
+      "name": "Asana",
+      "value": 45,
+      "status": "MISSING",
+      "client_id_set": "",
+      "client_secret_set": ""
+    },
+    {
+      "name": "Dropbox",
+      "value": 30,
+      "status": "MISSING",
+      "client_id_set": "",
+      "client_secret_set": ""
+    },
+    {
+      "name": "Box",
+      "value": 25,
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
+    },
+    {
+      "name": "Jira",
+      "value": 50,
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
+    }
+  ],
+  "summary": {
+    "total_oauth": 13,
+    "configured_oauth": 8,
+    "business_value": "$670K/year",
+    "configuration_rate": "61.5%"
+  },
+  "api_keys": {
+    "total": 9,
+    "configured": 6
+  }
+}
