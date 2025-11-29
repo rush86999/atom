@@ -3,37 +3,37 @@
  */
 
 import React, { useState, useEffect } from "react";
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Button,
-  Heading,
-  Card,
-  CardBody,
-  CardHeader,
-  Badge,
-  Icon,
-  useToast,
-  SimpleGrid,
-  Divider,
-  useColorModeValue,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  Progress,
-} from "@chakra-ui/react";
-import {
-  ArrowForwardIcon,
-  ArrowRightIcon,
-  TimeIcon,
-  SettingsIcon,
-  CheckCircleIcon,
-  WarningTwoIcon,
-} from "@chakra-ui/icons";
 import { useRouter } from "next/router";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  ArrowRight,
+  Clock,
+  Settings,
+  CheckCircle,
+  AlertTriangle,
+  HardDrive,
+  MessageSquare,
+  Mail,
+  CheckSquare,
+  Github,
+  Code,
+  CreditCard,
+  List,
+  Activity,
+  RefreshCw,
+  LayoutDashboard,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const DashboardPage: React.FC = () => {
   const [integrations, setIntegrations] = useState<any[]>([]);
@@ -44,29 +44,28 @@ const DashboardPage: React.FC = () => {
     healthy: 0,
     errors: 0,
   });
-  const toast = useToast();
+  const { toast } = useToast();
   const router = useRouter();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
 
-  const integrationIcons = {
-    box: TimeIcon,
-    dropbox: TimeIcon,
-    gdrive: TimeIcon,
-    slack: TimeIcon,
-    gmail: TimeIcon,
-    notion: TimeIcon,
-    jira: TimeIcon,
-    github: TimeIcon,
-    nextjs: TimeIcon,
-    stripe: TimeIcon,
-    linear: TimeIcon,
-    outlook: TimeIcon,
-    asana: TimeIcon,
+  const integrationIcons: Record<string, any> = {
+    box: HardDrive,
+    dropbox: HardDrive,
+    gdrive: HardDrive,
+    slack: MessageSquare,
+    gmail: Mail,
+    notion: CheckSquare,
+    jira: CheckSquare,
+    github: Github,
+    nextjs: Code,
+    stripe: CreditCard,
+    linear: List,
+    outlook: Mail,
+    asana: CheckSquare,
   };
 
   const checkIntegrationsHealth = async () => {
     try {
+      setLoading(true);
       const healthChecks = await Promise.all([
         fetch("/api/integrations/box/health"),
         fetch("/api/integrations/dropbox/health"),
@@ -108,9 +107,7 @@ const DashboardPage: React.FC = () => {
           ...integration,
           connected,
           health,
-          icon: integrationIcons[
-            integration.id as keyof typeof integrationIcons
-          ],
+          icon: integrationIcons[integration.id] || Activity,
           lastSync: new Date().toISOString(),
         };
       });
@@ -132,6 +129,11 @@ const DashboardPage: React.FC = () => {
       });
     } catch (error) {
       console.error("Health check failed:", error);
+      toast({
+        title: "Health check failed",
+        description: "Could not fetch integration status.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -144,21 +146,36 @@ const DashboardPage: React.FC = () => {
   const getStatusIcon = (health: string) => {
     switch (health) {
       case "healthy":
-        return <CheckCircleIcon color="green.500" />;
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
       case "warning":
-        return <WarningTwoIcon color="yellow.500" />;
+        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
       case "error":
-        return <WarningTwoIcon color="red.500" />;
+        return <AlertTriangle className="w-5 h-5 text-red-500" />;
       default:
-        return <TimeIcon color="gray.500" />;
+        return <Clock className="w-5 h-5 text-gray-500" />;
     }
   };
 
   const getStatusBadge = (health: string) => {
-    const colorScheme =
-      health === "healthy" ? "green" : health === "warning" ? "yellow" : "red";
+    const variant =
+      health === "healthy"
+        ? "default" // Greenish usually
+        : health === "warning"
+        ? "secondary" // Yellowish
+        : "destructive"; // Red
+
+    // Custom coloring since Shadcn badges are limited
+    const className =
+      health === "healthy"
+        ? "bg-green-500 hover:bg-green-600"
+        : health === "warning"
+        ? "bg-yellow-500 hover:bg-yellow-600"
+        : health === "error"
+        ? "bg-red-500 hover:bg-red-600"
+        : "bg-gray-500 hover:bg-gray-600";
+
     return (
-      <Badge colorScheme={colorScheme} size="sm">
+      <Badge className={className}>
         {health}
       </Badge>
     );
@@ -181,243 +198,264 @@ const DashboardPage: React.FC = () => {
   }, []);
 
   return (
-    <Box minH="100vh" bg={bgColor} p={6}>
-      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="max-w-[1400px] mx-auto space-y-8">
         {/* Header */}
-        <VStack align="start" spacing={2}>
-          <Heading size="3xl">ATOM Dashboard</Heading>
-          <Text color="gray.600" fontSize="xl">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+            ATOM Dashboard
+          </h1>
+          <p className="text-xl text-gray-600 dark:text-gray-400">
             Manage your connected integrations and data pipeline
-          </Text>
-        </VStack>
+          </p>
+        </div>
 
         {/* Stats Overview */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>
-            <CardBody>
-              <Stat>
-                <StatLabel>Connected Integrations</StatLabel>
-                <StatNumber color="blue.500">{stats.connected}</StatNumber>
-                <StatHelpText>of {stats.total} available</StatHelpText>
-              </Stat>
-              <Progress
-                value={getConnectionProgress()}
-                colorScheme="blue"
-                size="sm"
-                mt={3}
-              />
-            </CardBody>
+            <CardContent className="pt-6">
+              <div className="flex flex-col space-y-2">
+                <span className="text-sm font-medium text-gray-500">
+                  Connected Integrations
+                </span>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-3xl font-bold text-blue-600">
+                    {stats.connected}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    of {stats.total} available
+                  </span>
+                </div>
+                <Progress value={getConnectionProgress()} className="h-2" />
+              </div>
+            </CardContent>
           </Card>
 
           <Card>
-            <CardBody>
-              <Stat>
-                <StatLabel>Healthy Services</StatLabel>
-                <StatNumber color="green.500">{stats.healthy}</StatNumber>
-                <StatHelpText>{stats.errors} issues detected</StatHelpText>
-              </Stat>
-              <Progress
-                value={getHealthProgress()}
-                colorScheme="green"
-                size="sm"
-                mt={3}
-              />
-            </CardBody>
+            <CardContent className="pt-6">
+              <div className="flex flex-col space-y-2">
+                <span className="text-sm font-medium text-gray-500">
+                  Healthy Services
+                </span>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-3xl font-bold text-green-600">
+                    {stats.healthy}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {stats.errors} issues detected
+                  </span>
+                </div>
+                <Progress value={getHealthProgress()} className="h-2" />
+              </div>
+            </CardContent>
           </Card>
 
           <Card>
-            <CardBody>
-              <Stat>
-                <StatLabel>Data Ingestion</StatLabel>
-                <StatNumber color="purple.500">Active</StatNumber>
-                <StatHelpText>Last sync: Just now</StatHelpText>
-              </Stat>
-              <Progress value={100} colorScheme="purple" size="sm" mt={3} />
-            </CardBody>
+            <CardContent className="pt-6">
+              <div className="flex flex-col space-y-2">
+                <span className="text-sm font-medium text-gray-500">
+                  Data Ingestion
+                </span>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-3xl font-bold text-purple-600">
+                    Active
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    Last sync: Just now
+                  </span>
+                </div>
+                <Progress value={100} className="h-2" />
+              </div>
+            </CardContent>
           </Card>
 
           <Card>
-            <CardBody>
-              <Stat>
-                <StatLabel>AI Skills</StatLabel>
-                <StatNumber color="orange.500">72</StatNumber>
-                <StatHelpText>Available commands</StatHelpText>
-              </Stat>
-              <Progress value={100} colorScheme="orange" size="sm" mt={3} />
-            </CardBody>
+            <CardContent className="pt-6">
+              <div className="flex flex-col space-y-2">
+                <span className="text-sm font-medium text-gray-500">
+                  AI Skills
+                </span>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-3xl font-bold text-orange-600">
+                    72
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    Available commands
+                  </span>
+                </div>
+                <Progress value={100} className="h-2" />
+              </div>
+            </CardContent>
           </Card>
-        </SimpleGrid>
+        </div>
 
         {/* Quick Actions */}
-        <HStack justify="space-between" w="full">
-          <VStack align="start" spacing={2}>
-            <Heading size="lg">Quick Actions</Heading>
-            <Text color="gray.600">Common tasks and management</Text>
-          </VStack>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Quick Actions
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              Common tasks and management
+            </p>
+          </div>
 
-          <HStack>
+          <div className="flex space-x-4">
             <Button
               variant="outline"
-              leftIcon={<SettingsIcon />}
               onClick={() => router.push("/integrations")}
+              className="gap-2"
             >
+              <Settings className="w-4 h-4" />
               Manage Integrations
             </Button>
             <Button
-              colorScheme="blue"
-              leftIcon={<TimeIcon />}
               onClick={checkIntegrationsHealth}
-              isLoading={loading}
+              disabled={loading}
+              className="gap-2"
             >
+              {loading ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
               Refresh Status
             </Button>
-          </HStack>
-        </HStack>
+          </div>
+        </div>
 
         {/* Integration Grid */}
         <Card>
-          <CardHeader>
-            <HStack justify="space-between">
-              <VStack align="start" spacing={0}>
-                <Heading size="lg">Connected Integrations</Heading>
-                <Text color="gray.600">
-                  Click to manage individual integrations
-                </Text>
-              </VStack>
-              <Button
-                variant="ghost"
-                size="sm"
-                rightIcon={<ArrowForwardIcon />}
-                onClick={() => router.push("/integrations")}
-              >
-                View All
-              </Button>
-            </HStack>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="space-y-1">
+              <CardTitle>Connected Integrations</CardTitle>
+              <CardDescription>
+                Click to manage individual integrations
+              </CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/integrations")}
+              className="gap-2"
+            >
+              View All
+              <ArrowRight className="w-4 h-4" />
+            </Button>
           </CardHeader>
 
-          <CardBody>
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-              {integrations.map((integration) => (
-                <Card
-                  key={integration.id}
-                  cursor="pointer"
-                  onClick={() => handleIntegrationClick(integration.id)}
-                  bg={bgColor}
-                  border="1px"
-                  borderColor={borderColor}
-                  _hover={{
-                    shadow: "md",
-                    transform: "translateY(-2px)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  <CardBody>
-                    <VStack spacing={4} align="start">
-                      <HStack justify="space-between" w="full">
-                        <HStack>
-                          <Icon
-                            as={integration.icon}
-                            w={6}
-                            h={6}
-                            color="blue.500"
-                          />
-                          <VStack align="start" spacing={0}>
-                            <Text fontWeight="bold" fontSize="lg">
-                              {integration.name}
-                            </Text>
-                            <Badge size="sm" colorScheme="gray">
-                              {integration.category}
-                            </Badge>
-                          </VStack>
-                        </HStack>
-                        {getStatusIcon(integration.health)}
-                      </HStack>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+              {integrations.map((integration) => {
+                const IconComponent = integration.icon;
+                return (
+                  <Card
+                    key={integration.id}
+                    className="cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5"
+                    onClick={() => handleIntegrationClick(integration.id)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex flex-col space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                              <IconComponent className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg">
+                                {integration.name}
+                              </h3>
+                              <Badge variant="secondary" className="mt-1">
+                                {integration.category}
+                              </Badge>
+                            </div>
+                          </div>
+                          {getStatusIcon(integration.health)}
+                        </div>
 
-                      <HStack justify="space-between" w="full">
-                        <Text fontSize="sm" color="gray.600">
-                          Status:
-                        </Text>
-                        {getStatusBadge(integration.health)}
-                      </HStack>
+                        <div className="space-y-2 pt-2">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-500">Status:</span>
+                            {getStatusBadge(integration.health)}
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-500">Connection:</span>
+                            <div className="flex items-center space-x-1">
+                              <span>
+                                {integration.connected
+                                  ? "Connected"
+                                  : "Disconnected"}
+                              </span>
+                              {integration.connected ? (
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                              ) : (
+                                <AlertTriangle className="w-4 h-4 text-red-500" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
 
-                      <HStack justify="space-between" w="full">
-                        <Text fontSize="sm" color="gray.600">
-                          {integration.connected ? "Connected" : "Disconnected"}
-                        </Text>
-                        {integration.connected ? (
-                          <CheckCircleIcon color="green.500" w={4} h={4} />
-                        ) : (
-                          <WarningTwoIcon color="red.500" w={4} h={4} />
-                        )}
-                      </HStack>
-                    </VStack>
-                  </CardBody>
-                </Card>
-              ))}
-            </SimpleGrid>
-
-            {integrations.length === 0 && (
-              <VStack spacing={4} py={8}>
-                <Icon as={TimeIcon} w={12} h={12} color="gray.400" />
-                <Text color="gray.600" textAlign="center">
+            {integrations.length === 0 && !loading && (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-full">
+                  <LayoutDashboard className="w-12 h-12 text-gray-400" />
+                </div>
+                <p className="text-gray-600 text-lg">
                   No integrations connected yet
-                </Text>
-                <Button
-                  colorScheme="blue"
-                  onClick={() => router.push("/integrations")}
-                >
+                </p>
+                <Button onClick={() => router.push("/integrations")}>
                   Connect Integrations
                 </Button>
-              </VStack>
+              </div>
             )}
-          </CardBody>
+          </CardContent>
         </Card>
 
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <VStack align="start" spacing={2}>
-              <Heading size="lg">Recent Activity</Heading>
-              <Text color="gray.600">Latest integration events and syncs</Text>
-            </VStack>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>
+              Latest integration events and syncs
+            </CardDescription>
           </CardHeader>
 
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <HStack justify="space-between">
-                <HStack>
-                  <Icon as={TimeIcon} w={4} h={4} color="gray.800" />
-                  <Text>Next.js integration connected</Text>
-                </HStack>
-                <Text fontSize="sm" color="gray.500">
-                  2 minutes ago
-                </Text>
-              </HStack>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                <div className="flex items-center space-x-3">
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  <span>Next.js integration connected</span>
+                </div>
+                <span className="text-sm text-gray-500">2 minutes ago</span>
+              </div>
 
-              <HStack justify="space-between">
-                <HStack>
-                  <Icon as={TimeIcon} w={4} h={4} color="black" />
-                  <Text>GitHub repositories synced</Text>
-                </HStack>
-                <Text fontSize="sm" color="gray.500">
-                  15 minutes ago
-                </Text>
-              </HStack>
+              <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                <div className="flex items-center space-x-3">
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  <span>GitHub repositories synced</span>
+                </div>
+                <span className="text-sm text-gray-500">15 minutes ago</span>
+              </div>
 
-              <HStack justify="space-between">
-                <HStack>
-                  <Icon as={TimeIcon} w={4} h={4} color="purple.500" />
-                  <Text>Slack channels updated</Text>
-                </HStack>
-                <Text fontSize="sm" color="gray.500">
-                  1 hour ago
-                </Text>
-              </HStack>
-            </VStack>
-          </CardBody>
+              <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                <div className="flex items-center space-x-3">
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  <span>Slack channels updated</span>
+                </div>
+                <span className="text-sm text-gray-500">1 hour ago</span>
+              </div>
+            </div>
+          </CardContent>
         </Card>
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 };
 

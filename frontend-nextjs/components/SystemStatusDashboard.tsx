@@ -1,47 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from '@/components/ui/use-toast';
 import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Grid,
-  GridItem,
-  Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
-  Badge,
-  Spinner,
-  Progress,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  useToast,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  SimpleGrid,
-  Flex,
-  Icon,
-  IconButton,
-  Tooltip,
-} from '@chakra-ui/react';
-import {
-  CheckCircleIcon,
-  WarningIcon,
-  TimeIcon,
-  SettingsIcon,
-  RepeatIcon,
-  ArrowForwardIcon,
-  CloseIcon,
-  SunIcon,
-  ExternalLinkIcon,
-} from '@chakra-ui/icons';
-import { systemAPI, serviceRegistryAPI, byokAPI, workflowAPI, apiUtils } from '../lib/api';
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  Settings,
+  RefreshCw,
+  X,
+  Sun,
+  ExternalLink,
+  Activity,
+  Cpu,
+  HardDrive,
+  MemoryStick,
+} from 'lucide-react';
+import { systemAPI, serviceRegistryAPI, byokAPI, workflowAPI } from '../lib/api';
 
 interface SystemStatusData {
   timestamp: string;
@@ -70,7 +48,7 @@ const SystemStatusDashboard: React.FC = () => {
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const fetchSystemData = async () => {
     try {
@@ -97,9 +75,7 @@ const SystemStatusDashboard: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to fetch system status',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -115,18 +91,18 @@ const SystemStatusDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): string => {
     switch (status?.toLowerCase()) {
       case 'healthy':
       case 'operational':
-        return 'green';
+        return 'bg-green-500 hover:bg-green-600';
       case 'degraded':
-        return 'yellow';
+        return 'bg-yellow-500 hover:bg-yellow-600';
       case 'unhealthy':
       case 'unreachable':
-        return 'red';
+        return 'bg-red-500 hover:bg-red-600';
       default:
-        return 'gray';
+        return 'bg-gray-500 hover:bg-gray-600';
     }
   };
 
@@ -134,14 +110,14 @@ const SystemStatusDashboard: React.FC = () => {
     switch (status?.toLowerCase()) {
       case 'healthy':
       case 'operational':
-        return CheckCircleIcon;
+        return <CheckCircle className="w-4 h-4" />;
       case 'degraded':
-        return WarningIcon;
+        return <AlertTriangle className="w-4 h-4" />;
       case 'unhealthy':
       case 'unreachable':
-        return CloseIcon;
+        return <X className="w-4 h-4" />;
       default:
-        return TimeIcon;
+        return <Clock className="w-4 h-4" />;
     }
   };
 
@@ -164,260 +140,259 @@ const SystemStatusDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <Box textAlign="center" py={8}>
-        <Spinner size="xl" />
-        <Text mt={4}>Loading system status...</Text>
-      </Box>
+      <div className="flex flex-col items-center justify-center py-12">
+        <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mb-4" />
+        <p className="text-gray-600">Loading system status...</p>
+      </div>
     );
   }
 
   return (
-    <Box p={6}>
-      <VStack spacing={6} align="stretch">
-        {/* Header */}
-        <Flex justify="space-between" align="center">
-          <VStack align="start" spacing={1}>
-            <Heading size="lg">System Status Dashboard</Heading>
-            <Text color="gray.600">
-              Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleString() : 'Unknown'}
-            </Text>
-          </VStack>
-          <HStack spacing={3}>
-            <Badge
-              colorScheme={getStatusColor(systemStatus?.overall_status)}
-              fontSize="md"
-              px={3}
-              py={1}
-            >
-              <Icon as={getStatusIcon(systemStatus?.overall_status)} mr={1} />
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">System Status Dashboard</h1>
+          <p className="text-sm text-gray-600">
+            Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleString() : 'Unknown'}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge className={getStatusColor(systemStatus?.overall_status)}>
+            <span className="flex items-center gap-1">
+              {getStatusIcon(systemStatus?.overall_status)}
               {systemStatus?.overall_status?.toUpperCase() || 'UNKNOWN'}
-            </Badge>
-            <Tooltip label="Refresh status">
-              <IconButton
-                aria-label="Refresh"
-                icon={<RepeatIcon />}
-                isLoading={refreshing}
-                onClick={fetchSystemData}
-                variant="outline"
+            </span>
+          </Badge>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={fetchSystemData}
+            disabled={refreshing}
+            title="Refresh status"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      </div>
+
+      {/* System Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">System Uptime</span>
+              </div>
+              <p className="text-3xl font-bold">
+                {systemStatus ? formatUptime(systemStatus.uptime.system_seconds) : 'N/A'}
+              </p>
+              <p className="text-xs text-gray-500">
+                Process: {systemStatus ? formatUptime(systemStatus.uptime.process_seconds) : 'N/A'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">CPU Usage</span>
+              </div>
+              <p className="text-3xl font-bold">
+                {systemStatus?.resources?.cpu?.percent?.toFixed(1) || '0'}%
+              </p>
+              <Progress
+                value={systemStatus?.resources?.cpu?.percent || 0}
+                className="h-2"
               />
-            </Tooltip>
-          </HStack>
-        </Flex>
-
-        {/* System Overview */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
-          <Card>
-            <CardBody>
-              <VStack spacing={2} align="start">
-                <Text fontSize="sm" color="gray.600">System Uptime</Text>
-                <Heading size="lg">
-                  {systemStatus ? formatUptime(systemStatus.uptime.system_seconds) : 'N/A'}
-                </Heading>
-                <Text fontSize="xs" color="gray.500">
-                  Process: {systemStatus ? formatUptime(systemStatus.uptime.process_seconds) : 'N/A'}
-                </Text>
-              </VStack>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardBody>
-              <VStack spacing={2} align="start">
-                <Text fontSize="sm" color="gray.600">CPU Usage</Text>
-                <Heading size="lg">
-                  {systemStatus?.resources?.cpu?.percent?.toFixed(1) || '0'}%
-                </Heading>
-                <Progress
-                  value={systemStatus?.resources?.cpu?.percent || 0}
-                  size="sm"
-                  width="100%"
-                  colorScheme={systemStatus?.resources?.cpu?.percent > 80 ? 'red' : 'green'}
-                />
-              </VStack>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardBody>
-              <VStack spacing={2} align="start">
-                <Text fontSize="sm" color="gray.600">Memory Usage</Text>
-                <Heading size="lg">
-                  {systemStatus?.resources?.memory?.system_used_percent?.toFixed(1) || '0'}%
-                </Heading>
-                <Text fontSize="xs" color="gray.500">
-                  {systemStatus?.resources?.memory?.rss_mb || '0'} MB used
-                </Text>
-              </VStack>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardBody>
-              <VStack spacing={2} align="start">
-                <Text fontSize="sm" color="gray.600">Disk Usage</Text>
-                <Heading size="lg">
-                  {systemStatus?.resources?.disk?.percent?.toFixed(1) || '0'}%
-                </Heading>
-                <Text fontSize="xs" color="gray.500">
-                  {systemStatus?.resources?.disk?.free_gb || '0'} GB free
-                </Text>
-              </VStack>
-            </CardBody>
-          </Card>
-        </SimpleGrid>
-
-        {/* Services Status */}
-        <Card>
-          <CardHeader>
-            <Heading size="md">Services Status</Heading>
-          </CardHeader>
-          <CardBody>
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-              {systemStatus?.services && Object.entries(systemStatus.services).map(([serviceId, service]: [string, any]) => (
-                <Card key={serviceId} size="sm" variant="outline">
-                  <CardBody>
-                    <HStack justify="space-between">
-                      <VStack align="start" spacing={1}>
-                        <Text fontWeight="medium">{service.name}</Text>
-                        <Badge colorScheme={getStatusColor(service.status)}>
-                          {service.status}
-                        </Badge>
-                        {service.response_time_ms && (
-                          <Text fontSize="xs" color="gray.500">
-                            {service.response_time_ms}ms
-                          </Text>
-                        )}
-                      </VStack>
-                      <Icon as={getStatusIcon(service.status)} color={getStatusColor(service.status)} />
-                    </HStack>
-                    {service.error && (
-                      <Text fontSize="xs" color="red.500" mt={2}>
-                        {service.error}
-                      </Text>
-                    )}
-                  </CardBody>
-                </Card>
-              ))}
-            </SimpleGrid>
-          </CardBody>
+            </div>
+          </CardContent>
         </Card>
 
-        {/* Features & Integrations */}
-        <Grid templateColumns={{ base: '1fr', lg: '2fr 1fr' }} gap={6}>
-          {/* Services & Providers */}
-          <Card>
-            <CardHeader>
-              <Heading size="md">Services & AI Providers</Heading>
-            </CardHeader>
-            <CardBody>
-              <VStack spacing={4} align="stretch">
-                {/* Registered Services */}
-                <Box>
-                  <Text fontWeight="medium" mb={2}>Registered Services ({services.length})</Text>
-                  <SimpleGrid columns={2} spacing={2}>
-                    {services.map((service) => (
-                      <Badge key={service.id} colorScheme="blue" variant="subtle" px={2} py={1}>
-                        {service.name}
-                      </Badge>
-                    ))}
-                  </SimpleGrid>
-                </Box>
-
-                {/* AI Providers */}
-                <Box>
-                  <Text fontWeight="medium" mb={2}>AI Providers ({providers.length})</Text>
-                  <SimpleGrid columns={2} spacing={2}>
-                    {providers.map((provider) => (
-                      <Badge key={provider.id} colorScheme="green" variant="subtle" px={2} py={1}>
-                        {provider.name}
-                      </Badge>
-                    ))}
-                  </SimpleGrid>
-                </Box>
-              </VStack>
-            </CardBody>
-          </Card>
-
-          {/* System Info */}
-          <Card>
-            <CardHeader>
-              <Heading size="md">System Information</Heading>
-            </CardHeader>
-            <CardBody>
-              <VStack spacing={3} align="stretch">
-                <Box>
-                  <Text fontSize="sm" color="gray.600">Platform</Text>
-                  <Text fontSize="sm">{systemStatus?.system?.platform?.system || 'Unknown'}</Text>
-                </Box>
-                <Box>
-                  <Text fontSize="sm" color="gray.600">Node</Text>
-                  <Text fontSize="sm">{systemStatus?.system?.platform?.node || 'Unknown'}</Text>
-                </Box>
-                <Box>
-                  <Text fontSize="sm" color="gray.600">Python Version</Text>
-                  <Text fontSize="sm">{systemStatus?.system?.python?.version?.split(' ')[0] || 'Unknown'}</Text>
-                </Box>
-                <Box>
-                  <Text fontSize="sm" color="gray.600">Process ID</Text>
-                  <Text fontSize="sm">{systemStatus?.system?.process?.pid || 'Unknown'}</Text>
-                </Box>
-              </VStack>
-            </CardBody>
-          </Card>
-        </Grid>
-
-        {/* Feature Status */}
         <Card>
-          <CardHeader>
-            <Heading size="md">Feature Status</Heading>
-          </CardHeader>
-          <CardBody>
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
-              {systemStatus?.features && Object.entries(systemStatus.features).map(([featureId, feature]: [string, any]) => (
-                <Card key={featureId} size="sm">
-                  <CardBody>
-                    <VStack spacing={2} align="start">
-                      <Badge colorScheme={getStatusColor(feature.status)}>
-                        {feature.status}
-                      </Badge>
-                      <Text fontWeight="medium">{feature.description}</Text>
-                      {feature.providers && (
-                        <Text fontSize="sm" color="gray.600">
-                          {feature.providers} providers
-                        </Text>
-                      )}
-                      {feature.services_registered && (
-                        <Text fontSize="sm" color="gray.600">
-                          {feature.services_registered} services
-                        </Text>
-                      )}
-                      {feature.templates_available && (
-                        <Text fontSize="sm" color="gray.600">
-                          {feature.templates_available} templates
-                        </Text>
-                      )}
-                    </VStack>
-                  </CardBody>
-                </Card>
-              ))}
-            </SimpleGrid>
-          </CardBody>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <MemoryStick className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">Memory Usage</span>
+              </div>
+              <p className="text-3xl font-bold">
+                {systemStatus?.resources?.memory?.system_used_percent?.toFixed(1) || '0'}%
+              </p>
+              <p className="text-xs text-gray-500">
+                {systemStatus?.resources?.memory?.rss_mb || '0'} MB used
+              </p>
+            </div>
+          </CardContent>
         </Card>
 
-        {/* Alerts */}
-        {systemStatus?.overall_status !== 'healthy' && (
-          <Alert status="warning" variant="left-accent">
-            <AlertIcon />
-            <Box>
-              <AlertTitle>System Status: {systemStatus?.overall_status?.toUpperCase()}</AlertTitle>
-              <AlertDescription>
-                Some services may be experiencing issues. Check the services status above for details.
-              </AlertDescription>
-            </Box>
-          </Alert>
-        )}
-      </VStack>
-    </Box>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <HardDrive className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">Disk Usage</span>
+              </div>
+              <p className="text-3xl font-bold">
+                {systemStatus?.resources?.disk?.percent?.toFixed(1) || '0'}%
+              </p>
+              <p className="text-xs text-gray-500">
+                {systemStatus?.resources?.disk?.free_gb || '0'} GB free
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Services Status */}
+      <Card>
+        <CardHeader>
+          <h2 className="text-xl font-semibold">Services Status</h2>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {systemStatus?.services && Object.entries(systemStatus.services).map(([serviceId, service]: [string, any]) => (
+              <Card key={serviceId} className="border">
+                <CardContent className="pt-6">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1 flex-1">
+                      <p className="font-medium">{service.name}</p>
+                      <Badge className={getStatusColor(service.status)}>
+                        {service.status}
+                      </Badge>
+                      {service.response_time_ms && (
+                        <p className="text-xs text-gray-500">
+                          {service.response_time_ms}ms
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-gray-500">
+                      {getStatusIcon(service.status)}
+                    </div>
+                  </div>
+                  {service.error && (
+                    <p className="text-xs text-red-500 mt-2">
+                      {service.error}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Features & Integrations */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Services & Providers */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <h2 className="text-xl font-semibold">Services & AI Providers</h2>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Registered Services */}
+            <div>
+              <p className="font-medium mb-2">Registered Services ({services.length})</p>
+              <div className="grid grid-cols-2 gap-2">
+                {services.map((service) => (
+                  <Badge key={service.id} variant="secondary" className="px-2 py-1">
+                    {service.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* AI Providers */}
+            <div>
+              <p className="font-medium mb-2">AI Providers ({providers.length})</p>
+              <div className="grid grid-cols-2 gap-2">
+                {providers.map((provider) => (
+                  <Badge key={provider.id} variant="secondary" className="bg-green-100 text-green-800 px-2 py-1">
+                    {provider.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* System Info */}
+        <Card>
+          <CardHeader>
+            <h2 className="text-xl font-semibold">System Information</h2>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-sm text-gray-600">Platform</p>
+              <p className="text-sm font-medium">{systemStatus?.system?.platform?.system || 'Unknown'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Node</p>
+              <p className="text-sm font-medium">{systemStatus?.system?.platform?.node || 'Unknown'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Python Version</p>
+              <p className="text-sm font-medium">{systemStatus?.system?.python?.version?.split(' ')[0] || 'Unknown'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Process ID</p>
+              <p className="text-sm font-medium">{systemStatus?.system?.process?.pid || 'Unknown'}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Feature Status */}
+      <Card>
+        <CardHeader>
+          <h2 className="text-xl font-semibold">Feature Status</h2>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {systemStatus?.features && Object.entries(systemStatus.features).map(([featureId, feature]: [string, any]) => (
+              <Card key={featureId} className="border">
+                <CardContent className="pt-6 space-y-2">
+                  <Badge className={getStatusColor(feature.status)}>
+                    {feature.status}
+                  </Badge>
+                  <p className="font-medium">{feature.description}</p>
+                  {feature.providers && (
+                    <p className="text-sm text-gray-600">
+                      {feature.providers} providers
+                    </p>
+                  )}
+                  {feature.services_registered && (
+                    <p className="text-sm text-gray-600">
+                      {feature.services_registered} services
+                    </p>
+                  )}
+                  {feature.templates_available && (
+                    <p className="text-sm text-gray-600">
+                      {feature.templates_available} templates
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Alerts */}
+      {systemStatus?.overall_status !== 'healthy' && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>System Status: {systemStatus?.overall_status?.toUpperCase()}</AlertTitle>
+          <AlertDescription>
+            Some services may be experiencing issues. Check the services status above for details.
+          </AlertDescription>
+        </Alert>
+      )}
+    </div>
   );
 };
 

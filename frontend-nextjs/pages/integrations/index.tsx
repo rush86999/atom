@@ -4,60 +4,50 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Button,
-  Heading,
   Card,
-  CardBody,
+  CardContent,
   CardHeader,
-  Badge,
-  Icon,
-  useToast,
-  SimpleGrid,
-  Divider,
-  useColorModeValue,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Progress,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatGroup,
-} from "@chakra-ui/react";
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/components/ui/use-toast";
 import {
-  // Core Chakra Icons that exist
-  TimeIcon,
-  CheckCircleIcon,
-  WarningTwoIcon,
-  ArrowForwardIcon,
-  AddIcon,
-  SearchIcon,
-  SettingsIcon,
-  RepeatIcon,
-  StarIcon,
-  SunIcon,
-  ViewIcon,
-  GenericAvatarIcon,
-  // Special icons for specific integrations
-  EmailIcon,
-  ChatIcon,
-  EditIcon,
-  PhoneIcon,
-  ExternalLinkIcon,
-  InfoIcon,
-  LockIcon,
-  UnlockIcon,
-  DownloadIcon,
-  UploadIcon,
-} from "@chakra-ui/icons";
+  ArrowRight,
+  Clock,
+  Settings,
+  CheckCircle,
+  AlertTriangle,
+  HardDrive,
+  MessageSquare,
+  Mail,
+  CheckSquare,
+  Github,
+  Code,
+  CreditCard,
+  List,
+  Activity,
+  RefreshCw,
+  LayoutDashboard,
+  Search,
+  Star,
+  Sun,
+  Eye,
+  User,
+  Phone,
+  ExternalLink,
+  Info,
+  Lock,
+  Unlock,
+  Download,
+  Upload,
+  Edit,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Integration {
   id: string;
@@ -77,9 +67,8 @@ const IntegrationsPage: React.FC = () => {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const toast = useToast();
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
+  const { toast } = useToast();
+  const router = useRouter();
 
   const integrationList: Integration[] = [
     // Storage & File Management
@@ -90,8 +79,8 @@ const IntegrationsPage: React.FC = () => {
       category: "storage",
       status: "complete",
       connected: false,
-      icon: GenericAvatarIcon,
-      color: "blue",
+      icon: HardDrive,
+      color: "text-blue-600",
       documentation: "https://developer.box.com/",
     },
     {
@@ -101,8 +90,8 @@ const IntegrationsPage: React.FC = () => {
       category: "storage",
       status: "complete",
       connected: false,
-      icon: DownloadIcon,
-      color: "blue",
+      icon: Download,
+      color: "text-blue-600",
       documentation: "https://www.dropbox.com/developers/documentation",
     },
     {
@@ -112,8 +101,8 @@ const IntegrationsPage: React.FC = () => {
       category: "storage",
       status: "complete",
       connected: false,
-      icon: ViewIcon,
-      color: "green",
+      icon: HardDrive,
+      color: "text-green-600",
       documentation: "https://developers.google.com/drive",
     },
     {
@@ -123,8 +112,8 @@ const IntegrationsPage: React.FC = () => {
       category: "storage",
       status: "complete",
       connected: false,
-      icon: DownloadIcon,
-      color: "blue",
+      icon: Download,
+      color: "text-blue-600",
       documentation:
         "https://docs.microsoft.com/en-us/graph/api/resources/onedrive",
     },
@@ -137,8 +126,8 @@ const IntegrationsPage: React.FC = () => {
       category: "communication",
       status: "complete",
       connected: false,
-      icon: ChatIcon,
-      color: "purple",
+      icon: MessageSquare,
+      color: "text-purple-600",
       documentation: "https://api.slack.com/",
     },
     {
@@ -148,8 +137,8 @@ const IntegrationsPage: React.FC = () => {
       category: "communication",
       status: "complete",
       connected: false,
-      icon: ChatIcon,
-      color: "purple",
+      icon: MessageSquare,
+      color: "text-purple-600",
       documentation:
         "https://docs.microsoft.com/en-us/microsoftteams/platform/overview",
     },
@@ -160,8 +149,8 @@ const IntegrationsPage: React.FC = () => {
       category: "communication",
       status: "complete",
       connected: false,
-      icon: EmailIcon,
-      color: "red",
+      icon: Mail,
+      color: "text-red-600",
       documentation: "https://developers.google.com/gmail/api",
     },
     {
@@ -171,8 +160,8 @@ const IntegrationsPage: React.FC = () => {
       category: "communication",
       status: "complete",
       connected: false,
-      icon: EmailIcon,
-      color: "blue",
+      icon: Mail,
+      color: "text-blue-600",
       documentation:
         "https://docs.microsoft.com/en-us/graph/api/resources/outlook",
     },
@@ -185,8 +174,8 @@ const IntegrationsPage: React.FC = () => {
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: EditIcon,
-      color: "gray",
+      icon: Edit,
+      color: "text-gray-600",
       documentation: "https://developers.notion.com/",
     },
     {
@@ -196,8 +185,8 @@ const IntegrationsPage: React.FC = () => {
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: SettingsIcon,
-      color: "blue",
+      icon: Settings,
+      color: "text-blue-600",
       documentation:
         "https://developer.atlassian.com/cloud/jira/platform/rest/v3/",
     },
@@ -208,8 +197,8 @@ const IntegrationsPage: React.FC = () => {
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: ViewIcon,
-      color: "blue",
+      icon: List,
+      color: "text-blue-600",
       documentation:
         "https://developer.atlassian.com/cloud/trello/rest/api-group/",
     },
@@ -220,8 +209,8 @@ const IntegrationsPage: React.FC = () => {
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: SettingsIcon,
-      color: "green",
+      icon: CheckSquare,
+      color: "text-green-600",
       documentation: "https://developers.asana.com/docs",
     },
     {
@@ -231,8 +220,8 @@ const IntegrationsPage: React.FC = () => {
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: TimeIcon,
-      color: "blue",
+      icon: List,
+      color: "text-blue-600",
       documentation: "https://developers.linear.app/",
     },
     {
@@ -243,8 +232,8 @@ const IntegrationsPage: React.FC = () => {
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: EditIcon,
-      color: "orange",
+      icon: Edit,
+      color: "text-orange-600",
       documentation: "https://developers.google.com/workspace",
     },
     {
@@ -255,8 +244,8 @@ const IntegrationsPage: React.FC = () => {
       category: "productivity",
       status: "complete",
       connected: false,
-      icon: SettingsIcon,
-      color: "blue",
+      icon: Settings,
+      color: "text-blue-600",
       documentation: "https://learn.microsoft.com/en-us/graph/overview",
     },
 
@@ -268,8 +257,8 @@ const IntegrationsPage: React.FC = () => {
       category: "development",
       status: "complete",
       connected: false,
-      icon: ViewIcon,
-      color: "black",
+      icon: Github,
+      color: "text-black",
       documentation: "https://docs.github.com/en/rest",
     },
     {
@@ -279,8 +268,8 @@ const IntegrationsPage: React.FC = () => {
       category: "development",
       status: "complete",
       connected: false,
-      icon: ViewIcon,
-      color: "orange",
+      icon: Code,
+      color: "text-orange-600",
       documentation: "https://docs.gitlab.com/ee/api/",
     },
     {
@@ -290,8 +279,8 @@ const IntegrationsPage: React.FC = () => {
       category: "development",
       status: "complete",
       connected: false,
-      icon: SettingsIcon,
-      color: "black",
+      icon: Code,
+      color: "text-black",
       documentation: "https://vercel.com/docs/api",
     },
 
@@ -303,8 +292,8 @@ const IntegrationsPage: React.FC = () => {
       category: "finance",
       status: "complete",
       connected: false,
-      icon: StarIcon,
-      color: "green",
+      icon: CreditCard,
+      color: "text-green-600",
       documentation: "https://stripe.com/docs/api",
     },
     {
@@ -314,8 +303,8 @@ const IntegrationsPage: React.FC = () => {
       category: "finance",
       status: "complete",
       connected: false,
-      icon: TimeIcon,
-      color: "green",
+      icon: Activity,
+      color: "text-green-600",
       documentation: "https://developer.xero.com/",
     },
     {
@@ -325,8 +314,8 @@ const IntegrationsPage: React.FC = () => {
       category: "finance",
       status: "complete",
       connected: false,
-      icon: TimeIcon,
-      color: "green",
+      icon: Activity,
+      color: "text-green-600",
       documentation: "https://developer.intuit.com/app/developer/qbo/docs/api",
     },
 
@@ -338,8 +327,8 @@ const IntegrationsPage: React.FC = () => {
       category: "crm",
       status: "complete",
       connected: false,
-      icon: GenericAvatarIcon,
-      color: "blue",
+      icon: User,
+      color: "text-blue-600",
       documentation: "https://developer.salesforce.com/docs/api",
     },
     {
@@ -349,8 +338,8 @@ const IntegrationsPage: React.FC = () => {
       category: "crm",
       status: "complete",
       connected: false,
-      icon: StarIcon,
-      color: "orange",
+      icon: Star,
+      color: "text-orange-600",
       documentation: "https://developers.hubspot.com/",
     },
 
@@ -362,8 +351,8 @@ const IntegrationsPage: React.FC = () => {
       category: "support",
       status: "complete",
       connected: false,
-      icon: ChatIcon,
-      color: "green",
+      icon: MessageSquare,
+      color: "text-green-600",
       documentation:
         "https://developers.intercom.com/intercom-api-reference/reference",
     },
@@ -374,8 +363,8 @@ const IntegrationsPage: React.FC = () => {
       category: "support",
       status: "complete",
       connected: false,
-      icon: ChatIcon,
-      color: "green",
+      icon: MessageSquare,
+      color: "text-green-600",
       documentation: "https://developers.freshdesk.com/api/",
     },
     {
@@ -385,8 +374,8 @@ const IntegrationsPage: React.FC = () => {
       category: "support",
       status: "complete",
       connected: false,
-      icon: ChatIcon,
-      color: "red",
+      icon: MessageSquare,
+      color: "text-red-600",
       documentation: "https://developer.zendesk.com/api_reference/",
     },
 
@@ -398,8 +387,8 @@ const IntegrationsPage: React.FC = () => {
       category: "marketing",
       status: "complete",
       connected: false,
-      icon: EmailIcon,
-      color: "blue",
+      icon: Mail,
+      color: "text-blue-600",
       documentation: "https://mailchimp.com/developer/marketing/",
     },
 
@@ -411,8 +400,8 @@ const IntegrationsPage: React.FC = () => {
       category: "analytics",
       status: "complete",
       connected: false,
-      icon: ViewIcon,
-      color: "purple",
+      icon: Activity,
+      color: "text-purple-600",
       documentation: "https://help.tableau.com/current/api/en-us/api.htm",
     },
 
@@ -424,8 +413,8 @@ const IntegrationsPage: React.FC = () => {
       category: "cloud",
       status: "complete",
       connected: false,
-      icon: SunIcon,
-      color: "blue",
+      icon: Sun,
+      color: "text-blue-600",
       documentation: "https://docs.microsoft.com/en-us/rest/api/azure/",
     },
   ];
@@ -533,13 +522,13 @@ const IntegrationsPage: React.FC = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "healthy":
-        return <CheckCircleIcon color="green.500" />;
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
       case "warning":
-        return <WarningTwoIcon color="yellow.500" />;
+        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
       case "error":
-        return <WarningTwoIcon color="red.500" />;
+        return <AlertTriangle className="w-5 h-5 text-red-500" />;
       default:
-        return <TimeIcon color="gray.500" />;
+        return <Clock className="w-5 h-5 text-gray-500" />;
     }
   };
 
@@ -551,8 +540,6 @@ const IntegrationsPage: React.FC = () => {
       toast({
         title: "Coming Soon",
         description: `${integration.name} integration is ${integration.status}`,
-        status: "info",
-        duration: 3000,
       });
     }
   };
@@ -574,253 +561,213 @@ const IntegrationsPage: React.FC = () => {
   }, []);
 
   return (
-    <Box minH="100vh" bg={bgColor} p={6}>
-      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="max-w-[1400px] mx-auto space-y-8">
         {/* Header */}
-        <VStack align="start" spacing={2}>
-          <Heading size="2xl">ATOM Integrations Hub</Heading>
-          <Text color="gray.600" fontSize="lg">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+            ATOM Integrations Hub
+          </h1>
+          <p className="text-xl text-gray-600 dark:text-gray-400">
             Connect your favorite tools and services to ATOM Agent
-          </Text>
-        </VStack>
+          </p>
+        </div>
 
         {/* Connection Overview */}
         <Card>
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <HStack justify="space-between">
-                <VStack align="start" spacing={1}>
-                  <Text fontWeight="bold" fontSize="xl">
+          <CardContent className="pt-6">
+            <div className="flex flex-col space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-bold">
                     {connectedCount} of {integrations.length} Connected
-                  </Text>
-                  <Text color="gray.600" fontSize="sm">
+                  </h2>
+                  <p className="text-sm text-gray-600">
                     Manage your connected integrations
-                  </Text>
-                </VStack>
+                  </p>
+                </div>
                 <Button
                   variant="outline"
-                  leftIcon={<TimeIcon />}
                   onClick={checkIntegrationsHealth}
-                  isLoading={loading}
+                  disabled={loading}
+                  className="gap-2"
                 >
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
                   Refresh Status
                 </Button>
-              </HStack>
+              </div>
 
-              <Progress
-                value={connectionProgress}
-                colorScheme={connectionProgress === 100 ? "green" : "blue"}
-                size="md"
-                borderRadius="md"
-              />
-
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.600">
-                  Connection Progress
-                </Text>
-                <Text fontSize="sm" fontWeight="bold">
-                  {Math.round(connectionProgress)}%
-                </Text>
-              </HStack>
-            </VStack>
-          </CardBody>
+              <div className="space-y-2">
+                <Progress value={connectionProgress} className="h-2" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Connection Progress</span>
+                  <span className="font-bold">
+                    {Math.round(connectionProgress)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Health Monitoring */}
         <Card>
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <HStack justify="space-between">
-                <VStack align="start" spacing={1}>
-                  <Text fontWeight="bold" fontSize="xl">
-                    Integration Health
-                  </Text>
-                  <Text color="gray.600" fontSize="sm">
+          <CardContent className="pt-6">
+            <div className="flex flex-col space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-bold">Integration Health</h2>
+                  <p className="text-sm text-gray-600">
                     Monitor real-time status of all integrations
-                  </Text>
-                </VStack>
+                  </p>
+                </div>
                 <Button
-                  colorScheme="blue"
-                  leftIcon={<ExternalLinkIcon />}
                   onClick={() =>
                     (window.location.href = "/integrations/health")
                   }
+                  className="gap-2"
                 >
+                  <ExternalLink className="w-4 h-4" />
                   View Health Dashboard
                 </Button>
-              </HStack>
+              </div>
 
-              <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4}>
-                <Box textAlign="center">
-                  <Text fontSize="2xl" fontWeight="bold" color="green.500">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-2xl font-bold text-green-600">
                     {integrations.filter((i) => i.health === "healthy").length}
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Healthy
-                  </Text>
-                </Box>
-                <Box textAlign="center">
-                  <Text fontSize="2xl" fontWeight="bold" color="yellow.500">
+                  </p>
+                  <p className="text-sm text-gray-600">Healthy</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-2xl font-bold text-yellow-600">
                     {integrations.filter((i) => i.health === "warning").length}
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Warnings
-                  </Text>
-                </Box>
-                <Box textAlign="center">
-                  <Text fontSize="2xl" fontWeight="bold" color="red.500">
+                  </p>
+                  <p className="text-sm text-gray-600">Warnings</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-2xl font-bold text-red-600">
                     {integrations.filter((i) => i.health === "error").length}
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Errors
-                  </Text>
-                </Box>
-                <Box textAlign="center">
-                  <Text fontSize="2xl" fontWeight="bold" color="gray.500">
+                  </p>
+                  <p className="text-sm text-gray-600">Errors</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-2xl font-bold text-gray-600">
                     {
                       integrations.filter(
                         (i) => !i.health || i.health === "unknown",
                       ).length
                     }
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    Unknown
-                  </Text>
-                </Box>
-              </SimpleGrid>
+                  </p>
+                  <p className="text-sm text-gray-600">Unknown</p>
+                </div>
+              </div>
 
-              <Text fontSize="sm" color="gray.600" textAlign="center">
+              <p className="text-sm text-center text-gray-500">
                 Click "View Health Dashboard" for detailed monitoring and
                 auto-refresh
-              </Text>
-            </VStack>
-          </CardBody>
+              </p>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Categories Filter */}
-        <HStack spacing={4} wrap="wrap">
+        <div className="flex flex-wrap gap-2">
           {categories.map((category) => (
             <Button
               key={category.id}
-              variant={selectedCategory === category.id ? "solid" : "outline"}
-              colorScheme={selectedCategory === category.id ? "blue" : "gray"}
+              variant={selectedCategory === category.id ? "default" : "outline"}
               onClick={() => setSelectedCategory(category.id)}
               size="sm"
+              className="gap-2"
             >
               {category.name}
-              <Badge ml={2} variant="solid" colorScheme="blue">
+              <Badge variant="secondary" className="ml-1">
                 {category.count}
               </Badge>
             </Button>
           ))}
-        </HStack>
-
-        <Divider />
+        </div>
 
         {/* Integrations Grid */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-          {filteredIntegrations.map((integration) => (
-            <Card
-              key={integration.id}
-              cursor="pointer"
-              onClick={() => handleIntegrationClick(integration)}
-              bg={bgColor}
-              border="1px"
-              borderColor={borderColor}
-              _hover={{
-                shadow: "md",
-                transform: "translateY(-2px)",
-                transition: "all 0.2s",
-              }}
-            >
-              <CardHeader>
-                <HStack justify="space-between">
-                  <HStack>
-                    <Icon
-                      as={integration.icon}
-                      w={8}
-                      h={8}
-                      color={integration.color}
-                    />
-                    <VStack align="start" spacing={0}>
-                      <Text fontWeight="bold" fontSize="lg">
-                        {integration.name}
-                      </Text>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredIntegrations.map((integration) => {
+            const IconComponent = integration.icon;
+            return (
+              <Card
+                key={integration.id}
+                className="cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5"
+                onClick={() => handleIntegrationClick(integration)}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                      <IconComponent className={cn("w-6 h-6", integration.color)} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg">{integration.name}</h3>
                       <Badge
-                        colorScheme={
+                        variant={
                           integration.status === "complete"
-                            ? "green"
+                            ? "default"
                             : integration.status === "in-progress"
-                              ? "yellow"
-                              : "gray"
+                            ? "secondary"
+                            : "outline"
                         }
-                        size="sm"
+                        className={
+                            integration.status === "complete" ? "bg-green-500 hover:bg-green-600" :
+                            integration.status === "in-progress" ? "bg-yellow-500 hover:bg-yellow-600" : ""
+                        }
                       >
                         {integration.status}
                       </Badge>
-                    </VStack>
-                  </HStack>
+                    </div>
+                  </div>
                   {getStatusIcon(integration.health || "unknown")}
-                </HStack>
-              </CardHeader>
+                </CardHeader>
 
-              <CardBody>
-                <VStack spacing={4} align="stretch">
-                  <Text color="gray.600" fontSize="sm">
-                    {integration.description}
-                  </Text>
+                <CardContent className="pt-4">
+                  <div className="flex flex-col space-y-4">
+                    <p className="text-sm text-gray-600 min-h-[40px]">
+                      {integration.description}
+                    </p>
 
-                  <Divider />
+                    <div className="h-px bg-gray-100 dark:bg-gray-800" />
 
-                  <HStack justify="space-between">
-                    <Text fontSize="xs" color="gray.500">
-                      Category: {integration.category}
-                    </Text>
-                    {integration.connected && (
-                      <HStack>
-                        <CheckCircleIcon color="green.500" w={3} h={3} />
-                        <Text fontSize="xs" color="green.500" fontWeight="bold">
-                          Connected
-                        </Text>
-                      </HStack>
-                    )}
-                  </HStack>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        Category: {integration.category}
+                      </span>
+                      {integration.connected && (
+                        <div className="flex items-center space-x-1">
+                          <CheckCircle className="w-3 h-3 text-green-500" />
+                          <span className="text-xs font-bold text-green-500">
+                            Connected
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    leftIcon={<ArrowForwardIcon />}
-                    width="full"
-                  >
-                    {integration.connected ? "Manage" : "Connect"}
-                  </Button>
-                </VStack>
-              </CardBody>
-            </Card>
-          ))}
-        </SimpleGrid>
-
-        {/* Empty State */}
-        {filteredIntegrations.length === 0 && (
-          <Card>
-            <CardBody>
-              <VStack spacing={4}>
-                <Icon as={WarningTwoIcon} w={12} h={12} color="gray.400" />
-                <Text color="gray.600" textAlign="center">
-                  No integrations found in this category
-                </Text>
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedCategory("all")}
-                >
-                  View All Integrations
-                </Button>
-              </VStack>
-            </CardBody>
-          </Card>
-        )}
-      </VStack>
-    </Box>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                    >
+                      {integration.connected ? "Manage" : "Connect"}
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 };
 

@@ -1,51 +1,39 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Grid,
-  GridItem,
   Card,
   CardHeader,
-  CardBody,
-  CardFooter,
-  Button,
-  IconButton,
-  Badge,
-  Spinner,
-  useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Input,
-  Textarea,
-  Select,
-  Checkbox,
-  Switch,
-  useDisclosure,
-  SimpleGrid,
-  Flex,
-  Divider,
-  Alert,
-  AlertIcon,
-} from "@chakra-ui/react";
+  CardContent,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  AddIcon,
-  TimeIcon,
-  EditIcon,
-  DeleteIcon,
-  ViewIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@chakra-ui/icons";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Plus,
+  Clock,
+  Edit,
+  Trash,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+} from "lucide-react";
 
 export interface CalendarEvent {
   id: string;
@@ -103,8 +91,8 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null,
   );
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const toast = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   // Sync with initialEvents
   useEffect(() => {
@@ -146,9 +134,8 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
     onEventCreate?.(newEvent);
     toast({
       title: "Event created",
-      status: "success",
+      description: "Your event has been successfully created.",
       duration: 2000,
-      isClosable: true,
     });
   };
 
@@ -164,9 +151,8 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
     onEventUpdate?.(eventId, updates);
     toast({
       title: "Event updated",
-      status: "success",
+      description: "Your event has been successfully updated.",
       duration: 2000,
-      isClosable: true,
     });
   };
 
@@ -175,9 +161,8 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
     onEventDelete?.(eventId);
     toast({
       title: "Event deleted",
-      status: "success",
+      description: "Your event has been successfully deleted.",
       duration: 2000,
-      isClosable: true,
     });
   };
 
@@ -244,163 +229,178 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
     };
 
     return (
-      <form onSubmit={handleSubmit}>
-        <VStack spacing={4}>
-          <FormControl isRequired>
-            <FormLabel>Title</FormLabel>
+      <form onSubmit={handleSubmit} data-testid="event-form" className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Title</label>
+          <Input
+            value={formData.title}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, title: e.target.value }))
+            }
+            placeholder="Event title"
+            data-testid="event-title"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Description</label>
+          <Textarea
+            value={formData.description}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                description: e.target.value,
+              }))
+            }
+            placeholder="Event description"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Start Time</label>
             <Input
-              value={formData.title}
+              type="datetime-local"
+              value={formData.start}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, title: e.target.value }))
+                setFormData((prev) => ({ ...prev, start: e.target.value }))
               }
-              placeholder="Event title"
+              data-testid="event-start"
+              required
             />
-          </FormControl>
+          </div>
 
-          <FormControl>
-            <FormLabel>Description</FormLabel>
-            <Textarea
-              value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              placeholder="Event description"
-            />
-          </FormControl>
-
-          <SimpleGrid columns={2} spacing={4}>
-            <FormControl isRequired>
-              <FormLabel>Start Time</FormLabel>
-              <Input
-                type="datetime-local"
-                value={formData.start}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, start: e.target.value }))
-                }
-              />
-            </FormControl>
-
-            <FormControl isRequired>
-              <FormLabel>End Time</FormLabel>
-              <Input
-                type="datetime-local"
-                value={formData.end}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, end: e.target.value }))
-                }
-              />
-            </FormControl>
-          </SimpleGrid>
-
-          <FormControl>
-            <FormLabel>Location</FormLabel>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">End Time</label>
             <Input
-              value={formData.location}
+              type="datetime-local"
+              value={formData.end}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, location: e.target.value }))
+                setFormData((prev) => ({ ...prev, end: e.target.value }))
               }
-              placeholder="Event location"
+              data-testid="event-end"
+              required
             />
-          </FormControl>
+          </div>
+        </div>
 
-          <SimpleGrid columns={2} spacing={4}>
-            <FormControl>
-              <FormLabel>Status</FormLabel>
-              <Select
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, status: e.target.value }))
-                }
-              >
-                <option value="confirmed">Confirmed</option>
-                <option value="tentative">Tentative</option>
-                <option value="cancelled">Cancelled</option>
-              </Select>
-            </FormControl>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Location</label>
+          <Input
+            value={formData.location}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, location: e.target.value }))
+            }
+            placeholder="Event location"
+          />
+        </div>
 
-            <FormControl>
-              <FormLabel>Platform</FormLabel>
-              <Select
-                value={formData.platform}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, platform: e.target.value }))
-                }
-              >
-                <option value="google">Google Calendar</option>
-                <option value="outlook">Outlook Calendar</option>
-                <option value="local">Local</option>
-              </Select>
-            </FormControl>
-          </SimpleGrid>
-
-          <FormControl>
-            <FormLabel>Color</FormLabel>
-            <Input
-              type="color"
-              value={formData.color}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, color: e.target.value }))
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status</label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, status: value }))
               }
-            />
-          </FormControl>
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="tentative">Tentative</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          <HStack width="100%" justifyContent="flex-end" spacing={3}>
-            <Button variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button type="submit" colorScheme="blue">
-              {event ? "Update Event" : "Create Event"}
-            </Button>
-          </HStack>
-        </VStack>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Platform</label>
+            <Select
+              value={formData.platform}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, platform: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="google">Google Calendar</SelectItem>
+                <SelectItem value="outlook">Outlook Calendar</SelectItem>
+                <SelectItem value="local">Local</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Color</label>
+          <Input
+            type="color"
+            value={formData.color}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, color: e.target.value }))
+            }
+            className="h-10 w-full"
+          />
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button variant="outline" onClick={onCancel} type="button">
+            Cancel
+          </Button>
+          <Button type="submit" data-testid="event-submit">
+            {event ? "Update Event" : "Create Event"}
+          </Button>
+        </div>
       </form>
     );
   };
 
   if (loading) {
     return (
-      <Box textAlign="center" py={8}>
-        <Spinner size="xl" />
-        <Text mt={4}>Loading calendar...</Text>
-      </Box>
+      <div className="flex flex-col items-center justify-center py-8">
+        <Spinner className="h-8 w-8" />
+        <p className="mt-4 text-sm text-muted-foreground">Loading calendar...</p>
+      </div>
     );
   }
 
   return (
-    <Box p={compactView ? 2 : 6}>
-      <VStack spacing={compactView ? 3 : 6} align="stretch">
+    <div className={compactView ? "p-2" : "p-6"}>
+      <div className={`flex flex-col gap-${compactView ? "3" : "6"}`}>
         {/* Header */}
         {showNavigation && (
-          <Flex justify="space-between" align="center">
-            <Heading size={compactView ? "md" : "lg"}>
+          <div className="flex justify-between items-center">
+            <h2 className={`font-bold ${compactView ? "text-xl" : "text-2xl"}`}>
               Calendar Management
-            </Heading>
+            </h2>
             <Button
-              leftIcon={<AddIcon />}
-              colorScheme="blue"
-              size={compactView ? "sm" : "md"}
+              size={compactView ? "sm" : "default"}
               onClick={() => {
                 setSelectedEvent(null);
-                onOpen();
+                setIsDialogOpen(true);
               }}
+              data-testid="new-event-btn"
             >
+              <Plus className="mr-2 h-4 w-4" />
               New Event
             </Button>
-          </Flex>
+          </div>
         )}
 
         {/* View Controls */}
         {showNavigation && (
-          <Card size={compactView ? "sm" : "md"}>
-            <CardBody>
-              <Flex justify="space-between" align="center">
-                <HStack spacing={2}>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center">
+                <div className="flex space-x-2">
                   <Button
                     size="sm"
-                    variant={view.type === "day" ? "solid" : "outline"}
+                    variant={view.type === "day" ? "default" : "outline"}
                     onClick={() =>
                       setView((prev) => ({ ...prev, type: "day" }))
                     }
@@ -409,7 +409,7 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
                   </Button>
                   <Button
                     size="sm"
-                    variant={view.type === "week" ? "solid" : "outline"}
+                    variant={view.type === "week" ? "default" : "outline"}
                     onClick={() =>
                       setView((prev) => ({ ...prev, type: "week" }))
                     }
@@ -418,216 +418,197 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
                   </Button>
                   <Button
                     size="sm"
-                    variant={view.type === "month" ? "solid" : "outline"}
+                    variant={view.type === "month" ? "default" : "outline"}
                     onClick={() =>
                       setView((prev) => ({ ...prev, type: "month" }))
                     }
                   >
                     Month
                   </Button>
-                </HStack>
+                </div>
 
-                <HStack spacing={2}>
-                  <IconButton
-                    aria-label="Previous"
-                    icon={<ChevronLeftIcon />}
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => navigateDate("prev")}
-                  />
-                  <Text
-                    fontWeight="bold"
-                    minWidth="150px"
-                    textAlign="center"
-                    fontSize="sm"
                   >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="font-bold min-w-[150px] text-center text-sm">
                     {view.currentDate.toLocaleDateString([], {
                       month: "long",
                       year: "numeric",
                       ...(view.type === "week" && { day: "numeric" }),
                     })}
-                  </Text>
-                  <IconButton
-                    aria-label="Next"
-                    icon={<ChevronRightIcon />}
+                  </span>
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => navigateDate("next")}
-                  />
-                </HStack>
-              </Flex>
-            </CardBody>
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Conflict Alerts */}
         {conflicts.length > 0 && (
-          <Alert status="warning" size="sm">
-            <AlertIcon />
-            Found {conflicts.length} scheduling conflict
-            {conflicts.length > 1 ? "s" : ""}
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Scheduling Conflicts</AlertTitle>
+            <AlertDescription>
+              Found {conflicts.length} scheduling conflict
+              {conflicts.length > 1 ? "s" : ""}
+            </AlertDescription>
           </Alert>
         )}
 
         {/* Calendar View */}
-        <Card size={compactView ? "sm" : "md"}>
-          <CardHeader>
-            <Heading size={compactView ? "sm" : "md"}>Schedule</Heading>
+        <Card data-testid="calendar-view">
+          <CardHeader className="pb-2">
+            <CardTitle className={compactView ? "text-lg" : "text-xl"}>Schedule</CardTitle>
           </CardHeader>
-          <CardBody>
+          <CardContent>
             {view.type === "week" && (
-              <SimpleGrid columns={7} spacing={2}>
+              <div className="grid grid-cols-7 gap-2">
                 {Array.from({ length: 7 }).map((_, index) => {
                   const date = new Date(view.currentDate);
                   date.setDate(date.getDate() - date.getDay() + index);
                   const dayEvents = getEventsForDate(date);
 
                   return (
-                    <Box key={index} borderWidth="1px" borderRadius="md" p={2}>
-                      <Text fontWeight="bold" mb={1} fontSize="sm">
+                    <div key={index} className="border rounded-md p-2 min-h-[150px]">
+                      <div className="font-bold mb-2 text-sm">
                         {formatDate(date)}
-                      </Text>
-                      <VStack spacing={1} align="stretch">
+                      </div>
+                      <div className="flex flex-col gap-1">
                         {dayEvents.map((event) => (
-                          <Box
+                          <div
                             key={event.id}
-                            p={1}
-                            bg={event.color}
-                            color="white"
-                            borderRadius="md"
-                            cursor="pointer"
+                            className="p-1 rounded text-white cursor-pointer text-xs"
+                            style={{ backgroundColor: event.color || "#3182CE" }}
                             onClick={() => {
                               setSelectedEvent(event);
-                              onOpen();
+                              setIsDialogOpen(true);
                             }}
                           >
-                            <Text fontSize="xs" fontWeight="bold" noOfLines={1}>
+                            <div className="font-bold truncate">
                               {event.title}
-                            </Text>
-                            <Text fontSize="2xs">
+                            </div>
+                            <div className="text-[10px] opacity-90">
                               {formatTime(event.start)} -{" "}
                               {formatTime(event.end)}
-                            </Text>
+                            </div>
                             <Badge
-                              colorScheme={
-                                event.platform === "google" ? "blue" : "green"
-                              }
-                              size="xs"
+                              variant="secondary"
+                              className="mt-1 text-[10px] h-4 px-1"
                             >
                               {event.platform}
                             </Badge>
-                          </Box>
+                          </div>
                         ))}
-                      </VStack>
-                    </Box>
+                      </div>
+                    </div>
                   );
                 })}
-              </SimpleGrid>
+              </div>
             )}
-          </CardBody>
+          </CardContent>
         </Card>
 
         {/* Upcoming Events */}
-        <Card size={compactView ? "sm" : "md"}>
-          <CardHeader>
-            <Heading size={compactView ? "sm" : "md"}>Upcoming Events</Heading>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className={compactView ? "text-lg" : "text-xl"}>Upcoming Events</CardTitle>
           </CardHeader>
-          <CardBody>
-            <VStack spacing={2} align="stretch">
+          <CardContent>
+            <div className="flex flex-col gap-2">
               {events
                 .filter((event) => event.start > new Date())
                 .sort((a, b) => a.start.getTime() - b.start.getTime())
                 .slice(0, compactView ? 3 : 5)
                 .map((event) => (
-                  <Flex
+                  <div
                     key={event.id}
-                    justify="space-between"
-                    align="center"
-                    p={2}
-                    borderWidth="1px"
-                    borderRadius="md"
-                    cursor="pointer"
+                    className="flex justify-between items-center p-2 border rounded-md hover:bg-accent cursor-pointer transition-colors"
                     onClick={() => {
                       setSelectedEvent(event);
-                      onOpen();
+                      setIsDialogOpen(true);
                     }}
                   >
-                    <Box>
-                      <Text
-                        fontWeight="bold"
-                        fontSize={compactView ? "sm" : "md"}
-                      >
+                    <div>
+                      <div className={`font-bold ${compactView ? "text-sm" : "text-base"}`}>
                         {event.title}
-                      </Text>
-                      <Text
-                        fontSize={compactView ? "xs" : "sm"}
-                        color="gray.600"
-                      >
+                      </div>
+                      <div className={`text-muted-foreground ${compactView ? "text-xs" : "text-sm"}`}>
                         {formatDate(event.start)} • {formatTime(event.start)} -{" "}
                         {formatTime(event.end)}
-                      </Text>
-                    </Box>
-                    <HStack>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Badge
-                        colorScheme={
-                          event.status === "confirmed" ? "green" : "yellow"
-                        }
-                        size={compactView ? "sm" : "md"}
+                        variant={event.status === "confirmed" ? "default" : "secondary"}
                       >
                         {event.status}
                       </Badge>
-                      <IconButton
-                        aria-label="Edit event"
-                        icon={<EditIcon />}
-                        size="xs"
+                      <Button
                         variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedEvent(event);
-                          onOpen();
+                          setIsDialogOpen(true);
                         }}
-                      />
-                      <IconButton
-                        aria-label="Delete event"
-                        icon={<DeleteIcon />}
-                        size="xs"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
                         variant="ghost"
-                        colorScheme="red"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteEvent(event.id);
                         }}
-                      />
-                    </HStack>
-                  </Flex>
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
-            </VStack>
-          </CardBody>
+            </div>
+          </CardContent>
         </Card>
-      </VStack>
+      </div>
 
-      {/* Event Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} size={compactView ? "md" : "lg"}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            {selectedEvent ? "Edit Event" : "Create New Event"}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <EventForm
-              event={selectedEvent || undefined}
-              onSubmit={(data) => {
-                if (selectedEvent) {
-                  handleUpdateEvent(selectedEvent.id, data);
-                } else {
-                  handleCreateEvent(data);
-                }
-              }}
-              onCancel={onClose}
-            />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </Box>
+      {/* Event Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedEvent ? "Edit Event" : "Create New Event"}
+            </DialogTitle>
+          </DialogHeader>
+          <EventForm
+            event={selectedEvent || undefined}
+            onSubmit={(data) => {
+              if (selectedEvent) {
+                handleUpdateEvent(selectedEvent.id, data);
+              } else {
+                handleCreateEvent(data);
+              }
+              setIsDialogOpen(false);
+            }}
+            onCancel={() => setIsDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

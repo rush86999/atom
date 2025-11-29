@@ -7,7 +7,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  output: 'export',
+  // output: 'export', // Disabled for dynamic API routes
   images: {
     unoptimized: true,
   },
@@ -15,9 +15,6 @@ const nextConfig = {
   experimental: {
     externalDir: true,
   },
-  // Rewrites are not supported in static export
-  // The frontend must use absolute URLs or a different mechanism for API calls in the desktop app
-  /*
   async rewrites() {
     return [
       {
@@ -44,9 +41,17 @@ const nextConfig = {
         source: "/api/workflow-agent/:path*",
         destination: "http://127.0.0.1:5059/api/workflow-agent/:path*",
       },
+      // Add general API rewrite for other endpoints
+      {
+        source: "/api/v1/:path*",
+        destination: "http://127.0.0.1:5059/api/v1/:path*",
+      },
+      {
+        source: "/api/auth/login",
+        destination: "http://127.0.0.1:5059/api/auth/login",
+      }
     ];
   },
-  */
 };
 
 module.exports = nextConfig;

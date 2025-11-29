@@ -2,7 +2,7 @@ import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import WakeWordDetector from '../components/Voice/WakeWordDetector';
 import VoiceCommands from '../components/Voice/VoiceCommands';
-import ChatInterface from '../components/AI/ChatInterface';
+
 
 const VoicePage: React.FC = () => {
   return (
@@ -18,10 +18,12 @@ const VoicePage: React.FC = () => {
           </TabsList>
 
           <TabsContent value="chat" className="mt-6">
-            <ChatInterface
-              showNavigation={true}
-              availableModels={['gpt-4', 'gpt-3.5-turbo', 'claude-3', 'llama-2']}
-            />
+            <div className="p-6 text-center bg-white dark:bg-gray-800 rounded-lg shadow">
+              <h3 className="text-lg font-medium mb-2">AI Chat is now Global!</h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Click the chat icon in the bottom-right corner to access the AI assistant from anywhere in the application.
+              </p>
+            </div>
           </TabsContent>
 
           <TabsContent value="commands" className="mt-6">
