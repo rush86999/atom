@@ -153,6 +153,26 @@ class MarketplaceEngine:
             "edges": workflow_json["edges"],
             "imported_at": datetime.now().isoformat()
         }
+    
+    def export_workflow(self, workflow_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Export a workflow to JSON format"""
+        # Validate workflow structure
+        if "nodes" not in workflow_data or "edges" not in workflow_data:
+            raise ValueError("Invalid workflow structure: missing nodes or edges")
+        
+        # Create exportable format
+        export_data = {
+            "name": workflow_data.get("name", "Untitled Workflow"),
+            "description": workflow_data.get("description", ""),
+            "nodes": workflow_data["nodes"],
+            "edges": workflow_data["edges"],
+            "metadata": {
+                "exported_at": datetime.now().isoformat(),
+                "version": "1.0.0"
+            }
+        }
+        
+        return export_data
 
 # API Router
 router = APIRouter(prefix="/api/marketplace", tags=["marketplace"])
@@ -177,6 +197,17 @@ async def import_workflow(file: UploadFile = File(...)):
         return marketplace.import_workflow(workflow_data)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON file")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/export")
+async def export_workflow(workflow_data: Dict[str, Any]):
+    """Export a workflow as downloadable JSON"""
+    try:
+        export_data = marketplace.export_workflow(workflow_data)
+        return export_data
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
