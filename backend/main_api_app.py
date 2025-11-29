@@ -60,6 +60,7 @@ integrations = [
     ("core.workflow_endpoints", "router", None),
     ("core.analytics_endpoints", "router", None),
     ("core.enterprise_endpoints", "router", None),
+    ("core.workflow_marketplace", "router", None),
     ("core.enterprise_user_management", "router", "/api/v1"),
     ("core.enterprise_security", "router", "/api/v1"),
     
