@@ -107,21 +107,55 @@ export const authOptions: NextAuthOptions = {
             [user.email]
           );
 
+          let userId;
+
           if (existingUser.rows.length === 0) {
             // Create new user from OAuth
-            await query(
-              'INSERT INTO users (email, name, email_verified, image, password_hash) VALUES ($1, $2, NOW(), $3, $4)',
+            const newUser = await query(
+              'INSERT INTO users (email, name, email_verified, image, password_hash) VALUES ($1, $2, NOW(), $3, $4) RETURNING id',
               [user.email, user.name, user.image, ''] // Empty password_hash for OAuth users
             );
+            userId = newUser.rows[0].id;
             console.log(`Created new user from ${account.provider}:`, user.email);
           } else {
-            // User exists - update email_verified if not set (trust OAuth providers)
+            userId = existingUser.rows[0].id;
+            // Update email_verified if not set (trust OAuth providers)
             await query(
               'UPDATE users SET email_verified = COALESCE(email_verified, NOW()), image = COALESCE(image, $1) WHERE email = $2',
               [user.image, user.email]
             );
             console.log(`Updated existing user from ${account.provider}:`, user.email);
           }
+
+          // Store or update OAuth account info
+          await query(
+            `INSERT INTO user_accounts 
+              (user_id, provider, provider_account_id, access_token, refresh_token, expires_at, token_type, scope, id_token)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (user_id, provider) 
+             DO UPDATE SET 
+               provider_account_id = EXCLUDED.provider_account_id,
+               access_token = EXCLUDED.access_token,
+               refresh_token = EXCLUDED.refresh_token,
+               expires_at = EXCLUDED.expires_at,
+               token_type = EXCLUDED.token_type,
+               scope = EXCLUDED.scope,
+               id_token = EXCLUDED.id_token,
+               updated_at = NOW()`,
+            [
+              userId,
+              account.provider,
+              account.providerAccountId,
+              account.access_token || null,
+              account.refresh_token || null,
+              account.expires_at ? new Date(account.expires_at * 1000) : null,
+              account.token_type || null,
+              account.scope || null,
+              account.id_token || null,
+            ]
+          );
+
+          console.log(`Stored ${account.provider} account for user:`, user.email);
         } catch (error) {
           console.error('Error in OAuth sign-in callback:', error);
           return false; // Deny sign-in on error
