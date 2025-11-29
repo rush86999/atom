@@ -1,46 +1,33 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Button,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  Spinner,
-  Alert,
-  AlertIcon,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Badge,
-  IconButton,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Card,
-  CardBody,
-  SimpleGrid,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  useToast,
-} from "@chakra-ui/react";
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  ArrowRight,
+  RefreshCw,
+  Plus,
+  Eye,
+  Download,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  TimeIcon,
-  CheckCircleIcon,
-  WarningTwoIcon,
-  ArrowForwardIcon,
-  RepeatIcon,
-  AddIcon,
-  ViewIcon,
-  ChevronDownIcon,
-} from "@chakra-ui/icons";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ZoomMeeting {
   id: string;
@@ -108,10 +95,9 @@ const ZoomIntegration: React.FC = () => {
   const [users, setUsers] = useState<ZoomUser[]>([]);
   const [recordings, setRecordings] = useState<ZoomRecording[]>([]);
   const [analytics, setAnalytics] = useState<MeetingAnalytics | null>(null);
-  const [activeTab, setActiveTab] = useState(0);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const fetchConnectionStatus = async () => {
     try {
@@ -181,7 +167,7 @@ const ZoomIntegration: React.FC = () => {
     try {
       setIsLoadingData(true);
       const fromDate = new Date();
-      fromDate.setDate(fromDate.getDate() - 30); // Last 30 days
+      fromDate.setDate(fromDate.getDate() - 30);
       const toDate = new Date();
 
       const response = await fetch(
@@ -225,17 +211,11 @@ const ZoomIntegration: React.FC = () => {
 
   const handleConnectZoom = async () => {
     try {
-      // In a real implementation, this would redirect to Zoom OAuth
-      // For now, we'll simulate connection
       toast({
         title: "Connecting to Zoom",
         description: "Redirecting to Zoom for authentication...",
-        status: "info",
-        duration: 3000,
-        isClosable: true,
       });
 
-      // Simulate connection success
       setTimeout(() => {
         setConnectionStatus({
           is_connected: true,
@@ -249,9 +229,6 @@ const ZoomIntegration: React.FC = () => {
         toast({
           title: "Connected to Zoom",
           description: "Successfully connected to your Zoom account",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
         });
       }, 2000);
     } catch (err) {
@@ -259,9 +236,7 @@ const ZoomIntegration: React.FC = () => {
         title: "Connection failed",
         description:
           err instanceof Error ? err.message : "Failed to connect to Zoom",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+        variant: "destructive",
       });
     }
   };
@@ -282,9 +257,6 @@ const ZoomIntegration: React.FC = () => {
         toast({
           title: "Disconnected",
           description: "Successfully disconnected from Zoom",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
         });
       } else {
         throw new Error("Failed to disconnect");
@@ -294,9 +266,7 @@ const ZoomIntegration: React.FC = () => {
         title: "Disconnect failed",
         description:
           err instanceof Error ? err.message : "Failed to disconnect from Zoom",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+        variant: "destructive",
       });
     }
   };
@@ -323,11 +293,8 @@ const ZoomIntegration: React.FC = () => {
         toast({
           title: "Meeting created",
           description: `Meeting "${data.meeting.topic}" created successfully`,
-          status: "success",
-          duration: 5000,
-          isClosable: true,
         });
-        fetchMeetings(); // Refresh meetings list
+        fetchMeetings();
       } else {
         throw new Error("Failed to create meeting");
       }
@@ -336,9 +303,7 @@ const ZoomIntegration: React.FC = () => {
         title: "Failed to create meeting",
         description:
           err instanceof Error ? err.message : "Unknown error occurred",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+        variant: "destructive",
       });
     }
   };
@@ -373,461 +338,408 @@ const ZoomIntegration: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Box textAlign="center" py={8}>
-        <Spinner size="xl" />
-        <Text mt={4}>Checking Zoom connection status...</Text>
-      </Box>
+      <div className="flex flex-col items-center justify-center py-8">
+        <RefreshCw className="h-12 w-12 animate-spin text-blue-500" />
+        <p className="mt-4 text-muted-foreground">Checking Zoom connection status...</p>
+      </div>
     );
   }
 
   if (!connectionStatus?.is_connected) {
     return (
-      <Box>
-        <VStack spacing={6} align="stretch">
-          <Heading size="lg">Zoom Integration</Heading>
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Zoom Integration</h1>
 
-          <Alert status="warning">
-            <AlertIcon />
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
             Zoom integration is not connected
-          </Alert>
+          </AlertDescription>
+        </Alert>
 
-          <Card>
-            <CardBody>
-              <VStack spacing={4} align="start">
-                <Text>
-                  Connect your Zoom account to manage meetings, users, and
-                  recordings directly from ATOM.
-                </Text>
-                <Text fontSize="sm" color="gray.600">
-                  Features include:
-                </Text>
-                <VStack spacing={2} align="start" pl={4}>
-                  <Text fontSize="sm">• Create and manage Zoom meetings</Text>
-                  <Text fontSize="sm">
-                    • View meeting analytics and recordings
-                  </Text>
-                  <Text fontSize="sm">• Manage Zoom users and settings</Text>
-                  <Text fontSize="sm">• Real-time webhook notifications</Text>
-                </VStack>
-                <Button
-                  colorScheme="blue"
-                  leftIcon={<TimeIcon />}
-                  onClick={handleConnectZoom}
-                >
-                  Connect Zoom Account
-                </Button>
-              </VStack>
-            </CardBody>
-          </Card>
-        </VStack>
-      </Box>
+        <Card>
+          <CardContent className="pt-6 space-y-4">
+            <p>
+              Connect your Zoom account to manage meetings, users, and
+              recordings directly from ATOM.
+            </p>
+            <p className="text-sm text-muted-foreground">Features include:</p>
+            <ul className="ml-6 space-y-2 text-sm list-disc">
+              <li>Create and manage Zoom meetings</li>
+              <li>View meeting analytics and recordings</li>
+              <li>Manage Zoom users and settings</li>
+              <li>Real-time webhook notifications</li>
+            </ul>
+            <Button onClick={handleConnectZoom}>
+              <Clock className="mr-2 h-4 w-4" />
+              Connect Zoom Account
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <Box>
-      <VStack spacing={6} align="stretch">
-        {/* Header */}
-        <HStack justify="space-between" align="center">
-          <VStack align="start" spacing={1}>
-            <Heading size="lg">Zoom Integration</Heading>
-            <HStack>
-              <Badge colorScheme="green" variant="solid">
-                Connected
-              </Badge>
-              <Text fontSize="sm" color="gray.600">
-                {connectionStatus.user_info?.email}
-              </Text>
-            </HStack>
-          </VStack>
-          <HStack>
-            <Button
-              leftIcon={<RepeatIcon />}
-              variant="outline"
-              onClick={() => {
-                fetchMeetings();
-                fetchUsers();
-                fetchRecordings();
-                fetchAnalytics();
-              }}
-            >
-              Refresh
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold">Zoom Integration</h1>
+          <div className="flex items-center gap-2 mt-2">
+            <Badge className="bg-green-500 hover:bg-green-600">Connected</Badge>
+            <span className="text-sm text-muted-foreground">
+              {connectionStatus.user_info?.email}
+            </span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              fetchMeetings();
+              fetchUsers();
+              fetchRecordings();
+              fetchAnalytics();
+            }}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={handleDisconnectZoom}>
+            Disconnect
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Analytics Overview */}
+      {analytics && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <p className="text-sm text-muted-foreground">Total Meetings</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{analytics.total_meetings}</p>
+              <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <p className="text-sm text-muted-foreground">Participants</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{analytics.total_participants}</p>
+              <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <p className="text-sm text-muted-foreground">Avg Duration</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{analytics.average_duration}m</p>
+              <p className="text-xs text-muted-foreground mt-1">Per meeting</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <p className="text-sm text-muted-foreground">Scheduled</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">
+                {analytics.meetings_by_type.scheduled}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Meetings</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="meetings">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="meetings">Meetings</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="recordings">Recordings</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        {/* Meetings Tab */}
+        <TabsContent value="meetings" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Meetings</h2>
+            <Button onClick={handleCreateMeeting}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Meeting
             </Button>
-            <Button
-              colorScheme="red"
-              variant="outline"
-              onClick={handleDisconnectZoom}
-            >
-              Disconnect
-            </Button>
-          </HStack>
-        </HStack>
+          </div>
 
-        {error && (
-          <Alert status="error">
-            <AlertIcon />
-            {error}
-          </Alert>
-        )}
-
-        {/* Analytics Overview */}
-        {analytics && (
-          <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
+          {isLoadingData ? (
+            <div className="flex flex-col items-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin" />
+              <p className="mt-2 text-muted-foreground">Loading meetings...</p>
+            </div>
+          ) : meetings.length === 0 ? (
+            <Alert>
+              <AlertDescription>No meetings found</AlertDescription>
+            </Alert>
+          ) : (
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Total Meetings</StatLabel>
-                  <StatNumber>{analytics.total_meetings}</StatNumber>
-                  <StatHelpText>Last 30 days</StatHelpText>
-                </Stat>
-              </CardBody>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Topic</TableHead>
+                      <TableHead>Start Time</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {meetings.map((meeting) => (
+                      <TableRow key={meeting.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{meeting.topic}</p>
+                            {meeting.agenda && (
+                              <p className="text-sm text-muted-foreground truncate">
+                                {meeting.agenda}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{formatDate(meeting.start_time)}</TableCell>
+                        <TableCell>{formatDuration(meeting.duration)}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              meeting.status === "scheduled"
+                                ? "default"
+                                : meeting.status === "live"
+                                  ? "default"
+                                  : "secondary"
+                            }
+                            className={
+                              meeting.status === "live"
+                                ? "bg-green-500 hover:bg-green-600"
+                                : ""
+                            }
+                          >
+                            {meeting.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                window.open(meeting.join_url, "_blank")
+                              }
+                            >
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        {/* Users Tab */}
+        <TabsContent value="users" className="space-y-4">
+          <h2 className="text-xl font-semibold">Zoom Users</h2>
+
+          {isLoadingData ? (
+            <div className="flex flex-col items-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin" />
+              <p className="mt-2 text-muted-foreground">Loading users...</p>
+            </div>
+          ) : users.length === 0 ? (
+            <Alert>
+              <AlertDescription>No users found</AlertDescription>
+            </Alert>
+          ) : (
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Participants</StatLabel>
-                  <StatNumber>{analytics.total_participants}</StatNumber>
-                  <StatHelpText>Last 30 days</StatHelpText>
-                </Stat>
-              </CardBody>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">
+                          {user.first_name} {user.last_name}
+                        </TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Badge variant={user.type === 2 ? "default" : "secondary"}>
+                            {user.type === 2 ? "Licensed" : "Basic"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              user.status === "active"
+                                ? "bg-green-500 hover:bg-green-600"
+                                : user.status === "inactive"
+                                  ? "bg-red-500 hover:bg-red-600"
+                                  : "bg-yellow-500 hover:bg-yellow-600"
+                            }
+                          >
+                            {user.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        {/* Recordings Tab */}
+        <TabsContent value="recordings" className="space-y-4">
+          <h2 className="text-xl font-semibold">Recordings</h2>
+
+          {isLoadingData ? (
+            <div className="flex flex-col items-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin" />
+              <p className="mt-2 text-muted-foreground">Loading recordings...</p>
+            </div>
+          ) : recordings.length === 0 ? (
+            <Alert>
+              <AlertDescription>No recordings found</AlertDescription>
+            </Alert>
+          ) : (
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Avg Duration</StatLabel>
-                  <StatNumber>{analytics.average_duration}m</StatNumber>
-                  <StatHelpText>Per meeting</StatHelpText>
-                </Stat>
-              </CardBody>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Topic</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recordings.map((recording) => (
+                      <TableRow key={recording.id}>
+                        <TableCell className="font-medium">
+                          {recording.topic}
+                        </TableCell>
+                        <TableCell>{formatDate(recording.start_time)}</TableCell>
+                        <TableCell>{formatDuration(recording.duration)}</TableCell>
+                        <TableCell>{formatFileSize(recording.file_size)}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              window.open(recording.download_url, "_blank")
+                            }
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
             </Card>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Scheduled</StatLabel>
-                  <StatNumber>
-                    {analytics.meetings_by_type.scheduled}
-                  </StatNumber>
-                  <StatHelpText>Meetings</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-          </SimpleGrid>
-        )}
+          )}
+        </TabsContent>
 
-        {/* Main Content Tabs */}
-        <Tabs variant="enclosed" onChange={(index) => setActiveTab(index)}>
-          <TabList>
-            <Tab>Meetings</Tab>
-            <Tab>Users</Tab>
-            <Tab>Recordings</Tab>
-            <Tab>Analytics</Tab>
-          </TabList>
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-4">
+          <h2 className="text-xl font-semibold">Meeting Analytics</h2>
 
-          <TabPanels>
-            {/* Meetings Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <HStack justify="space-between">
-                  <Heading size="md">Meetings</Heading>
-                  <Button
-                    leftIcon={<AddIcon />}
-                    colorScheme="blue"
-                    onClick={handleCreateMeeting}
-                  >
-                    Create Meeting
-                  </Button>
-                </HStack>
+          {analytics ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Meeting Types</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span>Scheduled Meetings</span>
+                    <Badge variant="secondary">
+                      {analytics.meetings_by_type.scheduled}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Instant Meetings</span>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
+                      {analytics.meetings_by_type.instant}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Recurring Meetings</span>
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-800 hover:bg-purple-200">
+                      {analytics.meetings_by_type.recurring}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {isLoadingData ? (
-                  <Box textAlign="center" py={8}>
-                    <Spinner />
-                    <Text mt={2}>Loading meetings...</Text>
-                  </Box>
-                ) : meetings.length === 0 ? (
-                  <Alert status="info">
-                    <AlertIcon />
-                    No meetings found
-                  </Alert>
-                ) : (
-                  <Card>
-                    <CardBody p={0}>
-                      <Table variant="simple">
-                        <Thead>
-                          <Tr>
-                            <Th>Topic</Th>
-                            <Th>Start Time</Th>
-                            <Th>Duration</Th>
-                            <Th>Status</Th>
-                            <Th>Actions</Th>
-                          </Tr>
-                        </Thead>
-                        <Tbody>
-                          {meetings.map((meeting) => (
-                            <Tr key={meeting.id}>
-                              <Td>
-                                <Text fontWeight="medium">{meeting.topic}</Text>
-                                {meeting.agenda && (
-                                  <Text
-                                    fontSize="sm"
-                                    color="gray.600"
-                                    noOfLines={1}
-                                  >
-                                    {meeting.agenda}
-                                  </Text>
-                                )}
-                              </Td>
-                              <Td>{formatDate(meeting.start_time)}</Td>
-                              <Td>{formatDuration(meeting.duration)}</Td>
-                              <Td>
-                                <Badge
-                                  colorScheme={
-                                    meeting.status === "scheduled"
-                                      ? "blue"
-                                      : meeting.status === "live"
-                                        ? "green"
-                                        : meeting.status === "completed"
-                                          ? "gray"
-                                          : "red"
-                                  }
-                                >
-                                  {meeting.status}
-                                </Badge>
-                              </Td>
-                              <Td>
-                                <HStack spacing={2}>
-                                  <IconButton
-                                    aria-label="Join meeting"
-                                    icon={<ArrowForwardIcon />}
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      window.open(meeting.join_url, "_blank")
-                                    }
-                                  />
-                                  <IconButton
-                                    aria-label="View details"
-                                    icon={<ViewIcon />}
-                                    size="sm"
-                                    variant="outline"
-                                  />
-                                </HStack>
-                              </Td>
-                            </Tr>
-                          ))}
-                        </Tbody>
-                      </Table>
-                    </CardBody>
-                  </Card>
-                )}
-              </VStack>
-            </TabPanel>
-
-            {/* Users Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <Heading size="md">Zoom Users</Heading>
-
-                {isLoadingData ? (
-                  <Box textAlign="center" py={8}>
-                    <Spinner />
-                    <Text mt={2}>Loading users...</Text>
-                  </Box>
-                ) : users.length === 0 ? (
-                  <Alert status="info">
-                    <AlertIcon />
-                    No users found
-                  </Alert>
-                ) : (
-                  <Card>
-                    <CardBody p={0}>
-                      <Table variant="simple">
-                        <Thead>
-                          <Tr>
-                            <Th>Name</Th>
-                            <Th>Email</Th>
-                            <Th>Type</Th>
-                            <Th>Status</Th>
-                          </Tr>
-                        </Thead>
-                        <Tbody>
-                          {users.map((user) => (
-                            <Tr key={user.id}>
-                              <Td>
-                                <Text fontWeight="medium">
-                                  {user.first_name} {user.last_name}
-                                </Text>
-                              </Td>
-                              <Td>{user.email}</Td>
-                              <Td>
-                                <Badge
-                                  colorScheme={
-                                    user.type === 2 ? "blue" : "gray"
-                                  }
-                                >
-                                  {user.type === 2 ? "Licensed" : "Basic"}
-                                </Badge>
-                              </Td>
-                              <Td>
-                                <Badge
-                                  colorScheme={
-                                    user.status === "active"
-                                      ? "green"
-                                      : user.status === "inactive"
-                                        ? "red"
-                                        : "yellow"
-                                  }
-                                >
-                                  {user.status}
-                                </Badge>
-                              </Td>
-                            </Tr>
-                          ))}
-                        </Tbody>
-                      </Table>
-                    </CardBody>
-                  </Card>
-                )}
-              </VStack>
-            </TabPanel>
-
-            {/* Recordings Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <Heading size="md">Recordings</Heading>
-
-                {isLoadingData ? (
-                  <Box textAlign="center" py={8}>
-                    <Spinner />
-                    <Text mt={2}>Loading recordings...</Text>
-                  </Box>
-                ) : recordings.length === 0 ? (
-                  <Alert status="info">
-                    <AlertIcon />
-                    No recordings found
-                  </Alert>
-                ) : (
-                  <Card>
-                    <CardBody p={0}>
-                      <Table variant="simple">
-                        <Thead>
-                          <Tr>
-                            <Th>Topic</Th>
-                            <Th>Date</Th>
-                            <Th>Duration</Th>
-                            <Th>Size</Th>
-                            <Th>Actions</Th>
-                          </Tr>
-                        </Thead>
-                        <Tbody>
-                          {recordings.map((recording) => (
-                            <Tr key={recording.id}>
-                              <Td>
-                                <Text fontWeight="medium">
-                                  {recording.topic}
-                                </Text>
-                              </Td>
-                              <Td>{formatDate(recording.start_time)}</Td>
-                              <Td>{formatDuration(recording.duration)}</Td>
-                              <Td>{formatFileSize(recording.file_size)}</Td>
-                              <Td>
-                                <IconButton
-                                  aria-label="Download recording"
-                                  icon={<ChevronDownIcon />}
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    window.open(
-                                      recording.download_url,
-                                      "_blank",
-                                    )
-                                  }
-                                />
-                              </Td>
-                            </Tr>
-                          ))}
-                        </Tbody>
-                      </Table>
-                    </CardBody>
-                  </Card>
-                )}
-              </VStack>
-            </TabPanel>
-
-            {/* Analytics Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <Heading size="md">Meeting Analytics</Heading>
-
-                {analytics ? (
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    <Card>
-                      <CardBody>
-                        <VStack spacing={4} align="start">
-                          <Heading size="sm">Meeting Types</Heading>
-                          <VStack spacing={2} align="start" width="100%">
-                            <HStack justify="space-between" width="100%">
-                              <Text>Scheduled Meetings</Text>
-                              <Badge colorScheme="blue">
-                                {analytics.meetings_by_type.scheduled}
-                              </Badge>
-                            </HStack>
-                            <HStack justify="space-between" width="100%">
-                              <Text>Instant Meetings</Text>
-                              <Badge colorScheme="green">
-                                {analytics.meetings_by_type.instant}
-                              </Badge>
-                            </HStack>
-                            <HStack justify="space-between" width="100%">
-                              <Text>Recurring Meetings</Text>
-                              <Badge colorScheme="purple">
-                                {analytics.meetings_by_type.recurring}
-                              </Badge>
-                            </HStack>
-                          </VStack>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-
-                    <Card>
-                      <CardBody>
-                        <VStack spacing={4} align="start">
-                          <Heading size="sm">Performance Metrics</Heading>
-                          <VStack spacing={2} align="start" width="100%">
-                            <HStack justify="space-between" width="100%">
-                              <Text>Total Participants</Text>
-                              <Text fontWeight="bold">
-                                {analytics.total_participants}
-                              </Text>
-                            </HStack>
-                            <HStack justify="space-between" width="100%">
-                              <Text>Average Duration</Text>
-                              <Text fontWeight="bold">
-                                {analytics.average_duration} minutes
-                              </Text>
-                            </HStack>
-                            <HStack justify="space-between" width="100%">
-                              <Text>Period</Text>
-                              <Text fontSize="sm">
-                                {analytics.period.from} to {analytics.period.to}
-                              </Text>
-                            </HStack>
-                          </VStack>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  </SimpleGrid>
-                ) : (
-                  <Alert status="info">
-                    <AlertIcon />
-                    No analytics data available for the selected period
-                  </Alert>
-                )}
-              </VStack>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      </VStack>
-    </Box>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Performance Metrics</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span>Total Participants</span>
+                    <span className="font-bold">
+                      {analytics.total_participants}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Average Duration</span>
+                    <span className="font-bold">
+                      {analytics.average_duration} minutes
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Total Meetings</span>
+                    <span className="font-bold">{analytics.total_meetings}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Alert>
+              <AlertDescription>No analytics data available</AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

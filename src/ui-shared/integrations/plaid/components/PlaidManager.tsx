@@ -4,34 +4,38 @@
  * Real-time banking data sync, transaction analytics, and financial insights
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Box, VStack, HStack, Heading, Text, Button, Card, CardBody, CardHeader,
-  Tabs, TabList, TabPanels, Tab, TabPanel, Alert, AlertIcon, Badge,
-  Progress, Stat, StatLabel, StatNumber, StatHelpText, Divider, FormControl,
-  FormLabel, Switch, NumberInput, NumberInputField, NumberInputStepper,
-  NumberIncrementStepper, NumberDecrementStepper, Input, Textarea, Modal,
-  ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
-  useDisclosure, useToast, SimpleGrid, Table, Thead, Tbody, Tr, Th, Td,
-  TableContainer, Icon, Spinner, Center, Flex, Spacer, useColorModeValue,
-  Tooltip, IconButton, Menu, MenuButton, MenuList, MenuItem, Tag,
-  TagLabel, TagCloseButton, Accordion, AccordionItem, AccordionButton,
-  AccordionPanel, AccordionIcon, Checkbox, Select, Link, Radio, RadioGroup,
-  Stack, AlertTitle, AlertDescription, List, ListItem, ListIcon,
-} from '@chakra-ui/react';
+  CreditCard,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  RefreshCw,
+  Settings,
+  Activity,
+  Shield,
+  FileText,
+  PieChart,
+  BarChart,
+  Calendar,
+  Laptop
+} from 'lucide-react';
+
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  FiCreditCard, FiDollarSign, FiTrendingUp, FiTrendingDown,
-  FiRefreshCw, FiSettings, FiDatabase, FiZap, FiClock,
-  FiActivity, FiShield, FiCheck, FiX, FiAlertTriangle,
-  FiFileText, FiPieChart, FiBarChart, FiSearch, FiFilter,
-  FiGrid, FiList, FiPlay, FiPause, FiStop, FiDownload,
-  FiUpload, FiCalendar, FiEye, FiEdit, FiTrash2, FiCopy,
-  FiExternalLink, FiLock, FiUnlock, FiInfo, FiWifi,
-  FiWifiOff, FiCpu, FiHardDrive, FiCloud, FiPlus,
-  FiMinus, FiMoreVertical, FiArrowUp, FiArrowDown,
-  FiChevronDown, FiChevronUp, FiChevronLeft, FiChevronRight,
-  FiSkipBack, FiSkipForward, FiRepeat, FiShuffle, FiUser,
-} from 'react-icons/fi';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import {
   PlaidAccount,
@@ -94,36 +98,20 @@ export const PlaidManager: React.FC<PlaidManagerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentSyncSession, setCurrentSyncSession] = useState<SyncSession | null>(null);
-  
+
   // Data State
   const [accounts, setAccounts] = useState<PlaidAccount[]>([]);
   const [transactions, setTransactions] = useState<PlaidTransaction[]>([]);
   const [analytics, setAnalytics] = useState<PlaidSpendingAnalytics | null>(null);
   const [accountSummary, setAccountSummary] = useState<PlaidAccountSummary | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState<PlaidAccount | null>(null);
-  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
-  
+
   // Configuration
   const [currentConfig, setCurrentConfig] = useState<AtomPlaidIngestionConfig>(
     () => ({ ...PLAID_DEFAULT_CONFIG, ...initialConfig })
   );
   const [configModalOpen, setConfigModalOpen] = useState(false);
-  
-  // UI State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [transactionFilter, setTransactionFilter] = useState({
-    dateRange: { start: '', end: '' },
-    categories: [],
-    amountRange: { min: null, max: null },
-  });
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const toast = useToast();
-
-  // Theme colors
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const cardBg = useColorModeValue('white', 'gray.700');
+  const { toast } = useToast();
 
   // Initialize Plaid connection
   useEffect(() => {
@@ -137,41 +125,33 @@ export const PlaidManager: React.FC<PlaidManagerProps> = ({
     try {
       // Simulate Plaid connection
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       setIsConnected(true);
-      
+
       // Load initial data
       await loadDashboardData();
-      
+
       // Register skills with ATOM
       if (atomSkillRegistry) {
-        try {
-          // This would register the Plaid skills
-          toast({
-            title: 'Skills Registered',
-            description: 'Plaid skills registered with ATOM',
-            status: 'success',
-            duration: 3000,
-          });
-        } catch (skillError) {
-          console.warn('Failed to register skills:', skillError);
-        }
+        toast({
+          title: 'Skills Registered',
+          description: 'Plaid skills registered with ATOM',
+        });
       }
-      
-      onReady?.({ 
-        isConnected: true, 
+
+      onReady?.({
+        isConnected: true,
         hasAccounts: accounts.length > 0,
         totalAccounts: accounts.length,
       });
-      
+
     } catch (error) {
       setIsConnected(false);
       onError?.(error);
       toast({
         title: 'Connection Failed',
         description: 'Failed to connect to Plaid services',
-        status: 'error',
-        duration: 5000,
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -180,7 +160,7 @@ export const PlaidManager: React.FC<PlaidManagerProps> = ({
 
   const loadDashboardData = useCallback(async () => {
     try {
-      // Simulate data loading - replace with actual Plaid API calls
+      // Simulate data loading
       const [accountsData, transactionsData, analyticsData, summaryData] = await Promise.all([
         simulatePlaidAccounts(),
         simulatePlaidTransactions(),
@@ -192,14 +172,13 @@ export const PlaidManager: React.FC<PlaidManagerProps> = ({
       setTransactions(transactionsData);
       setAnalytics(analyticsData);
       setAccountSummary(summaryData);
-      
+
     } catch (error) {
       onError?.(error);
       toast({
         title: 'Data Load Failed',
         description: 'Failed to load financial data',
-        status: 'error',
-        duration: 5000,
+        variant: 'destructive',
       });
     }
   }, [onError]);
@@ -210,15 +189,14 @@ export const PlaidManager: React.FC<PlaidManagerProps> = ({
       toast({
         title: 'Not Connected',
         description: 'Please connect to Plaid first',
-        status: 'warning',
-        duration: 3000,
+        variant: 'destructive',
       });
       return;
     }
 
     setIsSyncing(true);
     const sessionId = `sync_${Date.now()}`;
-    
+
     const session: SyncSession = {
       id: sessionId,
       startTime: new Date().toISOString(),
@@ -239,120 +217,43 @@ export const PlaidManager: React.FC<PlaidManagerProps> = ({
     try {
       // Simulate sync process
       for (let i = 0; i < transactions.length; i++) {
-        if (session.status === 'paused') {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          continue;
-        }
-        
-        if (session.status === 'cancelled' || session.status === 'failed') {
-          break;
-        }
-
         const transaction = transactions[i];
         session.progress.processed = i + 1;
         session.progress.percentage = ((i + 1) / transactions.length) * 100;
         session.progress.currentItem = transaction.name;
-        
+
         setCurrentSyncSession({ ...session });
         onSyncProgress?.(session);
-        
-        // Simulate processing time
+
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
       session.status = 'completed';
       setCurrentSyncSession(null);
       onSyncComplete?.(session);
-      
+
       toast({
         title: 'Sync Completed',
         description: `Successfully synced ${transactions.length} transactions`,
-        status: 'success',
-        duration: 3000,
       });
-      
-      // Reload data
+
       await loadDashboardData();
-      
+
     } catch (error) {
       session.status = 'failed';
       session.error = error instanceof Error ? error.message : 'Sync failed';
       setCurrentSyncSession(null);
       onError?.(error);
-      
+
       toast({
         title: 'Sync Failed',
         description: session.error,
-        status: 'error',
-        duration: 5000,
+        variant: 'destructive',
       });
     } finally {
       setIsSyncing(false);
     }
   }, [isConnected, transactions, onSyncStart, onSyncProgress, onSyncComplete, onError, loadDashboardData]);
-
-  // Pause sync
-  const handlePauseSync = useCallback(() => {
-    if (currentSyncSession) {
-      currentSyncSession.status = 'paused';
-      setCurrentSyncSession({ ...currentSyncSession });
-    }
-  }, [currentSyncSession]);
-
-  // Resume sync
-  const handleResumeSync = useCallback(() => {
-    if (currentSyncSession) {
-      currentSyncSession.status = 'running';
-      setCurrentSyncSession({ ...currentSyncSession });
-    }
-  }, [currentSyncSession]);
-
-  // Cancel sync
-  const handleCancelSync = useCallback(() => {
-    if (currentSyncSession) {
-      currentSyncSession.status = 'cancelled';
-      setCurrentSyncSession({ ...currentSyncSession });
-      setIsSyncing(false);
-      setCurrentSyncSession(null);
-    }
-  }, [currentSyncSession]);
-
-  // Execute skill
-  const handleExecuteSkill = useCallback(async (skillId: string) => {
-    if (!atomSkillRegistry) {
-      toast({
-        title: 'Skill Registry Not Available',
-        description: 'ATOM skill registry is not configured',
-        status: 'error',
-        duration: 3000,
-      });
-      return;
-    }
-
-    try {
-      // This would execute the actual skill
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: 'Skill Executed',
-        description: `${skillId} completed successfully`,
-        status: 'success',
-        duration: 3000,
-      });
-      
-      // Refresh data
-      await loadDashboardData();
-      
-    } catch (error) {
-      onError?.(error);
-      toast({
-        title: 'Skill Execution Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-        duration: 5000,
-      });
-    }
-  }, [atomSkillRegistry, onError, loadDashboardData]);
 
   // Format utilities
   const formatCurrency = (amount: number): string => {
@@ -406,30 +307,55 @@ export const PlaidManager: React.FC<PlaidManagerProps> = ({
     const transactions: PlaidTransaction[] = [];
     const categories = ['Food and Drink', 'Shops', 'Transfer', 'Travel', 'Payment', 'Income'];
     const merchants = ['Starbucks', 'Amazon', 'Walmart', 'Target', 'Uber', 'Netflix', 'Salary Deposit'];
-    
+
     for (let i = 0; i < 100; i++) {
       const date = new Date();
       date.setDate(date.getDate() - Math.floor(Math.random() * 90));
-      
+
       const merchant = merchants[Math.floor(Math.random() * merchants.length)];
       const category = categories[Math.floor(Math.random() * categories.length)];
       const isIncome = merchant === 'Salary Deposit';
-      
+
       transactions.push({
         transaction_id: `txn_${i}`,
         pending: Math.random() < 0.1,
         amount: isIncome ? (Math.random() * 3000 + 2000) : -(Math.random() * 200 + 10),
         iso_currency_code: 'USD',
+        unofficial_currency_code: null,
         category: [category],
         category_id: `cat_${Math.floor(Math.random() * 100)}`,
         date: date.toISOString().split('T')[0],
+        authorized_date: null,
+        location: {
+          address: null,
+          city: null,
+          region: null,
+          postal_code: null,
+          country: null,
+          lat: null,
+          lon: null,
+          store_number: null,
+        },
         name: merchant,
         merchant_name: merchant,
         payment_channel: 'online',
+        payment_meta: {
+          by_order_of: null,
+          payee: null,
+          payer: null,
+          payment_method: null,
+          payment_processor: null,
+          ppd_id: null,
+          reason: null,
+          reference_number: null,
+        },
         account_id: `acc_${Math.floor(Math.random() * 3) + 1}`,
+        account_owner: null,
+        logo_url: null,
+        website: null,
       });
     }
-    
+
     return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
@@ -484,79 +410,72 @@ export const PlaidManager: React.FC<PlaidManagerProps> = ({
   // Render loading state
   if (isLoading) {
     return (
-      <Center minH="400px">
-        <VStack spacing={4}>
-          <Spinner size="xl" />
-          <Text>Initializing Plaid Manager...</Text>
-        </VStack>
-      </Center>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <RefreshCw className="h-12 w-12 animate-spin mx-auto text-blue-500" />
+          <p className="text-muted-foreground">Initializing Plaid Manager...</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box p={6} bg={bgColor} minH="100vh">
-      <VStack spacing={6} align="stretch">
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-[1400px] mx-auto space-y-6">
         {/* Header */}
-        <HStack justify="space-between" align="center">
-          <HStack spacing={3}>
-            <Icon as={FiCreditCard} boxSize={8} color="blue.500" />
-            <VStack align="start" spacing={0}>
-              <Heading size="lg">Plaid Manager</Heading>
-              <Text fontSize="sm" color="gray.500">
-                ATOM Financial Services Integration
-              </Text>
-            </VStack>
-          </HStack>
-          
-          <HStack spacing={2}>
-            <Badge
-              colorScheme={isConnected ? 'green' : 'red'}
-              variant={isConnected ? 'solid' : 'outline'}
-            >
+        <div className="flex justify-between items-center bg-card p-6 rounded-lg border shadow-sm">
+          <div className="flex items-center gap-3">
+            <CreditCard className="h-8 w-8 text-blue-500" />
+            <div>
+              <h1 className="text-2xl font-bold">Plaid Manager</h1>
+              <p className="text-sm text-muted-foreground">ATOM Financial Services Integration</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Badge variant={isConnected ? 'default' : 'destructive'} className={isConnected ? 'bg-green-500 hover:bg-green-600' : ''}>
               {isConnected ? 'Connected' : 'Disconnected'}
             </Badge>
-            
+
             {currentSyncSession && (
-              <Badge colorScheme="blue" variant="solid">
+              <Badge className="bg-blue-500 hover:bg-blue-600">
                 {currentSyncSession.status}
               </Badge>
             )}
-            
+
             <Button
-              leftIcon={<FiRefreshCw />}
-              onClick={loadDashboardData}
-              isLoading={isLoading}
               variant="outline"
               size="sm"
+              onClick={loadDashboardData}
+              disabled={isLoading}
             >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
 
             <Button
-              leftIcon={<FiSettings />}
-              onClick={() => setConfigModalOpen(true)}
               variant="outline"
               size="sm"
+              onClick={() => setConfigModalOpen(true)}
             >
+              <Settings className="mr-2 h-4 w-4" />
               Configure
             </Button>
-          </HStack>
-        </HStack>
+          </div>
+        </div>
 
         {/* Connection Status */}
-        <Alert status={isConnected ? 'success' : 'warning'}>
-          <AlertIcon />
-          <Box flex="1">
-            <AlertTitle>{isConnected ? 'Connected' : 'Not Connected'}</AlertTitle>
-            <AlertDescription>
-              {isConnected 
-                ? 'Plaid financial services are connected and ready for use'
-                : 'Configure Plaid credentials to access banking services'
-              }
-            </AlertDescription>
-          </Box>
+        <Alert variant={isConnected ? 'default' : 'destructive'}>
+          <Shield className="h-4 w-4" />
+          <AlertTitle>{isConnected ? 'Connected' : 'Not Connected'}</AlertTitle>
+          <AlertDescription>
+            {isConnected
+              ? 'Plaid financial services are connected and ready for use'
+              : 'Configure Plaid credentials to access banking services'
+            }
+          </AlertDescription>
           {!isConnected && (
-            <Button colorScheme="blue" size="sm" onClick={initializePlaid}>
+            <Button size="sm" onClick={initializePlaid} className="mt-2">
               Connect
             </Button>
           )}
@@ -566,676 +485,226 @@ export const PlaidManager: React.FC<PlaidManagerProps> = ({
         {currentSyncSession && (
           <Card>
             <CardHeader>
-              <HStack justify="space-between">
-                <Heading size="md">Active Sync Session</Heading>
-                <Badge colorScheme={
-                  currentSyncSession.status === 'running' ? 'green' :
-                  currentSyncSession.status === 'paused' ? 'yellow' :
-                  currentSyncSession.status === 'completed' ? 'blue' : 'red'
-                }>
+              <div className="flex justify-between items-center">
+                <CardTitle>Active Sync Session</CardTitle>
+                <Badge variant={
+                  currentSyncSession.status === 'running' ? 'default' :
+                    currentSyncSession.status === 'paused' ? 'secondary' :
+                      currentSyncSession.status === 'completed' ? 'default' : 'destructive'
+                } className={currentSyncSession.status === 'running' ? 'bg-green-500 hover:bg-green-600' : ''}>
                   {currentSyncSession.status}
                 </Badge>
-              </HStack>
+              </div>
             </CardHeader>
-            <CardBody>
-              <VStack spacing={4} align="stretch">
-                <Progress
-                  value={currentSyncSession.progress.percentage}
-                  colorScheme="blue"
-                  size="lg"
-                  hasStripe
-                  isAnimated
-                />
-                
-                <HStack justify="space-between">
-                  <Text fontSize="sm">
-                    {currentSyncSession.progress.processed} / {currentSyncSession.progress.total} items
-                  </Text>
-                  <Text fontSize="sm">
-                    {currentSyncSession.progress.currentItem || 'Processing...'}
-                  </Text>
-                </HStack>
-                
-                <SimpleGrid columns={3} spacing={4}>
-                  <Stat>
-                    <StatLabel fontSize="sm">Processed</StatLabel>
-                    <StatNumber fontSize="xl">{currentSyncSession.progress.processed}</StatNumber>
-                  </Stat>
-                  <Stat>
-                    <StatLabel fontSize="sm">Errors</StatLabel>
-                    <StatNumber fontSize="xl" color="red.500">{currentSyncSession.progress.errors}</StatNumber>
-                  </Stat>
-                  <Stat>
-                    <StatLabel fontSize="sm">Warnings</StatLabel>
-                    <StatNumber fontSize="xl" color="yellow.500">{currentSyncSession.progress.warnings}</StatNumber>
-                  </Stat>
-                </SimpleGrid>
-                
-                <HStack spacing={2}>
-                  {currentSyncSession.status === 'running' && (
-                    <Button
-                      leftIcon={<FiPause />}
-                      onClick={handlePauseSync}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Pause
-                    </Button>
-                  )}
-                  
-                  {currentSyncSession.status === 'paused' && (
-                    <Button
-                      leftIcon={<FiPlay />}
-                      onClick={handleResumeSync}
-                      colorScheme="green"
-                      size="sm"
-                    >
-                      Resume
-                    </Button>
-                  )}
-                  
-                  <Button
-                    leftIcon={<FiStop />}
-                    onClick={handleCancelSync}
-                    colorScheme="red"
-                    size="sm"
-                  >
-                    Cancel
-                  </Button>
-                </HStack>
-              </VStack>
-            </CardBody>
+            <CardContent className="space-y-4">
+              <Progress value={currentSyncSession.progress.percentage} className="h-2" />
+
+              <div className="flex justify-between text-sm">
+                <span>{currentSyncSession.progress.processed} / {currentSyncSession.progress.total} items</span>
+                <span className="text-muted-foreground">{currentSyncSession.progress.currentItem || 'Processing...'}</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Processed</p>
+                  <p className="text-2xl font-bold">{currentSyncSession.progress.processed}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Errors</p>
+                  <p className="text-2xl font-bold text-red-500">{currentSyncSession.progress.errors}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Warnings</p>
+                  <p className="text-2xl font-bold text-yellow-500">{currentSyncSession.progress.warnings}</p>
+                </div>
+              </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Account Summary Cards */}
         {accountSummary && (
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel fontSize="sm" color="gray.500">Total Balance</StatLabel>
-                  <StatNumber fontSize="2xl">
-                    {formatCurrency(accountSummary.total_balance)}
-                  </StatNumber>
-                  <StatHelpText>
-                    <Icon as={FiDollarSign} mr={1} />
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Total Balance</p>
+                  <p className="text-3xl font-bold">{formatCurrency(accountSummary.total_balance)}</p>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <DollarSign className="mr-1 h-4 w-4" />
                     Net Worth: {formatCurrency(accountSummary.net_worth)}
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
 
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel fontSize="sm" color="gray.500">Available Balance</StatLabel>
-                  <StatNumber fontSize="2xl">
-                    {formatCurrency(accountSummary.available_balance)}
-                  </StatNumber>
-                  <StatHelpText>
-                    <Icon as={FiHardDrive} mr={1} />
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Available Balance</p>
+                  <p className="text-3xl font-bold">{formatCurrency(accountSummary.available_balance)}</p>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Laptop className="mr-1 h-4 w-4" />
                     Ready to use
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
 
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel fontSize="sm" color="gray.500">Total Assets</StatLabel>
-                  <StatNumber fontSize="2xl">
-                    {formatCurrency(accountSummary.total_assets)}
-                  </StatNumber>
-                  <StatHelpText>
-                    <Icon as={FiTrendingUp} mr={1} />
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Total Assets</p>
+                  <p className="text-3xl font-bold">{formatCurrency(accountSummary.total_assets)}</p>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <TrendingUp className="mr-1 h-4 w-4" />
                     Positive holdings
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
 
             <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel fontSize="sm" color="gray.500">Total Liabilities</StatLabel>
-                  <StatNumber fontSize="2xl">
-                    {formatCurrency(accountSummary.total_liabilities)}
-                  </StatNumber>
-                  <StatHelpText>
-                    <Icon as={FiTrendingDown} mr={1} />
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Total Liabilities</p>
+                  <p className="text-3xl font-bold">{formatCurrency(accountSummary.total_liabilities)}</p>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <TrendingDown className="mr-1 h-4 w-4" />
                     Outstanding debts
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
-          </SimpleGrid>
+          </div>
         )}
 
         {/* Main Content Tabs */}
-        <Tabs 
-          value={activeTab}
-          onChange={(value) => setActiveTab(value)}
-          variant="enclosed"
-          colorScheme="blue"
-        >
-          <TabList>
-            <Tab>Dashboard</Tab>
-            <Tab>Accounts</Tab>
-            <Tab>Transactions</Tab>
-            <Tab>Analytics</Tab>
-            <Tab>Skills</Tab>
-            <Tab>Configuration</Tab>
-          </TabList>
-          
-          <TabPanels>
-            {/* Dashboard Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                {analytics && (
-                  <Card>
-                    <CardHeader>
-                      <Heading size="md">Spending Overview</Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack spacing={4} align="stretch">
-                        <HStack justify="space-between">
-                          <Text fontWeight="bold">Total Income</Text>
-                          <Text color="green.500" fontWeight="bold">
-                            {formatCurrency(analytics.total_income)}
-                          </Text>
-                        </HStack>
-                        
-                        <HStack justify="space-between">
-                          <Text fontWeight="bold">Total Spending</Text>
-                          <Text color="red.500" fontWeight="bold">
-                            {formatCurrency(analytics.total_spending)}
-                          </Text>
-                        </HStack>
-                        
-                        <Divider />
-                        
-                        <HStack justify="space-between">
-                          <Text fontWeight="bold">Net Amount</Text>
-                          <Text color={analytics.net_amount >= 0 ? 'green.500' : 'red.500'} fontWeight="bold">
-                            {formatCurrency(analytics.net_amount)}
-                          </Text>
-                        </HStack>
-                        
-                        <Box>
-                          <Text fontWeight="bold" mb={2}>Top Spending Categories</Text>
-                          <VStack spacing={2} align="stretch">
-                            {analytics.spending_by_category.slice(0, 5).map((category, index) => (
-                              <HStack key={index} justify="space-between">
-                                <Text fontSize="sm">{category.category}</Text>
-                                <HStack>
-                                  <Text fontSize="sm" fontWeight="bold">
-                                    {formatCurrency(category.amount)}
-                                  </Text>
-                                  <Badge fontSize="xs" colorScheme="blue">
-                                    {category.percentage.toFixed(1)}%
-                                  </Badge>
-                                </HStack>
-                              </HStack>
-                            ))}
-                          </VStack>
-                        </Box>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-                )}
-              </VStack>
-            </TabPanel>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+            <TabsTrigger value="dashboard">
+              <Activity className="mr-2 h-4 w-4" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="accounts">
+              <CreditCard className="mr-2 h-4 w-4" />
+              Accounts
+            </TabsTrigger>
+            <TabsTrigger value="analytics">
+              <PieChart className="mr-2 h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Accounts Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <Text fontSize="lg" fontWeight="bold">Connected Accounts</Text>
-                
-                {accounts.length > 0 ? (
-                  <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-                    {accounts.map((account) => (
-                      <Card 
-                        key={account.account_id}
-                        _hover={{ bg: 'gray.50', cursor: 'pointer' }}
-                        onClick={() => setSelectedAccount(account)}
-                        border={selectedAccount?.account_id === account.account_id ? '2px solid blue.500' : '1px solid gray.200'}
-                      >
-                        <CardBody>
-                          <VStack spacing={2} align="start">
-                            <HStack justify="space-between" width="100%">
-                              <Text fontWeight="bold">{account.name}</Text>
-                              <Badge 
-                                colorScheme={account.type === 'depository' ? 'green' : 'orange'}
-                                fontSize="xs"
-                              >
-                                {account.type}
-                              </Badge>
-                            </HStack>
-                            
-                            <Text fontSize="sm" color="gray.500">
-                              {account.official_name}
-                            </Text>
-                            
-                            <Text fontSize="sm">
-                              ****{account.mask}
-                            </Text>
-                            
-                            <HStack justify="space-between" width="100%">
-                              <Text fontSize="sm" color="gray.500">Balance</Text>
-                              <Text 
-                                fontSize="md" 
-                                fontWeight="bold"
-                                color={account.balances.current >= 0 ? 'green.500' : 'red.500'}
-                              >
-                                {formatCurrency(account.balances.current)}
-                              </Text>
-                            </HStack>
-                            
-                            {account.balances.available !== null && (
-                              <HStack justify="space-between" width="100%">
-                                <Text fontSize="sm" color="gray.500">Available</Text>
-                                <Text fontSize="sm">
-                                  {formatCurrency(account.balances.available)}
-                                </Text>
-                              </HStack>
-                            )}
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    ))}
-                  </SimpleGrid>
-                ) : (
-                  <Box textAlign="center" py={10}>
-                    <Icon as={FiCreditCard} boxSize={12} color="gray.400" />
-                    <Text mt={4} color="gray.500">
-                      No accounts connected yet
-                    </Text>
-                  </Box>
-                )}
-              </VStack>
-            </TabPanel>
+          <TabsContent value="dashboard" className="space-y-4">
+            {analytics && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Spending Overview</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="font-bold">Total Income</span>
+                    <span className="font-bold text-green-600">{formatCurrency(analytics.total_income)}</span>
+                  </div>
 
-            {/* Transactions Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <HStack justify="space-between" align="center">
-                  <Text fontSize="lg" fontWeight="bold">Recent Transactions</Text>
-                  <HStack spacing={2}>
-                    <Button
-                      leftIcon={<FiFilter />}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Filter
-                    </Button>
-                    <Button
-                      leftIcon={<FiSearch />}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Search
-                    </Button>
-                  </HStack>
-                </HStack>
-                
-                {transactions.length > 0 ? (
-                  <TableContainer>
-                    <Table variant="simple">
-                      <Thead>
-                        <Tr>
-                          <Th>Date</Th>
-                          <Th>Description</Th>
-                          <Th>Category</Th>
-                          <Th>Amount</Th>
-                          <Th>Status</Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {transactions.slice(0, 20).map((transaction) => (
-                          <Tr key={transaction.transaction_id}>
-                            <Td>{formatDate(transaction.date)}</Td>
-                            <Td>
-                              <VStack align="start" spacing={0}>
-                                <Text>{transaction.name}</Text>
-                                {transaction.merchant_name && (
-                                  <Text fontSize="xs" color="gray.500">
-                                    {transaction.merchant_name}
-                                  </Text>
-                                )}
-                              </VStack>
-                            </Td>
-                            <Td>
-                              {transaction.category.length > 0 ? (
-                                <Badge fontSize="xs" colorScheme="blue">
-                                  {transaction.category[0]}
-                                </Badge>
-                              ) : (
-                                <Text fontSize="xs" color="gray.500">Uncategorized</Text>
-                              )}
-                            </Td>
-                            <Td>
-                              <Text 
-                                color={transaction.amount >= 0 ? 'green.500' : 'red.500'}
-                                fontWeight="bold"
-                              >
-                                {formatCurrency(transaction.amount)}
-                              </Text>
-                            </Td>
-                            <Td>
-                              {transaction.pending ? (
-                                <Badge colorScheme="yellow" fontSize="xs">Pending</Badge>
-                              ) : (
-                                <Badge colorScheme="green" fontSize="xs">Completed</Badge>
-                              )}
-                            </Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  </TableContainer>
-                ) : (
-                  <Box textAlign="center" py={10}>
-                    <Icon as={FiFileText} boxSize={12} color="gray.400" />
-                    <Text mt={4} color="gray.500">
-                      No transactions available
-                    </Text>
-                  </Box>
-                )}
-              </VStack>
-            </TabPanel>
+                  <div className="flex justify-between">
+                    <span className="font-bold">Total Spending</span>
+                    <span className="font-bold text-red-600">{formatCurrency(analytics.total_spending)}</span>
+                  </div>
 
-            {/* Analytics Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <Text fontSize="lg" fontWeight="bold">Financial Analytics</Text>
-                
-                {analytics ? (
-                  <VStack spacing={6} align="stretch">
-                    {/* Spending by Category Chart Placeholder */}
-                    <Card>
-                      <CardHeader>
-                        <Heading size="md">Spending by Category</Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack spacing={3} align="stretch">
-                          {analytics.spending_by_category.map((category, index) => (
-                            <Box key={index}>
-                              <HStack justify="space-between" mb={1}>
-                                <Text>{category.category}</Text>
-                                <Text fontWeight="bold">
-                                  {formatCurrency(category.amount)} ({category.percentage.toFixed(1)}%)
-                                </Text>
-                              </HStack>
-                              <Progress 
-                                value={category.percentage} 
-                                colorScheme="blue" 
-                                size="sm" 
-                              />
-                            </Box>
-                          ))}
-                        </VStack>
-                      </CardBody>
-                    </Card>
+                  <div className="border-t pt-4" />
 
-                    {/* Recurring Transactions */}
-                    <Card>
-                      <CardHeader>
-                        <Heading size="md">Recurring Transactions</Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack spacing={3} align="stretch">
-                          {analytics.recurring_transactions.map((recurring, index) => (
-                            <HStack key={index} justify="space-between">
-                              <VStack align="start" spacing={0}>
-                                <Text fontWeight="bold">{recurring.name}</Text>
-                                <Text fontSize="sm" color="gray.500">
-                                  {recurring.frequency} • Next: {formatDate(recurring.next_expected)}
-                                </Text>
-                              </VStack>
-                              <Text fontWeight="bold" color="red.500">
-                                {formatCurrency(recurring.amount)}
-                              </Text>
-                            </HStack>
-                          ))}
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  </VStack>
-                ) : (
-                  <Box textAlign="center" py={10}>
-                    <Icon as={FiBarChart} boxSize={12} color="gray.400" />
-                    <Text mt={4} color="gray.500">
-                      Analytics not available yet
-                    </Text>
-                  </Box>
-                )}
-              </VStack>
-            </TabPanel>
+                  <div className="flex justify-between">
+                    <span className="font-bold">Net Amount</span>
+                    <span className={`font-bold ${analytics.net_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(analytics.net_amount)}
+                    </span>
+                  </div>
 
-            {/* Skills Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <Text fontSize="lg" fontWeight="bold">ATOM Skills</Text>
-                
-                <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-                  <Card _hover={{ bg: 'gray.50', cursor: 'pointer' }}>
-                    <CardBody>
-                      <VStack spacing={3}>
-                        <Icon as={FiDatabase} boxSize={8} color="blue.500" />
-                        <VStack align="start" spacing={1}>
-                          <Text fontWeight="bold">Get Accounts</Text>
-                          <Text fontSize="sm" color="gray.500">
-                            Retrieve all connected accounts
-                          </Text>
-                        </VStack>
-                        <Button 
-                          colorScheme="blue" 
-                          size="sm" 
-                          onClick={() => handleExecuteSkill('plaid_get_accounts')}
-                        >
-                          Execute
-                        </Button>
-                      </VStack>
-                    </CardBody>
-                  </Card>
+                  <div className="pt-4">
+                    <p className="font-bold mb-2">Top Spending Categories</p>
+                    <div className="space-y-2">
+                      {analytics.spending_by_category.slice(0, 5).map((category, index) => (
+                        <div key={index} className="flex justify-between items-center">
+                          <span className="text-sm">{category.category}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold">{formatCurrency(category.amount)}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {category.percentage.toFixed(1)}%
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-                  <Card _hover={{ bg: 'gray.50', cursor: 'pointer' }}>
-                    <CardBody>
-                      <VStack spacing={3}>
-                        <Icon as={FiFileText} boxSize={8} color="green.500" />
-                        <VStack align="start" spacing={1}>
-                          <Text fontWeight="bold">Get Transactions</Text>
-                          <Text fontSize="sm" color="gray.500">
-                            Retrieve transactions with filters
-                          </Text>
-                        </VStack>
-                        <Button 
-                          colorScheme="green" 
-                          size="sm" 
-                          onClick={() => handleExecuteSkill('plaid_get_transactions')}
-                        >
-                          Execute
-                        </Button>
-                      </VStack>
-                    </CardBody>
-                  </Card>
+            <Button onClick={handleStartSync} disabled={isSyncing} className="w-full">
+              <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing...' : 'Start Sync'}
+            </Button>
+          </TabsContent>
 
-                  <Card _hover={{ bg: 'gray.50', cursor: 'pointer' }}>
-                    <CardBody>
-                      <VStack spacing={3}>
-                        <Icon as={FiBarChart} boxSize={8} color="purple.500" />
-                        <VStack align="start" spacing={1}>
-                          <Text fontWeight="bold">Generate Analytics</Text>
-                          <Text fontSize="sm" color="gray.500">
-                            Create spending insights and patterns
-                          </Text>
-                        </VStack>
-                        <Button 
-                          colorScheme="purple" 
-                          size="sm" 
-                          onClick={() => handleExecuteSkill('plaid_generate_spending_analytics')}
-                        >
-                          Execute
-                        </Button>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-
-                  <Card _hover={{ bg: 'gray.50', cursor: 'pointer' }}>
-                    <CardBody>
-                      <VStack spacing={3}>
-                        <Icon as={FiZap} boxSize={8} color="orange.500" />
-                        <VStack align="start" spacing={1}>
-                          <Text fontWeight="bold">Sync with ATOM</Text>
-                          <Text fontSize="sm" color="gray.500">
-                            Synchronize data with ATOM memory
-                          </Text>
-                        </VStack>
-                        <Button 
-                          colorScheme="orange" 
-                          size="sm" 
-                          onClick={() => handleExecuteSkill('plaid_sync_with_atom_memory')}
-                        >
-                          Execute
-                        </Button>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-                </SimpleGrid>
-              </VStack>
-            </TabPanel>
-
-            {/* Configuration Tab */}
-            <TabPanel>
-              <VStack spacing={4} align="stretch">
-                <Text fontSize="lg" fontWeight="bold">Configuration</Text>
-                
-                <Card>
-                  <CardBody>
-                    <VStack spacing={4} align="stretch">
-                      <FormControl>
-                        <FormLabel>Enable Real-time Sync</FormLabel>
-                        <Switch
-                          isChecked={currentConfig.enableRealTimeSync}
-                          onChange={(e) => setCurrentConfig({ 
-                            ...currentConfig, 
-                            enableRealTimeSync: e.target.checked 
-                          })}
-                        />
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel>Include Pending Transactions</FormLabel>
-                        <Switch
-                          isChecked={currentConfig.includePendingTransactions}
-                          onChange={(e) => setCurrentConfig({ 
-                            ...currentConfig, 
-                            includePendingTransactions: e.target.checked 
-                          })}
-                        />
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel>Generate Spending Insights</FormLabel>
-                        <Switch
-                          isChecked={currentConfig.generateSpendingInsights}
-                          onChange={(e) => setCurrentConfig({ 
-                            ...currentConfig, 
-                            generateSpendingInsights: e.target.checked 
-                          })}
-                        />
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel>Categorize Transactions</FormLabel>
-                        <Switch
-                          isChecked={currentConfig.categorizeTransactions}
-                          onChange={(e) => setCurrentConfig({ 
-                            ...currentConfig, 
-                            categorizeTransactions: e.target.checked 
-                          })}
-                        />
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel>Encrypt Sensitive Data</FormLabel>
-                        <Switch
-                          isChecked={currentConfig.encryptSensitiveData}
-                          onChange={(e) => setCurrentConfig({ 
-                            ...currentConfig, 
-                            encryptSensitiveData: e.target.checked 
-                          })}
-                        />
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel>Mask Account Numbers</FormLabel>
-                        <Switch
-                          isChecked={currentConfig.maskAccountNumbers}
-                          onChange={(e) => setCurrentConfig({ 
-                            ...currentConfig, 
-                            maskAccountNumbers: e.target.checked 
-                          })}
-                        />
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel>Batch Size</FormLabel>
-                        <NumberInput
-                          value={currentConfig.batchSize || 100}
-                          onChange={(value) => setCurrentConfig({ 
-                            ...currentConfig, 
-                            batchSize: parseInt(value) || 100 
-                          })}
-                          min={1}
-                          max={500}
-                        >
-                          <NumberInputField />
-                          <NumberInputStepper>
-                            <NumberIncrementStepper />
-                            <NumberDecrementStepper />
-                          </NumberInputStepper>
-                        </NumberInput>
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel>Max Retries</FormLabel>
-                        <NumberInput
-                          value={currentConfig.maxRetries || 3}
-                          onChange={(value) => setCurrentConfig({ 
-                            ...currentConfig, 
-                            maxRetries: parseInt(value) || 3 
-                          })}
-                          min={0}
-                          max={10}
-                        >
-                          <NumberInputField />
-                          <NumberInputStepper>
-                            <NumberIncrementStepper />
-                            <NumberDecrementStepper />
-                          </NumberInputStepper>
-                        </NumberInput>
-                      </FormControl>
-
-                      <Button 
-                        colorScheme="blue" 
-                        onClick={handleStartSync}
-                        isLoading={isSyncing}
-                        isDisabled={!isConnected}
-                      >
-                        Start Sync
-                      </Button>
-                    </VStack>
-                  </CardBody>
+          <TabsContent value="accounts" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {accounts.map((account) => (
+                <Card key={account.account_id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">{account.name}</CardTitle>
+                        <p className="text-sm text-muted-foreground">****{account.mask}</p>
+                      </div>
+                      <Badge variant="outline">{account.type}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Current Balance</span>
+                        <span className="font-bold">{formatCurrency(account.balances.current)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Available</span>
+                        <span className="text-sm">{formatCurrency(account.balances.available)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
-              </VStack>
-            </TabPanel>
-          </TabPanels>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4">
+            {analytics && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Merchants</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {analytics.top_merchants.map((merchant, index) => (
+                      <div key={index} className="flex justify-between items-center">
+                        <span className="font-medium">{merchant.merchant_name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">{formatCurrency(merchant.amount)}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {merchant.transaction_count} txns
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 };
 
