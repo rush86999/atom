@@ -21,7 +21,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
@@ -96,7 +95,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
     const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
     const animationRef = useRef<number>();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const { toast } = useToast();
+    const toast = useToast();
 
     // Default models if none provided
     const defaultModels: WakeWordModel[] = [
@@ -327,8 +326,8 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
         });
     };
 
-    const handleSensitivityChange = (value: number[]) => {
-        const newSensitivity = value[0];
+    const handleSensitivityChange = (value: number) => {
+        const newSensitivity = value;
         setSensitivity(newSensitivity);
         if (selectedModel) {
             const updatedModel = { ...selectedModel, sensitivity: newSensitivity };
@@ -369,12 +368,15 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                         Wake Word Detector
                     </h2>
                     <div className="flex space-x-2">
+                        <Button
+                            variant="outline"
+                            size={compactView ? "sm" : "default"}
+                            onClick={() => setIsSettingsOpen(true)}
+                        >
+                            <Settings className="w-4 h-4" />
+                        </Button>
+
                         <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" size={compactView ? "sm" : "default"}>
-                                    <Settings className="w-4 h-4" />
-                                </Button>
-                            </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
                                     <DialogTitle>Wake Word Settings</DialogTitle>
@@ -384,7 +386,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                                         <Label>Sensitivity</Label>
                                         <div className="flex items-center space-x-4">
                                             <Slider
-                                                value={[sensitivity]}
+                                                value={sensitivity}
                                                 min={0.1}
                                                 max={1.0}
                                                 step={0.1}
