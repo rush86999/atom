@@ -397,17 +397,10 @@ const StripeIntegration: React.FC = () => {
 
   if (loading && payments.length === 0) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minH="400px"
-      >
-        <VStack spacing={4}>
-          <Spinner size="xl" color="blue.500" />
-          <Text>Loading Stripe integration...</Text>
-        </VStack>
-      </Box>
+      <div className="flex h-[400px] w-full flex-col items-center justify-center gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+        <p className="text-muted-foreground">Loading Stripe integration...</p>
+      </div>
     );
   }
 
