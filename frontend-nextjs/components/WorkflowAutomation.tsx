@@ -1,81 +1,65 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Grid,
-  GridItem,
   Card,
   CardHeader,
-  CardBody,
+  CardContent,
   CardFooter,
-  Button,
-  IconButton,
-  Badge,
-  Spinner,
-  useToast,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Input,
-  Select,
-  FormControl,
-  FormLabel,
-  FormHelperText,
-  Textarea,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Progress,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
-  Code,
-  Divider,
-  Flex,
-  Tooltip,
-  Switch,
-  Tag,
-  TagLabel,
-  TagCloseButton,
-} from "@chakra-ui/react";
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  AddIcon,
-  CheckCircleIcon,
-  CloseIcon,
-  EditIcon,
-  DeleteIcon,
-  ViewIcon,
-  ArrowForwardIcon,
-  SettingsIcon,
-  TimeIcon,
-  ChatIcon,
-  EmailIcon,
-  AttachmentIcon,
-  ChevronDownIcon,
-  RepeatIcon,
-} from "@chakra-ui/icons";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Plus,
+  CheckCircle,
+  X,
+  Edit,
+  Trash2,
+  Eye,
+  ArrowRight,
+  Settings,
+  Clock,
+  MessageSquare,
+  Mail,
+  Paperclip,
+  ChevronDown,
+  RefreshCw,
+  Loader2,
+  Layout,
+  List,
+  Play,
+  AlertTriangle,
+  FileText,
+  Activity,
+} from "lucide-react";
 
 interface WorkflowTemplate {
   id: string;
@@ -104,6 +88,7 @@ interface WorkflowDefinition {
   input_schema: any;
   created_at: string;
   updated_at: string;
+  steps_count?: number;
 }
 
 interface WorkflowExecution {
@@ -140,25 +125,14 @@ const WorkflowAutomation: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState("templates");
 
-  const {
-    isOpen: isTemplateModalOpen,
-    onOpen: onTemplateModalOpen,
-    onClose: onTemplateModalClose,
-  } = useDisclosure();
-  const {
-    isOpen: isExecutionModalOpen,
-    onOpen: onExecutionModalOpen,
-    onClose: onExecutionModalClose,
-  } = useDisclosure();
-  const {
-    isOpen: isCreateModalOpen,
-    onOpen: onCreateModalOpen,
-    onClose: onCreateModalClose,
-  } = useDisclosure();
+  // Modal states
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const toast = useToast();
+  const { toast } = useToast();
 
   // Fetch initial data
   useEffect(() => {
@@ -179,9 +153,7 @@ const WorkflowAutomation: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to load workflow data",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -189,45 +161,63 @@ const WorkflowAutomation: React.FC = () => {
   };
 
   const fetchTemplates = async () => {
-    const response = await fetch("/api/workflows/templates");
-    const data = await response.json();
-    if (data.success) {
-      setTemplates(data.templates);
+    try {
+      const response = await fetch("/api/workflows/templates");
+      const data = await response.json();
+      if (data.success) {
+        setTemplates(data.templates);
+      }
+    } catch (e) {
+      console.error("Failed to fetch templates", e);
     }
   };
 
   const fetchWorkflows = async () => {
-    const response = await fetch("/api/workflows/definitions");
-    const data = await response.json();
-    if (data.success) {
-      setWorkflows(data.workflows);
+    try {
+      const response = await fetch("/api/workflows/definitions");
+      const data = await response.json();
+      if (data.success) {
+        setWorkflows(data.workflows);
+      }
+    } catch (e) {
+      console.error("Failed to fetch workflows", e);
     }
   };
 
   const fetchExecutions = async () => {
-    const response = await fetch("/api/workflows/executions");
-    const data = await response.json();
-    if (data.success) {
-      setExecutions(data.executions);
+    try {
+      const response = await fetch("/api/workflows/executions");
+      const data = await response.json();
+      if (data.success) {
+        setExecutions(data.executions);
+      }
+    } catch (e) {
+      console.error("Failed to fetch executions", e);
     }
   };
 
   const fetchServices = async () => {
-    const response = await fetch("/api/workflows/services");
-    const data = await response.json();
-    if (data.success) {
-      setServices(data.services);
+    try {
+      const response = await fetch("/api/workflows/services");
+      const data = await response.json();
+      if (data.success) {
+        setServices(data.services);
+      }
+    } catch (e) {
+      console.error("Failed to fetch services", e);
     }
   };
 
   const handleTemplateSelect = (template: WorkflowTemplate) => {
     setSelectedTemplate(template);
-    onTemplateModalOpen();
+    setFormData({});
+    setIsTemplateModalOpen(true);
   };
 
   const handleWorkflowSelect = (workflow: WorkflowDefinition) => {
     setSelectedWorkflow(workflow);
-    onCreateModalOpen();
+    setFormData({});
+    setIsCreateModalOpen(true);
   };
 
   const handleExecuteWorkflow = async (
@@ -252,9 +242,6 @@ const WorkflowAutomation: React.FC = () => {
         toast({
           title: "Workflow Started",
           description: `Execution ${data.execution_id} has started`,
-          status: "success",
-          duration: 3000,
-          isClosable: true,
         });
 
         // Refresh executions list
@@ -262,7 +249,7 @@ const WorkflowAutomation: React.FC = () => {
 
         // Show execution details
         setActiveExecution(data);
-        onExecutionModalOpen();
+        setIsExecutionModalOpen(true);
       } else {
         throw new Error(data.error);
       }
@@ -271,9 +258,7 @@ const WorkflowAutomation: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to execute workflow",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
+        variant: "destructive",
       });
     } finally {
       setExecuting(false);
@@ -294,9 +279,6 @@ const WorkflowAutomation: React.FC = () => {
         toast({
           title: "Execution Cancelled",
           description: `Execution ${executionId} has been cancelled`,
-          status: "info",
-          duration: 3000,
-          isClosable: true,
         });
         await fetchExecutions();
       } else {
@@ -307,9 +289,7 @@ const WorkflowAutomation: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to cancel execution",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
+        variant: "destructive",
       });
     }
   };
@@ -322,45 +302,60 @@ const WorkflowAutomation: React.FC = () => {
   };
 
   const renderServiceIcon = (service: string) => {
-    const iconProps = { boxSize: 4, mr: 2 };
+    const iconClass = "w-4 h-4 mr-2";
     switch (service) {
       case "calendar":
-        return <TimeIcon {...iconProps} color="blue.500" />;
+        return <Clock className={`${iconClass} text-blue-500`} />;
       case "tasks":
-        return <CheckCircleIcon {...iconProps} color="green.500" />;
+        return <CheckCircle className={`${iconClass} text-green-500`} />;
       case "messages":
-        return <ChatIcon {...iconProps} color="purple.500" />;
+        return <MessageSquare className={`${iconClass} text-purple-500`} />;
       case "email":
-        return <EmailIcon {...iconProps} color="red.500" />;
+        return <Mail className={`${iconClass} text-red-500`} />;
       case "documents":
-        return <AttachmentIcon {...iconProps} color="orange.500" />;
+        return <Paperclip className={`${iconClass} text-orange-500`} />;
       case "asana":
-        return <ViewIcon {...iconProps} color="teal.500" />;
       case "trello":
-        return <ViewIcon {...iconProps} color="blue.500" />;
       case "notion":
-        return <ViewIcon {...iconProps} color="gray.500" />;
+        return <Layout className={`${iconClass} text-teal-500`} />;
       case "dropbox":
-        return <ChevronDownIcon {...iconProps} color="blue.500" />;
+        return <ChevronDown className={`${iconClass} text-blue-500`} />;
       default:
-        return <SettingsIcon {...iconProps} color="gray.500" />;
+        return <Settings className={`${iconClass} text-gray-500`} />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "green";
+        return "bg-green-500 hover:bg-green-600";
       case "running":
-        return "blue";
+        return "bg-blue-500 hover:bg-blue-600";
       case "failed":
-        return "red";
+        return "bg-red-500 hover:bg-red-600";
       case "cancelled":
-        return "orange";
+        return "bg-orange-500 hover:bg-orange-600";
       case "pending":
-        return "yellow";
+        return "bg-yellow-500 hover:bg-yellow-600";
       default:
-        return "gray";
+        return "bg-gray-500 hover:bg-gray-600";
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "default"; // Green-ish usually or customize
+      case "running":
+        return "secondary";
+      case "failed":
+        return "destructive";
+      case "cancelled":
+        return "outline";
+      case "pending":
+        return "secondary";
+      default:
+        return "outline";
     }
   };
 
@@ -372,52 +367,71 @@ const WorkflowAutomation: React.FC = () => {
       case "string":
         if (fieldSchema.format === "email") {
           return (
-            <FormControl key={field} isRequired={isRequired}>
-              <FormLabel>{fieldSchema.title}</FormLabel>
+            <div key={field} className="space-y-2">
+              <Label htmlFor={field}>
+                {fieldSchema.title} {isRequired && "*"}
+              </Label>
               <Input
+                id={field}
                 type="email"
                 value={formData[field] || ""}
                 onChange={(e) => handleFormChange(field, e.target.value)}
                 placeholder={fieldSchema.title}
+                required={isRequired}
               />
               {fieldSchema.description && (
-                <FormHelperText>{fieldSchema.description}</FormHelperText>
+                <p className="text-sm text-gray-500">
+                  {fieldSchema.description}
+                </p>
               )}
-            </FormControl>
+            </div>
           );
         } else if (fieldSchema.format === "date") {
           return (
-            <FormControl key={field} isRequired={isRequired}>
-              <FormLabel>{fieldSchema.title}</FormLabel>
+            <div key={field} className="space-y-2">
+              <Label htmlFor={field}>
+                {fieldSchema.title} {isRequired && "*"}
+              </Label>
               <Input
+                id={field}
                 type="date"
                 value={formData[field] || ""}
                 onChange={(e) => handleFormChange(field, e.target.value)}
+                required={isRequired}
               />
-            </FormControl>
+            </div>
           );
         } else {
           return (
-            <FormControl key={field} isRequired={isRequired}>
-              <FormLabel>{fieldSchema.title}</FormLabel>
+            <div key={field} className="space-y-2">
+              <Label htmlFor={field}>
+                {fieldSchema.title} {isRequired && "*"}
+              </Label>
               <Input
+                id={field}
                 type="text"
                 value={formData[field] || ""}
                 onChange={(e) => handleFormChange(field, e.target.value)}
                 placeholder={fieldSchema.title}
+                required={isRequired}
               />
               {fieldSchema.description && (
-                <FormHelperText>{fieldSchema.description}</FormHelperText>
+                <p className="text-sm text-gray-500">
+                  {fieldSchema.description}
+                </p>
               )}
-            </FormControl>
+            </div>
           );
         }
 
       case "array":
         return (
-          <FormControl key={field} isRequired={isRequired}>
-            <FormLabel>{fieldSchema.title}</FormLabel>
+          <div key={field} className="space-y-2">
+            <Label htmlFor={field}>
+              {fieldSchema.title} {isRequired && "*"}
+            </Label>
             <Textarea
+              id={field}
               value={
                 Array.isArray(formData[field]) ? formData[field].join(", ") : ""
               }
@@ -429,221 +443,226 @@ const WorkflowAutomation: React.FC = () => {
               }
               placeholder={`Enter ${fieldSchema.title} separated by commas`}
             />
-            <FormHelperText>
+            <p className="text-sm text-gray-500">
               Separate multiple values with commas
-            </FormHelperText>
-          </FormControl>
+            </p>
+          </div>
         );
 
       default:
         return (
-          <FormControl key={field} isRequired={isRequired}>
-            <FormLabel>{fieldSchema.title}</FormLabel>
+          <div key={field} className="space-y-2">
+            <Label htmlFor={field}>
+              {fieldSchema.title} {isRequired && "*"}
+            </Label>
             <Input
+              id={field}
               type="text"
               value={formData[field] || ""}
               onChange={(e) => handleFormChange(field, e.target.value)}
               placeholder={fieldSchema.title}
+              required={isRequired}
             />
-          </FormControl>
+          </div>
         );
     }
   };
 
   if (loading) {
     return (
-      <Box p={8}>
-        <VStack spacing={4} align="center">
-          <Spinner size="xl" />
-          <Text>Loading workflow automation...</Text>
-        </VStack>
-      </Box>
+      <div className="flex flex-col items-center justify-center p-8 space-y-4">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
+        <p className="text-gray-600">Loading workflow automation...</p>
+      </div>
     );
   }
 
   return (
-    <Box p={8}>
+    <div className="p-8 space-y-8">
       {/* Header */}
-      <HStack justify="space-between" mb={8}>
-        <VStack align="start" spacing={1}>
-          <Heading size="xl">Workflow Automation</Heading>
-          <Text color="gray.600">
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">
+            Workflow Automation
+          </h1>
+          <p className="text-gray-500">
             Automate your tasks and processes across all connected services
-          </Text>
-        </VStack>
-        <Button
-          leftIcon={<AddIcon />}
-          colorScheme="blue"
-          onClick={onCreateModalOpen}
-        >
+          </p>
+        </div>
+        <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
           Create Workflow
         </Button>
-      </HStack>
+      </div>
 
       {/* Main Content */}
-      <Tabs variant="enclosed" onChange={setActiveTab}>
-        <TabList>
-          <Tab>Templates</Tab>
-          <Tab>My Workflows</Tab>
-          <Tab>Executions</Tab>
-          <Tab>Services</Tab>
-        </TabList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="workflows">My Workflows</TabsTrigger>
+          <TabsTrigger value="executions">Executions</TabsTrigger>
+          <TabsTrigger value="services">Services</TabsTrigger>
+        </TabsList>
 
-        <TabPanels>
-          {/* Templates Tab */}
-          <TabPanel>
-            <Grid
-              templateColumns="repeat(auto-fill, minmax(300px, 1fr))"
-              gap={6}
-            >
-              {templates.map((template) => (
-                <Card
-                  key={template.id}
-                  cursor="pointer"
-                  _hover={{ shadow: "md" }}
-                >
-                  <CardHeader>
-                    <HStack justify="space-between">
-                      <HStack>
-                        {renderServiceIcon(template.category)}
-                        <Heading size="md">{template.name}</Heading>
-                      </HStack>
-                      <Badge colorScheme="blue">
-                        {template.steps.length} steps
-                      </Badge>
-                    </HStack>
-                  </CardHeader>
-                  <CardBody>
-                    <Text color="gray.600" mb={4}>
-                      {template.description}
-                    </Text>
-                    <VStack align="start" spacing={2}>
-                      {template.steps.slice(0, 3).map((step, index) => (
-                        <HStack key={step.id} spacing={2}>
-                          <Badge size="sm" colorScheme="gray">
-                            {index + 1}
-                          </Badge>
-                          <Text fontSize="sm">{step.name}</Text>
-                        </HStack>
-                      ))}
-                      {template.steps.length > 3 && (
-                        <Text fontSize="sm" color="gray.500">
-                          +{template.steps.length - 3} more steps
-                        </Text>
-                      )}
-                    </VStack>
-                  </CardBody>
-                  <CardFooter>
-                    <Button
-                      size="sm"
-                      colorScheme="blue"
-                      w="full"
-                      onClick={() => handleTemplateSelect(template)}
-                    >
-                      Use Template
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </Grid>
-          </TabPanel>
-
-          {/* My Workflows Tab */}
-          <TabPanel>
-            <VStack spacing={6} align="stretch">
-              {workflows.map((workflow) => (
-                <Card key={workflow.id}>
-                  <CardHeader>
-                    <HStack justify="space-between">
-                      <VStack align="start" spacing={1}>
-                        <Heading size="md">{workflow.name}</Heading>
-                        <Text color="gray.600">{workflow.description}</Text>
-                      </VStack>
-                      <HStack>
-                        <Badge colorScheme="green">
-                          {workflow.steps_count} steps
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {templates.map((template) => (
+              <Card
+                key={template.id}
+                className="hover:shadow-md transition-shadow cursor-pointer"
+              >
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center">
+                      {renderServiceIcon(template.category)}
+                      <CardTitle className="text-lg">{template.name}</CardTitle>
+                    </div>
+                    <Badge variant="secondary">
+                      {template.steps.length} steps
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="mb-4 min-h-[40px]">
+                    {template.description}
+                  </CardDescription>
+                  <div className="space-y-2">
+                    {template.steps.slice(0, 3).map((step, index) => (
+                      <div key={step.id} className="flex items-center text-sm">
+                        <Badge
+                          variant="outline"
+                          className="mr-2 w-5 h-5 flex items-center justify-center p-0"
+                        >
+                          {index + 1}
                         </Badge>
-                        <IconButton
-                          aria-label="Edit workflow"
-                          icon={<EditIcon />}
-                          size="sm"
-                          variant="ghost"
-                        />
-                        <IconButton
-                          aria-label="Execute workflow"
-                          icon={<ArrowForwardIcon />}
-                          size="sm"
-                          colorScheme="blue"
-                          onClick={() => handleWorkflowSelect(workflow)}
-                        />
-                      </HStack>
-                    </HStack>
-                  </CardHeader>
-                  <CardBody>
-                    <Text fontSize="sm" color="gray.500">
-                      Created:{" "}
-                      {new Date(workflow.created_at).toLocaleDateString()}
-                    </Text>
-                  </CardBody>
-                </Card>
-              ))}
-              {workflows.length === 0 && (
-                <Alert status="info">
-                  <AlertIcon />
-                  <Box>
-                    <AlertTitle>No workflows yet</AlertTitle>
-                    <AlertDescription>
-                      Create your first workflow using a template or from
-                      scratch.
-                    </AlertDescription>
-                  </Box>
-                </Alert>
-              )}
-            </VStack>
-          </TabPanel>
+                        <span className="truncate">{step.name}</span>
+                      </div>
+                    ))}
+                    {template.steps.length > 3 && (
+                      <p className="text-xs text-gray-500 pl-7">
+                        +{template.steps.length - 3} more steps
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    className="w-full"
+                    onClick={() => handleTemplateSelect(template)}
+                  >
+                    Use Template
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
 
-          {/* Executions Tab */}
-          <TabPanel>
-            <VStack spacing={4} align="stretch">
-              {executions.map((execution) => (
-                <Card key={execution.execution_id}>
-                  <CardBody>
-                    <HStack justify="space-between">
-                      <VStack align="start" spacing={1}>
-                        <HStack>
-                          <Badge colorScheme={getStatusColor(execution.status)}>
-                            {execution.status}
-                          </Badge>
-                          <Text fontWeight="bold">{execution.workflow_id}</Text>
-                        </HStack>
-                        <Text fontSize="sm" color="gray.600">
+        {/* My Workflows Tab */}
+        <TabsContent value="workflows" className="mt-6">
+          <div className="space-y-4">
+            {workflows.map((workflow) => (
+              <Card key={workflow.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <CardTitle>{workflow.name}</CardTitle>
+                      <CardDescription>{workflow.description}</CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline">
+                        {workflow.steps_count || workflow.steps?.length || 0}{" "}
+                        steps
+                      </Badge>
+                      <Button variant="ghost" size="icon">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleWorkflowSelect(workflow)}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Run
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-gray-500">
+                    Created:{" "}
+                    {new Date(workflow.created_at).toLocaleDateString()}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+            {workflows.length === 0 && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>No workflows yet</AlertTitle>
+                <AlertDescription>
+                  Create your first workflow using a template or from scratch.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Executions Tab */}
+        <TabsContent value="executions" className="mt-6">
+          <div className="space-y-4">
+            {executions.map((execution) => (
+              <Card key={execution.execution_id}>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col md:flex-row justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Badge
+                          className={getStatusColor(execution.status)}
+                          variant="secondary"
+                        >
+                          {execution.status}
+                        </Badge>
+                        <span className="font-semibold">
+                          {execution.workflow_id}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-500 space-y-1">
+                        <p>
                           Started:{" "}
                           {new Date(execution.start_time).toLocaleString()}
-                        </Text>
+                        </p>
                         {execution.end_time && (
-                          <Text fontSize="sm" color="gray.600">
+                          <p>
                             Ended:{" "}
                             {new Date(execution.end_time).toLocaleString()}
-                          </Text>
+                          </p>
                         )}
-                      </VStack>
-                      <HStack>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-4 min-w-[300px]">
+                      <div className="flex-1 space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span>Progress</span>
+                          <span>
+                            {execution.current_step}/{execution.total_steps}
+                          </span>
+                        </div>
                         <Progress
                           value={
                             (execution.current_step / execution.total_steps) *
                             100
                           }
-                          size="sm"
-                          width="100px"
-                          colorScheme={getStatusColor(execution.status)}
+                          className="h-2"
                         />
-                        <Text fontSize="sm">
-                          {execution.current_step}/{execution.total_steps}
-                        </Text>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
                         {execution.status === "running" && (
                           <Button
                             size="sm"
-                            colorScheme="red"
+                            variant="destructive"
                             onClick={() =>
                               handleCancelExecution(execution.execution_id)
                             }
@@ -651,313 +670,306 @@ const WorkflowAutomation: React.FC = () => {
                             Cancel
                           </Button>
                         )}
-                        <IconButton
-                          aria-label="View execution details"
-                          icon={<ViewIcon />}
-                          size="sm"
+                        <Button
                           variant="ghost"
+                          size="icon"
                           onClick={() => {
                             setActiveExecution(execution);
-                            onExecutionModalOpen();
+                            setIsExecutionModalOpen(true);
                           }}
-                        />
-                      </HStack>
-                    </HStack>
-                  </CardBody>
-                </Card>
-              ))}
-              {executions.length === 0 && (
-                <Alert status="info">
-                  <AlertIcon />
-                  <Box>
-                    <AlertTitle>No executions yet</AlertTitle>
-                    <AlertDescription>
-                      Execute a workflow to see execution history here.
-                    </AlertDescription>
-                  </Box>
-                </Alert>
-              )}
-            </VStack>
-          </TabPanel>
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {executions.length === 0 && (
+              <Alert>
+                <Activity className="h-4 w-4" />
+                <AlertTitle>No executions yet</AlertTitle>
+                <AlertDescription>
+                  Execute a workflow to see execution history here.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </TabsContent>
 
-          {/* Services Tab */}
-          <TabPanel>
-            <Grid
-              templateColumns="repeat(auto-fill, minmax(300px, 1fr))"
-              gap={6}
-            >
-              {Object.entries(services).map(([serviceName, serviceInfo]) => (
-                <Card key={serviceName}>
-                  <CardHeader>
-                    <HStack>
-                      {renderServiceIcon(serviceName)}
-                      <Heading size="md">{serviceName}</Heading>
-                    </HStack>
-                  </CardHeader>
-                  <CardBody>
-                    <Text color="gray.600" mb={4}>
-                      {serviceInfo.description}
-                    </Text>
-                    <VStack align="start" spacing={2}>
-                      <Text fontWeight="bold">Available Actions:</Text>
+        {/* Services Tab */}
+        <TabsContent value="services" className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Object.entries(services).map(([serviceName, serviceInfo]) => (
+              <Card key={serviceName}>
+                <CardHeader>
+                  <div className="flex items-center">
+                    {renderServiceIcon(serviceName)}
+                    <CardTitle className="text-lg capitalize">
+                      {serviceName}
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4 min-h-[40px]">
+                    {serviceInfo.description}
+                  </p>
+                  <div className="space-y-2">
+                    <p className="font-semibold text-sm">Available Actions:</p>
+                    <div className="flex flex-wrap gap-2">
                       {serviceInfo.actions.slice(0, 5).map((action) => (
-                        <Tag key={action} size="sm" colorScheme="blue">
-                          <TagLabel>{action}</TagLabel>
-                        </Tag>
+                        <Badge key={action} variant="secondary">
+                          {action}
+                        </Badge>
                       ))}
                       {serviceInfo.actions.length > 5 && (
-                        <Text fontSize="sm" color="gray.500">
-                          +{serviceInfo.actions.length - 5} more actions
-                        </Text>
+                        <span className="text-xs text-gray-500 flex items-center">
+                          +{serviceInfo.actions.length - 5} more
+                        </span>
                       )}
-                    </VStack>
-                  </CardBody>
-                  <CardFooter>
-                    <Badge colorScheme="green">
-                      {serviceInfo.actions.length} actions
-                    </Badge>
-                  </CardFooter>
-                </Card>
-              ))}
-            </Grid>
-          </TabPanel>
-        </TabPanels>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Badge variant="outline" className="ml-auto">
+                    {serviceInfo.actions.length} actions
+                  </Badge>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* Template Execution Modal */}
-      <Modal
-        isOpen={isTemplateModalOpen}
-        onClose={onTemplateModalClose}
-        size="xl"
-      >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Use Template: {selectedTemplate?.name}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {selectedTemplate && (
-              <VStack spacing={4} align="stretch">
-                <Text>{selectedTemplate.description}</Text>
-                <Divider />
-                <Text fontWeight="bold">Workflow Steps:</Text>
-                <VStack align="start" spacing={2}>
+      <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Use Template: {selectedTemplate?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedTemplate && (
+            <div className="space-y-6">
+              <p className="text-gray-600">{selectedTemplate.description}</p>
+
+              <div className="space-y-2">
+                <h3 className="font-semibold">Workflow Steps:</h3>
+                <div className="space-y-2 pl-2 border-l-2 border-gray-200">
                   {selectedTemplate.steps.map((step, index) => (
-                    <HStack key={step.id} spacing={3}>
-                      <Badge colorScheme="blue">{index + 1}</Badge>
-                      <VStack align="start" spacing={0}>
-                        <Text fontWeight="medium">{step.name}</Text>
-                        <Text fontSize="sm" color="gray.600">
+                    <div key={step.id} className="flex items-start space-x-3">
+                      <Badge variant="outline" className="mt-0.5">
+                        {index + 1}
+                      </Badge>
+                      <div>
+                        <p className="font-medium text-sm">{step.name}</p>
+                        <p className="text-xs text-gray-500">
                           {step.service}.{step.action}
-                        </Text>
-                      </VStack>
-                    </HStack>
+                        </p>
+                      </div>
+                    </div>
                   ))}
-                </VStack>
-                <Divider />
-                <Text fontWeight="bold">Input Parameters:</Text>
-                <VStack spacing={3}>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold">Input Parameters:</h3>
+                <div className="space-y-4">
                   {selectedTemplate.input_schema?.properties &&
                     Object.keys(selectedTemplate.input_schema.properties).map(
                       (field) =>
                         renderInputField(field, selectedTemplate.input_schema),
                     )}
-                </VStack>
-              </VStack>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onTemplateModalClose}>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsTemplateModalOpen(false)}
+            >
               Cancel
             </Button>
             <Button
-              colorScheme="blue"
-              isLoading={executing}
               onClick={() => {
                 if (selectedTemplate) {
                   handleExecuteWorkflow(selectedTemplate.id, formData);
-                  onTemplateModalClose();
+                  setIsTemplateModalOpen(false);
                 }
               }}
+              disabled={executing}
             >
+              {executing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Execute Workflow
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Workflow Execution Modal */}
-      <Modal isOpen={isCreateModalOpen} onClose={onCreateModalClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Execute Workflow: {selectedWorkflow?.name}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {selectedWorkflow && (
-              <VStack spacing={4} align="stretch">
-                <Text>{selectedWorkflow.description}</Text>
-                <Divider />
-                <Text fontWeight="bold">Workflow Steps:</Text>
-                <VStack align="start" spacing={2}>
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Execute Workflow: {selectedWorkflow?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedWorkflow && (
+            <div className="space-y-6">
+              <p className="text-gray-600">{selectedWorkflow.description}</p>
+
+              <div className="space-y-2">
+                <h3 className="font-semibold">Workflow Steps:</h3>
+                <div className="space-y-2 pl-2 border-l-2 border-gray-200">
                   {selectedWorkflow.steps?.map((step, index) => (
-                    <HStack key={step.id} spacing={3}>
-                      <Badge colorScheme="blue">{index + 1}</Badge>
-                      <VStack align="start" spacing={0}>
-                        <Text fontWeight="medium">{step.name}</Text>
-                        <Text fontSize="sm" color="gray.600">
+                    <div key={step.id} className="flex items-start space-x-3">
+                      <Badge variant="outline" className="mt-0.5">
+                        {index + 1}
+                      </Badge>
+                      <div>
+                        <p className="font-medium text-sm">{step.name}</p>
+                        <p className="text-xs text-gray-500">
                           {step.service}.{step.action}
-                        </Text>
-                      </VStack>
-                    </HStack>
+                        </p>
+                      </div>
+                    </div>
                   ))}
-                </VStack>
-                <Divider />
-                <Text fontWeight="bold">Input Parameters:</Text>
-                <VStack spacing={3}>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold">Input Parameters:</h3>
+                <div className="space-y-4">
                   {selectedWorkflow.input_schema?.properties &&
                     Object.keys(selectedWorkflow.input_schema.properties).map(
                       (field) =>
                         renderInputField(field, selectedWorkflow.input_schema),
                     )}
-                </VStack>
-              </VStack>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onCreateModalClose}>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateModalOpen(false)}
+            >
               Cancel
             </Button>
             <Button
-              colorScheme="blue"
-              isLoading={executing}
               onClick={() => {
                 if (selectedWorkflow) {
                   handleExecuteWorkflow(selectedWorkflow.id, formData);
-                  onCreateModalClose();
+                  setIsCreateModalOpen(false);
                 }
               }}
+              disabled={executing}
             >
+              {executing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Execute Workflow
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Execution Details Modal */}
-      <Modal
-        isOpen={isExecutionModalOpen}
-        onClose={onExecutionModalClose}
-        size="2xl"
+      <Dialog
+        open={isExecutionModalOpen}
+        onOpenChange={setIsExecutionModalOpen}
       >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Execution Details</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {activeExecution && (
-              <VStack spacing={4} align="stretch">
-                <HStack justify="space-between">
-                  <VStack align="start" spacing={1}>
-                    <Text fontWeight="bold">
-                      Execution ID: {activeExecution.execution_id}
-                    </Text>
-                    <Text>Workflow: {activeExecution.workflow_id}</Text>
-                  </VStack>
-                  <Badge
-                    colorScheme={getStatusColor(activeExecution.status)}
-                    size="lg"
-                  >
-                    {activeExecution.status}
-                  </Badge>
-                </HStack>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Execution Details</DialogTitle>
+          </DialogHeader>
+          {activeExecution && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <p className="font-bold">
+                    Execution ID: {activeExecution.execution_id}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Workflow: {activeExecution.workflow_id}
+                  </p>
+                </div>
+                <Badge className={getStatusColor(activeExecution.status)}>
+                  {activeExecution.status}
+                </Badge>
+              </div>
 
-                <Divider />
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Started:</span>{" "}
+                  {new Date(activeExecution.start_time).toLocaleString()}
+                </div>
+                {activeExecution.end_time && (
+                  <div>
+                    <span className="text-gray-500">Ended:</span>{" "}
+                    {new Date(activeExecution.end_time).toLocaleString()}
+                  </div>
+                )}
+              </div>
 
-                <HStack justify="space-between">
-                  <Text>
-                    Started:{" "}
-                    {new Date(activeExecution.start_time).toLocaleString()}
-                  </Text>
-                  {activeExecution.end_time && (
-                    <Text>
-                      Ended:{" "}
-                      {new Date(activeExecution.end_time).toLocaleString()}
-                    </Text>
-                  )}
-                </HStack>
-
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Progress</span>
+                  <span>
+                    Step {activeExecution.current_step} of{" "}
+                    {activeExecution.total_steps}
+                  </span>
+                </div>
                 <Progress
                   value={
                     (activeExecution.current_step /
                       activeExecution.total_steps) *
                     100
                   }
-                  colorScheme={getStatusColor(activeExecution.status)}
-                  size="lg"
-                  hasStripe={activeExecution.status === "running"}
-                  isAnimated={activeExecution.status === "running"}
+                  className="h-2"
                 />
-                <Text textAlign="center">
-                  Step {activeExecution.current_step} of{" "}
-                  {activeExecution.total_steps}
-                </Text>
+              </div>
 
-                {activeExecution.results &&
-                  Object.keys(activeExecution.results).length > 0 && (
-                    <>
-                      <Divider />
-                      <Text fontWeight="bold">Step Results:</Text>
-                      <Accordion allowMultiple>
-                        {Object.entries(activeExecution.results).map(
-                          ([stepId, result]) => (
-                            <AccordionItem key={stepId}>
-                              <h2>
-                                <AccordionButton>
-                                  <Box flex="1" textAlign="left">
-                                    Step: {stepId}
-                                  </Box>
-                                  <AccordionIcon />
-                                </AccordionButton>
-                              </h2>
-                              <AccordionPanel pb={4}>
-                                <Code whiteSpace="pre-wrap" fontSize="sm">
-                                  {JSON.stringify(result, null, 2)}
-                                </Code>
-                              </AccordionPanel>
-                            </AccordionItem>
-                          ),
-                        )}
-                      </Accordion>
-                    </>
-                  )}
+              {activeExecution.results &&
+                Object.keys(activeExecution.results).length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">Step Results:</h3>
+                    <Accordion type="multiple" className="w-full">
+                      {Object.entries(activeExecution.results).map(
+                        ([stepId, result]) => (
+                          <AccordionItem key={stepId} value={stepId}>
+                            <AccordionTrigger>Step: {stepId}</AccordionTrigger>
+                            <AccordionContent>
+                              <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-x-auto text-xs">
+                                {JSON.stringify(result, null, 2)}
+                              </pre>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ),
+                      )}
+                    </Accordion>
+                  </div>
+                )}
 
-                {activeExecution.errors &&
-                  activeExecution.errors.length > 0 && (
-                    <>
-                      <Divider />
-                      <Alert status="error">
-                        <AlertIcon />
-                        <Box>
-                          <AlertTitle>Errors</AlertTitle>
-                          {activeExecution.errors.map((error, index) => (
-                            <AlertDescription key={index}>
-                              {error}
-                            </AlertDescription>
-                          ))}
-                        </Box>
-                      </Alert>
-                    </>
-                  )}
-              </VStack>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="blue" onClick={onExecutionModalClose}>
-              Close
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </Box>
+              {activeExecution.errors && activeExecution.errors.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Errors</AlertTitle>
+                  <div className="mt-2">
+                    {activeExecution.errors.map((error, index) => (
+                      <AlertDescription key={index} className="block">
+                        {error}
+                      </AlertDescription>
+                    ))}
+                  </div>
+                </Alert>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setIsExecutionModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

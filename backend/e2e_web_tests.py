@@ -41,6 +41,7 @@ class WebAppBusinessValueTester:
         if self.browser:
             await self.browser.close()
     
+<<<<<<< HEAD
     async def login(self):
         """Helper to log in before tests"""
         try:
@@ -54,6 +55,35 @@ class WebAppBusinessValueTester:
             print(f"Login failed: {e}")
             # Continue anyway as some tests might work or we want to see the error
 
+=======
+    async def login(self, email: str = "test@example.com", password: str = "testpassword"):
+        """
+        Login to the application using credentials form
+        NextAuth is now configured with test credentials support
+        """
+        try:
+            # Navigate to signin page
+            await self.page.goto(f"{self.base_url}/auth/signin")
+            await self.page.wait_for_load_state("networkidle")
+            
+            # Fill in credentials
+            await self.page.fill('input[type="email"]', email)
+            await self.page.fill('input[type="password"]', password)
+            
+            # Submit form
+            await self.page.click('button[type="submit"]')
+            
+            # Wait for redirect - should go to home page
+            await self.page.wait_for_url(f"{self.base_url}/", timeout=10000)
+            
+            print(f"[OK] Logged in as {email}")
+            return True
+            
+        except Exception as e:
+            print(f"[WARN] Login failed: {e}")
+            return False
+    
+>>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
     async def test_calendar_event_creation_speed(self) -> Dict[str, Any]:
         """
         Test: Calendar event creation via UI
@@ -135,7 +165,11 @@ class WebAppBusinessValueTester:
         try:
             # Login first
             await self.login()
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
             start_time = time.time()
             await self.page.goto(f"{self.base_url}/search")
             
@@ -185,7 +219,11 @@ class WebAppBusinessValueTester:
         try:
             # Login first
             await self.login()
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
             start_time = time.time()
             await self.page.goto(f"{self.base_url}/tasks")
             
