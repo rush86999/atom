@@ -5,6 +5,16 @@ import GitHubProvider from "next-auth/providers/github";
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    // Google OAuth Provider
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }),
+    // GitHub OAuth Provider
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID || "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+    }),
     // Credentials provider for E2E testing and development
     CredentialsProvider({
       name: "Credentials",
@@ -42,45 +52,83 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Call the real backend API for authentication
-          // Note: Backend runs on port 5059, not 5058
-          const response = await fetch("http://localhost:5059/api/auth/login", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
-            }),
-          });
+          // Import query function for database access
+          const { query } = await import('../../../lib/db');
+          const bcrypt = await import('bcryptjs');
 
-          const data = await response.json();
+          // Check user in database
+          const result = await query(
+            'SELECT id, email, name, password_hash FROM users WHERE email = $1',
+            [credentials.email]
+          );
 
-          if (!response.ok) {
-            throw new Error(data.message || "Authentication failed");
+          if (result.rows.length === 0) {
+            throw new Error("No user found with this email");
           }
 
-          if (data.success && data.user) {
-            return {
-              id: data.user.id,
-              email: data.user.email,
-              name: data.user.name,
-              token: data.user.token,
-            };
-          } else {
-            throw new Error(data.message || "Authentication failed");
+          const user = result.rows[0];
+
+          // Verify password
+          const isValidPassword = await bcrypt.compare(
+            credentials.password,
+            user.password_hash
+          );
+
+          if (!isValidPassword) {
+            throw new Error("Invalid password");
           }
+
+          // Return user data
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            token: "db-auth-token",
+          };
         } catch (error) {
           if (error instanceof Error) {
             throw new Error(error.message);
           }
-          throw new Error("Authentication service unavailable");
+          throw new Error("Authentication failed");
         }
       },
     }),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Handle OAuth provider sign-ins (Google, GitHub)
+      if (account && (account.provider === "google" || account.provider === "github")) {
+        try {
+          const { query } = await import('../../../lib/db');
+
+          // Check if user exists by email
+          const existingUser = await query(
+            'SELECT id, email, name FROM users WHERE email = $1',
+            [user.email]
+          );
+
+          if (existingUser.rows.length === 0) {
+            // Create new user from OAuth
+            await query(
+              'INSERT INTO users (email, name, email_verified, image, password_hash) VALUES ($1, $2, NOW(), $3, $4)',
+              [user.email, user.name, user.image, ''] // Empty password_hash for OAuth users
+            );
+            console.log(`Created new user from ${account.provider}:`, user.email);
+          } else {
+            // User exists - update email_verified if not set (trust OAuth providers)
+            await query(
+              'UPDATE users SET email_verified = COALESCE(email_verified, NOW()), image = COALESCE(image, $1) WHERE email = $2',
+              [user.image, user.email]
+            );
+            console.log(`Updated existing user from ${account.provider}:`, user.email);
+          }
+        } catch (error) {
+          console.error('Error in OAuth sign-in callback:', error);
+          return false; // Deny sign-in on error
+        }
+      }
+      return true; // Allow sign-in
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
