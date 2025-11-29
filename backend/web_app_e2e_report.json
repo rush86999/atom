@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "timestamp": "2025-11-28T16:06:48.378659",
+=======
+  "timestamp": "2025-11-28T09:35:24.620376",
+>>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
   "total_tests": 3,
   "passed": 0,
   "failed": 3,
@@ -10,21 +14,33 @@
       "category": "calendar",
       "status": "fail",
       "metrics": {},
+<<<<<<< HEAD
       "error": "Timeout 30000ms exceeded."
+=======
+      "error": "Page.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"new-event-btn\\\"]\")\n"
+>>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
     },
     {
       "test": "Unified Search",
       "category": "search",
       "status": "fail",
       "metrics": {},
+<<<<<<< HEAD
       "error": "Timeout 30000ms exceeded."
+=======
+      "error": "Page.wait_for_selector: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"search-results\\\"]\") to be visible\n"
+>>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
     },
     {
       "test": "Task Management Sync",
       "category": "tasks",
       "status": "fail",
       "metrics": {},
+<<<<<<< HEAD
       "error": "Timeout 30000ms exceeded."
+=======
+      "error": "Page.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"task-title\\\"]\")\n"
+>>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
     }
   ]
 }

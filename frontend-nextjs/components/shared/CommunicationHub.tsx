@@ -1,76 +1,60 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Grid,
-  GridItem,
   Card,
   CardHeader,
-  CardBody,
-  CardFooter,
-  Button,
-  IconButton,
-  Badge,
-  Spinner,
-  useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Input,
-  Textarea,
-  Select,
-  Checkbox,
-  Switch,
-  useDisclosure,
-  SimpleGrid,
-  Flex,
-  Divider,
-  Alert,
-  AlertIcon,
-  Avatar,
-  AvatarGroup,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  InputGroup,
-  InputLeftElement,
-  InputRightElement,
-} from "@chakra-ui/react";
+  CardContent,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  AddIcon,
-  TimeIcon,
-  EditIcon,
-  DeleteIcon,
-  CheckCircleIcon,
-  ViewIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  AttachmentIcon,
-  ChatIcon,
-  StarIcon,
-  SearchIcon,
-  EmailIcon,
-  PhoneIcon,
-  ArrowForwardIcon,
-  RepeatIcon,
-  CopyIcon,
-  ChevronDownIcon,
-} from "@chakra-ui/icons";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Mail,
+  MessageSquare,
+  Phone,
+  Search,
+  Filter,
+  Plus,
+  Trash2,
+  Reply,
+  CheckCircle,
+  Clock,
+  Paperclip,
+  Download,
+  MoreVertical,
+  Loader2,
+  X,
+  ChevronDown,
+  Copy,
+  Send,
+} from "lucide-react";
 
 export interface Message {
   id: string;
@@ -164,17 +148,12 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const {
-    isOpen: isComposeOpen,
-    onOpen: onComposeOpen,
-    onClose: onComposeClose,
-  } = useDisclosure();
-  const {
-    isOpen: isMessageOpen,
-    onOpen: onMessageOpen,
-    onClose: onMessageClose,
-  } = useDisclosure();
-  const toast = useToast();
+
+  // Modal states
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [isMessageOpen, setIsMessageOpen] = useState(false);
+
+  const { toast } = useToast();
 
   // Mock data for demonstration
   useEffect(() => {
@@ -246,6 +225,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
         platform: "slack",
         tags: ["design", "review"],
         priority: "high",
+
       },
     ];
 
@@ -294,9 +274,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
     onMessageSend?.(messageData);
     toast({
       title: "Message sent",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
+      description: "Your message has been sent successfully.",
     });
   };
 
@@ -312,9 +290,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
     onMessageUpdate?.(messageId, updates);
     toast({
       title: "Message updated",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
+      description: "Message status has been updated.",
     });
   };
 
@@ -323,9 +299,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
     onMessageDelete?.(messageId);
     toast({
       title: "Message deleted",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
+      description: "Message has been removed.",
     });
   };
 
@@ -337,47 +311,42 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
     setMessages((prev) => prev.map((msg) => ({ ...msg, unread: false })));
     toast({
       title: "All messages marked as read",
-      status: "success",
-      duration: 2000,
-      isClosable: true,
     });
   };
 
   const getPlatformColor = (platform: string) => {
     switch (platform) {
       case "email":
-        return "#3182CE";
+        return "text-blue-600 bg-blue-100 dark:bg-blue-900 dark:text-blue-300";
       case "slack":
-        return "#4A154B";
+        return "text-purple-600 bg-purple-100 dark:bg-purple-900 dark:text-purple-300";
       case "teams":
-        return "#6264A7";
+        return "text-indigo-600 bg-indigo-100 dark:bg-indigo-900 dark:text-indigo-300";
       case "discord":
-        return "#5865F2";
+        return "text-indigo-500 bg-indigo-50 dark:bg-indigo-950 dark:text-indigo-400";
       case "whatsapp":
-        return "#25D366";
+        return "text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-300";
       case "sms":
-        return "#34B7F1";
+        return "text-cyan-600 bg-cyan-100 dark:bg-cyan-900 dark:text-cyan-300";
       default:
-        return "#718096";
+        return "text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-300";
     }
   };
 
   const getPlatformIcon = (platform: string) => {
+    const iconClass = "w-4 h-4";
     switch (platform) {
       case "email":
-        return <EmailIcon />;
+        return <Mail className={iconClass} />;
       case "slack":
-        return <ChatIcon />;
       case "teams":
-        return <ChatIcon />;
       case "discord":
-        return <ChatIcon />;
+        return <MessageSquare className={iconClass} />;
       case "whatsapp":
-        return <PhoneIcon />;
       case "sms":
-        return <PhoneIcon />;
+        return <Phone className={iconClass} />;
       default:
-        return <ChatIcon />;
+        return <MessageSquare className={iconClass} />;
     }
   };
 
@@ -484,112 +453,123 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
     };
 
     return (
-      <form onSubmit={handleSubmit}>
-        <VStack spacing={4}>
-          <SimpleGrid columns={2} spacing={4} width="100%">
-            <FormControl>
-              <FormLabel>Platform</FormLabel>
-              <Select
-                value={formData.platform}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, platform: e.target.value }))
-                }
-              >
-                <option value="email">Email</option>
-                <option value="slack">Slack</option>
-                <option value="teams">Microsoft Teams</option>
-                <option value="discord">Discord</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="sms">SMS</option>
-              </Select>
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Priority</FormLabel>
-              <Select
-                value={formData.priority}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    priority: e.target.value as any,
-                  }))
-                }
-              >
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-              </Select>
-            </FormControl>
-          </SimpleGrid>
-
-          <FormControl isRequired>
-            <FormLabel>To</FormLabel>
-            <Input
-              value={formData.to}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, to: e.target.value }))
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Platform</Label>
+            <Select
+              value={formData.platform}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, platform: value as any }))
               }
-              placeholder="Recipient email or username"
-            />
-          </FormControl>
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="slack">Slack</SelectItem>
+                <SelectItem value="teams">Microsoft Teams</SelectItem>
+                <SelectItem value="discord">Discord</SelectItem>
+                <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                <SelectItem value="sms">SMS</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          <FormControl isRequired>
-            <FormLabel>Subject</FormLabel>
-            <Input
-              value={formData.subject}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, subject: e.target.value }))
+          <div className="space-y-2">
+            <Label>Priority</Label>
+            <Select
+              value={formData.priority}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, priority: value as any }))
               }
-              placeholder="Message subject"
-            />
-          </FormControl>
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-          <FormControl isRequired>
-            <FormLabel>Message</FormLabel>
-            <Textarea
-              value={formData.content}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, content: e.target.value }))
-              }
-              placeholder="Type your message here..."
-              minHeight="200px"
-            />
-          </FormControl>
+        <div className="space-y-2">
+          <Label>To</Label>
+          <Input
+            value={formData.to}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, to: e.target.value }))
+            }
+            placeholder="Recipient email or username"
+            required
+          />
+        </div>
 
-          {/* Quick Reply Templates */}
-          {templates.length > 0 && (
-            <FormControl>
-              <FormLabel>Quick Reply Templates</FormLabel>
-              <SimpleGrid columns={2} spacing={2}>
-                {templates
-                  .filter((template) =>
-                    template.platform.includes(formData.platform),
-                  )
-                  .slice(0, 4)
-                  .map((template) => (
-                    <Button
-                      key={template.id}
-                      size="sm"
-                      variant="outline"
-                      onClick={() => applyTemplate(template)}
-                      leftIcon={<CopyIcon />}
-                    >
-                      {template.name}
-                    </Button>
-                  ))}
-              </SimpleGrid>
-            </FormControl>
-          )}
+        <div className="space-y-2">
+          <Label>Subject</Label>
+          <Input
+            value={formData.subject}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, subject: e.target.value }))
+            }
+            placeholder="Message subject"
+            required
+          />
+        </div>
 
-          <HStack width="100%" justifyContent="flex-end" spacing={3}>
-            <Button variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button type="submit" colorScheme="blue">
-              Send Message
-            </Button>
-          </HStack>
-        </VStack>
+        <div className="space-y-2">
+          <Label>Message</Label>
+          <Textarea
+            value={formData.content}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, content: e.target.value }))
+            }
+            placeholder="Type your message here..."
+            className="min-h-[200px]"
+            required
+          />
+        </div>
+
+        {/* Quick Reply Templates */}
+        {templates.length > 0 && (
+          <div className="space-y-2">
+            <Label>Quick Reply Templates</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {templates
+                .filter((template) =>
+                  template.platform.includes(formData.platform),
+                )
+                .slice(0, 4)
+                .map((template) => (
+                  <Button
+                    key={template.id}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => applyTemplate(template)}
+                    type="button"
+                    className="justify-start"
+                  >
+                    <Copy className="w-3 h-3 mr-2" />
+                    {template.name}
+                  </Button>
+                ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button variant="outline" onClick={onCancel} type="button">
+            Cancel
+          </Button>
+          <Button type="submit">
+            <Send className="w-4 h-4 mr-2" />
+            Send Message
+          </Button>
+        </div>
       </form>
     );
   };
@@ -599,71 +579,60 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
     onClose: () => void;
   }> = ({ message, onClose }) => {
     return (
-      <Modal isOpen={true} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            <HStack spacing={2}>
-              <Badge colorScheme={getPlatformColor(message.platform)}>
+      <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <div className="flex items-center space-x-2">
+              <Badge className={getPlatformColor(message.platform)}>
                 {message.platform.toUpperCase()}
               </Badge>
-              <Text>{message.subject}</Text>
-            </HStack>
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <HStack justify="space-between">
-                <Text fontWeight="bold">{message.from}</Text>
-                <Text fontSize="sm" color="gray.500">
+              <DialogTitle>{message.subject}</DialogTitle>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-bold">{message.from}</p>
+                <p className="text-sm text-gray-500">
                   {formatDate(message.timestamp)} at{" "}
                   {formatTime(message.timestamp)}
-                </Text>
-              </HStack>
-              <Badge
-                colorScheme={getPlatformColor(message.platform)}
-                alignSelf="flex-start"
-              >
-                {message.platform.toUpperCase()}
-              </Badge>
-              <Box
-                p={4}
-                borderWidth="1px"
-                borderRadius="md"
-                bg="gray.50"
-                whiteSpace="pre-wrap"
-              >
-                {message.content}
-              </Box>
-              {message.attachments && message.attachments.length > 0 && (
-                <VStack align="stretch">
-                  <Text fontWeight="bold">Attachments:</Text>
-                  {message.attachments.map((attachment, index) => (
-                    <HStack key={index}>
-                      <AttachmentIcon />
-                      <Text>{attachment}</Text>
-                      <IconButton
-                        aria-label="Download attachment"
-                        icon={<ChevronDownIcon />}
-                        size="sm"
-                        variant="ghost"
-                      />
-                    </HStack>
-                  ))}
-                </VStack>
-              )}
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <HStack spacing={2}>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 border rounded-md bg-gray-50 dark:bg-gray-900 whitespace-pre-wrap text-sm">
+              {message.content}
+            </div>
+
+            {message.attachments && message.attachments.length > 0 && (
+              <div className="space-y-2">
+                <p className="font-bold text-sm">Attachments:</p>
+                {message.attachments.map((attachment, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 border rounded text-sm">
+                    <div className="flex items-center">
+                      <Paperclip className="w-4 h-4 mr-2 text-gray-500" />
+                      <span>{attachment}</span>
+                    </div>
+                    <Button size="sm" variant="ghost">
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <div className="flex space-x-2 w-full justify-end">
               <Button
-                leftIcon={<RepeatIcon />}
                 onClick={() => {
                   setSelectedMessage(message);
-                  onComposeOpen();
-                  onMessageClose();
+                  setIsComposeOpen(true);
+                  onClose();
                 }}
               >
+                <Reply className="w-4 h-4 mr-2" />
                 Reply
               </Button>
               <Button
@@ -673,327 +642,283 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
                 Mark as Read
               </Button>
               <Button
-                variant="outline"
-                colorScheme="red"
+                variant="destructive"
                 onClick={() => {
                   handleDeleteMessage(message.id);
-                  onMessageClose();
+                  onClose();
                 }}
               >
+                <Trash2 className="w-4 h-4 mr-2" />
                 Delete
               </Button>
-            </HStack>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     );
   };
 
   if (loading) {
     return (
-      <Box textAlign="center" py={8}>
-        <Spinner size="xl" />
-        <Text mt={4}>Loading messages...</Text>
-      </Box>
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-4" />
+        <p className="text-gray-600">Loading messages...</p>
+      </div>
     );
   }
 
   const filteredMessages = getFilteredMessages();
 
   return (
-    <Box p={compactView ? 2 : 6}>
-      <VStack spacing={compactView ? 3 : 6} align="stretch">
-        {/* Header */}
-        {showNavigation && (
-          <Flex justify="space-between" align="center">
-            <Heading size={compactView ? "md" : "lg"}>
-              Communication Hub
-            </Heading>
-            <Button
-              leftIcon={<AddIcon />}
-              colorScheme="blue"
-              size={compactView ? "sm" : "md"}
-              onClick={onComposeOpen}
-            >
-              New Message
-            </Button>
-          </Flex>
-        )}
+    <div className={`space-y-6 ${compactView ? "p-2" : "p-6"}`}>
+      {/* Header */}
+      {showNavigation && (
+        <div className="flex justify-between items-center">
+          <h1 className={`font-bold ${compactView ? "text-xl" : "text-2xl"}`}>
+            Communication Hub
+          </h1>
+          <Button
+            onClick={() => setIsComposeOpen(true)}
+            size={compactView ? "sm" : "default"}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Message
+          </Button>
+        </div>
+      )}
 
-        {/* Search and Filters */}
-        {showNavigation && (
-          <Card size={compactView ? "sm" : "md"}>
-            <CardBody>
-              <VStack spacing={4}>
-                <InputGroup>
-                  <InputLeftElement>
-                    <SearchIcon color="gray.300" />
-                  </InputLeftElement>
-                  <Input
-                    placeholder="Search messages..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  {searchQuery && (
-                    <InputRightElement>
-                      <IconButton
-                        aria-label="Clear search"
-                        icon={<DeleteIcon />}
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setSearchQuery("")}
-                      />
-                    </InputRightElement>
-                  )}
-                </InputGroup>
-                <HStack spacing={4} wrap="wrap">
-                  <Button
-                    size="sm"
-                    variant={view.filter.unread ? "solid" : "outline"}
-                    onClick={() =>
-                      setView((prev) => ({
-                        ...prev,
-                        filter: { ...prev.filter, unread: !prev.filter.unread },
-                      }))
-                    }
+      {/* Search and Filters */}
+      {showNavigation && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  placeholder="Search messages..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-8"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-2.5 text-gray-500 hover:text-gray-700"
                   >
-                    Unread Only
-                  </Button>
-                  <Menu>
-                    <MenuButton as={Button} size="sm" variant="outline">
-                      Platform: {view.filter.platform?.length || "All"}
-                    </MenuButton>
-                    <MenuList>
-                      {[
-                        "email",
-                        "slack",
-                        "teams",
-                        "discord",
-                        "whatsapp",
-                        "sms",
-                      ].map((platform) => (
-                        <MenuItem key={platform}>
-                          <Checkbox
-                            isChecked={view.filter.platform?.includes(platform)}
-                            onChange={(e) => {
-                              const newPlatforms = e.target.checked
-                                ? [...(view.filter.platform || []), platform]
-                                : (view.filter.platform || []).filter(
-                                    (p) => p !== platform,
-                                  );
-                              setView((prev) => ({
-                                ...prev,
-                                filter: {
-                                  ...prev.filter,
-                                  platform: newPlatforms,
-                                },
-                              }));
-                            }}
-                          >
-                            {platform.charAt(0).toUpperCase() +
-                              platform.slice(1)}
-                          </Checkbox>
-                        </MenuItem>
-                      ))}
-                    </MenuList>
-                  </Menu>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleMarkAllAsRead}
-                  >
-                    Mark All Read
-                  </Button>
-                </HStack>
-              </VStack>
-            </CardBody>
-          </Card>
-        )}
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
 
-        {/* Messages List */}
-        <Card size={compactView ? "sm" : "md"}>
-          <CardHeader>
-            <Heading size={compactView ? "sm" : "md"}>
-              Messages ({filteredMessages.length})
-            </Heading>
-          </CardHeader>
-          <CardBody>
-            <VStack spacing={2} align="stretch">
-              {filteredMessages.map((message) => (
-                <Flex
-                  key={message.id}
-                  p={3}
-                  borderWidth="1px"
-                  borderRadius="md"
-                  bg={message.unread ? "blue.50" : "white"}
-                  cursor="pointer"
-                  onClick={() => {
-                    setSelectedMessage(message);
-                    onMessageOpen();
-                    if (message.unread) {
-                      handleMarkAsRead(message.id);
-                    }
-                  }}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={view.filter.unread ? "default" : "outline"}
+                  onClick={() =>
+                    setView((prev) => ({
+                      ...prev,
+                      filter: { ...prev.filter, unread: !prev.filter.unread },
+                    }))
+                  }
                 >
-                  <HStack spacing={3} flex={1}>
-                    <Box color={getPlatformColor(message.platform)}>
-                      {getPlatformIcon(message.platform)}
-                    </Box>
-                    <Box flex={1}>
-                      <HStack justify="space-between" mb={1}>
-                        <Text
-                          fontWeight="bold"
-                          fontSize={compactView ? "sm" : "md"}
+                  Unread Only
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      Platform: {view.filter.platform?.length || "All"} <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {[
+                      "email",
+                      "slack",
+                      "teams",
+                      "discord",
+                      "whatsapp",
+                      "sms",
+                    ].map((platform) => (
+                      <DropdownMenuCheckboxItem
+                        key={platform}
+                        checked={view.filter.platform?.includes(platform)}
+                        onCheckedChange={(checked) => {
+                          const newPlatforms = checked
+                            ? [...(view.filter.platform || []), platform]
+                            : (view.filter.platform || []).filter(
+                              (p) => p !== platform,
+                            );
+                          setView((prev) => ({
+                            ...prev,
+                            filter: {
+                              ...prev.filter,
+                              platform: newPlatforms,
+                            },
+                          }));
+                        }}
+                      >
+                        {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleMarkAllAsRead}
+                >
+                  Mark All Read
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Messages List */}
+      <Card>
+        <CardHeader className={compactView ? "p-4" : "p-6"}>
+          <CardTitle className={compactView ? "text-lg" : "text-xl"}>
+            Messages ({filteredMessages.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className={compactView ? "p-4 pt-0" : "p-6 pt-0"}>
+          <div className="space-y-2">
+            {filteredMessages.map((message) => (
+              <div
+                key={message.id}
+                className={`p-3 border rounded-md cursor-pointer transition-colors ${message.unread ? "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800" : "bg-white dark:bg-gray-950 hover:bg-gray-50 dark:hover:bg-gray-900"
+                  }`}
+                onClick={() => {
+                  setSelectedMessage(message);
+                  if (message.unread) {
+                    handleMarkAsRead(message.id);
+                  }
+                }}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className={`p-2 rounded-full ${getPlatformColor(message.platform)} bg-opacity-20`}>
+                    {getPlatformIcon(message.platform)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-1">
+                      <p className={`font-bold truncate ${compactView ? "text-sm" : "text-base"}`}>
+                        {message.from}
+                      </p>
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        {message.unread && (
+                          <Badge className="bg-blue-500 hover:bg-blue-600">New</Badge>
+                        )}
+                        <Badge
+                          variant={message.priority === "high" ? "destructive" : "secondary"}
+                          className={message.priority === "normal" ? "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300" : ""}
                         >
-                          {message.from}
-                        </Text>
-                        <HStack spacing={2}>
-                          {message.unread && (
-                            <Badge colorScheme="blue" size="sm">
-                              New
+                          {message.priority}
+                        </Badge>
+                        <span className="text-xs text-gray-500">
+                          {formatTime(message.timestamp)}
+                        </span>
+                      </div>
+                    </div>
+                    <p className={`font-semibold truncate mb-1 ${compactView ? "text-xs" : "text-sm"}`}>
+                      {message.subject}
+                    </p>
+                    <p className={`text-gray-600 dark:text-gray-400 truncate ${compactView ? "text-xs" : "text-sm"}`}>
+                      {message.preview}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {filteredMessages.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">No messages found</p>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsComposeOpen(true)}
+                >
+                  Compose New Message
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Conversations */}
+      {conversations.length > 0 && (
+        <Card>
+          <CardHeader className={compactView ? "p-4" : "p-6"}>
+            <CardTitle className={compactView ? "text-lg" : "text-xl"}>
+              Recent Conversations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className={compactView ? "p-4 pt-0" : "p-6 pt-0"}>
+            <div className="space-y-2">
+              {conversations
+                .sort(
+                  (a, b) => b.lastMessage.getTime() - a.lastMessage.getTime(),
+                )
+                .slice(0, compactView ? 3 : 5)
+                .map((conversation) => (
+                  <div
+                    key={conversation.id}
+                    className="p-2 border rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                    onClick={() => setSelectedConversation(conversation)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className={getPlatformColor(conversation.platform)}>
+                          {conversation.title.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className={`font-bold truncate ${compactView ? "text-sm" : "text-base"}`}>
+                            {conversation.title}
+                          </p>
+                          {conversation.unreadCount > 0 && (
+                            <Badge className="bg-blue-500 hover:bg-blue-600">
+                              {conversation.unreadCount}
                             </Badge>
                           )}
-                          <Badge
-                            colorScheme={
-                              message.priority === "high"
-                                ? "red"
-                                : message.priority === "normal"
-                                  ? "blue"
-                                  : "gray"
-                            }
-                            size="sm"
-                          >
-                            {message.priority}
-                          </Badge>
-                          <Text fontSize="xs" color="gray.500">
-                            {formatTime(message.timestamp)}
-                          </Text>
-                        </HStack>
-                      </HStack>
-                      <Text
-                        fontWeight="bold"
-                        fontSize={compactView ? "xs" : "sm"}
-                        mb={1}
-                      >
-                        {message.subject}
-                      </Text>
-                      <Text
-                        fontSize={compactView ? "xs" : "sm"}
-                        color="gray.600"
-                        noOfLines={2}
-                      >
-                        {message.preview}
-                      </Text>
-                    </Box>
-                  </HStack>
-                </Flex>
-              ))}
-              {filteredMessages.length === 0 && (
-                <Box textAlign="center" py={8}>
-                  <Text color="gray.500">No messages found</Text>
-                  <Button
-                    mt={2}
-                    colorScheme="blue"
-                    variant="outline"
-                    onClick={onComposeOpen}
-                  >
-                    Compose New Message
-                  </Button>
-                </Box>
-              )}
-            </VStack>
-          </CardBody>
+                        </div>
+                        <p className={`text-gray-600 dark:text-gray-400 truncate ${compactView ? "text-xs" : "text-sm"}`}>
+                          {conversation.participants.join(", ")}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Last: {formatDate(conversation.lastMessage)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
         </Card>
-
-        {/* Recent Conversations */}
-        {conversations.length > 0 && (
-          <Card size={compactView ? "sm" : "md"}>
-            <CardHeader>
-              <Heading size={compactView ? "sm" : "md"}>
-                Recent Conversations
-              </Heading>
-            </CardHeader>
-            <CardBody>
-              <VStack spacing={2} align="stretch">
-                {conversations
-                  .sort(
-                    (a, b) => b.lastMessage.getTime() - a.lastMessage.getTime(),
-                  )
-                  .slice(0, compactView ? 3 : 5)
-                  .map((conversation) => (
-                    <Flex
-                      key={conversation.id}
-                      p={2}
-                      borderWidth="1px"
-                      borderRadius="md"
-                      cursor="pointer"
-                      onClick={() => setSelectedConversation(conversation)}
-                    >
-                      <HStack spacing={3} flex={1}>
-                        <Avatar
-                          size="sm"
-                          name={conversation.title}
-                          bg={getPlatformColor(conversation.platform)}
-                        />
-                        <Box flex={1}>
-                          <HStack justify="space-between" mb={1}>
-                            <Text
-                              fontWeight="bold"
-                              fontSize={compactView ? "sm" : "md"}
-                            >
-                              {conversation.title}
-                            </Text>
-                            {conversation.unreadCount > 0 && (
-                              <Badge colorScheme="blue">
-                                {conversation.unreadCount}
-                              </Badge>
-                            )}
-                          </HStack>
-                          <Text
-                            fontSize={compactView ? "xs" : "sm"}
-                            color="gray.600"
-                          >
-                            {conversation.participants.join(", ")}
-                          </Text>
-                          <Text fontSize="xs" color="gray.500">
-                            Last: {formatDate(conversation.lastMessage)}
-                          </Text>
-                        </Box>
-                      </HStack>
-                    </Flex>
-                  ))}
-              </VStack>
-            </CardBody>
-          </Card>
-        )}
-      </VStack>
+      )}
 
       {/* Compose Modal */}
-      <Modal
-        isOpen={isComposeOpen}
-        onClose={onComposeClose}
-        size={compactView ? "md" : "lg"}
-      >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            {selectedMessage
-              ? `Reply to ${selectedMessage.from}`
-              : "Compose New Message"}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <MessageComposer
-              onSubmit={(data) => {
-                handleSendMessage(data);
-                onComposeClose();
-              }}
-              onCancel={onComposeClose}
-              replyTo={selectedMessage || undefined}
-            />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+      <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedMessage
+                ? `Reply to ${selectedMessage.from}`
+                : "Compose New Message"}
+            </DialogTitle>
+          </DialogHeader>
+          <MessageComposer
+            onSubmit={(data) => {
+              handleSendMessage(data);
+              setIsComposeOpen(false);
+            }}
+            onCancel={() => setIsComposeOpen(false)}
+            replyTo={selectedMessage || undefined}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Message Viewer Modal */}
       {selectedMessage && (
@@ -1001,11 +926,10 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
           message={selectedMessage}
           onClose={() => {
             setSelectedMessage(null);
-            onMessageClose();
           }}
         />
       )}
-    </Box>
+    </div>
   );
 };
 
