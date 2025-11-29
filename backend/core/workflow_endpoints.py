@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends, Body, BackgroundTasks
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -78,7 +78,7 @@ async def create_workflow(workflow: WorkflowDefinition):
     workflow.updatedAt = datetime.now().isoformat()
     
     # Check if exists (update)
-    existing_index = next((i for i, w in enumerate(workflows) if w['id'] == workflow.id), -1)
+    existing_index = next((i for i, w in enumerate(workflows) if w.get('id') == workflow.id), -1)
     
     workflow_dict = workflow.dict()
     
@@ -107,40 +107,45 @@ class ExecutionResult(BaseModel):
     errors: List[str] = []
 
 @router.post("/workflows/{workflow_id}/execute", response_model=ExecutionResult)
-async def execute_workflow(workflow_id: str, input_data: Optional[Dict[str, Any]] = None):
+async def execute_workflow(
+    workflow_id: str, 
+    background_tasks: BackgroundTasks,
+    input_data: Optional[Dict[str, Any]] = None
+):
     """Execute a workflow by ID"""
-    from ai.automation_engine import AutomationEngine
+    from core.workflow_engine import get_workflow_engine
     
     # Load workflow
     workflows = load_workflows()
-    workflow = next((w for w in workflows if w['id'] == workflow_id), None)
+    workflow = next((w for w in workflows if w.get('id') == workflow_id), None)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     
     # Create execution record
-    execution_id = str(uuid.uuid4())
     started_at = datetime.now().isoformat()
     
     try:
         # Initialize engine
-        engine = AutomationEngine()
+        engine = get_workflow_engine()
         
-        # Execute workflow
-        results = await engine.execute_workflow_definition(workflow, input_data or {}, execution_id=execution_id)
+        # Execute workflow (starts in background)
+        execution_id = await engine.start_workflow(workflow, input_data or {}, background_tasks)
         
         return ExecutionResult(
             execution_id=execution_id,
             workflow_id=workflow_id,
-            status="success", # This should ideally come from the engine result
+            status="running",
             started_at=started_at,
-            completed_at=datetime.now().isoformat(),
-            results=results,
+            completed_at=None,
+            results=[],
             errors=[]
         )
     except Exception as e:
         logger.error(f"Workflow execution failed: {e}")
+        # Generate a temporary ID for error reporting if start_workflow failed before returning ID
+        temp_id = str(uuid.uuid4())
         return ExecutionResult(
-            execution_id=execution_id,
+            execution_id=temp_id,
             workflow_id=workflow_id,
             status="failed",
             started_at=started_at,
@@ -148,6 +153,66 @@ async def execute_workflow(workflow_id: str, input_data: Optional[Dict[str, Any]
             results=[],
             errors=[str(e)]
         )
+
+@router.post("/workflows/{execution_id}/resume")
+async def resume_workflow(execution_id: str, input_data: Dict[str, Any] = Body(...)):
+    """Resume a paused workflow execution"""
+    from core.workflow_engine import get_workflow_engine
+    from core.execution_state_manager import get_state_manager
+    
+    engine = get_workflow_engine()
+    state_manager = get_state_manager()
+    
+    # Get current state to find workflow definition
+    state = await state_manager.get_execution_state(execution_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Execution not found")
+        
+    # Load workflow definition
+    # In a real app, we might store the definition snapshot with the execution
+    # For now, load current definition
+    workflows = load_workflows()
+    workflow = next((w for w in workflows if w['id'] == state['workflow_id']), None)
+    
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow definition not found")
+        
+    success = await engine.resume_workflow(execution_id, workflow, input_data)
+    
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to resume workflow")
+        
+    return {"status": "resumed", "execution_id": execution_id}
+
+@router.post("/workflows/{execution_id}/resume")
+async def resume_workflow(execution_id: str, input_data: Dict[str, Any] = Body(...)):
+    """Resume a paused workflow execution"""
+    from core.workflow_engine import get_workflow_engine
+    from core.execution_state_manager import get_state_manager
+    
+    engine = get_workflow_engine()
+    state_manager = get_state_manager()
+    
+    # Get current state to find workflow definition
+    state = await state_manager.get_execution_state(execution_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Execution not found")
+        
+    # Load workflow definition
+    # In a real app, we might store the definition snapshot with the execution
+    # For now, load current definition
+    workflows = load_workflows()
+    workflow = next((w for w in workflows if w['id'] == state['workflow_id']), None)
+    
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow definition not found")
+        
+    success = await engine.resume_workflow(execution_id, workflow, input_data)
+    
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to resume workflow")
+        
+    return {"status": "resumed", "execution_id": execution_id}
 
 @router.get("/workflows/{workflow_id}/executions", response_model=List[Dict[str, Any]])
 async def get_workflow_executions(workflow_id: str):
