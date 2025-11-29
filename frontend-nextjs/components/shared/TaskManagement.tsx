@@ -1,62 +1,41 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Grid,
-  GridItem,
   Card,
   CardHeader,
-  CardBody,
-  CardFooter,
-  Button,
-  IconButton,
-  Badge,
-  Spinner,
-  useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Input,
-  Textarea,
-  Select,
-  Checkbox,
-  Switch,
-  useDisclosure,
-  SimpleGrid,
-  Flex,
-  Divider,
-  Alert,
-  AlertIcon,
-  Progress,
-  Avatar,
-  AvatarGroup,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-} from "@chakra-ui/react";
+  CardContent,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  AddIcon,
-  TimeIcon,
-  EditIcon,
-  DeleteIcon,
-  CheckCircleIcon,
-  ViewIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  AttachmentIcon,
-  ChatIcon,
-  StarIcon,
-} from "@chakra-ui/icons";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { Spinner } from "@/components/ui/spinner";
+import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Plus,
+  Clock,
+  Edit,
+  Trash,
+  CheckCircle,
+  List,
+  LayoutGrid,
+  Calendar as CalendarIcon,
+} from "lucide-react";
 
 export interface Task {
   id: string;
@@ -133,17 +112,9 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
   const [loading, setLoading] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const {
-    isOpen: isTaskModalOpen,
-    onOpen: onTaskModalOpen,
-    onClose: onTaskModalClose,
-  } = useDisclosure();
-  const {
-    isOpen: isProjectModalOpen,
-    onOpen: onProjectModalOpen,
-    onClose: onProjectModalClose,
-  } = useDisclosure();
-  const toast = useToast();
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   // Mock data for demonstration
   useEffect(() => {
@@ -234,9 +205,8 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
     onTaskCreate?.(newTask);
     toast({
       title: "Task created",
-      status: "success",
+      description: "Your task has been successfully created.",
       duration: 2000,
-      isClosable: true,
     });
   };
 
@@ -251,9 +221,8 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
     onTaskUpdate?.(taskId, updates);
     toast({
       title: "Task updated",
-      status: "success",
+      description: "Your task has been successfully updated.",
       duration: 2000,
-      isClosable: true,
     });
   };
 
@@ -262,9 +231,8 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
     onTaskDelete?.(taskId);
     toast({
       title: "Task deleted",
-      status: "success",
+      description: "Your task has been successfully deleted.",
       duration: 2000,
-      isClosable: true,
     });
   };
 
@@ -281,9 +249,8 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
     onProjectCreate?.(newProject);
     toast({
       title: "Project created",
-      status: "success",
+      description: "Your project has been successfully created.",
       duration: 2000,
-      isClosable: true,
     });
   };
 
@@ -294,28 +261,28 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "red";
+        return "destructive";
       case "medium":
-        return "orange";
+        return "default"; // orange equivalent in shadcn usually warning or secondary
       case "low":
-        return "green";
+        return "secondary";
       default:
-        return "gray";
+        return "outline";
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "green";
+        return "default"; // green
       case "in-progress":
-        return "blue";
+        return "secondary"; // blue
       case "blocked":
-        return "red";
+        return "destructive"; // red
       case "todo":
-        return "gray";
+        return "outline"; // gray
       default:
-        return "gray";
+        return "outline";
     }
   };
 
@@ -411,169 +378,192 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
     };
 
     return (
-      <form onSubmit={handleSubmit}>
-        <VStack spacing={4}>
-          <FormControl isRequired>
-            <FormLabel>Title</FormLabel>
-            <Input
-              value={formData.title}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, title: e.target.value }))
-              }
-              placeholder="Task title"
-            />
-          </FormControl>
+      <form onSubmit={handleSubmit} data-testid="task-form" className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Title</label>
+          <Input
+            value={formData.title}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, title: e.target.value }))
+            }
+            placeholder="Task title"
+            data-testid="task-title"
+            required
+          />
+        </div>
 
-          <FormControl>
-            <FormLabel>Description</FormLabel>
-            <Textarea
-              value={formData.description}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Description</label>
+          <Textarea
+            value={formData.description}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                description: e.target.value,
+              }))
+            }
+            placeholder="Task description"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Due Date</label>
+            <Input
+              type="date"
+              value={formData.dueDate}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, dueDate: e.target.value }))
+              }
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Estimated Hours</label>
+            <Input
+              type="number"
+              value={formData.estimatedHours}
               onChange={(e) =>
                 setFormData((prev) => ({
                   ...prev,
-                  description: e.target.value,
+                  estimatedHours: parseInt(e.target.value) || 0,
                 }))
               }
-              placeholder="Task description"
+              min="0"
             />
-          </FormControl>
+          </div>
+        </div>
 
-          <SimpleGrid columns={2} spacing={4}>
-            <FormControl isRequired>
-              <FormLabel>Due Date</FormLabel>
-              <Input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, dueDate: e.target.value }))
-                }
-              />
-            </FormControl>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Priority</label>
+            <Select
+              value={formData.priority}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, priority: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <FormControl>
-              <FormLabel>Estimated Hours</FormLabel>
-              <Input
-                type="number"
-                value={formData.estimatedHours}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    estimatedHours: parseInt(e.target.value) || 0,
-                  }))
-                }
-                min="0"
-              />
-            </FormControl>
-          </SimpleGrid>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status</label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, status: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todo">To Do</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-          <SimpleGrid columns={2} spacing={4}>
-            <FormControl>
-              <FormLabel>Priority</FormLabel>
-              <Select
-                value={formData.priority}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, priority: e.target.value }))
-                }
-              >
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </Select>
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Status</FormLabel>
-              <Select
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, status: e.target.value }))
-                }
-              >
-                <option value="todo">To Do</option>
-                <option value="in-progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="blocked">Blocked</option>
-              </Select>
-            </FormControl>
-          </SimpleGrid>
-
-          <SimpleGrid columns={2} spacing={4}>
-            <FormControl>
-              <FormLabel>Project</FormLabel>
-              <Select
-                value={formData.project}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, project: e.target.value }))
-                }
-              >
-                <option value="">No Project</option>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Project</label>
+            <Select
+              value={formData.project}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, project: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="No Project" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="no-project">No Project</SelectItem>
                 {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
+                  <SelectItem key={project.id} value={project.id} data-testid="task-project">
                     {project.name}
-                  </option>
+                  </SelectItem>
                 ))}
-              </Select>
-            </FormControl>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <FormControl>
-              <FormLabel>Platform</FormLabel>
-              <Select
-                value={formData.platform}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, platform: e.target.value }))
-                }
-              >
-                <option value="local">Local</option>
-                <option value="notion">Notion</option>
-                <option value="trello">Trello</option>
-                <option value="asana">Asana</option>
-                <option value="jira">Jira</option>
-              </Select>
-            </FormControl>
-          </SimpleGrid>
-
-          <FormControl>
-            <FormLabel>Tags (comma separated)</FormLabel>
-            <Input
-              value={formData.tags}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, tags: e.target.value }))
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Platform</label>
+            <Select
+              value={formData.platform}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, platform: value }))
               }
-              placeholder="backend, frontend, design"
-            />
-          </FormControl>
+              data-testid="task-platform"
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local">Local</SelectItem>
+                <SelectItem value="notion">Notion</SelectItem>
+                <SelectItem value="trello" data-testid="sync-trello">Trello</SelectItem>
+                <SelectItem value="asana" data-testid="sync-asana">Asana</SelectItem>
+                <SelectItem value="jira" data-testid="sync-jira">Jira</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-          <FormControl>
-            <FormLabel>Assignee</FormLabel>
-            <Input
-              value={formData.assignee}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, assignee: e.target.value }))
-              }
-              placeholder="Assignee name"
-            />
-          </FormControl>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Tags (comma separated)</label>
+          <Input
+            value={formData.tags}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, tags: e.target.value }))
+            }
+            placeholder="backend, frontend, design"
+          />
+        </div>
 
-          <FormControl>
-            <FormLabel>Color</FormLabel>
-            <Input
-              type="color"
-              value={formData.color}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, color: e.target.value }))
-              }
-            />
-          </FormControl>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Assignee</label>
+          <Input
+            value={formData.assignee}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, assignee: e.target.value }))
+            }
+            placeholder="Assignee name"
+          />
+        </div>
 
-          <HStack width="100%" justifyContent="flex-end" spacing={3}>
-            <Button variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button type="submit" colorScheme="blue">
-              {task ? "Update Task" : "Create Task"}
-            </Button>
-          </HStack>
-        </VStack>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Color</label>
+          <Input
+            type="color"
+            value={formData.color}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, color: e.target.value }))
+            }
+            className="h-10 w-full"
+          />
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button variant="outline" onClick={onCancel} type="button">
+            Cancel
+          </Button>
+          <Button type="submit" data-testid="task-submit">
+            {task ? "Update Task" : "Create Task"}
+          </Button>
+        </div>
       </form>
     );
   };
@@ -600,309 +590,271 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
     };
 
     return (
-      <form onSubmit={handleSubmit}>
-        <VStack spacing={4}>
-          <FormControl isRequired>
-            <FormLabel>Project Name</FormLabel>
-            <Input
-              value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
-              placeholder="Project name"
-            />
-          </FormControl>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Project Name</label>
+          <Input
+            value={formData.name}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, name: e.target.value }))
+            }
+            placeholder="Project name"
+            required
+          />
+        </div>
 
-          <FormControl>
-            <FormLabel>Description</FormLabel>
-            <Textarea
-              value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              placeholder="Project description"
-            />
-          </FormControl>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Description</label>
+          <Textarea
+            value={formData.description}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                description: e.target.value,
+              }))
+            }
+            placeholder="Project description"
+          />
+        </div>
 
-          <FormControl>
-            <FormLabel>Color</FormLabel>
-            <Input
-              type="color"
-              value={formData.color}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, color: e.target.value }))
-              }
-            />
-          </FormControl>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Color</label>
+          <Input
+            type="color"
+            value={formData.color}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, color: e.target.value }))
+            }
+            className="h-10 w-full"
+          />
+        </div>
 
-          <HStack width="100%" justifyContent="flex-end" spacing={3}>
-            <Button variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button type="submit" colorScheme="blue">
-              {project ? "Update Project" : "Create Project"}
-            </Button>
-          </HStack>
-        </VStack>
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button variant="outline" onClick={onCancel} type="button">
+            Cancel
+          </Button>
+          <Button type="submit">
+            {project ? "Update Project" : "Create Project"}
+          </Button>
+        </div>
       </form>
     );
   };
 
   if (loading) {
     return (
-      <Box textAlign="center" py={8}>
-        <Spinner size="xl" />
-        <Text mt={4}>Loading tasks...</Text>
-      </Box>
+      <div className="flex flex-col items-center justify-center py-8">
+        <Spinner className="h-8 w-8" />
+        <p className="mt-4 text-sm text-muted-foreground">Loading tasks...</p>
+      </div>
     );
   }
 
   const filteredTasks = getFilteredTasks();
 
   return (
-    <Box p={compactView ? 2 : 6}>
-      <VStack spacing={compactView ? 3 : 6} align="stretch">
+    <div className={compactView ? "p-2" : "p-6"}>
+      <div className={`flex flex-col gap-${compactView ? "3" : "6"}`}>
         {/* Header */}
         {showNavigation && (
-          <Flex justify="space-between" align="center">
-            <Heading size={compactView ? "md" : "lg"}>Task Management</Heading>
-            <HStack spacing={2}>
+          <div className="flex justify-between items-center">
+            <h2 className={`font-bold ${compactView ? "text-xl" : "text-2xl"}`}>Task Management</h2>
+            <div className="flex space-x-2">
               <Button
-                leftIcon={<AddIcon />}
-                colorScheme="blue"
-                size={compactView ? "sm" : "md"}
+                size={compactView ? "sm" : "default"}
                 onClick={() => {
                   setSelectedTask(null);
-                  onTaskModalOpen();
+                  setIsTaskDialogOpen(true);
                 }}
+                data-testid="new-task-btn"
               >
+                <Plus className="mr-2 h-4 w-4" />
                 New Task
               </Button>
               <Button
-                leftIcon={<AddIcon />}
-                colorScheme="green"
-                size={compactView ? "sm" : "md"}
+                variant="secondary"
+                size={compactView ? "sm" : "default"}
                 onClick={() => {
                   setSelectedProject(null);
-                  onProjectModalOpen();
+                  setIsProjectDialogOpen(true);
                 }}
               >
+                <Plus className="mr-2 h-4 w-4" />
                 New Project
               </Button>
-            </HStack>
-          </Flex>
+            </div>
+          </div>
         )}
 
         {/* View Controls */}
         {showNavigation && (
-          <Card size={compactView ? "sm" : "md"}>
-            <CardBody>
-              <Flex justify="space-between" align="center">
-                <HStack spacing={2}>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center">
+                <div className="flex space-x-2">
                   <Button
                     size="sm"
-                    variant={view.type === "board" ? "solid" : "outline"}
+                    variant={view.type === "board" ? "default" : "outline"}
                     onClick={() =>
                       setView((prev) => ({ ...prev, type: "board" }))
                     }
                   >
+                    <LayoutGrid className="mr-2 h-4 w-4" />
                     Board
                   </Button>
                   <Button
                     size="sm"
-                    variant={view.type === "list" ? "solid" : "outline"}
+                    variant={view.type === "list" ? "default" : "outline"}
                     onClick={() =>
                       setView((prev) => ({ ...prev, type: "list" }))
                     }
                   >
+                    <List className="mr-2 h-4 w-4" />
                     List
                   </Button>
-                </HStack>
+                </div>
 
-                <HStack spacing={2}>
-                  <Text fontSize="sm" fontWeight="bold">
+                <div className="flex space-x-2">
+                  <span className="text-sm font-bold">
                     {filteredTasks.length} tasks
-                  </Text>
-                </HStack>
-              </Flex>
-            </CardBody>
+                  </span>
+                </div>
+              </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Projects Overview */}
         {projects.length > 0 && (
-          <Card size={compactView ? "sm" : "md"}>
-            <CardHeader>
-              <Heading size={compactView ? "sm" : "md"}>Projects</Heading>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className={compactView ? "text-lg" : "text-xl"}>Projects</CardTitle>
             </CardHeader>
-            <CardBody>
-              <SimpleGrid
-                columns={Math.min(projects.length, compactView ? 2 : 3)}
-                spacing={4}
-              >
+            <CardContent>
+              <div className={`grid grid-cols-${Math.min(projects.length, compactView ? 2 : 3)} gap-4`}>
                 {projects.map((project) => (
-                  <Box
+                  <div
                     key={project.id}
-                    borderWidth="1px"
-                    borderRadius="md"
-                    p={3}
-                    borderLeftWidth="4px"
-                    borderLeftColor={project.color}
-                    cursor="pointer"
+                    className="border rounded-md p-3 border-l-4 cursor-pointer hover:bg-accent transition-colors"
+                    style={{ borderLeftColor: project.color }}
                     onClick={() => {
                       setSelectedProject(project);
                       // TODO: Filter tasks by project
                     }}
                   >
-                    <Text
-                      fontWeight="bold"
-                      fontSize={compactView ? "sm" : "md"}
-                    >
+                    <div className={`font-bold ${compactView ? "text-sm" : "text-base"}`}>
                       {project.name}
-                    </Text>
-                    <Text
-                      fontSize={compactView ? "xs" : "sm"}
-                      color="gray.600"
-                      mb={2}
-                    >
+                    </div>
+                    <div className={`text-muted-foreground mb-2 ${compactView ? "text-xs" : "text-sm"}`}>
                       {project.description}
-                    </Text>
+                    </div>
                     <Progress
                       value={project.progress}
-                      size="sm"
-                      colorScheme="blue"
-                      mb={2}
+                      className="h-2 mb-2"
                     />
-                    <Text fontSize="xs" color="gray.500">
+                    <div className="text-xs text-muted-foreground">
                       {project.tasks.length} tasks • {project.progress}%
                       complete
-                    </Text>
-                  </Box>
+                    </div>
+                  </div>
                 ))}
-              </SimpleGrid>
-            </CardBody>
+              </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Task Board View */}
         {view.type === "board" && (
-          <Card size={compactView ? "sm" : "md"}>
-            <CardHeader>
-              <Heading size={compactView ? "sm" : "md"}>Task Board</Heading>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className={compactView ? "text-lg" : "text-xl"}>Task Board</CardTitle>
             </CardHeader>
-            <CardBody>
-              <SimpleGrid columns={4} spacing={4}>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-4">
                 {["todo", "in-progress", "completed", "blocked"].map(
                   (status) => {
                     const statusTasks = filteredTasks.filter(
                       (task) => task.status === status,
                     );
                     return (
-                      <Box
+                      <div
                         key={status}
-                        borderWidth="1px"
-                        borderRadius="md"
-                        p={3}
+                        className="border rounded-md p-3 bg-muted/20"
                       >
-                        <Text
-                          fontWeight="bold"
-                          mb={2}
-                          fontSize={compactView ? "sm" : "md"}
-                        >
+                        <div className={`font-bold mb-2 ${compactView ? "text-sm" : "text-base"}`}>
                           {status.replace("-", " ").toUpperCase()} (
                           {statusTasks.length})
-                        </Text>
-                        <VStack spacing={2} align="stretch">
+                        </div>
+                        <div className="flex flex-col gap-2">
                           {statusTasks.map((task) => (
-                            <Box
+                            <div
                               key={task.id}
-                              p={2}
-                              borderWidth="1px"
-                              borderRadius="md"
-                              bg="white"
-                              cursor="pointer"
+                              className="p-2 border rounded-md bg-background cursor-pointer hover:shadow-sm transition-shadow"
                               onClick={() => {
                                 setSelectedTask(task);
-                                onTaskModalOpen();
+                                setIsTaskDialogOpen(true);
                               }}
                             >
-                              <Flex
-                                justify="space-between"
-                                align="start"
-                                mb={1}
-                              >
-                                <Text
-                                  fontWeight="bold"
-                                  fontSize={compactView ? "xs" : "sm"}
-                                  noOfLines={2}
-                                >
+                              <div className="flex justify-between items-start mb-1">
+                                <div className={`font-bold line-clamp-2 ${compactView ? "text-xs" : "text-sm"}`}>
                                   {task.title}
-                                </Text>
+                                </div>
                                 <Badge
-                                  colorScheme={getPriorityColor(task.priority)}
-                                  size={compactView ? "xs" : "sm"}
+                                  variant={getPriorityColor(task.priority) as any}
+                                  className={compactView ? "text-[10px] h-4 px-1" : ""}
                                 >
                                   {task.priority}
                                 </Badge>
-                              </Flex>
+                              </div>
                               {task.description && (
-                                <Text
-                                  fontSize={compactView ? "2xs" : "xs"}
-                                  color="gray.600"
-                                  noOfLines={2}
-                                  mb={1}
-                                >
+                                <div className={`text-muted-foreground line-clamp-2 mb-1 ${compactView ? "text-[10px]" : "text-xs"}`}>
                                   {task.description}
-                                </Text>
+                                </div>
                               )}
-                              <Flex justify="space-between" align="center">
-                                <Text
-                                  fontSize={compactView ? "2xs" : "xs"}
-                                  color="gray.500"
-                                >
+                              <div className="flex justify-between items-center">
+                                <div className={`text-muted-foreground ${compactView ? "text-[10px]" : "text-xs"}`}>
                                   {formatDate(task.dueDate)}
-                                </Text>
-                                <HStack spacing={1}>
+                                </div>
+                                <div className="flex items-center gap-1">
                                   {task.assignee && (
-                                    <Avatar size="2xs" name={task.assignee} />
+                                    <Avatar className="h-4 w-4">
+                                      <AvatarFallback>{task.assignee[0]}</AvatarFallback>
+                                    </Avatar>
                                   )}
-                                  <IconButton
-                                    aria-label="Complete task"
-                                    icon={<CheckCircleIcon />}
-                                    size="xs"
-                                    colorScheme="green"
+                                  <Button
                                     variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-100"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleUpdateTask(task.id, {
                                         status: "completed",
                                       });
                                     }}
-                                  />
-                                </HStack>
-                              </Flex>
-                            </Box>
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
                           ))}
-                        </VStack>
-                      </Box>
+                        </div>
+                      </div>
                     );
                   },
                 )}
-              </SimpleGrid>
-            </CardBody>
+              </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Upcoming Tasks */}
-        <Card size={compactView ? "sm" : "md"}>
-          <CardHeader>
-            <Heading size={compactView ? "sm" : "md"}>Upcoming Tasks</Heading>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className={compactView ? "text-lg" : "text-xl"}>Upcoming Tasks</CardTitle>
           </CardHeader>
-          <CardBody>
-            <VStack spacing={2} align="stretch">
+          <CardContent>
+            <div className="flex flex-col gap-2">
               {filteredTasks
                 .filter(
                   (task) =>
@@ -911,129 +863,108 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                 .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
                 .slice(0, compactView ? 3 : 5)
                 .map((task) => (
-                  <Flex
+                  <div
                     key={task.id}
-                    justify="space-between"
-                    align="center"
-                    p={2}
-                    borderWidth="1px"
-                    borderRadius="md"
-                    cursor="pointer"
+                    className="flex justify-between items-center p-2 border rounded-md hover:bg-accent cursor-pointer transition-colors"
                     onClick={() => {
                       setSelectedTask(task);
-                      onTaskModalOpen();
+                      setIsTaskDialogOpen(true);
                     }}
                   >
-                    <Box>
-                      <Text
-                        fontWeight="bold"
-                        fontSize={compactView ? "sm" : "md"}
-                      >
+                    <div>
+                      <div className={`font-bold ${compactView ? "text-sm" : "text-base"}`}>
                         {task.title}
-                      </Text>
-                      <Text
-                        fontSize={compactView ? "xs" : "sm"}
-                        color="gray.600"
-                      >
+                      </div>
+                      <div className={`text-muted-foreground ${compactView ? "text-xs" : "text-sm"}`}>
                         Due {formatDate(task.dueDate)} •{" "}
                         {task.project
                           ? projects.find((p) => p.id === task.project)?.name
                           : "No Project"}
-                      </Text>
-                    </Box>
-                    <HStack>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Badge
-                        colorScheme={getStatusColor(task.status)}
-                        size={compactView ? "sm" : "md"}
+                        variant={getStatusColor(task.status) as any}
                       >
                         {task.status}
                       </Badge>
-                      <IconButton
-                        aria-label="Edit task"
-                        icon={<EditIcon />}
-                        size="xs"
+                      <Button
                         variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedTask(task);
-                          onTaskModalOpen();
+                          setIsTaskDialogOpen(true);
                         }}
-                      />
-                      <IconButton
-                        aria-label="Delete task"
-                        icon={<DeleteIcon />}
-                        size="xs"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
                         variant="ghost"
-                        colorScheme="red"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteTask(task.id);
                         }}
-                      />
-                    </HStack>
-                  </Flex>
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
-            </VStack>
-          </CardBody>
+            </div>
+          </CardContent>
         </Card>
-      </VStack>
+      </div>
 
-      {/* Task Modal */}
-      <Modal
-        isOpen={isTaskModalOpen}
-        onClose={onTaskModalClose}
-        size={compactView ? "md" : "lg"}
-      >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            {selectedTask ? "Edit Task" : "Create New Task"}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <TaskForm
-              task={selectedTask || undefined}
-              onSubmit={(data) => {
-                if (selectedTask) {
-                  handleUpdateTask(selectedTask.id, data);
-                } else {
-                  handleCreateTask(data);
-                }
-              }}
-              onCancel={onTaskModalClose}
-            />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+      {/* Task Dialog */}
+      <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedTask ? "Edit Task" : "Create New Task"}
+            </DialogTitle>
+          </DialogHeader>
+          <TaskForm
+            task={selectedTask || undefined}
+            onSubmit={(data) => {
+              if (selectedTask) {
+                handleUpdateTask(selectedTask.id, data);
+              } else {
+                handleCreateTask(data);
+              }
+              setIsTaskDialogOpen(false);
+            }}
+            onCancel={() => setIsTaskDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
-      {/* Project Modal */}
-      <Modal
-        isOpen={isProjectModalOpen}
-        onClose={onProjectModalClose}
-        size={compactView ? "md" : "lg"}
-      >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            {selectedProject ? "Edit Project" : "Create New Project"}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <ProjectForm
-              project={selectedProject || undefined}
-              onSubmit={(data) => {
-                if (selectedProject) {
-                  // TODO: Implement project update
-                } else {
-                  handleCreateProject(data);
-                }
-              }}
-              onCancel={onProjectModalClose}
-            />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </Box>
+      {/* Project Dialog */}
+      <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedProject ? "Edit Project" : "Create New Project"}
+            </DialogTitle>
+          </DialogHeader>
+          <ProjectForm
+            project={selectedProject || undefined}
+            onSubmit={(data) => {
+              if (selectedProject) {
+                // TODO: Implement project update
+              } else {
+                handleCreateProject(data);
+              }
+              setIsProjectDialogOpen(false);
+            }}
+            onCancel={() => setIsProjectDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

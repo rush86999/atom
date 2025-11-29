@@ -1,17 +1,8 @@
 import React from "react";
 import { useRouter } from "next/router";
-import {
-  Box,
-  Container,
-  VStack,
-  Heading,
-  Text,
-  Button,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-} from "@chakra-ui/react";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, Home, RefreshCw } from "lucide-react";
 
 export default function AuthError() {
   const router = useRouter();
@@ -34,51 +25,54 @@ export default function AuthError() {
   const errorMessage = getErrorMessage(error as string);
 
   return (
-    <Container maxW="md" py={12}>
-      <VStack spacing={8}>
-        <Box textAlign="center">
-          <Heading size="xl" mb={2}>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-100 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="w-full max-w-md space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
             Authentication Error
-          </Heading>
-          <Text color="gray.600">There was a problem signing you in</Text>
-        </Box>
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            There was a problem signing you in
+          </p>
+        </div>
 
-        <Box w="100%">
-          <Alert status="error" borderRadius="lg">
-            <AlertIcon />
-            <Box>
-              <AlertTitle>Authentication Failed</AlertTitle>
-              <AlertDescription>{errorMessage}</AlertDescription>
-            </Box>
-          </Alert>
-        </Box>
+        {/* Error Alert */}
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Authentication Failed</AlertTitle>
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
 
-        <VStack spacing={4} w="100%">
+        {/* Action Buttons */}
+        <div className="space-y-3">
           <Button
-            colorScheme="blue"
-            size="lg"
-            w="100%"
+            className="w-full h-12 text-base gap-2"
             onClick={() => router.push("/auth/signin")}
           >
+            <RefreshCw className="w-4 h-4" />
             Try Again
           </Button>
 
           <Button
             variant="outline"
-            size="lg"
-            w="100%"
+            className="w-full h-12 text-base gap-2"
             onClick={() => router.push("/")}
           >
+            <Home className="w-4 h-4" />
             Return Home
           </Button>
-        </VStack>
+        </div>
 
-        <Box textAlign="center">
-          <Text fontSize="sm" color="gray.600">
+        <div className="text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             If this problem persists, please contact support.
-          </Text>
-        </Box>
-      </VStack>
-    </Container>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

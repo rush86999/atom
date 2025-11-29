@@ -5,6 +5,7 @@ import type { AppProps } from "next/app";
 import { ToastProvider } from "../components/ui/use-toast";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
+import { GlobalChatWidget } from "../components/GlobalChatWidget";
 
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   const router = useRouter();
@@ -34,6 +35,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
     <SessionProvider session={session}>
       <ToastProvider>
         <Component {...pageProps} />
+        <GlobalChatWidget />
       </ToastProvider>
     </SessionProvider>
   );

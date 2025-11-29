@@ -1,34 +1,11 @@
 import React from 'react';
-import { Box, Tabs, TabList, TabPanels, Tab, TabPanel, useColorModeValue } from '@chakra-ui/react';
-import BYOKManager from '../components/DevStudio/BYOKManager';
-import SystemMonitor from '../components/DevStudio/SystemMonitor';
-import AtomChatAssistant from '../components/AtomChatAssistant';
 
 const DevStudio = () => {
-    const bg = useColorModeValue('gray.50', 'gray.900');
-
     return (
-        <Box minH="100vh" bg={bg} p={8}>
-            <Tabs variant="enclosed" colorScheme="teal" isLazy>
-                <TabList>
-                    <Tab fontWeight="bold">AI Providers (BYOK)</Tab>
-                    <Tab fontWeight="bold">System Monitor</Tab>
-                    <Tab fontWeight="bold">Atom Assistant</Tab>
-                </TabList>
-
-                <TabPanels>
-                    <TabPanel>
-                        <BYOKManager />
-                    </TabPanel>
-                    <TabPanel>
-                        <SystemMonitor />
-                    </TabPanel>
-                    <TabPanel>
-                        <AtomChatAssistant />
-                    </TabPanel>
-                </TabPanels>
-            </Tabs>
-        </Box>
+        <div className="min-h-screen bg-gray-50 p-8">
+            <h1 className="text-2xl font-bold mb-4">Dev Studio</h1>
+            <p>This page is currently under maintenance as we migrate to Tailwind CSS.</p>
+        </div>
     );
 };
 

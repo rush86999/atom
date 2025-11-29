@@ -207,6 +207,7 @@ const SearchPage: React.FC = () => {
               }}
               onFocus={() => setShowSuggestions(true)}
               className="text-lg shadow-md"
+              data-testid="search-input"
             />
             <select
               className="w-52 h-12 rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -336,7 +337,7 @@ const SearchPage: React.FC = () => {
               <Spinner className="h-12 w-12 text-blue-500" />
             </div>
           ) : results.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-4" data-testid="search-results">
               <div className="flex justify-between items-center">
                 <p className="text-gray-600 dark:text-gray-400">
                   Found {results.length} results for &quot;{query}&quot;
@@ -351,6 +352,7 @@ const SearchPage: React.FC = () => {
                 <Card
                   key={result.id}
                   className="shadow-md hover:shadow-lg transition-shadow"
+                  data-testid="search-result-item"
                 >
                   <CardContent className="pt-6">
                     <div className="space-y-3">

@@ -144,6 +144,9 @@ integrations = [
     
     # OAuth Authentication
     ("oauth_routes", "router", None),
+    
+    # Core Authentication (Password Reset)
+    ("core.auth_endpoints", "router", None),
 ]
 
 # Load and Mount Integrations
