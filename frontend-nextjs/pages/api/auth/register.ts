@@ -43,14 +43,44 @@ export default async function handler(
 
         const user = result.rows[0];
 
+        // Send verification email
+        try {
+            const { sendEmail, generateVerificationEmailHTML } = await import('../../../lib/email');
+            const crypto = await import('crypto');
+
+            // Generate 6-digit verification code
+            const verificationCode = crypto.randomInt(100000, 999999).toString();
+
+            // Store token in database (expires in 24 hours)
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            await query(
+                'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+                [user.id, verificationCode, expiresAt]
+            );
+
+            // Send verification email
+            const emailHTML = generateVerificationEmailHTML(verificationCode, user.name);
+            await sendEmail({
+                to: email,
+                subject: 'Verify Your Email Address',
+                html: emailHTML,
+            });
+
+            console.log('Verification email sent to:', email);
+        } catch (emailError) {
+            console.error('Failed to send verification email:', emailError);
+            // Don't fail registration if email fails - user can resend later
+        }
+
         return res.status(201).json({
-            message: 'User created successfully',
+            message: 'User created successfully. Please check your email to verify your account.',
             user: {
                 id: user.id,
                 email: user.email,
                 name: user.name,
                 createdAt: user.created_at,
             },
+            requiresVerification: true,
         });
     } catch (error) {
         console.error('Registration error:', error);
