@@ -119,7 +119,12 @@ class WorkflowEngine:
     async def _run_execution(self, execution_id: str, workflow: Dict[str, Any]):
         """Main execution loop"""
         ws_manager = get_connection_manager()
+        # Import here to avoid circular imports if any
+        from core.analytics_engine import get_analytics_engine
+        analytics = get_analytics_engine()
+        
         user_id = workflow.get("created_by", "default")
+        start_time = datetime.utcnow()
         
         try:
             await self.state_manager.update_execution_status(execution_id, "RUNNING")
@@ -182,15 +187,45 @@ class WorkflowEngine:
                     await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=str(e))
                     await self.state_manager.update_execution_status(execution_id, "FAILED", error=str(e))
                     await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": str(e), "step_id": step_id})
+                    
+                    # Track failure
+                    duration = (datetime.utcnow() - start_time).total_seconds()
+                    analytics.track_workflow_execution(
+                        workflow_id=workflow.get("id", "unknown"),
+                        success=False,
+                        duration_seconds=duration,
+                        time_saved_seconds=0, # Could calculate based on step metadata
+                        business_value=0
+                    )
                     return
 
             await self.state_manager.update_execution_status(execution_id, "COMPLETED")
             await ws_manager.notify_workflow_status(user_id, execution_id, "COMPLETED")
             
+            # Track success
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            analytics.track_workflow_execution(
+                workflow_id=workflow.get("id", "unknown"),
+                success=True,
+                duration_seconds=duration,
+                time_saved_seconds=workflow.get("estimated_time_saved", 60), # Default 1 min saved
+                business_value=workflow.get("business_value", 10) # Default $10 value
+            )
+            
         except Exception as e:
             logger.error(f"Execution {execution_id} failed: {e}")
             await self.state_manager.update_execution_status(execution_id, "FAILED", error=str(e))
             await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": str(e)})
+            
+            # Track failure
+            duration = (datetime.utcnow() - start_time).total_seconds()
+            analytics.track_workflow_execution(
+                workflow_id=workflow.get("id", "unknown"),
+                success=False,
+                duration_seconds=duration,
+                time_saved_seconds=0,
+                business_value=0
+            )
 
     def _check_dependencies(self, step: Dict[str, Any], state: Dict[str, Any]) -> bool:
         """Check if all dependencies are met"""
