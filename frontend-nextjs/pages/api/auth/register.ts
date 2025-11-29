@@ -18,8 +18,15 @@ export default async function handler(
             return res.status(400).json({ error: 'Email and password are required' });
         }
 
-        if (password.length < 8) {
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        // Import password validator
+        const { validatePassword } = await import('../../../lib/password-validator');
+        const passwordStrength = validatePassword(password);
+
+        if (!passwordStrength.isValid) {
+            return res.status(400).json({
+                error: 'Password does not meet security requirements',
+                details: passwordStrength.feedback
+            });
         }
 
         // Check if user already exists
