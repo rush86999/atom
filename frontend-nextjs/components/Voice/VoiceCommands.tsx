@@ -24,9 +24,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
     DialogFooter,
-    DialogClose,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
@@ -526,12 +524,15 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                         Voice Commands
                     </h2>
                     <div className="flex space-x-2">
+                        <Button
+                            variant="outline"
+                            size={compactView ? "sm" : "default"}
+                            onClick={() => setIsResultsOpen(true)}
+                        >
+                            View Results ({recognitionResults.length})
+                        </Button>
+
                         <Dialog open={isResultsOpen} onOpenChange={setIsResultsOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" size={compactView ? "sm" : "default"}>
-                                    View Results ({recognitionResults.length})
-                                </Button>
-                            </DialogTrigger>
                             <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                                 <DialogHeader>
                                     <DialogTitle>Recognition Results</DialogTitle>
@@ -580,20 +581,20 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                             </Button>
                         )}
 
+                        <Button
+                            variant="outline"
+                            size={compactView ? "sm" : "default"}
+                            onClick={() => {
+                                setSelectedCommand(null);
+                                setIsCommandModalOpen(true);
+                            }}
+                            className="gap-2"
+                        >
+                            <Settings className="w-4 h-4" />
+                            Manage Commands
+                        </Button>
+
                         <Dialog open={isCommandModalOpen} onOpenChange={setIsCommandModalOpen}>
-                            <DialogTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size={compactView ? "sm" : "default"}
-                                    onClick={() => {
-                                        setSelectedCommand(null);
-                                    }}
-                                    className="gap-2"
-                                >
-                                    <Settings className="w-4 h-4" />
-                                    Manage Commands
-                                </Button>
-                            </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
                                     <DialogTitle>
