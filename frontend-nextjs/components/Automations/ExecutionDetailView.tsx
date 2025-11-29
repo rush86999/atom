@@ -1,27 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { ArrowLeft, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-    Box,
-    VStack,
-    HStack,
-    Heading,
-    Text,
-    Badge,
-    Button,
-    Divider,
-    Code,
     Accordion,
+    AccordionContent,
     AccordionItem,
-    AccordionButton,
-    AccordionPanel,
-    AccordionIcon,
-    Spinner,
-    Alert,
-    AlertIcon,
-    Card,
-    CardBody,
-    CardHeader
-} from '@chakra-ui/react';
-import { ArrowBackIcon, CheckCircleIcon, WarningIcon, TimeIcon } from '@chakra-ui/icons';
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface ExecutionDetailViewProps {
     executionId: string;
@@ -69,24 +57,25 @@ const ExecutionDetailView: React.FC<ExecutionDetailViewProps> = ({ executionId, 
 
     if (loading) {
         return (
-            <Box textAlign="center" py={10}>
-                <Spinner size="xl" />
-                <Text mt={4}>Loading execution details...</Text>
-            </Box>
+            <div className="text-center py-10">
+                <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <p className="mt-4 text-muted-foreground">Loading execution details...</p>
+            </div>
         );
     }
 
     if (error || !detail) {
         return (
-            <Box p={4}>
-                <Button leftIcon={<ArrowBackIcon />} onClick={onBack} mb={4}>
+            <div className="p-4">
+                <Button onClick={onBack} variant="outline" className="mb-4">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to History
                 </Button>
-                <Alert status="error">
-                    <AlertIcon />
-                    {error || 'Execution not found'}
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{error || 'Execution not found'}</AlertDescription>
                 </Alert>
-            </Box>
+            </div>
         );
     }
 
@@ -94,141 +83,135 @@ const ExecutionDetailView: React.FC<ExecutionDetailViewProps> = ({ executionId, 
         switch (status) {
             case 'success':
             case 'completed':
-                return 'green';
+                return 'bg-green-500 hover:bg-green-600';
             case 'failed':
-                return 'red';
+                return 'bg-red-500 hover:bg-red-600';
             case 'running':
-                return 'blue';
+                return 'bg-blue-500 hover:bg-blue-600';
             default:
-                return 'gray';
+                return '';
         }
     };
 
     return (
-        <Box>
-            <Button leftIcon={<ArrowBackIcon />} onClick={onBack} mb={4} size="sm">
+        <div>
+            <Button onClick={onBack} variant="outline" size="sm" className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to History
             </Button>
 
-            <VStack spacing={6} align="stretch">
+            <div className="space-y-6">
                 {/* Header Info */}
                 <Card>
-                    <CardBody>
-                        <VStack align="start" spacing={4}>
-                            <HStack justify="space-between" width="100%">
-                                <Heading size="md">Execution Details</Heading>
-                                <Badge colorScheme={getStatusColor(detail.status)} fontSize="md" px={2} py={1}>
-                                    {detail.status.toUpperCase()}
-                                </Badge>
-                            </HStack>
+                    <CardContent className="pt-6 space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-semibold">Execution Details</h2>
+                            <Badge className={getStatusColor(detail.status)}>
+                                {detail.status.toUpperCase()}
+                            </Badge>
+                        </div>
 
-                            <HStack spacing={8}>
-                                <Box>
-                                    <Text fontSize="sm" color="gray.500">Started</Text>
-                                    <Text fontWeight="medium">{new Date(detail.start_time).toLocaleString()}</Text>
-                                </Box>
-                                <Box>
-                                    <Text fontSize="sm" color="gray.500">Duration</Text>
-                                    <Text fontWeight="medium">
-                                        {detail.duration_ms ? `${(detail.duration_ms / 1000).toFixed(2)}s` : '-'}
-                                    </Text>
-                                </Box>
-                                <Box>
-                                    <Text fontSize="sm" color="gray.500">ID</Text>
-                                    <Text fontFamily="monospace" fontSize="sm">{detail.execution_id}</Text>
-                                </Box>
-                            </HStack>
+                        <div className="flex gap-8">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Started</p>
+                                <p className="font-medium">{new Date(detail.start_time).toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Duration</p>
+                                <p className="font-medium">
+                                    {detail.duration_ms ? `${(detail.duration_ms / 1000).toFixed(2)}s` : '-'}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">ID</p>
+                                <p className="font-mono text-sm">{detail.execution_id}</p>
+                            </div>
+                        </div>
 
-                            {detail.errors && detail.errors.length > 0 && (
-                                <Alert status="error" borderRadius="md">
-                                    <AlertIcon />
-                                    <Box>
-                                        <Text fontWeight="bold">Execution Errors:</Text>
-                                        <VStack align="start" spacing={1}>
-                                            {detail.errors.map((err, idx) => (
-                                                <Text key={idx} fontSize="sm">{err}</Text>
-                                            ))}
-                                        </VStack>
-                                    </Box>
-                                </Alert>
-                            )}
-                        </VStack>
-                    </CardBody>
+                        {detail.errors && detail.errors.length > 0 && (
+                            <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertDescription>
+                                    <p className="font-bold">Execution Errors:</p>
+                                    <div className="space-y-1">
+                                        {detail.errors.map((err, idx) => (
+                                            <p key={idx} className="text-sm">{err}</p>
+                                        ))}
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </CardContent>
                 </Card>
 
                 {/* Trigger Data */}
                 <Card>
-                    <CardHeader pb={0}>
-                        <Heading size="sm">Trigger Data</Heading>
+                    <CardHeader>
+                        <CardTitle className="text-base">Trigger Data</CardTitle>
                     </CardHeader>
-                    <CardBody>
-                        <Box bg="gray.50" p={3} borderRadius="md" overflowX="auto">
-                            <Code display="block" whiteSpace="pre" bg="transparent">
+                    <CardContent>
+                        <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md overflow-x-auto">
+                            <pre className="text-sm">
                                 {JSON.stringify(detail.trigger_data, null, 2)}
-                            </Code>
-                        </Box>
-                    </CardBody>
+                            </pre>
+                        </div>
+                    </CardContent>
                 </Card>
 
                 {/* Node Results */}
                 <Card>
-                    <CardHeader pb={0}>
-                        <Heading size="sm">Node Execution Results</Heading>
+                    <CardHeader>
+                        <CardTitle className="text-base">Node Execution Results</CardTitle>
                     </CardHeader>
-                    <CardBody>
-                        <Accordion allowMultiple defaultIndex={[0]}>
-                            {Object.entries(detail.results || {}).map(([nodeId, result]: [string, any]) => (
-                                <AccordionItem key={nodeId}>
-                                    <h2>
-                                        <AccordionButton>
-                                            <Box flex="1" textAlign="left">
-                                                <HStack>
-                                                    {result.status === 'success' ? (
-                                                        <CheckCircleIcon color="green.500" />
-                                                    ) : result.status === 'failed' ? (
-                                                        <WarningIcon color="red.500" />
-                                                    ) : (
-                                                        <TimeIcon color="gray.500" />
-                                                    )}
-                                                    <Text fontWeight="medium">{result.node_title || nodeId}</Text>
-                                                    <Badge size="sm" colorScheme={getStatusColor(result.status)}>
-                                                        {result.status}
-                                                    </Badge>
-                                                </HStack>
-                                            </Box>
-                                            <AccordionIcon />
-                                        </AccordionButton>
-                                    </h2>
-                                    <AccordionPanel pb={4}>
-                                        <VStack align="stretch" spacing={3}>
-                                            <Box>
-                                                <Text fontSize="xs" fontWeight="bold" color="gray.500" mb={1}>OUTPUT</Text>
-                                                <Box bg="gray.50" p={2} borderRadius="md">
-                                                    <Code display="block" whiteSpace="pre-wrap" bg="transparent" fontSize="xs">
-                                                        {JSON.stringify(result.output, null, 2)}
-                                                    </Code>
-                                                </Box>
-                                            </Box>
-                                            {result.error && (
-                                                <Box>
-                                                    <Text fontSize="xs" fontWeight="bold" color="red.500" mb={1}>ERROR</Text>
-                                                    <Box bg="red.50" p={2} borderRadius="md" color="red.700">
-                                                        <Text fontSize="sm">{result.error}</Text>
-                                                    </Box>
-                                                </Box>
+                    <CardContent>
+                        <Accordion type="multiple" defaultValue={["0"]}>
+                            {Object.entries(detail.results || {}).map(([nodeId, result]: [string, any], index) => (
+                                <AccordionItem key={nodeId} value={index.toString()}>
+                                    <AccordionTrigger>
+                                        <div className="flex items-center gap-2">
+                                            {result.status === 'success' ? (
+                                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                            ) : result.status === 'failed' ? (
+                                                <AlertTriangle className="w-4 h-4 text-red-500" />
+                                            ) : (
+                                                <Clock className="w-4 h-4 text-gray-500" />
                                             )}
-                                        </VStack>
-                                    </AccordionPanel>
+                                            <span className="font-medium">{result.node_title || nodeId}</span>
+                                            <Badge variant="secondary" className={getStatusColor(result.status)}>
+                                                {result.status}
+                                            </Badge>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="space-y-3 pt-2">
+                                            <div>
+                                                <p className="text-xs font-bold text-muted-foreground mb-1">OUTPUT</p>
+                                                <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-md">
+                                                    <pre className="text-xs whitespace-pre-wrap">
+                                                        {JSON.stringify(result.output, null, 2)}
+                                                    </pre>
+                                                </div>
+                                            </div>
+                                            {result.error && (
+                                                <div>
+                                                    <p className="text-xs font-bold text-red-500 mb-1">ERROR</p>
+                                                    <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded-md text-red-700 dark:text-red-400">
+                                                        <p className="text-sm">{result.error}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </AccordionContent>
                                 </AccordionItem>
                             ))}
                         </Accordion>
                         {(!detail.results || Object.keys(detail.results).length === 0) && (
-                            <Text color="gray.500" fontStyle="italic">No node results recorded.</Text>
+                            <p className="text-muted-foreground italic">No node results recorded.</p>
                         )}
-                    </CardBody>
+                    </CardContent>
                 </Card>
-            </VStack>
-        </Box>
+            </div>
+        </div>
     );
 };
 

@@ -1,21 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { Eye, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import {
-    Box,
     Table,
-    Thead,
-    Tbody,
-    Tr,
-    Th,
-    Td,
-    Badge,
-    Text,
-    IconButton,
-    Tooltip,
-    Spinner,
-    Flex,
-    useColorModeValue
-} from '@chakra-ui/react';
-import { ViewIcon, TimeIcon, CheckCircleIcon, WarningIcon } from '@chakra-ui/icons';
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface Execution {
     execution_id: string;
@@ -70,13 +64,13 @@ const ExecutionHistoryList: React.FC<ExecutionHistoryListProps> = ({
         switch (status) {
             case 'success':
             case 'completed':
-                return 'green';
+                return 'default';
             case 'failed':
-                return 'red';
+                return 'destructive';
             case 'running':
-                return 'blue';
+                return 'default';
             default:
-                return 'gray';
+                return 'secondary';
         }
     };
 
@@ -84,13 +78,13 @@ const ExecutionHistoryList: React.FC<ExecutionHistoryListProps> = ({
         switch (status) {
             case 'success':
             case 'completed':
-                return <CheckCircleIcon color="green.500" />;
+                return <CheckCircle className="w-4 h-4 text-green-500" />;
             case 'failed':
-                return <WarningIcon color="red.500" />;
+                return <AlertTriangle className="w-4 h-4 text-red-500" />;
             case 'running':
-                return <Spinner size="xs" color="blue.500" />;
+                return <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />;
             default:
-                return <TimeIcon color="gray.500" />;
+                return <Clock className="w-4 h-4 text-gray-500" />;
         }
     };
 
@@ -104,85 +98,89 @@ const ExecutionHistoryList: React.FC<ExecutionHistoryListProps> = ({
         return new Date(dateStr).toLocaleString();
     };
 
-    const hoverBg = useColorModeValue('gray.50', 'gray.700');
-
     if (loading && executions.length === 0) {
         return (
-            <Flex justify="center" align="center" h="200px">
-                <Spinner size="xl" />
-            </Flex>
+            <div className="flex justify-center items-center h-48">
+                <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+            </div>
         );
     }
 
     if (error) {
         return (
-            <Box p={4} color="red.500" textAlign="center">
-                <WarningIcon mb={2} boxSize={6} />
-                <Text>Error loading history: {error}</Text>
-            </Box>
+            <div className="p-4 text-red-500 text-center">
+                <AlertTriangle className="w-6 h-6 mx-auto mb-2" />
+                <p>Error loading history: {error}</p>
+            </div>
         );
     }
 
     if (executions.length === 0) {
         return (
-            <Box p={8} textAlign="center" color="gray.500">
-                <TimeIcon mb={2} boxSize={8} />
-                <Text>No execution history found for this workflow.</Text>
-                <Text fontSize="sm">Run the workflow to see results here.</Text>
-            </Box>
+            <div className="p-8 text-center text-muted-foreground">
+                <Clock className="w-8 h-8 mx-auto mb-2" />
+                <p>No execution history found for this workflow.</p>
+                <p className="text-sm">Run the workflow to see results here.</p>
+            </div>
         );
     }
 
     return (
-        <Box overflowX="auto">
-            <Table variant="simple" size="sm">
-                <Thead>
-                    <Tr>
-                        <Th>Status</Th>
-                        <Th>Date</Th>
-                        <Th>Duration</Th>
-                        <Th>Actions</Th>
-                        <Th>Details</Th>
-                    </Tr>
-                </Thead>
-                <Tbody>
+        <div className="overflow-x-auto">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Actions</TableHead>
+                        <TableHead>Details</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
                     {executions.map((exec) => (
-                        <Tr
+                        <TableRow
                             key={exec.execution_id}
-                            _hover={{ bg: hoverBg }}
-                            cursor="pointer"
+                            className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                             onClick={() => onSelectExecution(exec.execution_id)}
                         >
-                            <Td>
-                                <Flex align="center" gap={2}>
+                            <TableCell>
+                                <div className="flex items-center gap-2">
                                     {getStatusIcon(exec.status)}
-                                    <Badge colorScheme={getStatusColor(exec.status)}>
+                                    <Badge
+                                        variant={getStatusColor(exec.status)}
+                                        className={
+                                            exec.status === 'success' || exec.status === 'completed'
+                                                ? 'bg-green-500 hover:bg-green-600'
+                                                : exec.status === 'running'
+                                                    ? 'bg-blue-500 hover:bg-blue-600'
+                                                    : ''
+                                        }
+                                    >
                                         {exec.status}
                                     </Badge>
-                                </Flex>
-                            </Td>
-                            <Td>{formatDate(exec.start_time)}</Td>
-                            <Td>{formatDuration(exec.duration_ms)}</Td>
-                            <Td>{exec.actions_executed?.length || 0} nodes</Td>
-                            <Td>
-                                <Tooltip label="View Details">
-                                    <IconButton
-                                        aria-label="View details"
-                                        icon={<ViewIcon />}
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onSelectExecution(exec.execution_id);
-                                        }}
-                                    />
-                                </Tooltip>
-                            </Td>
-                        </Tr>
+                                </div>
+                            </TableCell>
+                            <TableCell>{formatDate(exec.start_time)}</TableCell>
+                            <TableCell>{formatDuration(exec.duration_ms)}</TableCell>
+                            <TableCell>{exec.actions_executed?.length || 0} nodes</TableCell>
+                            <TableCell>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onSelectExecution(exec.execution_id);
+                                    }}
+                                >
+                                    <Eye className="w-4 h-4" />
+                                </Button>
+                            </TableCell>
+                        </TableRow>
                     ))}
-                </Tbody>
+                </TableBody>
             </Table>
-        </Box>
+        </div>
     );
 };
 
