@@ -42,6 +42,10 @@ try:
     # Include OAuth routers
     from oauth_routes import router as oauth_router # Assuming oauth_routes is a top-level module
     app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
+    
+    # Include WebSocket routes
+    from websocket_routes import router as ws_router
+    app.include_router(ws_router, tags=["WebSockets"])
 
 except ImportError as e:
     print(f"[CRITICAL] Core API routes failed to load: {e}")
