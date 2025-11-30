@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.integration_loader import IntegrationLoader
+from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
 # Load environment variables from project root
 env_path = Path(__file__).parent.parent / ".env"
@@ -27,6 +28,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Security middleware
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=120)  # 120 requests/min per IP
 
 # Initialize Integration Loader
 loader = IntegrationLoader()
@@ -151,9 +156,13 @@ integrations = [
     # OAuth Authentication
     ("oauth_routes", "router", None),
     
-    # Core Authentication (Password Reset)
+    # Core Authentication
     ("core.auth_endpoints", "router", None),
+    
+    # Team Messaging
+    ("core.team_messaging", "router", None),
 ]
+
 
 # Load and Mount Integrations
 for entry in integrations:
