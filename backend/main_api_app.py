@@ -63,6 +63,7 @@ integrations = [
     ("core.workflow_marketplace", "router", None),
     ("core.enterprise_user_management", "router", "/api/v1"),
     ("core.enterprise_security", "router", "/api/v1"),
+    ("core.auto_healing_endpoints", "router", None),
     
     # Unified Endpoints
     ("core.unified_task_endpoints", "router", None),
