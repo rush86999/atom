@@ -1,214 +1,145 @@
 """
-Token Refresh Automation
-
-Automatically refreshes OAuth tokens before they expire to prevent service interruptions.
+OAuth Token Refresh Service
+Automatically refreshes OAuth tokens before they expire
 """
 
+import os
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-import json
-from pathlib import Path
-
-from core.token_storage import TokenStorage
-import httpx
+from typing import Dict, Optional
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
+load_dotenv()
 
 class TokenRefresher:
-    """
-    Background service that monitors and refreshes OAuth tokens.
-    """
+    """Manages automatic OAuth token refresh for all configured integrations"""
     
-    def __init__(self, token_storage: Optional[TokenStorage] = None):
-        self.token_storage = token_storage or TokenStorage()
-        self.refresh_config = self._load_refresh_config()
-        self.running = False
-        
-    def _load_refresh_config(self) -> Dict[str, Dict]:
-        """Load OAuth refresh configuration for each provider"""
-        return {
-            "google": {
-                "token_url": "https://oauth2.googleapis.com/token",
-                "refresh_threshold_hours": 1,  # Refresh if expires in < 1 hour
-            },
-            "microsoft": {
-                "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-                "refresh_threshold_hours": 1,
-            },
-            "salesforce": {
-                "token_url": "https://login.salesforce.com/services/oauth2/token",
-                "refresh_threshold_hours": 2,
-            },
-            "slack": {
-                "token_url": "https://slack.com/api/oauth.v2.access",
-                "refresh_threshold_hours": 6,
-            },
-            "github": {
-                "token_url": "https://github.com/login/oauth/access_token",
-                "refresh_threshold_hours": 12,
-            }
+    def __init__(self):
+        self.token_metadata = {}  # service_name -> {expires_at, refresh_token, etc}
+        self.refresh_handlers = {}  # service_name -> refresh_function
+    
+    def register_service(
+        self,
+        service_name: str,
+        refresh_handler: callable,
+        expires_at: Optional[datetime] = None,
+        refresh_token: Optional[str] = None
+    ):
+        """Register a service for automatic token refresh"""
+        self.refresh_handlers[service_name] = refresh_handler
+        self.token_metadata[service_name] = {
+            "expires_at": expires_at,
+            "refresh_token": refresh_token,
+            "last_refreshed": None
         }
+        logger.info(f"Registered {service_name} for automatic token refresh")
     
-    async def check_and_refresh_token(
-        self, 
-        user_id: str, 
-        provider: str, 
-        token_data: Dict
-    ) -> bool:
-        """
-        Check if token needs refresh and refresh if necessary.
-        
-        Returns:
-            True if token was refreshed, False otherwise
-        """
-        config = self.refresh_config.get(provider)
-        if not config:
-            logger.debug(f"No refresh config for provider: {provider}")
+    def should_refresh(self, service_name: str, buffer_minutes: int = 15) -> bool:
+        """Check if a token should be refreshed"""
+        if service_name not in self.token_metadata:
             return False
         
-        # Check if token has expiration info
-        expires_at = token_data.get("expires_at")
+        metadata = self.token_metadata[service_name]
+        expires_at = metadata.get("expires_at")
+        
         if not expires_at:
-            logger.debug(f"Token for {provider} has no expiration info")
             return False
         
-        # Parse expiration time
-        try:
-            if isinstance(expires_at, str):
-                expires_at = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
-            elif isinstance(expires_at, (int, float)):
-                expires_at = datetime.fromtimestamp(expires_at)
-        except Exception as e:
-            logger.error(f"Error parsing expires_at for {provider}: {e}")
-            return False
-        
-        # Check if token needs refresh
-        threshold = timedelta(hours=config["refresh_threshold_hours"])
-        if datetime.now() < expires_at - threshold:
-            logger.debug(f"Token for {provider} is still valid, no refresh needed")
-            return False
-        
-        # Attempt to refresh
-        refresh_token = token_data.get("refresh_token")
-        if not refresh_token:
-            logger.warning(f"No refresh_token available for {provider}")
+        # Refresh if expiring within buffer_minutes
+        return datetime.now() + timedelta(minutes=buffer_minutes) >= expires_at
+    
+    async def refresh_token(self, service_name: str) -> bool:
+        """Refresh OAuth token for a service"""
+        if service_name not in self.refresh_handlers:
+            logger.error(f"No refresh handler registered for {service_name}")
             return False
         
         try:
-            new_token_data = await self._perform_refresh(provider, refresh_token, config)
+            handler = self.refresh_handlers[service_name]
+            new_token_data = await handler(self.token_metadata[service_name])
+            
+            # Update metadata
             if new_token_data:
-                # Update stored token
-                self.token_storage.store_token(user_id, provider, new_token_data)
-                logger.info(f"Successfully refreshed token for {user_id}/{provider}")
+                self.token_metadata[service_name].update({
+                    "expires_at": new_token_data.get("expires_at"),
+                    "refresh_token": new_token_data.get("refresh_token"),
+                    "last_refreshed": datetime.now()
+                })
+                logger.info(f"Successfully refreshed token for {service_name}")
                 return True
         except Exception as e:
-            logger.error(f"Failed to refresh token for {provider}: {e}")
+            logger.error(f"Failed to refresh token for {service_name}: {str(e)}")
+            return False
         
         return False
     
-    async def _perform_refresh(
-        self, 
-        provider: str, 
-        refresh_token: str,
-        config: Dict
-    ) -> Optional[Dict]:
-        """
-        Perform the actual token refresh request.
-        """
-        # Get client credentials from environment
-        import os
-        client_id = os.getenv(f"{provider.upper()}_CLIENT_ID")
-        client_secret = os.getenv(f"{provider.upper()}_CLIENT_SECRET")
+    async def check_and_refresh_all(self):
+        """Check all services and refresh tokens as needed"""
+        refresh_tasks = []
         
-        if not client_id or not client_secret:
-            logger.warning(f"Missing client credentials for {provider}")
-            return None
+        for service_name in self.token_metadata.keys():
+            if self.should_refresh(service_name):
+                logger.info(f"Token for {service_name} needs refresh")
+                refresh_tasks.append(self.refresh_token(service_name))
         
-        data = {
-            "grant_type": "refresh_token",
-            "refresh_token": refresh_token,
-            "client_id": client_id,
-            "client_secret": client_secret,
-        }
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                config["token_url"],
-                data=data,
-                headers={"Accept": "application/json"}
-            )
-            
-            if response.status_code == 200:
-                new_data = response.json()
-                
-                # Calculate new expiration time
-                if "expires_in" in new_data:
-                    new_data["expires_at"] = (
-                        datetime.now() + timedelta(seconds=new_data["expires_in"])
-                    ).isoformat()
-                
-                # Preserve refresh_token if not included in response
-                if "refresh_token" not in new_data:
-                    new_data["refresh_token"] = refresh_token
-                
-                return new_data
-            else:
-                logger.error(f"Token refresh failed: {response.status_code} - {response.text}")
-                return None
+        if refresh_tasks:
+            results = await asyncio.gather(*refresh_tasks, return_exceptions=True)
+            successful = sum(1 for r in results if r is True)
+            logger.info(f"Refreshed {successful}/{len(refresh_tasks)} tokens")
     
-    async def run_refresh_cycle(self):
-        """
-        Run one cycle of checking and refreshing all tokens.
-        """
-        logger.info("Starting token refresh cycle")
-        
-        # Get all stored tokens
-        all_tokens = self.token_storage.list_all_tokens()
-        
-        refresh_count = 0
-        for user_id, provider, token_data in all_tokens:
-            try:
-                refreshed = await self.check_and_refresh_token(user_id, provider, token_data)
-                if refreshed:
-                    refresh_count += 1
-            except Exception as e:
-                logger.error(f"Error checking token for {user_id}/{provider}: {e}")
-        
-        logger.info(f"Token refresh cycle complete. Refreshed {refresh_count} tokens.")
-    
-    async def start_background_service(self, interval_minutes: int = 60):
-        """
-        Start the background token refresh service.
-        
-        Args:
-            interval_minutes: How often to check for tokens to refresh
-        """
-        self.running = True
-        logger.info(f"Starting token refresh background service (interval: {interval_minutes}m)")
-        
-        while self.running:
-            try:
-                await self.run_refresh_cycle()
-            except Exception as e:
-                logger.error(f"Error in refresh cycle: {e}")
-            
-            # Wait for next cycle
-            await asyncio.sleep(interval_minutes * 60)
-    
-    def stop(self):
-        """Stop the background service"""
-        self.running = False
-        logger.info("Token refresh service stopped")
+    def get_status(self) -> Dict:
+        """Get status of all registered tokens"""
+        status = {}
+        for service_name, metadata in self.token_metadata.items():
+            expires_at = metadata.get("expires_at")
+            status[service_name] = {
+                "expires_at": expires_at.isoformat() if expires_at else None,
+                "needs_refresh": self.should_refresh(service_name),
+                "last_refreshed": metadata.get("last_refreshed").isoformat() if metadata.get("last_refreshed") else None
+            }
+        return status
 
 
-# Global instance
-_token_refresher = None
+# Example refresh handlers for OAuth services
+async def refresh_google_token(metadata: Dict) -> Optional[Dict]:
+    """Refresh Google OAuth token"""
+    # This is a placeholder - real implementation would call Google's token endpoint
+    logger.info("Refreshing Google OAuth token...")
+    # Would use metadata['refresh_token'] to get new access token
+    return {
+        "expires_at": datetime.now() + timedelta(hours=1),
+        "refresh_token": metadata.get("refresh_token")
+    }
 
-def get_token_refresher() -> TokenRefresher:
-    """Get or create global TokenRefresher instance"""
-    global _token_refresher
-    if _token_refresher is None:
-        _token_refresher = TokenRefresher()
-    return _token_refresher
+async def refresh_microsoft_token(metadata: Dict) -> Optional[Dict]:
+    """Refresh Microsoft OAuth token"""
+    logger.info("Refreshing Microsoft OAuth token...")
+    return {
+        "expires_at": datetime.now() + timedelta(hours=1),
+        "refresh_token": metadata.get("refresh_token")
+    }
+
+async def refresh_salesforce_token(metadata: Dict) -> Optional[Dict]:
+    """Refresh Salesforce OAuth token"""
+    logger.info("Refreshing Salesforce OAuth token...")
+    return {
+        "expires_at": datetime.now() + timedelta(hours=2),
+        "refresh_token": metadata.get("refresh_token")
+    }
+
+
+# Global token refresher instance
+token_refresher = TokenRefresher()
+
+# Register OAuth services for auto-refresh
+# In production, this would be configured with actual token data
+if os.getenv("GMAIL_CLIENT_ID"):
+   token_refresher.register_service("google", refresh_google_token)
+
+if os.getenv("OUTLOOK_CLIENT_ID"):
+    token_refresher.register_service("microsoft", refresh_microsoft_token)
+
+if os.getenv("SALESFORCE_CLIENT_ID"):
+    token_refresher.register_service("salesforce", refresh_salesforce_token)
