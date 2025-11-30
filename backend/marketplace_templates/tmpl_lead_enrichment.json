@@ -1,0 +1,72 @@
+{
+  "id": "tmpl_lead_enrichment",
+  "name": "Sales Lead Enrichment",
+  "description": "When a new lead is added to Salesforce, enrich with LinkedIn data and notify team.",
+  "category": "Sales",
+  "author": "ATOM Team",
+  "version": "1.0.0",
+  "integrations": [
+    "salesforce",
+    "linkedin",
+    "slack"
+  ],
+  "complexity": "Intermediate",
+  "workflow_data": {
+    "nodes": [
+      {
+        "id": "1",
+        "type": "trigger",
+        "label": "New Salesforce Lead",
+        "config": {
+          "integration": "salesforce",
+          "event": "new_record",
+          "object": "Lead"
+        }
+      },
+      {
+        "id": "2",
+        "type": "action",
+        "label": "Enrich from LinkedIn",
+        "config": {
+          "integration": "linkedin",
+          "action": "get_profile"
+        }
+      },
+      {
+        "id": "3",
+        "type": "action",
+        "label": "Update Salesforce",
+        "config": {
+          "integration": "salesforce",
+          "action": "update_record"
+        }
+      },
+      {
+        "id": "4",
+        "type": "action",
+        "label": "Notify Sales Channel",
+        "config": {
+          "integration": "slack",
+          "action": "send_message"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "1",
+        "target": "2"
+      },
+      {
+        "source": "2",
+        "target": "3"
+      },
+      {
+        "source": "3",
+        "target": "4"
+      }
+    ]
+  },
+  "created_at": "2025-11-29T18:02:09.839359",
+  "downloads": 0,
+  "rating": 5.0
+}

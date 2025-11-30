@@ -1,92 +1,105 @@
 
-from datetime import datetime
-from typing import List, Optional
-from enum import Enum
-
-from sqlalchemy import String, Integer, Boolean, ForeignKey, DateTime, Text, Table, Column
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text, Table, Enum as SQLEnum
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+import uuid
+import enum
+from core.database import Base
 
-class Base(DeclarativeBase):
-    pass
+# Enums
+class UserRole(str, enum.Enum):
+    SUPER_ADMIN = "super_admin"
+    WORKSPACE_ADMIN = "workspace_admin"
+    TEAM_LEAD = "team_lead"
+    MEMBER = "member"
+    GUEST = "guest"
 
-# Association table for User-Team many-to-many relationship
+class UserStatus(str, enum.Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    PENDING = "pending"
+    DELETED = "deleted"
+
+class WorkspaceStatus(str, enum.Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    TRIAL = "trial"
+    EXPIRED = "expired"
+
+# Association Tables
 team_members = Table(
-    "team_members",
+    'team_members',
     Base.metadata,
-    Column("user_id", String, ForeignKey("users.id"), primary_key=True),
-    Column("team_id", String, ForeignKey("teams.id"), primary_key=True),
-    Column("joined_at", DateTime, default=datetime.utcnow),
+    Column('user_id', String, ForeignKey('users.id'), primary_key=True),
+    Column('team_id', String, ForeignKey('teams.id'), primary_key=True),
+    Column('role', String, default="member"),
+    Column('joined_at', DateTime(timezone=True), server_default=func.now())
 )
-
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    email: Mapped[str] = mapped_column(String, unique=True, index=True)
-    first_name: Mapped[str] = mapped_column(String)
-    last_name: Mapped[str] = mapped_column(String)
-    hashed_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    role: Mapped[str] = mapped_column(String, default="member")
-    status: Mapped[str] = mapped_column(String, default="active")
-    workspace_id: Mapped[Optional[str]] = mapped_column(ForeignKey("workspaces.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-
-    # Relationships
-    workspace: Mapped[Optional["Workspace"]] = relationship(back_populates="users")
-    teams: Mapped[List["Team"]] = relationship(secondary=team_members, back_populates="members")
-    audit_logs: Mapped[List["AuditLog"]] = relationship(back_populates="user")
 
 class Workspace(Base):
     __tablename__ = "workspaces"
 
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    status: Mapped[str] = mapped_column(String, default="active")
-    plan_tier: Mapped[str] = mapped_column(String, default="standard")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String, default=WorkspaceStatus.ACTIVE.value)
+    plan_tier = Column(String, default="standard")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    users: Mapped[List["User"]] = relationship(back_populates="workspace")
-    teams: Mapped[List["Team"]] = relationship(back_populates="workspace")
+    users = relationship("User", back_populates="workspace")
+    teams = relationship("Team", back_populates="workspace")
 
 class Team(Base):
     __tablename__ = "teams"
 
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    workspace: Mapped["Workspace"] = relationship(back_populates="teams")
-    members: Mapped[List["User"]] = relationship(secondary=team_members, back_populates="teams")
+    workspace = relationship("Workspace", back_populates="teams")
+    members = relationship("User", secondary=team_members, back_populates="teams")
+    messages = relationship("TeamMessage", back_populates="team")
 
-class AuditLog(Base):
-    __tablename__ = "audit_logs"
+class User(Base):
+    __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    event_type: Mapped[str] = mapped_column(String)
-    security_level: Mapped[str] = mapped_column(String)
-    threat_level: Mapped[str] = mapped_column(String, default="normal")
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
-    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id"), nullable=True)
-    user_email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    workspace_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    ip_address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    user_agent: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    resource: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    action: Mapped[str] = mapped_column(String)
-    description: Mapped[str] = mapped_column(Text)
-    metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # Storing JSON as text for simplicity in SQLite/Postgres compatibility
-    success: Mapped[bool] = mapped_column(Boolean, default=True)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=True) # Nullable for SSO users
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
+    role = Column(String, default=UserRole.MEMBER.value)
+    status = Column(String, default=UserStatus.ACTIVE.value)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_login = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    user: Mapped[Optional["User"]] = relationship(back_populates="audit_logs")
+    workspace = relationship("Workspace", back_populates="users")
+    teams = relationship("Team", secondary=team_members, back_populates="members")
+    messages = relationship("TeamMessage", back_populates="sender")
+
+class TeamMessage(Base):
+    __tablename__ = "team_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id = Column(String, ForeignKey("teams.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    
+    # Context (e.g., 'task', 'workflow')
+    context_type = Column(String, nullable=True) 
+    context_id = Column(String, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    team = relationship("Team", back_populates="messages")
+    sender = relationship("User", back_populates="messages")
