@@ -1,240 +1,211 @@
 """
-Health Monitoring System
-
-Periodically checks the health of all integrations and tracks their status.
-Provides alerting for degraded services.
+Integration Health Monitor
+Periodic health checks for all OAuth integrations
 """
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+import time
+from datetime import datetime
+from typing import Dict, List, Optional
 from enum import Enum
-import json
-from pathlib import Path
-
-import httpx
 
 logger = logging.getLogger(__name__)
 
-class ServiceHealth(str, Enum):
+class HealthStatus(Enum):
     HEALTHY = "healthy"
     DEGRADED = "degraded"
-    DOWN = "down"
+    UNHEALTHY = "unhealthy"
     UNKNOWN = "unknown"
 
-class HealthCheck:
-    """Single health check result"""
-    def __init__(
-        self,
-        service_name: str,
-        status: ServiceHealth,
-        response_time_ms: Optional[float] = None,
-        error_message: Optional[str] = None,
-        checked_at: Optional[datetime] = None
-    ):
-        self.service_name = service_name
-        self.status = status
-        self.response_time_ms = response_time_ms
-        self.error_message = error_message
-        self.checked_at = checked_at or datetime.now()
+class IntegrationHealthCheck:
+    """Health check for a single integration"""
     
-    def to_dict(self) -> Dict:
-        return {
-            "service_name": self.service_name,
-            "status": self.status.value,
-            "response_time_ms": self.response_time_ms,
-            "error_message": self.error_message,
-            "checked_at": self.checked_at.isoformat()
-        }
+    def __init__(self, name: str, check_func: callable):
+        self.name = name
+        self.check_func = check_func
+        self.last_check_time: Optional[datetime] = None
+        self.last_status = HealthStatus.UNKNOWN
+        self.last_response_time_ms: Optional[float] = None
+        self.consecutive_failures = 0
+    
+    async def run_check(self) -> Dict:
+        """Execute health check and return results"""
+        start_time = time.time()
+        
+        try:
+            # Run the health check function
+            result = await self.check_func()
+            
+            response_time_ms = (time.time() - start_time) * 1000
+            self.last_response_time_ms = response_time_ms
+            self.last_check_time = datetime.now()
+            
+            # Determine status based on response time and result
+            if result and response_time_ms < 5000:  # Less than 5 seconds
+                self.last_status = HealthStatus.HEALTHY
+                self.consecutive_failures = 0
+            elif result and response_time_ms < 10000:  # 5-10 seconds
+                self.last_status = HealthStatus.DEGRADED
+                self.consecutive_failures = 0
+            else:
+                self.last_status = HealthStatus.UNHEALTHY
+                self.consecutive_failures += 1
+            
+            return {
+                "name": self.name,
+                "status": self.last_status.value,
+                "response_time_ms": round(response_time_ms, 2),
+                "last_check": self.last_check_time.isoformat(),
+                "consecutive_failures": self.consecutive_failures
+            }
+        
+        except Exception as e:
+            self.consecutive_failures += 1
+            self.last_status = HealthStatus.UNHEALTHY
+            self.last_check_time = datetime.now()
+            
+            logger.error(f"Health check failed for {self.name}: {str(e)}")
+            
+            return {
+                "name": self.name,
+                "status": HealthStatus.UNHEALTHY.value,
+                "error": str(e),
+                "last_check": self.last_check_time.isoformat(),
+                "consecutive_failures": self.consecutive_failures
+            }
+
 
 class HealthMonitor:
-    """
-    Monitors health of all integrations and tracks historical data.
-    """
+    """Central health monitoring service for all integrations"""
     
-    def __init__(self, data_dir: str = "./health_data"):
-        self.data_dir = Path(data_dir)
-        self.data_dir.mkdir(exist_ok=True)
-        self.current_health: Dict[str, HealthCheck] = {}
-        self.health_history: List[HealthCheck] = []
-        self.running = False
-        
-        # Service endpoints for health checks
-        self.service_endpoints = {
-            "google": "https://www.googleapis.com/oauth2/v1/tokeninfo",
-            "microsoft": "https://graph.microsoft.com/v1.0/$metadata",
-            "salesforce": "https://login.salesforce.com/services/oauth2/token",
-            "slack": "https://slack.com/api/api.test",
-            "github": "https://api.github.com",
-        }
+    def __init__(self, check_interval_seconds: int = 300):  # 5 minutes default
+        self.health_checks: Dict[str, IntegrationHealthCheck] = {}
+        self.check_interval_seconds = check_interval_seconds
+        self.monitoring_task: Optional[asyncio.Task] = None
+        self.alerts_enabled = True
+        self.alert_threshold = 3  # Alert after 3 consecutive failures
     
-    async def check_service_health(self, service_name: str, endpoint: str) -> HealthCheck:
-        """
-        Check health of a single service.
-        """
-        start_time = datetime.now()
-        
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(endpoint)
-                
-                elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
-                
-                # Determine health based on status code and response time
-                if response.status_code < 400:
-                    if elapsed_ms < 1000:
-                        status = ServiceHealth.HEALTHY
-                    else:
-                        status = ServiceHealth.DEGRADED
-                    error_message = None
-                else:
-                    status = ServiceHealth.DEGRADED
-                    error_message = f"HTTP {response.status_code}"
-                
-                return HealthCheck(
-                    service_name=service_name,
-                    status=status,
-                    response_time_ms=elapsed_ms,
-                    error_message=error_message
-                )
-                
-        except asyncio.TimeoutError:
-            return HealthCheck(
-                service_name=service_name,
-                status=ServiceHealth.DOWN,
-                error_message="Request timeout"
-            )
-        except Exception as e:
-            return HealthCheck(
-                service_name=service_name,
-                status=ServiceHealth.DOWN,
-                error_message=str(e)
-            )
+    def register_health_check(
+        self,
+        service_name: str,
+        check_func: callable
+    ):
+        """Register a health check for a service"""
+        self.health_checks[service_name] = IntegrationHealthCheck(service_name, check_func)
+        logger.info(f"Registered health check for {service_name}")
     
-    async def check_all_services(self) -> List[HealthCheck]:
-        """
-        Check health of all configured services.
-        """
-        logger.info("Starting health check for all services")
+    async def check_all_services(self) -> List[Dict]:
+        """Run health checks for all registered services"""
+        if not self.health_checks:
+            return []
         
-        tasks = [
-            self.check_service_health(service, endpoint)
-            for service, endpoint in self.service_endpoints.items()
-        ]
-        
+        tasks = [check.run_check() for check in self.health_checks.values()]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
-        health_checks = []
-        for result in results:
-            if isinstance(result, Exception):
-                logger.error(f"Health check failed with exception: {result}")
-            else:
-                health_checks.append(result)
-                # Update current health
-                self.current_health[result.service_name] = result
-                # Add to history
-                self.health_history.append(result)
-        
-        # Save health data
-        self._save_health_data()
+        # Filter out exceptions from gather
+        valid_results = [r for r in results if isinstance(r, dict)]
         
         # Check for alerts
-        self._check_alerts(health_checks)
+        if self.alerts_enabled:
+            self._check_alerts(valid_results)
         
-        logger.info(f"Health check complete. {len(health_checks)} services checked.")
-        return health_checks
+        return valid_results
     
-    def _check_alerts(self, health_checks: List[HealthCheck]):
-        """
-        Check if any services need alerts.
-        """
-        for check in health_checks:
-            if check.status == ServiceHealth.DOWN:
-                logger.warning(f"ALERT: Service {check.service_name} is DOWN - {check.error_message}")
-            elif check.status == ServiceHealth.DEGRADED:
-                logger.warning(f"ALERT: Service {check.service_name} is DEGRADED - {check.error_message}")
+    def _check_alerts(self, results: List[Dict]):
+        """Check if any services need alerting"""
+        for result in results:
+            if result.get("consecutive_failures", 0) >= self.alert_threshold:
+                logger.error(
+                    f"ALERT: {result['name']} has failed {result['consecutive_failures']} "
+                    f"consecutive health checks. Status: {result.get('status')}"
+                )
     
-    def _save_health_data(self):
-        """Save current health data to disk"""
-        try:
-            # Save current health
-            current_file = self.data_dir / "current_health.json"
-            with open(current_file, 'w') as f:
-                data = {
-                    service: check.to_dict()
-                    for service, check in self.current_health.items()
-                }
-                json.dump(data, f, indent=2)
-            
-            # Save recent history (last 1000 checks)
-            history_file = self.data_dir / "health_history.json"
-            with open(history_file, 'w') as f:
-                data = [check.to_dict() for check in self.health_history[-1000:]]
-                json.dump(data, f, indent=2)
-                
-        except Exception as e:
-            logger.error(f"Error saving health data: {e}")
+    async def start_monitoring(self):
+        """Start periodic health check monitoring"""
+        if self.monitoring_task and not self.monitoring_task.done():
+            logger.warning("Health monitoring is already running")
+            return
+        
+        logger.info(f"Starting health monitoring (interval: {self.check_interval_seconds}s)")
+        self.monitoring_task = asyncio.create_task(self._monitoring_loop())
     
-    def get_service_status(self, service_name: str) -> Optional[HealthCheck]:
-        """Get current status of a service"""
-        return self.current_health.get(service_name)
-    
-    def get_service_uptime(self, service_name: str, hours: int = 24) -> float:
-        """
-        Calculate uptime percentage for a service over the last N hours.
-        
-        Returns:
-            Uptime percentage (0.0 to 100.0)
-        """
-        cutoff = datetime.now() - timedelta(hours=hours)
-        
-        relevant_checks = [
-            check for check in self.health_history
-            if check.service_name == service_name and check.checked_at >= cutoff
-        ]
-        
-        if not relevant_checks:
-            return 0.0
-        
-        healthy_checks = sum(
-            1 for check in relevant_checks
-            if check.status == ServiceHealth.HEALTHY
-        )
-        
-        return (healthy_checks / len(relevant_checks)) * 100.0
-    
-    async def start_background_monitoring(self, interval_minutes: int = 15):
-        """
-        Start background health monitoring service.
-        
-        Args:
-            interval_minutes: How often to check service health
-        """
-        self.running = True
-        logger.info(f"Starting health monitoring service (interval: {interval_minutes}m)")
-        
-        while self.running:
+    async def _monitoring_loop(self):
+        """Continuous monitoring loop"""
+        while True:
             try:
                 await self.check_all_services()
+                await asyncio.sleep(self.check_interval_seconds)
             except Exception as e:
-                logger.error(f"Error in health monitoring cycle: {e}")
-            
-            # Wait for next cycle
-            await asyncio.sleep(interval_minutes * 60)
+                logger.error(f"Error in monitoring loop: {str(e)}")
+                await asyncio.sleep(60)  # Wait 1 minute before retrying
     
-    def stop(self):
-        """Stop the background monitoring service"""
-        self.running = False
-        logger.info("Health monitoring service stopped")
+    def stop_monitoring(self):
+        """Stop periodic health monitoring"""
+        if self.monitoring_task:
+            self.monitoring_task.cancel()
+            logger.info("Stopped health monitoring")
+    
+    def get_health_summary(self) -> Dict:
+        """Get summary of all service health"""
+        services = []
+        healthy_count = 0
+        degraded_count = 0
+        unhealthy_count = 0
+        
+        for check in self.health_checks.values():
+            status = check.last_status
+            if status == HealthStatus.HEALTHY:
+                healthy_count += 1
+            elif status == HealthStatus.DEGRADED:
+                degraded_count += 1
+            elif status == HealthStatus.UNHEALTHY:
+                unhealthy_count += 1
+            
+            services.append({
+                "name": check.name,
+                "status": status.value,
+                "last_check": check.last_check_time.isoformat() if check.last_check_time else None,
+                "response_time_ms": check.last_response_time_ms,
+                "consecutive_failures": check.consecutive_failures
+            })
+        
+        total_services = len(self.health_checks)
+        health_percentage = (healthy_count / total_services * 100) if total_services > 0 else 0
+        
+        return {
+            "total_services": total_services,
+            "healthy": healthy_count,
+            "degraded": degraded_count,
+            "unhealthy": unhealthy_count,
+            "health_percentage": round(health_percentage, 1),
+            "services": services,
+            "last_updated": datetime.now().isoformat()
+        }
 
 
-# Global instance
-_health_monitor = None
+# Example health check functions
+async def check_google_health() -> bool:
+    """Health check for Google OAuth"""
+    # In production, this would make a lightweight API call
+    await asyncio.sleep(0.1)  # Simulate API call
+    return True
 
-def get_health_monitor() -> HealthMonitor:
-    """Get or create global HealthMonitor instance"""
-    global _health_monitor
-    if _health_monitor is None:
-        _health_monitor = HealthMonitor()
-    return _health_monitor
+async def check_microsoft_health() -> bool:
+    """Health check for Microsoft OAuth"""
+    await asyncio.sleep(0.1)
+    return True
+
+async def check_salesforce_health() -> bool:
+    """Health check for Salesforce OAuth"""
+    await asyncio.sleep(0.1)
+    return True
+
+
+# Global health monitor instance
+health_monitor = HealthMonitor(check_interval_seconds=300)
+
+# Register OAuth services for health monitoring
+health_monitor.register_health_check("google", check_google_health)
+health_monitor.register_health_check("microsoft", check_microsoft_health)
+health_monitor.register_health_check("salesforce", check_salesforce_health)
