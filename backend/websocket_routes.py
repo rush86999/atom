@@ -1,36 +1,34 @@
+
 """
 WebSocket API Endpoints
 Provides WebSocket connections for real-time updates
 """
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-from core.websockets import manager, broadcast_workflow_event, broadcast_system_event, WorkflowEventType
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
+from core.websockets import manager
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 @router.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
-    user_id: str = Query(default="anonymous"),
-    channels: str = Query(default="")
+    token: str = Query(...)
 ):
     """
     WebSocket endpoint for real-time updates
     
     Query params:
-    - user_id: User identifier
-    - channels: Comma-separated list of channels to subscribe to
-      Available channels: workflows, system, health, workflow:{execution_id}
+    - token: JWT access token for authentication
     """
-    await manager.connect(websocket, user_id)
+    user = await manager.connect(websocket, token)
     
-    # Subscribe to requested channels
-    if channels:
-        for channel in channels.split(","):
-            channel = channel.strip()
-            if channel:
-                await manager.subscribe_to_channel(websocket, channel)
+    if not user:
+        # Connection rejected (closed in manager)
+        return
     
     try:
         while True:
@@ -43,32 +41,33 @@ async def websocket_endpoint(
             if message_type == "subscribe":
                 channel = data.get("channel")
                 if channel:
-                    await manager.subscribe_to_channel(websocket, channel)
+                    manager.subscribe(websocket, channel)
             
             elif message_type == "unsubscribe":
                 channel = data.get("channel")
                 if channel:
-                    await manager.unsubscribe_from_channel(websocket, channel)
+                    manager.unsubscribe(websocket, channel)
             
             elif message_type == "ping":
                 # Respond to ping
-                await manager.send_personal_message({
+                await websocket.send_json({
                     "type": "pong",
                     "timestamp": data.get("timestamp")
-                }, websocket)
+                })
             
             elif message_type == "get_stats":
                 # Send connection stats
                 stats = manager.get_stats()
-                await manager.send_personal_message({
+                await websocket.send_json({
                     "type": "stats",
                     "data": stats
-                }, websocket)
+                })
     
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        manager.disconnect(websocket, user.id)
     except Exception as e:
-        manager.disconnect(websocket)
+        logger.error(f"WebSocket error: {e}")
+        manager.disconnect(websocket, user.id)
 
 
 @router.get("/ws/stats")
@@ -81,7 +80,7 @@ async def get_websocket_stats():
 @router.post("/ws/test/broadcast")
 async def test_broadcast(channel: str = "workflows", message: str = "Test message"):
     """Test endpoint to broadcast a message to a channel"""
-    await manager.broadcast_to_channel(channel, {
+    await manager.broadcast(channel, {
         "type": "test",
         "message": message
     })

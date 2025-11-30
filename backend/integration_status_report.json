@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-11-29T16:38:25.945998",
+  "generated_at": "2025-11-29T16:56:22.038206",
   "oauth_integrations": [
     {
       "name": "Salesforce",
@@ -46,37 +46,37 @@
     {
       "name": "Slack",
       "value": 50,
-      "status": "MISSING",
-      "client_id_set": "",
-      "client_secret_set": ""
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
     },
     {
       "name": "GitHub",
       "value": 40,
-      "status": "MISSING",
-      "client_id_set": "",
-      "client_secret_set": ""
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
     },
     {
       "name": "Notion",
       "value": 60,
-      "status": "MISSING",
-      "client_id_set": "",
-      "client_secret_set": ""
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
     },
     {
       "name": "Asana",
       "value": 45,
-      "status": "MISSING",
-      "client_id_set": "",
-      "client_secret_set": ""
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
     },
     {
       "name": "Dropbox",
       "value": 30,
-      "status": "MISSING",
-      "client_id_set": "",
-      "client_secret_set": ""
+      "status": "CONFIGURED",
+      "client_id_set": true,
+      "client_secret_set": true
     },
     {
       "name": "Box",
@@ -95,12 +95,12 @@
   ],
   "summary": {
     "total_oauth": 13,
-    "configured_oauth": 8,
-    "business_value": "$670K/year",
-    "configuration_rate": "61.5%"
+    "configured_oauth": 13,
+    "business_value": "$895K/year",
+    "configuration_rate": "100.0%"
   },
   "api_keys": {
     "total": 9,
-    "configured": 6
+    "configured": 9
   }
 }

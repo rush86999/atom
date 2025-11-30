@@ -184,35 +184,7 @@ async def resume_workflow(execution_id: str, input_data: Dict[str, Any] = Body(.
         
     return {"status": "resumed", "execution_id": execution_id}
 
-@router.post("/workflows/{execution_id}/resume")
-async def resume_workflow(execution_id: str, input_data: Dict[str, Any] = Body(...)):
-    """Resume a paused workflow execution"""
-    from core.workflow_engine import get_workflow_engine
-    from core.execution_state_manager import get_state_manager
-    
-    engine = get_workflow_engine()
-    state_manager = get_state_manager()
-    
-    # Get current state to find workflow definition
-    state = await state_manager.get_execution_state(execution_id)
-    if not state:
-        raise HTTPException(status_code=404, detail="Execution not found")
-        
-    # Load workflow definition
-    # In a real app, we might store the definition snapshot with the execution
-    # For now, load current definition
-    workflows = load_workflows()
-    workflow = next((w for w in workflows if w['id'] == state['workflow_id']), None)
-    
-    if not workflow:
-        raise HTTPException(status_code=404, detail="Workflow definition not found")
-        
-    success = await engine.resume_workflow(execution_id, workflow, input_data)
-    
-    if not success:
-        raise HTTPException(status_code=400, detail="Failed to resume workflow")
-        
-    return {"status": "resumed", "execution_id": execution_id}
+
 
 @router.get("/workflows/{workflow_id}/executions", response_model=List[Dict[str, Any]])
 async def get_workflow_executions(workflow_id: str):
