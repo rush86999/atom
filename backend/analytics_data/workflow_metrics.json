@@ -1,0 +1,11 @@
+{
+  "test_analytics_wf": {
+    "execution_count": 1,
+    "success_count": 1,
+    "failure_count": 0,
+    "total_duration_seconds": 0.52434,
+    "total_time_saved_seconds": 120.0,
+    "total_business_value": 50.0,
+    "last_executed": "2025-11-29T18:04:30.975772"
+  }
+}

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.integration_loader import IntegrationLoader
+from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
 # Load environment variables from project root
 env_path = Path(__file__).parent.parent / ".env"
@@ -28,6 +29,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Security middleware
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=120)  # 120 requests/min per IP
+
 # Initialize Integration Loader
 loader = IntegrationLoader()
 
@@ -42,6 +47,10 @@ try:
     # Include OAuth routers
     from oauth_routes import router as oauth_router # Assuming oauth_routes is a top-level module
     app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
+    
+    # Include WebSocket routes
+    from websocket_routes import router as ws_router
+    app.include_router(ws_router, tags=["WebSockets"])
 
 except ImportError as e:
     print("[CRITICAL] Core API routes failed to load: {}".format(e))
@@ -60,8 +69,10 @@ integrations = [
     ("core.workflow_endpoints", "router", None),
     ("core.analytics_endpoints", "router", None),
     ("core.enterprise_endpoints", "router", None),
+    ("core.workflow_marketplace", "router", None),
     ("core.enterprise_user_management", "router", "/api/v1"),
     ("core.enterprise_security", "router", "/api/v1"),
+    ("core.auto_healing_endpoints", "router", None),
     
     # Unified Endpoints
     ("core.unified_task_endpoints", "router", None),
@@ -145,9 +156,13 @@ integrations = [
     # OAuth Authentication
     ("oauth_routes", "router", None),
     
-    # Core Authentication (Password Reset)
+    # Core Authentication
     ("core.auth_endpoints", "router", None),
+    
+    # Team Messaging
+    ("core.team_messaging", "router", None),
 ]
+
 
 # Load and Mount Integrations
 for entry in integrations:

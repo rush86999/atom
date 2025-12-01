@@ -1,0 +1,71 @@
+{
+  "id": "tmpl_email_summarizer",
+  "name": "Daily Email Summarizer",
+  "description": "Summarize unread emails from Gmail and send a digest to Slack.",
+  "category": "Productivity",
+  "author": "ATOM Team",
+  "version": "1.0.0",
+  "integrations": [
+    "gmail",
+    "slack",
+    "openai"
+  ],
+  "complexity": "Beginner",
+  "workflow_data": {
+    "nodes": [
+      {
+        "id": "1",
+        "type": "trigger",
+        "label": "Every Morning",
+        "config": {
+          "cron": "0 9 * * *"
+        }
+      },
+      {
+        "id": "2",
+        "type": "action",
+        "label": "Fetch Unread Emails",
+        "config": {
+          "integration": "gmail",
+          "action": "list_messages",
+          "query": "is:unread"
+        }
+      },
+      {
+        "id": "3",
+        "type": "action",
+        "label": "Summarize with AI",
+        "config": {
+          "integration": "openai",
+          "action": "summarize"
+        }
+      },
+      {
+        "id": "4",
+        "type": "action",
+        "label": "Send to Slack",
+        "config": {
+          "integration": "slack",
+          "action": "send_message"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "1",
+        "target": "2"
+      },
+      {
+        "source": "2",
+        "target": "3"
+      },
+      {
+        "source": "3",
+        "target": "4"
+      }
+    ]
+  },
+  "created_at": "2025-11-29T18:02:09.838393",
+  "downloads": 1,
+  "rating": 5.0
+}

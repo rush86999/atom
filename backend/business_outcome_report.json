@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-24T11:51:15.112694",
+  "timestamp": "2025-11-29T17:02:53.086737",
   "total_value_score": 1.0,
   "metrics": {},
   "scenarios": [
@@ -7,8 +7,8 @@
       "scenario": "Smart Scheduling",
       "metric": "Time Savings",
       "benchmark_manual": "300s",
-      "actual_system": "1.50s",
-      "value_generated": "298.50s saved per event",
+      "actual_system": "1.51s",
+      "value_generated": "298.49s saved per event",
       "value_score": 1.0,
       "success": true
     },
