@@ -10,6 +10,9 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import os
+from fastapi import Request
+from core.oauth_handler import OAuthHandler, SLACK_OAUTH_CONFIG
+from core.token_storage import token_storage
 
 try:
     from slack_sdk import WebClient
@@ -263,3 +266,30 @@ async def add_slack_reaction(
         "message": f"Reaction {reaction} added successfully",
         "timestamp": datetime.now().isoformat(),
     }
+
+
+@router.post("/callback")
+async def slack_oauth_callback(request: Request):
+    """Handle Slack OAuth callback"""
+    try:
+        data = await request.json()
+        code = data.get("code")
+        
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(SLACK_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+        
+        # Store tokens securely
+        token_storage.save_token("slack", tokens)
+        
+        logger.info("Slack OAuth successful - tokens received and stored")
+        return {"status": "success", "provider": "slack", "tokens": tokens}
+    
+    except HTTPException as e:
+        logger.error(f"Slack OAuth callback failed: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Slack OAuth callback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

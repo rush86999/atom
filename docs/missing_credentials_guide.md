@@ -73,7 +73,7 @@ Use these exact URLs when configuring OAuth apps in provider dashboards:
 | Service | Local Development | Production |
 |---------|-------------------|------------|
 | **Communication** |  |  |
-| Slack | `http://localhost:3000/api/integrations/slack/auth/callback` | `https://yourdomain.com/api/integrations/slack/auth/callback` |
+| Slack | `http://localhost:3000/api/integrations/slack/callback` | `https://yourdomain.com/api/integrations/slack/callback` |
 | Zoom | `http://localhost:3000/api/integrations/zoom/callback` | `https://yourdomain.com/api/integrations/zoom/callback` |
 | MS Teams | `http://localhost:3000/api/integrations/msteams/callback` | `https://yourdomain.com/api/integrations/msteams/callback` |
 | **Google Services** |  |  |
@@ -81,12 +81,12 @@ Use these exact URLs when configuring OAuth apps in provider dashboards:
 | Google Drive | `http://localhost:3000/api/integrations/google/callback` | `https://yourdomain.com/api/integrations/google/callback` |
 | Google Calendar | `http://localhost:3000/api/integrations/google/callback` | `https://yourdomain.com/api/integrations/google/callback` |
 | **Project Management** |  |  |
-| Jira | `http://localhost:3000/api/integrations/jira/auth/callback` | `https://yourdomain.com/api/integrations/jira/auth/callback` |
-| Linear | `http://localhost:3000/api/integrations/linear/auth/callback` | `https://yourdomain.com/api/integrations/linear/auth/callback` |
+| Jira | `http://localhost:3000/api/integrations/jira/callback` | `https://yourdomain.com/api/integrations/jira/callback` |
+| Linear | `http://localhost:3000/api/integrations/linear/callback` | `https://yourdomain.com/api/integrations/linear/callback` |
 | Notion | `http://localhost:3000/api/integrations/notion/callback` | `https://yourdomain.com/api/integrations/notion/callback` |
 | Monday | `http://localhost:3000/api/integrations/monday/callback` | `https://yourdomain.com/api/integrations/monday/callback` |
 | **CRM** |  |  |
-| Salesforce | `http://localhost:3000/api/integrations/salesforce/auth/callback` | `https://yourdomain.com/api/integrations/salesforce/auth/callback` |
+| Salesforce | `http://localhost:3000/api/integrations/salesforce/callback` | `https://yourdomain.com/api/integrations/salesforce/callback` |
 | HubSpot | `http://localhost:3000/api/integrations/hubspot/callback` | `https://yourdomain.com/api/integrations/hubspot/callback` |
 | Zendesk | `http://localhost:3000/api/integrations/zendesk/callback` | `https://yourdomain.com/api/integrations/zendesk/callback` |
 | **Development** |  |  |
@@ -95,10 +95,10 @@ Use these exact URLs when configuring OAuth apps in provider dashboards:
 | Bitbucket | `http://localhost:3000/api/integrations/bitbucket/callback` | `https://yourdomain.com/api/integrations/bitbucket/callback` |
 | **Finance** |  |  |
 | QuickBooks | `http://localhost:3000/api/integrations/quickbooks/callback` | `https://yourdomain.com/api/integrations/quickbooks/callback` |
-| Xero | `http://localhost:3000/api/integrations/xero/auth/callback` | `https://yourdomain.com/api/integrations/xero/auth/callback` |
+| Xero | `http://localhost:3000/api/integrations/xero/callback` | `https://yourdomain.com/api/integrations/xero/callback` |
 | Stripe | `http://localhost:3000/api/integrations/stripe/callback` | `https://yourdomain.com/api/integrations/stripe/callback` |
 | **Cloud Storage** |  |  |
-| Azure | `http://localhost:3000/api/integrations/azure/auth/callback` | `https://yourdomain.com/api/integrations/azure/auth/callback` |
+| Azure | `http://localhost:3000/api/integrations/azure/callback` | `https://yourdomain.com/api/integrations/azure/callback` |
 
 > **Note:** Some services may require you to explicitly whitelist localhost URLs. For services that don't allow localhost, you may need to use a tunneling service like ngrok during development.
 
@@ -198,15 +198,17 @@ The following integrations need credentials. Detailed setup instructions are pro
 > **Need Setup:** Trello
 
 #### Trello
-- **Environment Variables:** `TRELLO_API_KEY`, `TRELLO_TOKEN`
+- **Environment Variables:** `TRELLO_API_KEY`, `TRELLO_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/trello/callback`
 - **Setup Instructions:**
   1. Go to [Trello Power-Ups Admin](https://trello.com/power-ups/admin)
   2. Click "New" → "Create Power-Up"
   3. Fill in required information
   4. Navigate to "API Key" section
-  5. Copy your **API Key**
-  6. Click "Generate a Token" link to get **Token**
-  7. Authorize the token for your account
+  5. Copy your **API Key** (this is your Client ID)
+  6. Click "Generate a new Secret" to get your **Client Secret**
+  7. Add Allowed Origin: `http://localhost:3000` (and your production domain)
+  8. Note: Trello uses a custom OAuth 1.0a implementation or their new OAuth 2.0 flow. We use the standard 3-legged OAuth flow.
 
 ### CRM
 
@@ -215,7 +217,7 @@ The following integrations need credentials. Detailed setup instructions are pro
 
 #### Salesforce
 - **Environment Variables:** `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`
-- **OAuth Callback URL:** `http://localhost:3000/api/integrations/salesforce/auth/callback`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/salesforce/callback`
 - **Setup Instructions:**
   1. Login to [Salesforce](https://login.salesforce.com/)
   2. Navigate to Setup → App Manager
@@ -223,8 +225,8 @@ The following integrations need credentials. Detailed setup instructions are pro
   4. Fill in app name, API name, and contact email
   5. Enable "OAuth Settings"
   6. Add callback URL:
-     - Local: `http://localhost:3000/api/integrations/salesforce/auth/callback`
-     - Production: `https://yourdomain.com/api/integrations/salesforce/auth/callback`
+     - Local: `http://localhost:3000/api/integrations/salesforce/callback`
+     - Production: `https://yourdomain.com/api/integrations/salesforce/callback`
   7. Select OAuth scopes: "Full access (full)", "Perform requests at any time (refresh_token, offline_access)"
   8. Save and copy **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret)
 
@@ -367,13 +369,17 @@ The following integrations need credentials. Detailed setup instructions are pro
 > **Need Setup:** Mailchimp
 
 #### Mailchimp
-- **Environment Variables:** `MAILCHIMP_API_KEY`, `MAILCHIMP_SERVER_PREFIX`
+- **Environment Variables:** `MAILCHIMP_CLIENT_ID`, `MAILCHIMP_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/mailchimp/callback`
 - **Setup Instructions:**
   1. Login to [Mailchimp](https://mailchimp.com/)
-  2. Navigate to Account → Extras → API keys
-  3. Click "Create A Key"
-  4. Copy the **API Key**
-  5. Note your **Server Prefix** (e.g., `us1`, `us2`) from the API key or account settings
+  2. Navigate to Account → Extras → Registered Apps
+  3. Click "Register An App"
+  4. Fill in app details
+  5. Add Redirect URI:
+     - Local: `http://localhost:3000/api/integrations/mailchimp/callback`
+     - Production: `https://yourdomain.com/api/integrations/mailchimp/callback`
+  6. Copy **Client ID** and **Client Secret**
 
 ### Finance
 
@@ -381,16 +387,19 @@ The following integrations need credentials. Detailed setup instructions are pro
 > **Need Setup:** Stripe, QuickBooks, Xero, Shopify
 
 #### Stripe
-- **Environment Variables:** `STRIPE_API_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
+- **Environment Variables:** `STRIPE_CLIENT_ID`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
 - **OAuth Callback URL:** `http://localhost:3000/api/integrations/stripe/callback`
 - **Setup Instructions:**
   1. Go to [Stripe Dashboard](https://dashboard.stripe.com/)
-  2. Navigate to Developers → API keys
-  3. Copy **Secret key** (starts with `sk_`) for `STRIPE_API_KEY`
-  4. Copy **Publishable key** (starts with `pk_`) for `STRIPE_PUBLISHABLE_KEY`
-  5. For webhooks: Developers → Webhooks → Add endpoint
-  6. Set endpoint URL: `https://yourdomain.com/api/webhooks/stripe`
-  7. Copy **Signing secret** for `STRIPE_WEBHOOK_SECRET`
+  2. Navigate to Settings → Connect → Settings
+  3. Enable "Standard" accounts (or Express/Custom as needed)
+  4. Add Redirect URI:
+     - Local: `http://localhost:3000/api/integrations/stripe/callback`
+     - Production: `https://yourdomain.com/api/integrations/stripe/callback`
+  5. Copy **Live mode client ID** (or Test mode client ID) for `STRIPE_CLIENT_ID`
+  6. Go to Developers → API keys
+  7. Copy **Secret key** (`sk_...`) and **Publishable key** (`pk_...`)
+  8. For webhooks: Developers → Webhooks → Add endpoint (`/api/webhooks/stripe`) and get Signing Secret
 
 #### QuickBooks
 - **Environment Variables:** 
@@ -434,14 +443,14 @@ The following integrations need credentials. Detailed setup instructions are pro
 
 #### Xero
 - **Environment Variables:** `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`
-- **OAuth Callback URL:** `http://localhost:3000/api/integrations/xero/auth/callback`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/xero/callback`
 - **Setup Instructions:**
   1. Go to [Xero Developer Portal](https://developer.xero.com/app/manage)
   2. Click "New app"
   3. Fill in app details
   4. Add OAuth 2.0 redirect URI:
-     - Local: `http://localhost:3000/api/integrations/xero/auth/callback`
-     - Production: `https://yourdomain.com/api/integrations/xero/auth/callback`
+     - Local: `http://localhost:3000/api/integrations/xero/callback`
+     - Production: `https://yourdomain.com/api/integrations/xero/callback`
   5. Copy **Client ID** and **Client Secret**
   6. Generate and configure API scopes
 
@@ -479,12 +488,18 @@ The following integrations need credentials. Detailed setup instructions are pro
 > **Need Setup:** Airtable, Tableau, Canva
 
 #### Airtable
-- **Environment Variables:** `AIRTABLE_API_KEY`
+- **Environment Variables:** `AIRTABLE_CLIENT_ID`, `AIRTABLE_CLIENT_SECRET`
+- **OAuth Callback URL:** `http://localhost:3000/api/integrations/airtable/callback`
 - **Setup Instructions:**
-  1. Login to [Airtable](https://airtable.com/)
-  2. Click on your profile → Account
-  3. Navigate to "API" section
-  4. Generate or copy your **API Key**
+  1. Go to [Airtable Builder Hub](https://airtable.com/create/oauth)
+  2. Click "Create new OAuth integration"
+  3. Fill in name and details
+  4. Add Redirect URI:
+     - Local: `http://localhost:3000/api/integrations/airtable/callback`
+     - Production: `https://yourdomain.com/api/integrations/airtable/callback`
+  5. Select Scopes: `data.records:read`, `data.records:write`, `schema.bases:read`
+  6. Save and copy **Client ID** and **Client Secret**
+  7. **Note:** Airtable API Keys are deprecated. Use OAuth.
 
 #### Tableau
 - **Environment Variables:** `TABLEAU_CLIENT_ID`, `TABLEAU_CLIENT_SECRET`

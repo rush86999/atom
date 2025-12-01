@@ -28,11 +28,13 @@ try:
         execute_soql_query
     )
     from .auth_handler_salesforce import salesforce_auth_handler
+    from backend.core.mock_mode import get_mock_mode_manager
 
     SALESFORCE_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Salesforce integration not available: {e}")
     SALESFORCE_AVAILABLE = False
+    from backend.core.mock_mode import get_mock_mode_manager # Import anyway for mock mode
 
 # Create router
 router = APIRouter(prefix="/api/salesforce", tags=["salesforce"])
@@ -84,7 +86,7 @@ async def get_salesforce_auth_url():
         "service": "salesforce"
     }
 
-@router.get("/auth/callback")
+@router.get("/callback")
 async def salesforce_auth_callback(code: str, state: Optional[str] = None):
     """Handle Salesforce OAuth callback"""
     try:
@@ -146,6 +148,21 @@ def format_salesforce_error_response(error_msg: str) -> Dict[str, Any]:
 @router.get("/health")
 async def salesforce_health_check():
     """Check Salesforce integration health"""
+    # Check mock mode first
+    mock_manager = get_mock_mode_manager()
+    sf = get_salesforce_client_from_env()
+    
+    if mock_manager.is_mock_mode("salesforce", bool(sf)):
+        return {
+            "ok": True,
+            "status": "healthy",
+            "service": "salesforce",
+            "timestamp": datetime.utcnow().isoformat(),
+            "available": True,
+            "connected": True,
+            "is_mock": True
+        }
+
     if not SALESFORCE_AVAILABLE:
         raise HTTPException(
             status_code=503, detail="Salesforce integration not available"
@@ -153,7 +170,6 @@ async def salesforce_health_check():
 
     try:
         # Simple health check by testing service availability
-        sf = get_salesforce_client_from_env()
         connected = False
         if sf:
             try:
@@ -169,7 +185,8 @@ async def salesforce_health_check():
             "service": "salesforce",
             "timestamp": datetime.utcnow().isoformat(),
             "available": True,
-            "connected": connected
+            "connected": connected,
+            "is_mock": False
         }
     except Exception as e:
         raise HTTPException(
@@ -193,6 +210,12 @@ async def get_salesforce_accounts(
     try:
         # Use simple service with env client
         sf = get_salesforce_client_from_env()
+        
+        # Check mock mode
+        mock_manager = get_mock_mode_manager()
+        if mock_manager.is_mock_mode("salesforce", bool(sf)):
+            return format_salesforce_response({"accounts": mock_manager.get_mock_data("salesforce", "accounts")})
+
         if not sf:
              # Fallback to mock if no credentials
              return format_salesforce_response({"accounts": [], "message": "No credentials found"})
@@ -276,6 +299,12 @@ async def get_salesforce_contacts(
 
     try:
         sf = get_salesforce_client_from_env()
+        
+        # Check mock mode
+        mock_manager = get_mock_mode_manager()
+        if mock_manager.is_mock_mode("salesforce", bool(sf)):
+            return format_salesforce_response(mock_manager.get_mock_data("salesforce", "contacts"))
+
         if not sf:
              return format_salesforce_error_response("No credentials found")
              
@@ -343,6 +372,12 @@ async def get_salesforce_opportunities(
 
     try:
         sf = get_salesforce_client_from_env()
+        
+        # Check mock mode
+        mock_manager = get_mock_mode_manager()
+        if mock_manager.is_mock_mode("salesforce", bool(sf)):
+            return format_salesforce_response(mock_manager.get_mock_data("salesforce", "opportunities"))
+
         if not sf:
              return format_salesforce_error_response("No credentials found")
 

@@ -44,7 +44,7 @@ try:
     app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
 
 except ImportError as e:
-    print(f"[CRITICAL] Core API routes failed to load: {e}")
+    print("[CRITICAL] Core API routes failed to load: {}".format(e))
 
 # Define Integrations to Load
 # Format: (module_path, router_name, prefix (optional))
