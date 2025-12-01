@@ -8,7 +8,7 @@ export default async function handler(
 
   try {
     // Exchange authorization code for tokens
-    const response = await fetch(`${backendUrl}/api/slack/oauth/callback`, {
+    const response = await fetch(`${backendUrl}/api/slack/callback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -22,7 +22,7 @@ export default async function handler(
 
     if (response.ok) {
       const data = await response.json();
-      
+
       // Redirect to Slack integration page with success message
       res.redirect('/integrations/slack?success=true');
     } else {

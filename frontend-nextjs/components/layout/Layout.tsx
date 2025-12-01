@@ -1,5 +1,7 @@
 // LAYOUT COMPONENT
 import React from 'react';
+import Sidebar from './Sidebar';
+import { cn } from '../../lib/utils';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -8,8 +10,16 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, className = '' }) => {
   return (
-    <div className={`min-h-screen bg-gray-50 ${className}`}>
-      {children}
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Sidebar Navigation */}
+      <Sidebar />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className={cn("flex-1 overflow-y-auto p-6", className)}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 };
