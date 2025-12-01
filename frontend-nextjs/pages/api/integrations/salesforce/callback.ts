@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../auth/[...nextauth]";
+import { authOptions } from "../../auth/[...nextauth]";
 
 export default async function handler(
   req: NextApiRequest,
@@ -16,8 +16,8 @@ export default async function handler(
 
   try {
     // Exchange authorization code for tokens
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
-    const response = await fetch(`${backendUrl}/api/auth/salesforce/callback`, {
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
+    const response = await fetch(`${backendUrl}/api/salesforce/callback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -26,7 +26,7 @@ export default async function handler(
         code: req.query.code,
         state: req.query.state,
         user_id: userId,
-        redirect_uri: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/integrations/salesforce/auth/callback`,
+        redirect_uri: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/integrations/salesforce/callback`,
       }),
     });
 
