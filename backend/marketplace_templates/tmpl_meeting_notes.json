@@ -1,0 +1,71 @@
+{
+  "id": "tmpl_meeting_notes",
+  "name": "Automated Meeting Notes",
+  "description": "Transcribe Zoom recording, generate action items, and save to Notion.",
+  "category": "Productivity",
+  "author": "ATOM Team",
+  "version": "1.0.0",
+  "integrations": [
+    "zoom",
+    "openai",
+    "notion"
+  ],
+  "complexity": "Advanced",
+  "workflow_data": {
+    "nodes": [
+      {
+        "id": "1",
+        "type": "trigger",
+        "label": "New Zoom Recording",
+        "config": {
+          "integration": "zoom",
+          "event": "recording_completed"
+        }
+      },
+      {
+        "id": "2",
+        "type": "action",
+        "label": "Transcribe Audio",
+        "config": {
+          "integration": "openai",
+          "action": "transcribe"
+        }
+      },
+      {
+        "id": "3",
+        "type": "action",
+        "label": "Extract Action Items",
+        "config": {
+          "integration": "openai",
+          "action": "extract_tasks"
+        }
+      },
+      {
+        "id": "4",
+        "type": "action",
+        "label": "Create Notion Page",
+        "config": {
+          "integration": "notion",
+          "action": "create_page"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "1",
+        "target": "2"
+      },
+      {
+        "source": "2",
+        "target": "3"
+      },
+      {
+        "source": "3",
+        "target": "4"
+      }
+    ]
+  },
+  "created_at": "2025-11-29T18:02:09.840356",
+  "downloads": 0,
+  "rating": 5.0
+}

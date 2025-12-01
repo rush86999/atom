@@ -18,8 +18,11 @@ class DatabaseConfig:
     max_overflow: int = 20
     
     def __post_init__(self):
-        if not self.url:
-            self.url = os.getenv('DATABASE_URL', 'sqlite:///atom_data.db')
+        env_url = os.getenv('DATABASE_URL')
+        if env_url:
+            self.url = env_url
+        elif not self.url:
+            self.url = "sqlite:///atom_data.db"
 
 @dataclass
 class LanceDBConfig:
