@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from backend.core.mock_mode import get_mock_mode_manager
+
 # Create router
 router = APIRouter(prefix="/api/hubspot", tags=["hubspot"])
 
@@ -240,6 +242,13 @@ class HubSpotService:
             logger.error(f"Unexpected error getting HubSpot contacts: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
+    async def get_contacts_wrapper(self, limit: int = 100, offset: int = 0):
+        """Wrapper for get_contacts with mock support"""
+        mock_manager = get_mock_mode_manager()
+        if mock_manager.is_mock_mode("hubspot", bool(self.access_token)):
+            return mock_manager.get_mock_data("hubspot", "contacts", limit)
+        return await self.get_contacts(limit, offset)
+
     async def get_companies(
         self, limit: int = 100, offset: int = 0
     ) -> List[HubSpotCompany]:
@@ -355,6 +364,13 @@ class HubSpotService:
         except Exception as e:
             logger.error(f"Unexpected error getting HubSpot deals: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def get_deals_wrapper(self, limit: int = 100, offset: int = 0):
+        """Wrapper for get_deals with mock support"""
+        mock_manager = get_mock_mode_manager()
+        if mock_manager.is_mock_mode("hubspot", bool(self.access_token)):
+            return mock_manager.get_mock_data("hubspot", "deals", limit)
+        return await self.get_deals(limit, offset)
 
     async def get_campaigns(
         self, limit: int = 100, offset: int = 0
@@ -608,7 +624,6 @@ class HubSpotService:
                 "version": "1.0.0",
             }
         except Exception as e:
-            logger.error(f"HubSpot health check failed: {e}")
             return {
                 "ok": False,
                 "status": "unhealthy",
@@ -617,9 +632,23 @@ class HubSpotService:
                 "timestamp": datetime.now().isoformat(),
             }
 
+    async def health_check_wrapper(self) -> dict:
+        """Wrapper for health_check with mock support"""
+        mock_manager = get_mock_mode_manager()
+        if mock_manager.is_mock_mode("hubspot", bool(self.access_token)):
+             return {
+                "ok": True,
+                "status": "healthy",
+                "service": "hubspot",
+                "timestamp": datetime.now().isoformat(),
+                "version": "1.0.0",
+                "is_mock": True
+            }
+        return await self.health_check()
+
 
 # API Routes
-@router.post("/auth")
+@router.post("/callback")
 async def hubspot_auth(auth_request: HubSpotAuthRequest):
     """Authenticate with HubSpot OAuth"""
     service = HubSpotService()
@@ -630,7 +659,7 @@ async def hubspot_auth(auth_request: HubSpotAuthRequest):
 async def get_contacts(limit: int = 100, offset: int = 0):
     """Get HubSpot contacts"""
     service = HubSpotService()
-    return await service.get_contacts(limit, offset)
+    return await service.get_contacts_wrapper(limit, offset)
 
 
 @router.get("/companies")
@@ -644,7 +673,7 @@ async def get_companies(limit: int = 100, offset: int = 0):
 async def get_deals(limit: int = 100, offset: int = 0):
     """Get HubSpot deals"""
     service = HubSpotService()
-    return await service.get_deals(limit, offset)
+    return await service.get_deals_wrapper(limit, offset)
 
 
 @router.get("/campaigns")
@@ -693,7 +722,7 @@ async def get_stats():
 async def health_check():
     """Health check for HubSpot service"""
     service = HubSpotService()
-    return await service.health_check()
+    return await service.health_check_wrapper()
 
 
 @router.get("/")

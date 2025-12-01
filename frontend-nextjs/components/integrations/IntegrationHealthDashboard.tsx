@@ -24,6 +24,7 @@ interface IntegrationHealth {
   connected: boolean;
   enabled: boolean;
   category: string;
+  is_mock?: boolean;
   endpoints: {
     health: string;
     profile?: string;
@@ -383,7 +384,14 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
 
                   <div className="flex-1 space-y-2">
                     <div className="flex justify-between items-center w-full">
-                      <span className="font-bold text-gray-900 dark:text-gray-100">{integration.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-900 dark:text-gray-100">{integration.name}</span>
+                        {integration.is_mock && (
+                          <Badge variant="secondary" className="text-xs bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border-yellow-500/20">
+                            MOCK
+                          </Badge>
+                        )}
+                      </div>
                       <div className="flex space-x-2">
                         <Badge variant="secondary">
                           {integration.category}
@@ -413,7 +421,7 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
                           <span>{formatResponseTime(integration.responseTime)}</span>
                         </div>
 
-                        {integration.errorCount && integration.errorCount > 0 && (
+                        {integration.errorCount !== undefined && integration.errorCount > 0 && (
                           <div className="flex items-center space-x-1 text-red-500" title="Error count">
                             <AlertTriangle className="h-4 w-4" />
                             <span>{integration.errorCount} errors</span>
@@ -427,10 +435,10 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
             </Card>
           );
         })}
-      </div>
+      </div >
 
       {/* Status Legend */}
-      <Card>
+      < Card >
         <CardContent className="pt-6">
           <h4 className="font-bold mb-3 text-gray-900 dark:text-gray-100">Status Legend</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -448,8 +456,8 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
             </div>
           </div>
         </CardContent>
-      </Card>
-    </div>
+      </Card >
+    </div >
   );
 };
 
