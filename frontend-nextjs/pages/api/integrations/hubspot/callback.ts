@@ -17,7 +17,7 @@ export default async function handler(
   try {
     // Exchange authorization code for tokens
     const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
-    const response = await fetch(`${backendUrl}/api/hubspot/auth/callback`, {
+    const response = await fetch(`${backendUrl}/api/hubspot/callback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -25,7 +25,7 @@ export default async function handler(
       body: JSON.stringify({
         code: req.query.code,
         user_id: userId,
-        redirect_uri: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/hubspot/oauth/callback`,
+        redirect_uri: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/integrations/hubspot/callback`,
       }),
     });
 

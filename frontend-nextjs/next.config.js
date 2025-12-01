@@ -41,6 +41,10 @@ const nextConfig = {
         source: "/api/workflow-agent/:path*",
         destination: "http://127.0.0.1:5059/api/workflow-agent/:path*",
       },
+      {
+        source: "/api/atom-agent/:path*",
+        destination: "http://127.0.0.1:5059/api/atom-agent/:path*",
+      },
       // Add general API rewrite for other endpoints
       {
         source: "/api/v1/:path*",
