@@ -111,7 +111,7 @@ async def get_dropbox_oauth_url(state: Optional[str] = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/oauth/callback", summary="Dropbox OAuth callback")
+@router.get("/callback", summary="Dropbox OAuth callback")
 async def dropbox_oauth_callback(code: str = Query(...), state: Optional[str] = None):
     """Handle Dropbox OAuth callback"""
     try:

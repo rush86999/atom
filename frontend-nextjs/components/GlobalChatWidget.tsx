@@ -195,10 +195,10 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             <Popover open={isOpen} onOpenChange={setIsOpen}>
                 <PopoverTrigger asChild>
                     <Button
-                        className="h-14 w-14 rounded-full shadow-xl bg-primary hover:bg-primary/90 transition-all duration-300"
+                        className="h-14 w-14 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300"
                         onClick={() => setIsOpen(true)}
                     >
-                        <MessageSquare className="h-6 w-6 text-primary-foreground" />
+                        <MessageSquare className="h-6 w-6 text-white" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent
