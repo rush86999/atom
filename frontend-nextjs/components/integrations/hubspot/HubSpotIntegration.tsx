@@ -21,6 +21,7 @@ import HubSpotSearch, {
   HubSpotDeal,
   HubSpotActivity,
 } from "./HubSpotSearch";
+import HubSpotDashboard from "./HubSpotDashboard";
 
 // Mock data for fallback demonstration
 const mockContacts: HubSpotContact[] = [
@@ -452,10 +453,14 @@ const HubSpotIntegration: React.FC = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">
             Overview
             <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">All</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="analytics">
+            Analytics
+            <Badge variant="secondary" className="ml-2 bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">📊</Badge>
           </TabsTrigger>
           <TabsTrigger value="contacts">
             Contacts
@@ -499,6 +504,11 @@ const HubSpotIntegration: React.FC = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-6 mt-6">
+          <HubSpotDashboard analytics={analytics} loading={loading} />
         </TabsContent>
 
         {/* Contacts Tab */}
