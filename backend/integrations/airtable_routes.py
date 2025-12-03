@@ -2,6 +2,16 @@
     results: List[Dict]
     timestamp: str
 
+class AirtableService:
+    def __init__(self):
+        self.api_key = "mock_api_key"
+        
+    async def get_base(self, base_id):
+        return {"id": base_id, "tables": []}
+
+airtable_service = AirtableService()
+
+
 @router.get("/status")
 async def airtable_status(user_id: str = "test_user"):
     """Get Airtable integration status"""

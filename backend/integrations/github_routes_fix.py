@@ -9,8 +9,70 @@ import httpx
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 
+
+# Auth Type: OAuth2
+
+# Auth Type: OAuth2
 github_bp = Blueprint('github', __name__)
 logger = logging.getLogger(__name__)
+
+class GitHubService:
+    def __init__(self):
+        self.access_token = "mock_access_token"
+        
+    async def get_repos(self):
+        return []
+
+github_service = GitHubService()
+
+@github_bp.route('/auth/url', methods=['GET'])
+def get_auth_url():
+    """Get GitHub OAuth URL"""
+    return jsonify({
+        'url': 'https://github.com/login/oauth/authorize?client_id=INSERT_CLIENT_ID&redirect_uri=REDIRECT_URI&scope=repo',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+@github_bp.route('/callback', methods=['GET'])
+def handle_callback():
+    """Handle GitHub OAuth callback"""
+    code = request.args.get('code')
+    return jsonify({
+        'ok': True,
+        'code': code,
+        'message': 'GitHub authentication successful (mock)',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+
+class GitHubService:
+    def __init__(self):
+        self.access_token = "mock_access_token"
+        
+    async def get_repos(self):
+        return []
+
+github_service = GitHubService()
+
+@github_bp.route('/auth/url', methods=['GET'])
+def get_auth_url():
+    """Get GitHub OAuth URL"""
+    return jsonify({
+        'url': 'https://github.com/login/oauth/authorize?client_id=INSERT_CLIENT_ID&redirect_uri=REDIRECT_URI&scope=repo',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+@github_bp.route('/callback', methods=['GET'])
+def handle_callback():
+    """Handle GitHub OAuth callback"""
+    code = request.args.get('code')
+    return jsonify({
+        'ok': True,
+        'code': code,
+        'message': 'GitHub authentication successful (mock)',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
 
 @github_bp.route('/health', methods=['GET'])
 def health_check():

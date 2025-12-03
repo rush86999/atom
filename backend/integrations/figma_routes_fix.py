@@ -9,8 +9,39 @@ import httpx
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 
+
+# Auth Type: OAuth2
 figma_bp = Blueprint('figma', __name__)
 logger = logging.getLogger(__name__)
+
+class FigmaService:
+    def __init__(self):
+        self.access_token = "mock_access_token"
+        
+    async def get_files(self):
+        return []
+
+figma_service = FigmaService()
+
+@figma_bp.route('/auth/url', methods=['GET'])
+def get_auth_url():
+    """Get Figma OAuth URL"""
+    return jsonify({
+        'url': 'https://www.figma.com/oauth?client_id=INSERT_CLIENT_ID&redirect_uri=REDIRECT_URI&scope=file_read&response_type=code',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+@figma_bp.route('/callback', methods=['GET'])
+def handle_callback():
+    """Handle Figma OAuth callback"""
+    code = request.args.get('code')
+    return jsonify({
+        'ok': True,
+        'code': code,
+        'message': 'Figma authentication successful (mock)',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
 
 @figma_bp.route('/health', methods=['GET'])
 def health_check():
