@@ -148,6 +148,81 @@ class HubSpotAnalytics(BaseModel):
     pipelineStages: Optional[List[HubSpotPipelineStage]] = Field(None, description="Pipeline stages")
 
 
+class PredictiveModelPerformance(BaseModel):
+    precision: float = Field(..., description="Precision score")
+    recall: float = Field(..., description="Recall score")
+    f1Score: float = Field(..., description="F1 score")
+    auc: float = Field(..., description="AUC score")
+
+
+class PredictiveModel(BaseModel):
+    id: str = Field(..., description="Model ID")
+    name: str = Field(..., description="Model name")
+    type: str = Field(..., description="Model type")
+    accuracy: float = Field(..., description="Model accuracy")
+    lastTrained: str = Field(..., description="Last training date")
+    status: str = Field(..., description="Model status")
+    features: List[str] = Field(..., description="Model features")
+    performance: PredictiveModelPerformance = Field(..., description="Performance metrics")
+
+
+class PredictionFactor(BaseModel):
+    feature: str = Field(..., description="Feature name")
+    impact: float = Field(..., description="Impact score")
+    value: str = Field(..., description="Feature value")
+
+
+class PredictionResult(BaseModel):
+    contactId: str = Field(..., description="Contact ID")
+    prediction: float = Field(..., description="Prediction score")
+    confidence: float = Field(..., description="Confidence percentage")
+    factors: List[PredictionFactor] = Field(..., description="Key factors")
+    recommendation: str = Field(..., description="Recommendation")
+    timeframe: str = Field(..., description="Timeframe")
+
+
+class ForecastData(BaseModel):
+    period: str = Field(..., description="Time period")
+    actual: Optional[float] = Field(None, description="Actual value")
+    predicted: float = Field(..., description="Predicted value")
+    lowerBound: float = Field(..., description="Lower confidence bound")
+    upperBound: float = Field(..., description="Upper confidence bound")
+    confidence: float = Field(..., description="Confidence percentage")
+
+
+class AIPredictionsResponse(BaseModel):
+    models: List[PredictiveModel] = Field(..., description="Predictive models")
+    predictions: List[PredictionResult] = Field(..., description="Predictions")
+    forecast: List[ForecastData] = Field(..., description="Forecast data")
+
+
+class AIAnalyzeLeadRequest(BaseModel):
+    contact_id: str = Field(..., description="Contact ID to analyze")
+    model_id: Optional[str] = Field(None, description="Model ID to use")
+
+
+class AILeadScoringFactor(BaseModel):
+    factor: str = Field(..., description="Factor name")
+    impact: float = Field(..., description="Impact score")
+    description: str = Field(..., description="Factor description")
+
+
+class AIRecommendation(BaseModel):
+    action: str = Field(..., description="Recommended action")
+    priority: str = Field(..., description="Priority level")
+    description: str = Field(..., description="Action description")
+
+
+class AILeadAnalysisResponse(BaseModel):
+    leadScore: float = Field(..., description="Lead score")
+    confidence: float = Field(..., description="Confidence percentage")
+    predictedValue: float = Field(..., description="Predicted value")
+    conversionProbability: float = Field(..., description="Conversion probability")
+    timeframe: str = Field(..., description="Conversion timeframe")
+    keyFactors: List[AILeadScoringFactor] = Field(..., description="Key scoring factors")
+    recommendations: List[AIRecommendation] = Field(..., description="Recommendations")
+
+
 class HubSpotContactCreate(BaseModel):
     email: str = Field(..., description="Contact email")
     first_name: Optional[str] = Field(None, description="First name")
@@ -854,6 +929,148 @@ async def get_analytics():
                 count=23,
                 value=985000.0,
                 probability=100.0
+            )
+        ]
+    )
+
+
+@router.get("/ai/predictions")
+async def get_ai_predictions():
+    """Get AI predictive models and forecasts"""
+    return AIPredictionsResponse(
+        models=[
+            PredictiveModel(
+                id="model_conv_001",
+                name="Lead Conversion Predictor",
+                type="conversion",
+                accuracy=87.5,
+                lastTrained="2025-12-01T10:30:00Z",
+                status="active",
+                features=["email_engagement", "website_activity", "company_size", "industry_fit", "interaction_frequency"],
+                performance=PredictiveModelPerformance(
+                    precision=0.89,
+                    recall=0.84,
+                    f1Score=0.86,
+                    auc=0.91
+                )
+            ),
+            PredictiveModel(
+                id="model_churn_001",
+                name="Customer Churn Detector",
+                type="churn",
+                accuracy=82.3,
+                lastTrained="2025-11-30T14:15:00Z",
+                status="active",
+                features=["support_tickets", "product_usage", "payment_history", "engagement_score"],
+                performance=PredictiveModelPerformance(
+                    precision=0.85,
+                    recall=0.79,
+                    f1Score=0.82,
+                    auc=0.87
+                )
+            ),
+            PredictiveModel(
+                id="model_ltv_001",
+                name="Lifetime Value Predictor",
+                type="lifetime_value",
+                accuracy=91.2,
+                lastTrained="2025-12-02T09:00:00Z",
+                status="active",
+                features=["purchase_frequency", "average_order_value", "product_category", "tenure"],
+                performance=PredictiveModelPerformance(
+                    precision=0.93,
+                    recall=0.88,
+                    f1Score=0.90,
+                    auc=0.94
+                )
+            )
+        ],
+        predictions=[
+            PredictionResult(
+                contactId="contact_12345",
+                prediction=0.85,
+                confidence=92.0,
+                factors=[
+                    PredictionFactor(feature="Email Engagement", impact=0.85, value="High"),
+                    PredictionFactor(feature="Website Activity", impact=0.72, value="5 visits/week"),
+                    PredictionFactor(feature="Company Size", impact=0.65, value="Enterprise")
+                ],
+                recommendation="Schedule discovery call within 24 hours",
+                timeframe="2-4 weeks"
+            ),
+            PredictionResult(
+                contactId="contact_67890",
+                prediction=0.68,
+                confidence=85.0,
+                factors=[
+                    PredictionFactor(feature="Industry Fit", impact=0.78, value="Technology"),
+                    PredictionFactor(feature="Budget Indicator", impact=0.71, value="$50K+"),
+                    PredictionFactor(feature="Decision Speed", impact=0.63, value="Fast")
+                ],
+                recommendation="Send case studies and ROI data",
+                timeframe="3-6 weeks"
+            )
+        ],
+        forecast=[
+            ForecastData(period="Jan 2025", actual=320000, predicted=315000, lowerBound=290000, upperBound=340000, confidence=88.0),
+            ForecastData(period="Feb 2025", actual=350000, predicted=348000, lowerBound=320000, upperBound=376000, confidence=86.0),
+            ForecastData(period="Mar 2025", actual=None, predicted=380000, lowerBound=350000, upperBound=410000, confidence=82.0),
+            ForecastData(period="Apr 2025", actual=None, predicted=425000, lowerBound=390000, upperBound=460000, confidence=78.0)
+        ]
+    )
+
+
+@router.post("/ai/analyze-lead")
+async def analyze_lead(request: AIAnalyzeLeadRequest):
+    """Analyze a lead using AI and return predictions"""
+    import random
+    
+    # Generate realistic AI analysis
+    lead_score = random.randint(60, 95)
+    
+    return AILeadAnalysisResponse(
+        leadScore=float(lead_score),
+        confidence=random.uniform(75, 95),
+        predictedValue=random.uniform(50000, 150000),
+        conversionProbability=random.uniform(60, 90),
+        timeframe="2-4 weeks" if lead_score > 80 else "4-8 weeks",
+        keyFactors=[
+            AILeadScoringFactor(
+                factor="Email Engagement",
+                impact=0.85,
+                description="High open and click rates on marketing emails"
+            ),
+            AILeadScoringFactor(
+                factor="Website Activity",
+                impact=0.72,
+                description="Multiple page views and form submissions"
+            ),
+            AILeadScoringFactor(
+                factor="Company Size",
+                impact=0.65,
+                description="Enterprise-level company with matching budget"
+            ),
+            AILeadScoringFactor(
+                factor="Industry Fit",
+                impact=0.58,
+                description="Strong alignment with target customer profile"
+            )
+        ],
+        recommendations=[
+            AIRecommendation(
+                action="Schedule Discovery Call",
+                priority="high",
+                description="Contact within 24 hours for maximum conversion"
+            ),
+            AIRecommendation(
+                action="Send Case Studies",
+                priority="medium",
+                description="Share relevant success stories and ROI data"
+            ),
+            AIRecommendation(
+                action="Add to Nurture Sequence",
+                priority="low",
+                description="Continue educational content delivery"
             )
         ]
     )

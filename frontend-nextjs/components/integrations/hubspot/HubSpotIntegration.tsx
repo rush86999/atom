@@ -22,6 +22,8 @@ import HubSpotSearch, {
   HubSpotActivity,
 } from "./HubSpotSearch";
 import HubSpotDashboard from "./HubSpotDashboard";
+import HubSpotPredictiveAnalytics from "./HubSpotPredictiveAnalytics";
+import HubSpotAIService from "./HubSpotAIService";
 
 // Mock data for fallback demonstration
 const mockContacts: HubSpotContact[] = [
@@ -172,6 +174,8 @@ const HubSpotIntegration: React.FC = () => {
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>({});
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [aiPredictions, setAIPredictions] = useState<any>(null);
+  const [selectedContact, setSelectedContact] = useState<HubSpotContact | null>(null);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -189,6 +193,7 @@ const HubSpotIntegration: React.FC = () => {
             campaignsData,
             pipelinesData,
             analyticsData,
+            aiPredictionsData,
           ] = await Promise.all([
             hubspotApi.getContacts(),
             hubspotApi.getCompanies(),
@@ -196,6 +201,7 @@ const HubSpotIntegration: React.FC = () => {
             hubspotApi.getCampaigns(),
             hubspotApi.getPipelines(),
             hubspotApi.getAnalytics(),
+            hubspotApi.getAIPredictions(),
           ]);
 
           setContacts(
@@ -212,6 +218,8 @@ const HubSpotIntegration: React.FC = () => {
           setCampaigns(campaignsData);
           setPipelines(pipelinesData);
           setAnalytics(analyticsData);
+          setAIPredictions(aiPredictionsData);
+          setSelectedContact(contactsData.contacts[0] || null);
         } else {
           // Use mock data for demonstration
           setContacts(mockContacts);
@@ -453,7 +461,7 @@ const HubSpotIntegration: React.FC = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="overview">
             Overview
             <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">All</Badge>
@@ -477,6 +485,14 @@ const HubSpotIntegration: React.FC = () => {
           <TabsTrigger value="campaigns">
             Campaigns
             <Badge variant="secondary" className="ml-2 bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300">{campaigns.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="predictive">
+            Predictive
+            <Badge variant="secondary" className="ml-2 bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">🔮</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="ai-insights">
+            AI Insights
+            <Badge variant="secondary" className="ml-2 bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300">🤖</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -617,6 +633,24 @@ const HubSpotIntegration: React.FC = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Predictive Analytics Tab */}
+        <TabsContent value="predictive" className="space-y-6 mt-6">
+          <HubSpotPredictiveAnalytics
+            models={aiPredictions?.models || []}
+            predictions={aiPredictions?.predictions || []}
+            forecast={aiPredictions?.forecast || []}
+          />
+        </TabsContent>
+
+        {/* AI Insights Tab */}
+        <TabsContent value="ai-insights" className="space-y-6 mt-6">
+          <HubSpotAIService
+            contact={selectedContact}
+            company={companies[0]}
+            activities={[]}
+          />
         </TabsContent>
       </Tabs>
     </div>
