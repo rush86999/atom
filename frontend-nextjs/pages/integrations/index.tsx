@@ -503,10 +503,11 @@ const IntegrationsPage: React.FC = () => {
 
       const updatedIntegrations = integrationList.map((integration, index) => {
         const healthResponse = healthChecks[index];
+        const isHealthy = healthResponse?.ok || false;
         return {
           ...integration,
-          connected: healthResponse.ok,
-          health: healthResponse.ok ? "healthy" : "error",
+          connected: isHealthy,
+          health: isHealthy ? "healthy" : "error",
         };
       });
 
@@ -715,11 +716,11 @@ const IntegrationsPage: React.FC = () => {
                           integration.status === "complete"
                             ? "default"
                             : integration.status === "in-progress"
-                            ? "secondary"
-                            : "outline"
+                              ? "secondary"
+                              : "outline"
                         }
                         className={
-                            integration.status === "complete" ? "bg-green-500 hover:bg-green-600" :
+                          integration.status === "complete" ? "bg-green-500 hover:bg-green-600" :
                             integration.status === "in-progress" ? "bg-yellow-500 hover:bg-yellow-600" : ""
                         }
                       >

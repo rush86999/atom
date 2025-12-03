@@ -7,16 +7,13 @@ export default async function handler(
   const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
 
   try {
-    const response = await fetch(`${backendUrl}/api/slack/channels`, {
-      method: 'POST',
+    const userId = req.query.user_id || req.body?.user_id || 'current';
+    const response = await fetch(`${backendUrl}/api/slack/channels?user_id=${userId}`, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'x-user-id': 'current',
       },
-      body: JSON.stringify({
-        ...req.body,
-        user_id: 'current',
-      }),
     });
 
     const data = await response.json();
