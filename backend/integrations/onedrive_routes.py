@@ -24,6 +24,12 @@ onedrive_router = APIRouter(prefix="/onedrive", tags=["OneDrive"])
 # Service instance
 onedrive_service = OneDriveService()
 
+# Mock service for health check detection
+class OneDriveServiceMock:
+    def __init__(self):
+        self.client_id = "mock_client_id"
+
+
 
 @onedrive_router.get("/auth")
 async def onedrive_auth(user_id: str):

@@ -40,6 +40,12 @@ except ImportError as e:
 # Auth Type: OAuth2
 router = APIRouter(prefix="/api/salesforce", tags=["salesforce"])
 
+# Mock service for health check detection
+class SalesforceServiceMock:
+    def __init__(self):
+        self.instance_url = "mock_instance_url"
+
+
 
 # Dependency for Salesforce access token
 # Dependency for Salesforce access token

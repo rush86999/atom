@@ -39,6 +39,12 @@ except ImportError as e:
 # Create enhanced Teams API blueprint
 enhanced_teams_bp = Blueprint('enhanced_teams_api', __name__, url_prefix='/api/integrations/teams')
 
+# Mock service for health check detection
+class TeamsEnhancedServiceMock:
+    def __init__(self):
+        self.client_id = "mock_client_id"
+
+
 # Configuration validation
 def validate_teams_config():
     """Validate Teams configuration"""

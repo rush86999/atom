@@ -2,17 +2,17 @@
   "total_services": 124,
   "by_category": {
     "enterprise": 5,
-    "industry": 3,
     "development": 9,
-    "finance": 6,
-    "communication": 34,
-    "crm": 12,
-    "calendar": 3,
-    "other": 14,
-    "ai": 7,
-    "email": 8,
     "project_management": 15,
-    "storage": 8
+    "crm": 12,
+    "other": 14,
+    "communication": 34,
+    "ai": 7,
+    "industry": 3,
+    "email": 8,
+    "finance": 6,
+    "storage": 8,
+    "calendar": 3
   },
   "services": {
     "airtable_routes": {
@@ -921,7 +921,9 @@
     "microsoft365_routes": {
       "name": "microsoft365_routes",
       "file": "backend\\integrations\\microsoft365_routes.py",
-      "classes": [],
+      "classes": [
+        "Microsoft365ServiceMock"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
@@ -1004,7 +1006,9 @@
     "onedrive_routes": {
       "name": "onedrive_routes",
       "file": "backend\\integrations\\onedrive_routes.py",
-      "classes": [],
+      "classes": [
+        "OneDriveServiceMock"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
@@ -1157,7 +1161,9 @@
     "salesforce_routes": {
       "name": "salesforce_routes",
       "file": "backend\\integrations\\salesforce_routes.py",
-      "classes": [],
+      "classes": [
+        "SalesforceServiceMock"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
@@ -1202,7 +1208,9 @@
     "slack_enhanced_api_routes": {
       "name": "slack_enhanced_api_routes",
       "file": "backend\\integrations\\slack_enhanced_api_routes.py",
-      "classes": [],
+      "classes": [
+        "SlackEnhancedServiceMock"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
@@ -1312,7 +1320,9 @@
     "teams_enhanced_api_routes": {
       "name": "teams_enhanced_api_routes",
       "file": "backend\\integrations\\teams_enhanced_api_routes.py",
-      "classes": [],
+      "classes": [
+        "TeamsEnhancedServiceMock"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
