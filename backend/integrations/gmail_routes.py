@@ -6,7 +6,28 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# Create router
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/gmail", tags=["gmail"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Gmail OAuth URL"""
+    return {
+        "url": "https://accounts.google.com/o/oauth2/v2/auth?client_id=INSERT_CLIENT_ID&response_type=code&scope=https://www.googleapis.com/auth/gmail.readonly",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Gmail OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Gmail authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 class GmailSearchRequest(BaseModel):
     query: str

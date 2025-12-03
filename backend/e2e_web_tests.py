@@ -6,6 +6,7 @@ Tests user journeys in the Next.js frontend to validate business value delivery
 
 import asyncio
 import json
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +18,20 @@ try:
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
     print("[WARN] Playwright not installed. Run: pip install playwright && playwright install")
+
+# Suppress Windows-specific asyncio errors
+if sys.platform == "win32":
+    from asyncio import base_subprocess
+    from asyncio import proactor_events
+    
+    def _silence_del(self):
+        try:
+            self.close()
+        except:
+            pass
+
+    base_subprocess.BaseSubprocessTransport.__del__ = _silence_del
+    proactor_events._ProactorBasePipeTransport.__del__ = _silence_del
 
 class WebAppBusinessValueTester:
     """E2E tester for web app business value scenarios"""
@@ -39,23 +54,12 @@ class WebAppBusinessValueTester:
     async def teardown(self):
         """Close browser"""
         if self.browser:
-            await self.browser.close()
+            try:
+                await self.browser.close()
+            except Exception:
+                # Ignore errors during cleanup, especially on Windows
+                pass
     
-<<<<<<< HEAD
-    async def login(self):
-        """Helper to log in before tests"""
-        try:
-            # Increase timeout for initial load as compilation might be slow
-            await self.page.goto(f"{self.base_url}/auth/signin", timeout=60000)
-            await self.page.fill('input[type="email"]', "test@example.com")
-            await self.page.fill('input[type="password"]', "password")
-            await self.page.click('button[type="submit"]')
-            await self.page.wait_for_url(f"{self.base_url}/", timeout=10000)
-        except Exception as e:
-            print(f"Login failed: {e}")
-            # Continue anyway as some tests might work or we want to see the error
-
-=======
     async def login(self, email: str = "test@example.com", password: str = "testpassword"):
         """
         Login to the application using credentials form
@@ -82,8 +86,6 @@ class WebAppBusinessValueTester:
         except Exception as e:
             print(f"[WARN] Login failed: {e}")
             return False
-    
->>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
     async def test_calendar_event_creation_speed(self) -> Dict[str, Any]:
         """
         Test: Calendar event creation via UI
@@ -165,11 +167,7 @@ class WebAppBusinessValueTester:
         try:
             # Login first
             await self.login()
-<<<<<<< HEAD
 
-=======
-            
->>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
             start_time = time.time()
             await self.page.goto(f"{self.base_url}/search")
             
@@ -219,11 +217,7 @@ class WebAppBusinessValueTester:
         try:
             # Login first
             await self.login()
-<<<<<<< HEAD
 
-=======
-            
->>>>>>> 8237b65ebefb1964fb11e13ede17852a5131c004
             start_time = time.time()
             await self.page.goto(f"{self.base_url}/tasks")
             

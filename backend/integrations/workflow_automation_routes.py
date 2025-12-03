@@ -164,7 +164,18 @@ class ErrorResponse(BaseModel):
 
 
 # Create router
+# Auth Type: Internal
 router = APIRouter(prefix="/workflows", tags=["Workflow Automation"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Workflow Auth URL (mock)"""
+    return {"url": "internal://auth", "timestamp": datetime.now().isoformat()}
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Workflow Auth callback (mock)"""
+    return {"ok": True, "message": "Workflow auth successful"}
 
 # Initialize enhanced workflow components
 if ENHANCED_WORKFLOW_AVAILABLE:

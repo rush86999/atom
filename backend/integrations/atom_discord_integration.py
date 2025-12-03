@@ -25,6 +25,7 @@ except ImportError as e:
 
 logger = logging.getLogger(__name__)
 
+# Auth Type: Bot Token
 class AtomDiscordIntegration:
     """Main integration class for Discord within ATOM ecosystem"""
     

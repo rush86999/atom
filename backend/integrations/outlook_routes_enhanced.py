@@ -22,7 +22,27 @@ from outlook_service_enhanced import (
 logger = logging.getLogger(__name__)
 
 # Initialize router
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/integrations/outlook", tags=["outlook"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Outlook OAuth URL"""
+    return {
+        "url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=INSERT_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fintegrations%2Foutlook%2Fcallback&response_mode=query&scope=User.Read%20Mail.ReadWrite%20Calendars.ReadWrite%20Contacts.ReadWrite",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Outlook OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Outlook authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 # Initialize enhanced Outlook service
 outlook_service = OutlookEnhancedService()

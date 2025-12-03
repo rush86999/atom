@@ -6,7 +6,27 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/xero", tags=["xero"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Xero OAuth URL"""
+    return {
+        "url": "https://login.xero.com/identity/connect/authorize?response_type=code&client_id=INSERT_CLIENT_ID&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fxero%2Fcallback&scope=openid profile email accounting.transactions",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Xero OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Xero authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 class XeroSearchRequest(BaseModel):
     query: str
