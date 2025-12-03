@@ -40,6 +40,11 @@ except ImportError as e:
     STRIPE_AVAILABLE = False
 
 
+# Mock service for health check detection
+class StripeServiceMock:
+    def __init__(self):
+        self.api_key = "mock_api_key"
+
 # Webhook event handlers
 async def handle_payment_success(payment_intent):
     """Handle successful payment webhook"""

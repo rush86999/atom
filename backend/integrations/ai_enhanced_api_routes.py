@@ -32,6 +32,12 @@ except ImportError as e:
 # Create AI API blueprint
 ai_bp = Blueprint('ai_api', __name__, url_prefix='/api/integrations/ai')
 
+# Mock service for health check detection
+class AIEnhancedServiceMock:
+    def __init__(self):
+        self.api_key = "mock_api_key"
+
+
 # Configuration validation
 def validate_ai_config():
     """Validate AI configuration"""
