@@ -1,6 +1,36 @@
 from fastapi import APIRouter, HTTPException
 
+from datetime import datetime
+
+# Auth Type: API Key
 router = APIRouter(prefix="/api/twilio", tags=["twilio"])
+
+class TwilioService:
+    def __init__(self):
+        self.account_sid = "mock_sid"
+        
+    async def send_sms(self, to, body):
+        return {"sid": "mock_msg_sid"}
+
+twilio_service = TwilioService()
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Twilio Auth URL (mock)"""
+    return {
+        "url": "https://www.twilio.com/console",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(sid: str):
+    """Handle Twilio Auth callback (mock)"""
+    return {
+        "ok": True,
+        "status": "success",
+        "message": "Twilio authentication successful (mock)",
+        "timestamp": datetime.now().isoformat()
+    }
 
 @router.get("/status")
 async def twilio_status():
