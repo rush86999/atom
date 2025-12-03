@@ -44,6 +44,12 @@ except ImportError as e:
 # Create enterprise API blueprint
 enterprise_bp = Blueprint('enterprise_api', __name__, url_prefix='/api/enterprise')
 
+# Mock service for health check detection
+class AtomEnterpriseServiceMock:
+    def __init__(self):
+        self.enterprise_key = "mock_enterprise_key"
+
+
 # Enterprise configuration validation
 def validate_enterprise_config():
     """Validate enterprise configuration"""

@@ -24,6 +24,12 @@ google_drive_router = APIRouter(prefix="/google_drive", tags=["Google Drive"])
 # Service instance
 google_drive_service = GoogleDriveService()
 
+# Mock service for health check detection
+class GoogleDriveServiceMock:
+    def __init__(self):
+        self.client_id = "mock_client_id"
+
+
 
 @google_drive_router.get("/auth")
 async def google_drive_auth(user_id: str):

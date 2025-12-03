@@ -2,17 +2,17 @@
   "total_services": 124,
   "by_category": {
     "enterprise": 5,
-    "development": 9,
-    "project_management": 15,
-    "crm": 12,
-    "other": 14,
-    "communication": 34,
-    "ai": 7,
     "industry": 3,
-    "email": 8,
+    "project_management": 15,
+    "calendar": 3,
+    "development": 9,
     "finance": 6,
+    "crm": 12,
+    "ai": 7,
+    "communication": 34,
+    "other": 14,
     "storage": 8,
-    "calendar": 3
+    "email": 8
   },
   "services": {
     "airtable_routes": {
@@ -30,7 +30,9 @@
     "ai_enhanced_api_routes": {
       "name": "ai_enhanced_api_routes",
       "file": "backend\\integrations\\ai_enhanced_api_routes.py",
-      "classes": [],
+      "classes": [
+        "AIEnhancedServiceMock"
+      ],
       "auth_type": "api_key",
       "has_connect": false,
       "has_health_check": false,
@@ -159,7 +161,9 @@
     "atom_enterprise_api_routes": {
       "name": "atom_enterprise_api_routes",
       "file": "backend\\integrations\\atom_enterprise_api_routes.py",
-      "classes": [],
+      "classes": [
+        "AtomEnterpriseServiceMock"
+      ],
       "auth_type": "token",
       "has_connect": false,
       "has_health_check": false,
@@ -760,7 +764,9 @@
     "google_drive_routes": {
       "name": "google_drive_routes",
       "file": "backend\\integrations\\google_drive_routes.py",
-      "classes": [],
+      "classes": [
+        "GoogleDriveServiceMock"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
@@ -984,8 +990,10 @@
     "notion_routes_fix": {
       "name": "notion_routes_fix",
       "file": "backend\\integrations\\notion_routes_fix.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "NotionService"
+      ],
+      "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": true,
       "status": "discovered",
@@ -1284,7 +1292,9 @@
     "stripe_routes": {
       "name": "stripe_routes",
       "file": "backend\\integrations\\stripe_routes.py",
-      "classes": [],
+      "classes": [
+        "StripeServiceMock"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,

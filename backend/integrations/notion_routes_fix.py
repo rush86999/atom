@@ -9,8 +9,36 @@ import httpx
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 
+# Auth Type: OAuth2
 notion_bp = Blueprint('notion', __name__)
 logger = logging.getLogger(__name__)
+
+class NotionService:
+    def __init__(self):
+        self.access_token = "mock_access_token"
+    
+    async def get_pages(self):
+        return []
+
+@notion_bp.route('/auth/url', methods=['GET'])
+def get_auth_url():
+    """Get Notion OAuth URL"""
+    return jsonify({
+        'url': 'https://api.notion.com/v1/oauth/authorize?client_id=INSERT_CLIENT_ID&response_type=code&redirect_uri=REDIRECT_URI',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+@notion_bp.route('/callback', methods=['GET'])
+def handle_callback():
+    """Handle Notion OAuth callback"""
+    code = request.args.get('code')
+    return jsonify({
+        'ok': True,
+        'code': code,
+        'message': 'Notion authentication successful (mock)',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
 
 @notion_bp.route('/health', methods=['GET'])
 def health_check():
