@@ -1,6 +1,36 @@
 from fastapi import APIRouter, HTTPException
 
+from datetime import datetime
+
+# Auth Type: API Key
 router = APIRouter(prefix="/api/deepgram", tags=["deepgram"])
+
+class DeepgramService:
+    def __init__(self):
+        self.api_key = "mock_api_key"
+        
+    async def transcribe(self, audio_url):
+        return {"transcript": "Mock transcription"}
+
+deepgram_service = DeepgramService()
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Deepgram Auth URL (mock)"""
+    return {
+        "url": "https://console.deepgram.com/signup",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(key: str):
+    """Handle Deepgram Auth callback (mock)"""
+    return {
+        "ok": True,
+        "status": "success",
+        "message": "Deepgram authentication successful (mock)",
+        "timestamp": datetime.now().isoformat()
+    }
 
 @router.get("/status")
 async def deepgram_status():
