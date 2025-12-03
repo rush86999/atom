@@ -63,7 +63,7 @@ class IntegrationRegistry:
     def _analyze_service_file(self, file: Path) -> Dict[str, Any]:
         """Analyze a service file to extract metadata"""
         try:
-            content = file.read_text()
+            content = file.read_text(encoding="utf-8", errors="ignore")
             
             # Extract class names
             classes = re.findall(r'class\s+(\w+)', content)

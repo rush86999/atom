@@ -37,6 +37,7 @@ except ImportError as e:
     from backend.core.mock_mode import get_mock_mode_manager # Import anyway for mock mode
 
 # Create router
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/salesforce", tags=["salesforce"])
 
 

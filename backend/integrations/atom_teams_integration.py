@@ -25,6 +25,7 @@ except ImportError as e:
 
 logger = logging.getLogger(__name__)
 
+# Auth Type: OAuth2
 class AtomTeamsIntegration:
     """Main integration class for Microsoft Teams within ATOM ecosystem"""
     

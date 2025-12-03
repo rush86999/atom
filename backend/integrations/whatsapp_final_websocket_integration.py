@@ -10,6 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Auth Type: API Key
 class WhatsAppWebSocketFinal:
     """Final WebSocket integration with proper routing"""
     
@@ -19,6 +20,16 @@ class WhatsAppWebSocketFinal:
     
     def setup_final_routes(self):
         """Setup final WebSocket routes"""
+        
+        @self.router.get("/auth/url")
+        async def get_auth_url():
+            """Get WhatsApp Auth URL (mock)"""
+            return {"url": "https://whatsapp.com/auth", "timestamp": datetime.now().isoformat()}
+
+        @self.router.get("/callback")
+        async def handle_oauth_callback(code: str):
+            """Handle WhatsApp Auth callback (mock)"""
+            return {"ok": True, "message": "WhatsApp auth successful"}
         
         @self.router.websocket("/whatsapp")
         async def final_websocket_endpoint(websocket: WebSocket):

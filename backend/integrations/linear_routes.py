@@ -52,7 +52,27 @@ class SearchRequest(BaseModel):
 
 
 # Initialize router
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/linear", tags=["linear"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Linear OAuth URL"""
+    return {
+        "url": "https://linear.app/oauth/authorize?client_id=INSERT_CLIENT_ID&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Flinear%2Fcallback&response_type=code&scope=read%20write",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Linear OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Linear authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 # Mock data for development
 MOCK_ISSUES = [

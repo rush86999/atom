@@ -6,7 +6,28 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# Create router
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/gitlab", tags=["gitlab"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get GitLab OAuth URL"""
+    return {
+        "url": "https://gitlab.com/oauth/authorize?client_id=INSERT_CLIENT_ID&redirect_uri=REDIRECT_URI&response_type=code",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle GitLab OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "GitLab authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 class GitlabSearchRequest(BaseModel):
     query: str

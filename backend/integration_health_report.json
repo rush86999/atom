@@ -1,1285 +1,42 @@
 {
   "summary": {
-    "total_services": 117,
-    "ready": 57,
-    "partial": 32,
-    "incomplete": 28,
+    "total_services": 124,
+    "ready": 82,
+    "partial": 8,
+    "incomplete": 34,
     "file_missing": 0,
-    "readiness_score": 48.72
+    "readiness_score": 66.13
   },
   "by_category": {
-    "email": 8,
+    "other": 14,
     "ai": 7,
-    "communication": 34,
-    "finance": 6,
-    "storage": 8,
-    "development": 9,
-    "other": 8,
     "project_management": 15,
+    "communication": 34,
+    "industry": 3,
     "enterprise": 5,
     "crm": 12,
-    "industry": 3,
-    "calendar": 2
+    "finance": 6,
+    "development": 9,
+    "storage": 8,
+    "email": 8,
+    "calendar": 3
   },
   "by_status": {
-    "READY": 57,
-    "PARTIAL": 32,
-    "INCOMPLETE": 28
+    "INCOMPLETE": 34,
+    "READY": 82,
+    "PARTIAL": 8
   },
   "detailed_results": {
-    "outlook_integration": {
-      "service": "outlook_integration",
-      "category": "email",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "atom_video_ai_service": {
-      "service": "atom_video_ai_service",
-      "category": "ai",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "google_chat_enhanced_service": {
-      "service": "google_chat_enhanced_service",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "stripe_service": {
-      "service": "stripe_service",
-      "category": "finance",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "discord_routes": {
-      "service": "discord_routes",
-      "category": "communication",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "box_routes": {
-      "service": "box_routes",
-      "category": "storage",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "whatsapp_service_manager": {
-      "service": "whatsapp_service_manager",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "figma_routes": {
-      "service": "figma_routes",
-      "category": "development",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "mailchimp_routes": {
-      "service": "mailchimp_routes",
-      "category": "email",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "quickbooks_routes": {
-      "service": "quickbooks_routes",
-      "category": "finance",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.346347"
-    },
-    "github_routes_fix": {
-      "service": "github_routes_fix",
-      "category": "development",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.347377"
-    },
-    "github_service": {
-      "service": "github_service",
-      "category": "development",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.347377"
-    },
-    "atom_quickbooks_integration_service": {
-      "service": "atom_quickbooks_integration_service",
-      "category": "finance",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.347377"
-    },
-    "whatsapp_websocket_routes": {
-      "service": "whatsapp_websocket_routes",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.347377"
-    },
-    "email_routes": {
-      "service": "email_routes",
-      "category": "other",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.347377"
-    },
-    "teams_enhanced_service": {
-      "service": "teams_enhanced_service",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.347377"
-    },
-    "jira_routes_fix": {
-      "service": "jira_routes_fix",
-      "category": "project_management",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.347377"
-    },
-    "slack_routes": {
-      "service": "slack_routes",
-      "category": "communication",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.347377"
-    },
-    "atom_voice_ai_service": {
-      "service": "atom_voice_ai_service",
-      "category": "ai",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.347377"
-    },
-    "trello_service": {
-      "service": "trello_service",
-      "category": "project_management",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.348343"
-    },
-    "atom_zoom_integration": {
-      "service": "atom_zoom_integration",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.348343"
-    },
-    "atom_enterprise_api_routes": {
-      "service": "atom_enterprise_api_routes",
-      "category": "enterprise",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.348343"
-    },
-    "shopify_routes": {
-      "service": "shopify_routes",
-      "category": "finance",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.348343"
-    },
-    "zendesk_routes": {
-      "service": "zendesk_routes",
-      "category": "crm",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.348343"
-    },
-    "workflow_automation_routes": {
-      "service": "workflow_automation_routes",
-      "category": "enterprise",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.348343"
-    },
-    "dropbox_routes": {
-      "service": "dropbox_routes",
-      "category": "storage",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.348343"
-    },
-    "whatsapp_fastapi_routes": {
-      "service": "whatsapp_fastapi_routes",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.348343"
-    },
-    "outlook_service_enhanced": {
-      "service": "outlook_service_enhanced",
-      "category": "email",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.348343"
-    },
-    "whatsapp_flask_routes": {
-      "service": "whatsapp_flask_routes",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "github_integration": {
-      "service": "github_integration",
-      "category": "development",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "slack_routes_fix": {
-      "service": "slack_routes_fix",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "teams_routes": {
-      "service": "teams_routes",
-      "category": "communication",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "freshdesk_service": {
-      "service": "freshdesk_service",
-      "category": "crm",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "atom_teams_integration": {
-      "service": "atom_teams_integration",
-      "category": "communication",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "salesforce_core_service": {
-      "service": "salesforce_core_service",
-      "category": "crm",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "outlook_routes_enhanced": {
-      "service": "outlook_routes_enhanced",
-      "category": "email",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "zoom_integration_register": {
-      "service": "zoom_integration_register",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "microsoft365_routes": {
-      "service": "microsoft365_routes",
-      "category": "other",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.349340"
-    },
-    "teams_integration": {
-      "service": "teams_integration",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.350337"
-    },
-    "xero_routes": {
-      "service": "xero_routes",
-      "category": "finance",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.350337"
-    },
-    "slack_enhanced_service": {
-      "service": "slack_enhanced_service",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.350337"
-    },
-    "google_chat_integration_final_report": {
-      "service": "google_chat_integration_final_report",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.350337"
-    },
-    "discord_enhanced_api_routes": {
-      "service": "discord_enhanced_api_routes",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.350337"
-    },
-    "ai_routes": {
-      "service": "ai_routes",
-      "category": "ai",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.350337"
-    },
-    "whatsapp_final_websocket_integration": {
-      "service": "whatsapp_final_websocket_integration",
-      "category": "communication",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.350337"
-    },
-    "bitbucket_routes": {
-      "service": "bitbucket_routes",
-      "category": "development",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.350337"
-    },
-    "microsoft365_service": {
-      "service": "microsoft365_service",
-      "category": "other",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.351334"
-    },
-    "freshdesk_routes": {
-      "service": "freshdesk_routes",
-      "category": "crm",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.351334"
-    },
-    "github_routes": {
-      "service": "github_routes",
-      "category": "development",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.351334"
-    },
-    "atom_ai_integration": {
-      "service": "atom_ai_integration",
-      "category": "ai",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.351334"
-    },
-    "atom_education_customization_service": {
-      "service": "atom_education_customization_service",
-      "category": "industry",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.351334"
-    },
-    "asana_routes": {
-      "service": "asana_routes",
-      "category": "project_management",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.351334"
-    },
-    "hubspot_service": {
-      "service": "hubspot_service",
-      "category": "crm",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.351334"
-    },
-    "atom_enterprise_unified_service": {
-      "service": "atom_enterprise_unified_service",
-      "category": "enterprise",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.351334"
-    },
-    "google_chat_enhanced_api_routes": {
-      "service": "google_chat_enhanced_api_routes",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.351334"
-    },
-    "teams_enhanced_api_routes": {
-      "service": "teams_enhanced_api_routes",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "atom_healthcare_customization_service": {
-      "service": "atom_healthcare_customization_service",
-      "category": "industry",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "figma_routes_fix": {
-      "service": "figma_routes_fix",
-      "category": "development",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "atom_zendesk_integration_service": {
-      "service": "atom_zendesk_integration_service",
-      "category": "crm",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "onedrive_service": {
-      "service": "onedrive_service",
-      "category": "storage",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "dropbox_service_enhanced": {
-      "service": "dropbox_service_enhanced",
-      "category": "storage",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "onedrive_routes": {
-      "service": "onedrive_routes",
-      "category": "storage",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "slack_service_unified": {
-      "service": "slack_service_unified",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "box_service": {
-      "service": "box_service",
-      "category": "storage",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "teams_service": {
-      "service": "teams_service",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.352332"
-    },
-    "salesforce_integration_register": {
-      "service": "salesforce_integration_register",
-      "category": "crm",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
-    "jira_service": {
-      "service": "jira_service",
-      "category": "project_management",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
-    "atom_telegram_integration": {
-      "service": "atom_telegram_integration",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
-    "atom_finance_customization_service": {
-      "service": "atom_finance_customization_service",
-      "category": "industry",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
-    "gitlab_routes": {
-      "service": "gitlab_routes",
-      "category": "development",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
-    "whatsapp_routes_extension": {
-      "service": "whatsapp_routes_extension",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
     "airtable_routes": {
       "service": "airtable_routes",
       "category": "other",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
-    "outlook_routes": {
-      "service": "outlook_routes",
-      "category": "email",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
-    "asana_real_service": {
-      "service": "asana_real_service",
-      "category": "project_management",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
-    "salesforce_service": {
-      "service": "salesforce_service",
-      "category": "crm",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.353329"
-    },
-    "asana_service": {
-      "service": "asana_service",
-      "category": "project_management",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.354326"
-    },
-    "tableau_routes": {
-      "service": "tableau_routes",
-      "category": "other",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.354326"
-    },
-    "atom_discord_integration": {
-      "service": "atom_discord_integration",
-      "category": "communication",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.354326"
-    },
-    "google_integration": {
-      "service": "google_integration",
-      "category": "other",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.354326"
-    },
-    "atom_whatsapp_integration": {
-      "service": "atom_whatsapp_integration",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.354326"
-    },
-    "trello_routes": {
-      "service": "trello_routes",
-      "category": "project_management",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.354326"
-    },
-    "zoom_routes": {
-      "service": "zoom_routes",
-      "category": "communication",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.354326"
-    },
-    "monday_routes": {
-      "service": "monday_routes",
-      "category": "project_management",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.354326"
-    },
-    "intercom_routes": {
-      "service": "intercom_routes",
-      "category": "crm",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.355324"
-    },
-    "whatsapp_business_integration": {
-      "service": "whatsapp_business_integration",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.355324"
-    },
-    "google_drive_routes": {
-      "service": "google_drive_routes",
-      "category": "storage",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.355324"
-    },
-    "google_calendar_service": {
-      "service": "google_calendar_service",
-      "category": "calendar",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.355324"
-    },
-    "jira_routes": {
-      "service": "jira_routes",
-      "category": "project_management",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.355324"
-    },
-    "outlook_service": {
-      "service": "outlook_service",
-      "category": "email",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.355324"
-    },
-    "chat_routes": {
-      "service": "chat_routes",
-      "category": "other",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.355324"
-    },
-    "ai_enhanced_service": {
-      "service": "ai_enhanced_service",
-      "category": "ai",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.355324"
-    },
-    "notion_service": {
-      "service": "notion_service",
-      "category": "project_management",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.355324"
-    },
-    "notion_routes_fix": {
-      "service": "notion_routes_fix",
-      "category": "project_management",
       "status": "INCOMPLETE",
       "checks": {
         "file_exists": true,
         "has_service_class": false,
         "has_auth_method": false
       },
-      "timestamp": "2025-11-29T17:02:52.356328"
-    },
-    "linear_routes": {
-      "service": "linear_routes",
-      "category": "project_management",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.356328"
-    },
-    "slack_enhanced_api_routes": {
-      "service": "slack_enhanced_api_routes",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.356328"
-    },
-    "linear_routes_fix": {
-      "service": "linear_routes_fix",
-      "category": "project_management",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.356328"
-    },
-    "atom_workflow_automation_service": {
-      "service": "atom_workflow_automation_service",
-      "category": "enterprise",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.356328"
-    },
-    "hubspot_routes": {
-      "service": "hubspot_routes",
-      "category": "crm",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.356328"
-    },
-    "atom_voice_video_integration_service": {
-      "service": "atom_voice_video_integration_service",
-      "category": "ai",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.356328"
-    },
-    "notion_routes": {
-      "service": "notion_routes",
-      "category": "project_management",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.357320"
-    },
-    "bitbucket_service": {
-      "service": "bitbucket_service",
-      "category": "development",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.357320"
-    },
-    "atom_hubspot_integration_service": {
-      "service": "atom_hubspot_integration_service",
-      "category": "crm",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.357320"
-    },
-    "google_drive_service": {
-      "service": "google_drive_service",
-      "category": "storage",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.357320"
-    },
-    "monday_service": {
-      "service": "monday_service",
-      "category": "project_management",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.357320"
-    },
-    "discord_enhanced_service": {
-      "service": "discord_enhanced_service",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.357320"
-    },
-    "slack_integration": {
-      "service": "slack_integration",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.357320"
-    },
-    "whatsapp_enhanced_routes": {
-      "service": "whatsapp_enhanced_routes",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.357320"
-    },
-    "teams_routes_fix": {
-      "service": "teams_routes_fix",
-      "category": "communication",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.358326"
-    },
-    "gmail_service": {
-      "service": "gmail_service",
-      "category": "email",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.358326"
-    },
-    "salesforce_routes": {
-      "service": "salesforce_routes",
-      "category": "crm",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.358326"
-    },
-    "atom_communication_apps_lancedb_integration": {
-      "service": "atom_communication_apps_lancedb_integration",
-      "category": "other",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.358326"
-    },
-    "stripe_routes": {
-      "service": "stripe_routes",
-      "category": "finance",
-      "status": "INCOMPLETE",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": false,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.358326"
-    },
-    "atom_enterprise_security_service": {
-      "service": "atom_enterprise_security_service",
-      "category": "enterprise",
-      "status": "PARTIAL",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": false
-      },
-      "timestamp": "2025-11-29T17:02:52.358326"
-    },
-    "atom_google_chat_integration": {
-      "service": "atom_google_chat_integration",
-      "category": "communication",
-      "status": "READY",
-      "checks": {
-        "file_exists": true,
-        "has_service_class": true,
-        "has_auth_method": true
-      },
-      "timestamp": "2025-11-29T17:02:52.358326"
+      "timestamp": "2025-12-03T08:18:03.012231"
     },
     "ai_enhanced_api_routes": {
       "service": "ai_enhanced_api_routes",
@@ -1290,7 +47,854 @@
         "has_service_class": false,
         "has_auth_method": true
       },
-      "timestamp": "2025-11-29T17:02:52.359315"
+      "timestamp": "2025-12-03T08:18:03.012231"
+    },
+    "ai_enhanced_service": {
+      "service": "ai_enhanced_service",
+      "category": "ai",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.012231"
+    },
+    "ai_routes": {
+      "service": "ai_routes",
+      "category": "ai",
+      "status": "PARTIAL",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.013236"
+    },
+    "asana_real_service": {
+      "service": "asana_real_service",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.013236"
+    },
+    "asana_routes": {
+      "service": "asana_routes",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.013236"
+    },
+    "asana_service": {
+      "service": "asana_service",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.013236"
+    },
+    "atom_ai_integration": {
+      "service": "atom_ai_integration",
+      "category": "ai",
+      "status": "PARTIAL",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.013236"
+    },
+    "atom_communication_apps_lancedb_integration": {
+      "service": "atom_communication_apps_lancedb_integration",
+      "category": "other",
+      "status": "PARTIAL",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.013236"
+    },
+    "atom_discord_integration": {
+      "service": "atom_discord_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.013236"
+    },
+    "atom_education_customization_service": {
+      "service": "atom_education_customization_service",
+      "category": "industry",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.013236"
+    },
+    "atom_enterprise_api_routes": {
+      "service": "atom_enterprise_api_routes",
+      "category": "enterprise",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_enterprise_security_service": {
+      "service": "atom_enterprise_security_service",
+      "category": "enterprise",
+      "status": "PARTIAL",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_enterprise_unified_service": {
+      "service": "atom_enterprise_unified_service",
+      "category": "enterprise",
+      "status": "PARTIAL",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_finance_customization_service": {
+      "service": "atom_finance_customization_service",
+      "category": "industry",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_google_chat_integration": {
+      "service": "atom_google_chat_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_healthcare_customization_service": {
+      "service": "atom_healthcare_customization_service",
+      "category": "industry",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_hubspot_integration_service": {
+      "service": "atom_hubspot_integration_service",
+      "category": "crm",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_quickbooks_integration_service": {
+      "service": "atom_quickbooks_integration_service",
+      "category": "finance",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_teams_integration": {
+      "service": "atom_teams_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_telegram_integration": {
+      "service": "atom_telegram_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_video_ai_service": {
+      "service": "atom_video_ai_service",
+      "category": "ai",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.014226"
+    },
+    "atom_voice_ai_service": {
+      "service": "atom_voice_ai_service",
+      "category": "ai",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "atom_voice_video_integration_service": {
+      "service": "atom_voice_video_integration_service",
+      "category": "ai",
+      "status": "PARTIAL",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "atom_whatsapp_integration": {
+      "service": "atom_whatsapp_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "atom_workflow_automation_service": {
+      "service": "atom_workflow_automation_service",
+      "category": "enterprise",
+      "status": "PARTIAL",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "atom_zendesk_integration_service": {
+      "service": "atom_zendesk_integration_service",
+      "category": "crm",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "atom_zoom_integration": {
+      "service": "atom_zoom_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "bitbucket_routes": {
+      "service": "bitbucket_routes",
+      "category": "development",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "bitbucket_service": {
+      "service": "bitbucket_service",
+      "category": "development",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "box_routes": {
+      "service": "box_routes",
+      "category": "storage",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "box_service": {
+      "service": "box_service",
+      "category": "storage",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "calendly_routes": {
+      "service": "calendly_routes",
+      "category": "other",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "chat_routes": {
+      "service": "chat_routes",
+      "category": "other",
+      "status": "PARTIAL",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "deepgram_routes": {
+      "service": "deepgram_routes",
+      "category": "other",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.015222"
+    },
+    "discord_enhanced_api_routes": {
+      "service": "discord_enhanced_api_routes",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.016432"
+    },
+    "discord_enhanced_service": {
+      "service": "discord_enhanced_service",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.016432"
+    },
+    "discord_routes": {
+      "service": "discord_routes",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.016432"
+    },
+    "dropbox_routes": {
+      "service": "dropbox_routes",
+      "category": "storage",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.016432"
+    },
+    "dropbox_service_enhanced": {
+      "service": "dropbox_service_enhanced",
+      "category": "storage",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.016942"
+    },
+    "email_routes": {
+      "service": "email_routes",
+      "category": "other",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.017030"
+    },
+    "figma_routes": {
+      "service": "figma_routes",
+      "category": "development",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017030"
+    },
+    "figma_routes_fix": {
+      "service": "figma_routes_fix",
+      "category": "development",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.017030"
+    },
+    "freshdesk_routes": {
+      "service": "freshdesk_routes",
+      "category": "crm",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017030"
+    },
+    "freshdesk_service": {
+      "service": "freshdesk_service",
+      "category": "crm",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017360"
+    },
+    "github_integration": {
+      "service": "github_integration",
+      "category": "development",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017360"
+    },
+    "github_routes": {
+      "service": "github_routes",
+      "category": "development",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "github_routes_fix": {
+      "service": "github_routes_fix",
+      "category": "development",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "github_service": {
+      "service": "github_service",
+      "category": "development",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "gitlab_routes": {
+      "service": "gitlab_routes",
+      "category": "development",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "gmail_routes": {
+      "service": "gmail_routes",
+      "category": "email",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "gmail_service": {
+      "service": "gmail_service",
+      "category": "email",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "google_calendar_routes": {
+      "service": "google_calendar_routes",
+      "category": "calendar",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "google_calendar_service": {
+      "service": "google_calendar_service",
+      "category": "calendar",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "google_chat_enhanced_api_routes": {
+      "service": "google_chat_enhanced_api_routes",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "google_chat_enhanced_service": {
+      "service": "google_chat_enhanced_service",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "google_chat_integration_final_report": {
+      "service": "google_chat_integration_final_report",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "google_drive_routes": {
+      "service": "google_drive_routes",
+      "category": "storage",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "google_drive_service": {
+      "service": "google_drive_service",
+      "category": "storage",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "google_integration": {
+      "service": "google_integration",
+      "category": "other",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "hubspot_routes": {
+      "service": "hubspot_routes",
+      "category": "crm",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "hubspot_service": {
+      "service": "hubspot_service",
+      "category": "crm",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "intercom_routes": {
+      "service": "intercom_routes",
+      "category": "crm",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "jira_routes": {
+      "service": "jira_routes",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "jira_routes_fix": {
+      "service": "jira_routes_fix",
+      "category": "project_management",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "jira_service": {
+      "service": "jira_service",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "linear_routes": {
+      "service": "linear_routes",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "linear_routes_fix": {
+      "service": "linear_routes_fix",
+      "category": "project_management",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "linkedin_routes": {
+      "service": "linkedin_routes",
+      "category": "other",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "mailchimp_routes": {
+      "service": "mailchimp_routes",
+      "category": "email",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "microsoft365_routes": {
+      "service": "microsoft365_routes",
+      "category": "other",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "microsoft365_service": {
+      "service": "microsoft365_service",
+      "category": "other",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "monday_routes": {
+      "service": "monday_routes",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "monday_service": {
+      "service": "monday_service",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.017537"
+    },
+    "notion_routes": {
+      "service": "notion_routes",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "notion_routes_fix": {
+      "service": "notion_routes_fix",
+      "category": "project_management",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "notion_service": {
+      "service": "notion_service",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "onedrive_routes": {
+      "service": "onedrive_routes",
+      "category": "storage",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "onedrive_service": {
+      "service": "onedrive_service",
+      "category": "storage",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
     },
     "outlook_calendar_service": {
       "service": "outlook_calendar_service",
@@ -1301,18 +905,491 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-11-29T17:02:52.359315"
+      "timestamp": "2025-12-03T08:18:03.019551"
     },
-    "gmail_routes": {
-      "service": "gmail_routes",
+    "outlook_integration": {
+      "service": "outlook_integration",
       "category": "email",
-      "status": "PARTIAL",
+      "status": "READY",
       "checks": {
         "file_exists": true,
         "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "outlook_routes": {
+      "service": "outlook_routes",
+      "category": "email",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "outlook_routes_enhanced": {
+      "service": "outlook_routes_enhanced",
+      "category": "email",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "outlook_service": {
+      "service": "outlook_service",
+      "category": "email",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "outlook_service_enhanced": {
+      "service": "outlook_service_enhanced",
+      "category": "email",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "plaid_routes": {
+      "service": "plaid_routes",
+      "category": "other",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "quickbooks_routes": {
+      "service": "quickbooks_routes",
+      "category": "finance",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "salesforce_core_service": {
+      "service": "salesforce_core_service",
+      "category": "crm",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "salesforce_integration_register": {
+      "service": "salesforce_integration_register",
+      "category": "crm",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.019551"
+    },
+    "salesforce_routes": {
+      "service": "salesforce_routes",
+      "category": "crm",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020458"
+    },
+    "salesforce_service": {
+      "service": "salesforce_service",
+      "category": "crm",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020458"
+    },
+    "sendgrid_routes": {
+      "service": "sendgrid_routes",
+      "category": "other",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
         "has_auth_method": false
       },
-      "timestamp": "2025-11-29T17:02:52.359315"
+      "timestamp": "2025-12-03T08:18:03.020458"
+    },
+    "shopify_routes": {
+      "service": "shopify_routes",
+      "category": "finance",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020458"
+    },
+    "slack_enhanced_api_routes": {
+      "service": "slack_enhanced_api_routes",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020458"
+    },
+    "slack_enhanced_service": {
+      "service": "slack_enhanced_service",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020458"
+    },
+    "slack_integration": {
+      "service": "slack_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020458"
+    },
+    "slack_routes": {
+      "service": "slack_routes",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020458"
+    },
+    "slack_routes_fix": {
+      "service": "slack_routes_fix",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.020962"
+    },
+    "slack_service_unified": {
+      "service": "slack_service_unified",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020978"
+    },
+    "stripe_routes": {
+      "service": "stripe_routes",
+      "category": "finance",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020978"
+    },
+    "stripe_service": {
+      "service": "stripe_service",
+      "category": "finance",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020978"
+    },
+    "tableau_routes": {
+      "service": "tableau_routes",
+      "category": "other",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020978"
+    },
+    "teams_enhanced_api_routes": {
+      "service": "teams_enhanced_api_routes",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020978"
+    },
+    "teams_enhanced_service": {
+      "service": "teams_enhanced_service",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020978"
+    },
+    "teams_integration": {
+      "service": "teams_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020978"
+    },
+    "teams_routes": {
+      "service": "teams_routes",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.020978"
+    },
+    "teams_routes_fix": {
+      "service": "teams_routes_fix",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.021498"
+    },
+    "teams_service": {
+      "service": "teams_service",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.021498"
+    },
+    "trello_routes": {
+      "service": "trello_routes",
+      "category": "project_management",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.021498"
+    },
+    "trello_service": {
+      "service": "trello_service",
+      "category": "project_management",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.021498"
+    },
+    "twilio_routes": {
+      "service": "twilio_routes",
+      "category": "other",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.021498"
+    },
+    "whatsapp_business_integration": {
+      "service": "whatsapp_business_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.021498"
+    },
+    "whatsapp_enhanced_routes": {
+      "service": "whatsapp_enhanced_routes",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.021498"
+    },
+    "whatsapp_fastapi_routes": {
+      "service": "whatsapp_fastapi_routes",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.021498"
+    },
+    "whatsapp_final_websocket_integration": {
+      "service": "whatsapp_final_websocket_integration",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.021498"
+    },
+    "whatsapp_flask_routes": {
+      "service": "whatsapp_flask_routes",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.022017"
+    },
+    "whatsapp_routes_extension": {
+      "service": "whatsapp_routes_extension",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.022017"
+    },
+    "whatsapp_service_manager": {
+      "service": "whatsapp_service_manager",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.022017"
+    },
+    "whatsapp_websocket_routes": {
+      "service": "whatsapp_websocket_routes",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": false
+      },
+      "timestamp": "2025-12-03T08:18:03.022017"
+    },
+    "workflow_automation_routes": {
+      "service": "workflow_automation_routes",
+      "category": "enterprise",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.022017"
+    },
+    "xero_routes": {
+      "service": "xero_routes",
+      "category": "finance",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.022017"
+    },
+    "zendesk_routes": {
+      "service": "zendesk_routes",
+      "category": "crm",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.022017"
+    },
+    "zoom_integration_register": {
+      "service": "zoom_integration_register",
+      "category": "communication",
+      "status": "INCOMPLETE",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": false,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.022017"
+    },
+    "zoom_routes": {
+      "service": "zoom_routes",
+      "category": "communication",
+      "status": "READY",
+      "checks": {
+        "file_exists": true,
+        "has_service_class": true,
+        "has_auth_method": true
+      },
+      "timestamp": "2025-12-03T08:18:03.022535"
     }
   }
 }

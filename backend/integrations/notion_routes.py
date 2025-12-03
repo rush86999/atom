@@ -6,7 +6,27 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/notion", tags=["notion"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Notion OAuth URL"""
+    return {
+        "url": "https://api.notion.com/v1/oauth/authorize?client_id=INSERT_CLIENT_ID&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fnotion%2Fcallback",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Notion OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Notion authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 class NotionSearchRequest(BaseModel):
     query: str

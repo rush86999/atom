@@ -9,7 +9,27 @@ logger = logging.getLogger(__name__)
 from backend.core.mock_mode import get_mock_mode_manager
 from datetime import datetime
 
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/zoom", tags=["zoom"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Zoom OAuth URL"""
+    return {
+        "url": "https://zoom.us/oauth/authorize?client_id=INSERT_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fzoom%2Fcallback",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Zoom OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Zoom authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 class ZoomMeetingRequest(BaseModel):
     topic: str

@@ -25,6 +25,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # Create FastAPI router
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/slack", tags=["slack"])
 
 def get_slack_client():
@@ -287,9 +288,14 @@ async def slack_oauth_callback(request: Request):
         logger.info("Slack OAuth successful - tokens received and stored")
         return {"status": "success", "provider": "slack", "tokens": tokens}
     
-    except HTTPException as e:
-        logger.error(f"Slack OAuth callback failed: {e.detail}")
-        raise e
     except Exception as e:
         logger.error(f"Slack OAuth callback error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Slack OAuth URL"""
+    return {
+        "url": "https://slack.com/oauth/v2/authorize?client_id=INSERT_CLIENT_ID&scope=chat:write,channels:read,users:read&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fslack%2Fcallback",
+        "timestamp": datetime.now().isoformat()
+    }

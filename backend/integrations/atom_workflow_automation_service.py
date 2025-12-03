@@ -154,6 +154,7 @@ class AutomationExecution:
     security_checks: List[Dict[str, Any]]
     metadata: Dict[str, Any]
 
+# Auth Type: Internal
 class AtomWorkflowAutomationService:
     """Enterprise workflow automation service with comprehensive integration"""
     

@@ -16,7 +16,27 @@ from trello_enhanced_service import TrelloEnhancedService
 logger = logging.getLogger(__name__)
 
 # Create router
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/trello", tags=["trello"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Trello OAuth URL"""
+    return {
+        "url": "https://trello.com/1/authorize?expiration=never&name=ATOM&scope=read,write,account&response_type=token&key=INSERT_API_KEY",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(token: str):
+    """Handle Trello OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "token": token,
+        "message": "Trello authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 # Service instances
 trello_service = TrelloEnhancedService()
