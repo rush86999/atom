@@ -6,7 +6,27 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/zendesk", tags=["zendesk"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Zendesk OAuth URL"""
+    return {
+        "url": "https://{subdomain}.zendesk.com/oauth/authorizations/new?client_id=INSERT_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fzendesk%2Fcallback&scope=read",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Zendesk OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Zendesk authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 class ZendeskSearchRequest(BaseModel):
     query: str

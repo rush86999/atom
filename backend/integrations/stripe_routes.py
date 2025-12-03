@@ -91,7 +91,27 @@ async def handle_invoice_payment_failed(invoice):
 
 
 # Create router
+# Auth Type: OAuth2
 router = APIRouter(prefix="/stripe", tags=["stripe"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Stripe OAuth URL"""
+    return {
+        "url": "https://connect.stripe.com/oauth/authorize?response_type=code&client_id=INSERT_CLIENT_ID&scope=read_write",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Stripe OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Stripe authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 
 # Dependency for Stripe access token

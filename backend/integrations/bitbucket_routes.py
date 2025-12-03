@@ -6,7 +6,28 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/bitbucket", tags=["bitbucket"])
+# Create router
+# Auth Type: OAuth2
+router = APIRouter(prefix="/api/bitbucket", tags=["bitbucket", "OAuth"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Bitbucket OAuth URL"""
+    return {
+        "url": "https://bitbucket.org/site/oauth2/authorize?client_id=INSERT_CLIENT_ID&response_type=code",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Bitbucket OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Bitbucket authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 class BitbucketSearchRequest(BaseModel):
     query: str

@@ -1,19 +1,3 @@
-import logging
-from typing import Dict, List, Optional
-
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-
-logger = logging.getLogger(__name__)
-
-router = APIRouter(prefix="/api/airtable", tags=["airtable"])
-
-class AirtableSearchRequest(BaseModel):
-    query: str
-    user_id: str = "test_user"
-
-class AirtableSearchResponse(BaseModel):
-    ok: bool
     query: str
     results: List[Dict]
     timestamp: str

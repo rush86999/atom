@@ -6,7 +6,27 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/jira", tags=["jira"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Jira OAuth URL"""
+    return {
+        "url": "https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=INSERT_CLIENT_ID&scope=read%3Ajira-work%20write%3Ajira-work&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fjira%2Fcallback&state=test_state&response_type=code&prompt=consent",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Jira OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Jira authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 class JiraSearchRequest(BaseModel):
     query: str

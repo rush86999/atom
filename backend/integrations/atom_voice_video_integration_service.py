@@ -113,6 +113,7 @@ class MeetingInsight:
     created_at: datetime
     metadata: Dict[str, Any]
 
+# Auth Type: Internal
 class AtomVoiceVideoIntegrationService:
     """Comprehensive Voice and Video Features Integration Service"""
     

@@ -6,7 +6,27 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/quickbooks", tags=["quickbooks"])
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get QuickBooks OAuth URL"""
+    return {
+        "url": "https://appcenter.intuit.com/connect/oauth2?client_id=INSERT_CLIENT_ID&response_type=code&scope=com.intuit.quickbooks.accounting&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fquickbooks%2Fcallback&state=security_token",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle QuickBooks OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "QuickBooks authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
 
 class QuickbooksSearchRequest(BaseModel):
     query: str

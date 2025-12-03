@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# Auth Type: OAuth2
 router = APIRouter(prefix="/api/discord", tags=["discord"])
 
 class DiscordSearchRequest(BaseModel):
@@ -65,4 +66,23 @@ async def list_discord_items(user_id: str = "test_user"):
             for i in range(1, 6)
         ],
         "timestamp": "2025-11-09T17:25:00Z",
+    }
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Discord OAuth URL"""
+    return {
+        "url": "https://discord.com/api/oauth2/authorize?client_id=INSERT_CLIENT_ID&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fdiscord%2Fcallback&response_type=code&scope=identify%20guilds",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback(code: str):
+    """Handle Discord OAuth callback"""
+    return {
+        "ok": True,
+        "status": "success",
+        "code": code,
+        "message": "Discord authentication successful (mock)",
+        "timestamp": "2025-11-09T17:25:00Z"
     }
