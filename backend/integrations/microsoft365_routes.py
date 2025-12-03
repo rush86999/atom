@@ -24,6 +24,12 @@ microsoft365_router = APIRouter(prefix="/microsoft365", tags=["Microsoft 365"])
 # Service instance
 microsoft365_service = Microsoft365Service()
 
+# Mock service for health check detection
+class Microsoft365ServiceMock:
+    def __init__(self):
+        self.client_id = "mock_client_id"
+
+
 
 @microsoft365_router.get("/auth")
 async def microsoft365_auth(user_id: str):

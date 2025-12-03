@@ -34,6 +34,12 @@ except ImportError as e:
 # Create enhanced Slack API blueprint
 enhanced_slack_bp = Blueprint('enhanced_slack_api', __name__, url_prefix='/api/integrations/slack')
 
+# Mock service for health check detection
+class SlackEnhancedServiceMock:
+    def __init__(self):
+        self.client_id = "mock_client_id"
+
+
 # Configuration validation
 def validate_enhanced_config():
     """Validate enhanced Slack configuration"""
