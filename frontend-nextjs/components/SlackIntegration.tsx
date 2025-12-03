@@ -199,13 +199,9 @@ const SlackIntegration: React.FC = () => {
     const loadChannels = useCallback(async () => {
         setLoading((prev) => ({ ...prev, channels: true }));
         try {
-            const response = await fetch("/api/integrations/slack/channels", {
-                method: "POST",
+            const response = await fetch(`/api/integrations/slack/channels?user_id=current&limit=100`, {
+                method: "GET",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    user_id: "current",
-                    limit: 100,
-                }),
             });
 
             if (response.ok) {
@@ -229,14 +225,9 @@ const SlackIntegration: React.FC = () => {
 
         setLoading((prev) => ({ ...prev, messages: true }));
         try {
-            const response = await fetch("/api/integrations/slack/messages", {
-                method: "POST",
+            const response = await fetch(`/api/integrations/slack/messages?user_id=current&channel=${channelId}&limit=50`, {
+                method: "GET",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    user_id: "current",
-                    channel: channelId,
-                    limit: 50,
-                }),
             });
 
             if (response.ok) {
@@ -253,13 +244,9 @@ const SlackIntegration: React.FC = () => {
     const loadUsers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
-            const response = await fetch("/api/integrations/slack/users", {
-                method: "POST",
+            const response = await fetch(`/api/integrations/slack/users?user_id=current&limit=100`, {
+                method: "GET",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    user_id: "current",
-                    limit: 100,
-                }),
             });
 
             if (response.ok) {
@@ -298,7 +285,7 @@ const SlackIntegration: React.FC = () => {
         if (!newMessage.channel || !newMessage.text) return;
 
         try {
-            const response = await fetch("/api/integrations/slack/messages/send", {
+            const response = await fetch("/api/integrations/slack/messages", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
