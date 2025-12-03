@@ -19,7 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Exchange authorization code for access token
-    const tokenResponse = await fetch('http://localhost:5000/api/auth/gmail/callback', {
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+
+    const tokenResponse = await fetch(`${backendUrl}/api/auth/google/callback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -27,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       body: JSON.stringify({
         code,
         state,
-        redirect_uri: 'http://localhost:3000/api/integrations/gmail/callback',
+        // redirect_uri is handled by backend env var, but passing it doesn't hurt
       }),
     });
 
