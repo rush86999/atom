@@ -1,7 +1,7 @@
 # Developer Handover & Status Report
 
-**Date:** November 30, 2025  
-**Latest Update:** Phase 59 Complete - OAuth Standardization & Documentation Updates  
+**Date:** December 3, 2025  
+**Latest Update:** Phase 61 Complete - Integration API Endpoint Fixes  
 **Project:** Atom (Advanced Task Orchestration & Management)
 
 ## 1. Project Overview
@@ -24,6 +24,7 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - ✅ **Phase 58: Chat Interface** - Dedicated 3-pane agent chat with history and workspace.
 - ✅ **Phase 59: OAuth Standardization** - Standardized callback URLs and updated credential guides.
 - ✅ **Phase 60: Integration Readiness Improvements** - Improved integration readiness score from <50% to 82.3% by adding auth endpoints and service classes to 50+ services.
+- ✅ **Phase 61: Integration API Endpoint Fixes** - Fixed 6 critical frontend-backend API mismatches in Slack and HubSpot integrations.
 
 
 ### Recent Major Milestones (Nov 29, 2025 - Latest Session)
@@ -173,6 +174,38 @@ EMAIL_FROM=noreply@yourdomain.com
   - Added missing `# Auth Type` tags for registry auto-detection.
   - Fixed `integration_registry.py` encoding issues on Windows.
   - Automated registry regeneration.
+
+**Phase 61: Integration API Endpoint Fixes ✅ (Dec 3, 2025)**
+
+**Problem Identified:**
+- Systematic codebase review uncovered 6 critical API endpoint mismatches between frontend Next.js API routes and backend FastAPI routes
+- All bugs caused HTTP 404 errors and prevented integrations from functioning properly
+
+**Bugs Fixed:**
+
+**Slack Integration (4 bugs) ✅**
+1. **channels.ts** - Changed `POST` → `GET`, moved params to query string
+2. **messages.ts** - Mapped non-existent `/channels/{id}/messages` → `/conversations/history`
+3. **messages/send.ts** - Fixed endpoint path from `/messages/send` → `/messages`
+4. **users.ts** - Changed `POST` with body → `GET` with path parameter
+
+**HubSpot Integration (2 bugs) ✅**
+5. **contacts.ts** - Changed `POST` → `GET`, converted body params to query params
+6. **companies.ts** - Changed `POST` → `GET`, converted body params to query params
+
+**Files Modified:**
+- `frontend-nextjs/pages/api/integrations/slack/channels.ts`
+- `frontend-nextjs/pages/api/integrations/slack/messages.ts`
+- `frontend-nextjs/pages/api/integrations/slack/messages/send.ts`
+- `frontend-nextjs/pages/api/integrations/slack/users.ts`
+- `frontend-nextjs/pages/api/integrations/hubspot/contacts.ts`
+- `frontend-nextjs/pages/api/integrations/hubspot/companies.ts`
+
+**Impact:**
+- ✅ All 6 integration endpoints now correctly communicate with backend
+- ✅ Slack: channels, messages, users features functional
+- ✅ HubSpot: contacts, companies features functional
+- 🔧 Fixed common anti-pattern: Frontend POST requests → Backend GET requests (RESTful alignment)
 
 
 ## 3. Next Steps
