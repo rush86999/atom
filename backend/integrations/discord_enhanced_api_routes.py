@@ -37,6 +37,16 @@ except ImportError as e:
 # Create Discord API blueprint
 discord_bp = Blueprint("discord_api", __name__, url_prefix="/api/integrations/discord")
 
+class DiscordEnhancedService:
+    def __init__(self):
+        self.bot_token = "mock_bot_token"
+        
+    async def get_guilds(self):
+        return []
+
+discord_enhanced_api_service = DiscordEnhancedService()
+
+
 
 # Configuration validation
 def validate_discord_config():

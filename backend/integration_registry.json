@@ -1,25 +1,27 @@
 {
   "total_services": 124,
   "by_category": {
-    "ai": 7,
+    "enterprise": 5,
     "industry": 3,
-    "communication": 34,
-    "project_management": 15,
-    "calendar": 3,
-    "storage": 8,
-    "other": 14,
-    "crm": 12,
     "development": 9,
     "finance": 6,
-    "enterprise": 5,
-    "email": 8
+    "communication": 34,
+    "crm": 12,
+    "calendar": 3,
+    "other": 14,
+    "ai": 7,
+    "email": 8,
+    "project_management": 15,
+    "storage": 8
   },
   "services": {
     "airtable_routes": {
       "name": "airtable_routes",
       "file": "backend\\integrations\\airtable_routes.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "AirtableService"
+      ],
+      "auth_type": "api_key",
       "has_connect": false,
       "has_health_check": false,
       "status": "discovered",
@@ -479,7 +481,9 @@
     "discord_enhanced_api_routes": {
       "name": "discord_enhanced_api_routes",
       "file": "backend\\integrations\\discord_enhanced_api_routes.py",
-      "classes": [],
+      "classes": [
+        "DiscordEnhancedService"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
@@ -544,8 +548,10 @@
     "email_routes": {
       "name": "email_routes",
       "file": "backend\\integrations\\email_routes.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "EmailService"
+      ],
+      "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
       "status": "discovered",
@@ -567,8 +573,10 @@
     "figma_routes_fix": {
       "name": "figma_routes_fix",
       "file": "backend\\integrations\\figma_routes_fix.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "FigmaService"
+      ],
+      "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": true,
       "status": "discovered",
@@ -631,8 +639,11 @@
     "github_routes_fix": {
       "name": "github_routes_fix",
       "file": "backend\\integrations\\github_routes_fix.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "GitHubService",
+        "GitHubService"
+      ],
+      "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": true,
       "status": "discovered",

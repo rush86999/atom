@@ -8,9 +8,38 @@ from datetime import datetime
 
 from fastapi import APIRouter
 
+
 logger = logging.getLogger(__name__)
 
+# Auth Type: Internal
 router = APIRouter(prefix="/api/email", tags=["email"])
+
+class EmailService:
+    def __init__(self):
+        self.provider = "internal"
+        
+    async def send_email(self, to, subject, body):
+        return {"message_id": f"email_{datetime.now().timestamp()}"}
+
+email_service = EmailService()
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Get Email Auth URL (internal)"""
+    return {
+        "url": "/api/email/health",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@router.get("/callback")
+async def handle_oauth_callback():
+    """Handle Email Auth callback (internal)"""
+    return {
+        "ok": True,
+        "message": "Email service ready (internal)",
+        "timestamp": datetime.now().isoformat()
+    }
+
 
 
 @router.get("/health")
