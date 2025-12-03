@@ -164,6 +164,7 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
     let status: IntegrationHealth["status"] = "unknown";
     let connected = false;
     let errorCount = 0;
+    let isMock = false;
 
     try {
       const response = await fetch(integration.endpoints.health);
@@ -171,9 +172,16 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
       const responseTime = endTime - startTime;
 
       if (response.ok) {
-        const data = await response.json();
-        connected = data.connected || data.status === "healthy";
-        status = connected ? "healthy" : "warning";
+        try {
+          const data = await response.json();
+          connected = data.connected || data.status === "healthy";
+          status = connected ? "healthy" : "warning";
+          isMock = data.is_mock || false;
+        } catch (jsonError) {
+          // Response was OK but not JSON, treat as healthy but not connected
+          status = "warning";
+          connected = false;
+        }
       } else {
         status = "error";
         errorCount = 1;
@@ -186,6 +194,7 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
         lastSync: new Date().toISOString(),
         responseTime,
         errorCount,
+        is_mock: isMock,
       };
     } catch (error) {
       console.error(`Health check failed for ${integration.name}:`, error);
@@ -196,6 +205,7 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
         lastSync: new Date().toISOString(),
         responseTime: Date.now() - startTime,
         errorCount: 1,
+        is_mock: false,
       };
     }
   };
