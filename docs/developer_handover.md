@@ -1,8 +1,8 @@
-# Developer Handover - Phase 64 Complete - Frontend Component & Gmail Route Fixes
+# Developer Handover - Phase 65 Complete - Additional Integration Fixes
 
 **Last Updated:** November 9, 2025
-**Status:** Phase 64 Complete - Ready for Verification
-**Latest Update:** Fixed Slack frontend components and Gmail API routes.
+**Status:** Phase 65 Complete - Ready for Verification
+**Latest Update:** Fixed Figma and Discord integration mismatches.
 **Project:** Atom (Advanced Task Orchestration & Management)
 
 ## 1. Project Overview
@@ -28,7 +28,8 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - ✅ **Phase 61: Integration API Endpoint Fixes** - Fixed 6 critical frontend-backend API mismatches in Slack and HubSpot integrations.
 - ✅ **Phase 62: Gmail Integration Fixes** - Fixed 4 critical bugs in Auth, Search, and Sync endpoints.
 - [x] Phase 63: Profile API Mismatch Fixes
-- [x] Phase 64: Frontend Component & Gmail Route Fixes** - Fixed Slack frontend components and Gmail API routes.
+- [x] Phase 64: Frontend Component & Gmail Route Fixes
+- [x] Phase 65: Additional Integration Fixes (Figma & Discord)
 
 
 ### Recent Major Milestones (Nov 29, 2025 - Latest Session)
@@ -299,3 +300,17 @@ Even after fixing the Next.js API routes, some frontend components (`SlackIntegr
 **Impact:**
 - Slack integration now correctly communicates with the backend.
 - Gmail status and memory stats now work correctly in all environments (not just localhost).
+
+### Phase 65: Additional Integration Fixes (Figma & Discord)
+
+**Problem:**
+- **Figma**: Frontend `profile.ts` was using `POST` to `/api/figma/profile`, but backend expects `GET` to `/api/figma/user`.
+- **Discord**: Frontend `profile.ts` was using `POST` to `/api/integrations/discord/profile`, but backend had no profile endpoint.
+
+**Fixes:**
+1.  **`figma/profile.ts`**: Changed to `GET` request to `/api/figma/user`.
+2.  **`discord/profile.ts`**: Changed to `GET` request to `/api/discord/user`.
+3.  **`backend/integrations/discord_routes.py`**: Added `GET /user` endpoint to support profile retrieval.
+
+**Impact:**
+- Figma and Discord integrations now correctly retrieve user profile information.
