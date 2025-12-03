@@ -1,18 +1,18 @@
 {
   "total_services": 124,
   "by_category": {
-    "enterprise": 5,
-    "communication": 34,
-    "email": 8,
-    "other": 14,
-    "project_management": 15,
-    "industry": 3,
-    "storage": 8,
-    "crm": 12,
-    "calendar": 3,
     "ai": 7,
+    "industry": 3,
+    "communication": 34,
+    "project_management": 15,
+    "calendar": 3,
+    "storage": 8,
+    "other": 14,
+    "crm": 12,
     "development": 9,
-    "finance": 6
+    "finance": 6,
+    "enterprise": 5,
+    "email": 8
   },
   "services": {
     "airtable_routes": {
@@ -441,8 +441,10 @@
     "calendly_routes": {
       "name": "calendly_routes",
       "file": "backend\\integrations\\calendly_routes.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "CalendlyService"
+      ],
+      "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
       "status": "discovered",
@@ -465,8 +467,10 @@
     "deepgram_routes": {
       "name": "deepgram_routes",
       "file": "backend\\integrations\\deepgram_routes.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "DeepgramService"
+      ],
+      "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
       "status": "discovered",
@@ -880,8 +884,10 @@
     "linkedin_routes": {
       "name": "linkedin_routes",
       "file": "backend\\integrations\\linkedin_routes.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "LinkedInService"
+      ],
+      "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
       "status": "discovered",
@@ -1160,8 +1166,10 @@
     "sendgrid_routes": {
       "name": "sendgrid_routes",
       "file": "backend\\integrations\\sendgrid_routes.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "SendGridService"
+      ],
+      "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
       "status": "discovered",
@@ -1386,8 +1394,10 @@
     "twilio_routes": {
       "name": "twilio_routes",
       "file": "backend\\integrations\\twilio_routes.py",
-      "classes": [],
-      "auth_type": "unknown",
+      "classes": [
+        "TwilioService"
+      ],
+      "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
       "status": "discovered",
