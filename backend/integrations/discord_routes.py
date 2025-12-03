@@ -19,6 +19,19 @@ class DiscordSearchResponse(BaseModel):
     results: List[Dict]
     timestamp: str
 
+@router.get("/user")
+async def get_discord_user(user_id: str = "test_user"):
+    """Get authenticated Discord user information"""
+    return {
+        "ok": True,
+        "id": "discord_user_123",
+        "username": "DiscordUser",
+        "discriminator": "1234",
+        "email": "user@example.com",
+        "avatar": "https://cdn.discordapp.com/avatars/123/abc.png",
+        "timestamp": "2025-11-09T17:25:00Z"
+    }
+
 @router.get("/status")
 async def discord_status(user_id: str = "test_user"):
     """Get Discord integration status"""

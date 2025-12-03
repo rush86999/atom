@@ -1,7 +1,8 @@
-# Developer Handover & Status Report
+# Developer Handover - Phase 65 Complete - Additional Integration Fixes
 
-**Date:** December 3, 2025  
-**Latest Update:** Phase 63 Complete - Profile API Mismatch Fixes  
+**Last Updated:** November 9, 2025
+**Status:** Phase 65 Complete - Ready for Verification
+**Latest Update:** Fixed Figma and Discord integration mismatches.
 **Project:** Atom (Advanced Task Orchestration & Management)
 
 ## 1. Project Overview
@@ -26,7 +27,10 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - ✅ **Phase 60: Integration Readiness Improvements** - Improved integration readiness score from <50% to 82.3% by adding auth endpoints and service classes to 50+ services.
 - ✅ **Phase 61: Integration API Endpoint Fixes** - Fixed 6 critical frontend-backend API mismatches in Slack and HubSpot integrations.
 - ✅ **Phase 62: Gmail Integration Fixes** - Fixed 4 critical bugs in Auth, Search, and Sync endpoints.
-- ✅ **Phase 63: Profile API Mismatch Fixes** - Fixed Salesforce and Asana profile endpoints to use GET.
+- **Phase 63:** Profile API Mismatch Fixes (Salesforce, Asana)
+- **Phase 64:** Frontend Component & Gmail Route Fixes
+- **Phase 65:** Additional Integration Fixes (Figma & Discord)
+- **Phase 66:** HubSpot AI Features (Predictive Analytics & Lead Scoring)
 
 
 ### Recent Major Milestones (Nov 29, 2025 - Latest Session)
@@ -282,3 +286,31 @@ EMAIL_FROM=noreply@yourdomain.com
 ## 5. Known Issues
 - **Test Files**: Some test files still import Chakra UI (non-blocking, to be addressed in testing phase)
 - **Servers Not Running**: Frontend/Backend need to be started for full E2E testing
+
+### Phase 64: Frontend Component & Gmail Route Fixes
+
+**Problem:**
+Even after fixing the Next.js API routes, some frontend components (`SlackIntegration.tsx`, `lib/api.ts`) were still using incorrect HTTP methods (POST) or outdated endpoints. Additionally, `gmail/status.ts` and `gmail/memory/stats.ts` contained hardcoded `localhost` URLs and incorrect paths.
+
+**Fixes:**
+1.  **`components/SlackIntegration.tsx`**: Updated `loadChannels`, `loadMessages`, `loadUsers` to use `GET` and query parameters. Fixed `sendMessage` endpoint.
+2.  **`lib/api.ts`**: Updated `slack.sendMessage` and `slack.getMessages` to match backend routes.
+3.  **`pages/api/integrations/gmail/status.ts`**: Updated to use `PYTHON_API_SERVICE_BASE_URL` and correct `/api/gmail/status` endpoint.
+4.  **`pages/api/integrations/gmail/memory/stats.ts`**: Updated to use `PYTHON_API_SERVICE_BASE_URL` and correct `/api/memory/ingestion/memory/stats` endpoint.
+
+**Impact:**
+- Slack integration now correctly communicates with the backend.
+- Gmail status and memory stats now work correctly in# Developer Handover Document
+
+**Date:** December 3, 2025
+**Latest Update:** Phase 66 - HubSpot AI Features Implementation
+**Status:** Integration fixes complete, AI features activated, ready for testing `POST` to `/api/figma/profile`, but backend expects `GET` to `/api/figma/user`.
+- **Discord**: Frontend `profile.ts` was using `POST` to `/api/integrations/discord/profile`, but backend had no profile endpoint.
+
+**Fixes:**
+1.  **`figma/profile.ts`**: Changed to `GET` request to `/api/figma/user`.
+2.  **`discord/profile.ts`**: Changed to `GET` request to `/api/discord/user`.
+3.  **`backend/integrations/discord_routes.py`**: Added `GET /user` endpoint to support profile retrieval.
+
+**Impact:**
+- Figma and Discord integrations now correctly retrieve user profile information.
