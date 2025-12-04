@@ -367,6 +367,29 @@ class HubSpotApiService {
     }
   }
 
+  async getAIPredictions(): Promise<any> {
+    try {
+      const data = await this.fetchWithErrorHandling(`${API_BASE}/ai/predictions`)
+      return data
+    } catch (error) {
+      console.error('Failed to fetch AI predictions:', error)
+      return { models: [], predictions: [], forecast: [] }
+    }
+  }
+
+  async analyzeLeadWithAI(contactId: string, modelId?: string): Promise<any> {
+    try {
+      const data = await this.fetchWithErrorHandling(`${API_BASE}/ai/analyze-lead`, {
+        method: 'POST',
+        body: JSON.stringify({ contact_id: contactId, model_id: modelId }),
+      })
+      return data
+    } catch (error) {
+      console.error('Failed to analyze lead with AI:', error)
+      return null
+    }
+  }
+
   async getDealAnalytics(): Promise<any> {
     try {
       const data = await this.fetchWithErrorHandling(`${API_BASE}/analytics/deals`)

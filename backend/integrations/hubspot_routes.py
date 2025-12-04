@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from backend.core.mock_mode import get_mock_mode_manager
+from core.mock_mode import get_mock_mode_manager
 
 # Create router
 router = APIRouter(prefix="/api/hubspot", tags=["hubspot"])

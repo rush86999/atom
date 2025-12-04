@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-from backend.core.mock_mode import get_mock_mode_manager
+from core.mock_mode import get_mock_mode_manager
 from datetime import datetime
 
 # Auth Type: OAuth2

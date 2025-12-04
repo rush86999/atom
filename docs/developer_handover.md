@@ -314,3 +314,49 @@ Even after fixing the Next.js API routes, some frontend components (`SlackIntegr
 
 **Impact:**
 - Figma and Discord integrations now correctly retrieve user profile information.
+
+---
+
+### Phase 67: Backend Environment Fixes & Browser Testing Setup ✅ (Dec 4, 2025)
+
+**Problem Identified:**
+- Backend server failing to start due to missing Python dependencies
+- Import path errors (`from backend.core` should be `from core`) preventing route loading
+- Syntax errors in `airtable_routes.py` and `slack_routes.py` causing import failures
+
+**Dependencies Installed:**
+```bash
+pip install uvicorn fastapi python-multipart aiosqlite httpx aiohttp requests \
+            python-jose cryptography bcrypt passlib sqlalchemy apscheduler
+```
+
+**Import Path Fixes:**
+1. **hubspot_routes.py**: `from backend.core.mock_mode` → `from core.mock_mode`
+2. **salesforce_routes.py**: Same fix (lines 31, 37)
+3. **zoom_routes.py**: Same fix (line 9)
+
+**Syntax Fixes:**
+1. **airtable_routes.py**: Added missing imports (`BaseModel`, `List`, `Dict`, `APIRouter`, `logging`) and class definitions (`AirtableSearchRequest`, `AirtableSearchResponse`)
+2. **slack_routes.py**: Moved `logger` definition before usage in try/except block
+
+**Configuration:**
+- Backend runs on port **5059** (matches `next.config.js` rewrites)
+- Frontend runs on port **3000**
+- Environment variable: `PYTHON_API_SERVICE_BASE_URL=http://localhost:5059`
+
+**Files Modified:**
+- `backend/integrations/hubspot_routes.py`
+- `backend/integrations/salesforce_routes.py`
+- `backend/integrations/zoom_routes.py`
+- `backend/integrations/airtable_routes.py`
+- `backend/integrations/slack_routes.py`
+
+**Impact:**
+- ✅ Backend server now starts successfully with all routes loaded
+- ✅ HubSpot, Salesforce, Zoom integrations properly initialized
+- ✅ Ready for browser testing of integration fixes
+
+**Next Steps:**
+1. Browser test HubSpot integration (Analytics, Predictive, AI Insights tabs)
+2. Verify all integration fixes work end-to-end
+3. Complete testing and merge PR
