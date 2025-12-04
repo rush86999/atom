@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -14,7 +15,7 @@ async def get_auth_url():
     """Get Notion OAuth URL"""
     return {
         "url": "https://api.notion.com/v1/oauth/authorize?client_id=INSERT_CLIENT_ID&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fnotion%2Fcallback",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
@@ -25,7 +26,7 @@ async def handle_oauth_callback(code: str):
         "status": "success",
         "code": code,
         "message": "Notion authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 class NotionSearchRequest(BaseModel):
@@ -47,7 +48,7 @@ async def notion_status(user_id: str = "test_user"):
         "user_id": user_id,
         "status": "connected",
         "message": "Notion integration is available",
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }
 
 @router.post("/search")
@@ -61,7 +62,7 @@ async def notion_search(request: NotionSearchRequest):
             "title": f"Meeting Notes - {request.query}",
             "type": "page",
             "url": "https://notion.so/mock-page",
-            "last_edited": "2025-11-09T10:00:00Z",
+            "last_edited": datetime.now().isoformat(),
             "snippet": f"Discussion about {request.query} and project planning",
         }
     ]
@@ -70,7 +71,7 @@ async def notion_search(request: NotionSearchRequest):
         ok=True,
         query=request.query,
         results=mock_results,
-        timestamp="2025-11-09T17:25:00Z",
+        timestamp=datetime.now().isoformat(),
     )
 
 @router.get("/pages/{page_id}")
@@ -81,5 +82,5 @@ async def get_notion_page(page_id: str, user_id: str = "test_user"):
         "page_id": page_id,
         "title": f"Sample Notion Page - {page_id}",
         "content": f"This is the content of Notion page {page_id}.",
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }

@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -14,7 +15,7 @@ async def get_auth_url():
     """Get Monday OAuth URL"""
     return {
         "url": "https://auth.monday.com/oauth2/authorize?client_id=INSERT_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fmonday%2Fcallback",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
@@ -25,7 +26,7 @@ async def handle_oauth_callback(code: str):
         "status": "success",
         "code": code,
         "message": "Monday authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 class MondaySearchRequest(BaseModel):
@@ -41,7 +42,7 @@ async def monday_status(user_id: str = "test_user"):
         "user_id": user_id,
         "status": "connected",
         "message": "Monday integration is available",
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }
 
 @router.post("/search")
@@ -58,5 +59,5 @@ async def monday_search(request: MondaySearchRequest):
                 "items_count": 15,
             }
         ],
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }

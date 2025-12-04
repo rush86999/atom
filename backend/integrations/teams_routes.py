@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -14,7 +15,7 @@ async def get_auth_url():
     """Get Teams OAuth URL"""
     return {
         "url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=INSERT_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fteams%2Fcallback&response_mode=query&scope=User.Read%20Team.ReadBasic.All",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
@@ -25,7 +26,7 @@ async def handle_oauth_callback(code: str):
         "status": "success",
         "code": code,
         "message": "Teams authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 class TeamsSearchRequest(BaseModel):
@@ -47,7 +48,7 @@ async def teams_status(user_id: str = "test_user"):
         "user_id": user_id,
         "status": "connected",
         "message": "Teams integration is available",
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }
 
 @router.post("/search")
@@ -68,7 +69,7 @@ async def teams_search(request: TeamsSearchRequest):
         ok=True,
         query=request.query,
         results=mock_results,
-        timestamp="2025-11-09T17:25:00Z",
+        timestamp=datetime.now().isoformat(),
     )
 
 @router.get("/items")
@@ -84,5 +85,5 @@ async def list_teams_items(user_id: str = "test_user"):
             }
             for i in range(1, 6)
         ],
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }

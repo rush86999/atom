@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException
 
 # Auth Type: OAuth2
@@ -8,7 +10,7 @@ async def get_auth_url():
     """Get Google Calendar OAuth URL"""
     return {
         "url": "https://accounts.google.com/o/oauth2/v2/auth?client_id=INSERT_CLIENT_ID&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fgoogle-calendar%2Fcallback&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
@@ -19,7 +21,7 @@ async def handle_oauth_callback(code: str):
         "status": "success",
         "code": code,
         "message": "Google Calendar authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 class GoogleCalendarService:

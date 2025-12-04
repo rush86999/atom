@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -14,7 +15,7 @@ async def get_auth_url():
     """Get Zendesk OAuth URL"""
     return {
         "url": "https://{subdomain}.zendesk.com/oauth/authorizations/new?client_id=INSERT_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fzendesk%2Fcallback&scope=read",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
@@ -25,7 +26,7 @@ async def handle_oauth_callback(code: str):
         "status": "success",
         "code": code,
         "message": "Zendesk authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 class ZendeskSearchRequest(BaseModel):
@@ -47,7 +48,7 @@ async def zendesk_status(user_id: str = "test_user"):
         "user_id": user_id,
         "status": "connected",
         "message": "Zendesk integration is available",
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }
 
 @router.post("/search")
@@ -68,7 +69,7 @@ async def zendesk_search(request: ZendeskSearchRequest):
         ok=True,
         query=request.query,
         results=mock_results,
-        timestamp="2025-11-09T17:25:00Z",
+        timestamp=datetime.now().isoformat(),
     )
 
 @router.get("/items")
@@ -84,5 +85,5 @@ async def list_zendesk_items(user_id: str = "test_user"):
             }
             for i in range(1, 6)
         ],
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }

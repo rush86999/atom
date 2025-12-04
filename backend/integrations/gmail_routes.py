@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -15,7 +16,7 @@ async def get_auth_url():
     """Get Gmail OAuth URL"""
     return {
         "url": "https://accounts.google.com/o/oauth2/v2/auth?client_id=INSERT_CLIENT_ID&response_type=code&scope=https://www.googleapis.com/auth/gmail.readonly",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
@@ -26,7 +27,7 @@ async def handle_oauth_callback(code: str):
         "status": "success",
         "code": code,
         "message": "Gmail authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 class GmailSearchRequest(BaseModel):
@@ -50,7 +51,7 @@ async def gmail_status(user_id: str = "test_user"):
         "user_id": user_id,
         "status": "connected",
         "message": "Gmail integration is available",
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }
 
 @router.post("/search")
@@ -74,5 +75,5 @@ async def gmail_search(request: GmailSearchRequest):
         query=request.query,
         results=mock_results,
         total_results=len(mock_results),
-        timestamp="2025-11-09T17:25:00Z",
+        timestamp=datetime.now().isoformat(),
     )
