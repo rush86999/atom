@@ -1,8 +1,11 @@
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+
+from .xero_service import XeroService
 
 logger = logging.getLogger(__name__)
 
@@ -14,75 +17,82 @@ async def get_auth_url():
     """Get Xero OAuth URL"""
     return {
         "url": "https://login.xero.com/identity/connect/authorize?response_type=code&client_id=INSERT_CLIENT_ID&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fxero%2Fcallback&scope=openid profile email accounting.transactions",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
-@router.get("/callback")
-async def handle_oauth_callback(code: str):
-    """Handle Xero OAuth callback"""
-    return {
-        "ok": True,
-        "status": "success",
-        "code": code,
-        "message": "Xero authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
-    }
+# Initialize service
+xero_service = XeroService()
 
-class XeroSearchRequest(BaseModel):
-    query: str
-    user_id: str = "test_user"
+class XeroAuthRequest(BaseModel):
+    code: str
+    redirect_uri: str
 
-class XeroSearchResponse(BaseModel):
-    ok: bool
-    query: str
-    results: List[Dict]
-    timestamp: str
+@router.post("/auth/callback")
+async def xero_auth_callback(auth_request: XeroAuthRequest):
+    """Exchange authorization code for access token"""
+    try:
+        token_data = await xero_service.exchange_token(auth_request.code, auth_request.redirect_uri)
+        # Automatically fetch tenants to help the frontend
+        tenants = await xero_service.get_tenants(token_data["access_token"])
+        
+        return {
+            "ok": True,
+            "access_token": token_data["access_token"],
+            "refresh_token": token_data["refresh_token"],
+            "tenants": tenants,
+            "service": "xero"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/tenants")
+async def get_tenants(access_token: str = Query(..., description="Access Token")):
+    """Get connected Xero tenants"""
+    tenants = await xero_service.get_tenants(access_token)
+    return {"ok": True, "data": tenants}
+
+@router.get("/invoices")
+async def list_invoices(
+    access_token: str = Query(..., description="Access Token"),
+    tenant_id: str = Query(..., description="Xero Tenant ID"),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """List Xero invoices"""
+    invoices = await xero_service.get_invoices(access_token, tenant_id, limit)
+    return {"ok": True, "data": invoices, "count": len(invoices)}
+
+@router.get("/contacts")
+async def list_contacts(
+    access_token: str = Query(..., description="Access Token"),
+    tenant_id: str = Query(..., description="Xero Tenant ID"),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """List Xero contacts"""
+    contacts = await xero_service.get_contacts(access_token, tenant_id, limit)
+    return {"ok": True, "data": contacts, "count": len(contacts)}
 
 @router.get("/status")
-async def xero_status(user_id: str = "test_user"):
+async def xero_status():
     """Get Xero integration status"""
     return {
         "ok": True,
         "service": "xero",
-        "user_id": user_id,
-        "status": "connected",
-        "message": "Xero integration is available",
-        "timestamp": "2025-11-09T17:25:00Z",
+        "status": "active",
+        "version": "1.0.0",
+        "mode": "real"
     }
 
-@router.post("/search")
-async def xero_search(request: XeroSearchRequest):
-    """Search Xero content"""
-    logger.info(f"Searching Xero for: {request.query}")
-
-    mock_results = [
-        {
-            "id": "item_001",
-            "title": f"Sample Xero Result - {request.query}",
-            "type": "item",
-            "snippet": f"This is a sample result from Xero for query: {request.query}",
-        }
-    ]
-
-    return XeroSearchResponse(
-        ok=True,
-        query=request.query,
-        results=mock_results,
-        timestamp="2025-11-09T17:25:00Z",
-    )
-
-@router.get("/items")
-async def list_xero_items(user_id: str = "test_user"):
-    """List Xero items"""
+@router.get("/")
+async def xero_root():
+    """Xero integration root endpoint"""
     return {
-        "ok": True,
-        "items": [
-            {
-                "id": f"item_{i}",
-                "title": f"Xero Item {i}",
-                "status": "active",
-            }
-            for i in range(1, 6)
-        ],
-        "timestamp": "2025-11-09T17:25:00Z",
+        "service": "xero",
+        "status": "active",
+        "endpoints": [
+            "/auth/callback",
+            "/tenants",
+            "/invoices",
+            "/contacts",
+            "/status"
+        ]
     }

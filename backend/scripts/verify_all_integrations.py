@@ -4,8 +4,8 @@ import os
 import asyncio
 from pathlib import Path
 
-# Add backend to path
-sys.path.append(str(Path(__file__).parent.parent))
+# Add project root to path
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,6 +21,56 @@ try:
 except ImportError:
     HubSpotService = None
 
+try:
+    from integrations.bitbucket_service import BitbucketService
+except ImportError:
+    BitbucketService = None
+
+try:
+    from integrations.intercom_service import IntercomService
+except ImportError:
+    IntercomService = None
+
+try:
+    from integrations.mailchimp_service import MailchimpService
+except ImportError:
+    MailchimpService = None
+
+try:
+    from integrations.gitlab_service import GitLabService
+except ImportError:
+    GitLabService = None
+
+try:
+    from integrations.xero_service import XeroService
+except ImportError:
+    XeroService = None
+
+try:
+    from integrations.shopify_service import ShopifyService
+except ImportError:
+    ShopifyService = None
+
+try:
+    from integrations.calendly_service import CalendlyService
+except ImportError:
+    CalendlyService = None
+
+try:
+    from integrations.zendesk_service import ZendeskService
+except ImportError:
+    ZendeskService = None
+
+try:
+    from integrations.dropbox_service import DropboxService
+except ImportError:
+    DropboxService = None
+
+try:
+    from integrations.discord_service import DiscordService
+except ImportError:
+    DiscordService = None
+
 async def verify_integrations():
     print("\n--- Comprehensive Integration Verification ---")
     
@@ -28,7 +78,13 @@ async def verify_integrations():
 
     # 1. Salesforce
     print("\n1. Salesforce:")
-    sf_vars = ["SALESFORCE_CLIENT_ID", "SALESFORCE_CLIENT_SECRET"]
+    sf_vars = [
+        "SALESFORCE_CLIENT_ID", 
+        "SALESFORCE_CLIENT_SECRET", 
+        "SALESFORCE_USERNAME", 
+        "SALESFORCE_PASSWORD", 
+        "SALESFORCE_SECURITY_TOKEN"
+    ]
     sf_missing = [v for v in sf_vars if not os.getenv(v)]
     if sf_missing:
         print(f"   ❌ Missing Env Vars: {', '.join(sf_missing)}")
@@ -92,7 +148,17 @@ async def verify_integrations():
         results["Intercom"] = "Failed (Missing Env)"
     else:
         print("   ✅ Env Vars Present")
-        results["Intercom"] = "Success (Env Only)"
+        if IntercomService:
+            try:
+                service = IntercomService()
+                print("   ✅ Service Instantiated")
+                results["Intercom"] = "Success"
+            except Exception as e:
+                print(f"   ❌ Service Error: {e}")
+                results["Intercom"] = f"Failed ({e})"
+        else:
+            print("   ⚠️ Service Class Not Found")
+            results["Intercom"] = "Partial (Env Only)"
 
     # 5. GitLab
     print("\n5. GitLab:")
@@ -103,7 +169,17 @@ async def verify_integrations():
         results["GitLab"] = "Failed (Missing Env)"
     else:
         print("   ✅ Env Vars Present")
-        results["GitLab"] = "Success (Env Only)"
+        if GitLabService:
+            try:
+                service = GitLabService()
+                print("   ✅ Service Instantiated")
+                results["GitLab"] = "Success"
+            except Exception as e:
+                print(f"   ❌ Service Error: {e}")
+                results["GitLab"] = f"Failed ({e})"
+        else:
+            print("   ⚠️ Service Class Not Found")
+            results["GitLab"] = "Partial (Env Only)"
 
     # 6. Bitbucket
     print("\n6. Bitbucket:")
@@ -114,7 +190,17 @@ async def verify_integrations():
         results["Bitbucket"] = "Failed (Missing Env)"
     else:
         print("   ✅ Env Vars Present")
-        results["Bitbucket"] = "Success (Env Only)"
+        if BitbucketService:
+            try:
+                service = BitbucketService()
+                print("   ✅ Service Instantiated")
+                results["Bitbucket"] = "Success"
+            except Exception as e:
+                print(f"   ❌ Service Error: {e}")
+                results["Bitbucket"] = f"Failed ({e})"
+        else:
+            print("   ⚠️ Service Class Not Found")
+            results["Bitbucket"] = "Partial (Env Only)"
 
     # 7. Mailchimp
     print("\n7. Mailchimp:")
@@ -125,7 +211,17 @@ async def verify_integrations():
         results["Mailchimp"] = "Failed (Missing Env)"
     else:
         print("   ✅ Env Vars Present")
-        results["Mailchimp"] = "Success (Env Only)"
+        if MailchimpService:
+            try:
+                service = MailchimpService()
+                print("   ✅ Service Instantiated")
+                results["Mailchimp"] = "Success"
+            except Exception as e:
+                print(f"   ❌ Service Error: {e}")
+                results["Mailchimp"] = f"Failed ({e})"
+        else:
+            print("   ⚠️ Service Class Not Found")
+            results["Mailchimp"] = "Partial (Env Only)"
 
     # 8. Xero
     print("\n8. Xero:")
@@ -136,7 +232,17 @@ async def verify_integrations():
         results["Xero"] = "Failed (Missing Env)"
     else:
         print("   ✅ Env Vars Present")
-        results["Xero"] = "Success (Env Only)"
+        if XeroService:
+            try:
+                service = XeroService()
+                print("   ✅ Service Instantiated")
+                results["Xero"] = "Success"
+            except Exception as e:
+                print(f"   ❌ Service Error: {e}")
+                results["Xero"] = f"Failed ({e})"
+        else:
+            print("   ⚠️ Service Class Not Found")
+            results["Xero"] = "Partial (Env Only)"
 
     # 9. Shopify
     print("\n9. Shopify:")
@@ -147,7 +253,17 @@ async def verify_integrations():
         results["Shopify"] = "Failed (Missing Env)"
     else:
         print("   ✅ Env Vars Present")
-        results["Shopify"] = "Success (Env Only)"
+        if ShopifyService:
+            try:
+                service = ShopifyService()
+                print("   ✅ Service Instantiated")
+                results["Shopify"] = "Success"
+            except Exception as e:
+                print(f"   ❌ Service Error: {e}")
+                results["Shopify"] = f"Failed ({e})"
+        else:
+            print("   ⚠️ Service Class Not Found")
+            results["Shopify"] = "Partial (Env Only)"
 
     print("\n--- Summary ---")
     for service, status in results.items():

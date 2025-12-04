@@ -24,7 +24,7 @@ async def get_auth_url():
     """Get Trello OAuth URL"""
     return {
         "url": "https://trello.com/1/authorize?expiration=never&name=ATOM&scope=read,write,account&response_type=token&key=INSERT_API_KEY",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
@@ -35,7 +35,7 @@ async def handle_oauth_callback(token: str):
         "status": "success",
         "token": token,
         "message": "Trello authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 # Service instances
