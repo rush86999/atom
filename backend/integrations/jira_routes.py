@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -14,7 +15,7 @@ async def get_auth_url():
     """Get Jira OAuth URL"""
     return {
         "url": "https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=INSERT_CLIENT_ID&scope=read%3Ajira-work%20write%3Ajira-work&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fjira%2Fcallback&state=test_state&response_type=code&prompt=consent",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
@@ -25,7 +26,7 @@ async def handle_oauth_callback(code: str):
         "status": "success",
         "code": code,
         "message": "Jira authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 class JiraSearchRequest(BaseModel):
@@ -47,7 +48,7 @@ async def jira_status(user_id: str = "test_user"):
         "user_id": user_id,
         "status": "connected",
         "message": "Jira integration is available",
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }
 
 @router.post("/search")
@@ -68,7 +69,7 @@ async def jira_search(request: JiraSearchRequest):
         ok=True,
         query=request.query,
         results=mock_results,
-        timestamp="2025-11-09T17:25:00Z",
+        timestamp=datetime.now().isoformat(),
     )
 
 @router.get("/items")
@@ -84,5 +85,5 @@ async def list_jira_items(user_id: str = "test_user"):
             }
             for i in range(1, 6)
         ],
-        "timestamp": "2025-11-09T17:25:00Z",
+        "timestamp": datetime.now().isoformat(),
     }

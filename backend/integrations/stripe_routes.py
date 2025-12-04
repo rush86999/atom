@@ -104,7 +104,7 @@ async def get_auth_url():
     """Get Stripe OAuth URL"""
     return {
         "url": "https://connect.stripe.com/oauth/authorize?response_type=code&client_id=INSERT_CLIENT_ID&scope=read_write",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
@@ -115,7 +115,7 @@ async def handle_oauth_callback(code: str):
         "status": "success",
         "code": code,
         "message": "Stripe authentication successful (mock)",
-        "timestamp": "2025-11-09T17:25:00Z"
+        "timestamp": datetime.now().isoformat()
     }
 
 
