@@ -28,13 +28,13 @@ try:
         execute_soql_query
     )
     from .auth_handler_salesforce import salesforce_auth_handler
-    from backend.core.mock_mode import get_mock_mode_manager
+    from core.mock_mode import get_mock_mode_manager
 
     SALESFORCE_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Salesforce integration not available: {e}")
     SALESFORCE_AVAILABLE = False
-    from backend.core.mock_mode import get_mock_mode_manager # Import anyway for mock mode
+    from core.mock_mode import get_mock_mode_manager # Import anyway for mock mode
 
 # Create router
 # Auth Type: OAuth2

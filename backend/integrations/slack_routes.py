@@ -14,6 +14,8 @@ from fastapi import Request
 from core.oauth_handler import OAuthHandler, SLACK_OAUTH_CONFIG
 from core.token_storage import token_storage
 
+logger = logging.getLogger(__name__)
+
 try:
     from slack_sdk import WebClient
     from slack_sdk.errors import SlackApiError
@@ -21,8 +23,6 @@ try:
 except ImportError:
     SLACK_SDK_AVAILABLE = False
     logger.warning("slack_sdk not installed, running in mock mode")
-
-logger = logging.getLogger(__name__)
 
 # Create FastAPI router
 # Auth Type: OAuth2

@@ -1,6 +1,20 @@
+import logging
+from typing import List, Dict
+from fastapi import APIRouter
+from pydantic import BaseModel
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/airtable", tags=["airtable"])
+
+class AirtableSearchResponse(BaseModel):
     query: str
     results: List[Dict]
     timestamp: str
+
+class AirtableSearchRequest(BaseModel):
+    query: str
 
 class AirtableService:
     def __init__(self):
