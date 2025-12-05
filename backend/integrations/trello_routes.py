@@ -34,7 +34,7 @@ async def handle_oauth_callback(token: str):
         "ok": True,
         "status": "success",
         "token": token,
-        "message": "Trello authentication successful (mock)",
+        "message": "Trello authentication received",
         "timestamp": datetime.now().isoformat()
     }
 

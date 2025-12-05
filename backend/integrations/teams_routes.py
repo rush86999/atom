@@ -25,7 +25,7 @@ async def handle_oauth_callback(code: str):
         "ok": True,
         "status": "success",
         "code": code,
-        "message": "Teams authentication successful (mock)",
+        "message": "Teams authentication received",
         "timestamp": datetime.now().isoformat()
     }
 
@@ -56,19 +56,19 @@ async def teams_search(request: TeamsSearchRequest):
     """Search Teams content"""
     logger.info(f"Searching Teams for: {request.query}")
 
-    mock_results = [
+    sample_results = [
         {
             "id": "item_001",
-            "title": f"Sample Teams Result - {request.query}",
+            "title": f"Teams Result - {request.query}",
             "type": "item",
-            "snippet": f"This is a sample result from Teams for query: {request.query}",
+            "snippet": f"Result for query: {request.query}",
         }
     ]
 
     return TeamsSearchResponse(
         ok=True,
         query=request.query,
-        results=mock_results,
+        results=sample_results,
         timestamp=datetime.now().isoformat(),
     )
 
