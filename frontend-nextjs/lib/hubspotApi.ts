@@ -94,9 +94,19 @@ class HubSpotApiService {
   async connectHubSpot(): Promise<{ success: boolean; authUrl?: string; error?: string }> {
     try {
       const data = await this.fetchWithErrorHandling(`${API_BASE}/oauth/start`, {
-        method: 'POST',
+        method: 'GET',
       })
-      return data
+      // Backend returns { ok: true, auth_url: "..." }
+      if (data.ok && data.auth_url) {
+        return {
+          success: true,
+          authUrl: data.auth_url,
+        }
+      }
+      return {
+        success: false,
+        error: data.error || 'Failed to get authorization URL',
+      }
     } catch (error) {
       return {
         success: false,

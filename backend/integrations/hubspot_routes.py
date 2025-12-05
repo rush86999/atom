@@ -764,6 +764,51 @@ class HubSpotService:
 
 
 # API Routes
+
+# OAuth routes
+@router.get("/auth/start")
+async def start_oauth():
+    """Start HubSpot OAuth flow by returning the authorization URL"""
+    import os
+    
+    client_id = os.getenv("HUBSPOT_CLIENT_ID")
+    redirect_uri = os.getenv("HUBSPOT_REDIRECT_URI", "http://localhost:3000/api/integrations/hubspot/callback")
+    
+    if not client_id:
+        return {
+            "ok": False,
+            "error": "HUBSPOT_CLIENT_ID not configured",
+            "message": "Please set HUBSPOT_CLIENT_ID environment variable"
+        }
+    
+    # HubSpot OAuth scopes
+    scopes = [
+        "crm.objects.contacts.read",
+        "crm.objects.contacts.write",
+        "crm.objects.companies.read",
+        "crm.objects.companies.write",
+        "crm.objects.deals.read",
+        "crm.objects.deals.write",
+        "oauth",
+    ]
+    
+    import urllib.parse
+    scope_string = urllib.parse.quote(" ".join(scopes))
+    
+    auth_url = (
+        f"https://app.hubspot.com/oauth/authorize"
+        f"?client_id={client_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scope_string}"
+    )
+    
+    return {
+        "ok": True,
+        "auth_url": auth_url,
+        "message": "Redirect to auth_url to authorize HubSpot"
+    }
+
+
 @router.post("/callback")
 async def hubspot_auth(auth_request: HubSpotAuthRequest):
     """Authenticate with HubSpot OAuth"""
