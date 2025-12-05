@@ -7,7 +7,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Forward request to backend LanceDB memory service
-    const response = await fetch('http://localhost:5000/api/integrations/gmail/memory/stats', {
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+    const response = await fetch(`${backendUrl}/api/memory/ingestion/memory/stats`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

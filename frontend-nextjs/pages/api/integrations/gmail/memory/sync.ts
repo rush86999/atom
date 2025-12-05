@@ -8,17 +8,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { force_full_sync, max_messages, labels } = req.body;
 
-    // Forward request to backend LanceDB memory service
-    const response = await fetch('http://localhost:5000/api/integrations/gmail/memory/sync', {
+    // Forward request to backend LanceDB memory service to start ingestion stream
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+
+    // Note: force_full_sync and other params are not currently supported by the stream/start endpoint
+    // but we start the real-time stream which will ingest new messages
+    const response = await fetch(`${backendUrl}/api/memory/ingestion/stream/start/gmail`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        force_full_sync: force_full_sync || false,
-        max_messages: max_messages || 1000,
-        labels: labels || [],
-      }),
+      body: JSON.stringify({}),
     });
 
     if (response.ok) {

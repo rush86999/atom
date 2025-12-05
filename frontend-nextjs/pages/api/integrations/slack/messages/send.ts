@@ -7,7 +7,7 @@ export default async function handler(
   const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
 
   try {
-    const response = await fetch(`${backendUrl}/api/slack/messages/send`, {
+    const response = await fetch(`${backendUrl}/api/slack/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

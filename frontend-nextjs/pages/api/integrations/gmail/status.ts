@@ -7,7 +7,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Check if Gmail integration is available
-    const response = await fetch('http://localhost:5000/api/integrations/gmail/health', {
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+    const response = await fetch(`${backendUrl}/api/gmail/status`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

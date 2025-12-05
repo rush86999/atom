@@ -13,19 +13,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Forward request to backend LanceDB memory service
-    const response = await fetch('http://localhost:5000/api/integrations/gmail/memory/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        limit: limit || 10,
-        include_body: include_body || false,
-        labels: labels || [],
-        date_range: date_range || null,
-      }),
-    });
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+    const limitParam = limit || 10;
+
+    const response = await fetch(
+      `${backendUrl}/api/memory/ingestion/search?query=${encodeURIComponent(query)}&app_id=gmail&limit=${limitParam}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
     if (response.ok) {
       const data = await response.json();

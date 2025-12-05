@@ -6,16 +6,15 @@ export default async function handler(
 ) {
   const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
 
-  if (req.method === 'POST') {
+  if (req.method === 'GET') {
     try {
-      const response = await fetch(`${backendUrl}/api/integrations/discord/profile`, {
-        method: 'POST',
+      const response = await fetch(`${backendUrl}/api/discord/user`, {
+        method: 'GET',
         headers: { "Content-Type": "application/json" },
-        body: req.method === 'GET' ? undefined : JSON.stringify(req.body)
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         return res.status(200).json(data);
       } else {
@@ -29,7 +28,7 @@ export default async function handler(
       });
     }
   } else {
-    res.setHeader('Allow', ['POST']);
+    res.setHeader('Allow', ['GET']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
