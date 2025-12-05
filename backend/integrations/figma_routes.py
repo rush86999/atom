@@ -3,10 +3,9 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-from integrations.auth_handler_figma import figma_auth_handler
+from .figma_service import get_figma_service
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,8 @@ class FigmaSearchResponse(BaseModel):
 async def get_figma_oauth_url(state: Optional[str] = None):
     """Get Figma OAuth authorization URL"""
     try:
-        auth_url = figma_auth_handler.get_authorization_url(state)
+        service = get_figma_service()
+        auth_url = service.get_authorization_url(state)
         return {
             "ok": True,
             "authorization_url": auth_url,
@@ -41,12 +41,8 @@ async def get_figma_oauth_url(state: Optional[str] = None):
 async def figma_oauth_callback(code: str = Query(...), state: Optional[str] = None):
     """Handle Figma OAuth callback"""
     try:
-        token_data = await figma_auth_handler.exchange_code_for_token(code)
-        
-        # In production, you would:
-        # 1. Validate the state parameter
-        # 2. Store tokens in database encrypted with ATOM_ENCRYPTION_KEY
-        # 3. Associate tokens with the user
+        service = get_figma_service()
+        token_data = await service.exchange_token(code)
         
         return {
             "ok": True,
@@ -64,7 +60,8 @@ async def figma_oauth_callback(code: str = Query(...), state: Optional[str] = No
 async def get_figma_oauth_status():
     """Get current Figma OAuth connection status"""
     try:
-        status = figma_auth_handler.get_connection_status()
+        service = get_figma_service()
+        status = service.get_connection_status()
         return {
             "ok": True,
             **status
@@ -73,11 +70,12 @@ async def get_figma_oauth_status():
         logger.error(f"Error getting Figma OAuth status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# API Endpoints (require valid OAuth token)
+# API Endpoints
 @router.get("/status")
 async def figma_status(user_id: str = "test_user"):
     """Get Figma integration status"""
-    connection_status = figma_auth_handler.get_connection_status()
+    service = get_figma_service()
+    connection_status = service.get_connection_status()
     
     return {
         "ok": True,
@@ -92,8 +90,9 @@ async def figma_status(user_id: str = "test_user"):
 async def get_figma_user():
     """Get authenticated Figma user information"""
     try:
-        await figma_auth_handler.ensure_valid_token()
-        user_info = await figma_auth_handler.get_user_info()
+        service = get_figma_service()
+        await service.ensure_valid_token()
+        user_info = await service.get_user_info()
         return {
             "ok": True,
             **user_info
@@ -108,22 +107,20 @@ async def get_figma_user():
 async def list_figma_files():
     """List Figma files (requires authentication)"""
     try:
-        token = await figma_auth_handler.ensure_valid_token()
+        service = get_figma_service()
+        await service.ensure_valid_token()
         
-        # In production, make actual API call to Figma
-        # import aiohttp
-        # async with aiohttp.ClientSession() as session:
-        #     headers = {"Authorization": f"Bearer {token}"}
-        #     async with session.get(f"{figma_auth_handler.api_base_url}/teams/{team_id}/projects", headers=headers) as response:
-        #         return await response.json()
+        # Note: Figma API requires team_id or project_id to list files.
+        # Without it, we can't list "all" files for a user easily.
+        # We return a placeholder list or we could try to get team projects if we had team_id.
         
-        # Mock response for now
         return {
             "ok": True,
             "files": [
                 {"key": "fig-001", "name": "Homepage Design", "type": "design"},
                 {"key": "fig-002", "name": "Mobile App UI", "type": "design"},
-            ]
+            ],
+            "message": "Listing files requires team_id or project_id context"
         }
     except HTTPException:
         raise
@@ -135,11 +132,12 @@ async def list_figma_files():
 async def figma_search(request: FigmaSearchRequest):
     """Search Figma content (requires authentication)"""
     try:
-        await figma_auth_handler.ensure_valid_token()
+        service = get_figma_service()
+        await service.ensure_valid_token()
         
         logger.info(f"Searching Figma for: {request.query}")
 
-        # Mock results - in production, search using Figma API
+        # Mock results - in production, search using Figma API (if available) or index
         mock_results = [
             {
                 "id": "item_001",
@@ -165,7 +163,8 @@ async def figma_search(request: FigmaSearchRequest):
 async def list_figma_items(user_id: str = "test_user"):
     """List Figma items (requires authentication)"""
     try:
-        await figma_auth_handler.ensure_valid_token()
+        service = get_figma_service()
+        await service.ensure_valid_token()
         
         return {
             "ok": True,
@@ -183,4 +182,11 @@ async def list_figma_items(user_id: str = "test_user"):
     except Exception as e:
         logger.error(f"Error listing Figma items: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/health")
+async def figma_health():
+    """Health check for Figma integration"""
+    service = get_figma_service()
+    return await service.health_check()
+
 
