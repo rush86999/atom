@@ -13,6 +13,8 @@ const publicRoutes = [
 // Define API routes that don't require authentication
 const publicApiRoutes = [
   '/api/auth',
+  '/api/hubspot/oauth/start',
+  '/api/integrations/hubspot/callback',
 ];
 
 export async function middleware(request: NextRequest) {
