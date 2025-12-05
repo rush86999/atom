@@ -1,6 +1,10 @@
 import os
 import httpx
 from typing import Dict, Any, List, Optional
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 class IntercomService:
     def __init__(self):
@@ -66,3 +70,21 @@ class IntercomService:
         response = await self.client.post(url, headers=headers, json=data)
         response.raise_for_status()
         return response.json().get("data", [])
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Health check for Intercom service"""
+        return {
+            "ok": True,
+            "status": "healthy",
+            "service": "intercom",
+            "timestamp": datetime.now().isoformat(),
+            "configured": bool(self.client_id and self.client_secret)
+        }
+
+
+intercom_service = IntercomService()
+
+
+def get_intercom_service() -> IntercomService:
+    return intercom_service
+

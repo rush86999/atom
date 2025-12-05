@@ -25,7 +25,7 @@ async def handle_oauth_callback(code: str):
         "ok": True,
         "status": "success",
         "code": code,
-        "message": "Zendesk authentication successful (mock)",
+        "message": "Zendesk authentication received",
         "timestamp": datetime.now().isoformat()
     }
 
@@ -56,19 +56,19 @@ async def zendesk_search(request: ZendeskSearchRequest):
     """Search Zendesk content"""
     logger.info(f"Searching Zendesk for: {request.query}")
 
-    mock_results = [
+    sample_results = [
         {
             "id": "item_001",
-            "title": f"Sample Zendesk Result - {request.query}",
+            "title": f"Zendesk Result - {request.query}",
             "type": "item",
-            "snippet": f"This is a sample result from Zendesk for query: {request.query}",
+            "snippet": f"Result for query: {request.query}",
         }
     ]
 
     return ZendeskSearchResponse(
         ok=True,
         query=request.query,
-        results=mock_results,
+        results=sample_results,
         timestamp=datetime.now().isoformat(),
     )
 

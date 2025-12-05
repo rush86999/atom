@@ -28,7 +28,7 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 
 ### Recent Major Milestone: Phase 7 - Bug Fixes & Code Quality (Dec 4, 2025)
 
-**Routes Refactored to Use Real Services (8 files):**
+**Routes Refactored to Use Real Services (10 files):**
 - `airtable_routes.py` → Uses real `airtable_service` with CRUD operations
 - `plaid_routes.py` → Uses real `plaid_service` with full banking API
 - `discord_routes.py` → Uses real `discord_service` with messaging
@@ -37,6 +37,8 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - `twilio_routes.py` → Uses real `twilio_service` (SMS, calls, messages)
 - `tableau_routes.py` → Uses real `tableau_service` (removed 200+ line mock class)
 - `bitbucket_routes.py` → Fixed duplicate router definition
+- `intercom_routes.py` → Uses real `intercom_service` (574→150 lines, -424 lines)
+- `freshdesk_routes.py` → Uses real `freshdesk_service` (600→200 lines, -400 lines)
 
 **Hardcoded Timestamps Fixed (14 files, 50+ instances):**
 - All timestamps now use `datetime.now().isoformat()` for real-time values
@@ -45,7 +47,9 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 **Other Fixes:**
 - Fixed duplicate `salesforce_search` function in `salesforce_routes.py`
 - Fixed duplicate router definition in `bitbucket_routes.py`
-- Removed ~1,000+ lines of inline mock code across route files
+- Replaced print() with logger calls in github_routes.py, whatsapp_websocket_routes.py
+- **Total: ~1,800+ lines of inline mock code removed**
+
 
 ### Recent Major Milestones (Nov 29, 2025 - Latest Session)
 
