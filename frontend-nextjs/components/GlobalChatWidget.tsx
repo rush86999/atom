@@ -55,24 +55,34 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         try {
             setIsLoading(true);
             const response = await fetch(`/api/atom-agent/sessions/${sid}/history`);
-            const data = await response.json();
 
-            if (data.success && data.messages && data.messages.length > 0) {
-                const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
-                    id: msg.id || `msg_${Date.now()}_${Math.random()}`,
-                    type: msg.role === 'user' ? 'user' : 'assistant',
-                    content: msg.content || '',
-                    timestamp: new Date(msg.timestamp),
-                    workflowData: msg.metadata?.workflow_id ? {
-                        workflowId: msg.metadata.workflow_id,
-                        workflowName: msg.metadata.workflow_name,
-                        stepsCount: msg.metadata.steps_count,
-                        isScheduled: msg.metadata.is_scheduled,
-                    } : undefined,
-                    actions: msg.metadata?.actions || [],
-                }));
-                setMessages(chatMessages);
+            if (response.ok) {
+                try {
+                    const data = await response.json();
+                    if (data.success && data.messages && data.messages.length > 0) {
+                        const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
+                            id: msg.id || `msg_${Date.now()}_${Math.random()}`,
+                            type: msg.role === 'user' ? 'user' : 'assistant',
+                            content: msg.content || '',
+                            timestamp: new Date(msg.timestamp),
+                            workflowData: msg.metadata?.workflow_id ? {
+                                workflowId: msg.metadata.workflow_id,
+                                workflowName: msg.metadata.workflow_name,
+                                stepsCount: msg.metadata.steps_count,
+                                isScheduled: msg.metadata.is_scheduled,
+                            } : undefined,
+                            actions: msg.metadata?.actions || [],
+                        }));
+                        setMessages(chatMessages);
+                    } else {
+                        setMessages([welcomeMsg]);
+                    }
+                } catch (jsonError) {
+                    console.error('Failed to parse history JSON:', jsonError);
+                    setMessages([welcomeMsg]);
+                }
             } else {
+                console.error(`Failed to load history: ${response.status} ${response.statusText}`);
                 setMessages([welcomeMsg]);
             }
         } catch (error) {

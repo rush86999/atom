@@ -1,7 +1,8 @@
-# Developer Handover & Status Report
+# Developer Handover - Phase 65 Complete - Additional Integration Fixes
 
-**Date:** December 4, 2025  
-**Latest Update:** Phase 7 Complete - Bug Fixes & Code Quality Improvements  
+**Date:** December 4, 2025
+**Status:** Phase 7 Complete - Bug Fixes & Code Quality Improvements
+**Previous Status:** Phase 65 Complete (Nov 9, 2025)
 **Project:** Atom (Advanced Task Orchestration & Management)
 
 ## 1. Project Overview
@@ -24,6 +25,7 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - ✅ **Phase 58: Chat Interface** - Dedicated 3-pane agent chat with history and workspace.
 - ✅ **Phase 59: OAuth Standardization** - Standardized callback URLs and updated credential guides.
 - ✅ **Phase 60: Integration Readiness Improvements** - Improved integration readiness score from <50% to 82.3% by adding auth endpoints and service classes to 50+ services.
+<<<<<<< HEAD
 - ✅ **Phase 7 (Bug Fixes):** Integration route refactoring and code quality improvements.
 
 ### Recent Major Milestone: Phase 7 - Bug Fixes & Code Quality (Dec 4, 2025)
@@ -41,19 +43,6 @@ Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped 
 - `freshdesk_routes.py` → Uses real `freshdesk_service` (600→200 lines, -400 lines)
 
 **Hardcoded Timestamps Fixed (14 files, 50+ instances):**
-- All timestamps now use `datetime.now().isoformat()` for real-time values
-- Files: zendesk, teams, quickbooks, jira, notion, gmail, monday, google_calendar, trello, outlook, xero, stripe, shopify, gitlab, bitbucket
-
-**Other Fixes:**
-- Fixed duplicate `salesforce_search` function in `salesforce_routes.py`
-- Fixed duplicate router definition in `bitbucket_routes.py`
-- Replaced print() with logger calls in github_routes.py, whatsapp_websocket_routes.py
-- **Total: ~1,800+ lines of inline mock code removed**
-
-
-### Recent Major Milestones (Nov 29, 2025 - Latest Session)
-
-
 **Phase 48: Authentication System Enhancements ✅ (ALL 5 PRIORITIES COMPLETE)**
 
 **Priority 1: OAuth Configuration Consolidation ✅**
@@ -200,6 +189,80 @@ EMAIL_FROM=noreply@yourdomain.com
   - Fixed `integration_registry.py` encoding issues on Windows.
   - Automated registry regeneration.
 
+**Phase 61: Integration API Endpoint Fixes ✅ (Dec 3, 2025)**
+
+**Problem Identified:**
+- Systematic codebase review uncovered 6 critical API endpoint mismatches between frontend Next.js API routes and backend FastAPI routes
+- All bugs caused HTTP 404 errors and prevented integrations from functioning properly
+
+**Bugs Fixed:**
+
+**Slack Integration (4 bugs) ✅**
+1. **channels.ts** - Changed `POST` → `GET`, moved params to query string
+2. **messages.ts** - Mapped non-existent `/channels/{id}/messages` → `/conversations/history`
+3. **messages/send.ts** - Fixed endpoint path from `/messages/send` → `/messages`
+4. **users.ts** - Changed `POST` with body → `GET` with path parameter
+
+**HubSpot Integration (2 bugs) ✅**
+5. **contacts.ts** - Changed `POST` → `GET`, converted body params to query params
+6. **companies.ts** - Changed `POST` → `GET`, converted body params to query params
+
+**Files Modified:**
+- `frontend-nextjs/pages/api/integrations/slack/channels.ts`
+- `frontend-nextjs/pages/api/integrations/slack/messages.ts`
+- `frontend-nextjs/pages/api/integrations/slack/messages/send.ts`
+- `frontend-nextjs/pages/api/integrations/slack/users.ts`
+- `frontend-nextjs/pages/api/integrations/hubspot/contacts.ts`
+- `frontend-nextjs/pages/api/integrations/hubspot/companies.ts`
+
+**Impact:**
+- ✅ All 6 integration endpoints now correctly communicate with backend
+- ✅ Slack: channels, messages, users features functional
+- ✅ HubSpot: contacts, companies features functional
+- 🔧 Fixed common anti-pattern: Frontend POST requests → Backend GET requests (RESTful alignment)
+
+**Phase 62: Gmail Integration Fixes ✅ (Dec 3, 2025)**
+
+**Problem Identified:**
+- Gmail integration was using non-existent endpoints for Auth, Search, and Sync
+- Auth flow was not using the standardized Google OAuth flow
+- Memory endpoints were using incorrect HTTP methods and paths
+
+**Bugs Fixed:**
+1. **authorize.ts**: Redirected to `/api/auth/google/initiate` (Standard Google OAuth) instead of non-existent Gmail endpoint.
+2. **callback.ts**: Updated to call `/api/auth/google/callback` for token exchange.
+3. **memory/search.ts**: Changed from `POST` to `GET`, mapped to `/api/memory/ingestion/search` (LanceDB).
+4. **memory/sync.ts**: Mapped to `/api/memory/ingestion/stream/start/gmail` to initiate real-time ingestion.
+
+**Files Modified:**
+- `frontend-nextjs/pages/api/integrations/gmail/authorize.ts`
+- `frontend-nextjs/pages/api/integrations/gmail/callback.ts`
+- `frontend-nextjs/pages/api/integrations/gmail/memory/search.ts`
+- `frontend-nextjs/pages/api/integrations/gmail/memory/sync.ts`
+
+**Impact:**
+- ✅ Gmail Authentication now works using standard Google OAuth
+- ✅ Gmail Memory Search now correctly queries LanceDB
+- ✅ Gmail Sync now correctly starts ingestion stream
+
+**Phase 63: Profile API Mismatch Fixes ✅ (Dec 3, 2025)**
+
+**Problem Identified:**
+- Salesforce and Asana profile endpoints in frontend were using `POST` method.
+- Backend expects `GET` for profile retrieval (RESTful standard).
+
+**Bugs Fixed:**
+1. **salesforce/profile.ts**: Changed method check from `POST` to `GET`.
+2. **asana/profile.ts**: Changed method check from `POST` to `GET`.
+
+**Files Modified:**
+- `frontend-nextjs/pages/api/integrations/salesforce/profile.ts`
+- `frontend-nextjs/pages/api/integrations/asana/profile.ts`
+
+**Impact:**
+- ✅ Aligned frontend mocks with backend RESTful expectations.
+- ✅ Prepared frontend for future integration with real backend profile endpoints.
+
 
 ## 3. Next Steps
 
@@ -231,3 +294,31 @@ EMAIL_FROM=noreply@yourdomain.com
 ## 5. Known Issues
 - **Test Files**: Some test files still import Chakra UI (non-blocking, to be addressed in testing phase)
 - **Servers Not Running**: Frontend/Backend need to be started for full E2E testing
+
+### Phase 64: Frontend Component & Gmail Route Fixes
+
+**Problem:**
+Even after fixing the Next.js API routes, some frontend components (`SlackIntegration.tsx`, `lib/api.ts`) were still using incorrect HTTP methods (POST) or outdated endpoints. Additionally, `gmail/status.ts` and `gmail/memory/stats.ts` contained hardcoded `localhost` URLs and incorrect paths.
+
+**Fixes:**
+1.  **`components/SlackIntegration.tsx`**: Updated `loadChannels`, `loadMessages`, `loadUsers` to use `GET` and query parameters. Fixed `sendMessage` endpoint.
+2.  **`lib/api.ts`**: Updated `slack.sendMessage` and `slack.getMessages` to match backend routes.
+3.  **`pages/api/integrations/gmail/status.ts`**: Updated to use `PYTHON_API_SERVICE_BASE_URL` and correct `/api/gmail/status` endpoint.
+4.  **`pages/api/integrations/gmail/memory/stats.ts`**: Updated to use `PYTHON_API_SERVICE_BASE_URL` and correct `/api/memory/ingestion/memory/stats` endpoint.
+
+**Impact:**
+- Slack integration now correctly communicates with the backend.
+- Gmail status and memory stats now work correctly in# Developer Handover Document
+
+**Date:** December 3, 2025
+**Latest Update:** Phase 66 - HubSpot AI Features Implementation
+**Status:** Integration fixes complete, AI features activated, ready for testing `POST` to `/api/figma/profile`, but backend expects `GET` to `/api/figma/user`.
+- **Discord**: Frontend `profile.ts` was using `POST` to `/api/integrations/discord/profile`, but backend had no profile endpoint.
+
+**Fixes:**
+1.  **`figma/profile.ts`**: Changed to `GET` request to `/api/figma/user`.
+2.  **`discord/profile.ts`**: Changed to `GET` request to `/api/discord/user`.
+3.  **`backend/integrations/discord_routes.py`**: Added `GET /user` endpoint to support profile retrieval.
+
+**Impact:**
+- Figma and Discord integrations now correctly retrieve user profile information.
