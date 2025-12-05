@@ -6,17 +6,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Redirect to backend OAuth authorization endpoint
-    const backendUrl = 'http://localhost:5000/api/auth/gmail/authorize';
+    // Redirect to backend OAuth authorization endpoint (Standard Google OAuth)
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
 
-    // Get user ID from query parameters or session
-    const userId = req.query.userId as string || 'default-user';
-
-    // Add any additional parameters needed
-    const authUrl = `${backendUrl}?user_id=${encodeURIComponent(userId)}&redirect_uri=${encodeURIComponent('http://localhost:3000/api/integrations/gmail/callback')}`;
-
-    // Redirect to backend OAuth flow
-    res.redirect(authUrl);
+    // Redirect to the standard Google OAuth initiation endpoint
+    // The backend will handle the redirect to Google
+    res.redirect(`${backendUrl}/api/auth/google/initiate`);
   } catch (error) {
     console.error('Gmail authorize error:', error);
     return res.status(500).json({

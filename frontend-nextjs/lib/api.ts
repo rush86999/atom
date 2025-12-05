@@ -147,11 +147,12 @@ export const integrationAPI = {
   slack: {
     getChannels: () => apiClient.get("/api/integrations/slack/channels"),
     sendMessage: (channelId: string, message: string) =>
-      apiClient.post(`/api/integrations/slack/channels/${channelId}/messages`, {
+      apiClient.post(`/api/integrations/slack/messages`, {
+        channel: channelId,
         text: message,
       }),
     getMessages: (channelId: string) =>
-      apiClient.get(`/api/integrations/slack/channels/${channelId}/messages`),
+      apiClient.get(`/api/integrations/slack/messages?channel=${channelId}`),
   },
   googleCalendar: {
     getEvents: () => apiClient.get("/api/integrations/google/calendar/events"),
