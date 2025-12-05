@@ -216,16 +216,13 @@ def initialize_websocket_extensions():
         
         if extended:
             logger.info("WhatsApp WebSocket extensions initialized successfully")
-            print("✅ WhatsApp WebSocket extensions initialized")
         else:
             logger.warning("Failed to extend WhatsApp router with WebSocket endpoints")
-            print("⚠️  Failed to extend WhatsApp router with WebSocket endpoints")
         
         return extended
         
     except Exception as e:
         logger.error(f"Error initializing WebSocket extensions: {str(e)}")
-        print(f"⚠️  WebSocket initialization error: {str(e)}")
         return False
 
 # Export for registration

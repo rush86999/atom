@@ -579,6 +579,22 @@ __all__ = [
     "FreshdeskConfig", 
     "FreshdeskConstants",
     "create_freshdesk_service",
+    "get_freshdesk_service",
     "test_freshdesk_connection",
     "DEFAULT_FRESHDESK_CONFIG"
 ]
+
+
+# Singleton instance
+_freshdesk_service = None
+
+
+def get_freshdesk_service() -> Optional[FreshdeskService]:
+    """Get Freshdesk service instance (singleton pattern)"""
+    global _freshdesk_service
+    if _freshdesk_service is None:
+        api_key = os.getenv("FRESHDESK_API_KEY")
+        domain = os.getenv("FRESHDESK_DOMAIN")
+        if api_key and domain:
+            _freshdesk_service = create_freshdesk_service(api_key, domain)
+    return _freshdesk_service

@@ -7,15 +7,18 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import asyncio
+import logging
 import os
 import sys
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 try:
     from .github_service import github_service
     GITHUB_AVAILABLE = True
 except ImportError as e:
-    print(f"GitHub service not available: {e}")
+    logger.warning(f"GitHub service not available: {e}")
     GITHUB_AVAILABLE = False
     github_service = None
 
@@ -100,7 +103,7 @@ def get_github_tokens(user_id: str) -> Optional[Dict[str, Any]]:
             }
         return None
     except Exception as e:
-        print(f"Error getting GitHub tokens for user {user_id}: {e}")
+        logger.error(f"Error getting GitHub tokens for user {user_id}: {e}")
         return None
 
 @router.get("/health")

@@ -51,7 +51,7 @@ async def handle_oauth_callback(auth_request: ZoomAuthRequest):
             "ok": True,
             "status": "success",
             "code": auth_request.code,
-            "message": "Zoom authentication successful (mock)",
+            "message": "Zoom authentication received (service unavailable, code stored)",
             "timestamp": datetime.now().isoformat()
         }
     
@@ -74,7 +74,7 @@ async def handle_oauth_callback(auth_request: ZoomAuthRequest):
 async def get_current_user(access_token: str, user_id: str = "me"):
     """Get Zoom user information"""
     if not ZOOM_AVAILABLE:
-        return {"id": "mock_user_id", "email": "mock@example.com"}
+        return {"id": "service_unavailable", "email": "zoom_service_not_configured@placeholder.local"}
     
     try:
         service = get_zoom_service()
@@ -100,7 +100,7 @@ async def list_meetings(access_token: str, user_id: str = "me", type: str = "sch
 async def create_meeting(access_token: str, meeting_request: CreateMeetingRequest, user_id: str = "me"):
     """Create a Zoom meeting"""
     if not ZOOM_AVAILABLE:
-        return {"id": "mock_meeting_id", "join_url": "https://zoom.us/j/mock"}
+        return {"id": "service_unavailable", "join_url": "#zoom-service-not-configured"}
     
     try:
         service = get_zoom_service()
@@ -121,7 +121,7 @@ async def create_meeting(access_token: str, meeting_request: CreateMeetingReques
 async def delete_meeting(meeting_id: str, access_token: str):
     """Delete a Zoom meeting"""
     if not ZOOM_AVAILABLE:
-        return {"ok": True, "message": "Meeting deleted (mock)"}
+        return {"ok": True, "message": "Meeting deletion simulated (service unavailable)"}
     
     try:
         service = get_zoom_service()
