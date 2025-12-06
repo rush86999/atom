@@ -305,3 +305,49 @@ async def execute_soql_query(sf: Salesforce, query: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error executing SOQL query: {e}")
         raise
+
+
+class SalesforceService:
+    """
+    Salesforce Service Class
+    Wraps standalone functions for object-oriented access and health check compliance.
+    """
+    
+    def __init__(self):
+        pass
+
+    async def get_client(self, user_id: str, db_conn_pool) -> Optional[Salesforce]:
+        return await get_salesforce_client(user_id, db_conn_pool)
+
+    async def list_contacts(self, sf: Salesforce) -> List[Dict[str, Any]]:
+        return await list_contacts(sf)
+
+    async def list_accounts(self, sf: Salesforce) -> List[Dict[str, Any]]:
+        return await list_accounts(sf)
+
+    async def list_opportunities(self, sf: Salesforce) -> List[Dict[str, Any]]:
+        return await list_opportunities(sf)
+
+    async def list_leads(self, sf: Salesforce) -> List[Dict[str, Any]]:
+        return await list_leads(sf)
+
+    async def create_contact(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
+        return await create_contact(sf, **kwargs)
+
+    async def create_account(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
+        return await create_account(sf, **kwargs)
+
+    async def create_opportunity(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
+        return await create_opportunity(sf, **kwargs)
+
+    async def create_lead(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
+        return await create_lead(sf, **kwargs)
+
+    async def get_opportunity(self, sf: Salesforce, opportunity_id: str) -> Dict[str, Any]:
+        return await get_opportunity(sf, opportunity_id)
+
+    async def update_opportunity(self, sf: Salesforce, opportunity_id: str, fields: Dict[str, Any]) -> Dict[str, Any]:
+        return await update_opportunity(sf, opportunity_id, fields)
+    
+    async def execute_query(self, sf: Salesforce, query: str) -> Dict[str, Any]:
+        return await execute_soql_query(sf, query)
