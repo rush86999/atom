@@ -12,6 +12,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "python-api-servic
 from trello_enhanced_service import TrelloEnhancedService
 # TrelloHandler is not available, using only TrelloEnhancedService
 
+# Import TrelloService for health check compliance
+from .trello_service import TrelloService
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
