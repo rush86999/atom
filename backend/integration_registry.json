@@ -1181,7 +1181,9 @@
     "salesforce_service": {
       "name": "salesforce_service",
       "file": "backend\\integrations\\salesforce_service.py",
-      "classes": [],
+      "classes": [
+        "SalesforceService"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
@@ -1403,7 +1405,9 @@
     "trello_routes": {
       "name": "trello_routes",
       "file": "backend\\integrations\\trello_routes.py",
-      "classes": [],
+      "classes": [
+        "TrelloService"
+      ],
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
