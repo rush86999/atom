@@ -1,18 +1,18 @@
 {
-  "total_services": 124,
+  "total_services": 112,
   "by_category": {
-    "enterprise": 5,
-    "industry": 3,
-    "project_management": 15,
-    "calendar": 3,
-    "development": 9,
-    "finance": 6,
-    "crm": 12,
-    "ai": 7,
-    "communication": 34,
     "other": 14,
+    "ai": 7,
+    "project_management": 13,
+    "communication": 25,
+    "industry": 3,
+    "enterprise": 5,
+    "crm": 11,
+    "finance": 6,
+    "development": 9,
     "storage": 8,
-    "email": 8
+    "email": 8,
+    "calendar": 3
   },
   "services": {
     "airtable_routes": {
@@ -727,16 +727,6 @@
       "status": "discovered",
       "category": "calendar"
     },
-    "google_chat_enhanced_api_routes": {
-      "name": "google_chat_enhanced_api_routes",
-      "file": "backend\\integrations\\google_chat_enhanced_api_routes.py",
-      "classes": [],
-      "auth_type": "oauth",
-      "has_connect": false,
-      "has_health_check": false,
-      "status": "discovered",
-      "category": "communication"
-    },
     "google_chat_enhanced_service": {
       "name": "google_chat_enhanced_service",
       "file": "backend\\integrations\\google_chat_enhanced_service.py",
@@ -748,16 +738,6 @@
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": true,
-      "status": "discovered",
-      "category": "communication"
-    },
-    "google_chat_integration_final_report": {
-      "name": "google_chat_integration_final_report",
-      "file": "backend\\integrations\\google_chat_integration_final_report.py",
-      "classes": [],
-      "auth_type": "oauth",
-      "has_connect": false,
-      "has_health_check": false,
       "status": "discovered",
       "category": "communication"
     },
@@ -852,16 +832,6 @@
       "status": "discovered",
       "category": "project_management"
     },
-    "jira_routes_fix": {
-      "name": "jira_routes_fix",
-      "file": "backend\\integrations\\jira_routes_fix.py",
-      "classes": [],
-      "auth_type": "token",
-      "has_connect": false,
-      "has_health_check": true,
-      "status": "discovered",
-      "category": "project_management"
-    },
     "jira_service": {
       "name": "jira_service",
       "file": "backend\\integrations\\jira_service.py",
@@ -883,16 +853,6 @@
         "CreateIssueRequest"
       ],
       "auth_type": "oauth",
-      "has_connect": false,
-      "has_health_check": true,
-      "status": "discovered",
-      "category": "project_management"
-    },
-    "linear_routes_fix": {
-      "name": "linear_routes_fix",
-      "file": "backend\\integrations\\linear_routes_fix.py",
-      "classes": [],
-      "auth_type": "token",
       "has_connect": false,
       "has_health_check": true,
       "status": "discovered",
@@ -1156,16 +1116,6 @@
       "status": "discovered",
       "category": "crm"
     },
-    "salesforce_integration_register": {
-      "name": "salesforce_integration_register",
-      "file": "backend\\integrations\\salesforce_integration_register.py",
-      "classes": [],
-      "auth_type": "oauth",
-      "has_connect": false,
-      "has_health_check": false,
-      "status": "discovered",
-      "category": "crm"
-    },
     "salesforce_routes": {
       "name": "salesforce_routes",
       "file": "backend\\integrations\\salesforce_routes.py",
@@ -1264,16 +1214,6 @@
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
-      "status": "discovered",
-      "category": "communication"
-    },
-    "slack_routes_fix": {
-      "name": "slack_routes_fix",
-      "file": "backend\\integrations\\slack_routes_fix.py",
-      "classes": [],
-      "auth_type": "token",
-      "has_connect": false,
-      "has_health_check": true,
       "status": "discovered",
       "category": "communication"
     },
@@ -1380,16 +1320,6 @@
       "status": "discovered",
       "category": "communication"
     },
-    "teams_routes_fix": {
-      "name": "teams_routes_fix",
-      "file": "backend\\integrations\\teams_routes_fix.py",
-      "classes": [],
-      "auth_type": "token",
-      "has_connect": false,
-      "has_health_check": true,
-      "status": "discovered",
-      "category": "communication"
-    },
     "teams_service": {
       "name": "teams_service",
       "file": "backend\\integrations\\teams_service.py",
@@ -1451,16 +1381,6 @@
       "status": "discovered",
       "category": "communication"
     },
-    "whatsapp_enhanced_routes": {
-      "name": "whatsapp_enhanced_routes",
-      "file": "backend\\integrations\\whatsapp_enhanced_routes.py",
-      "classes": [],
-      "auth_type": "token",
-      "has_connect": false,
-      "has_health_check": false,
-      "status": "discovered",
-      "category": "communication"
-    },
     "whatsapp_fastapi_routes": {
       "name": "whatsapp_fastapi_routes",
       "file": "backend\\integrations\\whatsapp_fastapi_routes.py",
@@ -1487,26 +1407,6 @@
       "status": "discovered",
       "category": "communication"
     },
-    "whatsapp_flask_routes": {
-      "name": "whatsapp_flask_routes",
-      "file": "backend\\integrations\\whatsapp_flask_routes.py",
-      "classes": [],
-      "auth_type": "token",
-      "has_connect": false,
-      "has_health_check": false,
-      "status": "discovered",
-      "category": "communication"
-    },
-    "whatsapp_routes_extension": {
-      "name": "whatsapp_routes_extension",
-      "file": "backend\\integrations\\whatsapp_routes_extension.py",
-      "classes": [],
-      "auth_type": "token",
-      "has_connect": false,
-      "has_health_check": false,
-      "status": "discovered",
-      "category": "communication"
-    },
     "whatsapp_service_manager": {
       "name": "whatsapp_service_manager",
       "file": "backend\\integrations\\whatsapp_service_manager.py",
@@ -1516,16 +1416,6 @@
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": true,
-      "status": "discovered",
-      "category": "communication"
-    },
-    "whatsapp_websocket_routes": {
-      "name": "whatsapp_websocket_routes",
-      "file": "backend\\integrations\\whatsapp_websocket_routes.py",
-      "classes": [],
-      "auth_type": "token",
-      "has_connect": false,
-      "has_health_check": false,
       "status": "discovered",
       "category": "communication"
     },
@@ -1568,16 +1458,6 @@
       "has_health_check": false,
       "status": "discovered",
       "category": "crm"
-    },
-    "zoom_integration_register": {
-      "name": "zoom_integration_register",
-      "file": "backend\\integrations\\zoom_integration_register.py",
-      "classes": [],
-      "auth_type": "oauth",
-      "has_connect": false,
-      "has_health_check": false,
-      "status": "discovered",
-      "category": "communication"
     },
     "zoom_routes": {
       "name": "zoom_routes",
