@@ -72,6 +72,21 @@ class FinancialDatabase:
 
         logger.info("Financial database tables created successfully")
 
+    @staticmethod
+    def _get_month_range(period: str):
+        """Get start and end dates for a period string like '2025-12'"""
+        from datetime import datetime, timedelta
+        # Parse period
+        year, month = map(int, period.split('-'))
+        start_date = datetime(year, month, 1)
+        # Calculate end date: first day of next month minus one day
+        if month == 12:
+            next_month = datetime(year + 1, 1, 1)
+        else:
+            next_month = datetime(year, month + 1, 1)
+        end_date = next_month - timedelta(days=1)
+        return start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
+
     # Transaction operations
     async def create_transaction(self, description: str, category: str, amount: float, status: str = "Pending", transaction_date: Optional[str] = None) -> str:
         """Create a new transaction"""
@@ -229,7 +244,8 @@ class FinancialDatabase:
             period = datetime.now().strftime("%Y-%m")
 
         # Get transactions for the period
-        transactions = await self.get_transactions(limit=1000, start_date=f"{period}-01", end_date=f"{period}-31")
+        start_date, end_date = self._get_month_range(period)
+        transactions = await self.get_transactions(limit=1000000, start_date=start_date, end_date=end_date)
 
         # Calculate totals
         total_income = sum(t['amount'] for t in transactions if t['amount'] > 0)
@@ -256,6 +272,7 @@ class FinancialDatabase:
         if not period:
             period = datetime.now().strftime("%Y-%m")
 
+        start_date, end_date = self._get_month_range(period)
         rows = await self.db_manager.fetch_all("""
             SELECT
                 category,
@@ -266,7 +283,7 @@ class FinancialDatabase:
             WHERE date >= ? AND date <= ?
             GROUP BY category
             ORDER BY expenses DESC, income DESC
-        """, (f"{period}-01", f"{period}-31"))
+        """, (start_date, end_date))
 
         return [dict(row) for row in rows]
 

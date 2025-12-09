@@ -174,37 +174,42 @@ async def get_transactions(
     try:
         # Try to get data from real database first
         try:
-            transactions = await financial_db.get_transactions(
-                limit=limit,
-                offset=offset,
+            # Get all filtered transactions (without pagination) to compute total
+            all_transactions = await financial_db.get_transactions(
+                limit=1000000,
+                offset=0,
                 category=category,
                 start_date=start_date,
                 end_date=end_date
             )
+            total = len(all_transactions)
+            # Apply pagination
+            transactions = all_transactions[offset:offset + limit]
         except Exception as db_error:
             logger.warning(f"Database error, using fallback data: {db_error}")
             # Fallback to sample data
-            transactions = SAMPLE_TRANSACTIONS.copy()
+            filtered_transactions = SAMPLE_TRANSACTIONS.copy()
 
             # Apply filters to fallback data
             if category:
-                transactions = [t for t in transactions if t["category"].lower() == category.lower()]
+                filtered_transactions = [t for t in filtered_transactions if t["category"].lower() == category.lower()]
 
             if start_date:
-                transactions = [t for t in transactions if t["date"] >= start_date]
+                filtered_transactions = [t for t in filtered_transactions if t["date"] >= start_date]
 
             if end_date:
-                transactions = [t for t in transactions if t["date"] <= end_date]
+                filtered_transactions = [t for t in filtered_transactions if t["date"] <= end_date]
 
             # Apply pagination
-            transactions = transactions[offset:offset + limit]
+            transactions = filtered_transactions[offset:offset + limit]
+            total = len(filtered_transactions)
 
         return {
             "success": True,
             "data": {
-                "transactions": paginated_transactions,
-                "total": len(transactions),
-                "count": len(paginated_transactions),
+                "transactions": transactions,
+                "total": total,
+                "count": len(transactions),
                 "limit": limit,
                 "offset": offset
             }
@@ -275,12 +280,19 @@ async def get_budgets():
     Get budget information
     """
     try:
+        # Try to get data from real database first
+        try:
+            budgets = await financial_db.get_budgets()
+        except Exception as db_error:
+            logger.warning(f"Database error, using fallback data: {db_error}")
+            budgets = SAMPLE_BUDGETS.copy()
+
         return {
             "success": True,
             "data": {
-                "budgets": SAMPLE_BUDGETS,
-                "total_allocated": sum(b["allocated_amount"] for b in SAMPLE_BUDGETS),
-                "total_spent": sum(b["spent_amount"] for b in SAMPLE_BUDGETS)
+                "budgets": budgets,
+                "total_allocated": sum(b["allocated_amount"] for b in budgets),
+                "total_spent": sum(b["spent_amount"] for b in budgets)
             }
         }
     except Exception as e:
@@ -294,17 +306,40 @@ async def get_net_worth():
     Get net worth summary
     """
     try:
-        total_income = sum(t["amount"] for t in SAMPLE_TRANSACTIONS if t["amount"] > 0)
-        total_expenses = sum(abs(t["amount"]) for t in SAMPLE_TRANSACTIONS if t["amount"] < 0)
-        net_worth = total_income - total_expenses
+        # Try to get data from real database first
+        try:
+            net_worth_record = await financial_db.get_latest_net_worth()
+            if net_worth_record:
+                total_assets = net_worth_record['total_assets']
+                total_liabilities = net_worth_record['total_liabilities']
+                net_worth = net_worth_record['net_worth']
+                last_updated = net_worth_record['recorded_at']
+            else:
+                # No net worth record, compute from transactions
+                transactions = await financial_db.get_transactions(limit=1000000)
+                total_income = sum(t['amount'] for t in transactions if t['amount'] > 0)
+                total_expenses = sum(abs(t['amount']) for t in transactions if t['amount'] < 0)
+                total_assets = total_income
+                total_liabilities = total_expenses
+                net_worth = total_income - total_expenses
+                last_updated = datetime.now().isoformat()
+        except Exception as db_error:
+            logger.warning(f"Database error, using fallback data: {db_error}")
+            # Fallback to sample data
+            total_income = sum(t["amount"] for t in SAMPLE_TRANSACTIONS if t["amount"] > 0)
+            total_expenses = sum(abs(t["amount"]) for t in SAMPLE_TRANSACTIONS if t["amount"] < 0)
+            total_assets = total_income
+            total_liabilities = total_expenses
+            net_worth = total_income - total_expenses
+            last_updated = datetime.now().isoformat()
 
         return {
             "success": True,
             "data": {
-                "total_assets": total_income,
-                "total_liabilities": total_expenses,
+                "total_assets": total_assets,
+                "total_liabilities": total_liabilities,
                 "net_worth": net_worth,
-                "last_updated": datetime.now().isoformat()
+                "last_updated": last_updated
             }
         }
     except Exception as e:
@@ -318,34 +353,52 @@ async def get_financial_summary():
     Get comprehensive financial summary
     """
     try:
-        # Calculate metrics
-        transactions = SAMPLE_TRANSACTIONS
-        total_income = sum(t["amount"] for t in transactions if t["amount"] > 0)
-        total_expenses = sum(abs(t["amount"]) for t in transactions if t["amount"] < 0)
-
-        # Category breakdown
-        category_breakdown = {}
-        for transaction in transactions:
-            category = transaction["category"]
-            if category not in category_breakdown:
-                category_breakdown[category] = {"income": 0, "expenses": 0}
-
-            if transaction["amount"] > 0:
-                category_breakdown[category]["income"] += transaction["amount"]
-            else:
-                category_breakdown[category]["expenses"] += abs(transaction["amount"])
+        # Try to get data from real database first
+        try:
+            summary = await financial_db.get_financial_summary()
+            category_summary = await financial_db.get_category_summary()
+            budgets = await financial_db.get_budgets()
+            total_income = summary.get('total_income', 0)
+            total_expenses = summary.get('total_expenses', 0)
+            net_profit = summary.get('net_income', total_income - total_expenses)
+            transaction_count = summary.get('transaction_count', 0)
+            # Build category breakdown
+            category_breakdown = {}
+            for cat in category_summary:
+                category_breakdown[cat['category']] = {
+                    'income': cat['income'],
+                    'expenses': cat['expenses']
+                }
+        except Exception as db_error:
+            logger.warning(f"Database error, using fallback data: {db_error}")
+            # Fallback to sample data
+            transactions = SAMPLE_TRANSACTIONS
+            total_income = sum(t["amount"] for t in transactions if t["amount"] > 0)
+            total_expenses = sum(abs(t["amount"]) for t in transactions if t["amount"] < 0)
+            net_profit = total_income - total_expenses
+            transaction_count = len(transactions)
+            category_breakdown = {}
+            for transaction in transactions:
+                category = transaction["category"]
+                if category not in category_breakdown:
+                    category_breakdown[category] = {"income": 0, "expenses": 0}
+                if transaction["amount"] > 0:
+                    category_breakdown[category]["income"] += transaction["amount"]
+                else:
+                    category_breakdown[category]["expenses"] += abs(transaction["amount"])
+            budgets = SAMPLE_BUDGETS
 
         return {
             "success": True,
             "data": {
                 "total_income": total_income,
                 "total_expenses": total_expenses,
-                "net_profit": total_income - total_expenses,
-                "transaction_count": len(transactions),
+                "net_profit": net_profit,
+                "transaction_count": transaction_count,
                 "category_breakdown": category_breakdown,
                 "budget_utilization": {
-                    "total_allocated": sum(b["allocated_amount"] for b in SAMPLE_BUDGETS),
-                    "total_spent": sum(b["spent_amount"] for b in SAMPLE_BUDGETS)
+                    "total_allocated": sum(b["allocated_amount"] for b in budgets),
+                    "total_spent": sum(b["spent_amount"] for b in budgets)
                 },
                 "period": "Current Month"
             }

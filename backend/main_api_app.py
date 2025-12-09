@@ -133,6 +133,10 @@ integrations = [
     ("integrations.plaid_routes", "router", None),
     ("api.financial_routes", "router", None),
 
+    # LUX Computer Use and Automation
+    ("ai.lux_routes", "router", None),
+    ("api.lux_marketplace_routes", "router", None),
+
     # Integrations - Dev & Design
     ("integrations.github_routes", "router", None),
     ("integrations.figma_routes", "router", None),
