@@ -1,0 +1,45 @@
+{
+  "id": "lux-base",
+  "name": "LUX Base",
+  "description": "Base model for computer use tasks with screen understanding and GUI automation",
+  "version": "1.0.0",
+  "model_type": "computer_use",
+  "category": "automation",
+  "price": 0.0,
+  "provider": "LUX",
+  "capabilities": [
+    "screen_analysis",
+    "gui_automation",
+    "text_input",
+    "mouse_control",
+    "keyboard_control",
+    "application_control"
+  ],
+  "requirements": {
+    "python_version": ">=3.8",
+    "dependencies": [
+      "pyautogui",
+      "opencv-python",
+      "Pillow",
+      "anthropic"
+    ],
+    "os": ["macos", "windows", "linux"],
+    "permissions": ["screen_capture", "accessibility"]
+  },
+  "config": {
+    "screen_resolution": {
+      "min_width": 1024,
+      "min_height": 768
+    },
+    "max_screen_elements": 1000,
+    "action_timeout": 30,
+    "screenshot_format": "PNG"
+  },
+  "metadata": {
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-01T00:00:00Z",
+    "downloads": 0,
+    "rating": 0.0,
+    "tags": ["computer-use", "automation", "gui", "screen"]
+  }
+}

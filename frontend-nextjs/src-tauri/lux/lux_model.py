@@ -21,7 +21,7 @@ import pyautogui
 import cv2
 import numpy as np
 from pathlib import Path
-from core.lux_config import lux_config
+from lux_config import lux_config
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ class LuxModel:
                 ]
             }
 
-            response = self.client.messages.create(
+            response = await self.client.messages.create(
                 messages=[message],
                 **self.model_config
             )
@@ -222,7 +222,7 @@ Return as JSON:
 
             message = {"role": "user", "content": content_parts}
 
-            response = self.client.messages.create(
+            response = await self.client.messages.create(
                 messages=[message],
                 **self.model_config
             )

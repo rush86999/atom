@@ -124,8 +124,10 @@ class BusinessOutcomeValidator:
         annual_value = monthly_value * 12
 
         # ROI calculations
-        monthly_roi = ((monthly_value - implementation_cost) / implementation_cost * 100) if implementation_cost > 0 else 1000
-        annual_roi = ((annual_value - implementation_cost) / implementation_cost * 100) if implementation_cost > 0 else 12000
+        # If implementation cost is zero, ROI is effectively infinite (no investment required)
+        LARGE_ROI = 100000.0  # Represents "infinite" ROI for zero-cost scenarios
+        monthly_roi = ((monthly_value - implementation_cost) / implementation_cost * 100) if implementation_cost > 0 else LARGE_ROI
+        annual_roi = ((annual_value - implementation_cost) / implementation_cost * 100) if implementation_cost > 0 else LARGE_ROI
 
         # Payback period
         payback_months = implementation_cost / monthly_value if monthly_value > 0 else float('inf')

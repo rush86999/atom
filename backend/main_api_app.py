@@ -133,8 +133,8 @@ integrations = [
     ("integrations.plaid_routes", "router", None),
     ("api.financial_routes", "router", None),
 
-    # LUX Computer Use and Automation
-    ("ai.lux_routes", "router", None),
+    # LUX Computer Use and Automation - Moved to Frontend
+    # ("ai.lux_routes", "router", None),  # Now handled locally in Tauri app
     ("api.lux_marketplace_routes", "router", None),
 
     # Integrations - Dev & Design

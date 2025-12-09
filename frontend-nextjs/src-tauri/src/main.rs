@@ -3,13 +3,15 @@
     windows_subsystem = "windows"
 )]
 
+mod lux;
+
 use serde_json::json;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use tauri::{AppHandle, Manager, Window};
+use tauri::{AppHandle, Manager, Window, State};
 
 // Enhanced file dialog command using Tauri v2 plugin
 #[tauri::command]
@@ -353,6 +355,171 @@ async fn atom_invoke_command(
             }
         })),
 
+        // LUX Computer Use Commands
+        "lux_start_server" => {
+            match lux::start_lux_server(&_app_handle.state::<lux::LuxServerState>()).await {
+                Ok(message) => Ok(json!({
+                    "success": true,
+                    "message": message
+                })),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
+        "lux_stop_server" => {
+            match lux::stop_lux_server(&_app_handle.state::<lux::LuxServerState>()) {
+                Ok(message) => Ok(json!({
+                    "success": true,
+                    "message": message
+                })),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
+        "lux_check_server" => {
+            match lux::check_lux_server(&_app_handle.state::<lux::LuxServerState>()).await {
+                Ok(running) => Ok(json!({
+                    "success": true,
+                    "running": running
+                })),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
+        "lux_install_dependencies" => {
+            match lux::install_lux_dependencies().await {
+                Ok(message) => Ok(json!({
+                    "success": true,
+                    "message": message
+                })),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
+        "lux_execute_command" => {
+            let command = match &params {
+                Some(p) => p
+                    .get("command")
+                    .and_then(|c| c.as_str())
+                    .ok_or_else(|| "Missing command parameter".to_string())?,
+                None => return Ok(json!({
+                    "success": false,
+                    "error": "Missing command parameter"
+                }))
+            };
+
+            match lux::make_lux_request(
+                &_app_handle.state::<lux::LuxServerState>(),
+                "command",
+                Some(lux::LuxCommandRequest {
+                    command: command.to_string(),
+                }),
+            ).await {
+                Ok(response) => Ok(json!(response)),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
+        "lux_get_screen" => {
+            match lux::make_lux_request::<(), _>(
+                &_app_handle.state::<lux::LuxServerState>(),
+                "screen",
+                None,
+            ).await {
+                Ok(response) => Ok(json!(response)),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
+        "lux_get_screenshot" => {
+            match lux::make_lux_request::<(), _>(
+                &_app_handle.state::<lux::LuxServerState>(),
+                "screenshot",
+                None,
+            ).await {
+                Ok(response) => Ok(json!(response)),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
+        "lux_get_templates" => {
+            match lux::make_lux_request::<(), _>(
+                &_app_handle.state::<lux::LuxServerState>(),
+                "templates",
+                None,
+            ).await {
+                Ok(response) => Ok(json!(response)),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
+        "lux_execute_batch" => {
+            let commands = match &params {
+                Some(p) => p
+                    .get("commands")
+                    .and_then(|c| c.as_array())
+                    .ok_or_else(|| "Missing commands parameter".to_string())?
+                    .iter()
+                    .filter_map(|c| c.as_str())
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>(),
+                None => return Ok(json!({
+                    "success": false,
+                    "error": "Missing commands parameter"
+                }))
+            };
+
+            match lux::make_lux_request(
+                &_app_handle.state::<lux::LuxServerState>(),
+                "batch",
+                Some(lux::LuxBatchRequest { commands }),
+            ).await {
+                Ok(response) => Ok(json!(response)),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
+        "lux_get_status" => {
+            match lux::make_lux_request::<(), _>(
+                &_app_handle.state::<lux::LuxServerState>(),
+                "status",
+                None,
+            ).await {
+                Ok(response) => Ok(json!(response)),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": e
+                }))
+            }
+        }
+
         // Enhanced chat command
         "process_chat_message" => {
             let message = match &params {
@@ -373,15 +540,17 @@ async fn atom_invoke_command(
                 || message.to_lowercase().contains("run")
             {
                 "🤖 I can execute development commands! Use the command execution feature to run build tools, package managers, or any system command."
+            } else if message.to_lowercase().contains("lux") || message.to_lowercase().contains("automation") {
+                "🤖 I have LUX computer use capabilities! I can help you automate desktop tasks, capture screenshots, and execute natural language commands to control your computer. Try asking me to 'open Slack' or 'take a screenshot'."
             } else {
-                &format!("🤖 I received your message: '{}'. This is an enhanced response from the ATOM desktop app with file system access, command execution, and system information capabilities.", message)
+                &format!("🤖 I received your message: '{}'. This is an enhanced response from the ATOM desktop app with file system access, command execution, system information, and LUX computer use automation capabilities.", message)
             };
 
             Ok(json!({
                 "success": true,
                 "response": response,
                 "timestamp": chrono::Utc::now().to_rfc3339(),
-                "capabilities_mentioned": message.to_lowercase().contains("file") || message.to_lowercase().contains("system") || message.to_lowercase().contains("build") || message.to_lowercase().contains("run")
+                "capabilities_mentioned": message.to_lowercase().contains("file") || message.to_lowercase().contains("system") || message.to_lowercase().contains("build") || message.to_lowercase().contains("run") || message.to_lowercase().contains("lux") || message.to_lowercase().contains("automation")
             }))
         }
 
@@ -417,11 +586,15 @@ fn main() {
             println!("   ✅ Notion");
             println!("   💬 Chat Interface");
             println!("   📁 File Dialogs (Tauri v2)");
+            println!("   🤖 LUX Computer Use Automation");
 
             // Initialize global state
             app.manage(std::sync::Mutex::new(
                 HashMap::<String, serde_json::Value>::new(),
             ));
+
+            // Initialize LUX state
+            app.manage(lux::init_lux());
 
             Ok(())
         })

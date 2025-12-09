@@ -56,7 +56,9 @@
       "Bash(npm audit:*)",
       "Bash(/Users/rushiparikh/projects/atom/backend/venv/bin/pip list:*)",
       "Bash(npx next build:*)",
-      "Bash(/Users/rushiparikh/projects/atom/backend/venv/bin/pip install:*)"
+      "Bash(/Users/rushiparikh/projects/atom/backend/venv/bin/pip install:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []

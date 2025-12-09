@@ -264,7 +264,9 @@ class BusinessOutcomeTestRunner:
 
         # Calculate overall business metrics
         avg_business_score = sum(r['business_score'] for r in results) / len(results)
-        total_annual_roi = ((total_value - total_implementation_cost) / total_implementation_cost * 100) if total_implementation_cost > 0 else 0
+        # If total implementation cost is zero, ROI is effectively infinite (no investment required)
+        LARGE_ROI = 100000.0  # Represents "infinite" ROI for zero-cost scenarios
+        total_annual_roi = ((total_value - total_implementation_cost) / total_implementation_cost * 100) if total_implementation_cost > 0 else LARGE_ROI
 
         print(f"\nOVERALL RESULTS:")
         print(f"   Average Business Score: {avg_business_score:.1f}/10")
