@@ -70,6 +70,7 @@ integrations = [
     ("core.analytics_endpoints", "router", None),
     ("core.enterprise_endpoints", "router", None),
     ("core.workflow_marketplace", "router", None),
+    ("api.marketplace_routes", "router", None),
     ("core.enterprise_user_management", "router", None),
     ("core.enterprise_security", "router", "/api/v1"),
     ("core.auto_healing_endpoints", "router", None),
@@ -130,6 +131,7 @@ integrations = [
     ("integrations.xero_routes", "router", None),
     ("integrations.quickbooks_routes", "router", None),
     ("integrations.plaid_routes", "router", None),
+    ("api.financial_routes", "router", None),
 
     # Integrations - Dev & Design
     ("integrations.github_routes", "router", None),
@@ -161,6 +163,9 @@ integrations = [
     
     # Team Messaging
     ("core.team_messaging", "router", None),
+
+    # Financial API
+    ("api.financial_routes", "router", None),
 ]
 
 

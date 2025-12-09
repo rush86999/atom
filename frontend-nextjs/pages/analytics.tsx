@@ -63,7 +63,7 @@ export default function AnalyticsPage() {
   const fetchData = async () => {
     try {
       setRefreshing(true)
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/api/analytics/dashboard`)
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/api/v1/analytics/dashboard`)
       if (!response.ok) {
         throw new Error(`Failed to fetch analytics: ${response.status} ${response.statusText}`)
       }
@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
 
   const exportCSV = async (type: 'workflow' | 'integration') => {
     try {
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/api/analytics/export/csv?metric_type=${type}`)
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/api/v1/analytics/export/csv?metric_type=${type}`)
       if (!response.ok) {
         throw new Error(`Failed to export CSV: ${response.status} ${response.statusText}`)
       }
