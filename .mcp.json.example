@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "brave-search": {
+      "command": "node",
+      "args": ["/Users/rushiparikh/projects/atom/mcp-server/mcp-brave-search-server.js"],
+      "env": {
+        "BRAVE_SEARCH_API_KEY": "${BRAVE_SEARCH_API_KEY}"
+      }
+    }
+  }
+}

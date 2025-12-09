@@ -148,6 +148,41 @@ import {
 // Import Gmail skills
 import { gmailSkills, gmailUtils } from './skills/gmailSkillsComplete';
 
+const sanitizeHTML = (html: string): string => {
+  if (typeof window === 'undefined') return html;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  // Remove dangerous tags
+  const dangerousTags = ['script', 'iframe', 'embed', 'object', 'frame', 'frameset', 'meta', 'link', 'base', 'form', 'input', 'button', 'textarea', 'select', 'option'];
+  dangerousTags.forEach(tag => {
+    doc.querySelectorAll(tag).forEach(el => el.remove());
+  });
+  // Remove event handlers from all elements
+  doc.body.querySelectorAll('*').forEach(el => {
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name.startsWith('on')) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+  // Remove dangerous attributes like href with javascript:
+  doc.body.querySelectorAll('*').forEach(el => {
+    if (el.hasAttribute('href') && el.getAttribute('href')?.toLowerCase().startsWith('javascript:')) {
+      el.removeAttribute('href');
+    }
+    if (el.hasAttribute('src') && el.getAttribute('src')?.toLowerCase().startsWith('javascript:')) {
+      el.removeAttribute('src');
+    }
+    // Remove data: URLs in src/href (could be malicious)
+    if (el.hasAttribute('src') && el.getAttribute('src')?.toLowerCase().startsWith('data:')) {
+      el.removeAttribute('src');
+    }
+    if (el.hasAttribute('href') && el.getAttribute('href')?.toLowerCase().startsWith('data:')) {
+      el.removeAttribute('href');
+    }
+  });
+  return doc.body.innerHTML;
+};
+
 interface GmailMessage {
   id: string;
   thread_id: string;
@@ -1474,7 +1509,7 @@ const GmailEmailManagementUI: React.FC<GmailEmailManagementUIProps> = ({
                   p={4}
                   bg="gray.50"
                   borderRadius="md"
-                  dangerouslySetInnerHTML={{ __html: selectedMessage.body_html || selectedMessage.body.replace(/\n/g, '<br>') }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHTML(selectedMessage.body_html || selectedMessage.body.replace(/\n/g, '<br>')) }}
                 />
                 
                 {/* Attachments */}

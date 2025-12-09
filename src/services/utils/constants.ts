@@ -11,7 +11,7 @@ export const API_CONFIG = {
 
 // Backend Service URLs
 export const PYTHON_API_SERVICE_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
-export const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+export const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5058';
 
 // Environment
 export const ENVIRONMENT = process.env.NODE_ENV || 'development';
