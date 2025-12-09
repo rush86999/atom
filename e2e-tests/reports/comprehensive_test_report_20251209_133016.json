@@ -1,0 +1,52 @@
+{
+  "test_run": {
+    "start_time": "2025-12-09T13:28:02.805082",
+    "end_time": "2025-12-09T13:30:16.156829",
+    "duration_seconds": 133.351747,
+    "total_tests": 6,
+    "passed": 3,
+    "failed": 3,
+    "errors": 0,
+    "success_rate": 50.0,
+    "critical_failures": 2
+  },
+  "test_results": [
+    {
+      "name": "LUX Computer Use Integration",
+      "status": "PASSED",
+      "critical": true,
+      "message": "Test completed successfully"
+    },
+    {
+      "name": "Core Platform Integrations",
+      "status": "PASSED",
+      "critical": true,
+      "message": "Test completed successfully"
+    },
+    {
+      "name": "Business Value Metrics",
+      "status": "FAILED",
+      "critical": true,
+      "message": "Test returned False or had errors"
+    },
+    {
+      "name": "API Endpoint Availability",
+      "status": "FAILED",
+      "critical": true,
+      "message": "Test returned False or had errors"
+    },
+    {
+      "name": "Data Persistence",
+      "status": "FAILED",
+      "critical": false,
+      "message": "Test returned False or had errors"
+    },
+    {
+      "name": "Security Features",
+      "status": "PASSED",
+      "critical": true,
+      "message": "Test completed successfully"
+    }
+  ],
+  "platform_ready": false
+}

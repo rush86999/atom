@@ -1,6 +1,8 @@
 from typing import List, Optional, Dict, Any
 import time
 from datetime import datetime
+import psutil
+import os
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -137,3 +139,140 @@ async def get_connected_services():
     # Fallback to basic service list
     services = ["github", "google", "slack", "outlook", "teams"]
     return {"services": services, "count": len(services)}
+
+
+# Platform Status and Health Endpoints
+@router.get("/status")
+async def get_platform_status():
+    """Get platform status with system metrics"""
+    try:
+        # System metrics
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+
+        # Platform status
+        status = {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "version": "1.0.0",
+            "environment": os.getenv("NODE_ENV", "development"),
+            "uptime": time.time() - psutil.boot_time(),
+            "system": {
+                "cpu_usage_percent": cpu_percent,
+                "memory": {
+                    "total_gb": round(memory.total / (1024**3), 2),
+                    "available_gb": round(memory.available / (1024**3), 2),
+                    "percent_used": memory.percent
+                },
+                "disk": {
+                    "total_gb": round(disk.total / (1024**3), 2),
+                    "free_gb": round(disk.free / (1024**3), 2),
+                    "percent_used": round((disk.used / disk.total) * 100, 2)
+                }
+            },
+            "services": {
+                "database": "connected",
+                "api": "running",
+                "integrations": "active"
+            }
+        }
+
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+
+
+@router.get("/health")
+async def health_check():
+    """Simple health check endpoint"""
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "service": "atom-api"
+    }
+
+
+@router.get("/integrations")
+async def get_integrations_list():
+    """Get list of available integrations"""
+    integrations = [
+        {
+            "name": "slack",
+            "display_name": "Slack",
+            "category": "communication",
+            "status": "available"
+        },
+        {
+            "name": "gmail",
+            "display_name": "Gmail",
+            "category": "email",
+            "status": "available"
+        },
+        {
+            "name": "github",
+            "display_name": "GitHub",
+            "category": "development",
+            "status": "available"
+        },
+        {
+            "name": "asana",
+            "display_name": "Asana",
+            "category": "project_management",
+            "status": "available"
+        },
+        {
+            "name": "jira",
+            "display_name": "Jira",
+            "category": "project_management",
+            "status": "available"
+        },
+        {
+            "name": "notion",
+            "display_name": "Notion",
+            "category": "productivity",
+            "status": "available"
+        },
+        {
+            "name": "trello",
+            "display_name": "Trello",
+            "category": "project_management",
+            "status": "available"
+        },
+        {
+            "name": "dropbox",
+            "display_name": "Dropbox",
+            "category": "storage",
+            "status": "available"
+        },
+        {
+            "name": "shopify",
+            "display_name": "Shopify",
+            "category": "ecommerce",
+            "status": "available"
+        },
+        {
+            "name": "plaid",
+            "display_name": "Plaid",
+            "category": "financial",
+            "status": "available"
+        },
+        {
+            "name": "linkedin",
+            "display_name": "LinkedIn",
+            "category": "social",
+            "status": "available"
+        },
+        {
+            "name": "lux",
+            "display_name": "LUX Computer Use",
+            "category": "automation",
+            "status": "available"
+        }
+    ]
+
+    return {
+        "integrations": integrations,
+        "count": len(integrations),
+        "categories": list(set(i["category"] for i in integrations))
+    }

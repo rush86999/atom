@@ -58,7 +58,8 @@
       "Bash(npx next build:*)",
       "Bash(/Users/rushiparikh/projects/atom/backend/venv/bin/pip install:*)",
       "Bash(source:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(PYTHONIOENCODING=utf-8 ../backend/venv/bin/python:*)"
     ],
     "deny": [],
     "ask": []

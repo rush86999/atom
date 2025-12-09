@@ -361,3 +361,21 @@ def setup_logging(config: LoggingConfig = None) -> None:
 
 # Initialize configuration when module is imported
 load_config()
+
+# Settings class for compatibility
+class Settings:
+    """Settings class for compatibility with various modules"""
+    def __init__(self):
+        self.sqlite_path = os.getenv("SQLITE_PATH", "./data/atom.db")
+        self.lancedb_path = os.getenv("LANCEDB_PATH", "./data/lancedb")
+        self.database_url = os.getenv("DATABASE_URL", "sqlite:///./atom.db")
+
+# Global settings instance
+_settings = None
+
+def get_settings() -> Settings:
+    """Get settings instance (singleton pattern)"""
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+    return _settings
