@@ -37,9 +37,27 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(node:*)",
+      "Bash(timeout:*)",
+      "WebSearch",
+      "mcp__brave-search__brave_search",
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:api.deepseek.com)",
+      "WebFetch(domain:api.openai.com)",
+      "WebFetch(domain:api.anthropic.com)",
+      "WebFetch(domain:generativelanguage.googleapis.com)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(claude-code:*)",
+      "Bash(BSAaBsyIH-wzGiwtt3azF8xESfloF2Q node:*)",
+      "Bash(BRAVE_SEARCH_API_KEY=BSAaBsyIH-wzGiwtt3azF8xESfloF2Q echo:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "brave-search"
+  ]
 }

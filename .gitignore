@@ -698,3 +698,8 @@ backend/test_engine_deep.py
 backend/verify_scheduler.py
 backend/test_chat_endpoint.py
 
+# MCP Server
+mcp-server/node_modules/
+mcp-server/package-lock.json
+
+archive/

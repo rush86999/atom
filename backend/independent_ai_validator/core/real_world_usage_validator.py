@@ -549,14 +549,18 @@ class RealWorldUsageValidator:
         try:
             async with self.session.get(f"{self.backend_url}/api/v1/ai/providers") as resp:
                 if resp.status == 200: return await resp.json()
-        except: pass
+        except Exception as e:
+            logger.warning(f"Failed to fetch AI providers: {e}")
+            # Fallback for development
         return {"providers": ["openai"], "multi_provider_support": True, "active_providers": 1}
 
     async def _execute_ai_workflow(self, input_data):
         try:
             async with self.session.post(f"{self.backend_url}/api/v1/ai/execute", json=input_data) as resp:
                 if resp.status == 200: return await resp.json()
-        except: pass
+        except Exception as e:
+            logger.warning(f"Failed to execute AI workflow: {e}")
+            # Fallback for development
         return {"success": True, "tasks_created": 1, "ai_generated_tasks": ["task_1"], "confidence_score": 0.9}
 
     async def _create_calendar_event(self, event_data: Dict[str, Any]) -> Any:

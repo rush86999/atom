@@ -175,6 +175,21 @@ export class UniversalLLMProvider extends EventEmitter {
       supports: ["analysis", "creative", "long_context", "planning"],
     });
 
+    // DeepSeek AI
+    this.providers.set("deepseek-chat", {
+      name: "DeepSeek AI",
+      type: "custom",
+      endpoint: "https://api.deepseek.com/chat/completions",
+      models: ["deepseek-chat", "deepseek-coder"],
+      costPerToken: { input: 0.00014, output: 0.00028 },
+      maxTokens: 128000,
+      supports: ["analysis", "creative", "coding", "planning", "complex_planning"],
+      rateLimits: {
+        requestsPerMinute: 120,
+        tokensPerMinute: 320000,
+      },
+    });
+
     // Local llama.cpp models
     this.providers.set("llama-local-8b", {
       name: "Llama 3 8B Local",
@@ -198,6 +213,7 @@ export class UniversalLLMProvider extends EventEmitter {
     this.fallbackChain = [
       "openai-gpt4",
       "claude-opus",
+      "deepseek-chat",
       "openrouter-llama",
       "gemini-pro",
       "moonshot-v1",
@@ -375,11 +391,17 @@ export class UniversalLLMProvider extends EventEmitter {
     request: LLMRequest,
   ): Promise<LLMResponse> {
     const model = request.model || provider.models[0];
-    const apiKey =
-      provider.apiKey || process.env[`${provider.type.toUpperCase()}_API_KEY`];
+    let apiKey = provider.apiKey;
+
+    // Special handling for DeepSeek API key
+    if (provider.name === "DeepSeek AI" || provider.endpoint.includes("deepseek.com")) {
+      apiKey = apiKey || process.env.DEEPSEEK_API_KEY;
+    } else {
+      apiKey = apiKey || process.env[`${provider.type.toUpperCase()}_API_KEY`];
+    }
 
     if (!apiKey) {
-      throw new Error(`${provider.type} API key not found`);
+      throw new Error(`${provider.name} API key not found`);
     }
 
     const startTime = Date.now();

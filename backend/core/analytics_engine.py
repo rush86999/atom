@@ -150,7 +150,24 @@ class AnalyticsEngine:
             metric.status = "READY"
             
         self._save_data()
-        
+
+    def _workflow_metric_to_dict(self, metric: WorkflowMetric) -> Dict[str, Any]:
+        """Convert WorkflowMetric to dict including computed properties"""
+        result = asdict(metric)
+        # Add computed properties
+        result["success_rate"] = metric.success_rate
+        result["average_duration"] = metric.average_duration
+        return result
+
+    def _integration_metric_to_dict(self, metric: IntegrationMetric) -> Dict[str, Any]:
+        """Convert IntegrationMetric to dict including computed properties"""
+        result = asdict(metric)
+        # Add computed properties
+        result["error_rate"] = metric.error_rate
+        result["average_response_time"] = metric.average_response_time
+        result["uptime_percentage"] = metric.uptime_percentage
+        return result
+
     def get_workflow_analytics(self) -> Dict[str, Any]:
         """Get summarized workflow analytics"""
         total_executions = sum(m.execution_count for m in self.workflow_metrics.values())
@@ -162,7 +179,7 @@ class AnalyticsEngine:
             "total_time_saved_hours": round(total_saved / 3600, 2),
             "total_business_value": round(total_value, 2),
             "workflow_count": len(self.workflow_metrics),
-            "workflows": {k: asdict(v) for k, v in self.workflow_metrics.items()}
+            "workflows": {k: self._workflow_metric_to_dict(v) for k, v in self.workflow_metrics.items()}
         }
         
     def get_integration_health(self) -> Dict[str, Any]:
@@ -172,7 +189,7 @@ class AnalyticsEngine:
         return {
             "total_integrations": len(self.integration_metrics),
             "ready_count": ready_count,
-            "integrations": {k: asdict(v) for k, v in self.integration_metrics.items()}
+            "integrations": {k: self._integration_metric_to_dict(v) for k, v in self.integration_metrics.items()}
         }
 
 # Global instance
