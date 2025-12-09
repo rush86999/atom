@@ -267,7 +267,12 @@ class ATOMConfig:
         # Check security config
         if not self.security.secret_key or self.security.secret_key == "atom-secret-key-change-in-production":
             if os.getenv('ENVIRONMENT', 'development') == 'production':
-                issues.append("Secret key must be set in production")
+                issues.append("SECURITY ERROR: Secret key must be set in production - generate with: openssl rand -base64 32")
+            elif os.getenv('ENVIRONMENT', 'development') == 'development':
+                # In development, generate a random key if not set
+                import secrets
+                self.security.secret_key = secrets.token_urlsafe(32)
+                issues.append("WARNING: Using auto-generated development secret key. Set SECRET_KEY for production.")
         
         # Check integration tokens
         if os.getenv('ENVIRONMENT', 'development') == 'production':

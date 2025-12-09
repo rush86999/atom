@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, timedelta
 import logging
+from core.database_manager import DatabaseManager
+from core.financial_database import financial_db
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +43,55 @@ class NetWorth(BaseModel):
 # Create router
 router = APIRouter(prefix="/api/atom/finance", tags=["Financial Data"])
 
-# Sample data (in production, this would come from a database)
+# Database manager instance
+db_manager = DatabaseManager()
+
+@router.post("/initialize", response_model=dict)
+async def initialize_financial_db():
+    """Initialize financial database and seed with sample data"""
+    try:
+        await financial_db.initialize()
+
+        # Seed with sample data if no transactions exist
+        existing_transactions = await financial_db.get_transactions(limit=1)
+        if not existing_transactions:
+            # Insert sample transactions
+            await financial_db.create_transaction("Client Payment - ABC Corp", "Income", 5000.00, "Completed")
+            await financial_db.create_transaction("AWS Services", "Infrastructure", -234.56, "Completed")
+            await financial_db.create_transaction("Software Licenses", "Software", -156.00, "Completed")
+            await financial_db.create_transaction("Office Supplies", "Office", -89.99, "Completed")
+            await financial_db.create_transaction("Contract Income", "Income", 3500.00, "Completed")
+
+            # Create sample budgets
+            await financial_db.create_budget("Infrastructure", 500.00, "2025-12")
+            await financial_db.create_budget("Software", 300.00, "2025-12")
+            await financial_db.create_budget("Office", 200.00, "2025-12")
+
+            # Record initial net worth
+            await financial_db.record_net_worth(15000.00, 3500.00)
+
+            return {
+                "success": True,
+                "message": "Financial database initialized with sample data",
+                "transactions_created": 5,
+                "budgets_created": 3,
+                "net_worth_recorded": True
+            }
+        else:
+            return {
+                "success": True,
+                "message": "Financial database already initialized",
+                "existing_transactions": True
+            }
+
+    except Exception as e:
+        logger.error(f"Failed to initialize financial database: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+# Sample data (fallback if database is not available)
 SAMPLE_TRANSACTIONS = [
     {
         "id": "TRX-0001",
@@ -122,20 +172,32 @@ async def get_transactions(
     Get financial transactions with optional filtering
     """
     try:
-        transactions = SAMPLE_TRANSACTIONS.copy()
+        # Try to get data from real database first
+        try:
+            transactions = await financial_db.get_transactions(
+                limit=limit,
+                offset=offset,
+                category=category,
+                start_date=start_date,
+                end_date=end_date
+            )
+        except Exception as db_error:
+            logger.warning(f"Database error, using fallback data: {db_error}")
+            # Fallback to sample data
+            transactions = SAMPLE_TRANSACTIONS.copy()
 
-        # Apply filters
-        if category:
-            transactions = [t for t in transactions if t["category"].lower() == category.lower()]
+            # Apply filters to fallback data
+            if category:
+                transactions = [t for t in transactions if t["category"].lower() == category.lower()]
 
-        if start_date:
-            transactions = [t for t in transactions if t["date"] >= start_date]
+            if start_date:
+                transactions = [t for t in transactions if t["date"] >= start_date]
 
-        if end_date:
-            transactions = [t for t in transactions if t["date"] <= end_date]
+            if end_date:
+                transactions = [t for t in transactions if t["date"] <= end_date]
 
-        # Apply pagination
-        paginated_transactions = transactions[offset:offset + limit]
+            # Apply pagination
+            transactions = transactions[offset:offset + limit]
 
         return {
             "success": True,
