@@ -51,7 +51,8 @@
       "Bash(npx tsc:*)",
       "Bash(claude-code:*)",
       "Bash(BSAaBsyIH-wzGiwtt3azF8xESfloF2Q node:*)",
-      "Bash(BRAVE_SEARCH_API_KEY=BSAaBsyIH-wzGiwtt3azF8xESfloF2Q echo:*)"
+      "Bash(BRAVE_SEARCH_API_KEY=BSAaBsyIH-wzGiwtt3azF8xESfloF2Q echo:*)",
+      "Bash(/Users/rushiparikh/projects/atom/backend/venv/bin/python3:*)"
     ],
     "deny": [],
     "ask": []
