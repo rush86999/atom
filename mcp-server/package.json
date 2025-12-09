@@ -1,0 +1,14 @@
+{
+  "name": "mcp-brave-search-server",
+  "version": "1.0.0",
+  "description": "MCP server for Brave Search API integration",
+  "main": "mcp-brave-search-server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node mcp-brave-search-server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "node-fetch": "^3.3.2"
+  }
+}

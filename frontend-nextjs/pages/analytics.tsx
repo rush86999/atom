@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  TrendingUp, 
-  Clock, 
-  DollarSign, 
+import {
+  TrendingUp,
+  Clock,
+  DollarSign,
   Activity,
   Download,
   RefreshCw,
@@ -15,6 +15,7 @@ import {
   XCircle,
   AlertCircle
 } from 'lucide-react'
+import { NEXT_PUBLIC_API_BASE_URL } from '@shared-utils/constants'
 
 interface WorkflowMetric {
   execution_count: number
@@ -62,11 +63,15 @@ export default function AnalyticsPage() {
   const fetchData = async () => {
     try {
       setRefreshing(true)
-      const response = await fetch('http://localhost:5059/api/analytics/dashboard')
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/api/analytics/dashboard`)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch analytics: ${response.status} ${response.statusText}`)
+      }
       const result = await response.json()
       setData(result)
     } catch (error) {
       console.error('Failed to fetch analytics:', error)
+      setData(null)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -79,7 +84,10 @@ export default function AnalyticsPage() {
 
   const exportCSV = async (type: 'workflow' | 'integration') => {
     try {
-      const response = await fetch(`http://localhost:5059/api/analytics/export/csv?metric_type=${type}`)
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/api/analytics/export/csv?metric_type=${type}`)
+      if (!response.ok) {
+        throw new Error(`Failed to export CSV: ${response.status} ${response.statusText}`)
+      }
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -91,6 +99,7 @@ export default function AnalyticsPage() {
       document.body.removeChild(a)
     } catch (error) {
       console.error('Failed to export CSV:', error)
+      alert(`Failed to export CSV: ${error.message}`)
     }
   }
 

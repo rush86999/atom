@@ -49,9 +49,12 @@ coverage/
 tmp/
 temp/
 *.tmp
+run.log
+pid.txt
 
 # Large files
 *.sqlite3
+*.sqlite
 *.db
 
 # Development and test files

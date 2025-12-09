@@ -16,17 +16,23 @@ export default async function handler(
 
     if (response.ok) {
       const data = await response.json();
-      // Redirect to HubSpot authorization URL
-      if (data.auth_url) {
-        res.redirect(data.auth_url);
+      // Return the auth URL for the client to handle
+      if (data.ok && data.auth_url) {
+        res.status(200).json({
+          ok: true,
+          auth_url: data.auth_url,
+          message: data.message || 'Authorization URL ready',
+        });
       } else {
         res.status(500).json({
-          error: 'Failed to get HubSpot authorization URL',
-          message: 'No authorization URL returned from backend',
+          ok: false,
+          error: data.error || 'Failed to get HubSpot authorization URL',
+          message: data.message || 'No authorization URL returned from backend',
         });
       }
     } else {
       res.status(500).json({
+        ok: false,
         error: 'Backend HubSpot service error',
         message: 'Failed to contact HubSpot authentication service',
       });
