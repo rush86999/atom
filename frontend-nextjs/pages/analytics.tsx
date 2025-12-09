@@ -15,7 +15,7 @@ import {
   XCircle,
   AlertCircle
 } from 'lucide-react'
-import { NEXT_PUBLIC_API_BASE_URL } from '@shared-utils/constants'
+import { NEXT_PUBLIC_API_BASE_URL } from '../src/constants'
 
 interface WorkflowMetric {
   execution_count: number

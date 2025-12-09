@@ -1,5 +1,8 @@
 // prod VERSION
 
+// API Base URL for frontend-backend communication
+export const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5059';
+
 export const postgraphileApiUrl =
   process.env.NEXT_PUBLIC_POSTGRAPHILE_GRAPHQL_URL;
 

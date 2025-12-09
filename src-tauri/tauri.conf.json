@@ -5,7 +5,7 @@
     "identifier": "com.atom.app",
     "build": {
         "beforeDevCommand": "npm run dev",
-        "devUrl": "http://localhost:3000",
+        "devUrl": "http://localhost:3001",
         "frontendDist": "../frontend-nextjs/.next"
     },
     "bundle": {

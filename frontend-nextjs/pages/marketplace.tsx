@@ -17,7 +17,7 @@ import {
     List as ListIcon
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { NEXT_PUBLIC_API_BASE_URL } from '@shared-utils/constants'
+import { NEXT_PUBLIC_API_BASE_URL } from '../src/constants'
 
 interface WorkflowTemplate {
     id: string
