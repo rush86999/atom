@@ -58,17 +58,33 @@ class ServerConfig:
 @dataclass
 class SecurityConfig:
     """Security configuration"""
-    secret_key: str = "atom-secret-key-change-in-production"
+    secret_key: str = None  # Must be set via environment variable
     jwt_expiration: int = 86400  # 24 hours
     cors_origins: list = None
     encryption_key: str = None
-    
+
     def __post_init__(self):
-        self.secret_key = os.getenv('SECRET_KEY', self.secret_key)
+        # Fix: Require SECRET_KEY in production environments
+        env_value = os.getenv('SECRET_KEY')
+        if env_value:
+            self.secret_key = env_value
+        elif os.getenv('NODE_ENV') == 'production' or os.getenv('ENV') == 'production':
+            raise ValueError("SECRET_KEY environment variable is required in production")
+        else:
+            # Generate a random secret for development if none provided
+            import secrets
+            self.secret_key = secrets.token_urlsafe(32)
+            logger.warning("⚠️ Using auto-generated secret key for development. Set SECRET_KEY in production!")
+
         if os.getenv('JWT_EXPIRATION'):
             self.jwt_expiration = int(os.getenv('JWT_EXPIRATION'))
         if os.getenv('ENCRYPTION_KEY'):
             self.encryption_key = os.getenv('ENCRYPTION_KEY')
+        else:
+            # Generate encryption key if not provided
+            from cryptography.fernet import Fernet
+            self.encryption_key = Fernet.generate_key().decode()
+            logger.warning("⚠️ Using auto-generated encryption key for development. Set ENCRYPTION_KEY in production!")
         
         if self.cors_origins is None:
             cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:1420')

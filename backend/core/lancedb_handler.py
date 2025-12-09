@@ -144,7 +144,27 @@ class LanceDBHandler:
                 "message": str(e),
                 "connected": False
             }
-    
+
+    def get_table_stats(self, table_name: str) -> Optional[Dict[str, Any]]:
+        """Get statistics for a table including document count."""
+        if self.db is None:
+            logger.error("LanceDB not initialized")
+            return None
+
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return {"document_count": 0, "table_exists": False}
+
+            count = table.count_rows()
+            return {
+                "document_count": count,
+                "table_exists": True
+            }
+        except Exception as e:
+            logger.error(f"Failed to get table stats for '{table_name}': {e}")
+            return {"document_count": 0, "table_exists": False, "error": str(e)}
+
     def create_table(self, table_name: str, schema: Optional[Dict[str, Any]] = None,
                     vector_size: int = 384) -> Optional[Table]:
         """Create a new table"""

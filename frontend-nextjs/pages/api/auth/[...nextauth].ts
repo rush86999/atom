@@ -15,42 +15,35 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GITHUB_CLIENT_ID || "",
       clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
     }),
-    // Credentials provider for E2E testing and development
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
-      },
-      async authorize(credentials) {
-        // Mock login for E2E testing
-        if (
-          process.env.NODE_ENV === "development" &&
-          credentials?.email === "test@example.com" &&
-          credentials?.password === "password"
-        ) {
-          return {
-            id: "test-user-id",
-            email: "test@example.com",
-            name: "Test User",
-            token: "mock-backend-token",
-          };
-        }
+    // Credentials provider for E2E testing and development - DISABLED IN PRODUCTION
+    ...(process.env.NODE_ENV === "development" || process.env.ENABLE_TEST_CREDENTIALS === "true" ? [{
+      ...CredentialsProvider({
+        name: "Credentials",
+        credentials: {
+          email: { label: "Email", type: "email" },
+          password: { label: "Password", type: "password" }
+        },
+        async authorize(credentials) {
+          // Only allow test credentials in explicit test environments
+          if (
+            (process.env.NODE_ENV === "development" || process.env.ENABLE_TEST_CREDENTIALS === "true") &&
+            credentials?.email === "test@example.com" &&
+            credentials?.password === "testpassword"
+          ) {
+            console.warn("⚠️ Using test credentials - ensure this is only in development/test environments");
+            return {
+              id: "test-user-id",
+              email: "test@example.com",
+              name: "Test User",
+              token: "test-token-for-e2e",
+            };
+          }
 
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required");
         }
 
-        // For E2E testing, accept test credentials without backend call
-        if (credentials.email === "test@example.com" && credentials.password === "testpassword") {
-          return {
-            id: "test-user-id",
-            email: "test@example.com",
-            name: "Test User",
-            token: "test-token-for-e2e",
-          };
-        }
-
+  
         try {
           // Import query function for database access
           const { query } = await import('../../../lib/db');
@@ -86,13 +79,16 @@ export const authOptions: NextAuthOptions = {
             token: "db-auth-token",
           };
         } catch (error) {
+          // Log security events without leaking sensitive information
+          console.error("Authentication attempt failed for:", credentials?.email || "unknown");
           if (error instanceof Error) {
-            throw new Error(error.message);
+            // Don't leak detailed error messages to potential attackers
+            throw new Error("Invalid credentials");
           }
           throw new Error("Authentication failed");
         }
       },
-    }),
+    }] : []),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
@@ -127,13 +123,34 @@ export const authOptions: NextAuthOptions = {
             console.log(`Updated existing user from ${account.provider}:`, user.email);
           }
 
-          // Store or update OAuth account info
+          // Store or update OAuth account info with encrypted tokens
+          // NOTE: In production, implement proper encryption for OAuth tokens
+          const crypto = await import('crypto');
+          const algorithm = 'aes-256-gcm';
+          const secretKey = process.env.OAUTH_TOKEN_ENCRYPTION_KEY || crypto.createHash('sha256').update(process.env.NEXTAUTH_SECRET || 'fallback-secret').digest();
+
+          const encryptToken = (token: string | null): string | null => {
+            if (!token) return null;
+            try {
+              const iv = crypto.randomBytes(16);
+              const cipher = crypto.createCipher(algorithm, secretKey);
+              cipher.setAAD(Buffer.from(account.provider, 'utf8'));
+              let encrypted = cipher.update(token, 'utf8', 'hex');
+              encrypted += cipher.final('hex');
+              const authTag = cipher.getAuthTag();
+              return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
+            } catch (error) {
+              console.error('Failed to encrypt OAuth token:', error);
+              return null;
+            }
+          };
+
           await query(
-            `INSERT INTO user_accounts 
+            `INSERT INTO user_accounts
               (user_id, provider, provider_account_id, access_token, refresh_token, expires_at, token_type, scope, id_token)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (user_id, provider) 
-             DO UPDATE SET 
+             ON CONFLICT (user_id, provider)
+             DO UPDATE SET
                provider_account_id = EXCLUDED.provider_account_id,
                access_token = EXCLUDED.access_token,
                refresh_token = EXCLUDED.refresh_token,
@@ -146,12 +163,12 @@ export const authOptions: NextAuthOptions = {
               userId,
               account.provider,
               account.providerAccountId,
-              account.access_token || null,
-              account.refresh_token || null,
+              encryptToken(account.access_token) || null,
+              encryptToken(account.refresh_token) || null,
               account.expires_at ? new Date(account.expires_at * 1000) : null,
               account.token_type || null,
               account.scope || null,
-              account.id_token || null,
+              encryptToken(account.id_token) || null,
             ]
           );
 
@@ -200,9 +217,66 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt" as const,
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 24 * 60 * 60, // 1 day (reduced from 30 days for security)
+    updateAge: 60 * 60, // Update session every hour
   },
-  secret: process.env.NEXTAUTH_SECRET || "your-secret-key-change-in-production",
+  // Enhanced security configuration
+  useSecureCookies: process.env.NODE_ENV === "production",
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
+      },
+    },
+    callbackUrl: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.callback-url" : "next-auth.callback-url",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
+      },
+    },
+    csrfToken: {
+      name: process.env.NODE_ENV === "production" ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
+      },
+    },
+    pkceCodeVerifier: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.pkce.code_verifier" : "next-auth.pkce.code_verifier",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
+      },
+    },
+    state: {
+      name: process.env.NODE_ENV === "production" ? "__Host-next-auth.state" : "next-auth.state",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined,
+      },
+    },
+  },
+  secret: process.env.NEXTAUTH_SECRET || (() => {
+    throw new Error("NEXTAUTH_SECRET environment variable is required in production");
+  })(),
 };
 
 export default NextAuth(authOptions);

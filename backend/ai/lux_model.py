@@ -21,6 +21,7 @@ import pyautogui
 import cv2
 import numpy as np
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 from core.lux_config import lux_config
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,13 @@ class LuxModel:
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
         self.screen_width, self.screen_height = pyautogui.size()
+
+        # Fix: Implement bounded screenshot cache to prevent memory leaks
         self.screenshot_cache = {}
+        self.max_cache_size = 10
+
+        # Thread pool for blocking operations
+        self.thread_pool = ThreadPoolExecutor(max_workers=4)
 
         # Computer use model configuration
         self.model_config = {
@@ -79,8 +86,8 @@ class LuxModel:
 
         logger.info(f"LUX Model initialized for computer use with API key: {self.api_key[:10]}...")
 
-    async def capture_screen(self, region: Optional[Tuple[int, int, int, int]] = None) -> Image.Image:
-        """Capture screen screenshot with optional region"""
+    def _capture_screen_sync(self, region: Optional[Tuple[int, int, int, int]] = None) -> Image.Image:
+        """Synchronous screenshot capture for thread pool"""
         try:
             if region:
                 x, y, width, height = region
@@ -91,6 +98,31 @@ class LuxModel:
             # Convert to RGB for consistency
             if screenshot.mode != 'RGB':
                 screenshot = screenshot.convert('RGB')
+
+            return screenshot
+        except Exception as e:
+            logger.error(f"Failed to capture screen: {e}")
+            raise
+
+  async def capture_screen(self, region: Optional[Tuple[int, int, int, int]] = None) -> Image.Image:
+        """Capture screen screenshot with optional region (non-blocking)"""
+        try:
+            # Fix: Run blocking screenshot operation in thread pool
+            loop = asyncio.get_event_loop()
+            screenshot = await loop.run_in_executor(
+                self.thread_pool,
+                self._capture_screen_sync,
+                region
+            )
+
+            # Fix: Implement cache management to prevent memory leaks
+            cache_key = str(region) if region else "full_screen"
+            self.screenshot_cache[cache_key] = screenshot
+
+            # Remove oldest entries if cache exceeds limit
+            if len(self.screenshot_cache) > self.max_cache_size:
+                oldest_key = next(iter(self.screenshot_cache))
+                del self.screenshot_cache[oldest_key]
 
             return screenshot
         except Exception as e:
@@ -249,14 +281,49 @@ Return as JSON:
             logger.error(f"Command interpretation failed: {e}")
             return []
 
+    def _execute_click_sync(self, x: int, y: int) -> None:
+        """Synchronous click operation"""
+        pyautogui.click(x, y)
+
+    def _execute_type_sync(self, text: str) -> None:
+        """Synchronous type operation"""
+        pyautogui.typewrite(text)
+
+    def _execute_keyboard_sync(self, keys: List[str]) -> None:
+        """Synchronous keyboard operation"""
+        pyautogui.hotkey(*keys)
+
+    def _execute_scroll_sync(self, direction: str, amount: int) -> None:
+        """Synchronous scroll operation"""
+        if direction == 'down':
+            pyautogui.scroll(-amount)
+        else:
+            pyautogui.scroll(amount)
+
+    def _execute_open_app_sync(self, app_name: str) -> None:
+        """Synchronous app opening operation"""
+        if platform.system() == "Darwin":
+            subprocess.run(['open', '-a', app_name])
+        elif platform.system() == "Windows":
+            subprocess.run(['start', app_name], shell=True)
+        else:
+            subprocess.run([app_name])
+
     async def execute_action(self, action: ComputerAction) -> bool:
         """Execute a computer action"""
         try:
+            loop = asyncio.get_event_loop()
+
             if action.action_type == ComputerActionType.CLICK:
                 params = action.parameters
                 if 'coordinates' in params:
                     x, y = params['coordinates']
-                    pyautogui.click(x, y)
+                    # Fix: Run blocking pyautogui operations in thread pool
+                    await loop.run_in_executor(
+                        self.thread_pool,
+                        self._execute_click_sync,
+                        x, y
+                    )
                 elif 'element_id' in params:
                     # Would find element by ID and click it
                     pass
@@ -264,31 +331,43 @@ Return as JSON:
 
             elif action.action_type == ComputerActionType.TYPE:
                 text = action.parameters.get('text', '')
-                pyautogui.typewrite(text)
+                # Fix: Run blocking pyautogui operations in thread pool
+                await loop.run_in_executor(
+                    self.thread_pool,
+                    self._execute_type_sync,
+                    text
+                )
                 return True
 
             elif action.action_type == ComputerActionType.KEYBOARD:
                 keys = action.parameters.get('keys', [])
-                pyautogui.hotkey(*keys)
+                # Fix: Run blocking pyautogui operations in thread pool
+                await loop.run_in_executor(
+                    self.thread_pool,
+                    self._execute_keyboard_sync,
+                    keys
+                )
                 return True
 
             elif action.action_type == ComputerActionType.SCROLL:
                 direction = action.parameters.get('direction', 'down')
                 amount = action.parameters.get('amount', 5)
-                if direction == 'down':
-                    pyautogui.scroll(-amount)
-                else:
-                    pyautogui.scroll(amount)
+                # Fix: Run blocking pyautogui operations in thread pool
+                await loop.run_in_executor(
+                    self.thread_pool,
+                    self._execute_scroll_sync,
+                    direction, amount
+                )
                 return True
 
             elif action.action_type == ComputerActionType.OPEN_APP:
                 app_name = action.parameters.get('app_name', '')
-                if platform.system() == "Darwin":
-                    subprocess.run(['open', '-a', app_name])
-                elif platform.system() == "Windows":
-                    subprocess.run(['start', app_name], shell=True)
-                else:
-                    subprocess.run([app_name])
+                # Fix: Run blocking subprocess operations in thread pool
+                await loop.run_in_executor(
+                    self.thread_pool,
+                    self._execute_open_app_sync,
+                    app_name
+                )
                 return True
 
             elif action.action_type == ComputerActionType.WAIT:
@@ -396,9 +475,17 @@ Return as JSON:
 # Global LUX model instance
 lux_model = None
 
-async def get_lux_model() -> LuxModel:
-    """Get or create LUX model instance"""
-    global lux_model
-    if lux_model is None:
-        lux_model = LuxModel()
-    return lux_model
+async def cleanup_lux_model():
+        """Cleanup global LUX model instance"""
+        global lux_model
+        if lux_model is not None:
+            lux_model.cleanup()
+            lux_model = None
+            logger.info("Global LUX Model instance cleaned up")
+
+    async def get_lux_model() -> LuxModel:
+        """Get or create LUX model instance"""
+        global lux_model
+        if lux_model is None:
+            lux_model = LuxModel()
+        return lux_model

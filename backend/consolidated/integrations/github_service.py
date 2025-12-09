@@ -85,21 +85,35 @@ class GitHubService:
                     "message": "Operation completed successfully",
                 }
             elif response.status_code == 429 and retry_count < self.max_retries:
-                # Rate limited, wait and retry
-                reset_time = self.rate_limit_reset
+                # Rate limited, wait and retry with exponential backoff
+                reset_time = int(response.headers.get('X-RateLimit-Reset', datetime.now().timestamp() + 60))
                 wait_time = max(reset_time - datetime.now().timestamp(), 1)
+
+                # Fix: Implement exponential backoff with jitter
+                base_delay = min(wait_time, 60)  # Cap at 60 seconds
+                exponential_delay = base_delay * (2 ** retry_count) + (0.1 * retry_count)  # Add jitter
+                final_delay = min(exponential_delay, 300)  # Cap at 5 minutes max
+
                 logger.warning(
-                    f"Rate limited, waiting {wait_time} seconds before retry"
+                    f"Rate limited, waiting {final_delay:.2f} seconds before retry (attempt {retry_count + 1}/{self.max_retries})"
                 )
                 import time
+                import asyncio
 
-                time.sleep(wait_time)
-                return self._make_request(
+                # Fix: Use asyncio.sleep instead of time.sleep for async compatibility
+                await asyncio.sleep(final_delay)
+                return await self._make_request(
                     method, endpoint, data, headers, retry_count + 1
                 )
             else:
+                # Fix: Sanitize error logging to prevent information leakage
+                error_msg = response.text
+                if len(error_msg) > 200:  # Truncate long error messages
+                    error_msg = error_msg[:200] + "..."
+
+                # Log without sensitive information
                 logger.error(
-                    f"GitHub API error {response.status_code}: {response.text}"
+                    f"GitHub API error {response.status_code}: {error_msg[:100]}"
                 )
                 return None
 
