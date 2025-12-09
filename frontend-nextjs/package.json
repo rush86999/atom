@@ -88,7 +88,7 @@
     "marked": "^4.2.12",
     "mathjs": "^11.6.0",
     "nanoid": "^5.1.5",
-    "next": "^15.5.0",
+    "next": "^15.5.7",
     "next-auth": "^4.24.11",
     "next-compose-plugins": "^2.2.1",
     "next-mdx-remote": "^4.4.1",
