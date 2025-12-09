@@ -1,48 +1,103 @@
 import { NextApiRequest, NextApiResponse } from "next";
-// TODO: Social post API temporarily disabled due to missing dependencies
-// import { runSocialMediaAutoPost } from "../../../src/orchestration/autonomousSystemOrchestrator";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]";
+
+interface SocialPostRequest {
+  text: string;
+  platform?: 'twitter' | 'linkedin' | 'facebook' | 'instagram';
+  media_urls?: string[];
+  scheduled_time?: string;
+}
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", ["POST"]);
+    return res.status(405).end(`Method ${req.method} Not Allowed`);
+  }
+
   const session = await getServerSession(req, res, authOptions);
 
-  if (!session || !session.user) {
+  if (!session || !session.user?.email) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const userId = session.user.id;
+  try {
+    const { text, platform = 'twitter', media_urls = [], scheduled_time }: SocialPostRequest = req.body;
 
-  if (req.method === "POST") {
-    const { text } = req.body;
-    if (!text) {
-      return res.status(400).json({ message: "Text is required" });
-    }
-    try {
-      // const result = await runSocialMediaAutoPost(userId, text);
-      const result = {
-        success: false,
-        message: "Social media posting temporarily disabled",
-      };
-      if (result.success) {
-        return res.status(200).json({ message: result.message });
-      } else {
-        return res
-          .status(500)
-          .json({ message: result.message, errors: result.errors });
-      }
-    } catch (error: any) {
-      console.error("Error in social media auto post:", error);
-      return res.status(500).json({
-        message: "Failed to post to social media",
-        errors: [error.message],
+    // Validate required fields
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Text content is required"
       });
     }
-  } else {
-    res.setHeader("Allow", ["POST"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+
+    if (text.length > 280) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Text content exceeds maximum length (280 characters)"
+      });
+    }
+
+    // Validate platform
+    const validPlatforms = ['twitter', 'linkedin', 'facebook', 'instagram'];
+    if (!validPlatforms.includes(platform)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: `Invalid platform. Must be one of: ${validPlatforms.join(', ')}`
+      });
+    }
+
+    // Get backend URL
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+
+    // Forward request to backend for actual posting
+    const response = await fetch(`${backendUrl}/api/social/post`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Email': session.user.email,
+        'X-User-ID': session.user.id || 'unknown',
+      },
+      body: JSON.stringify({
+        text: text.trim(),
+        platform,
+        media_urls,
+        scheduled_time,
+        user_email: session.user.email,
+        user_id: session.user.id,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      return res.status(200).json({
+        success: true,
+        message: `Successfully posted to ${platform}`,
+        post_id: data.post_id,
+        platform: platform,
+        posted_at: data.posted_at || new Date().toISOString()
+      });
+    } else {
+      return res.status(response.status).json({
+        success: false,
+        error: data.error || 'Failed to post to social media',
+        message: data.message || 'Unknown error occurred',
+        details: data.details || null
+      });
+    }
+
+  } catch (error: any) {
+    console.error("Error in social media post API:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+      message: "Failed to process social media post request",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }

@@ -12,11 +12,12 @@ import time
 import datetime
 from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
+from contextlib import asynccontextmanager
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import httpx
-import httpx
 import aiohttp
+import atexit
 
 
 # Configure logging
@@ -54,7 +55,7 @@ class NLUProcessing(BaseModel):
     ai_provider_used: str
 
 class RealAIWorkflowService:
-    """Real AI workflow service with actual API integration"""
+    """Real AI workflow service with actual API integration and proper resource management"""
 
     def __init__(self):
         self.glm_api_key = os.getenv("GLM_API_KEY")
@@ -63,26 +64,108 @@ class RealAIWorkflowService:
         self.openai_api_key = os.getenv("OPENAI_API_KEY")  # Fallback
         self.google_api_key = os.getenv("GOOGLE_API_KEY")
 
-        # Initialize HTTP sessions
+        # Initialize HTTP sessions with proper timeout and connection limits
         self.http_sessions = {}
+        self._sessions_initialized = False
 
-    async def initialize_sessions(self):
-        """Initialize HTTP sessions for AI providers"""
-        if self.glm_api_key:
-            self.http_sessions['glm'] = aiohttp.ClientSession()
-        if self.anthropic_api_key:
-            self.http_sessions['anthropic'] = aiohttp.ClientSession()
-        if self.deepseek_api_key:
-            self.http_sessions['deepseek'] = aiohttp.ClientSession()
-        if self.openai_api_key:
-            self.http_sessions['openai'] = aiohttp.ClientSession()
-        if self.google_api_key:
-            self.http_sessions['google'] = aiohttp.ClientSession()
+        # Register cleanup function to be called on application shutdown
+        atexit.register(self._sync_cleanup)
+
+    async def _ensure_sessions_initialized(self):
+        """Ensure HTTP sessions are initialized"""
+        if not self._sessions_initialized:
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            connector = aiohttp.TCPConnector(limit=100, limit_per_host=30)
+
+            # Create sessions with proper configuration
+            if self.glm_api_key:
+                self.http_sessions['glm'] = aiohttp.ClientSession(
+                    timeout=timeout,
+                    connector=connector
+                )
+            if self.anthropic_api_key:
+                self.http_sessions['anthropic'] = aiohttp.ClientSession(
+                    timeout=timeout,
+                    connector=connector
+                )
+            if self.deepseek_api_key:
+                self.http_sessions['deepseek'] = aiohttp.ClientSession(
+                    timeout=timeout,
+                    connector=connector
+                )
+            if self.openai_api_key:
+                self.http_sessions['openai'] = aiohttp.ClientSession(
+                    timeout=timeout,
+                    connector=connector
+                )
+            if self.google_api_key:
+                self.http_sessions['google'] = aiohttp.ClientSession(
+                    timeout=timeout,
+                    connector=connector
+                )
+
+            self._sessions_initialized = True
+            logger.info("AI provider HTTP sessions initialized")
 
     async def cleanup_sessions(self):
-        """Cleanup HTTP sessions"""
-        for session in self.http_sessions.values():
-            await session.close()
+        """Cleanup HTTP sessions asynchronously"""
+        if self._sessions_initialized:
+            cleanup_tasks = []
+            for provider, session in self.http_sessions.items():
+                if not session.closed:
+                    cleanup_tasks.append(self._cleanup_session(provider, session))
+
+            if cleanup_tasks:
+                await asyncio.gather(*cleanup_tasks, return_exceptions=True)
+
+            self.http_sessions.clear()
+            self._sessions_initialized = False
+            logger.info("All AI provider HTTP sessions cleaned up")
+
+    async def _cleanup_session(self, provider: str, session: aiohttp.ClientSession):
+        """Cleanup individual session with error handling"""
+        try:
+            if not session.closed:
+                await session.close()
+                logger.debug(f"Closed {provider} session")
+        except Exception as e:
+            logger.error(f"Error closing {provider} session: {e}")
+
+    def _sync_cleanup(self):
+        """Synchronous cleanup for atexit registration"""
+        if self._sessions_initialized:
+            try:
+                # Get current event loop or create new one
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # Schedule cleanup for next event loop iteration
+                        loop.create_task(self.cleanup_sessions())
+                    else:
+                        # Run cleanup in existing loop
+                        loop.run_until_complete(self.cleanup_sessions())
+                except RuntimeError:
+                    # No event loop, create temporary one
+                    asyncio.run(self.cleanup_sessions())
+            except Exception as e:
+                logger.error(f"Error in sync cleanup: {e}")
+
+    @asynccontextmanager
+    async def get_session(self, provider: str):
+        """Context manager for getting session with automatic initialization"""
+        await self._ensure_sessions_initialized()
+        if provider not in self.http_sessions:
+            raise ValueError(f"No session available for provider: {provider}")
+
+        session = self.http_sessions[provider]
+        if session.closed:
+            raise RuntimeError(f"Session for {provider} is closed")
+
+        try:
+            yield session
+        except Exception as e:
+            logger.error(f"Error using {provider} session: {e}")
+            raise
 
     async def call_glm_api(self, prompt: str, system_prompt: str = "You are a helpful assistant that analyzes requests and generates structured tasks.") -> Dict[str, Any]:
         """Call GLM 4.6 API for real NLU processing"""
@@ -229,46 +312,73 @@ class RealAIWorkflowService:
             raise Exception(f"Anthropic API call failed: {str(e)}")
 
     async def call_deepseek_api(self, prompt: str, system_prompt: str = "You are a helpful assistant that analyzes requests and generates structured tasks.") -> Dict[str, Any]:
-        """Call DeepSeek API for real NLU processing"""
+        """Call DeepSeek API for real NLU processing with proper error handling"""
         if not self.deepseek_api_key:
             raise Exception("DeepSeek API key not configured")
 
+        request_data = {
+            'model': 'deepseek-chat',
+            'messages': [
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': prompt}
+            ],
+            'max_tokens': 500,
+            'temperature': 0.7,
+            'stream': False  # Explicitly disable streaming
+        }
+
+        headers = {
+            'Authorization': f"Bearer {self.deepseek_api_key}",
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+
         try:
-            request_data = {
-                'model': 'deepseek-chat',
-                'messages': [
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': prompt}
-                ],
-                'max_tokens': 500,
-                'temperature': 0.7
-            }
+            async with self.get_session('deepseek') as session:
+                async with session.post(
+                    "https://api.deepseek.com/v1/chat/completions",
+                    headers=headers,
+                    json=request_data,
+                    ssl=True  # Ensure SSL verification
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
 
-            async with self.http_sessions['deepseek'].post(
-                "https://api.deepseek.com/v1/chat/completions",
-                headers={
-                    'Authorization': f"Bearer {self.deepseek_api_key}",
-                    'Content-Type': 'application/json'
-                },
-                json=request_data
-            ) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    logger.error(f"DeepSeek API error: {response.status} - {error_text}")
-                    raise Exception(f"DeepSeek API error: {response.status}")
+                        # Validate response structure
+                        if 'choices' not in result or len(result['choices']) == 0:
+                            raise Exception("Invalid response format from DeepSeek API")
 
-                result = await response.json()
-                content = result['choices'][0]['message']['content']
-                token_usage = result.get('usage', {})
+                        content = result['choices'][0]['message']['content']
+                        token_usage = result.get('usage', {})
 
-                return {
-                    'content': content,
-                    'confidence': 0.83,
-                    'token_usage': token_usage,
-                    'provider': 'deepseek'
-                }
+                        return {
+                            'content': content,
+                            'confidence': 0.83,
+                            'token_usage': token_usage,
+                            'provider': 'deepseek'
+                        }
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"DeepSeek API error: {response.status} - {error_text}")
+
+                        # Handle specific error cases
+                        if response.status == 401:
+                            raise Exception("DeepSeek API: Invalid API key")
+                        elif response.status == 429:
+                            raise Exception("DeepSeek API: Rate limit exceeded")
+                        elif response.status == 500:
+                            raise Exception("DeepSeek API: Internal server error")
+                        else:
+                            raise Exception(f"DeepSeek API error: {response.status}")
+
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error calling DeepSeek: {e}")
+            raise Exception(f"DeepSeek API network error: {str(e)}")
+        except asyncio.TimeoutError:
+            logger.error("DeepSeek API timeout")
+            raise Exception("DeepSeek API timeout")
         except Exception as e:
-            logger.error(f"Error calling DeepSeek: {e}")
+            logger.error(f"Unexpected error calling DeepSeek: {e}")
             raise Exception(f"DeepSeek API call failed: {str(e)}")
 
     async def process_with_nlu(self, text: str, provider: str = "openai", system_prompt: str = None) -> Dict[str, Any]:
@@ -438,18 +548,31 @@ Return your response as a JSON object with this format:
                 "step_type": "general"
             }]
 
-# Global AI service instance
-ai_service = RealAIWorkflowService()
+# Global AI service instance with lifecycle management
+ai_service = None
+
+async def get_ai_service() -> RealAIWorkflowService:
+    """Get or create AI service instance"""
+    global ai_service
+    if ai_service is None:
+        ai_service = RealAIWorkflowService()
+    return ai_service
 
 @router.on_event("startup")
 async def startup_event():
     """Initialize AI service on startup"""
-    await ai_service.initialize_sessions()
+    global ai_service
+    ai_service = RealAIWorkflowService()
+    logger.info("AI workflow service initialized on startup")
 
 @router.on_event("shutdown")
 async def shutdown_event():
     """Cleanup AI service on shutdown"""
-    await ai_service.cleanup_sessions()
+    global ai_service
+    if ai_service is not None:
+        await ai_service.cleanup_sessions()
+        ai_service = None
+        logger.info("AI workflow service cleaned up on shutdown")
 
 @router.get("/providers", response_model=Dict[str, Any])
 async def get_ai_providers():
@@ -603,8 +726,9 @@ async def process_natural_language(request: Dict[str, Any]):
     ai_provider = request.get("provider", "deepseek")
 
     try:
-        # Use real NLU processing
-        nlu_result = await ai_service.process_with_nlu(input_text, ai_provider)
+        # Get AI service instance and process with real NLU
+        service = await get_ai_service()
+        nlu_result = await service.process_with_nlu(input_text, ai_provider)
 
         processing_time = (time.time() - start_time) * 1000  # Convert to ms
 
@@ -650,7 +774,8 @@ async def analyze_content(request: Dict[str, Any]):
         elif task == "sentiment_analysis":
             system_prompt = "Analyze the sentiment of the text. Return JSON with 'sentiment' (positive/negative/neutral), 'score' (0-1), and 'key_phrases'."
             
-        result = await ai_service.process_with_nlu(text, provider, system_prompt=system_prompt)
+        service = await get_ai_service()
+        result = await service.process_with_nlu(text, provider, system_prompt=system_prompt)
         
         return {
             "status": "success",

@@ -53,9 +53,30 @@ async def get_access_token(user_id: str = Query(..., description="User ID")) -> 
     Extract access token for user.
     In production, this would fetch from secure token storage.
     """
-    # TODO: Implement proper token retrieval from database
-    # For now, return a placeholder that would be replaced by real token
-    return "mock_access_token_placeholder"
+    # Fixed: Implement proper token retrieval from database
+    try:
+        from core.database_manager import DatabaseManager
+
+        db = DatabaseManager()
+        result = await db.execute(
+            "SELECT access_token FROM user_accounts WHERE provider = 'asana' AND user_id = ?",
+            (user_id,)
+        )
+
+        if result and len(result) > 0:
+            # In production, decrypt the token before returning
+            return result[0][0]  # access_token
+        else:
+            raise HTTPException(
+                status_code=401,
+                detail="No Asana account found for user. Please connect your Asana account first."
+            )
+    except Exception as e:
+        logger.error(f"Failed to retrieve Asana token for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve authentication token"
+        )
 
 
 @router.get("/health")

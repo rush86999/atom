@@ -17,6 +17,7 @@ router = APIRouter()
 # BYOK Configuration Storage
 BYOK_CONFIG_FILE = "./data/byok_config.json"
 BYOK_KEYS_FILE = "./data/byok_keys.json"
+BYOK_ENCRYPTION_KEY_FILE = "./data/byok_encryption.key"
 
 
 @dataclass
@@ -79,11 +80,36 @@ class BYOKManager:
         self.providers: Dict[str, AIProviderConfig] = {}
         self.usage_stats: Dict[str, ProviderUsage] = {}
         self.api_keys: Dict[str, APIKey] = {}
-        self.encryption_key = os.getenv(
-            "BYOK_ENCRYPTION_KEY", self._generate_encryption_key()
-        )
+        self.encryption_key = self._load_encryption_key()
         self._load_configuration()
         self._initialize_default_providers()
+
+    def _load_encryption_key(self) -> str:
+        """Load encryption key from file, environment, or generate new."""
+        # First try environment variable
+        env_key = os.getenv("BYOK_ENCRYPTION_KEY")
+        if env_key:
+            return env_key
+
+        # Try to load from file
+        if os.path.exists(BYOK_ENCRYPTION_KEY_FILE):
+            try:
+                with open(BYOK_ENCRYPTION_KEY_FILE, "r") as f:
+                    return f.read().strip()
+            except Exception as e:
+                logger.error(f"Failed to load encryption key from file: {e}")
+
+        # Generate new key and save to file
+        new_key = self._generate_encryption_key()
+        try:
+            os.makedirs(os.path.dirname(BYOK_ENCRYPTION_KEY_FILE), exist_ok=True)
+            with open(BYOK_ENCRYPTION_KEY_FILE, "w") as f:
+                f.write(new_key)
+            logger.info(f"Generated new encryption key saved to {BYOK_ENCRYPTION_KEY_FILE}")
+        except Exception as e:
+            logger.error(f"Failed to save encryption key to file: {e}")
+
+        return new_key
 
     def _load_configuration(self):
         """Load configuration from disk"""

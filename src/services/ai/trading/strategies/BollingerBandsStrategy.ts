@@ -4,7 +4,12 @@ import { TradingAgentService } from '../../tradingAgentService';
 import { BollingerBands } from 'technicalindicators';
 import axios from 'axios';
 
-const ALPHA_VANTAGE_API_KEY = 'YOUR_API_KEY'; // TODO: Replace with a real API key
+const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY;
+
+// Validate API key is available
+if (!ALPHA_VANTAGE_API_KEY) {
+  console.warn('⚠️ ALPHA_VANTAGE_API_KEY not found in environment variables. Bollinger Bands strategy will use mock data.');
+}
 
 export class BollingerBandsStrategy implements TradingStrategy {
   private tradingService: TradingAgentService;
