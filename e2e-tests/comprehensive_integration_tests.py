@@ -12,6 +12,11 @@ import json
 import asyncio
 from datetime import datetime
 import subprocess
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
