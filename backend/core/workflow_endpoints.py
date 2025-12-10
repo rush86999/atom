@@ -77,7 +77,7 @@ async def create_workflow(workflow: WorkflowDefinition):
 
     workflow.updatedAt = datetime.now().isoformat()
 
-      workflow_dict = workflow.dict()
+    workflow_dict = workflow.dict()
 
     # Check if exists (update)
     existing_index = next((i for i, w in enumerate(workflows) if w.get('id') == workflow.id), -1)
