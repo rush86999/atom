@@ -8,6 +8,8 @@ import logging
 import os
 import base64
 import re
+import asyncio
+import aiohttp
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
@@ -24,8 +26,8 @@ from core.oauth_handler import GOOGLE_OAUTH_CONFIG
 logger = logging.getLogger(__name__)
 
 class GmailService:
-    """Gmail API integration service"""
-    
+    """Gmail API integration service with async support"""
+
     def __init__(self, credentials_path: Optional[str] = None, token_path: Optional[str] = None):
         self.credentials_path = credentials_path or os.getenv('GMAIL_CREDENTIALS_PATH', 'credentials.json')
         self.token_path = token_path or os.getenv('GMAIL_TOKEN_PATH', 'token.json')
@@ -36,7 +38,34 @@ class GmailService:
             'https://www.googleapis.com/auth/gmail.modify'
         ]
         self.service = None
+        self._session = None
         self._authenticate()
+
+    async def get_session(self) -> aiohttp.ClientSession:
+        """Get or create aiohttp session"""
+        if self._session is None or self._session.closed:
+            timeout = aiohttp.ClientTimeout(total=60)
+            connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
+            self._session = aiohttp.ClientSession(
+                timeout=timeout,
+                connector=connector
+            )
+        return self._session
+
+    async def close_session(self):
+        """Close aiohttp session"""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
+
+    async def __aenter__(self):
+        """Async context manager entry"""
+        await self.get_session()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit"""
+        await self.close_session()
     
     def _authenticate(self):
         """Authenticate with Gmail API"""
@@ -431,6 +460,155 @@ class GmailService:
         except Exception as e:
             logger.error(f"Failed to create label {name}: {e}")
             return None
+
+    # Async methods for enhanced performance
+    async def async_get_messages(self, query: str = "", max_results: int = 50, include_spam_trash: bool = False) -> List[Dict[str, Any]]:
+        """Async version of get_messages"""
+        session = await self.get_session()
+
+        try:
+            stored_token = token_storage.get_token("google")
+            if not stored_token:
+                logger.error("No Google token found for async requests")
+                return []
+
+            headers = {
+                'Authorization': f"Bearer {stored_token['access_token']}",
+                'Content-Type': 'application/json'
+            }
+
+            # Build Gmail API URL
+            url = f"https://www.googleapis.com/gmail/v1/users/me/messages"
+            params = {
+                'q': query,
+                'maxResults': max_results,
+                'includeSpamTrash': str(include_spam_trash).lower()
+            }
+
+            async with session.get(url, headers=headers, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    messages = data.get('messages', [])
+
+                    # Fetch full message details
+                    full_messages = []
+                    for message in messages[:min(max_results, 10)]:  # Limit concurrent requests
+                        message_url = f"https://www.googleapis.com/gmail/v1/users/me/messages/{message['id']}"
+                        async with session.get(message_url, headers=headers) as msg_response:
+                            if msg_response.status == 200:
+                                msg_data = await msg_response.json()
+                                full_messages.append(self._parse_message(msg_data))
+
+                    return full_messages
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Failed to fetch messages async: {response.status} - {error_text}")
+                    return []
+
+        except Exception as e:
+            logger.error(f"Async get_messages failed: {e}")
+            return []
+
+    async def async_send_message(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "", thread_id: str = None) -> Optional[Dict[str, Any]]:
+        """Async version of send_message"""
+        session = await self.get_session()
+
+        try:
+            stored_token = token_storage.get_token("google")
+            if not stored_token:
+                logger.error("No Google token found for async requests")
+                return None
+
+            headers = {
+                'Authorization': f"Bearer {stored_token['access_token']}",
+                'Content-Type': 'application/json'
+            }
+
+            # Create email message
+            message = MIMEMultipart()
+            message['to'] = to
+            message['subject'] = subject
+            if cc:
+                message['cc'] = cc
+            if bcc:
+                message['bcc'] = bcc
+            if thread_id:
+                message['References'] = thread_id
+                message['In-Reply-To'] = thread_id
+
+            message.attach(MIMEText(body, 'plain'))
+
+            # Encode message
+            raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+            url = f"https://www.googleapis.com/gmail/v1/users/me/messages/send"
+            data = {
+                'raw': raw_message,
+                'threadId': thread_id
+            }
+
+            async with session.post(url, headers=headers, json=data) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Failed to send message async: {response.status} - {error_text}")
+                    return None
+
+        except Exception as e:
+            logger.error(f"Async send_message failed: {e}")
+            return None
+
+    async def async_search_messages(self, query: str, max_results: int = 50) -> List[Dict[str, Any]]:
+        """Async version of search_messages"""
+        return await self.async_get_messages(query, max_results)
+
+    async def async_health_check(self) -> Dict[str, Any]:
+        """Async health check"""
+        try:
+            stored_token = token_storage.get_token("google")
+            if not stored_token:
+                return {
+                    "status": "unhealthy",
+                    "error": "No Google token found",
+                    "service": "gmail_async",
+                    "timestamp": datetime.now().isoformat()
+                }
+
+            session = await self.get_session()
+            headers = {
+                'Authorization': f"Bearer {stored_token['access_token']}",
+                'Content-Type': 'application/json'
+            }
+
+            url = f"https://www.googleapis.com/gmail/v1/users/me/profile"
+
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    profile = await response.json()
+                    return {
+                        "status": "healthy",
+                        "service": "gmail_async",
+                        "user_email": profile.get("emailAddress"),
+                        "history_id": profile.get("historyId"),
+                        "timestamp": datetime.now().isoformat()
+                    }
+                else:
+                    return {
+                        "status": "unhealthy",
+                        "error": f"API call failed: {response.status}",
+                        "service": "gmail_async",
+                        "timestamp": datetime.now().isoformat()
+                    }
+
+        except Exception as e:
+            logger.error(f"Async health check failed: {e}")
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "service": "gmail_async",
+                "timestamp": datetime.now().isoformat()
+            }
 
 # Singleton instance for global access
 gmail_service = GmailService()

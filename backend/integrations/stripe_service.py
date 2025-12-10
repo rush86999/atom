@@ -6,8 +6,10 @@ Complete Stripe payment processing and financial management service
 import os
 import json
 import time
+import asyncio
+import aiohttp
 import requests
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timedelta
 from loguru import logger
 
@@ -20,6 +22,23 @@ class StripeService:
         self.timeout = 60
         self.max_retries = 3
         self.retry_delay = 1
+        self._session = None
+
+    async def get_session(self):
+        """Get or create aiohttp session"""
+        if self._session is None or self._session.closed:
+            timeout = aiohttp.ClientTimeout(total=self.timeout, connect=10)
+            self._session = aiohttp.ClientSession(
+                timeout=timeout,
+                connector=aiohttp.TCPConnector(limit=100, limit_per_host=30)
+            )
+        return self._session
+
+    async def close_session(self):
+        """Close aiohttp session"""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for Stripe API requests"""
@@ -340,6 +359,232 @@ class StripeService:
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
+    # Async methods for enhanced functionality
+    async def async_list_payments(
+        self,
+        access_token: str,
+        limit: int = 50,
+        customer: Optional[str] = None,
+        status: Optional[str] = None,
+        created: Optional[Dict] = None,
+    ) -> Dict[str, Any]:
+        """List Stripe payments asynchronously"""
+        session = await self.get_session()
+        params = {"limit": limit}
+        if customer:
+            params["customer"] = customer
+        if status:
+            params["status"] = status
+        if created:
+            if "gte" in created:
+                params["created[gte]"] = created["gte"]
+            if "lte" in created:
+                params["created[lte]"] = created["lte"]
+
+        url = f"{self.api_base_url}/charges"
+        headers = self._get_headers(access_token)
+
+        for attempt in range(self.max_retries):
+            try:
+                async with session.get(url, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result
+                    elif response.status == 429:
+                        retry_after = int(response.headers.get('Retry-After', self.retry_delay))
+                        await asyncio.sleep(retry_after)
+                        continue
+                    else:
+                        error_text = await response.text()
+                        raise Exception(f"Stripe API error: {response.status} - {error_text}")
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(self.retry_delay * (2 ** attempt))
+                    continue
+                raise
+
+    async def async_create_payment(
+        self,
+        access_token: str,
+        amount: int,
+        currency: str = "usd",
+        source: Optional[str] = None,
+        customer: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+    ) -> Dict[str, Any]:
+        """Create payment asynchronously"""
+        session = await self.get_session()
+        data = {
+            "amount": amount,
+            "currency": currency,
+        }
+        if source:
+            data["source"] = source
+        if customer:
+            data["customer"] = customer
+        if description:
+            data["description"] = description
+        if metadata:
+            data["metadata"] = metadata
+
+        url = f"{self.api_base_url}/charges"
+        headers = self._get_headers(access_token)
+
+        for attempt in range(self.max_retries):
+            try:
+                async with session.post(url, headers=headers, data=data) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result
+                    elif response.status == 402:
+                        # Payment intent created, requires additional action
+                        result = await response.json()
+                        logger.info(f"Payment requires additional action: {result.get('next_action')}")
+                        return result
+                    else:
+                        error_text = await response.text()
+                        raise Exception(f"Stripe API error: {response.status} - {error_text}")
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(self.retry_delay * (2 ** attempt))
+                    continue
+                raise
+
+    async def async_create_customer(
+        self,
+        access_token: str,
+        email: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+    ) -> Dict[str, Any]:
+        """Create customer asynchronously"""
+        session = await self.get_session()
+        data = {
+            "email": email,
+        }
+        if name:
+            data["name"] = name
+        if description:
+            data["description"] = description
+        if metadata:
+            data["metadata"] = metadata
+
+        url = f"{self.api_base_url}/customers"
+        headers = self._get_headers(access_token)
+
+        try:
+            async with session.post(url, headers=headers, data=data) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error_text = await response.text()
+                    raise Exception(f"Failed to create customer: {response.status} - {error_text}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            raise Exception(f"Network error creating customer: {e}")
+
+    async def async_get_subscription(
+        self,
+        access_token: str,
+        subscription_id: str,
+    ) -> Dict[str, Any]:
+        """Get subscription details asynchronously"""
+        session = await self.get_session()
+        url = f"{self.api_base_url}/subscriptions/{subscription_id}"
+        headers = self._get_headers(access_token)
+
+        try:
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise Exception("Subscription not found")
+                else:
+                    error_text = await response.text()
+                    raise Exception(f"Failed to get subscription: {response.status} - {error_text}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            raise Exception(f"Network error getting subscription: {e}")
+
+    async def async_webhook_handler(
+        self,
+        access_token: str,
+        payload: Dict[str, Any],
+        signature: str,
+        secret: str,
+    ) -> Dict[str, Any]:
+        """Handle Stripe webhooks asynchronously"""
+        import stripe
+
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, signature, secret
+            )
+        except Exception as e:
+            logger.error(f"Invalid webhook signature: {e}")
+            raise Exception("Invalid webhook signature")
+
+        logger.info(f"Processing webhook event: {event.type}")
+
+        # Handle different event types
+        if event.type == "payment_intent.succeeded":
+            return await self._handle_payment_succeeded(event.data.object)
+        elif event.type == "invoice.payment_succeeded":
+            return await self._handle_invoice_payment_succeeded(event.data.object)
+        elif event.type == "customer.subscription.created":
+            return await self._handle_subscription_created(event.data.object)
+        elif event.type == "customer.subscription.deleted":
+            return await self._handle_subscription_deleted(event.data.object)
+        else:
+            logger.info(f"Received unhandled webhook event: {event.type}")
+            return {"status": "received", "event": event.type}
+
+    async def _handle_payment_succeeded(self, payment_intent: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle payment_intent.succeeded event"""
+        logger.info(f"Payment succeeded: {payment_intent.get('id')}")
+        # Here you would:
+        # 1. Update order status in your database
+        # 2. Send confirmation email
+        # 3. Trigger any business logic
+        return {
+            "status": "processed",
+            "event": "payment_intent.succeeded",
+            "payment_id": payment_intent.get('id'),
+            "amount": payment_intent.get('amount'),
+            "customer": payment_intent.get('customer')
+        }
+
+    async def _handle_invoice_payment_succeeded(self, invoice: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle invoice.payment_succeeded event"""
+        logger.info(f"Invoice payment succeeded: {invoice.get('id')}")
+        return {
+            "status": "processed",
+            "event": "invoice.payment_succeeded",
+            "invoice_id": invoice.get('id'),
+            "customer": invoice.get('customer'),
+            "amount_paid": invoice.get('amount_paid')
+        }
+
+    async def _handle_subscription_created(self, subscription: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle customer.subscription.created event"""
+        logger.info(f"Subscription created: {subscription.get('id')}")
+        return {
+            "status": "processed",
+            "event": "customer.subscription.created",
+            "subscription_id": subscription.get('id'),
+            "customer": subscription.get('customer'),
+            "status": subscription.get('status')
+        }
+
+    async def _handle_subscription_deleted(self, subscription: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle customer.subscription.deleted event"""
+        logger.info(f"Subscription deleted: {subscription.get('id')}")
+        return {
+            "status": "processed",
+            "event": "customer.subscription.deleted",
+            "subscription_id": subscription.get('id'),
+            "customer": subscription.get('customer')
+        }
 
 # Global service instance
 stripe_service = StripeService()

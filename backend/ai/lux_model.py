@@ -12,7 +12,7 @@ import subprocess
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import Enum, auto
 import anthropic
 from PIL import Image, ImageGrab
 import io
@@ -44,7 +44,7 @@ class ComputerActionType(Enum):
 @dataclass
 class ComputerAction:
     """Represents a computer action"""
-    action_type: ComputerActionType
+    action_type: 'ComputerActionType'
     parameters: Dict[str, Any]
     confidence: float = 1.0
     description: str = ""
@@ -104,7 +104,7 @@ class LuxModel:
             logger.error(f"Failed to capture screen: {e}")
             raise
 
-  async def capture_screen(self, region: Optional[Tuple[int, int, int, int]] = None) -> Image.Image:
+    async def capture_screen(self, region: Optional[Tuple[int, int, int, int]] = None) -> Image.Image:
         """Capture screen screenshot with optional region (non-blocking)"""
         try:
             # Fix: Run blocking screenshot operation in thread pool
@@ -476,14 +476,14 @@ Return as JSON:
 lux_model = None
 
 async def cleanup_lux_model():
-        """Cleanup global LUX model instance"""
-        global lux_model
-        if lux_model is not None:
-            lux_model.cleanup()
-            lux_model = None
-            logger.info("Global LUX Model instance cleaned up")
+    """Cleanup global LUX model instance"""
+    global lux_model
+    if lux_model is not None:
+        lux_model.cleanup()
+        lux_model = None
+        logger.info("Global LUX Model instance cleaned up")
 
-    async def get_lux_model() -> LuxModel:
+async def get_lux_model() -> LuxModel:
         """Get or create LUX model instance"""
         global lux_model
         if lux_model is None:

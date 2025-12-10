@@ -152,20 +152,52 @@ class RealAIWorkflowService:
 
     @asynccontextmanager
     async def get_session(self, provider: str):
-        """Context manager for getting session with automatic initialization"""
+        """Context manager for getting session with automatic initialization and recovery"""
         await self._ensure_sessions_initialized()
         if provider not in self.http_sessions:
             raise ValueError(f"No session available for provider: {provider}")
 
         session = self.http_sessions[provider]
+
+        # Check if session is closed or unhealthy
         if session.closed:
-            raise RuntimeError(f"Session for {provider} is closed")
+            logger.warning(f"Session for {provider} was closed, recreating...")
+            await self._recreate_session(provider)
+            session = self.http_sessions[provider]
 
         try:
             yield session
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            logger.error(f"Network error using {provider} session: {e}")
+            # Recreate session on network errors
+            await self._recreate_session(provider)
+            raise
         except Exception as e:
             logger.error(f"Error using {provider} session: {e}")
             raise
+
+    async def _recreate_session(self, provider: str):
+        """Recreate a specific provider session"""
+        if provider in self.http_sessions:
+            try:
+                await self.http_sessions[provider].close()
+            except:
+                pass
+
+        # Create new session with fresh connection
+        timeout = aiohttp.ClientTimeout(total=30, connect=10)
+        connector = aiohttp.TCPConnector(
+            limit=100,
+            limit_per_host=30,
+            force_close=True,  # Force close to ensure clean connection
+            enable_cleanup_closed=True  # Enable cleanup of closed connections
+        )
+
+        self.http_sessions[provider] = aiohttp.ClientSession(
+            timeout=timeout,
+            connector=connector
+        )
+        logger.info(f"Recreated session for provider: {provider}")
 
     async def call_glm_api(self, prompt: str, system_prompt: str = "You are a helpful assistant that analyzes requests and generates structured tasks.") -> Dict[str, Any]:
         """Call GLM 4.6 API for real NLU processing"""
@@ -185,34 +217,35 @@ class RealAIWorkflowService:
                 'stream': False
             }
 
-            async with self.http_sessions['glm'].post(
-                "https://api.z.ai/api/paas/v4/chat/completions",
-                headers={
-                    'Authorization': f"Bearer {self.glm_api_key}",
-                    'Content-Type': 'application/json'
-                },
-                json=request_data,
-                timeout=60
-            ) as response:
+            async with self.get_session('glm') as session:
+                async with session.post(
+                    "https://api.z.ai/api/paas/v4/chat/completions",
+                    headers={
+                        'Authorization': f"Bearer {self.glm_api_key}",
+                        'Content-Type': 'application/json'
+                    },
+                    json=request_data,
+                    timeout=60
+                ) as response:
 
-                if response.status != 200:
-                    error_text = await response.text()
-                    raise Exception(f"GLM API error: {response.status} - {error_text}")
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise Exception(f"GLM API error: {response.status} - {error_text}")
 
-                result = await response.json()
+                    result = await response.json()
 
-                content = result["choices"][0]["message"]["content"]
-                usage = result.get("usage", {})
+                    content = result["choices"][0]["message"]["content"]
+                    usage = result.get("usage", {})
 
-                return {
-                    "provider": "glm",
-                    "model": "glm-4.6",
-                    "content": content,
-                    "usage": usage,
-                    "tokens_used": usage.get("total_tokens", 0),
-                    "response_time_ms": 0,  # Will be set by caller
-                    "success": True
-                }
+                    return {
+                        "provider": "glm",
+                        "model": "glm-4.6",
+                        "content": content,
+                        "usage": usage,
+                        "tokens_used": usage.get("total_tokens", 0),
+                        "response_time_ms": 0,  # Will be set by caller
+                        "success": True
+                    }
 
         except Exception as e:
             logger.error(f"GLM API call failed: {str(e)}")
@@ -243,29 +276,30 @@ class RealAIWorkflowService:
                 'temperature': 0.7
             }
 
-            async with self.http_sessions['openai'].post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    'Authorization': f"Bearer {self.openai_api_key}",
-                    'Content-Type': 'application/json'
-                },
-                json=request_data
-            ) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    logger.error(f"OpenAI API error: {response.status} - {error_text}")
-                    raise Exception(f"OpenAI API error: {response.status}")
+            async with self.get_session('openai') as session:
+                async with session.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        'Authorization': f"Bearer {self.openai_api_key}",
+                        'Content-Type': 'application/json'
+                    },
+                    json=request_data
+                ) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"OpenAI API error: {response.status} - {error_text}")
+                        raise Exception(f"OpenAI API error: {response.status}")
 
-                result = await response.json()
-                content = result['choices'][0]['message']['content']
-                token_usage = result.get('usage', {})
+                    result = await response.json()
+                    content = result['choices'][0]['message']['content']
+                    token_usage = result.get('usage', {})
 
-                return {
-                    'content': content,
-                    'confidence': 0.85,
-                    'token_usage': token_usage,
-                    'provider': 'openai'
-                }
+                    return {
+                        'content': content,
+                        'confidence': 0.85,
+                        'token_usage': token_usage,
+                        'provider': 'openai'
+                    }
         except Exception as e:
             logger.error(f"Error calling OpenAI: {e}")
             raise Exception(f"OpenAI API call failed: {str(e)}")
@@ -284,29 +318,30 @@ class RealAIWorkflowService:
                 ]
             }
 
-            async with self.http_sessions['anthropic'].post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    'x-api-key': self.anthropic_api_key,
-                    'Content-Type': 'application/json',
-                    'anthropic-version': '2023-06-01'
-                },
-                json=request_data
-            ) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    logger.error(f"Anthropic API error: {response.status} - {error_text}")
-                    raise Exception(f"Anthropic API error: {response.status}")
+            async with self.get_session('anthropic') as session:
+                async with session.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        'x-api-key': self.anthropic_api_key,
+                        'Content-Type': 'application/json',
+                        'anthropic-version': '2023-06-01'
+                    },
+                    json=request_data
+                ) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"Anthropic API error: {response.status} - {error_text}")
+                        raise Exception(f"Anthropic API error: {response.status}")
 
-                result = await response.json()
-                content = result['content'][0]['text']
+                    result = await response.json()
+                    content = result['content'][0]['text']
 
-                return {
-                    'content': content,
-                    'confidence': 0.87,
-                    'token_usage': result.get('usage', {}),
-                    'provider': 'anthropic'
-                }
+                    return {
+                        'content': content,
+                        'confidence': 0.87,
+                        'token_usage': result.get('usage', {}),
+                        'provider': 'anthropic'
+                    }
         except Exception as e:
             logger.error(f"Error calling Anthropic: {e}")
             raise Exception(f"Anthropic API call failed: {str(e)}")

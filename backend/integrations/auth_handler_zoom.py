@@ -67,12 +67,13 @@ class ZoomAuthHandler:
         query_string = "&".join([f"{k}={v}" for k, v in params.items()])
         return f"{self.authorize_url}?{query_string}"
 
-    async def exchange_code_for_token(self, code: str) -> Dict[str, Any]:
+    async def exchange_code_for_token(self, code: str, code_verifier: Optional[str] = None) -> Dict[str, Any]:
         """
         Exchange authorization code for access token
 
         Args:
             code: Authorization code from OAuth callback
+            code_verifier: PKCE code verifier (optional)
 
         Returns:
             Token response
@@ -88,6 +89,9 @@ class ZoomAuthHandler:
                 "code": code,
                 "redirect_uri": self.redirect_uri,
             }
+
+            if code_verifier:
+                data["code_verifier"] = code_verifier
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(

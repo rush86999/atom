@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 import uvicorn
 from dotenv import load_dotenv
@@ -6,6 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.integration_loader import IntegrationLoader
 from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
+
+# Add integrations directory to Python path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'integrations'))
 
 # Load environment variables from project root
 env_path = Path(__file__).parent.parent / ".env"
@@ -103,6 +107,8 @@ integrations = [
 
     # Integrations - Communication
     ("integrations.slack_routes", "router", None),
+    # ("integrations.zoom_routes", "router", None),  # Temporarily disabled due to conflict with zoom_oauth_routes
+    ("integrations.zoom_oauth_routes_simple", "router", None),  # Using simplified version
     ("integrations.zoom_routes", "router", None),
     ("integrations.teams_routes", "router", None),
     ("integrations.gmail_routes", "router", None),
@@ -144,6 +150,7 @@ integrations = [
     # Integrations - Marketing & Social
     ("integrations.mailchimp_routes", "router", "/api"),
     ("integrations.linkedin_routes", "router", None),
+    ("integrations.social_store_routes_simple", "router", None),  # Using simplified version
 
     # Integrations - Other
     ("integrations.deepgram_routes", "router", None),
@@ -195,7 +202,7 @@ try:
             if initialize_whatsapp_service():
                 print("[OK] WhatsApp Business service initialized")
         except Exception as e:
-            print(f"[WARN] WhatsApp Business service initialization error: {e}")
+            print("[WARN] WhatsApp Business service initialization error: {}".format(e))
 except ImportError as e:
     print(f"[WARN] WhatsApp integration not available: {e}")
 

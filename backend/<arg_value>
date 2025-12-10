@@ -1,0 +1,569 @@
+"""
+Integration Code Consolidation Framework
+Provides patterns and tools to reduce code duplication across integration services
+"""
+
+import os
+import sys
+import json
+import hashlib
+from typing import Dict, List, Any, Optional, Set
+from datetime import datetime
+from pathlib import Path
+from dataclasses import dataclass, asdict
+from abc import ABC, abstractmethod
+import logging
+
+logger = logging.getLogger(__name__)
+
+@dataclass
+class IntegrationPattern:
+    """Represents a reusable integration pattern"""
+    name: str
+    description: str
+    methods: List[str]
+    imports: List[str]
+    dependencies: List[str]
+    base_class: Optional[str] = None
+
+@dataclass
+class DuplicationMetric:
+    """Represents code duplication metrics"""
+    pattern: str
+    occurrences: int
+    total_lines: int
+    potential_savings: int
+    affected_files: List[str]
+
+class PatternAnalyzer:
+    """Analyzes integration services for code duplication patterns"""
+
+    COMMON_PATTERNS = [
+        IntegrationPattern(
+            name="HTTP Client Setup",
+            description="HTTP client initialization and session management",
+            methods=["get_session", "close_session", "__aenter__", "__aexit__"],
+            imports=["aiohttp", "httpx"],
+            dependencies=["ClientSession", "ClientTimeout"],
+            base_class="BaseIntegrationService"
+        ),
+        IntegrationPattern(
+            name="OAuth Token Management",
+            description="OAuth token storage and refresh logic",
+            methods=["get_access_token", "refresh_token", "store_token", "revoke_token"],
+            imports=["jwt", "OAuth2Session"],
+            dependencies=["TokenStorage"],
+            base_class="BaseIntegrationService"
+        ),
+        IntegrationPattern(
+            name="Error Handling Wrapper",
+            description="Try/except patterns with logging",
+            methods=["handle_api_error", "log_request", "log_response"],
+            imports=["logging", "loguru"],
+            dependencies=["HTTPException"],
+            base_class="BaseIntegrationService"
+        ),
+        IntegrationPattern(
+            name="API Key Authentication",
+            description="API key header management",
+            methods=["get_headers", "validate_api_key"],
+            imports=["os"],
+            dependencies=["HTTPException"],
+            base_class="BaseIntegrationService"
+        ),
+        IntegrationPattern(
+            name="Rate Limiting",
+            description="Rate limiting and retry logic",
+            methods=["check_rate_limit", "handle_rate_limit"],
+            imports=["time", "asyncio"],
+            dependencies=["RateLimiter"],
+            base_class="BaseIntegrationService"
+        ),
+        IntegrationPattern(
+            name="Health Check Implementation",
+            description="Service health monitoring",
+            methods=["health_check", "ping_service"],
+            imports=["datetime", "logging"],
+            dependencies=["HealthStatus"],
+            base_class="BaseIntegrationService"
+        ),
+        IntegrationPattern(
+            name="Configuration Management",
+            description="Service configuration from environment variables",
+            methods=["load_config", "validate_config", "get_config"],
+            imports=["os", "environ"],
+            dependencies=["Config"],
+            base_class="BaseIntegrationService"
+        )
+    ]
+
+    def __init__(self):
+        self.patterns = self.COMMON_PATTERNS
+
+    def analyze_service(self, file_path: str) -> Dict[str, Any]:
+        """Analyze a service file for patterns"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            result = {
+                'file': file_path,
+                'patterns_found': [],
+                'duplications': {},
+                'total_lines': len(content.splitlines()),
+                'name': Path(file_path).stem.replace('_service', '').title()
+            }
+
+            # Check for each pattern
+            for pattern in self.patterns:
+                pattern_found = False
+                occurrences = 0
+
+                # Check method names
+                for method in pattern.methods:
+                    method_count = content.count(f'def {method}(')
+                    if method_count > 0:
+                        pattern_found = True
+                        occurrences += method_count
+
+                # Check imports
+                for import_name in pattern.imports:
+                    if import_name in content:
+                        pattern_found = True
+                        occurrences += content.count(import_name)
+
+                # Check dependency classes
+                for dependency in pattern.dependencies:
+                    if dependency in content:
+                        pattern_found = True
+                        occurrences += content.count(dependency)
+
+                if pattern_found:
+                    result['patterns_found'].append(pattern.name)
+                    result['duplications'][pattern.name] = {
+                        'occurrences': occurrences,
+                        'methods': pattern.methods,
+                        'imports': pattern.imports,
+                        'dependencies': pattern.dependencies,
+                        'base_class': pattern.base_class
+                    }
+
+            # Calculate complexity score
+            result['complexity_score'] = self._calculate_complexity_score(result['patterns_found'], result['total_lines'])
+
+            return result
+
+        except Exception as e:
+            return {
+                'file': file_path,
+                'error': str(e),
+                'patterns_found': [],
+                'duplications': {},
+                'total_lines': 0,
+                'name': 'Unknown'
+            }
+
+    def _calculate_complexity_score(self, patterns_found: List[str], total_lines: int) -> int:
+        """Calculate complexity score based on patterns found"""
+        base_score = 100
+        pattern_scores = {
+            "HTTP Client Setup": 10,
+            "OAuth Token Management": 15,
+            "Error Handling Wrapper": 10,
+            "API Key Authentication": 8,
+            "Rate Limiting": 12,
+            "Health Check Implementation": 8,
+            "Configuration Management": 7
+        }
+
+        score_reduction = sum(pattern_scores.get(p, 0) for p in patterns_found)
+        return max(0, base_score - score_reduction)
+
+    def analyze_all_services(self, integrations_dir: str) -> List[Dict[str, Any]]:
+        """Analyze all services in a directory"""
+        service_files = list(Path(integrations_dir).glob('*_service.py'))
+        analyses = []
+
+        for file_path in service_files:
+            analysis = self.analyze_service(str(file_path))
+            if 'error' not in analysis:
+                analyses.append(analysis)
+
+        return analyses
+
+    def generate_duplication_report(self, analyses: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate comprehensive duplication report"""
+        all_duplications = {}
+        pattern_frequencies = {}
+        total_potential_savings = 0
+
+        # Aggregate duplicate data
+        for analysis in analyses:
+            for pattern_name, duplication_data in analysis['duplications'].items():
+                if pattern_name not in all_duplications:
+                    all_duplications[pattern_name] = {
+                        'pattern_name': pattern_name,
+                        'description': next(p.description for p in self.patterns if p.name == pattern_name),
+                        'total_occurrences': 0,
+                        'total_lines': 0,
+                        'affected_services': [],
+                        'potential_savings': 0
+                    }
+
+                all_duplications[pattern_name]['total_occurrences'] += duplication_data['occurrences']
+                all_duplications[pattern_name]['total_lines'] += analysis['total_lines']
+                all_duplications[pattern_name]['affected_services'].append(analysis['name'])
+
+                # Calculate potential savings (rough estimate: 50% reduction per occurrence)
+                potential_savings = (duplication_data['occurrences'] - 1) * 50
+                all_duplications[pattern_name]['potential_savings'] += potential_savings
+
+                pattern_frequencies[pattern_name] = pattern_frequencies.get(pattern_name, 0) + 1
+
+        total_potential_savings = sum(d['potential_savings'] for d in all_duplications.values())
+        most_common_patterns = sorted(pattern_frequencies.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        return {
+            'total_services': len(analyses),
+            'patterns_with_duplications': len(all_duplications),
+            'total_potential_savings': total_potential_savings,
+            'duplications': all_duplications,
+            'most_common_patterns': most_common_patterns,
+            'average_complexity_score': sum(a['complexity_score'] for a in analyses) / len(analyses) if analyses else 0,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+class IntegrationConsolidator:
+    """Tool for consolidating integration services"""
+
+    def __init__(self, integrations_dir: str = "integrations"):
+        self.integrations_dir = Path(integrations_dir)
+        self.pattern_analyzer = PatternAnalyzer()
+        self.consolidated_services = []
+
+    def analyze_all_services(self) -> Dict[str, Any]:
+        """Analyze all integration services for consolidation opportunities"""
+        print("🔍 Analyzing integration services for consolidation opportunities...")
+
+        analyses = self.pattern_analyzer.analyze_all_services(self.integrations_dir)
+        report = self.pattern_analyzer.generate_duplication_report(analyses)
+
+        return report
+
+    def create_base_integration_template(self) -> str:
+        """Create a template for base integration service"""
+        template = '''
+"""
+\"\"\"\"{service_name} Service - Enhanced Integration Base Class
+Consolidated integration using BaseIntegrationService to reduce code duplication
+\"\"\"
+
+import os
+import logging
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+from dataclasses import dataclass
+import httpx
+from fastapi import HTTPException
+
+from core.base_integration import (
+    BaseIntegrationService,
+    IntegrationConfig,
+    IntegrationResponse,
+    IntegrationStatus
+)
+from core.token_storage import token_storage
+
+logger = logging.getLogger(__name__)
+
+@dataclass
+class {service_name}Config(IntegrationConfig):
+    \"\"\"Configuration for {service_name} integration\"\"\"
+    name: str = "{service_name}"
+    base_url: str = "https://api.{service_name.lower()}.com/v1"
+    api_key_env_var: str = "{env_var}"
+    oauth_enabled: bool = True
+    rate_limit_per_minute: int = 100
+    timeout_seconds: int = 30
+    retry_attempts: int = 3
+    backoff_factor: float = 2.0
+
+class {service_name}Service(BaseIntegrationService):
+    \"\"\"Enhanced {service_name} service using BaseIntegrationService\"\"\"
+
+    def __init__(self):
+        config = {service_name}Config()
+        super().__init__(config)
+
+        # Service-specific initialization
+        self.service_headers = {{
+            "Content-Type": "application/json",
+            "User-Agent": "ATOM-{service_name}/1.0"
+        }}
+
+    async def health_check(self) -> IntegrationResponse:
+        \"\"\"Enhanced health check for {service_name} integration\"\"\"
+        try:
+            # Test basic connectivity
+            if not self.api_key:
+                return IntegrationResponse(
+                    success=False,
+                    error="API key not configured",
+                    status_code=401
+                )
+
+            async with self.get_http_client() as client:
+                # Test service-specific health endpoint
+                test_url = f"{{self.config.base_url}}/health"
+                try:
+                    response = await client.get(test_url, headers=self._get_auth_headers())
+
+                    if response.status_code == 200:
+                        return IntegrationResponse(
+                            success=True,
+                            data={{
+                                "status": "healthy",
+                                "service": "{service_name}",
+                                "timestamp": datetime.now().isoformat()
+                            }},
+                            rate_limit_remaining=int(response.headers.get("X-RateLimit-Remaining", 0))
+                        )
+                    else:
+                        return IntegrationResponse(
+                            success=False,
+                            error=f"Service unhealthy: HTTP {{response.status_code}}",
+                            status_code=response.status_code
+                        )
+
+                except Exception as e:
+                    logger.error(f"{{service_name}} health check failed: {{e}}")
+                    return IntegrationResponse(
+                        success=False,
+                        error=str(e)
+                    )
+
+        except Exception as e:
+            logger.error(f"{{service_name}} health check error: {{e}}")
+            return IntegrationResponse(
+                success=False,
+                error=str(e)
+            )
+
+    def _get_auth_headers(self) -> Dict[str, str]:
+        \"\"\"Get authenticated headers for API requests\"\"\"
+        headers = self.service_headers.copy()
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {{self.api_key}}"
+        return headers
+
+    # TODO: Add service-specific methods here
+    # def example_method(self) -> IntegrationResponse:
+    #     \"\"\"Example service method\"\"\"
+    #     pass
+
+    # OAuth methods (if applicable)
+    def get_oauth_url(self, redirect_uri: str, state: str = None) -> str:
+        \"\"\"Get OAuth authorization URL\"\"\"
+        # Implementation here
+        pass
+
+    def exchange_code_for_token(self, code: str, redirect_uri: str, state: str = None) -> Dict[str, Any]:
+        \"\"\"Exchange authorization code for access token\"\"\"
+        # Implementation here
+        pass
+
+# Enhanced service instance
+{service_name_lower}_enhanced_service = {service_name}Service()
+
+# Backward compatibility
+class {service_name}Service:
+    \"\"\"Backward compatibility wrapper\"\"\"
+
+    def __init__(self):
+        self.enhanced_service = {service_name_lower}_enhanced_service
+
+    async def close(self):
+        \"\"\"Close connection - handled by enhanced service\"\"\"
+        pass
+
+    # Delegate to enhanced service
+    async def health_check(self):
+        \"\"\"Health check - delegated to enhanced service\"\"\"
+        result = await self.enhanced_service.health_check()
+        return result.to_dict()
+
+# Singleton instances
+{service_name_lower}_service = {service_name}Service()
+{service_lower}_enhanced_service = {service_name_lower}_enhanced_service
+
+def get_{service_lower}_service() -> {service_name}Service:
+    \"\"\"Get {service_name} service instance (legacy compatibility)\"\"\"
+    return {service_lower}_service
+
+def get_{service_lower}_enhanced_service() -> {service_name}Service:
+    \"\"\"Get enhanced {service_name} service instance\"\"\"
+    return {service_lower}_enhanced_service
+'''
+
+        return template
+
+    def consolidate_service(self, service_name: str, service_file_path: str) -> bool:
+        """Create a consolidated version of a service"""
+        try:
+            print(f"🔧 Consolidating {service_name} service...")
+
+            # Generate template
+            template = self.create_base_integration_template(
+                service_name=service_name,
+                env_var=f"{service_name.upper()}_API_KEY"
+            )
+
+            # Create enhanced service file
+            enhanced_file_path = service_file_path.replace('.py', '_enhanced.py')
+            with open(enhanced_file_path, 'w') as f:
+                f.write(template)
+
+            print(f"✅ Created enhanced service: {enhanced_file_path}")
+
+            # Test if enhanced service imports work
+            try:
+                import import importlib.util
+                spec = importlib.util.spec_from_file_location(f"{service_name.lower()}_enhanced", enhanced_file_path)
+                module = importlib.util.module_from_spec(spec)
+                print(f"✅ Enhanced {service_name} service imports successfully")
+
+                # Test instantiation
+                service_class = getattr(module, f"{service_name}Service")
+                instance = service_class()
+                print(f"✅ Enhanced {service_name} service instantiated successfully")
+
+                self.consolidated_services.append({
+                    'name': service_name,
+                    'original_file': service_file_path,
+                    'enhanced_file': enhanced_file_path,
+                    'status': 'success'
+                })
+
+                return True
+
+            except Exception as e:
+                print(f"❌ Failed to import enhanced {service_name} service: {e}")
+                return False
+
+            except Exception as e:
+                print(f"❌ Failed to consolidate {service_name} service: {e}")
+                return False
+
+        except Exception as e:
+            print(f"❌ Error consolidating {service_name}: {e}")
+            return False
+
+    def generate_consolidation_plan(self, analyses: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate a consolidation plan based on analysis"""
+        plan = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'total_services': len(analyses),
+            'high_priority_services': [],
+            'medium_priority_services': [],
+            'low_priority_services': [],
+            'implementation_phases': {}
+        }
+
+        # Prioritize services by complexity score (lower score = higher priority)
+        sorted_services = sorted(analyses, key=lambda x: x.get('complexity_score', 100))
+
+        # Divide into phases
+        high_priority = sorted_services[:5]  # Top 5 most incomplete
+        medium_priority = sorted_services[5:10]  # Next 5
+        low_priority = sorted_services[10:14]  # Remaining 4 (to reach 14 total)
+
+        plan['high_priority_services'] = [s['name'] for s in high_priority]
+        plan['medium_priority_services'] = [s['name'] for s in medium_priority]
+        plan['low_priority_services'] = [s['name'] for s in low_priority]
+        plan['implementation_phases'] = {
+            'phase_1': high_priority[:3],  # First 3 high priority
+            'phase_2': high_priority[3:] + medium_priority[:2],  # Next 4
+            'phase_3': medium_priority[2:] + low_priority[:5]  # Remaining 7
+        }
+
+        return plan
+
+    def run_consolidation(self) -> Dict[str, Any]:
+        """Run the complete consolidation process"""
+        print("=" * 80)
+        print("🔧 INTEGRATION CODE CONSOLIDATION")
+        print("=" * 80)
+        print(f"⏰ Started at: {datetime.now().isoformat()}")
+        print()
+
+        # Analyze services
+        print("🔍 Analyzing integration services...")
+        analyses = self.analyze_all_services()
+
+        # Generate duplication report
+        print("\n📊 GENERATING DUPLICATION REPORT...")
+        report = self.pattern_analyzer.generate_duplication_report(analyses)
+
+        # Show results
+        print(f"📊 Analysis Results:")
+        print(f"   Total Services: {report['total_services']}")
+        print(f"   Patterns with Duplications: {report['patterns_with_duplications']}")
+        print(f"   Potential Code Savings: {report['total_potential_savings']} lines")
+        print(f"   Average Complexity Score: {report['average_complexity_score']:.1f}/100")
+        print()
+
+        # Show most common duplications
+        if report['most_common_patterns']:
+            print("🔄 MOST COMMON DUPLICATION PATTERNS:")
+            for pattern_name, frequency in report['most_common_patterns']:
+                print(f"   • {pattern_name}: {frequency} services")
+
+        # Generate consolidation plan
+        print("\n📋 GENERATING CONSOLIDATION PLAN...")
+        plan = self.generate_consolidation_plan(analyses)
+
+        print(f"📅 IMPLEMENTATION PLAN:")
+        print(f"   Phase 1 (High Priority): {len(plan['implementation_phases']['phase_1'])} services")
+        print(f"   Phase 2 (Medium Priority): {len(plan['implementation_phases']['phase_2'])} services")
+        print(f"   Phase 3 (Low Priority): {len(plan['implementation_phases']['phase_3'])} services")
+        print()
+
+        # Show top services for each phase
+        print("🎯 PRIORITY BREAKDOWN:")
+        print(f"   High Priority: {plan['high_priority_services']}")
+        print(f"   Medium Priority: {plan['medium_priority_services']}")
+        print(f"   Low Priority: {plan['low_priority_services']}")
+        print()
+
+        # Save detailed report
+        output_file = f"integration_consolidation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(output_file, 'w') as f:
+            import json
+            json.dump({
+                'analysis': analyses,
+                'duplication_report': report,
+                'consolidation_plan': plan,
+                'consolidated_services': self.consolidated_services,
+                'timestamp': datetime.utcnow().isoformat()
+            }, f, indent=2)
+
+        print(f"💾 Detailed report saved to: {output_file}")
+        print("=" * 80)
+        print("✅ Integration consolidation analysis complete!")
+        print("=" * 80)
+
+        return {
+            'analysis': analyses,
+            'duplication_report': report,
+            'consolidation_plan': plan,
+            'consolidated_services': self.consolidated_services,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+def run_consolidation():
+    """Run the integration consolidation process"""
+    consolidator = IntegrationConsolidator()
+    return consolidator.run_consolidation()
+
+if __name__ == "__main__":
+    run_consolidation()

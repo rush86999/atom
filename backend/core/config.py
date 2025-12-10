@@ -5,9 +5,12 @@ Centralized configuration with environment variables and defaults
 
 import os
 import json
+import logging
 from typing import Any, Dict, Optional, Union
 from dataclasses import dataclass, asdict
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class DatabaseConfig:

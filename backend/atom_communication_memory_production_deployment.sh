@@ -236,6 +236,8 @@ from datetime import datetime, timedelta
 import json
 import logging
 import asyncio
+import os
+import jwt
 from dataclasses import asdict
 
 from integrations.atom_communication_ingestion_pipeline import (
@@ -269,8 +271,18 @@ class AtomCommunicationMemoryProductionAPI:
     
     def verify_token(self, credentials: HTTPAuthorizationCredentials = Depends(security)):
         """Verify JWT token"""
-        # TODO: Implement proper JWT verification
-        return credentials.credentials
+        try:
+            token = credentials.credentials
+            secret_key = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
+            payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+            return token
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token has expired")
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        except Exception as e:
+            logger.error(f"Token verification failed: {str(e)}")
+            raise HTTPException(status_code=401, detail="Could not validate credentials")
     
     def setup_routes(self):
         """Setup production API routes"""

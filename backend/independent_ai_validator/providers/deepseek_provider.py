@@ -26,6 +26,27 @@ class DeepSeekProvider(BaseLLMProvider):
         self.model = "deepseek-chat"  # DeepSeek's main model
         self.max_tokens = 4000
         self.temperature = 0.1  # Low temperature for consistent analysis
+        self._session = None
+        self._session_lock = asyncio.Lock()
+        self._timeout = aiohttp.ClientTimeout(total=30, connect=10)
+        self._connector = aiohttp.TCPConnector(limit=100, limit_per_host=30)
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Get or create shared session"""
+        async with self._session_lock:
+            if self._session is None or self._session.closed:
+                self._session = aiohttp.ClientSession(
+                    timeout=self._timeout,
+                    connector=self._connector
+                )
+            return self._session
+
+    async def close(self):
+        """Close shared session"""
+        async with self._session_lock:
+            if self._session and not self._session.closed:
+                await self._session.close()
+                self._session = None
 
     def get_name(self) -> str:
         """Get provider name"""
@@ -84,62 +105,62 @@ RESPONSE FORMAT:
 Provide an objective, evidence-based assessment without making assumptions beyond the provided evidence.
 """
 
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                }
+            session = await self._get_session()
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
 
-                data = {
-                    "model": self.model,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    "max_tokens": self.max_tokens,
-                    "temperature": self.temperature
-                }
+            data = {
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "max_tokens": self.max_tokens,
+                "temperature": self.temperature
+            }
 
-                async with session.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=data,
-                    timeout=60
-                ) as response:
+            async with session.post(
+            f"{self.base_url}/chat/completions",
+            headers=headers,
+            json=data,
+            timeout=60
+        ) as response:
 
-                    if response.status == 200:
-                        result = await response.json()
+                if response.status == 200:
+                    result = await response.json()
 
-                        content = result["choices"][0]["message"]["content"]
-                        tokens_used = result.get("usage", {}).get("total_tokens", 0)
+                    content = result["choices"][0]["message"]["content"]
+                    tokens_used = result.get("usage", {}).get("total_tokens", 0)
 
-                        # Parse the response to extract confidence score
-                        confidence = self._parse_confidence_from_response(content)
+                    # Parse the response to extract confidence score
+                    confidence = self._parse_confidence_from_response(content)
 
-                        return LLMResponse(
-                            content=content,
-                            confidence=confidence,
-                            reasoning=f"DeepSeek analysis completed successfully",
-                            provider=self.name,
-                            model=self.model,
-                            tokens_used=tokens_used,
-                            response_time=time.time() - start_time
-                        )
+                    return LLMResponse(
+                        content=content,
+                        confidence=confidence,
+                        reasoning=f"DeepSeek analysis completed successfully",
+                        provider=self.name,
+                        model=self.model,
+                        tokens_used=tokens_used,
+                        response_time=time.time() - start_time
+                    )
 
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"DeepSeek API error: {response.status} - {error_text}")
+                else:
+                    error_text = await response.text()
+                    logger.error(f"DeepSeek API error: {response.status} - {error_text}")
 
-                        return LLMResponse(
-                            content=f"Error: Unable to process request",
-                            confidence=0.0,
-                            reasoning=f"DeepSeek API error: {response.status}",
-                            provider=self.name,
-                            model=self.model,
-                            response_time=time.time() - start_time
-                        )
+                    return LLMResponse(
+                        content=f"Error: Unable to process request",
+                        confidence=0.0,
+                        reasoning=f"DeepSeek API error: {response.status}",
+                        provider=self.name,
+                        model=self.model,
+                        response_time=time.time() - start_time
+                    )
 
         except Exception as e:
             logger.error(f"DeepSeek provider error: {str(e)}")
@@ -222,57 +243,57 @@ RESPONSE FORMAT:
 - Overall Assessment: [Detailed analysis]
 """
 
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                }
+            session = await self._get_session()
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
 
-                data = {
-                    "model": self.model,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    "max_tokens": 2000,
-                    "temperature": 0.2
-                }
+            data = {
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "max_tokens": 2000,
+                "temperature": 0.2
+            }
 
-                async with session.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=data,
-                    timeout=45
-                ) as response:
+            async with session.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=45
+            ) as response:
 
-                    if response.status == 200:
-                        result = await response.json()
-                        content = result["choices"][0]["message"]["content"]
-                        tokens_used = result.get("usage", {}).get("total_tokens", 0)
+                if response.status == 200:
+                    result = await response.json()
+                    content = result["choices"][0]["message"]["content"]
+                    tokens_used = result.get("usage", {}).get("total_tokens", 0)
 
-                        return LLMResponse(
-                            content=content,
-                            confidence=0.8,
-                            reasoning="Evidence analysis completed successfully",
-                            provider=self.name,
-                            model=self.model,
-                            tokens_used=tokens_used,
-                            response_time=time.time() - start_time
-                        )
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"DeepSeek evidence analysis error: {response.status} - {error_text}")
+                    return LLMResponse(
+                        content=content,
+                        confidence=0.8,
+                        reasoning="Evidence analysis completed successfully",
+                        provider=self.name,
+                        model=self.model,
+                        tokens_used=tokens_used,
+                        response_time=time.time() - start_time
+                    )
+                else:
+                    error_text = await response.text()
+                    logger.error(f"DeepSeek evidence analysis error: {response.status} - {error_text}")
 
-                        return LLMResponse(
-                            content=f"Evidence analysis failed",
-                            confidence=0.0,
-                            reasoning=f"DeepSeek API error: {response.status}",
-                            provider=self.name,
-                            model=self.model,
-                            response_time=time.time() - start_time
-                        )
+                    return LLMResponse(
+                        content=f"Evidence analysis failed",
+                        confidence=0.0,
+                        reasoning=f"DeepSeek API error: {response.status}",
+                        provider=self.name,
+                        model=self.model,
+                        response_time=time.time() - start_time
+                    )
 
         except Exception as e:
             logger.error(f"DeepSeek evidence analysis error: {str(e)}")
@@ -311,60 +332,60 @@ RESPONSE FORMAT:
 - **Analysis**: [Detailed explanation]
 """
 
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                }
+            session = await self._get_session()
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
 
-                data = {
-                    "model": self.model,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    "max_tokens": 2000,
-                    "temperature": 0.1
-                }
+            data = {
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "max_tokens": 2000,
+                "temperature": 0.1
+            }
 
-                async with session.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=data,
-                    timeout=30
-                ) as response:
+            async with session.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=30
+            ) as response:
 
-                    if response.status == 200:
-                        result = await response.json()
-                        content = result["choices"][0]["message"]["content"]
-                        tokens_used = result.get("usage", {}).get("total_tokens", 0)
+                if response.status == 200:
+                    result = await response.json()
+                    content = result["choices"][0]["message"]["content"]
+                    tokens_used = result.get("usage", {}).get("total_tokens", 0)
 
-                        # Extract neutrality score from response
-                        neutrality_score = self._parse_neutrality_score(content)
+                    # Extract neutrality score from response
+                    neutrality_score = self._parse_neutrality_score(content)
 
-                        return LLMResponse(
-                            content=content,
-                            confidence=neutrality_score,
-                            reasoning="Bias analysis completed successfully",
-                            provider=self.name,
-                            model=self.model,
-                            tokens_used=tokens_used,
-                            response_time=0.0
-                        )
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"DeepSeek bias check error: {response.status} - {error_text}")
+                    return LLMResponse(
+                        content=content,
+                        confidence=neutrality_score,
+                        reasoning="Bias analysis completed successfully",
+                        provider=self.name,
+                        model=self.model,
+                        tokens_used=tokens_used,
+                        response_time=0.0
+                    )
+                else:
+                    error_text = await response.text()
+                    logger.error(f"DeepSeek bias check error: {response.status} - {error_text}")
 
-                        return LLMResponse(
-                            content=f"Bias analysis failed",
-                            confidence=0.5,
-                            reasoning=f"DeepSeek API error: {response.status}",
-                            provider=self.name,
-                            model=self.model,
-                            response_time=0.0
-                        )
+                    return LLMResponse(
+                        content=f"Bias analysis failed",
+                        confidence=0.5,
+                        reasoning=f"DeepSeek API error: {response.status}",
+                        provider=self.name,
+                        model=self.model,
+                        response_time=0.0
+                    )
 
         except Exception as e:
             logger.error(f"DeepSeek bias check error: {str(e)}")
@@ -409,19 +430,19 @@ RESPONSE FORMAT:
         Check if DeepSeek API is accessible and working
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.api_key}"
-                }
+            session = await self._get_session()
+            headers = {
+                "Authorization": f"Bearer {self.api_key}"
+            }
 
-                # Simple health check - list models
-                async with session.get(
-                    f"{self.base_url}/models",
-                    headers=headers,
-                    timeout=10
-                ) as response:
+            # Simple health check - list models
+            async with session.get(
+                f"{self.base_url}/models",
+                headers=headers,
+                timeout=10
+            ) as response:
 
-                    return response.status == 200
+                return response.status == 200
 
         except Exception as e:
             logger.error(f"DeepSeek health check failed: {str(e)}")
@@ -432,25 +453,25 @@ RESPONSE FORMAT:
         Get list of available DeepSeek models
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bearer {self.api_key}"
-                }
+            session = await self._get_session()
+            headers = {
+                "Authorization": f"Bearer {self.api_key}"
+            }
 
-                async with session.get(
-                    f"{self.base_url}/models",
-                    headers=headers,
-                    timeout=15
-                ) as response:
+            async with session.get(
+                f"{self.base_url}/models",
+                headers=headers,
+                timeout=15
+            ) as response:
 
-                    if response.status == 200:
-                        data = await response.json()
-                        models = [model["id"] for model in data.get("data", [])
-                                if model.get("object") == "model"]
-                        return models
-                    else:
-                        logger.error(f"Failed to get DeepSeek models: {response.status}")
-                        return [self.model]  # Return current model as fallback
+                if response.status == 200:
+                    data = await response.json()
+                    models = [model["id"] for model in data.get("data", [])
+                            if model.get("object") == "model"]
+                    return models
+                else:
+                    logger.error(f"Failed to get DeepSeek models: {response.status}")
+                    return [self.model]  # Return current model as fallback
 
         except Exception as e:
             logger.error(f"Error getting DeepSeek models: {str(e)}")

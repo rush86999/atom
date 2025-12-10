@@ -1,0 +1,363 @@
+{
+  "timestamp": "2025-12-09T18:14:08.508409",
+  "incomplete_services": [
+    {
+      "file": "integrations/mailchimp_service.py",
+      "name": "Mailchimp",
+      "lines": 66,
+      "has_async": true,
+      "has_try_except": false,
+      "has_class": true,
+      "has_docstring": false,
+      "has_oauth": true,
+      "size": 2758,
+      "completeness_score": 50
+    },
+    {
+      "file": "integrations/intercom_service.py",
+      "name": "Intercom",
+      "lines": 90,
+      "has_async": true,
+      "has_try_except": false,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 3184,
+      "completeness_score": 65
+    },
+    {
+      "file": "integrations/github_service.py",
+      "name": "Github",
+      "lines": 213,
+      "has_async": false,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 8496,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/shopify_service.py",
+      "name": "Shopify",
+      "lines": 96,
+      "has_async": true,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 3752,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/trello_service.py",
+      "name": "Trello",
+      "lines": 425,
+      "has_async": false,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 16033,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/teams_service.py",
+      "name": "Teams",
+      "lines": 377,
+      "has_async": false,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 14165,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/jira_service.py",
+      "name": "Jira",
+      "lines": 386,
+      "has_async": false,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 14441,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/notion_service.py",
+      "name": "Notion",
+      "lines": 340,
+      "has_async": false,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 12485,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/atom_workflow_automation_service.py",
+      "name": "Atom_Workflow_Automation",
+      "lines": 1361,
+      "has_async": true,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": false,
+      "size": 59746,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/atom_voice_video_integration_service.py",
+      "name": "Atom_Voice_Video_Integration",
+      "lines": 971,
+      "has_async": true,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": false,
+      "size": 44367,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/slack_service.py",
+      "name": "Slack",
+      "lines": 70,
+      "has_async": true,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 2522,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/bitbucket_service.py",
+      "name": "Bitbucket",
+      "lines": 381,
+      "has_async": false,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 13669,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/monday_service.py",
+      "name": "Monday",
+      "lines": 380,
+      "has_async": false,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": true,
+      "size": 12025,
+      "completeness_score": 85
+    },
+    {
+      "file": "integrations/atom_enterprise_security_service.py",
+      "name": "Atom_Enterprise_Security",
+      "lines": 1050,
+      "has_async": true,
+      "has_try_except": true,
+      "has_class": true,
+      "has_docstring": true,
+      "has_oauth": false,
+      "size": 41398,
+      "completeness_score": 85
+    }
+  ],
+  "recommendations": {
+    "immediate_improvements": [
+      "Convert methods to async for better performance",
+      "Add comprehensive error handling with try/except blocks",
+      "Add class-based structure for better organization",
+      "Add docstrings for documentation",
+      "Implement OAuth flows for authentication"
+    ],
+    "high_priority_services": [
+      {
+        "file": "integrations/mailchimp_service.py",
+        "name": "Mailchimp",
+        "lines": 66,
+        "has_async": true,
+        "has_try_except": false,
+        "has_class": true,
+        "has_docstring": false,
+        "has_oauth": true,
+        "size": 2758,
+        "completeness_score": 50
+      },
+      {
+        "file": "integrations/intercom_service.py",
+        "name": "Intercom",
+        "lines": 90,
+        "has_async": true,
+        "has_try_except": false,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 3184,
+        "completeness_score": 65
+      },
+      {
+        "file": "integrations/github_service.py",
+        "name": "Github",
+        "lines": 213,
+        "has_async": false,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 8496,
+        "completeness_score": 85
+      },
+      {
+        "file": "integrations/shopify_service.py",
+        "name": "Shopify",
+        "lines": 96,
+        "has_async": true,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 3752,
+        "completeness_score": 85
+      },
+      {
+        "file": "integrations/trello_service.py",
+        "name": "Trello",
+        "lines": 425,
+        "has_async": false,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 16033,
+        "completeness_score": 85
+      }
+    ],
+    "medium_priority_services": [
+      {
+        "file": "integrations/teams_service.py",
+        "name": "Teams",
+        "lines": 377,
+        "has_async": false,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 14165,
+        "completeness_score": 85
+      },
+      {
+        "file": "integrations/jira_service.py",
+        "name": "Jira",
+        "lines": 386,
+        "has_async": false,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 14441,
+        "completeness_score": 85
+      },
+      {
+        "file": "integrations/notion_service.py",
+        "name": "Notion",
+        "lines": 340,
+        "has_async": false,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 12485,
+        "completeness_score": 85
+      },
+      {
+        "file": "integrations/atom_workflow_automation_service.py",
+        "name": "Atom_Workflow_Automation",
+        "lines": 1361,
+        "has_async": true,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": false,
+        "size": 59746,
+        "completeness_score": 85
+      },
+      {
+        "file": "integrations/atom_voice_video_integration_service.py",
+        "name": "Atom_Voice_Video_Integration",
+        "lines": 971,
+        "has_async": true,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": false,
+        "size": 44367,
+        "completeness_score": 85
+      }
+    ],
+    "low_priority_services": [
+      {
+        "file": "integrations/slack_service.py",
+        "name": "Slack",
+        "lines": 70,
+        "has_async": true,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 2522,
+        "completeness_score": 85
+      },
+      {
+        "file": "integrations/bitbucket_service.py",
+        "name": "Bitbucket",
+        "lines": 381,
+        "has_async": false,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 13669,
+        "completeness_score": 85
+      },
+      {
+        "file": "integrations/monday_service.py",
+        "name": "Monday",
+        "lines": 380,
+        "has_async": false,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": true,
+        "size": 12025,
+        "completeness_score": 85
+      },
+      {
+        "file": "integrations/atom_enterprise_security_service.py",
+        "name": "Atom_Enterprise_Security",
+        "lines": 1050,
+        "has_async": true,
+        "has_try_except": true,
+        "has_class": true,
+        "has_docstring": true,
+        "has_oauth": false,
+        "size": 41398,
+        "completeness_score": 85
+      }
+    ]
+  },
+  "statistics": {
+    "total_services": 14,
+    "average_score": 81.07142857142857,
+    "has_async_count": 7,
+    "has_error_handling_count": 12,
+    "has_class_count": 14
+  }
+}

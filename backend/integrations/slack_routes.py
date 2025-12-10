@@ -292,6 +292,24 @@ async def slack_oauth_callback(request: Request):
         logger.error(f"Slack OAuth callback error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/oauth/start")
+async def slack_oauth_start(request: Request):
+    """Start Slack OAuth flow"""
+    try:
+        data = await request.json()
+        redirect_uri = data.get("redirect_uri")
+        state = data.get("state", "slack_oauth")
+
+        handler = OAuthHandler(SLACK_OAUTH_CONFIG)
+        # If redirect_uri provided, temporarily override config? Not supported.
+        # For now, ignore redirect_uri, use config.
+        auth_url = handler.get_authorization_url(state=state)
+
+        return {"authorization_url": auth_url}
+    except Exception as e:
+        logger.error(f"Slack OAuth start error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/auth/url")
 async def get_auth_url():
     """Get Slack OAuth URL"""

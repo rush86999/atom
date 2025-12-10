@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
+import asyncio
 
 try:
     import lancedb
@@ -354,28 +355,28 @@ class LanceDBHandler:
         """Search for similar documents"""
         if self.db is None:
             return []
-        
+
         try:
             table = self.get_table(table_name)
             if table is None:
                 logger.warning(f"Table '{table_name}' does not exist")
                 return []
-            
+
             # Generate query embedding
             query_embedding = self.embed_text(query)
             if query_embedding is None:
                 return []
-            
+
             # Search
             results = table.search(query_embedding).limit(limit)
-            
+
             # Apply filter if provided
             if filter_expression:
                 results = results.where(filter_expression)
-            
+
             # Execute search
             search_results = results.to_pandas()
-            
+
             # Convert to list of dictionaries
             results_list = []
             for _, row in search_results.iterrows():
@@ -393,16 +394,204 @@ class LanceDBHandler:
                 except Exception as e:
                     logger.warning(f"Error parsing search result: {e}")
                     continue
-            
+
             return results_list
-            
+
         except Exception as e:
             logger.error(f"Failed to search in '{table_name}': {e}")
             return []
 
+    def delete_document(self, table_name: str, doc_id: str) -> bool:
+        """Delete a document by ID"""
+        if self.db is None:
+            return False
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return False
+            # Use delete with filter
+            table.delete(f"id = '{doc_id}'")
+            logger.info(f"Deleted document {doc_id} from {table_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete document {doc_id}: {e}")
+            return False
+
     def seed_mock_data(self, documents: List[Dict[str, Any]]) -> int:
         """Seed mock data for validation"""
         return self.add_documents_batch("documents", documents)
+
+    async def store_conversation_context(self, user_id: str, conversation_id: str, content: str,
+                                         content_type: str = "text", metadata: Dict[str, Any] = None,
+                                         timestamp: datetime = None) -> str:
+        """Store conversation context in LanceDB"""
+        if self.db is None:
+            raise ValueError("LanceDB not initialized")
+
+        if metadata is None:
+            metadata = {}
+
+        if timestamp is None:
+            timestamp = datetime.utcnow()
+
+        # Generate embedding
+        embedding = self.embed_text(content)
+        if embedding is None:
+            raise ValueError("Failed to generate embedding")
+
+        # Create unique ID
+        vector_id = f"{user_id}_{conversation_id}_{timestamp.timestamp()}"
+
+        # Prepare metadata JSON
+        metadata_json = json.dumps({
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+            "content_type": content_type,
+            "timestamp": timestamp.isoformat(),
+            **metadata
+        })
+
+        # Store in table "conversation_context"
+        success = self.add_document(
+            table_name="conversation_context",
+            text=content,
+            source=f"conversation_{content_type}",
+            metadata=metadata_json,
+            doc_id=vector_id
+        )
+
+        if not success:
+            raise RuntimeError("Failed to store conversation context")
+
+        return vector_id
+
+    async def search_conversation_context(self, user_id: str, query: str, limit: int = 10,
+                                          similarity_threshold: float = 0.7) -> List[Dict[str, Any]]:
+        """Search conversation context for a user"""
+        if self.db is None:
+            return []
+
+        # Search in conversation_context table
+        results = self.search(
+            table_name="conversation_context",
+            query=query,
+            limit=limit * 2,  # fetch more to filter by similarity
+            filter_expression=f"metadata LIKE '%\"user_id\": \"{user_id}\"%'"
+        )
+
+        # Filter by similarity threshold
+        filtered = [r for r in results if r.get('score', 0) >= similarity_threshold]
+        return filtered[:limit]
+
+    async def get_user_conversation_contexts(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get all conversation contexts for a user"""
+        if self.db is None:
+            return []
+
+        table = self.get_table("conversation_context")
+        if table is None:
+            return []
+
+        try:
+            df = table.search().limit(limit * 2).to_pandas()
+            contexts = []
+            for _, row in df.iterrows():
+                try:
+                    metadata = json.loads(row['metadata']) if row['metadata'] else {}
+                    if metadata.get('user_id') == user_id:
+                        contexts.append({
+                            "id": row['id'],
+                            "text": row['text'],
+                            "metadata": metadata,
+                            "created_at": row['created_at'],
+                            "score": 1.0  # no score
+                        })
+                except:
+                    continue
+                if len(contexts) >= limit:
+                    break
+            return contexts
+        except Exception as e:
+            logger.error(f"Failed to get user conversation contexts: {e}")
+            return []
+
+    async def get_conversation_context(self, conversation_id: str) -> List[Dict[str, Any]]:
+        """Get all contexts for a conversation"""
+        if self.db is None:
+            return []
+
+        table = self.get_table("conversation_context")
+        if table is None:
+            return []
+
+        try:
+            df = table.search().limit(100).to_pandas()
+            contexts = []
+            for _, row in df.iterrows():
+                try:
+                    metadata = json.loads(row['metadata']) if row['metadata'] else {}
+                    if metadata.get('conversation_id') == conversation_id:
+                        contexts.append({
+                            "id": row['id'],
+                            "text": row['text'],
+                            "metadata": metadata,
+                            "created_at": row['created_at']
+                        })
+                except:
+                    continue
+            return contexts
+        except Exception as e:
+            logger.error(f"Failed to get conversation context: {e}")
+            return []
+
+    async def delete_conversation_context(self, vector_id: str) -> bool:
+        """Delete a conversation context by vector ID"""
+        if self.db is None:
+            return False
+        return self.delete_document("conversation_context", vector_id)
+
+    async def get_database_stats(self) -> Dict[str, Any]:
+        """Get database statistics"""
+        if self.db is None:
+            return {
+                "total_conversations": 0,
+                "total_memories": 0,
+                "unique_users": 0
+            }
+
+        table = self.get_table("conversation_context")
+        if table is None:
+            return {
+                "total_conversations": 0,
+                "total_memories": 0,
+                "unique_users": 0
+            }
+
+        try:
+            df = table.search().limit(1000).to_pandas()
+            unique_users = set()
+            conversations = set()
+            for _, row in df.iterrows():
+                try:
+                    metadata = json.loads(row['metadata']) if row['metadata'] else {}
+                    if 'user_id' in metadata:
+                        unique_users.add(metadata['user_id'])
+                    if 'conversation_id' in metadata:
+                        conversations.add(metadata['conversation_id'])
+                except:
+                    continue
+            return {
+                "total_conversations": len(conversations),
+                "total_memories": len(df),
+                "unique_users": len(unique_users)
+            }
+        except Exception as e:
+            logger.error(f"Failed to get database stats: {e}")
+            return {
+                "total_conversations": 0,
+                "total_memories": 0,
+                "unique_users": 0
+            }
 
 # Chat History Extension for LanceDBHandler
 class ChatHistoryManager:
@@ -620,6 +809,33 @@ lancedb_handler = LanceDBHandler()
 def get_lancedb_handler() -> LanceDBHandler:
     """Get LanceDB handler instance"""
     return lancedb_handler
+
+async def get_lancedb_connection(db_path: str = None) -> Any:
+    """Get LanceDB connection (async compatibility)"""
+    return lancedb_handler.db
+
+async def store_conversation_context(user_id: str, conversation_id: str, content: str,
+                                     content_type: str = "text", metadata: Dict[str, Any] = None,
+                                     timestamp: datetime = None) -> str:
+    """Store conversation context (async compatibility)"""
+    return await lancedb_handler.store_conversation_context(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        content=content,
+        content_type=content_type,
+        metadata=metadata,
+        timestamp=timestamp
+    )
+
+async def search_conversation_context(user_id: str, query: str, limit: int = 10,
+                                      similarity_threshold: float = 0.7) -> List[Dict[str, Any]]:
+    """Search conversation context (async compatibility)"""
+    return await lancedb_handler.search_conversation_context(
+        user_id=user_id,
+        query=query,
+        limit=limit,
+        similarity_threshold=similarity_threshold
+    )
 
 # Global chat history manager (uses lancedb_handler)
 chat_history_manager = ChatHistoryManager(lancedb_handler)

@@ -1613,6 +1613,13 @@ class IndependentAIValidator:
 
     async def cleanup(self):
         """Cleanup resources and clear credentials"""
+        # Close provider sessions
+        for provider in self.providers.values():
+            if hasattr(provider, 'close'):
+                try:
+                    await provider.close()
+                except Exception as e:
+                    logger.warning(f"Failed to close provider {provider.get_name()}: {e}")
         self.credential_manager.clear_credentials()
         self.providers.clear()
         self.is_initialized = False

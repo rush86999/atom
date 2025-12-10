@@ -372,13 +372,29 @@ class CommunicationIngestionPipeline:
         """Async real-time ingestion for specific app"""
         while True:
             try:
-                # This would connect to the actual app's webhook/API
-                # For now, simulate real-time ingestion
+                # Implement actual app-specific real-time ingestion
+                if app_type == CommunicationAppType.WHATSAPP.value:
+                    await self._ingest_whatsapp_messages()
+                elif app_type == CommunicationAppType.SLACK.value:
+                    await self._ingest_slack_messages()
+                elif app_type == CommunicationAppType.EMAIL.value:
+                    await self._ingest_email_messages()
+                elif app_type == CommunicationAppType.GMAIL.value:
+                    await self._ingest_gmail_messages()
+                elif app_type == CommunicationAppType.OUTLOOK.value:
+                    await self._ingest_outlook_messages()
+                elif app_type == CommunicationAppType.ZOOM.value:
+                    await self._ingest_zoom_recordings()
+                elif app_type == CommunicationAppType.DISCORD.value:
+                    await self._ingest_discord_messages()
+                elif app_type == CommunicationAppType.TELEGRAM.value:
+                    await self._ingest_telegram_messages()
+                else:
+                    # Default polling for unsupported apps
+                    logger.debug(f"Real-time check for {app_type} (polling mode)")
+
                 await asyncio.sleep(30)  # Check every 30 seconds
-                
-                # TODO: Implement actual app-specific real-time ingestion
-                logger.debug(f"Real-time check for {app_type}")
-                
+
             except Exception as e:
                 logger.error(f"Error in real-time ingestion for {app_type}: {str(e)}")
                 await asyncio.sleep(60)  # Wait longer on error
@@ -457,14 +473,14 @@ class CommunicationIngestionPipeline:
         try:
             # Get metadata from LanceDB
             metadata = self.memory_manager.metadata_table.search().to_pandas()
-            
+
             stats = {
                 "configured_apps": list(self.ingestion_configs.keys()),
                 "active_streams": list(self.active_streams.keys()),
                 "total_messages": 0,
                 "app_stats": {}
             }
-            
+
             for _, row in metadata.iterrows():
                 stats["app_stats"][row["app_type"]] = {
                     "total_messages": row["total_messages"],
@@ -472,12 +488,321 @@ class CommunicationIngestionPipeline:
                     "status": row["status"]
                 }
                 stats["total_messages"] += row["total_messages"]
-            
+
             return stats
-            
+
         except Exception as e:
             logger.error(f"Error getting ingestion stats: {str(e)}")
             return {"error": str(e)}
+
+    # Real-time ingestion implementation methods
+    async def _ingest_whatsapp_messages(self):
+        """Ingest WhatsApp messages via webhook or API polling"""
+        try:
+            # Check for new WhatsApp messages
+            # This would integrate with WhatsApp Business API
+            import aiohttp
+
+            webhook_url = self.ingestion_configs.get("whatsapp", {}).get("webhook_url")
+            if webhook_url:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f"{webhook_url}/messages") as response:
+                        if response.status == 200:
+                            messages = await response.json()
+                            for msg in messages:
+                                comm_data = CommunicationData(
+                                    id=msg.get("id"),
+                                    app_type="whatsapp",
+                                    timestamp=datetime.fromisoformat(msg.get("timestamp")),
+                                    direction=msg.get("direction", "inbound"),
+                                    sender=msg.get("from"),
+                                    recipient=msg.get("to"),
+                                    content=msg.get("message"),
+                                    metadata={"source": "webhook", **msg.get("metadata", {})}
+                                )
+                                await self.memory_manager.store_communication(comm_data)
+        except Exception as e:
+            logger.error(f"WhatsApp ingestion error: {e}")
+
+    async def _ingest_slack_messages(self):
+        """Ingest Slack messages via Slack API"""
+        try:
+            # Check for new Slack messages
+            config = self.ingestion_configs.get("slack", {})
+            if config.get("access_token"):
+                from slack_sdk import WebClient
+
+                client = WebClient(token=config["access_token"])
+
+                # Get list of channels
+                channels = client.conversations_list(types="public_channel,private_channel")
+
+                for channel in channels["channels"]:
+                    # Get new messages from each channel
+                    history = client.conversations_history(
+                        channel=channel["id"],
+                        oldest=config.get("last_checkpoint", 0)
+                    )
+
+                    for msg in history.get("messages", []):
+                        if msg.get("user") and msg.get("text"):
+                            comm_data = CommunicationData(
+                                id=msg.get("ts"),
+                                app_type="slack",
+                                timestamp=datetime.fromtimestamp(float(msg.get("ts"))),
+                                direction="internal",
+                                sender=msg.get("user"),
+                                recipient=channel["name"],
+                                content=msg.get("text"),
+                                metadata={"channel_id": channel["id"], "source": "api"}
+                            )
+                            await self.memory_manager.store_communication(comm_data)
+        except Exception as e:
+            logger.error(f"Slack ingestion error: {e}")
+
+    async def _ingest_email_messages(self):
+        """Ingest email messages via IMAP/POP3"""
+        try:
+            import imaplib
+            import email
+
+            config = self.ingestion_configs.get("email", {})
+            if config.get("imap_server") and config.get("username"):
+                imap = imaplib.IMAP4_SSL(config["imap_server"])
+                imap.login(config["username"], config["password"])
+                imap.select("INBOX")
+
+                # Search for unseen emails
+                status, messages = imap.search(None, "UNSEEN")
+                if status == "OK":
+                    for msg_id in messages[0].split():
+                        status, msg_data = imap.fetch(msg_id, "(RFC822)")
+                        if status == "OK":
+                            raw_email = msg_data[0][1]
+                            email_message = email.message_from_bytes(raw_email)
+
+                            comm_data = CommunicationData(
+                                id=msg_id.decode(),
+                                app_type="email",
+                                timestamp=datetime.strptime(email_message["Date"], "%a, %d %b %Y %H:%M:%S %z"),
+                                direction="inbound",
+                                sender=email_message["From"],
+                                recipient=email_message["To"],
+                                subject=email_message["Subject"],
+                                content=self._get_email_body(email_message),
+                                metadata={"source": "imap", "folder": "INBOX"}
+                            )
+                            await self.memory_manager.store_communication(comm_data)
+
+                imap.close()
+                imap.logout()
+        except Exception as e:
+            logger.error(f"Email ingestion error: {e}")
+
+    async def _ingest_gmail_messages(self):
+        """Ingest Gmail messages via Gmail API"""
+        try:
+            from google.oauth2.credentials import Credentials
+            from googleapiclient.discovery import build
+
+            config = self.ingestion_configs.get("gmail", {})
+            if config.get("credentials"):
+                creds = Credentials.from_authorized_user_info(config["credentials"])
+                service = build("gmail", "v1", credentials=creds)
+
+                # Get new messages
+                results = service.users().messages().list(userId="me", q="is:unread").execute()
+                messages = results.get("messages", [])
+
+                for message in messages:
+                    msg = service.users().messages().get(userId="me", id=message["id"]).execute()
+
+                    headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
+
+                    comm_data = CommunicationData(
+                        id=message["id"],
+                        app_type="gmail",
+                        timestamp=datetime.fromtimestamp(int(msg["internalDate"]) / 1000),
+                        direction="inbound",
+                        sender=headers.get("From"),
+                        recipient=headers.get("To"),
+                        subject=headers.get("Subject"),
+                        content=msg.get("snippet", ""),
+                        metadata={"source": "gmail_api", "thread_id": msg.get("threadId")}
+                    )
+                    await self.memory_manager.store_communication(comm_data)
+
+                    # Mark as read
+                    service.users().messages().modify(userId="me", id=message["id"], body={"removeLabelIds": ["UNREAD"]}).execute()
+        except Exception as e:
+            logger.error(f"Gmail ingestion error: {e}")
+
+    async def _ingest_outlook_messages(self):
+        """Ingest Outlook messages via Microsoft Graph API"""
+        try:
+            from msal import ConfidentialClientApplication
+
+            config = self.ingestion_configs.get("outlook", {})
+            if config.get("client_id") and config.get("client_secret"):
+                app = ConfidentialClientApplication(
+                    config["client_id"],
+                    client_credential=config["client_secret"],
+                    authority="https://login.microsoftonline.com/" + config["tenant_id"]
+                )
+
+                # Get access token
+                token = app.acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
+
+                headers = {"Authorization": f"Bearer {token['access_token']}"}
+
+                # Get new messages
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.get("https://graph.microsoft.com/v1.0/me/messages?$filter=isRead eq false", headers=headers) as response:
+                        if response.status == 200:
+                            data = await response.json()
+
+                            for msg in data["value"]:
+                                comm_data = CommunicationData(
+                                    id=msg["id"],
+                                    app_type="outlook",
+                                    timestamp=datetime.fromisoformat(msg["receivedDateTime"]),
+                                    direction="inbound",
+                                    sender=msg["from"]["emailAddress"]["address"],
+                                    recipient=msg["toRecipients"][0]["emailAddress"]["address"],
+                                    subject=msg["subject"],
+                                    content=msg["bodyPreview"],
+                                    metadata={"source": "graph_api", "conversation_id": msg.get("conversationId")}
+                                )
+                                await self.memory_manager.store_communication(comm_data)
+
+                                # Mark as read
+                                await session.patch(f"https://graph.microsoft.com/v1.0/me/messages/{msg['id']}",
+                                                   json={"isRead": True}, headers=headers)
+        except Exception as e:
+            logger.error(f"Outlook ingestion error: {e}")
+
+    async def _ingest_zoom_recordings(self):
+        """Ingest Zoom meeting recordings"""
+        try:
+            config = self.ingestion_configs.get("zoom", {})
+            if config.get("access_token"):
+                import aiohttp
+
+                headers = {"Authorization": f"Bearer {config['access_token']}"}
+
+                async with aiohttp.ClientSession() as session:
+                    # Get recent recordings
+                    async with session.get("https://api.zoom.us/v2/users/me/recordings?from=2025-01-01", headers=headers) as response:
+                        if response.status == 200:
+                            data = await response.json()
+
+                            for meeting in data.get("meetings", []):
+                                for recording in meeting.get("recording_files", []):
+                                    comm_data = CommunicationData(
+                                        id=recording["id"],
+                                        app_type="zoom",
+                                        timestamp=datetime.fromisoformat(meeting["start_time"]),
+                                        direction="internal",
+                                        sender=meeting["host_email"],
+                                        recipient=meeting.get("topic", "Zoom Meeting"),
+                                        content=f"Zoom Meeting: {meeting.get('topic', 'No Topic')}",
+                                        recording_url=recording["download_url"],
+                                        metadata={"source": "zoom_api", "meeting_id": meeting["uuid"], "duration": meeting.get("duration", 0)}
+                                    )
+                                    await self.memory_manager.store_communication(comm_data)
+        except Exception as e:
+            logger.error(f"Zoom recordings ingestion error: {e}")
+
+    async def _ingest_discord_messages(self):
+        """Ingest Discord messages via Discord bot API"""
+        try:
+            import discord
+
+            config = self.ingestion_configs.get("discord", {})
+            if config.get("bot_token"):
+                # This would typically run as a Discord bot
+                # For now, implement basic polling
+                import aiohttp
+
+                headers = {"Authorization": f"Bot {config['bot_token']}"}
+
+                async with aiohttp.ClientSession() as session:
+                    # Get channels
+                    async with session.get("https://discord.com/api/v10/users/@me/channels", headers=headers) as response:
+                        if response.status == 200:
+                            channels = await response.json()
+
+                            for channel in channels:
+                                if channel.get("type") == 1:  # DM channel
+                                    # Get messages
+                                    async with session.get(f"https://discord.com/api/v10/channels/{channel['id']}/messages?limit=10", headers=headers) as msg_response:
+                                        if msg_response.status == 200:
+                                            messages = await msg_response.json()
+
+                                            for msg in messages:
+                                                comm_data = CommunicationData(
+                                                    id=msg["id"],
+                                                    app_type="discord",
+                                                    timestamp=datetime.fromisoformat(msg["timestamp"]),
+                                                    direction="internal",
+                                                    sender=msg["author"]["username"],
+                                                    recipient=channel.get("recipients", [{}])[0].get("username", "Unknown"),
+                                                    content=msg["content"],
+                                                    metadata={"source": "discord_api", "channel_id": channel["id"]}
+                                                )
+                                                await self.memory_manager.store_communication(comm_data)
+        except Exception as e:
+            logger.error(f"Discord ingestion error: {e}")
+
+    async def _ingest_telegram_messages(self):
+        """Ingest Telegram messages via Telegram Bot API"""
+        try:
+            config = self.ingestion_configs.get("telegram", {})
+            if config.get("bot_token"):
+                import aiohttp
+
+                async with aiohttp.ClientSession() as session:
+                    # Get updates (messages)
+                    offset = self.ingestion_configs.get("telegram", {}).get("last_update_id", 0)
+                    async with session.get(f"https://api.telegram.org/bot{config['bot_token']}/getUpdates?offset={offset}") as response:
+                        if response.status == 200:
+                            data = await response.json()
+
+                            for update in data.get("result", []):
+                                if "message" in update:
+                                    msg = update["message"]
+
+                                    comm_data = CommunicationData(
+                                        id=str(update["update_id"]),
+                                        app_type="telegram",
+                                        timestamp=datetime.fromtimestamp(msg["date"]),
+                                        direction="inbound",
+                                        sender=msg.get("from", {}).get("username", "Unknown"),
+                                        recipient=msg.get("chat", {}).get("username", "Unknown"),
+                                        content=msg.get("text", ""),
+                                        metadata={"source": "telegram_bot_api", "chat_id": msg.get("chat", {}).get("id")}
+                                    )
+                                    await self.memory_manager.store_communication(comm_data)
+
+                                    # Update last update ID
+                                    self.ingestion_configs["telegram"]["last_update_id"] = update["update_id"] + 1
+        except Exception as e:
+            logger.error(f"Telegram ingestion error: {e}")
+
+    def _get_email_body(self, email_message) -> str:
+        """Extract email body from email message"""
+        body = ""
+        if email_message.is_multipart():
+            for part in email_message.walk():
+                if part.get_content_type() == "text/plain":
+                    try:
+                        body += part.get_payload(decode=True).decode()
+                    except:
+                        body += part.get_payload()
+        else:
+            body = email_message.get_payload()
+        return body.strip()
 
 # Global instance
 memory_manager = LanceDBMemoryManager()

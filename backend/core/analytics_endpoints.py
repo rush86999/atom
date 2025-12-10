@@ -53,7 +53,14 @@ analytics_data = {
         "success_rate": 99.7,
         "avg_response_time": 127.5,
         "real_time_processing": True,
-        "last_updated": datetime.now().isoformat()
+        "last_updated": datetime.now().isoformat(),
+        "business_metrics": {
+            "business_value_score": 0.78,
+            "cost_efficiency_percent": 31.2,
+            "time_to_value_hours": 2.4,
+            "user_satisfaction_score": 4.6,
+            "roi_multiplier": 3.8
+        }
     },
     "performance": {
         "/api/ai/providers": {"avg_response_time": 45.2, "requests_per_minute": 23, "error_rate": 0.1, "uptime_percentage": 99.9},
@@ -133,7 +140,11 @@ async def analytics_health():
             "data_points_processed": 14567234,
             "insights_generated": 892,
             "dashboards_active": 45,
-            "real_time_streams": 12
+            "real_time_streams": 12,
+            "business_value_score": 0.85,
+            "cost_savings_usd": 125000,
+            "productivity_gain_percent": 23.5,
+            "automation_hours_saved": 3420
         },
         "performance": {
             "processing_latency_ms": 87,

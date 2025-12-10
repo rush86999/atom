@@ -1,0 +1,189 @@
+{
+  "test_metadata": {
+    "timestamp": "2025-12-09T19:56:25.949542",
+    "total_tests": 12,
+    "passed_tests": 0,
+    "failed_tests": 12,
+    "success_rate": 0.0,
+    "avg_response_time_ms": 18071.89,
+    "avg_ai_score": 0.0,
+    "avg_business_value": 0.0
+  },
+  "results_by_service": {
+    "health": {
+      "total_tests": 2,
+      "pass_rate": 0.0,
+      "avg_ai_score": 0.0,
+      "business_value_score": 0.0,
+      "issues": [
+        "",
+        "200, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:3000/auth/signin?callbackUrl=http://localhost:3000/api/health'"
+      ],
+      "recommendations": [
+        "Fix error: ",
+        "Fix error: 200, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:3000/auth/signin?callbackUrl=http://localhost:3000/api/health'"
+      ]
+    },
+    "oauth": {
+      "total_tests": 3,
+      "pass_rate": 0.0,
+      "avg_ai_score": 0.0,
+      "business_value_score": 0.0,
+      "issues": [
+        "",
+        "",
+        ""
+      ],
+      "recommendations": [
+        "Fix error: "
+      ]
+    },
+    "integration": {
+      "total_tests": 3,
+      "pass_rate": 0.0,
+      "avg_ai_score": 0.0,
+      "business_value_score": 0.0,
+      "issues": [
+        "",
+        "",
+        ""
+      ],
+      "recommendations": [
+        "Fix error: "
+      ]
+    },
+    "functionality": {
+      "total_tests": 2,
+      "pass_rate": 0.0,
+      "avg_ai_score": 0.0,
+      "business_value_score": 0.0,
+      "issues": [
+        null,
+        null
+      ],
+      "recommendations": [
+        "Consider performance optimization",
+        "Fix technical issues before production"
+      ]
+    },
+    "business_value": {
+      "total_tests": 2,
+      "pass_rate": 0.0,
+      "avg_ai_score": 0.0,
+      "business_value_score": 0.0,
+      "issues": [
+        null,
+        null
+      ],
+      "recommendations": [
+        "Consider performance optimization",
+        "Fix technical issues before production"
+      ]
+    }
+  },
+  "critical_issues": [
+    {
+      "test": "Health Check - Backend Health",
+      "service": "health",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "Health Check - Frontend Health",
+      "service": "health",
+      "issue": "200, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:3000/auth/signin?callbackUrl=http://localhost:3000/api/health'",
+      "priority": "high"
+    },
+    {
+      "test": "OAuth - Zoom OAuth Initiate",
+      "service": "oauth",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "OAuth - Social Store Health",
+      "service": "oauth",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "OAuth - Social Store Platforms",
+      "service": "oauth",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "Integration - AI Workflow",
+      "service": "integration",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "Integration - Communication Memory",
+      "service": "integration",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "Integration - Memory Production",
+      "service": "integration",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "Functionality - Create Workflow",
+      "service": "functionality",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "Functionality - Store Social Token",
+      "service": "functionality",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "Business Value - Data Analytics",
+      "service": "business_value",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    },
+    {
+      "test": "Business Value - Communication Search",
+      "service": "business_value",
+      "issue": "Low AI validation score",
+      "priority": "high"
+    }
+  ],
+  "ai_insights": {
+    "overall_health": "needs_attention",
+    "performance_rating": "poor",
+    "business_value_rating": "low"
+  },
+  "business_value_assessment": {
+    "overall_score": 0.0,
+    "recommendations": [
+      "Improve business value in services: health, oauth, integration, functionality, business_value"
+    ],
+    "improvement_areas": [
+      "health",
+      "health",
+      "oauth",
+      "oauth",
+      "oauth",
+      "integration",
+      "integration",
+      "integration",
+      "functionality",
+      "functionality",
+      "business_value",
+      "business_value"
+    ]
+  },
+  "actionable_recommendations": [
+    "Address test failures to improve overall system reliability",
+    "Optimize slow endpoints for better performance",
+    "Focus on enhancing business value in integrations",
+    "Fix 12 critical issues immediately"
+  ]
+}

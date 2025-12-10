@@ -7,6 +7,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class IntercomService:
+    """Intercom integration service for customer communication platform."""
+
     def __init__(self):
         self.base_url = "https://api.intercom.io"
         self.client_id = os.getenv("INTERCOM_CLIENT_ID")
@@ -24,15 +26,23 @@ class IntercomService:
         }
 
     async def exchange_token(self, code: str) -> Dict[str, Any]:
-        url = f"{self.base_url}/auth/eagle/token"
-        data = {
-            "code": code,
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-        }
-        response = await self.client.post(url, json=data)
-        response.raise_for_status()
-        return response.json()
+        """Exchange authorization code for access token."""
+        try:
+            url = f"{self.base_url}/auth/eagle/token"
+            data = {
+                "code": code,
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+            }
+            response = await self.client.post(url, json=data)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Intercom token exchange failed: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in Intercom token exchange: {e}")
+            raise
 
     async def get_admins(self, access_token: str) -> List[Dict[str, Any]]:
         url = f"{self.base_url}/admins"

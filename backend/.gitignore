@@ -72,3 +72,7 @@ test_*.py
 *_test.py
 temp_*.py
 debug_*.py
+
+# Archive directory for preserving incomplete code
+archive/
+archived_/

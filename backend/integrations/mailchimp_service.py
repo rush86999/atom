@@ -1,8 +1,13 @@
 import os
+import logging
 import httpx
 from typing import Dict, Any, List, Optional
 
+logger = logging.getLogger(__name__)
+
 class MailchimpService:
+    """Mailchimp integration service for managing email marketing campaigns."""
+
     def __init__(self):
         self.client_id = os.getenv("MAILCHIMP_CLIENT_ID")
         self.client_secret = os.getenv("MAILCHIMP_CLIENT_SECRET")
@@ -21,17 +26,25 @@ class MailchimpService:
         }
 
     async def exchange_token(self, code: str, redirect_uri: str) -> Dict[str, Any]:
-        url = "https://login.mailchimp.com/oauth2/token"
-        data = {
-            "grant_type": "authorization_code",
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "redirect_uri": redirect_uri,
-            "code": code
-        }
-        response = await self.client.post(url, data=data)
-        response.raise_for_status()
-        return response.json()
+        """Exchange authorization code for access token."""
+        try:
+            url = "https://login.mailchimp.com/oauth2/token"
+            data = {
+                "grant_type": "authorization_code",
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "redirect_uri": redirect_uri,
+                "code": code
+            }
+            response = await self.client.post(url, data=data)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Mailchimp token exchange failed: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in Mailchimp token exchange: {e}")
+            raise
 
     async def get_metadata(self, access_token: str) -> Dict[str, Any]:
         url = "https://login.mailchimp.com/oauth2/metadata"
