@@ -33,11 +33,8 @@ class TokenExchangeRequest(BaseModel):
     state: str
     use_pkce: bool = True
 
-@router.get("/oauth-url", response_model=Dict[str, Any])
-async def get_oauth_url(
-    request: OAuthURLRequest,
-    http_request: Request
-):
+@router.get("/oauth-url")
+async def get_oauth_url(request, http_request):
     """
     Generate Zoom OAuth authorization URL with optional PKCE support
     """
@@ -80,11 +77,8 @@ async def get_oauth_url(
         logger.error(f"Error generating OAuth URL: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/exchange-code", response_model=Dict[str, Any])
-async def exchange_code_for_token(
-    request: TokenExchangeRequest,
-    http_request: Request
-):
+@router.post("/exchange-code")
+async def exchange_code_for_token(request, http_request):
     """
     Exchange authorization code for access token with PKCE support
     """
@@ -115,11 +109,8 @@ async def exchange_code_for_token(
         logger.error(f"Error exchanging code for token: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/refresh-token", response_model=Dict[str, Any])
-async def refresh_access_token(
-    refresh_token: str,
-    http_request: Request
-):
+@router.post("/refresh-token")
+async def refresh_access_token(refresh_token, http_request):
     """
     Refresh access token using refresh token
     """
@@ -145,11 +136,8 @@ async def refresh_access_token(
         logger.error(f"Error refreshing token: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/revoke-token", response_model=Dict[str, Any])
-async def revoke_access_token(
-    access_token: str,
-    http_request: Request
-):
+@router.post("/revoke-token")
+async def revoke_access_token(access_token, http_request):
     """
     Revoke access token
     """
@@ -175,10 +163,8 @@ async def revoke_access_token(
         logger.error(f"Error revoking token: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/status", response_model=Dict[str, Any])
-async def get_oauth_status(
-    http_request: Request
-):
+@router.get("/status")
+async def get_oauth_status(http_request):
     """
     Get current OAuth status and stored tokens
     """
@@ -234,10 +220,8 @@ async def get_oauth_status(
         logger.error(f"Error in OAuth status endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/disconnect", response_model=Dict[str, Any])
-async def disconnect_zoom(
-    http_request: Request
-):
+@router.delete("/disconnect")
+async def disconnect_zoom(http_request):
     """
     Disconnect Zoom integration and revoke tokens
     """
@@ -273,7 +257,7 @@ async def disconnect_zoom(
         logger.error(f"Error disconnecting Zoom: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/health", response_model=Dict[str, Any])
+@router.get("/health")
 async def health_check():
     """
     Health check for Zoom OAuth service

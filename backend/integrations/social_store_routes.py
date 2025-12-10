@@ -42,11 +42,8 @@ class StoreProfileRequest(BaseModel):
     verified: bool = False
     public_metrics: Optional[Dict[str, Any]] = None
 
-@router.post("/store", response_model=Dict[str, Any])
-async def store_social_token(
-    request: StoreTokenRequest,
-    http_request: Request
-):
+@router.post("/store")
+async def store_social_token(request, http_request):
     """
     Store social platform OAuth token
     """
@@ -101,10 +98,10 @@ async def store_social_token(
         logger.error(f"Error storing social token: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/token/{platform}", response_model=Dict[str, Any])
+@router.get("/token/{platform}", )
 async def get_social_token(
-    platform: str,
-    http_request: Request
+    platform,
+    http_request
 ):
     """
     Retrieve stored token for a social platform
@@ -157,10 +154,10 @@ async def get_social_token(
         logger.error(f"Error retrieving social token: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/profile", response_model=Dict[str, Any])
+@router.post("/profile", )
 async def store_social_profile(
-    request: StoreProfileRequest,
-    http_request: Request
+    request,
+    http_request
 ):
     """
     Store user profile data from social platform
@@ -222,10 +219,10 @@ async def store_social_profile(
         logger.error(f"Error storing social profile: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/profile/{platform}", response_model=Dict[str, Any])
+@router.get("/profile/{platform}", )
 async def get_social_profile(
-    platform: str,
-    http_request: Request
+    platform,
+    http_request
 ):
     """
     Retrieve stored profile data for a social platform
@@ -267,9 +264,9 @@ async def get_social_profile(
         logger.error(f"Error retrieving social profile: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/connected", response_model=Dict[str, Any])
+@router.get("/connected", )
 async def get_connected_platforms(
-    http_request: Request
+    http_request
 ):
     """
     List all connected social platforms for the user
@@ -300,9 +297,9 @@ async def get_connected_platforms(
         logger.error(f"Error listing connected platforms: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/data", response_model=Dict[str, Any])
+@router.get("/data", )
 async def get_all_user_data(
-    http_request: Request
+    http_request
 ):
     """
     Get all stored data for the user across all social platforms
@@ -328,10 +325,10 @@ async def get_all_user_data(
         logger.error(f"Error retrieving all user data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/disconnect/{platform}", response_model=Dict[str, Any])
+@router.delete("/disconnect/{platform}", )
 async def disconnect_social_platform(
-    platform: str,
-    http_request: Request
+    platform,
+    http_request
 ):
     """
     Remove social platform integration and all stored data
@@ -377,7 +374,7 @@ async def disconnect_social_platform(
         logger.error(f"Error disconnecting social platform: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/health", response_model=Dict[str, Any])
+@router.get("/health", )
 async def health_check():
     """
     Health check for social platform store
@@ -395,7 +392,7 @@ async def health_check():
             "error": str(e)
         }
 
-@router.post("/cleanup", response_model=Dict[str, Any])
+@router.post("/cleanup", )
 async def cleanup_expired_tokens():
     """
     Clean up expired tokens (maintenance endpoint)
@@ -409,7 +406,7 @@ async def cleanup_expired_tokens():
         logger.error(f"Token cleanup failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/platforms", response_model=Dict[str, Any])
+@router.get("/platforms", )
 async def get_supported_platforms():
     """
     Get list of supported social platforms

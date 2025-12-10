@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 import logging
 
-from .asana_service import asana_service
+from asana_service import asana_service
 
 logger = logging.getLogger(__name__)
 
@@ -23,21 +23,21 @@ _token_store: Dict[str, str] = {}
 # Pydantic models for request/response
 class TaskCreate(BaseModel):
     name: str = Field(..., description="Task name")
-    description: Optional[str] = Field(None, description="Task description")
-    due_on: Optional[str] = Field(None, description="Due date (YYYY-MM-DD)")
-    assignee: Optional[str] = Field(None, description="Assignee user GID")
-    projects: Optional[List[str]] = Field(
+    description: str = Field(None, description="Task description")
+    due_on: str = Field(None, description="Due date (YYYY-MM-DD)")
+    assignee: str = Field(None, description="Assignee user GID")
+    projects: List[str] = Field(
         default_factory=list, description="Project GIDs"
     )
-    workspace: Optional[str] = Field(None, description="Workspace GID")
+    workspace: str = Field(None, description="Workspace GID")
 
 
 class TaskUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="Task name")
-    description: Optional[str] = Field(None, description="Task description")
-    completed: Optional[bool] = Field(None, description="Completion status")
-    due_on: Optional[str] = Field(None, description="Due date (YYYY-MM-DD)")
-    assignee: Optional[str] = Field(None, description="Assignee user GID")
+    name: str = Field(None, description="Task name")
+    description: str = Field(None, description="Task description")
+    completed: bool = Field(None, description="Completion status")
+    due_on: str = Field(None, description="Due date (YYYY-MM-DD)")
+    assignee: str = Field(None, description="Assignee user GID")
 
 
 class CommentCreate(BaseModel):
@@ -47,11 +47,11 @@ class CommentCreate(BaseModel):
 class SearchQuery(BaseModel):
     query: str = Field(..., description="Search query")
     workspace_gid: str = Field(..., description="Workspace GID")
-    limit: Optional[int] = Field(20, description="Result limit")
+    limit: int = Field(20, description="Result limit")
 
 
 # Helper function to extract access token (in production, use proper auth)
-async def get_access_token(user_id: Optional[str] = Query(None, description="User ID")) -> str:
+async def get_access_token(user_id: str = Query(None, description="User ID")) -> str:
     """
     Extract access token for user.
     In production, this would fetch from secure token storage.
@@ -75,14 +75,14 @@ async def get_access_token(user_id: Optional[str] = Query(None, description="Use
     return "mock_access_token_placeholder"
 
 @router.post("/auth/token")
-async def set_access_token(token: str = Body(..., embed=True), user_id: str = Body(..., embed=True)):
+async def set_access_token(token = Body(..., embed=True), user_id = Body(..., embed=True)):
     """Set access token for a user (for testing/development)"""
     _token_store[user_id] = token
     return {"status": "success", "message": "Token stored successfully"}
 
 
 @router.get("/health")
-async def asana_health(access_token: str = Depends(get_access_token)):
+async def asana_health(access_token = Depends(get_access_token)):
     """Check Asana API connectivity"""
     # Allow health check to pass with placeholder token (for validator)
     if access_token == "mock_access_token_placeholder":
@@ -101,7 +101,7 @@ async def asana_health(access_token: str = Depends(get_access_token)):
 
 
 @router.get("/user/profile")
-async def get_user_profile(access_token: str = Depends(get_access_token)):
+async def get_user_profile(access_token = Depends(get_access_token)):
     """Get current Asana user profile"""
     result = await asana_service.get_user_profile(access_token)
     if not result["ok"]:
@@ -110,7 +110,7 @@ async def get_user_profile(access_token: str = Depends(get_access_token)):
 
 
 @router.get("/workspaces")
-async def get_workspaces(access_token: str = Depends(get_access_token)):
+async def get_workspaces(access_token = Depends(get_access_token)):
     """Get user's Asana workspaces"""
     result = await asana_service.get_workspaces(access_token)
     if not result["ok"]:
@@ -121,8 +121,8 @@ async def get_workspaces(access_token: str = Depends(get_access_token)):
 @router.get("/projects")
 async def get_projects(
     access_token: str = Depends(get_access_token),
-    workspace_gid: Optional[str] = Query(None, description="Workspace GID"),
-    team_gid: Optional[str] = Query(None, description="Team GID"),
+    workspace_gid: str = Query(None, description="Workspace GID"),
+    team_gid: str = Query(None, description="Team GID"),
     limit: int = Query(50, description="Number of projects to return"),
 ):
     """Get projects from workspace or team"""
@@ -137,11 +137,11 @@ async def get_projects(
 @router.get("/tasks")
 async def get_tasks(
     access_token: str = Depends(get_access_token),
-    project_gid: Optional[str] = Query(None, description="Project GID"),
-    workspace_gid: Optional[str] = Query(None, description="Workspace GID"),
-    assignee: Optional[str] = Query(None, description="Assignee user GID"),
-    completed_since: Optional[str] = Query(None, description="Completed since date"),
-    limit: int = Query(50, description="Number of tasks to return"),
+    project_gid: str = Query(None, description="Project GID"),
+    workspace_gid: str = Query(None, description="Workspace GID"),
+    assignee: str = Query(None, description="Assignee user GID"),
+    completed_since: str = Query(None, description="Completed since date"),
+    limit = Query(50, description="Number of tasks to return"),
 ):
     """Get tasks from project or workspace"""
     result = await asana_service.get_tasks(
@@ -154,7 +154,7 @@ async def get_tasks(
 
 @router.post("/tasks")
 async def create_task(
-    task_data: TaskCreate, access_token: str = Depends(get_access_token)
+    task_data, access_token = Depends(get_access_token)
 ):
     """Create a new task in Asana"""
     result = await asana_service.create_task(access_token, task_data.dict())
@@ -165,7 +165,7 @@ async def create_task(
 
 @router.put("/tasks/{task_gid}")
 async def update_task(
-    task_gid: str, updates: TaskUpdate, access_token: str = Depends(get_access_token)
+    task_gid, updates, access_token = Depends(get_access_token)
 ):
     """Update an existing task"""
     result = await asana_service.update_task(
@@ -179,8 +179,8 @@ async def update_task(
 @router.get("/teams")
 async def get_teams(
     access_token: str = Depends(get_access_token),
-    workspace_gid: str = Query(..., description="Workspace GID"),
-    limit: int = Query(50, description="Number of teams to return"),
+    workspace_gid = Query(..., description="Workspace GID"),
+    limit = Query(50, description="Number of teams to return"),
 ):
     """Get teams in a workspace"""
     result = await asana_service.get_teams(access_token, workspace_gid, limit)
@@ -192,8 +192,8 @@ async def get_teams(
 @router.get("/users")
 async def get_users(
     access_token: str = Depends(get_access_token),
-    workspace_gid: str = Query(..., description="Workspace GID"),
-    limit: int = Query(50, description="Number of users to return"),
+    workspace_gid = Query(..., description="Workspace GID"),
+    limit = Query(50, description="Number of users to return"),
 ):
     """Get users in a workspace"""
     result = await asana_service.get_users(access_token, workspace_gid, limit)
@@ -204,7 +204,7 @@ async def get_users(
 
 @router.post("/search")
 async def search_tasks(
-    search_query: SearchQuery, access_token: str = Depends(get_access_token)
+    search_query, access_token = Depends(get_access_token)
 ):
     """Search for tasks in workspace"""
     result = await asana_service.search_tasks(
@@ -217,9 +217,9 @@ async def search_tasks(
 
 @router.get("/tasks/{task_gid}/stories")
 async def get_task_stories(
-    task_gid: str,
+    task_gid,
     access_token: str = Depends(get_access_token),
-    limit: int = Query(20, description="Number of stories to return"),
+    limit = Query(20, description="Number of stories to return"),
 ):
     """Get stories (comments) for a task"""
     result = await asana_service.get_task_stories(access_token, task_gid, limit)
@@ -230,7 +230,7 @@ async def get_task_stories(
 
 @router.post("/tasks/{task_gid}/comments")
 async def add_task_comment(
-    task_gid: str, comment: CommentCreate, access_token: str = Depends(get_access_token)
+    task_gid, comment, access_token = Depends(get_access_token)
 ):
     """Add a comment to a task"""
     result = await asana_service.add_task_comment(access_token, task_gid, comment.text)
@@ -240,7 +240,7 @@ async def add_task_comment(
 
 
 @router.get("/status")
-async def get_integration_status(access_token: str = Depends(get_access_token)):
+async def get_integration_status(access_token = Depends(get_access_token)):
     """Get comprehensive Asana integration status"""
     try:
         # Check connectivity and get user info
@@ -295,7 +295,7 @@ async def create_webhook():
 
 
 @router.delete("/webhooks/{webhook_gid}")
-async def delete_webhook(webhook_gid: str):
+async def delete_webhook(webhook_gid):
     """Delete Asana webhook (future implementation)"""
     return {
         "message": f"Webhook deletion endpoint for {webhook_gid} - not yet implemented"
