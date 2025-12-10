@@ -108,7 +108,7 @@ integrations = [
     # Integrations - Communication
     ("integrations.slack_routes", "router", None),
     # ("integrations.zoom_routes", "router", None),  # Temporarily disabled due to conflict with zoom_oauth_routes
-    ("integrations.zoom_oauth_routes_simple", "router", None),  # Using simplified version
+    ("integrations.zoom_oauth_routes", "router", None),
     ("integrations.zoom_routes", "router", None),
     ("integrations.teams_routes", "router", None),
     ("integrations.gmail_routes", "router", None),
@@ -150,7 +150,7 @@ integrations = [
     # Integrations - Marketing & Social
     ("integrations.mailchimp_routes", "router", "/api"),
     ("integrations.linkedin_routes", "router", None),
-    ("integrations.social_store_routes_simple", "router", None),  # Using simplified version
+    ("integrations.social_store_routes", "router", None),
 
     # Integrations - Other
     ("integrations.deepgram_routes", "router", None),

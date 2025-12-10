@@ -115,23 +115,10 @@ async def search_memories(request: MemorySearchRequest):
 
         logger.info(f"Search completed for user {request.user_id}, found {len(results)} results")
 
-        # Add business value metrics to response
-        response = MemorySearchResponse(
+            return MemorySearchResponse(
             results=results,
             count=len(results)
         )
-
-        # Include business value data
-        response_dict = response.dict()
-        response_dict["business_value"] = {
-            "search_value_score": 0.75,
-            "knowledge_discovery_hours_saved": 8,
-            "decision_making_speedup_percent": 35,
-            "information_retrieval_efficiency_percent": 42,
-            "contextual_accuracy_percent": 89
-        }
-
-        return response_dict
 
     except Exception as e:
         logger.error(f"Error searching memories: {e}")

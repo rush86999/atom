@@ -77,15 +77,7 @@ async def create_workflow(workflow: WorkflowDefinition):
 
     workflow.updatedAt = datetime.now().isoformat()
 
-    # Add business value metrics
-    workflow_dict = workflow.dict()
-    workflow_dict["business_value"] = {
-        "estimated_monthly_savings_usd": 2500,
-        "automation_hours_saved_per_month": 40,
-        "error_reduction_percent": 15,
-        "productivity_boost_percent": 25,
-        "business_value_score": 0.72
-    }
+      workflow_dict = workflow.dict()
 
     # Check if exists (update)
     existing_index = next((i for i, w in enumerate(workflows) if w.get('id') == workflow.id), -1)
