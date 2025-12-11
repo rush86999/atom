@@ -201,15 +201,42 @@ export class ChatMemoryIntegration extends EventEmitter {
    */
   private async storeInLongTermMemory(memory: ConversationMemory): Promise<void> {
     try {
-      // TODO: Integrate with existing LanceDB service
-      // This would call the Python backend's store_conversation_context
+      // FIXED: Integrate with existing LanceDB service
+      // Call the Python backend's store_conversation_context
+      const response = await fetch('/api/memory/store', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: memory.userId,
+          conversation_id: memory.conversationId,
+          content: memory.content,
+          content_type: memory.contentType,
+          metadata: memory.metadata,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`LanceDB storage failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      memory.vectorId = result.vector_id;
+
+      // Also maintain local cache for quick access
       const longTermMemories = this.longTermMemoryCache.get(memory.userId) || [];
       longTermMemories.push(memory);
       this.longTermMemoryCache.set(memory.userId, longTermMemories);
 
-      this.logger.info(`Stored in long-term memory: ${memory.content.substring(0, 50)}...`);
+      this.logger.info(`Stored in LanceDB: ${memory.content.substring(0, 50)}... (vector_id: ${result.vector_id})`);
     } catch (error) {
       this.logger.error('Failed to store in long-term memory:', error);
+      // Fallback to local cache if LanceDB fails
+      const longTermMemories = this.longTermMemoryCache.get(memory.userId) || [];
+      longTermMemories.push(memory);
+      this.longTermMemoryCache.set(memory.userId, longTermMemories);
     }
   }
 
@@ -218,24 +245,72 @@ export class ChatMemoryIntegration extends EventEmitter {
    */
   private async searchLongTermMemories(userId: string, query: string): Promise<ConversationMemory[]> {
     try {
-      // TODO: Integrate with existing LanceDB search_conversation_context
-      // This would call the Python backend's search function
-      const userMemories = this.longTermMemoryCache.get(userId) || [];
+      // FIXED: Integrate with existing LanceDB search_conversation_context
+      // Call the Python backend's search function
+      const response = await fetch('/api/memory/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          query: query,
+          limit: 10,  // Return top 10 most relevant memories
+          similarity_threshold: 0.7
+        })
+      });
 
-      // Simple text-based similarity for demo
+      if (response.ok) {
+        const results = await response.json();
+
+        // Convert LanceDB results to ConversationMemory format
+        const memories = results.map((result: any) => ({
+          id: result.id,
+          userId: result.user_id,
+          conversationId: result.conversation_id,
+          content: result.content,
+          contentType: result.content_type,
+          timestamp: new Date(result.timestamp),
+          metadata: result.metadata,
+          vectorId: result.vector_id,
+          similarity: result.score
+        } as ConversationMemory));
+
+        // Also search local cache for additional results
+        const userMemories = this.longTermMemoryCache.get(userId) || [];
+        const cacheMemories = userMemories
+          .filter(memory => !memories.some(m => m.vectorId === memory.vectorId))
+          .map(memory => ({
+            memory,
+            similarity: this.calculateTextSimilarity(query, memory.content)
+          }))
+          .filter(item => item.similarity > 0.5);
+
+        // Combine and sort by similarity
+        return [...memories, ...cacheMemories.map(item => item.memory)]
+          .sort((a, b) => (b.similarity || 0) - (a.similarity || 0))
+          .slice(0, 10);
+      } else {
+        throw new Error(`LanceDB search failed: ${response.statusText}`);
+      }
+    } catch (error) {
+      this.logger.error('Failed to search long-term memories:', error);
+
+      // Fallback to local cache search
+      const userMemories = this.longTermMemoryCache.get(userId) || [];
       return userMemories
         .map(memory => ({
           memory,
           similarity: this.calculateTextSimilarity(query, memory.content)
         }))
-        .filter(result => result.similarity > this.config.similarityThreshold)
-        .sort((a, b) => b.similarity - a.similarity)
-        .map(result => result.memory)
-        .slice(0, 10); // Limit results
-
-    } catch (error) {
-      this.logger.error('Failed to search long-term memories:', error);
-      return [];
+        .filter(item => item.similarity > 0.5)
+        .map(item => item.memory)
+        .sort((a, b) => {
+          const aTime = a.timestamp.getTime();
+          const bTime = b.timestamp.getTime();
+          return bTime - aTime; // Most recent first
+        })
+        .slice(0, 5); // Return top 5 from fallback
     }
   }
 

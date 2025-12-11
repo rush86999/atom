@@ -47,6 +47,13 @@ SERVICES = [
         "description": "Note-taking and documentation",
         "status": "available",
         "oauth_required": True
+    },
+    {
+        "id": "mcp_servers",
+        "name": "MCP Servers",
+        "description": "Model Context Protocol servers for extended AI capabilities",
+        "status": "available",
+        "oauth_required": False
     }
 ]
 

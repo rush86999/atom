@@ -1,12 +1,14 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
-import { getSession } from "next-auth/react";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
     // Verify user is authenticated
@@ -23,17 +25,18 @@ export default async function handler(
       });
     }
 
-    // Validate required OAuth parameters
-    const { code, state, error } = req.query;
+    const { code, state, error } = req.body;
 
+    // Handle OAuth errors
     if (error) {
-      console.error('OAuth error from Slack:', error);
+      console.error('Zoom OAuth error:', error);
       return res.status(400).json({
         error: 'OAuth authorization failed',
-        message: error as string
+        message: error
       });
     }
 
+    // Validate required parameters
     if (!code) {
       return res.status(400).json({
         error: 'Missing authorization code',
@@ -41,20 +44,17 @@ export default async function handler(
       });
     }
 
-    // CSRF Protection: Validate state parameter
-    if (!state || typeof state !== 'string') {
+    if (!state) {
       return res.status(400).json({
-        error: 'Invalid state parameter',
-        message: 'CSRF protection: State parameter is missing or invalid'
+        error: 'Missing state parameter',
+        message: 'State parameter is required for CSRF protection'
       });
     }
 
-    // Retrieve stored state from session/cookie for validation
-    // In a real implementation, you would store this in the user's session
-    const storedState = req.cookies[`oauth_state_${token.email}`] || req.headers['x-oauth-state'];
-
+    // Validate state parameter for CSRF protection
+    const storedState = req.cookies[`zoom_oauth_state_${token.email}`];
     if (!storedState || storedState !== state) {
-      console.error('CSRF attack detected: State mismatch', {
+      console.error('CSRF attack detected: State mismatch for Zoom OAuth', {
         expected: storedState,
         received: state,
         user: token.email
@@ -66,41 +66,50 @@ export default async function handler(
     }
 
     // Clear the stored state after successful validation
-    res.clearCookie(`oauth_state_${token.email}`);
+    res.clearCookie(`zoom_oauth_state_${token.email}`);
 
-    // Exchange authorization code for tokens
-    const response = await fetch(`${backendUrl}/api/slack/callback`, {
+    // Prepare token exchange request
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+    const redirectUri = `${process.env.NEXTAUTH_URL}/api/integrations/zoom/callback`;
+
+    const tokenData = {
+      code,
+      redirect_uri: redirectUri,
+      state,
+      use_pkce: true
+    };
+
+    // Exchange authorization code for access token
+    const response = await fetch(`${backendUrl}/api/zoom/exchange-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-User-Email': token.email,
         'X-User-ID': token.sub || token.id || 'unknown',
       },
-      body: JSON.stringify({
-        code,
-        state, // State now validated
-        user_id: token.sub || token.id,
-        email: token.email,
-      }),
+      body: JSON.stringify(tokenData),
     });
 
     if (response.ok) {
-      const data = await response.json();
+      const result = await response.json();
 
-      // Redirect to Slack integration page with success message
-      res.redirect('/integrations/slack?success=true');
+      // Redirect to Zoom integration page with success message
+      const successUrl = `/integrations/zoom?success=true&connected=true&timestamp=${Date.now()}`;
+      return res.redirect(302, successUrl);
     } else {
       const errorData = await response.json();
       return res.status(400).json({
-        error: 'Failed to complete Slack OAuth',
+        error: 'Failed to complete Zoom OAuth',
         message: errorData.message || 'Unknown OAuth error',
+        details: errorData
       });
     }
+
   } catch (error) {
-    console.error('Slack OAuth callback error:', error);
+    console.error('Zoom OAuth callback error:', error);
     return res.status(500).json({
-      error: 'Failed to complete Slack OAuth flow',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Internal server error',
+      message: 'Failed to complete Zoom OAuth flow'
     });
   }
 }

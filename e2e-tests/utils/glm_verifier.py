@@ -336,7 +336,7 @@ class GLMVerifier:
         }
 
         data = {
-            "model": self.model,
+            "model": self.models[0],
             "messages": [
                 {
                     "role": "system",

@@ -147,6 +147,9 @@ integrations = [
     ("integrations.github_routes", "router", None),
     ("integrations.figma_routes", "router", None),
 
+    # Model Context Protocol (MCP) Servers
+    ("integrations.mcp_routes", "router", None),
+
     # Integrations - Marketing & Social
     ("integrations.mailchimp_routes", "router", "/api"),
     ("integrations.linkedin_routes", "router", None),

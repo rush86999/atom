@@ -32,6 +32,7 @@ import {
   Activity,
   RefreshCw,
   LayoutDashboard,
+  Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,7 @@ const DashboardPage: React.FC = () => {
     linear: List,
     outlook: Mail,
     asana: CheckSquare,
+    mcp: Terminal,
   };
 
   const checkIntegrationsHealth = async () => {
@@ -80,6 +82,7 @@ const DashboardPage: React.FC = () => {
         fetch("/api/integrations/linear/health"),
         fetch("/api/integrations/outlook/health"),
         fetch("/api/integrations/asana/health"),
+        fetch("/api/integrations/mcp/health"),
       ]);
 
       const integrationList = [
@@ -96,6 +99,7 @@ const DashboardPage: React.FC = () => {
         { id: "linear", name: "Linear", category: "productivity" },
         { id: "outlook", name: "Outlook", category: "communication" },
         { id: "asana", name: "Asana", category: "productivity" },
+        { id: "mcp", name: "MCP Servers", category: "ai-tools" },
       ];
 
       const updatedIntegrations = integrationList.map((integration, index) => {

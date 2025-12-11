@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-// TODO: Pocket OAuth implementation pending dependencies
-// import PocketAPI from 'pocket-api';
+import PocketAPI from 'pocket-api';
 
 export default async function handler(
   req: NextApiRequest,

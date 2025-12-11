@@ -1,9 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]";
-// TODO: Pocket OAuth implementation pending dependencies
-// import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
-// import PocketAPI from 'pocket-api';
+import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
+import PocketAPI from 'pocket-api';
 
 export default async function handler(
   req: NextApiRequest,

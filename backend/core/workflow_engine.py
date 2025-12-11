@@ -305,26 +305,31 @@ class WorkflowEngine:
         logger.info(f"Executing {service}.{action} with params: {params}")
         
         # Fixed: Implement actual service registry lookup and execution
+        # Service registry mapping
+        service_registry = {
+            "slack": self._execute_slack_action,
+            "asana": self._execute_asana_action,
+            "github": self._execute_github_action,
+            "email": self._execute_email_action,
+            "calendar": self._execute_calendar_action,
+            "database": self._execute_database_action,
+            "ai": self._execute_ai_action,
+            "webhook": self._execute_webhook_action,
+            "mcp": self._execute_mcp_action,
+            "main_agent": self._execute_main_agent_action
+        }
+
+        # Check for fallback service
+        fallback_service = step.get("fallback_service")
+
+        # Try primary service first
+        primary_error = None
+        if service not in service_registry:
+            raise ValueError(f"Unknown service: {service}")
+
+        executor = service_registry[service]
         try:
-            # Service registry mapping
-            service_registry = {
-                "slack": self._execute_slack_action,
-                "asana": self._execute_asana_action,
-                "github": self._execute_github_action,
-                "email": self._execute_email_action,
-                "calendar": self._execute_calendar_action,
-                "database": self._execute_database_action,
-                "ai": self._execute_ai_action,
-                "webhook": self._execute_webhook_action
-            }
-
-            if service not in service_registry:
-                raise ValueError(f"Unknown service: {service}")
-
-            # Execute the actual service action
-            executor = service_registry[service]
             result = await executor(action, params)
-
             return {
                 "status": "success",
                 "service": service,
@@ -333,18 +338,53 @@ class WorkflowEngine:
                 "timestamp": datetime.now().isoformat(),
                 "execution_method": "service_registry"
             }
-
         except Exception as e:
-            logger.error(f"Failed to execute {service}.{action}: {e}")
-            return {
-                "status": "error",
-                "service": service,
-                "action": action,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
-                "execution_method": "service_registry_failed",
-                "params": params
-            }
+            primary_error = e
+            logger.warning(f"Primary service {service}.{action} failed: {e}")
+            # Continue to fallback if available
+
+        # If primary failed and fallback service is specified, try fallback
+        if primary_error is not None and fallback_service and fallback_service in service_registry:
+            logger.info(f"Attempting fallback service {fallback_service}.{action}")
+            try:
+                fallback_executor = service_registry[fallback_service]
+                result = await fallback_executor(action, params)
+                return {
+                    "status": "success",
+                    "service": fallback_service,
+                    "action": action,
+                    "result": result,
+                    "timestamp": datetime.now().isoformat(),
+                    "execution_method": "fallback_service",
+                    "original_service": service,
+                    "fallback_used": True
+                }
+            except Exception as e:
+                logger.error(f"Fallback service {fallback_service}.{action} also failed: {e}")
+                # Both primary and fallback failed
+                return {
+                    "status": "error",
+                    "service": service,
+                    "action": action,
+                    "error": f"Primary failed: {primary_error}, Fallback failed: {e}",
+                    "timestamp": datetime.now().isoformat(),
+                    "execution_method": "service_registry_failed",
+                    "params": params,
+                    "fallback_attempted": True
+                }
+
+        # No fallback or fallback not in registry
+        logger.error(f"Failed to execute {service}.{action}: {primary_error}")
+        return {
+            "status": "error",
+            "service": service,
+            "action": action,
+            "error": str(primary_error),
+            "timestamp": datetime.now().isoformat(),
+            "execution_method": "service_registry_failed",
+            "params": params,
+            "fallback_attempted": False
+        }
 
     # Service executor methods
     async def _execute_slack_action(self, action: str, params: dict) -> dict:
@@ -419,6 +459,121 @@ class WorkflowEngine:
             "result": f"Webhook {action} executed",
             "status": "success"
         }
+
+    async def _execute_mcp_action(self, action: str, params: dict) -> dict:
+        """Execute MCP server actions"""
+        try:
+            from integrations.mcp_service import mcp_service
+
+            server_id = params.get("server_id")
+            tool_name = params.get("tool_name", action)
+            tool_args = params.get("arguments", {})
+
+            if not server_id:
+                raise ValueError("server_id is required for MCP actions")
+
+            # Execute MCP tool
+            result = await mcp_service.execute_tool(server_id, tool_name, tool_args)
+
+            return {
+                "action": action,
+                "server_id": server_id,
+                "tool_name": tool_name,
+                "result": result,
+                "status": "success"
+            }
+
+        except Exception as e:
+            return {
+                "action": action,
+                "error": str(e),
+                "status": "error"
+            }
+
+    async def _execute_main_agent_action(self, action: str, params: dict) -> dict:
+        """Execute Main Agent actions with MCP connections"""
+        try:
+            # This allows the main agent to act as a workflow node with MCP capabilities
+            agent_action = params.get("agent_action", action)
+            mcp_servers = params.get("mcp_servers", [])
+            input_data = params.get("input_data", {})
+
+            # Prepare agent context with MCP connections
+            agent_context = {
+                "action": agent_action,
+                "input_data": input_data,
+                "mcp_connections": {},
+                "available_tools": []
+            }
+
+            # Get active MCP connections
+            if mcp_servers:
+                from integrations.mcp_service import mcp_service
+                active_connections = await mcp_service.get_active_connections()
+
+                for connection in active_connections:
+                    if connection["server_id"] in mcp_servers:
+                        server_tools = await mcp_service.get_server_tools(connection["server_id"])
+                        agent_context["mcp_connections"][connection["server_id"]] = {
+                            "connected_at": connection["connected_at"],
+                            "tools": server_tools
+                        }
+                        agent_context["available_tools"].extend([
+                            {
+                                "server_id": connection["server_id"],
+                                "tool": tool
+                            } for tool in server_tools
+                        ])
+
+            # Execute main agent action with MCP context
+            # This would integrate with your existing main agent system
+            result = await self._execute_agent_with_mcp(agent_context)
+
+            return {
+                "action": action,
+                "agent_action": agent_action,
+                "mcp_servers_used": list(agent_context["mcp_connections"].keys()),
+                "result": result,
+                "status": "success"
+            }
+
+        except Exception as e:
+            return {
+                "action": action,
+                "error": str(e),
+                "status": "error"
+            }
+
+    async def _execute_agent_with_mcp(self, agent_context: dict) -> dict:
+        """Execute main agent with MCP tool access"""
+        try:
+            # This is a placeholder for your main agent execution
+            # You would integrate with your actual main agent system here
+
+            action = agent_context["action"]
+            input_data = agent_context["input_data"]
+            mcp_connections = agent_context["mcp_connections"]
+            available_tools = agent_context["available_tools"]
+
+            # Simulate agent execution with MCP tools
+            await asyncio.sleep(0.5)  # Agent actions take time
+
+            # In a real implementation, this would:
+            # 1. Pass the MCP tools to your main agent
+            # 2. Let the agent decide which tools to use
+            # 3. Execute the selected MCP tools
+            # 4. Return the agent's response
+
+            return {
+                "agent_response": f"Executed {action} with {len(available_tools)} MCP tools available",
+                "tools_available": len(available_tools),
+                "mcp_connections": len(mcp_connections),
+                "input_processed": input_data,
+                "execution_method": "main_agent_with_mcp"
+            }
+
+        except Exception as e:
+            raise Exception(f"Agent execution failed: {e}")
 
 class MissingInputError(Exception):
     def __init__(self, message: str, missing_var: str):

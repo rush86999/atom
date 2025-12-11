@@ -1,19 +1,43 @@
 """
 LLM-based verification utility for marketing claims validation
 Uses OpenAI API to independently assess test outputs against marketing claims
+Enhanced with async support and fallback mechanisms
 """
 
 import json
 import os
 import time
+import asyncio
+import concurrent.futures
 from typing import Any, Dict, List, Optional
 
-import openai
-from openai import OpenAI
+try:
+    import openai
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    # Create mock classes for compatibility
+    class OpenAI:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("OpenAI library not available")
+
+# Import enhanced validation system
+try:
+    from .enhanced_ai_validation import (
+        EnhancedAIValidationSystem,
+        AIProvider,
+        create_validation_system,
+        validate_marketing_claims
+    )
+    ENHANCED_SYSTEM_AVAILABLE = True
+except ImportError:
+    ENHANCED_SYSTEM_AVAILABLE = False
+    print("⚠️  Enhanced AI validation system not available, using legacy mode")
 
 
 class LLMVerifier:
-    """LLM-based verification for marketing claims validation"""
+    """LLM-based verification for marketing claims validation with enhanced capabilities"""
 
     def __init__(
         self,
@@ -21,24 +45,42 @@ class LLMVerifier:
         base_url: Optional[str] = None,
         model: str = "gpt-4",
         max_retries: int = 3,
+        use_enhanced: bool = True,
     ):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("API key is required (OPENAI_API_KEY or passed explicitly)")
-
         self.base_url = base_url
         self.model = model
-        
-        # Initialize client with optional base_url for compatible providers (e.g. DeepSeek)
-        if self.base_url:
-            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
-            print(f"Initialized LLMVerifier with custom base_url: {self.base_url} and model: {self.model}")
-        else:
-            self.client = OpenAI(api_key=self.api_key)
-            
-        self.max_retries = max_retries
         self.max_retries = max_retries
         self.request_delay = 2  # Increased delay between requests
+        self.client = None  # Initialize client attribute
+
+        # Try to use enhanced system if available
+        self.enhanced_system = None
+        if use_enhanced and ENHANCED_SYSTEM_AVAILABLE:
+            try:
+                # Determine provider based on base_url
+                if base_url and "deepseek" in base_url.lower():
+                    preferred_provider = "deepseek"
+                else:
+                    preferred_provider = "openai"
+
+                self.enhanced_system = create_validation_system(preferred_provider)
+                print(f"✅ Using enhanced AI validation system with provider: {preferred_provider}")
+            except Exception as e:
+                print(f"⚠️  Failed to initialize enhanced system, falling back to legacy: {e}")
+        else:
+            print("📝 Using legacy LLM validation system")
+
+        # Initialize legacy client as fallback (if API key available)
+        if self.api_key:
+            # Initialize client with optional base_url for compatible providers (e.g. DeepSeek)
+            if self.base_url:
+                self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+                print(f"Initialized legacy LLMVerifier with custom base_url: {self.base_url} and model: {self.model}")
+            else:
+                self.client = OpenAI(api_key=self.api_key)
+        elif not self.enhanced_system:
+            raise ValueError("API key is required (OPENAI_API_KEY or passed explicitly)")
 
     def verify_marketing_claim(
         self, claim: str, test_output: Dict[str, Any], context: Optional[str] = None
@@ -54,6 +96,41 @@ class LLMVerifier:
         Returns:
             Verification results with confidence score
         """
+        # Use enhanced system if available
+        if self.enhanced_system:
+            try:
+                # Run async method in sync context
+                loop = None
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                if loop.is_running():
+                    # If loop is already running, fall back to legacy verification
+                    print("⚠️  Event loop already running, using legacy verification")
+                    return self._legacy_verify_marketing_claim(claim, test_output, context)
+                else:
+                    result = loop.run_until_complete(
+                        self.enhanced_system.validate_claim(claim, test_output, context)
+                    )
+                    return result.to_dict()
+
+            except Exception as e:
+                print(f"⚠️  Enhanced system failed, falling back to legacy: {e}")
+                return self._legacy_verify_marketing_claim(claim, test_output, context)
+        else:
+            return self._legacy_verify_marketing_claim(claim, test_output, context)
+
+    def _legacy_verify_marketing_claim(
+        self, claim: str, test_output: Dict[str, Any], context: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Legacy verification method using original OpenAI client"""
+        if self.client is None:
+            # No client available, use rule-based fallback
+            return self._fallback_verification(claim, test_output)
+
         prompt = self._build_verification_prompt(claim, test_output, context)
 
         try:
@@ -82,7 +159,7 @@ class LLMVerifier:
                     if attempt == self.max_retries - 1:
                         # Last attempt failed
                         raise api_error
-                    
+
                     # Check if it's a rate limit error
                     error_str = str(api_error)
                     if "429" in error_str or "rate limit" in error_str.lower():
@@ -95,7 +172,7 @@ class LLMVerifier:
 
         except Exception as e:
             error_msg = str(e)
-            
+
             # Check for API quota/rate limit issues
             if "429" in error_msg or "insufficient_quota" in error_msg or "rate limit" in error_msg.lower():
                 return {
@@ -210,12 +287,48 @@ class LLMVerifier:
         Returns:
             Dictionary mapping claims to verification results
         """
+        # Use enhanced system if available
+        if self.enhanced_system:
+            try:
+                # Run async method in sync context
+                loop = None
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                if loop.is_running():
+                    # If loop is already running, fall back to legacy sequential processing
+                    print("⚠️  Event loop already running, using legacy sequential batch verification")
+                    return self._legacy_batch_verify_claims(claims, test_outputs, context)
+
+                enhanced_results = loop.run_until_complete(
+                    self.enhanced_system.batch_validate_claims(claims, test_outputs, context)
+                )
+
+                # Convert to legacy format
+                return {claim: result.to_dict() for claim, result in enhanced_results.items()}
+
+            except Exception as e:
+                print(f"⚠️  Enhanced batch verification failed, falling back to legacy: {e}")
+                return self._legacy_batch_verify_claims(claims, test_outputs, context)
+        else:
+            return self._legacy_batch_verify_claims(claims, test_outputs, context)
+
+    def _legacy_batch_verify_claims(
+        self,
+        claims: List[str],
+        test_outputs: Dict[str, Any],
+        context: Optional[str] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """Legacy batch verification using sequential processing"""
         results = {}
 
         for claim in claims:
             print(f"Verifying claim: {claim}")
             result = self.verify_marketing_claim(claim, test_outputs, context)
-            
+
             # Check if it's an API limit error and provide fallback
             if result.get("api_limit_error", False):
                 print(f"⚠️  API limit reached for claim: {claim}. Skipping verification due to OpenAI quota limits.")
@@ -223,7 +336,7 @@ class LLMVerifier:
                 results[claim] = self._fallback_verification(claim, test_outputs)
             else:
                 results[claim] = result
-            
+
             # Rate limiting: wait between API calls to avoid rate limits
             time.sleep(self.request_delay)
 

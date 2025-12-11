@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '../../../lib/db';
 import crypto from 'crypto';
+import { sendEmail, generatePasswordResetEmailHTML } from '../../../lib/email';
 
 export default async function handler(
     req: NextApiRequest,
@@ -19,7 +20,7 @@ export default async function handler(
 
         // Check if user exists
         const userResult = await query(
-            'SELECT id FROM users WHERE email = $1',
+            'SELECT id, name FROM users WHERE email = $1',
             [email]
         );
 
@@ -45,15 +46,26 @@ export default async function handler(
             [user.id, token, expiresAt]
         );
 
-        // TODO: Send email with reset link
-        // For now, log the token (REMOVE THIS IN PRODUCTION)
-        console.log(`Password reset token for ${email}: ${token}`);
-        console.log(`Reset link: ${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}`);
+        // Send password reset email
+        const resetLink = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}`;
+        const userName = user.name || '';
+
+        try {
+            const emailHTML = generatePasswordResetEmailHTML(resetLink, userName);
+            await sendEmail({
+                to: email,
+                subject: 'Reset Your Password',
+                html: emailHTML,
+            });
+        } catch (emailError) {
+            console.error('Failed to send password reset email:', emailError);
+            // Continue - don't expose email failure to user
+        }
 
         return res.status(200).json({
             message: 'If an account exists with that email, a password reset link has been sent.',
             // REMOVE THIS IN PRODUCTION - only for development
-            ...(process.env.NODE_ENV === 'development' && { resetLink: `/auth/reset-password?token=${token}` })
+            ...(process.env.NODE_ENV === 'development' && { resetLink })
         });
     } catch (error) {
         console.error('Forgot password error:', error);

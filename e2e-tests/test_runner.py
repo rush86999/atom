@@ -39,34 +39,47 @@ class E2ETestRunner:
         self.end_time = None
 
     def initialize_llm_verifier(self) -> bool:
-        """Initialize LLM verifier if credentials are available"""
+        """Initialize LLM verifier with enhanced system if credentials are available"""
         try:
-            # Check if we should use DeepSeek
+            # Check environment variables for preferred provider
             use_deepseek = os.getenv("USE_DEEPSEEK_VALIDATOR", "false").lower() == "true"
-            # Check if we should use GLM instead of OpenAI
             use_glm = os.getenv("USE_GLM_VALIDATOR", "false").lower() == "true"
+            use_enhanced = os.getenv("USE_ENHANCED_VALIDATION", "true").lower() == "true"
 
+            # Determine preferred provider
             if use_deepseek:
-                deepseek_key = os.getenv("DEEPSEEK_API_KEY")
-                if not deepseek_key:
-                    raise ValueError("DEEPSEEK_API_KEY not found")
-                
-                self.llm_verifier = LLMVerifier(
-                    api_key=deepseek_key,
-                    base_url="https://api.deepseek.com",
-                    model="deepseek-chat"
-                )
-                print(f"{Fore.CYAN}Using DeepSeek (deepseek-chat) for AI validation{Style.RESET_ALL}")
+                preferred_provider = "deepseek"
+                print(f"{Fore.CYAN}Preferred AI validation provider: DeepSeek{Style.RESET_ALL}")
             elif use_glm:
+                preferred_provider = "glm"
+                print(f"{Fore.CYAN}Preferred AI validation provider: GLM{Style.RESET_ALL}")
+            else:
+                preferred_provider = "openai"
+                print(f"{Fore.CYAN}Preferred AI validation provider: OpenAI{Style.RESET_ALL}")
+
+            if use_glm:
+                # For GLM, use the dedicated GLM verifier
                 self.llm_verifier = GLMVerifier()
                 print(f"{Fore.CYAN}Using GLM 4.6 for AI validation{Style.RESET_ALL}")
             else:
-                self.llm_verifier = LLMVerifier()
-                print(f"{Fore.CYAN}Using OpenAI for AI validation{Style.RESET_ALL}")
+                # For OpenAI and DeepSeek, use the enhanced LLM verifier
+                self.llm_verifier = LLMVerifier(use_enhanced=use_enhanced)
+
+                if use_enhanced:
+                    print(f"{Fore.GREEN}Enhanced AI validation system enabled{Style.RESET_ALL}")
+                else:
+                    print(f"{Fore.YELLOW}Using legacy AI validation system{Style.RESET_ALL}")
+
             return True
+
         except ValueError as e:
             print(
                 f"{Fore.YELLOW}Warning: {e}. LLM verification will be skipped.{Style.RESET_ALL}"
+            )
+            return False
+        except Exception as e:
+            print(
+                f"{Fore.YELLOW}Warning: Failed to initialize LLM verifier: {e}. LLM verification will be skipped.{Style.RESET_ALL}"
             )
             return False
 

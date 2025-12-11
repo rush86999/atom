@@ -141,6 +141,8 @@ async def async_retry_with_backoff(
         return wrapper
     return decorator
 
+with_retry = async_retry_with_backoff
+
 
 class AutoHealingEngine:
     """Central auto-healing engine for managing circuit breakers and retries"""

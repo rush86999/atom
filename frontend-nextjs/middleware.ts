@@ -13,6 +13,7 @@ const publicRoutes = [
 // Define API routes that don't require authentication
 const publicApiRoutes = [
   '/api/auth',
+  '/api/health',
   '/api/hubspot/oauth/start',
   '/api/integrations/hubspot/callback',
 ];

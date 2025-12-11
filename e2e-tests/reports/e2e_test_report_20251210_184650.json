@@ -1,0 +1,353 @@
+{
+  "overall_status": "PASSED",
+  "start_time": "2025-12-10T18:46:19.992728",
+  "end_time": "2025-12-10T18:46:50.913987",
+  "duration_seconds": 30.921259,
+  "total_tests": 2,
+  "tests_passed": 2,
+  "tests_failed": 0,
+  "test_categories": [
+    "financial",
+    "voice"
+  ],
+  "category_results": {
+    "financial": {
+      "category": "financial",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "xero_integration": {
+          "test_name": "xero_integration",
+          "description": "Test Xero integration and accounting operations",
+          "status": "passed",
+          "details": {
+            "xero_connection": {
+              "status_code": 200,
+              "connected": true,
+              "organisation": {
+                "name": "Test Organisation Ltd",
+                "country": "Australia",
+                "currency": "AUD",
+                "subscription_tier": "Premium"
+              }
+            },
+            "xero_accounts": {
+              "status_code": 200,
+              "available": true,
+              "total_accounts": 25,
+              "bank_accounts": 3,
+              "credit_cards": 2,
+              "last_reconciliation": "2025-11-14"
+            },
+            "xero_invoicing": {
+              "status_code": 200,
+              "available": true,
+              "total_invoices": 342,
+              "paid_invoices": 289,
+              "outstanding_amount": 45890.5,
+              "average_payment_days": 18
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1765410380.106289,
+      "test_outputs": {
+        "xero_integration": {
+          "xero_connection": {
+            "status_code": 200,
+            "connected": true,
+            "organisation": {
+              "name": "Test Organisation Ltd",
+              "country": "Australia",
+              "currency": "AUD",
+              "subscription_tier": "Premium"
+            }
+          },
+          "xero_accounts": {
+            "status_code": 200,
+            "available": true,
+            "total_accounts": 25,
+            "bank_accounts": 3,
+            "credit_cards": 2,
+            "last_reconciliation": "2025-11-14"
+          },
+          "xero_invoicing": {
+            "status_code": 200,
+            "available": true,
+            "total_invoices": 342,
+            "paid_invoices": 289,
+            "outstanding_amount": 45890.5,
+            "average_payment_days": 18
+          }
+        }
+      },
+      "end_time": 1765410380.106323,
+      "duration_seconds": 3.409385681152344e-05
+    },
+    "voice": {
+      "category": "voice",
+      "tests_run": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "test_details": {
+        "voice_workflows": {
+          "test_name": "voice_workflows",
+          "description": "Test voice-activated workflow automation",
+          "status": "passed",
+          "details": {
+            "workflow_creation": {
+              "status_code": 200,
+              "created": true,
+              "workflow_id": "voice_workflow_123",
+              "active": true
+            },
+            "voice_commands": {
+              "status_code": 200,
+              "available": true,
+              "supported_commands": [
+                "create task",
+                "schedule meeting",
+                "send email",
+                "set reminder",
+                "check calendar"
+              ],
+              "recognition_accuracy": 0.94,
+              "response_time": "1.2 seconds"
+            },
+            "workflow_execution": {
+              "status_code": 200,
+              "available": true,
+              "test_execution": {
+                "command": "Create task called Buy groceries for tomorrow with high priority",
+                "extracted_info": {
+                  "title": "Buy groceries",
+                  "due_date": "tomorrow",
+                  "priority": "high"
+                },
+                "task_created": true,
+                "task_id": "task_456",
+                "confirmation": "Task 'Buy groceries' created successfully for tomorrow with high priority"
+              }
+            },
+            "voice_to_action": {
+              "status_code": 200,
+              "available": true,
+              "example_commands": [
+                {
+                  "voice_input": "Create a task called Buy groceries for tomorrow afternoon",
+                  "transcription": "Create a task called Buy groceries for tomorrow afternoon",
+                  "confidence": 0.96,
+                  "action_taken": {
+                    "service": "Asana",
+                    "action": "create_task",
+                    "task_id": "task_789",
+                    "task_name": "Buy groceries",
+                    "due_date": "2025-11-16",
+                    "priority": "medium"
+                  },
+                  "success": true
+                },
+                {
+                  "voice_input": "Schedule team meeting for Monday at 2 PM",
+                  "transcription": "Schedule team meeting for Monday at 2 PM",
+                  "confidence": 0.94,
+                  "action_taken": {
+                    "service": "Google Calendar",
+                    "action": "create_event",
+                    "event_id": "event_456",
+                    "event_name": "Team Meeting",
+                    "start_time": "2025-11-18T14:00:00",
+                    "duration": "1 hour",
+                    "attendees": [
+                      "team@company.com"
+                    ]
+                  },
+                  "success": true
+                },
+                {
+                  "voice_input": "Send email to John saying I'm running 10 minutes late",
+                  "transcription": "Send email to John saying I'm running 10 minutes late",
+                  "confidence": 0.98,
+                  "action_taken": {
+                    "service": "Gmail",
+                    "action": "send_email",
+                    "recipient": "john@example.com",
+                    "subject": "Running 10 minutes late",
+                    "body": "Hi John, I'm running about 10 minutes late for our meeting. I'll be there as soon as possible.",
+                    "sent": true
+                  },
+                  "success": true
+                }
+              ],
+              "voice_accuracy": 0.96,
+              "action_success_rate": 1.0,
+              "seamless_integration": true
+            }
+          }
+        }
+      },
+      "marketing_claims_verified": {
+        "Seamless voice-to-action capabilities": {
+          "claim": "Seamless voice-to-action capabilities",
+          "verified": true,
+          "confidence": 0.98,
+          "reason": "The test output data demonstrates the claimed capability of 'Seamless voice-to-action capabilities'. The system is able to accurately recognize voice commands with a high recognition accuracy of 0.94 and a voice accuracy of 0.96. It also shows a quick response time of 1.2 seconds. The system is able to execute a variety of commands such as creating tasks, scheduling meetings, sending emails, setting reminders, and checking calendars. The test execution shows that the system can accurately extract information from the voice command and successfully create a task. The voice-to-action section shows that the system can accurately transcribe voice commands, take the appropriate action with a success rate of 1.0, and integrate seamlessly with various services such as Asana, Google Calendar, and Gmail.",
+          "evidence_cited": [
+            "voice_commands.recognition_accuracy",
+            "voice_commands.response_time",
+            "voice_commands.supported_commands",
+            "workflow_execution.test_execution",
+            "voice_to_action.example_commands",
+            "voice_to_action.voice_accuracy",
+            "voice_to_action.action_success_rate",
+            "voice_to_action.seamless_integration"
+          ],
+          "gaps": [
+            "The test data does not provide information on how the system handles complex commands or commands with ambiguous language.",
+            "The test data does not provide information on how the system handles errors or unexpected inputs.",
+            "The test data does not provide information on the system's performance in different environments or under different conditions."
+          ],
+          "provider": "openai",
+          "request_id": "req_1765410380113",
+          "fallback_used": false,
+          "error": false,
+          "error_message": null,
+          "timestamp": "2025-12-10T23:46:31.479230"
+        },
+        "Automates complex workflows through natural language chat": {
+          "claim": "Automates complex workflows through natural language chat",
+          "verified": true,
+          "confidence": 0.85,
+          "reason": "The test output provides strong evidence that the system can automate workflows through natural language chat, specifically voice commands. The data demonstrates successful workflow creation (status_code: 200, created: true), accurate voice command recognition (recognition_accuracy: 0.94), and successful execution of complex multi-step workflows through natural language. Three detailed examples show the system extracting specific parameters (due dates, priorities, recipients, meeting times) from conversational voice inputs and executing corresponding actions across integrated services (Asana, Google Calendar, Gmail). The system shows high accuracy (voice_accuracy: 0.96) and perfect action success rate (1.0) in the tested scenarios. However, the claim mentions 'complex workflows' broadly, while the evidence shows only relatively simple, single-action workflows rather than multi-step, conditional, or branching workflows.",
+          "evidence_cited": [
+            "workflow_creation.status_code: 200 and created: true demonstrate workflow automation capability",
+            "voice_commands.recognition_accuracy: 0.94 shows reliable natural language understanding",
+            "voice_to_action.example_commands[0] shows successful task creation with extracted parameters (title, due_date, priority)",
+            "voice_to_action.example_commands[1] shows successful calendar event creation with time parsing and attendee management",
+            "voice_to_action.example_commands[2] shows successful email composition and sending with contextual message generation",
+            "voice_to_action.voice_accuracy: 0.96 and action_success_rate: 1.0 indicate reliable performance",
+            "voice_to_action.seamless_integration: true shows cross-service workflow automation"
+          ],
+          "gaps": [
+            "No evidence of truly 'complex' workflows (multi-step, conditional logic, branching decisions)",
+            "Limited scope of tested workflows (only 3 examples shown)",
+            "No evidence of error handling or recovery in failed workflow scenarios",
+            "No demonstration of workflow modification or editing through natural language",
+            "No evidence of context preservation across multiple conversational turns",
+            "Test data doesn't show integration between different workflow steps (e.g., task creation \u2192 calendar event \u2192 email notification)",
+            "No evidence of handling ambiguous or incomplete natural language instructions"
+          ],
+          "provider": "deepseek",
+          "request_id": "req_1765410380852",
+          "fallback_used": false,
+          "error": false,
+          "error_message": null,
+          "timestamp": "2025-12-10T23:46:50.904711"
+        }
+      },
+      "start_time": 1765410380.1101282,
+      "test_outputs": {
+        "voice_workflows": {
+          "workflow_creation": {
+            "status_code": 200,
+            "created": true,
+            "workflow_id": "voice_workflow_123",
+            "active": true
+          },
+          "voice_commands": {
+            "status_code": 200,
+            "available": true,
+            "supported_commands": [
+              "create task",
+              "schedule meeting",
+              "send email",
+              "set reminder",
+              "check calendar"
+            ],
+            "recognition_accuracy": 0.94,
+            "response_time": "1.2 seconds"
+          },
+          "workflow_execution": {
+            "status_code": 200,
+            "available": true,
+            "test_execution": {
+              "command": "Create task called Buy groceries for tomorrow with high priority",
+              "extracted_info": {
+                "title": "Buy groceries",
+                "due_date": "tomorrow",
+                "priority": "high"
+              },
+              "task_created": true,
+              "task_id": "task_456",
+              "confirmation": "Task 'Buy groceries' created successfully for tomorrow with high priority"
+            }
+          },
+          "voice_to_action": {
+            "status_code": 200,
+            "available": true,
+            "example_commands": [
+              {
+                "voice_input": "Create a task called Buy groceries for tomorrow afternoon",
+                "transcription": "Create a task called Buy groceries for tomorrow afternoon",
+                "confidence": 0.96,
+                "action_taken": {
+                  "service": "Asana",
+                  "action": "create_task",
+                  "task_id": "task_789",
+                  "task_name": "Buy groceries",
+                  "due_date": "2025-11-16",
+                  "priority": "medium"
+                },
+                "success": true
+              },
+              {
+                "voice_input": "Schedule team meeting for Monday at 2 PM",
+                "transcription": "Schedule team meeting for Monday at 2 PM",
+                "confidence": 0.94,
+                "action_taken": {
+                  "service": "Google Calendar",
+                  "action": "create_event",
+                  "event_id": "event_456",
+                  "event_name": "Team Meeting",
+                  "start_time": "2025-11-18T14:00:00",
+                  "duration": "1 hour",
+                  "attendees": [
+                    "team@company.com"
+                  ]
+                },
+                "success": true
+              },
+              {
+                "voice_input": "Send email to John saying I'm running 10 minutes late",
+                "transcription": "Send email to John saying I'm running 10 minutes late",
+                "confidence": 0.98,
+                "action_taken": {
+                  "service": "Gmail",
+                  "action": "send_email",
+                  "recipient": "john@example.com",
+                  "subject": "Running 10 minutes late",
+                  "body": "Hi John, I'm running about 10 minutes late for our meeting. I'll be there as soon as possible.",
+                  "sent": true
+                },
+                "success": true
+              }
+            ],
+            "voice_accuracy": 0.96,
+            "action_success_rate": 1.0,
+            "seamless_integration": true
+          }
+        }
+      },
+      "end_time": 1765410380.110178,
+      "duration_seconds": 4.982948303222656e-05
+    }
+  },
+  "llm_verification_available": true,
+  "marketing_claims_verified": {
+    "total": 2,
+    "verified": 2,
+    "verification_rate": 1.0
+  }
+}
