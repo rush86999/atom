@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-chrome-devtools"]
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "BSAaBsyIH-wzGiwtt3azF8xESfloF2Q"
+      }
+    }
+  }
+}
