@@ -327,3 +327,28 @@ Even after fixing the Next.js API routes, some frontend components (`SlackIntegr
 
 **Impact:**
 - Figma and Discord integrations now correctly retrieve user profile information.
+
+### Phase 9: Computer Use Agent Integration (Dec 13, 2025)
+
+**Goal:** Enable "Computer Use" agentic workflows using AGI Open Lux SDK.
+
+**Implementation:**
+1.  **Backend Service**: Created `backend/services/agent_service.py` implementing `ComputerUseAgent`.
+    -   Supports `oagi` Lux SDK integration.
+    -   Includes **Mock Mode** for development without API keys.
+    -   Modes: "Thinker" (Planning), "Actor" (Quick Action), "Tasker" (Sequential).
+2.  **API Layer**: Added `backend/api/agent_routes.py`.
+    -   `POST /api/agent/run`: Start a new agent task.
+    -   `GET /api/agent/status/{task_id}`: Poll task status and logs.
+    -   `POST /api/agent/stop`: Stop a running task.
+3.  **Workflow Orchestration**: Updated `backend/ai/automation_engine.py`.
+    -   Added `run_agent_task` action type.
+    -   Allows workflows to trigger autonomous agent actions.
+4.  **Frontend UI**: Enhanced `DevStudio` (`frontend-nextjs/pages/dev-studio.tsx`).
+    -   Added **Agent Console** component (`components/DevStudio/AgentConsole.tsx`).
+    -   Real-time log streaming and control interface.
+
+**Verification:**
+-   Verified backend service via `verify_agent_service.py`.
+-   Verified API endpoints via standard HTTP tests.
+-   Verified UI integration in DevStudio.

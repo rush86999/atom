@@ -26,6 +26,7 @@ import {
     AlertTriangle,
     Monitor,
 } from "lucide-react";
+import AgentConsole from "@/components/DevStudio/AgentConsole";
 
 // Tauri imports for desktop functionality
 const { invoke } =
@@ -265,6 +266,10 @@ const DevStudio = () => {
                         <TabsTrigger value="editor" className="flex items-center gap-2">
                             <Code className="h-4 w-4" />
                             Code Editor
+                        </TabsTrigger>
+                        <TabsTrigger value="agent" className="flex items-center gap-2">
+                            <Monitor className="h-4 w-4" />
+                            Agent
                         </TabsTrigger>
                     </TabsList>
 
@@ -576,9 +581,15 @@ const DevStudio = () => {
                             </Card>
                         )}
                     </TabsContent>
-                </Tabs>
-            </div>
+                </TabsContent>
+
+                {/* Agent Console Panel */}
+                <TabsContent value="agent" className="space-y-6">
+                    <AgentConsole />
+                </TabsContent>
+            </Tabs>
         </div>
+        </div >
     );
 };
 

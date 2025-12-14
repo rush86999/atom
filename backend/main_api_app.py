@@ -61,9 +61,11 @@ integrations = [
     # Core Modules
     ("core.workflow_ui_endpoints", "router", None),
     ("core.atom_agent_endpoints", "router", None),
+    ("api.agent_routes", "router", None), # Computer Use Agent
     ("core.missing_endpoints", "router", None),
     ("core.service_registry", "router", None),
     ("core.byok_endpoints", "router", None),
+    ("core.byok_competitive_endpoints", "router", None),
     ("core.system_status", "router", None),
     ("service_health_endpoints", "router", None),
     ("core.workflow_endpoints", "router", None),
@@ -71,6 +73,9 @@ integrations = [
     ("core.enterprise_endpoints", "router", None),
     ("core.workflow_marketplace", "router", None),
     ("core.enterprise_user_management", "router", None),
+    ("core.integration_enhancement_endpoints", "router", None),
+    ("core.industry_workflow_endpoints", "router", None),
+    ("core.ai_workflow_optimization_endpoints", "router", None),
     ("core.enterprise_security", "router", "/api/v1"),
     ("core.auto_healing_endpoints", "router", None),
     

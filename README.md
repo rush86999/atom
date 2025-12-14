@@ -22,9 +22,10 @@ ATOM (Advanced Task Orchestration & Management) is an AI-powered automation plat
 
 ## ✨ Meet Your Atom Agent
 
-Atom is your conversational AI agent that automates complex workflows through natural language chat. Instead of manual setup, just describe what you want to automate and Atom builds complete workflows across 33+ integrated platforms.
+Atom is your conversational AI agent that automates complex workflows through natural language chat. Now with Computer Use Agent capabilities, Atom can see and interact with your desktop applications, automate repetitive tasks, and create visual workflows that bridge web services with local desktop software.
 
 **Key Features:**
+- ✅ **Computer Use Agent System** - Desktop automation with visual understanding
 - ✅ **8/8 marketing claims verified** - Platform Complete
 - ✅ **33+ service integrations** - 5 actively connected (Slack, Google Calendar, Salesforce, HubSpot, Discord)
 - ✅ **Natural language workflow creation** - Just describe what you want
@@ -38,7 +39,8 @@ Atom is your conversational AI agent that automates complex workflows through na
 | ❌ Complex workflow builders | ✅ **"Just describe what you want"** |
 | ❌ Manual setup | ✅ **Conversational automation** |
 | ❌ Separate tools | ✅ **One chat interface for everything** |
-| ❌ Voice assistants that can't act | ✅ **Conversation that builds automations** |
+| ❌ Web-only automation | ✅ **Desktop + Web integration** |
+| ❌ Can't see your screen | ✅ **Visual understanding & interaction** |
 
 ## 🚀 Quick Start
 
@@ -104,11 +106,14 @@ npm run dev
 ### 4. Start Talking
 Open `http://localhost:3000` and try these commands:
 
-**"Atom, search for my project documents"**  
-**"Show me my messages from Sarah"**  
-**"What tasks are due today?"**  
-**"Automate my meeting follow-ups"**  
+**"Atom, search for my project documents"**
+**"Show me my messages from Sarah"**
+**"What tasks are due today?"**
+**"Automate my meeting follow-ups"**
 **"Schedule a team meeting for next week"**
+**"Open Excel and create a sales report"**
+**"Copy data from my desktop app to Google Sheets"**
+**"Automate filling out this form on my screen"**
 
 ## 🔍 Specialized Interfaces
 
@@ -131,6 +136,13 @@ Open `http://localhost:3000` and try these commands:
 - Natural language workflow creation
 - Visual drag-and-drop designer
 - Multi-step automation builder
+- **Computer Use Agent** - Desktop application control
+
+### 🖥️ Desktop Automation UI
+- Screen capture and visual understanding
+- Desktop application integration
+- Automated form filling and data entry
+- Cross-platform desktop workflows
 
 ### 📅 Scheduling UI
 - Unified calendar view
