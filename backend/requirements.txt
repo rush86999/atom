@@ -25,6 +25,7 @@ torch>=2.0.0,<3.0.0
 sentence-transformers>=2.2.0,<3.0.0
 langchain>=0.0.300,<1.0.0
 chromadb>=0.4.0,<1.0.0
+oagi>=0.1.0 # OpenAGI Lux SDK
 
 # Authentication & Security
 python-jose[cryptography]>=3.3.0,<4.0.0
