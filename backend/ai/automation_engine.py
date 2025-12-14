@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 from integrations.gmail_service import get_gmail_service
 from integrations.slack_enhanced_service import SlackEnhancedService
+from services.agent_service import agent_service
 from core.oauth_handler import SLACK_OAUTH_CONFIG
 
 # Configure logging
@@ -675,6 +676,20 @@ class AutomationEngine:
                         node_result['output'] = result
                         node_result['status'] = "success"
                         
+
+                    elif action_type == 'run_agent_task':
+                        # Execute Computer Use Agent Task
+                        goal = config.get('goal', '')
+                        mode = config.get('mode', 'thinker')
+                        
+                        logger.info(f"Starting agent task: {goal} ({mode})")
+                        
+                        # Start agent task
+                        param_result = await agent_service.execute_task(goal, mode)
+                        
+                        node_result['output'] = param_result
+                        node_result['status'] = "success"
+
                     else:
                         # Unsupported action type
                         node_result['status'] = "skipped"
