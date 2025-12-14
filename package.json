@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "puppeteer": "^24.33.0"
+  },
+  "dependencies": {
+    "@radix-ui/react-popover": "^1.1.15",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.4.0"
+  }
+}
