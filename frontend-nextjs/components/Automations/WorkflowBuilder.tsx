@@ -102,28 +102,100 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
         }
     };
 
-    const handleChatSubmit = (e: React.FormEvent) => {
+    const handleChatSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const cmd = chatInput.toLowerCase();
+        if (!chatInput.trim()) return;
 
-        // Simple mock NLP logic for "Conversation Based Editing"
-        if (cmd.includes('add') && cmd.includes('slack')) {
-            addServiceNode('Slack');
-            toast({ title: "AI Copilot", description: "Added Slack node." });
-        } else if (cmd.includes('add') && cmd.includes('desktop')) {
-            addNode('desktop');
-            toast({ title: "AI Copilot", description: "Added Desktop agent." });
-        } else if (cmd.includes('clear') || cmd.includes('reset')) {
-            setNodes([]);
-            setEdges([]);
-            toast({ title: "AI Copilot", description: "Cleared workflow." });
-        } else {
-            toast({ title: "AI Copilot", description: "Command not recognized yet. Try 'Add Slack' or 'Clear'." });
-        }
+        setIsProcessing(true);
+        const message = chatInput;
         setChatInput('');
+
+        try {
+            // Call NLU endpoint
+            const response = await fetch('/api/agent/nlu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+
+            if (!response.ok) {
+                throw new Error('NLU service unavailable');
+            }
+
+            const nluResult = await response.json();
+            const { primaryGoal, extractedParameters } = nluResult;
+            const service = extractedParameters?.service || 'general';
+            const action = extractedParameters?.action || 'process';
+
+            // Map NLU output to workflow operations
+            if (primaryGoal === 'workflow' || service !== 'general') {
+                // Service-specific nodes
+                const serviceMap: Record<string, string> = {
+                    'slack': 'Slack',
+                    'gmail': 'Gmail',
+                    'email': 'Gmail',
+                    'github': 'GitHub',
+                    'notion': 'Notion',
+                    'asana': 'Asana',
+                    'trello': 'Trello',
+                    'calendar': 'Google Calendar',
+                    'google calendar': 'Google Calendar',
+                    'drive': 'Google Drive',
+                    'dropbox': 'Dropbox',
+                };
+
+                const serviceName = serviceMap[service] || service.charAt(0).toUpperCase() + service.slice(1);
+
+                if (action === 'delete' || message.toLowerCase().includes('clear') || message.toLowerCase().includes('reset')) {
+                    setNodes([]);
+                    setEdges([]);
+                    toast({ title: "AI Copilot", description: "Cleared workflow." });
+                } else {
+                    addServiceNode(serviceName);
+                    toast({ title: "AI Copilot", description: `Added ${serviceName} node via NLU.` });
+                }
+            } else if (message.toLowerCase().includes('clear') || message.toLowerCase().includes('reset')) {
+                setNodes([]);
+                setEdges([]);
+                toast({ title: "AI Copilot", description: "Cleared workflow." });
+            } else if (message.toLowerCase().includes('desktop')) {
+                addNode('desktop');
+                toast({ title: "AI Copilot", description: "Added Desktop agent." });
+            } else if (message.toLowerCase().includes('ai') || message.toLowerCase().includes('analyze')) {
+                addNode('ai_node');
+                toast({ title: "AI Copilot", description: "Added AI Processing node." });
+            } else if (message.toLowerCase().includes('condition') || message.toLowerCase().includes('if')) {
+                addNode('condition');
+                toast({ title: "AI Copilot", description: "Added Condition node." });
+            } else {
+                toast({ title: "AI Copilot", description: `Intent: ${primaryGoal} | Service: ${service}. Try specifying a service like Slack, Gmail, or GitHub.` });
+            }
+
+        } catch (error) {
+            // Fallback to keyword matching if NLU fails
+            console.warn('NLU failed, using fallback:', error);
+            const cmd = message.toLowerCase();
+
+            if (cmd.includes('add') && cmd.includes('slack')) {
+                addServiceNode('Slack');
+                toast({ title: "AI Copilot", description: "Added Slack node (fallback)." });
+            } else if (cmd.includes('add') && cmd.includes('desktop')) {
+                addNode('desktop');
+                toast({ title: "AI Copilot", description: "Added Desktop agent (fallback)." });
+            } else if (cmd.includes('clear') || cmd.includes('reset')) {
+                setNodes([]);
+                setEdges([]);
+                toast({ title: "AI Copilot", description: "Cleared workflow." });
+            } else {
+                toast({ title: "AI Copilot", description: "NLU unavailable. Try 'Add Slack' or 'Clear'." });
+            }
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const [chatInput, setChatInput] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
 
     return (
         <div className="h-[600px] w-full border rounded-lg bg-white shadow-sm flex flex-col relative">
@@ -176,13 +248,18 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                     </div>
                     <form onSubmit={handleChatSubmit} className="flex space-x-2">
                         <input
-                            className="flex-1 text-xs border rounded px-2 py-1 outline-none focus:border-purple-500"
+                            className="flex-1 text-xs border rounded px-2 py-1 outline-none focus:border-purple-500 disabled:bg-gray-100"
                             placeholder="Type to edit (e.g. 'Add Slack')..."
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
+                            disabled={isProcessing}
                         />
-                        <button type="submit" className="bg-purple-600 text-white text-xs px-2 rounded hover:bg-purple-700">
-                            Ask
+                        <button
+                            type="submit"
+                            className="bg-purple-600 text-white text-xs px-2 rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? '...' : 'Ask'}
                         </button>
                     </form>
                 </div>
