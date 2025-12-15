@@ -36,8 +36,20 @@ export const TriggerNode = memo(({ data, isConnectable }: any) => {
 });
 
 export const ActionNode = memo(({ data, isConnectable }: any) => {
+    // Service branding map
+    const serviceBranding: Record<string, { color: string; bgColor: string }> = {
+        'Slack': { color: 'border-l-[#4A154B]', bgColor: 'bg-purple-50' },
+        'Gmail': { color: 'border-l-red-500', bgColor: 'bg-red-50' },
+        'Google Drive': { color: 'border-l-yellow-500', bgColor: 'bg-yellow-50' },
+        'GitHub': { color: 'border-l-gray-800', bgColor: 'bg-gray-50' },
+        'Notion': { color: 'border-l-black', bgColor: 'bg-gray-50' },
+        'Asana': { color: 'border-l-pink-500', bgColor: 'bg-pink-50' },
+        'Trello': { color: 'border-l-blue-500', bgColor: 'bg-blue-50' },
+    };
+    const branding = serviceBranding[data.service] || { color: 'border-l-green-500', bgColor: '' };
+
     return (
-        <Card className="min-w-[200px] border-l-4 border-l-green-500 shadow-sm">
+        <Card className={`min-w-[200px] border-l-4 ${branding.color} ${branding.bgColor} shadow-sm`}>
             <Handle
                 type="target"
                 position={Position.Top}
@@ -187,9 +199,41 @@ export const AINode = memo(({ data, isConnectable }: any) => {
     );
 });
 
+export const DesktopNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[200px] border-l-4 border-l-cyan-500 shadow-md">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-cyan-100 p-1 rounded-full">
+                        <Settings className="w-4 h-4 text-cyan-600" />
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Desktop Action</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="font-semibold">{data.app || 'Application'}</div>
+                <div className="text-gray-500">{data.action || 'Open'}</div>
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-cyan-500"
+            />
+        </Card>
+    );
+});
+
 export const nodeTypes = {
     trigger: TriggerNode,
     action: ActionNode,
     condition: ConditionNode,
     ai_node: AINode,
+    desktop: DesktopNode,
 };
