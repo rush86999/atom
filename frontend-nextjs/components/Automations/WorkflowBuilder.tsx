@@ -111,7 +111,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
             addServiceNode('Slack');
             toast({ title: "AI Copilot", description: "Added Slack node." });
         } else if (cmd.includes('add') && cmd.includes('desktop')) {
-            addNode('desktop_node');
+            addNode('desktop');
             toast({ title: "AI Copilot", description: "Added Desktop agent." });
         } else if (cmd.includes('clear') || cmd.includes('reset')) {
             setNodes([]);
@@ -139,7 +139,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                     <Button size="sm" variant="outline" onClick={() => addNode('ai_node')}>
                         <Zap className="w-4 h-4 mr-1 fill-purple-500 text-purple-500" /> AI Node
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => addNode('desktop_node')}>
+                    <Button size="sm" variant="outline" onClick={() => addNode('desktop')}>
                         <Monitor className="w-4 h-4 mr-1 text-slate-600" /> Desktop
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => addServiceNode('Slack')}>
