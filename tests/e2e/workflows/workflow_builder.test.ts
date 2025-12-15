@@ -22,7 +22,7 @@ test.describe('Workflow Builder UI Tests', () => {
             path: '/'
         }]);
 
-        await page.goto('http://localhost:3003/automations');
+        await page.goto('http://localhost:3000/automations');
 
         // Wait for page to load content
         await expect(page.getByText('Loading workflow automation...')).not.toBeVisible({ timeout: 10000 });
