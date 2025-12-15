@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useRouter } from 'next/router';
 import {
   Card,
   CardHeader,
@@ -111,6 +111,9 @@ interface ServiceInfo {
   description: string;
 }
 
+import WorkflowBuilder from "./Automations/WorkflowBuilder";
+import { List, Layout as LayoutIcon } from "lucide-react";
+
 const WorkflowAutomation: React.FC = () => {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
@@ -126,11 +129,19 @@ const WorkflowAutomation: React.FC = () => {
   const [executing, setExecuting] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [activeTab, setActiveTab] = useState("templates");
+  const [viewMode, setViewMode] = useState<"classic" | "builder">("classic");
 
   // Modal states
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [resumeExecutionId, setResumeExecutionId] = useState<string | null>(null);
+
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [resumeExecutionId, setResumeExecutionId] = useState<string | null>(null);
+  const [builderInitialData, setBuilderInitialData] = useState<any>(null); // For AI generated workflows
+  const [genPrompt, setGenPrompt] = useState("");
 
   const { toast } = useToast();
 
@@ -138,6 +149,49 @@ const WorkflowAutomation: React.FC = () => {
   useEffect(() => {
     fetchWorkflowData();
   }, []);
+
+  // Check for draft in URL
+  const router = useRouter();
+  useEffect(() => {
+    if (router.query.draft) {
+      try {
+        const draftData = JSON.parse(router.query.draft as string);
+        setBuilderInitialData(draftData);
+        setViewMode("builder");
+        toast({ title: "Draft Loaded", description: "Loaded workflow from chat." });
+        // Clean URL
+        router.replace('/automation', undefined, { shallow: true });
+      } catch (e) {
+        console.error("Failed to parse draft", e);
+      }
+    }
+  }, [router.query.draft]);
+
+  const handleGenerativeCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!genPrompt.trim()) return;
+
+    setLoading(true);
+    // Mock AI Generation Logic
+    // In real app, this would call an LLM endpoint
+    setTimeout(() => {
+      const generatedNodes = [
+        { id: '1', type: 'trigger', position: { x: 250, y: 0 }, data: { label: 'Start: ' + genPrompt.substring(0, 15) + '...', integration: 'Webhook' } },
+        { id: '2', type: 'ai_node', position: { x: 250, y: 200 }, data: { label: 'Process Request', prompt: 'Analyze: ' + genPrompt } },
+        { id: '3', type: 'action', position: { x: 250, y: 400 }, data: { service: 'Slack', action: 'Notify User' } }
+      ];
+      const generatedEdges = [
+        { id: 'e1-2', source: '1', target: '2' },
+        { id: 'e2-3', source: '2', target: '3' }
+      ];
+
+      setBuilderInitialData({ nodes: generatedNodes, edges: generatedEdges });
+      setViewMode("builder");
+      toast({ title: "Workflow Generated", description: "AI created a draft workflow based on your prompt." });
+      setLoading(false);
+      setGenPrompt("");
+    }, 1000);
+  };
 
   const fetchWorkflowData = async () => {
     try {
@@ -205,6 +259,39 @@ const WorkflowAutomation: React.FC = () => {
       }
     } catch (e) {
       console.error("Failed to fetch services", e);
+    }
+
+  };
+
+  const handleBuilderSave = async (builderData: { nodes: any[]; edges: any[] }) => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/workflows/definitions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: `Visual Workflow ${new Date().toLocaleTimeString()}`,
+          description: "Created via Visual Builder",
+          definition: builderData,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast({
+          title: "Workflow Saved",
+          description: "Your visual workflow has been saved to the database.",
+        });
+        await fetchWorkflowData(); // Refresh list
+      } else {
+        throw new Error(data.error || "Failed to save");
+      }
+    } catch (e) {
+      console.error("Save error", e);
+      toast({ title: "Error", description: "Failed to save workflow", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -294,6 +381,47 @@ const WorkflowAutomation: React.FC = () => {
     }
   };
 
+  const handleResumeWorkflow = async (
+    executionId: string,
+    inputs: Record<string, any> = {}
+  ) => {
+    try {
+      setExecuting(true);
+      const response = await fetch(
+        `/api/workflows/executions/${executionId}/resume`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ inputs }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.success) {
+        toast({
+          title: "Execution Resumed",
+          description: `Execution ${executionId} has been resumed`,
+        });
+        await fetchExecutions();
+        setIsResumeModalOpen(false);
+        setResumeExecutionId(null);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error("Error resuming execution:", error);
+      toast({
+        title: "Error",
+        description: "Failed to resume execution",
+        variant: "destructive",
+      });
+    } finally {
+      setExecuting(false);
+    }
+  };
+
   const handleFormChange = (field: string, value: any) => {
     setFormData((prev) => ({
       ...prev,
@@ -337,6 +465,8 @@ const WorkflowAutomation: React.FC = () => {
         return "bg-orange-500 hover:bg-orange-600";
       case "pending":
         return "bg-yellow-500 hover:bg-yellow-600";
+      case "paused":
+        return "bg-amber-500 hover:bg-amber-600";
       default:
         return "bg-gray-500 hover:bg-gray-600";
     }
@@ -354,6 +484,8 @@ const WorkflowAutomation: React.FC = () => {
         return "outline";
       case "pending":
         return "secondary";
+      case "paused":
+        return "outline"; // Distinction
       default:
         return "outline";
     }
@@ -489,258 +621,293 @@ const WorkflowAutomation: React.FC = () => {
             Automate your tasks and processes across all connected services
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Workflow
-        </Button>
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => setViewMode(viewMode === "classic" ? "builder" : "classic")}
+          >
+            {viewMode === "classic" ? (
+              <>
+                <LayoutIcon className="w-4 h-4 mr-2" />
+                Visual Builder
+              </>
+            ) : (
+              <>
+                <List className="w-4 h-4 mr-2" />
+                Classic View
+              </>
+            )}
+          </Button>
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Workflow
+          </Button>
+        </div>
       </div>
 
-      {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="workflows">My Workflows</TabsTrigger>
-          <TabsTrigger value="executions">Executions</TabsTrigger>
-          <TabsTrigger value="services">Services</TabsTrigger>
-        </TabsList>
+      {viewMode === "builder" ? (
+        <WorkflowBuilder />
+      ) : (
+        /* Main Content */
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="workflows">My Workflows</TabsTrigger>
+            <TabsTrigger value="executions">Executions</TabsTrigger>
+            <TabsTrigger value="services">Services</TabsTrigger>
+          </TabsList>
 
-        {/* Templates Tab */}
-        <TabsContent value="templates" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templates.map((template) => (
-              <Card
-                key={template.id}
-                className="hover:shadow-md transition-shadow cursor-pointer"
-              >
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center">
-                      {renderServiceIcon(template.category)}
-                      <CardTitle className="text-lg">{template.name}</CardTitle>
-                    </div>
-                    <Badge variant="secondary">
-                      {template.steps.length} steps
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4 min-h-[40px]">
-                    {template.description}
-                  </CardDescription>
-                  <div className="space-y-2">
-                    {template.steps.slice(0, 3).map((step, index) => (
-                      <div key={step.id} className="flex items-center text-sm">
-                        <Badge
-                          variant="outline"
-                          className="mr-2 w-5 h-5 flex items-center justify-center p-0"
-                        >
-                          {index + 1}
-                        </Badge>
-                        <span className="truncate">{step.name}</span>
+          {/* Templates Tab */}
+          <TabsContent value="templates" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {templates.map((template) => (
+                <Card
+                  key={template.id}
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                >
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center">
+                        {renderServiceIcon(template.category)}
+                        <CardTitle className="text-lg">{template.name}</CardTitle>
                       </div>
-                    ))}
-                    {template.steps.length > 3 && (
-                      <p className="text-xs text-gray-500 pl-7">
-                        +{template.steps.length - 3} more steps
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    className="w-full"
-                    onClick={() => handleTemplateSelect(template)}
-                  >
-                    Use Template
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* My Workflows Tab */}
-        <TabsContent value="workflows" className="mt-6">
-          <div className="space-y-4">
-            {workflows.map((workflow) => (
-              <Card key={workflow.id}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <CardTitle>{workflow.name}</CardTitle>
-                      <CardDescription>{workflow.description}</CardDescription>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">
-                        {workflow.steps_count || workflow.steps?.length || 0}{" "}
-                        steps
+                      <Badge variant="secondary">
+                        {template.steps.length} steps
                       </Badge>
-                      <Button variant="ghost" size="icon">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleWorkflowSelect(workflow)}
-                      >
-                        <Play className="w-4 h-4 mr-2" />
-                        Run
-                      </Button>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-gray-500">
-                    Created:{" "}
-                    {new Date(workflow.created_at).toLocaleDateString()}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-            {workflows.length === 0 && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>No workflows yet</AlertTitle>
-                <AlertDescription>
-                  Create your first workflow using a template or from scratch.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Executions Tab */}
-        <TabsContent value="executions" className="mt-6">
-          <div className="space-y-4">
-            {executions.map((execution) => (
-              <Card key={execution.execution_id}>
-                <CardContent className="pt-6">
-                  <div className="flex flex-col md:flex-row justify-between gap-4">
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="mb-4 min-h-[40px]">
+                      {template.description}
+                    </CardDescription>
                     <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          className={getStatusColor(execution.status)}
-                          variant="secondary"
-                        >
-                          {execution.status}
-                        </Badge>
-                        <span className="font-semibold">
-                          {execution.workflow_id}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-500 space-y-1">
-                        <p>
-                          Started:{" "}
-                          {new Date(execution.start_time).toLocaleString()}
-                        </p>
-                        {execution.end_time && (
-                          <p>
-                            Ended:{" "}
-                            {new Date(execution.end_time).toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-4 min-w-[300px]">
-                      <div className="flex-1 space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span>Progress</span>
-                          <span>
-                            {execution.current_step}/{execution.total_steps}
-                          </span>
-                        </div>
-                        <Progress
-                          value={
-                            (execution.current_step / execution.total_steps) *
-                            100
-                          }
-                          className="h-2"
-                        />
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        {execution.status === "running" && (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() =>
-                              handleCancelExecution(execution.execution_id)
-                            }
+                      {template.steps.slice(0, 3).map((step, index) => (
+                        <div key={step.id} className="flex items-center text-sm">
+                          <Badge
+                            variant="outline"
+                            className="mr-2 w-5 h-5 flex items-center justify-center p-0"
                           >
-                            Cancel
-                          </Button>
-                        )}
+                            {index + 1}
+                          </Badge>
+                          <span className="truncate">{step.name}</span>
+                        </div>
+                      ))}
+                      {template.steps.length > 3 && (
+                        <p className="text-xs text-gray-500 pl-7">
+                          +{template.steps.length - 3} more steps
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      className="w-full"
+                      onClick={() => handleTemplateSelect(template)}
+                    >
+                      Use Template
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* My Workflows Tab */}
+          <TabsContent value="workflows" className="mt-6">
+            <div className="space-y-4">
+              {workflows.map((workflow) => (
+                <Card key={workflow.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <CardTitle>{workflow.name}</CardTitle>
+                        <CardDescription>{workflow.description}</CardDescription>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="outline">
+                          {workflow.steps_count || workflow.steps?.length || 0}{" "}
+                          steps
+                        </Badge>
+                        <Button variant="ghost" size="icon">
+                          <Edit className="w-4 h-4" />
+                        </Button>
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setActiveExecution(execution);
-                            setIsExecutionModalOpen(true);
-                          }}
+                          size="sm"
+                          onClick={() => handleWorkflowSelect(workflow)}
                         >
-                          <Eye className="w-4 h-4" />
+                          <Play className="w-4 h-4 mr-2" />
+                          Run
                         </Button>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {executions.length === 0 && (
-              <Alert>
-                <Activity className="h-4 w-4" />
-                <AlertTitle>No executions yet</AlertTitle>
-                <AlertDescription>
-                  Execute a workflow to see execution history here.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-        </TabsContent>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-gray-500">
+                      Created:{" "}
+                      {new Date(workflow.created_at).toLocaleDateString()}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+              {workflows.length === 0 && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>No workflows yet</AlertTitle>
+                  <AlertDescription>
+                    Create your first workflow using a template or from scratch.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </TabsContent>
 
-        {/* Services Tab */}
-        <TabsContent value="services" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Object.entries(services).map(([serviceName, serviceInfo]) => (
-              <Card key={serviceName}>
-                <CardHeader>
-                  <div className="flex items-center">
-                    {renderServiceIcon(serviceName)}
-                    <CardTitle className="text-lg capitalize">
-                      {serviceName}
-                    </CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600 mb-4 min-h-[40px]">
-                    {serviceInfo.description}
-                  </p>
-                  <div className="space-y-2">
-                    <p className="font-semibold text-sm">Available Actions:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {serviceInfo.actions.slice(0, 5).map((action) => (
-                        <Badge key={action} variant="secondary">
-                          {action}
-                        </Badge>
-                      ))}
-                      {serviceInfo.actions.length > 5 && (
-                        <span className="text-xs text-gray-500 flex items-center">
-                          +{serviceInfo.actions.length - 5} more
-                        </span>
-                      )}
+          {/* Executions Tab */}
+          <TabsContent value="executions" className="mt-6">
+            <div className="space-y-4">
+              {executions.map((execution) => (
+                <Card key={execution.execution_id}>
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Badge
+                            className={getStatusColor(execution.status)}
+                            variant="secondary"
+                          >
+                            {execution.status}
+                          </Badge>
+                          <span className="font-semibold">
+                            {execution.workflow_id}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500 space-y-1">
+                          <p>
+                            Started:{" "}
+                            {new Date(execution.start_time).toLocaleString()}
+                          </p>
+                          {execution.end_time && (
+                            <p>
+                              Ended:{" "}
+                              {new Date(execution.end_time).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-4 min-w-[300px]">
+                        <div className="flex-1 space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span>Progress</span>
+                            <span>
+                              {execution.current_step}/{execution.total_steps}
+                            </span>
+                          </div>
+                          <Progress
+                            value={
+                              (execution.current_step / execution.total_steps) *
+                              100
+                            }
+                            className="h-2"
+                          />
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          {execution.status === "running" && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() =>
+                                handleCancelExecution(execution.execution_id)
+                              }
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                          {execution.status === "paused" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setResumeExecutionId(execution.execution_id);
+                                setFormData({}); // Clear form for new inputs
+                                setIsResumeModalOpen(true);
+                              }}
+                            >
+                              <Play className="w-3 h-3 mr-1" /> Resume
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setActiveExecution(execution);
+                              setIsExecutionModalOpen(true);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Badge variant="outline" className="ml-auto">
-                    {serviceInfo.actions.length} actions
-                  </Badge>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+                  </CardContent>
+                </Card>
+              ))}
+              {executions.length === 0 && (
+                <Alert>
+                  <Activity className="h-4 w-4" />
+                  <AlertTitle>No executions yet</AlertTitle>
+                  <AlertDescription>
+                    Execute a workflow to see execution history here.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Services Tab */}
+          <TabsContent value="services" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Object.entries(services).map(([serviceName, serviceInfo]) => (
+                <Card key={serviceName}>
+                  <CardHeader>
+                    <div className="flex items-center">
+                      {renderServiceIcon(serviceName)}
+                      <CardTitle className="text-lg capitalize">
+                        {serviceName}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4 min-h-[40px]">
+                      {serviceInfo.description}
+                    </p>
+                    <div className="space-y-2">
+                      <p className="font-semibold text-sm">Available Actions:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {serviceInfo.actions.slice(0, 5).map((action) => (
+                          <Badge key={action} variant="secondary">
+                            {action}
+                          </Badge>
+                        ))}
+                        {serviceInfo.actions.length > 5 && (
+                          <span className="text-xs text-gray-500 flex items-center">
+                            +{serviceInfo.actions.length - 5} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Badge variant="outline" className="ml-auto">
+                      {serviceInfo.actions.length} actions
+                    </Badge>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
 
       {/* Template Execution Modal */}
       <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
@@ -867,6 +1034,89 @@ const WorkflowAutomation: React.FC = () => {
             >
               {executing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Execute Workflow
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resume Execution Modal */}
+      <Dialog open={isResumeModalOpen} onOpenChange={setIsResumeModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resume Execution</DialogTitle>
+            <DialogDescription>
+              Provide missing parameters to resume the workflow.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Parameters</Label>
+              {Object.keys(formData).map((key) => (
+                <div key={key} className="flex items-center space-x-2">
+                  <Input
+                    placeholder="Key"
+                    value={key}
+                    disabled
+                    className="flex-1"
+                  />
+                  <Input
+                    placeholder="Value"
+                    value={formData[key]}
+                    onChange={(e) => handleFormChange(key, e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      const newData = { ...formData };
+                      delete newData[key];
+                      setFormData(newData);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              ))}
+
+              <div className="flex items-center space-x-2">
+                <Input
+                  placeholder="New Parameter Key"
+                  id="new-param-key"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const keyInput = document.getElementById('new-param-key') as HTMLInputElement;
+                    if (keyInput && keyInput.value) {
+                      handleFormChange(keyInput.value, "");
+                      keyInput.value = "";
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Add keys for any missing parameters required by the workflow step.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsResumeModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (resumeExecutionId) {
+                  handleResumeWorkflow(resumeExecutionId, formData);
+                }
+              }}
+              disabled={executing}
+            >
+              {executing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Resume
             </Button>
           </DialogFooter>
         </DialogContent>

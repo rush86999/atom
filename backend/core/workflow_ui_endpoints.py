@@ -144,6 +144,23 @@ async def get_templates():
 async def get_workflows():
     return {"success": True, "workflows": [w.dict() for w in MOCK_WORKFLOWS]}
 
+@router.post("/definitions")
+async def create_workflow_definition(payload: Dict[str, Any]):
+    new_id = f"wf_{uuid.uuid4().hex[:8]}"
+    # Simple conversion from builder data to backend model (mock)
+    new_workflow = WorkflowDefinition(
+        id=new_id,
+        name=payload.get("name", "New Visual Workflow"),
+        description=payload.get("description", "Created via Visual Builder"),
+        steps=[], # In real app, we'd parse visual nodes to steps
+        input_schema={},
+        created_at=datetime.now().isoformat(),
+        updated_at=datetime.now().isoformat(),
+        steps_count=len(payload.get("definition", {}).get("nodes", []))
+    )
+    MOCK_WORKFLOWS.insert(0, new_workflow)
+    return {"success": True, "workflow": new_workflow.dict()}
+
 @router.get("/executions")
 async def get_executions():
     return {"success": True, "executions": [e.dict() for e in MOCK_EXECUTIONS]}

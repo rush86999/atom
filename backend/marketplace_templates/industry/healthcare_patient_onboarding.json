@@ -1,0 +1,113 @@
+{
+  "id": "healthcare_patient_onboarding",
+  "name": "Healthcare Patient Onboarding",
+  "description": "Complete patient onboarding workflow with HIPAA compliance",
+  "category": "Healthcare",
+  "author": "ATOM Team",
+  "version": "1.0.0",
+  "integrations": [
+    "ehr",
+    "email",
+    "sms",
+    "document_management"
+  ],
+  "complexity": "Advanced",
+  "industry": "healthcare",
+  "compliance_requirements": [
+    "HIPAA",
+    "HITECH"
+  ],
+  "input_schema": [
+    {
+      "name": "patient_id",
+      "type": "string",
+      "label": "Patient ID",
+      "description": "Patient identifier from EHR system",
+      "required": true
+    },
+    {
+      "name": "insurance_type",
+      "type": "select",
+      "label": "Insurance Type",
+      "description": "Patient's insurance coverage type",
+      "required": true,
+      "options": [
+        "private",
+        "medicare",
+        "medicaid",
+        "self_pay"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "verify_patient_info",
+      "name": "Verify Patient Information",
+      "description": "Validate patient data from EHR",
+      "step_type": "data_validation",
+      "estimated_duration": 120
+    },
+    {
+      "step_id": "check_insurance",
+      "name": "Verify Insurance Coverage",
+      "description": "Check insurance eligibility and coverage",
+      "step_type": "insurance_verification",
+      "estimated_duration": 300,
+      "depends_on": [
+        "verify_patient_info"
+      ]
+    },
+    {
+      "step_id": "collect_documents",
+      "name": "Collect Required Documents",
+      "description": "Gather necessary medical and consent forms",
+      "step_type": "document_collection",
+      "estimated_duration": 600,
+      "depends_on": [
+        "check_insurance"
+      ],
+      "can_pause": true
+    },
+    {
+      "step_id": "schedule_appointments",
+      "name": "Schedule Initial Appointments",
+      "description": "Schedule initial consultations and assessments",
+      "step_type": "appointment_scheduling",
+      "estimated_duration": 180,
+      "depends_on": [
+        "collect_documents"
+      ]
+    },
+    {
+      "step_id": "send_welcome_kit",
+      "name": "Send Welcome Information",
+      "description": "Send patient welcome kit and instructions",
+      "step_type": "patient_communication",
+      "estimated_duration": 60,
+      "depends_on": [
+        "schedule_appointments"
+      ]
+    }
+  ],
+  "estimated_duration": 1260,
+  "use_cases": [
+    "New patient registration",
+    "Insurance verification",
+    "Appointment scheduling"
+  ],
+  "benefits": [
+    "HIPAA compliance",
+    "Automated verification",
+    "Document management",
+    "Patient communication"
+  ],
+  "created_at": "2025-12-14T16:44:10.885142",
+  "updated_at": "2025-12-14T16:44:10.885142",
+  "downloads": 0,
+  "rating": 5.0,
+  "template_type": "industry",
+  "multi_input_support": true,
+  "multi_step_support": true,
+  "multi_output_support": true,
+  "pause_resume_support": true
+}
