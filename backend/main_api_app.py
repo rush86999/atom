@@ -78,6 +78,9 @@ integrations = [
     ("core.ai_workflow_optimization_endpoints", "router", None),
     ("core.enterprise_security", "router", "/api/v1"),
     ("core.auto_healing_endpoints", "router", None),
+
+    # Workflow Versioning
+    ("api.workflow_versioning_endpoints", "router", None),
     
     # Unified Endpoints
     ("core.unified_task_endpoints", "router", None),

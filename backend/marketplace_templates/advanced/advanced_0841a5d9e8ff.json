@@ -1,0 +1,53 @@
+{
+  "name": "Custom Test Template",
+  "description": "A test template for validation",
+  "category": "Testing",
+  "author": "Test Suite",
+  "version": "1.0.0",
+  "integrations": [
+    "test_service"
+  ],
+  "complexity": "Intermediate",
+  "tags": [
+    "test",
+    "custom"
+  ],
+  "input_schema": [
+    {
+      "name": "test_input",
+      "type": "string",
+      "label": "Test Input",
+      "description": "A test input parameter",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "validate_step",
+      "name": "Validate Input",
+      "description": "Validate the test input",
+      "step_type": "validation",
+      "estimated_duration": 30
+    },
+    {
+      "step_id": "process_step",
+      "name": "Process Data",
+      "description": "Process the validated data",
+      "step_type": "processing",
+      "estimated_duration": 60,
+      "depends_on": [
+        "validate_step"
+      ]
+    }
+  ],
+  "id": "advanced_0841a5d9e8ff",
+  "created_at": "2025-12-14T16:46:00.835296",
+  "updated_at": "2025-12-14T16:46:00.835296",
+  "estimated_duration": 90,
+  "multi_input_support": true,
+  "multi_step_support": true,
+  "multi_output_support": true,
+  "pause_resume_support": true,
+  "downloads": 3,
+  "rating": 5.0
+}
