@@ -1,0 +1,136 @@
+{
+  "id": "advanced_approval_workflow",
+  "name": "Multi-Stage Approval Workflow",
+  "description": "Advanced approval system with conditional routing and notifications",
+  "category": "Business Process",
+  "author": "ATOM Team",
+  "version": "2.0.0",
+  "integrations": [
+    "slack",
+    "email",
+    "crm",
+    "document_management"
+  ],
+  "complexity": "Intermediate",
+  "tags": [
+    "approval",
+    "workflow",
+    "business",
+    "multi-stage"
+  ],
+  "input_schema": [
+    {
+      "name": "request_type",
+      "type": "select",
+      "label": "Request Type",
+      "description": "Type of approval request",
+      "required": true,
+      "options": [
+        "expense",
+        "purchase",
+        "leave",
+        "project"
+      ]
+    },
+    {
+      "name": "amount",
+      "type": "number",
+      "label": "Amount",
+      "description": "Request amount",
+      "required": true,
+      "show_when": {
+        "request_type": [
+          "expense",
+          "purchase"
+        ]
+      },
+      "validation_rules": {
+        "min_value": 0
+      }
+    },
+    {
+      "name": "urgency_level",
+      "type": "select",
+      "label": "Urgency Level",
+      "description": "How urgent is this request",
+      "required": true,
+      "options": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "submit_request",
+      "name": "Submit Request",
+      "description": "Initial request submission and validation",
+      "step_type": "request_submission",
+      "estimated_duration": 15
+    },
+    {
+      "step_id": "initial_review",
+      "name": "Initial Review",
+      "description": "Manager initial review and routing",
+      "step_type": "manager_review",
+      "estimated_duration": 60,
+      "depends_on": [
+        "submit_request"
+      ]
+    },
+    {
+      "step_id": "conditional_approval",
+      "name": "Conditional Approval",
+      "description": "Route based on amount and request type",
+      "step_type": "conditional_routing",
+      "estimated_duration": 30,
+      "depends_on": [
+        "initial_review"
+      ]
+    },
+    {
+      "step_id": "final_approval",
+      "name": "Final Approval",
+      "description": "Final approval stage for high-value requests",
+      "step_type": "final_approval",
+      "estimated_duration": 120,
+      "depends_on": [
+        "conditional_approval"
+      ]
+    },
+    {
+      "step_id": "notify_stakeholders",
+      "name": "Notify Stakeholders",
+      "description": "Send notifications to all relevant parties",
+      "step_type": "notification",
+      "estimated_duration": 30,
+      "depends_on": [
+        "final_approval"
+      ]
+    }
+  ],
+  "estimated_duration": 255,
+  "use_cases": [
+    "Expense approval",
+    "Purchase requests",
+    "Leave requests",
+    "Project approvals"
+  ],
+  "benefits": [
+    "Conditional routing",
+    "Multi-stage approval",
+    "Automatic notifications",
+    "Audit trail"
+  ],
+  "created_at": "2025-12-14T16:44:10.885142",
+  "updated_at": "2025-12-14T16:44:10.885142",
+  "downloads": 1,
+  "rating": 5.0,
+  "template_type": "advanced",
+  "multi_input_support": true,
+  "multi_step_support": true,
+  "multi_output_support": true,
+  "pause_resume_support": true
+}

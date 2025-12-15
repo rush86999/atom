@@ -1,0 +1,844 @@
+"""
+Workflow Analytics Engine
+Comprehensive analytics and monitoring system for workflow performance and usage
+"""
+
+import json
+import logging
+import asyncio
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional, Union
+from dataclasses import dataclass, asdict
+from enum import Enum
+import sqlite3
+from pathlib import Path
+from collections import defaultdict, deque
+import statistics
+import uuid
+
+logger = logging.getLogger(__name__)
+
+class MetricType(str, Enum):
+    COUNTER = "counter"
+    GAUGE = "gauge"
+    HISTOGRAM = "histogram"
+    TIMER = "timer"
+
+class AlertSeverity(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class WorkflowStatus(str, Enum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    PAUSED = "paused"
+    CANCELLED = "cancelled"
+    TIMEOUT = "timeout"
+
+@dataclass
+class WorkflowMetric:
+    """Base metric data structure"""
+    workflow_id: str
+    metric_name: str
+    metric_type: MetricType
+    value: Union[int, float, str]
+    timestamp: datetime
+    tags: Dict[str, str] = None
+    step_id: Optional[str] = None
+    step_name: Optional[str] = None
+
+@dataclass
+class WorkflowExecutionEvent:
+    """Workflow execution event for tracking"""
+    event_id: str
+    workflow_id: str
+    execution_id: str
+    event_type: str  # "started", "completed", "failed", "step_started", "step_completed", etc.
+    timestamp: datetime
+    step_id: Optional[str] = None
+    step_name: Optional[str] = None
+    duration_ms: Optional[int] = None
+    status: Optional[str] = None
+    error_message: Optional[str] = None
+    metadata: Dict[str, Any] = None
+
+@dataclass
+class PerformanceMetrics:
+    """Performance metrics aggregation"""
+    workflow_id: str
+    time_window: str  # "1h", "24h", "7d", "30d"
+
+    # Execution metrics
+    total_executions: int
+    successful_executions: int
+    failed_executions: int
+    average_duration_ms: float
+    median_duration_ms: float
+    p95_duration_ms: float
+    p99_duration_ms: float
+
+    # Error metrics
+    error_rate: float
+    most_common_errors: List[Dict[str, Any]]
+
+    # Resource metrics
+    average_cpu_usage: float
+    peak_memory_usage: float
+    average_step_duration: Dict[str, float]
+
+    # User metrics
+    unique_users: int
+    executions_by_user: Dict[str, int]
+
+    timestamp: datetime
+
+@dataclass
+class Alert:
+    """Analytics alert definition"""
+    alert_id: str
+    name: str
+    description: str
+    severity: AlertSeverity
+    condition: str  # Python expression for alert condition
+    threshold_value: Union[int, float]
+    metric_name: str
+    workflow_id: Optional[str] = None
+    step_id: Optional[str] = None
+    enabled: bool = True
+    created_at: datetime = None
+    triggered_at: Optional[datetime] = None
+    resolved_at: Optional[datetime] = None
+    notification_channels: List[str] = None
+
+class WorkflowAnalyticsEngine:
+    """Advanced analytics engine for workflow monitoring and insights"""
+
+    def __init__(self, db_path: str = "analytics.db"):
+        self.db_path = Path(db_path)
+        self.db_path.expanduser().absolute()
+
+        # Initialize database
+        self._init_database()
+
+        # Metrics storage
+        self.metrics_buffer: deque = deque(maxlen=10000)
+        self.events_buffer: deque = deque(maxlen=50000)
+
+        # Performance cache
+        self.performance_cache: Dict[str, PerformanceMetrics] = {}
+        self.cache_ttl = 300  # 5 minutes
+
+        # Active alerts
+        self.active_alerts: Dict[str, Alert] = {}
+
+        # Start background processing
+        self._start_background_processing()
+
+        logger.info(f"Workflow Analytics Engine initialized with database: {self.db_path}")
+
+    def _init_database(self):
+        """Initialize SQLite database for analytics storage"""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        # Metrics table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS workflow_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workflow_id TEXT NOT NULL,
+                metric_name TEXT NOT NULL,
+                metric_type TEXT NOT NULL,
+                value TEXT NOT NULL,
+                timestamp DATETIME NOT NULL,
+                tags TEXT,
+                step_id TEXT,
+                step_name TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Events table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS workflow_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT UNIQUE NOT NULL,
+                workflow_id TEXT NOT NULL,
+                execution_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                timestamp DATETIME NOT NULL,
+                step_id TEXT,
+                step_name TEXT,
+                duration_ms INTEGER,
+                status TEXT,
+                error_message TEXT,
+                metadata TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Alerts table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS analytics_alerts (
+                alert_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                severity TEXT NOT NULL,
+                condition TEXT NOT NULL,
+                threshold_value TEXT,
+                metric_name TEXT NOT NULL,
+                workflow_id TEXT,
+                step_id TEXT,
+                enabled BOOLEAN DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                triggered_at DATETIME,
+                resolved_at DATETIME,
+                notification_channels TEXT
+            )
+        """)
+
+        # Indexes for performance
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_workflow_time ON workflow_metrics(workflow_id, timestamp)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_workflow_time ON workflow_events(workflow_id, timestamp)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON workflow_events(event_type)")
+
+        conn.commit()
+        conn.close()
+
+    def track_workflow_start(self, workflow_id: str, execution_id: str,
+                           user_id: Optional[str] = None, metadata: Optional[Dict] = None):
+        """Track workflow execution start"""
+        event = WorkflowExecutionEvent(
+            event_id=str(uuid.uuid4()),
+            workflow_id=workflow_id,
+            execution_id=execution_id,
+            event_type="workflow_started",
+            timestamp=datetime.now(),
+            metadata=metadata or {"user_id": user_id}
+        )
+
+        self.events_buffer.append(event)
+
+        # Track counter metric
+        metric = WorkflowMetric(
+            workflow_id=workflow_id,
+            metric_name="workflow_executions",
+            metric_type=MetricType.COUNTER,
+            value=1,
+            timestamp=datetime.now(),
+            tags={"event_type": "started"}
+        )
+        self.metrics_buffer.append(metric)
+
+    def track_workflow_completion(self, workflow_id: str, execution_id: str,
+                                status: WorkflowStatus, duration_ms: int,
+                                step_outputs: Optional[Dict] = None,
+                                error_message: Optional[str] = None):
+        """Track workflow execution completion"""
+        event = WorkflowExecutionEvent(
+            event_id=str(uuid.uuid4()),
+            workflow_id=workflow_id,
+            execution_id=execution_id,
+            event_type="workflow_completed",
+            timestamp=datetime.now(),
+            duration_ms=duration_ms,
+            status=status.value,
+            error_message=error_message,
+            metadata={"step_count": len(step_outputs) if step_outputs else 0}
+        )
+
+        self.events_buffer.append(event)
+
+        # Track execution duration
+        metric = WorkflowMetric(
+            workflow_id=workflow_id,
+            metric_name="execution_duration_ms",
+            metric_type=MetricType.HISTOGRAM,
+            value=duration_ms,
+            timestamp=datetime.now(),
+            tags={"status": status.value}
+        )
+        self.metrics_buffer.append(metric)
+
+        # Track success/failure counter
+        status_metric = WorkflowMetric(
+            workflow_id=workflow_id,
+            metric_name="successful_executions" if status == WorkflowStatus.COMPLETED else "failed_executions",
+            metric_type=MetricType.COUNTER,
+            value=1,
+            timestamp=datetime.now(),
+            tags={"status": status.value}
+        )
+        self.metrics_buffer.append(status_metric)
+
+    def track_step_execution(self, workflow_id: str, execution_id: str, step_id: str,
+                           step_name: str, event_type: str, duration_ms: Optional[int] = None,
+                           status: Optional[str] = None, error_message: Optional[str] = None):
+        """Track individual step execution"""
+        event = WorkflowExecutionEvent(
+            event_id=str(uuid.uuid4()),
+            workflow_id=workflow_id,
+            execution_id=execution_id,
+            event_type=event_type,
+            timestamp=datetime.now(),
+            step_id=step_id,
+            step_name=step_name,
+            duration_ms=duration_ms,
+            status=status,
+            error_message=error_message
+        )
+
+        self.events_buffer.append(event)
+
+        # Track step duration
+        if duration_ms is not None:
+            metric = WorkflowMetric(
+                workflow_id=workflow_id,
+                metric_name=f"step_duration_ms",
+                metric_type=MetricType.HISTOGRAM,
+                value=duration_ms,
+                timestamp=datetime.now(),
+                tags={"step_id": step_id, "step_name": step_name, "event_type": event_type}
+            )
+            self.metrics_buffer.append(metric)
+
+    def track_resource_usage(self, workflow_id: str, cpu_usage: float, memory_usage: float,
+                           step_id: Optional[str] = None,
+                           disk_io: Optional[int] = None, network_io: Optional[int] = None):
+        """Track resource usage during workflow execution"""
+        timestamp = datetime.now()
+
+        # CPU usage metric
+        cpu_metric = WorkflowMetric(
+            workflow_id=workflow_id,
+            metric_name="cpu_usage_percent",
+            metric_type=MetricType.GAUGE,
+            value=cpu_usage,
+            timestamp=timestamp,
+            step_id=step_id
+        )
+        self.metrics_buffer.append(cpu_metric)
+
+        # Memory usage metric
+        memory_metric = WorkflowMetric(
+            workflow_id=workflow_id,
+            metric_name="memory_usage_mb",
+            metric_type=MetricType.GAUGE,
+            value=memory_usage,
+            timestamp=timestamp,
+            step_id=step_id
+        )
+        self.metrics_buffer.append(memory_metric)
+
+        # Disk I/O metric
+        if disk_io is not None:
+            disk_metric = WorkflowMetric(
+                workflow_id=workflow_id,
+                metric_name="disk_io_bytes",
+                metric_type=MetricType.COUNTER,
+                value=disk_io,
+                timestamp=timestamp,
+                step_id=step_id
+            )
+            self.metrics_buffer.append(disk_metric)
+
+        # Network I/O metric
+        if network_io is not None:
+            network_metric = WorkflowMetric(
+                workflow_id=workflow_id,
+                metric_name="network_io_bytes",
+                metric_type=MetricType.COUNTER,
+                value=network_io,
+                timestamp=timestamp,
+                step_id=step_id
+            )
+            self.metrics_buffer.append(network_metric)
+
+    def track_user_activity(self, user_id: str, action: str, workflow_id: Optional[str] = None,
+                          metadata: Optional[Dict] = None):
+        """Track user activity for analytics"""
+        metric = WorkflowMetric(
+            workflow_id=workflow_id or "system",
+            metric_name="user_activity",
+            metric_type=MetricType.COUNTER,
+            value=1,
+            timestamp=datetime.now(),
+            tags={"user_id": user_id, "action": action}
+        )
+        self.metrics_buffer.append(metric)
+
+    def get_workflow_performance_metrics(self, workflow_id: str, time_window: str = "24h") -> PerformanceMetrics:
+        """Get aggregated performance metrics for a workflow"""
+        cache_key = f"{workflow_id}_{time_window}"
+
+        # Check cache
+        if cache_key in self.performance_cache:
+            cached = self.performance_cache[cache_key]
+            if (datetime.now() - cached.timestamp).seconds < self.cache_ttl:
+                return cached
+
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        # Calculate time window
+        time_map = {
+            "1h": datetime.now() - timedelta(hours=1),
+            "24h": datetime.now() - timedelta(days=1),
+            "7d": datetime.now() - timedelta(days=7),
+            "30d": datetime.now() - timedelta(days=30)
+        }
+
+        start_time = time_map.get(time_window, datetime.now() - timedelta(days=1))
+
+        try:
+            # Get execution events
+            cursor.execute("""
+                SELECT execution_id, event_type, timestamp, duration_ms, status, error_message
+                FROM workflow_events
+                WHERE workflow_id = ? AND timestamp >= ?
+                ORDER BY timestamp
+            """, (workflow_id, start_time.isoformat()))
+
+            events = cursor.fetchall()
+
+            # Analyze executions
+            executions = defaultdict(list)
+            for event in events:
+                executions[event[1]].append(event)
+
+            completed_events = executions.get("workflow_completed", [])
+            started_events = executions.get("workflow_started", [])
+
+            total_executions = len(started_events)
+            successful_executions = len([e for e in completed_events if e[4] == "completed"])
+            failed_executions = len([e for e in completed_events if e[4] == "failed"])
+
+            # Calculate duration statistics
+            durations = [e[3] for e in completed_events if e[3] is not None]
+            avg_duration = statistics.mean(durations) if durations else 0
+            median_duration = statistics.median(durations) if durations else 0
+            p95_duration = statistics.quantiles(durations, n=20)[18] if len(durations) > 20 else 0
+            p99_duration = statistics.quantiles(durations, n=100)[98] if len(durations) > 100 else 0
+
+            # Error rate
+            error_rate = (failed_executions / total_executions * 100) if total_executions > 0 else 0
+
+            # Get most common errors
+            error_messages = [e[5] for e in completed_events if e[5] is not None]
+            error_counts = defaultdict(int)
+            for error in error_messages:
+                error_counts[error] += 1
+
+            most_common_errors = [
+                {"error": error, "count": count, "percentage": count/len(error_messages)*100}
+                for error, count in sorted(error_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            ]
+
+            # Get resource metrics
+            cursor.execute("""
+                SELECT AVG(CAST(value AS REAL)), MAX(CAST(value AS REAL))
+                FROM workflow_metrics
+                WHERE workflow_id = ? AND timestamp >= ? AND metric_name IN ('cpu_usage_percent', 'memory_usage_mb')
+            """, (workflow_id, start_time.isoformat()))
+
+            resource_data = cursor.fetchone()
+            avg_cpu = resource_data[0] if resource_data and resource_data[0] else 0
+            peak_memory = resource_data[1] if resource_data and resource_data[1] else 0
+
+            # Get step performance
+            cursor.execute("""
+                SELECT step_name, AVG(CAST(value AS REAL))
+                FROM workflow_metrics
+                WHERE workflow_id = ? AND timestamp >= ? AND metric_name = 'step_duration_ms'
+                GROUP BY step_name
+            """, (workflow_id, start_time.isoformat()))
+
+            step_performance = dict(cursor.fetchall())
+
+            # Create performance metrics
+            metrics = PerformanceMetrics(
+                workflow_id=workflow_id,
+                time_window=time_window,
+                total_executions=total_executions,
+                successful_executions=successful_executions,
+                failed_executions=failed_executions,
+                average_duration_ms=avg_duration,
+                median_duration_ms=median_duration,
+                p95_duration_ms=p95_duration,
+                p99_duration_ms=p99_duration,
+                error_rate=error_rate,
+                most_common_errors=most_common_errors,
+                average_cpu_usage=avg_cpu,
+                peak_memory_usage=peak_memory,
+                average_step_duration=step_performance,
+                unique_users=0,  # Would need to implement user tracking
+                executions_by_user={},
+                timestamp=datetime.now()
+            )
+
+            # Cache result
+            self.performance_cache[cache_key] = metrics
+
+            return metrics
+
+        except Exception as e:
+            logger.error(f"Error calculating performance metrics for {workflow_id}: {e}")
+            raise
+        finally:
+            conn.close()
+
+    def get_system_overview(self, time_window: str = "24h") -> Dict[str, Any]:
+        """Get system-wide analytics overview"""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        start_time = datetime.now() - timedelta(days=1)  # Default to 24h
+
+        try:
+            # Total workflows
+            cursor.execute("SELECT COUNT(DISTINCT workflow_id) FROM workflow_metrics WHERE timestamp >= ?",
+                         (start_time.isoformat(),))
+            total_workflows = cursor.fetchone()[0]
+
+            # Total executions
+            cursor.execute("""
+                SELECT COUNT(*) FROM workflow_events
+                WHERE event_type = 'workflow_started' AND timestamp >= ?
+            """, (start_time.isoformat(),))
+            total_executions = cursor.fetchone()[0]
+
+            # Success rate
+            cursor.execute("""
+                SELECT
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
+                FROM workflow_events
+                WHERE event_type = 'workflow_completed' AND timestamp >= ?
+            """, (start_time.isoformat(),))
+
+            success_data = cursor.fetchone()
+            successful = success_data[0] or 0
+            failed = success_data[1] or 0
+            total_completed = successful + failed
+            success_rate = (successful / total_completed * 100) if total_completed > 0 else 0
+
+            # Average execution time
+            cursor.execute("""
+                SELECT AVG(duration_ms) FROM workflow_events
+                WHERE event_type = 'workflow_completed' AND duration_ms IS NOT NULL AND timestamp >= ?
+            """, (start_time.isoformat(),))
+
+            avg_duration = cursor.fetchone()[0] or 0
+
+            # Top performing workflows
+            cursor.execute("""
+                SELECT workflow_id, COUNT(*) as executions
+                FROM workflow_events
+                WHERE event_type = 'workflow_started' AND timestamp >= ?
+                GROUP BY workflow_id
+                ORDER BY executions DESC
+                LIMIT 10
+            """, (start_time.isoformat(),))
+
+            top_workflows = [
+                {"workflow_id": row[0], "executions": row[1]}
+                for row in cursor.fetchall()
+            ]
+
+            # Recent errors
+            cursor.execute("""
+                SELECT workflow_id, error_message, timestamp
+                FROM workflow_events
+                WHERE status = 'failed' AND timestamp >= ?
+                ORDER BY timestamp DESC
+                LIMIT 10
+            """, (start_time.isoformat(),))
+
+            recent_errors = [
+                {
+                    "workflow_id": row[0],
+                    "error_message": row[1],
+                    "timestamp": row[2]
+                }
+                for row in cursor.fetchall()
+            ]
+
+            return {
+                "total_workflows": total_workflows,
+                "total_executions": total_executions,
+                "success_rate": round(success_rate, 2),
+                "average_execution_time_ms": round(avg_duration, 2),
+                "top_workflows": top_workflows,
+                "recent_errors": recent_errors,
+                "time_window": time_window,
+                "generated_at": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Error generating system overview: {e}")
+            raise
+        finally:
+            conn.close()
+
+    def create_alert(self, name: str, description: str, severity: AlertSeverity,
+                    condition: str, threshold_value: Union[int, float],
+                    metric_name: str, workflow_id: Optional[str] = None,
+                    step_id: Optional[str] = None,
+                    notification_channels: Optional[List[str]] = None) -> Alert:
+        """Create a new analytics alert"""
+        alert = Alert(
+            alert_id=str(uuid.uuid4()),
+            name=name,
+            description=description,
+            severity=severity,
+            condition=condition,
+            threshold_value=threshold_value,
+            metric_name=metric_name,
+            workflow_id=workflow_id,
+            step_id=step_id,
+            notification_channels=notification_channels or [],
+            created_at=datetime.now()
+        )
+
+        # Save to database
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO analytics_alerts
+            (alert_id, name, description, severity, condition, threshold_value,
+             metric_name, workflow_id, step_id, notification_channels)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            alert.alert_id, alert.name, alert.description, alert.severity.value,
+            alert.condition, str(alert.threshold_value), alert.metric_name,
+            alert.workflow_id, alert.step_id, json.dumps(alert.notification_channels)
+        ))
+
+        conn.commit()
+        conn.close()
+
+        self.active_alerts[alert.alert_id] = alert
+
+        logger.info(f"Created alert: {alert.name} ({alert.alert_id})")
+        return alert
+
+    def check_alerts(self):
+        """Check all active alerts against current metrics"""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            # Get active alerts
+            cursor.execute("SELECT * FROM analytics_alerts WHERE enabled = 1")
+            alerts_data = cursor.fetchall()
+
+            for alert_data in alerts_data:
+                alert_id = alert_data[0]
+
+                try:
+                    # Get latest metric for alert
+                    cursor.execute("""
+                        SELECT value, timestamp FROM workflow_metrics
+                        WHERE metric_name = ? AND workflow_id = COALESCE(?, workflow_id)
+                        ORDER BY timestamp DESC LIMIT 1
+                    """, (alert_data[5], alert_data[6]))
+
+                    metric_data = cursor.fetchone()
+                    if metric_data:
+                        metric_value = float(metric_data[0])
+
+                        # Evaluate alert condition
+                        # Simple threshold check for now
+                        if metric_value > alert_data[5]:  # threshold_value
+                            # Trigger alert
+                            self._trigger_alert(alert_id)
+                        else:
+                            # Resolve alert if it was triggered
+                            self._resolve_alert(alert_id)
+
+                except Exception as e:
+                    logger.error(f"Error checking alert {alert_id}: {e}")
+
+        except Exception as e:
+            logger.error(f"Error checking alerts: {e}")
+        finally:
+            conn.close()
+
+    def _trigger_alert(self, alert_id: str):
+        """Trigger an alert"""
+        if alert_id not in self.active_alerts:
+            return
+
+        alert = self.active_alerts[alert_id]
+        if alert.triggered_at is None:
+            alert.triggered_at = datetime.now()
+
+            # Update database
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE analytics_alerts SET triggered_at = ? WHERE alert_id = ?",
+                (alert.triggered_at.isoformat(), alert_id)
+            )
+            conn.commit()
+            conn.close()
+
+            # Send notifications
+            self._send_alert_notification(alert)
+
+            logger.warning(f"Alert triggered: {alert.name}")
+
+    def _resolve_alert(self, alert_id: str):
+        """Resolve an alert"""
+        if alert_id not in self.active_alerts:
+            return
+
+        alert = self.active_alerts[alert_id]
+        if alert.triggered_at is not None and alert.resolved_at is None:
+            alert.resolved_at = datetime.now()
+
+            # Update database
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE analytics_alerts SET resolved_at = ? WHERE alert_id = ?",
+                (alert.resolved_at.isoformat(), alert_id)
+            )
+            conn.commit()
+            conn.close()
+
+            logger.info(f"Alert resolved: {alert.name}")
+
+    def _send_alert_notification(self, alert: Alert):
+        """Send notification for triggered alert"""
+        # Implementation would depend on notification channels
+        # For now, just log the alert
+        logger.critical(f"ALERT: {alert.name} - {alert.description} (Severity: {alert.severity.value})")
+
+    def _start_background_processing(self):
+        """Start background processing for analytics"""
+        async def background_task():
+            while True:
+                try:
+                    # Process metrics buffer
+                    if self.metrics_buffer:
+                        metrics = list(self.metrics_buffer)
+                        self.metrics_buffer.clear()
+                        await self._process_metrics_batch(metrics)
+
+                    # Process events buffer
+                    if self.events_buffer:
+                        events = list(self.events_buffer)
+                        self.events_buffer.clear()
+                        await self._process_events_batch(events)
+
+                    # Check alerts
+                    self.check_alerts()
+
+                    # Clean old data
+                    await self._cleanup_old_data()
+
+                except Exception as e:
+                    logger.error(f"Error in background processing: {e}")
+
+                # Sleep for 30 seconds
+                await asyncio.sleep(30)
+
+        # Start background task
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.create_task(background_task())
+
+        # Run in background thread
+        import threading
+        thread = threading.Thread(target=lambda: loop.run_forever(), daemon=True)
+        thread.start()
+
+    async def _process_metrics_batch(self, metrics: List[WorkflowMetric]):
+        """Process a batch of metrics"""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            for metric in metrics:
+                cursor.execute("""
+                    INSERT INTO workflow_metrics
+                    (workflow_id, metric_name, metric_type, value, timestamp, tags, step_id, step_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    metric.workflow_id,
+                    metric.metric_name,
+                    metric.metric_type.value,
+                    str(metric.value),
+                    metric.timestamp.isoformat(),
+                    json.dumps(metric.tags) if metric.tags else None,
+                    metric.step_id,
+                    metric.step_name
+                ))
+
+            conn.commit()
+
+        except Exception as e:
+            logger.error(f"Error processing metrics batch: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+
+    async def _process_events_batch(self, events: List[WorkflowExecutionEvent]):
+        """Process a batch of events"""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            for event in events:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO workflow_events
+                    (event_id, workflow_id, execution_id, event_type, timestamp,
+                     step_id, step_name, duration_ms, status, error_message, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    event.event_id,
+                    event.workflow_id,
+                    event.execution_id,
+                    event.event_type,
+                    event.timestamp.isoformat(),
+                    event.step_id,
+                    event.step_name,
+                    event.duration_ms,
+                    event.status,
+                    event.error_message,
+                    json.dumps(event.metadata) if event.metadata else None
+                ))
+
+            conn.commit()
+
+        except Exception as e:
+            logger.error(f"Error processing events batch: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+
+    async def _cleanup_old_data(self):
+        """Clean up old analytics data"""
+        # Keep data for 90 days
+        cutoff_date = datetime.now() - timedelta(days=90)
+
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("DELETE FROM workflow_metrics WHERE timestamp < ?", (cutoff_date.isoformat(),))
+            cursor.execute("DELETE FROM workflow_events WHERE timestamp < ?", (cutoff_date.isoformat(),))
+            conn.commit()
+
+        except Exception as e:
+            logger.error(f"Error cleaning up old data: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+
+# Global analytics engine instance
+analytics_engine = WorkflowAnalyticsEngine()

@@ -213,70 +213,72 @@ export class TestHelpers {
         });
       }
     });
-+  }
-+}
-+
-+export class PageObject {
-+  protected page: Page;
-+
-+  constructor(page: Page) {
-+    this.page = page;
-+  }
-+
-+  async waitForPageLoad() {
-+    await this.page.waitForLoadState('networkidle');
-+    await this.page.waitForLoadState('domcontentloaded');
-+  }
-+
-+  async getCurrentUrl(): Promise<string> {
-+    return this.page.url();
-+  }
-+
-+  async takeScreenshot(name: string) {
-+    return await TestHelpers.generateScreenshot(this.page, name);
-+  }
-+}
-+
-+export class AuthPage extends PageObject {
-+  async navigateTo(url: string) {
-+    await this.page.goto(url);
-+    await this.waitForPageLoad();
-+  }
-+
-+  async loginWithGoogle(email: string) {
-+    await TestHelpers.mockOAuthFlows(this.page);
-+    await this.page.click('[data-testid="google-auth-button"]');
-+    await this.page.waitForSelector('[data-testid="dashboard"]', { timeout: 10000 });
-+  }
-+
-+  async selectPersona(personaName: string) {
-+    await this.page.click(`[data-testid="persona-${personaName}"]`);
-+    await this.page.waitForSelector(`[data-testid="${personaName}-dashboard"]`, { timeout: 10000 });
-+  }
-+
-+  async completeOnboarding(personaName: string) {
-+    await this.page.fill('[data-testid="user-name"]', `Test ${personaName}`);
-+    await this.page.fill('[data-testid="user-email"]', `${personaName}.test@example.com`);
-+    await this.page.click('[data-testid="continue-button"]');
-+    await this.page.waitForSelector('[data-testid="integration-setup"]', { timeout: 10000 });
-+  }
-+}
-+
-+export class BaseE2ETest {
-+  protected testUser: TestUser;
-+  protected page: Page;
-+
-+  constructor(page: Page, user: TestUser) {
-+    this.page = page;
-+    this.testUser = user;
-+  }
-+
-+  async setupTestEnvironment() {
-+    await TestHelpers.mockOAuthFlows(this.page);
-+    await TestHelpers.mockFinancialData(this.page);
-+    await TestHelpers.mockCalendarData(this.page);
-+    await TestHelpers.mockNotionData(this.page);
-+  }
-+
-+  async captureInitialState() {
-+    return
+  }
+}
+
+export class PageObject {
+  protected page: Page;
+
+  constructor(page: Page) {
+    this.page = page;
+  }
+
+  async waitForPageLoad() {
+    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
+  }
+
+  async getCurrentUrl(): Promise<string> {
+    return this.page.url();
+  }
+
+  async takeScreenshot(name: string) {
+    return await TestHelpers.generateScreenshot(this.page, name);
+  }
+}
+
+export class AuthPage extends PageObject {
+  async navigateTo(url: string) {
+    await this.page.goto(url);
+    await this.waitForPageLoad();
+  }
+
+  async loginWithGoogle(email: string) {
+    await TestHelpers.mockOAuthFlows(this.page);
+    await this.page.click('[data-testid="google-auth-button"]');
+    await this.page.waitForSelector('[data-testid="dashboard"]', { timeout: 10000 });
+  }
+
+  async selectPersona(personaName: string) {
+    await this.page.click(`[data-testid="persona-${personaName}"]`);
+    await this.page.waitForSelector(`[data-testid="${personaName}-dashboard"]`, { timeout: 10000 });
+  }
+
+  async completeOnboarding(personaName: string) {
+    await this.page.fill('[data-testid="user-name"]', `Test ${personaName}`);
+    await this.page.fill('[data-testid="user-email"]', `${personaName}.test@example.com`);
+    await this.page.click('[data-testid="continue-button"]');
+    await this.page.waitForSelector('[data-testid="integration-setup"]', { timeout: 10000 });
+  }
+}
+
+export class BaseE2ETest {
+  protected testUser: TestUser;
+  protected page: Page;
+
+  constructor(page: Page, user: TestUser) {
+    this.page = page;
+    this.testUser = user;
+  }
+
+  async setupTestEnvironment() {
+    await TestHelpers.mockOAuthFlows(this.page);
+    await TestHelpers.mockFinancialData(this.page);
+    await TestHelpers.mockCalendarData(this.page);
+    await TestHelpers.mockNotionData(this.page);
+  }
+
+  async captureInitialState() {
+    return;
+  }
+}

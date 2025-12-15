@@ -160,6 +160,17 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     };
 
     const handleActionClick = async (action: ChatAction) => {
+        // Handle "Open in Builder" action
+        if (action.type === 'open_builder' && action.workflowData) {
+            toast({ title: "Opening Builder", description: "Loading your draft..." });
+            router.push({
+                pathname: '/automation',
+                query: { draft: JSON.stringify(action.workflowData) }
+            });
+            setIsOpen(false);
+            return;
+        }
+
         toast({
             title: "Action Triggered",
             description: `Processing action: ${action.label}`,

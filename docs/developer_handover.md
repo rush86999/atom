@@ -352,3 +352,30 @@ Even after fixing the Next.js API routes, some frontend components (`SlackIntegr
 -   Verified backend service via `verify_agent_service.py`.
 -   Verified API endpoints via standard HTTP tests.
 -   Verified UI integration in DevStudio.
+
+### Phase 10: Workflow Intelligence Upgrade (Dec 14, 2025)
+
+**Goal:** Transform the workflow engine into a visual, AI-powered system accessible to all users.
+
+**Implementation:**
+1.  **Visual Workflow Builder**:
+    -   Implemented a node-based editor using **ReactFlow** (`components/Automations/WorkflowBuilder.tsx`).
+    -   Supports **Trigger**, **Action**, **Condition**, **AI**, and **Desktop** nodes.
+    -   **Drag-and-drop** interface with edge connections.
+2.  **Intelligent Condition Logic**:
+    -   **Visual Mode**: No-code "Field == Value" builder.
+    -   **LLM Mode**: Natural language prompts (e.g. "Is email urgent?").
+    -   **Code Mode**: Custom JavaScript/Python with **AI Code Generation** stub.
+    -   **Expression Mode**: Legacy supported.
+3.  **AI Integration**:
+    -   **Generative Creation**: "Create with AI" input on dashboard generates initial graph from text.
+    -   **Workflow Copilot**: **Toolbar Popover** ("AI Assist") allows conversational editing (e.g., "Add Slack node") within the builder.
+    -   **Global Chat Deep-Linking**: `GlobalChatWidget` can now trigger `open_builder` actions, redirecting users from the main chat to the visual editor with a drafted workflow.
+4.  **Backend Persistence**:
+    -   Added `POST /api/workflows/definitions` to save visual layouts and logic.
+    -   Added `router.query.draft` support to load workflows from external sources (Chat).
+
+**Verification:**
+-   **UI Tests**: `workflow_builder.test.ts` (Visual rendering, Toolbars, Interactions).
+-   **Engine Tests**: `workflow_engine.test.ts` (Backend logic).
+-   **Manual**: Verified end-to-end "Chat -> Builder -> Save" flow.

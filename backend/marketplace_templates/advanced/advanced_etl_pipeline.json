@@ -1,0 +1,131 @@
+{
+  "id": "advanced_etl_pipeline",
+  "name": "Advanced ETL Pipeline",
+  "description": "Multi-step data processing pipeline with conditional logic and pause/resume support",
+  "category": "Data Processing",
+  "author": "ATOM Team",
+  "version": "2.0.0",
+  "integrations": [
+    "database",
+    "api",
+    "openai"
+  ],
+  "complexity": "Advanced",
+  "tags": [
+    "etl",
+    "pipeline",
+    "data",
+    "multi-step"
+  ],
+  "input_schema": [
+    {
+      "name": "data_source_type",
+      "type": "select",
+      "label": "Data Source Type",
+      "description": "Select the type of data source",
+      "required": true,
+      "options": [
+        "database",
+        "file",
+        "api",
+        "stream"
+      ]
+    },
+    {
+      "name": "transformation_rules",
+      "type": "object",
+      "label": "Transformation Rules",
+      "description": "JSON configuration for data transformations",
+      "required": false,
+      "show_when": {
+        "data_source_type": [
+          "database",
+          "api"
+        ]
+      }
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "validate_inputs",
+      "name": "Validate Input Configuration",
+      "description": "Validate and prepare input parameters",
+      "step_type": "validation",
+      "estimated_duration": 30
+    },
+    {
+      "step_id": "extract_data",
+      "name": "Extract Data",
+      "description": "Extract data from the specified source",
+      "step_type": "data_extraction",
+      "estimated_duration": 120,
+      "depends_on": [
+        "validate_inputs"
+      ]
+    },
+    {
+      "step_id": "transform_data",
+      "name": "Transform Data",
+      "description": "Apply transformation rules and clean data",
+      "step_type": "data_transformation",
+      "estimated_duration": 300,
+      "depends_on": [
+        "extract_data"
+      ],
+      "can_pause": true
+    },
+    {
+      "step_id": "load_data",
+      "name": "Load Processed Data",
+      "description": "Load transformed data to destination",
+      "step_type": "data_loading",
+      "estimated_duration": 180,
+      "depends_on": [
+        "transform_data"
+      ]
+    },
+    {
+      "step_id": "generate_report",
+      "name": "Generate Processing Report",
+      "description": "Create summary report of the ETL process",
+      "step_type": "report_generation",
+      "estimated_duration": 60,
+      "depends_on": [
+        "load_data"
+      ]
+    }
+  ],
+  "output_config": {
+    "type": "multi_output",
+    "outputs": [
+      "processed_data",
+      "transformation_log",
+      "processing_report"
+    ]
+  },
+  "estimated_duration": 690,
+  "prerequisites": [
+    "database_access",
+    "file_permissions"
+  ],
+  "use_cases": [
+    "Data migration",
+    "Data warehousing",
+    "Real-time processing"
+  ],
+  "benefits": [
+    "Conditional processing",
+    "Error recovery",
+    "Progress tracking",
+    "Pause/resume support"
+  ],
+  "created_at": "2025-12-14T16:44:10.885142",
+  "updated_at": "2025-12-14T16:44:10.885142",
+  "downloads": 0,
+  "rating": 5.0,
+  "template_type": "advanced",
+  "multi_input_support": true,
+  "multi_step_support": true,
+  "multi_output_support": true,
+  "pause_resume_support": true
+}
