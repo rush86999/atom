@@ -13,7 +13,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { nodeTypes } from './CustomNodes';
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Zap, Monitor, Globe } from "lucide-react";
+import { Plus, Save, Zap, Monitor, Globe, Mail, Clock } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const initialNodes: Node[] = [
@@ -70,11 +70,38 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
 
     const addNode = (type: string) => {
         const id = `${nodes.length + 1}`;
+        let data: any = { label: `${type} node` };
+
+        // Set default data based on node type
+        switch (type) {
+            case 'email':
+                data = { label: 'Send Email', recipient: 'user@example.com', subject: 'Notification' };
+                break;
+            case 'http':
+                data = { label: 'HTTP Request', method: 'GET', url: 'https://api.example.com' };
+                break;
+            case 'timer':
+                data = { label: 'Delay', duration: '5', unit: 'minutes' };
+                break;
+            case 'ai_node':
+                data = { label: 'AI Processing', model: 'GPT-4', prompt: 'Analyze input...' };
+                break;
+            case 'desktop':
+                data = { label: 'Desktop Action', app: 'Excel', action: 'Open' };
+                break;
+            case 'condition':
+                data = { label: 'Condition', condition: 'If true' };
+                break;
+            case 'action':
+                data = { label: 'Generic Action', action: 'Do something' };
+                break;
+        }
+
         const newNode: Node = {
             id,
             type,
-            position: { x: Math.random() * 400, y: Math.random() * 400 },
-            data: { label: `${type} node` },
+            position: { x: Math.random() * 400 + 50, y: Math.random() * 400 + 50 },
+            data,
         };
         setNodes((nds) => nds.concat(newNode));
     };
@@ -216,6 +243,15 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => addServiceNode('Slack')}>
                         <Globe className="w-4 h-4 mr-1 text-blue-500" /> + Slack
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => addNode('email')}>
+                        <Mail className="w-4 h-4 mr-1 text-red-500" /> Email
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => addNode('http')}>
+                        <Globe className="w-4 h-4 mr-1 text-orange-500" /> HTTP
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => addNode('timer')}>
+                        <Clock className="w-4 h-4 mr-1 text-indigo-500" /> Delay
                     </Button>
                     <Button size="sm" onClick={onSave}>
                         <Save className="w-4 h-4 mr-1" /> Save

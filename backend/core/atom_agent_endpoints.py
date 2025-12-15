@@ -391,6 +391,10 @@ async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> 
                 result = await ai_service.call_anthropic_api(message, system_prompt) if hasattr(ai_service, 'call_anthropic_api') else None
             elif provider_id == "moonshot":
                 result = await ai_service.call_moonshot_api(message, system_prompt) if hasattr(ai_service, 'call_moonshot_api') else None
+            elif provider_id == "google":
+                result = await ai_service.call_google_api(message, system_prompt) if hasattr(ai_service, 'call_google_api') else None
+            elif provider_id == "google_flash":
+                result = await ai_service.call_google_api(message, system_prompt, model="gemini-1.5-flash") if hasattr(ai_service, 'call_google_api') else None
             else:
                 # Default to DeepSeek if available
                 result = await ai_service.call_deepseek_api(message, system_prompt) if hasattr(ai_service, 'call_deepseek_api') else None

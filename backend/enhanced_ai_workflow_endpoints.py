@@ -271,6 +271,62 @@ class RealAIWorkflowService:
             logger.error(f"Error calling DeepSeek: {e}")
             raise Exception(f"DeepSeek API call failed: {str(e)}")
 
+    async def call_google_api(self, prompt: str, system_prompt: str = "You are a helpful assistant that analyzes requests and generates structured tasks.", model: str = "gemini-1.5-pro") -> Dict[str, Any]:
+        """Call Google Gemini API for real NLU processing"""
+        if not self.google_api_key:
+            raise Exception("Google API key not configured")
+
+        try:
+            # Gemini REST API format
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.google_api_key}"
+            
+            request_data = {
+                "contents": [{
+                    "parts": [{"text": f"{system_prompt}\n\nUser Request: {prompt}"}]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 800
+                }
+            }
+
+            async with self.http_sessions['google'].post(
+                url,
+                headers={'Content-Type': 'application/json'},
+                json=request_data
+            ) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"Google Gemini API error: {response.status} - {error_text}")
+                    raise Exception(f"Google Gemini API error: {response.status}")
+
+                result = await response.json()
+                
+                # Extract content from Gemini response structure
+                try:
+                    content = result['candidates'][0]['content']['parts'][0]['text']
+                    token_usage = result.get('usageMetadata', {})
+                except (KeyError, IndexError):
+                    logger.error(f"Unexpected Gemini response format: {result}")
+                    raise Exception("Failed to parse Gemini response")
+
+                # Map usage to standard format
+                standard_usage = {
+                    'prompt_tokens': token_usage.get('promptTokenCount', 0),
+                    'completion_tokens': token_usage.get('candidatesTokenCount', 0),
+                    'total_tokens': token_usage.get('totalTokenCount', 0)
+                }
+
+                return {
+                    'content': content,
+                    'confidence': 0.88,
+                    'token_usage': standard_usage,
+                    'provider': 'google'
+                }
+        except Exception as e:
+            logger.error(f"Error calling Google Gemini: {e}")
+            raise Exception(f"Google Gemini API call failed: {str(e)}")
+
     async def process_with_nlu(self, text: str, provider: str = "openai", system_prompt: str = None) -> Dict[str, Any]:
         """Process text using real NLU capabilities"""
         if system_prompt is None:
@@ -295,6 +351,11 @@ Return your response as a JSON object with this format:
         # FORCED DEEPSEEK ONLY MODE
         providers_to_try = ["deepseek"]
         
+        if provider == "google":
+            providers_to_try.insert(0, "google")
+        elif provider == "google_flash":
+            providers_to_try.insert(0, "google_flash")
+
         # if provider != "openai" and self.openai_api_key:
         #     providers_to_try.append("openai")
         # if provider != "anthropic" and self.anthropic_api_key:
@@ -311,6 +372,10 @@ Return your response as a JSON object with this format:
                     result = await self.call_anthropic_api(user_prompt, system_prompt)
                 elif provider_name == "deepseek" and self.deepseek_api_key:
                     result = await self.call_deepseek_api(user_prompt, system_prompt)
+                elif provider_name == "google" and self.google_api_key:
+                    result = await self.call_google_api(user_prompt, system_prompt)
+                elif provider_name == "google_flash" and self.google_api_key:
+                    result = await self.call_google_api(user_prompt, system_prompt, model="gemini-1.5-flash")
                 else:
                     continue
 
