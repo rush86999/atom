@@ -34,7 +34,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.153240"
     },
     "ai_enhanced_api_routes": {
       "service": "ai_enhanced_api_routes",
@@ -45,7 +45,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.153794"
     },
     "ai_enhanced_service": {
       "service": "ai_enhanced_service",
@@ -56,7 +56,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.153794"
     },
     "ai_routes": {
       "service": "ai_routes",
@@ -67,7 +67,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.154299"
     },
     "asana_real_service": {
       "service": "asana_real_service",
@@ -78,7 +78,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.154362"
     },
     "asana_routes": {
       "service": "asana_routes",
@@ -89,7 +89,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.154362"
     },
     "asana_service": {
       "service": "asana_service",
@@ -100,7 +100,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.154362"
     },
     "atom_ai_integration": {
       "service": "atom_ai_integration",
@@ -111,7 +111,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.154362"
     },
     "atom_communication_apps_lancedb_integration": {
       "service": "atom_communication_apps_lancedb_integration",
@@ -122,7 +122,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.154917"
     },
     "atom_discord_integration": {
       "service": "atom_discord_integration",
@@ -133,7 +133,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.154917"
     },
     "atom_education_customization_service": {
       "service": "atom_education_customization_service",
@@ -144,7 +144,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.154917"
     },
     "atom_enterprise_api_routes": {
       "service": "atom_enterprise_api_routes",
@@ -155,7 +155,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.155480"
     },
     "atom_enterprise_security_service": {
       "service": "atom_enterprise_security_service",
@@ -166,7 +166,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.155480"
     },
     "atom_enterprise_unified_service": {
       "service": "atom_enterprise_unified_service",
@@ -177,7 +177,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.155480"
     },
     "atom_finance_customization_service": {
       "service": "atom_finance_customization_service",
@@ -188,7 +188,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.156035"
     },
     "atom_google_chat_integration": {
       "service": "atom_google_chat_integration",
@@ -199,7 +199,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.156035"
     },
     "atom_healthcare_customization_service": {
       "service": "atom_healthcare_customization_service",
@@ -210,7 +210,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.156035"
     },
     "atom_hubspot_integration_service": {
       "service": "atom_hubspot_integration_service",
@@ -221,7 +221,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.156035"
     },
     "atom_quickbooks_integration_service": {
       "service": "atom_quickbooks_integration_service",
@@ -232,7 +232,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.156585"
     },
     "atom_teams_integration": {
       "service": "atom_teams_integration",
@@ -243,7 +243,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.156585"
     },
     "atom_telegram_integration": {
       "service": "atom_telegram_integration",
@@ -254,7 +254,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.156585"
     },
     "atom_video_ai_service": {
       "service": "atom_video_ai_service",
@@ -265,7 +265,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.156585"
     },
     "atom_voice_ai_service": {
       "service": "atom_voice_ai_service",
@@ -276,7 +276,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.156585"
     },
     "atom_voice_video_integration_service": {
       "service": "atom_voice_video_integration_service",
@@ -287,7 +287,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.159909"
     },
     "atom_whatsapp_integration": {
       "service": "atom_whatsapp_integration",
@@ -298,7 +298,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.160463"
     },
     "atom_workflow_automation_service": {
       "service": "atom_workflow_automation_service",
@@ -309,7 +309,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.160463"
     },
     "atom_zendesk_integration_service": {
       "service": "atom_zendesk_integration_service",
@@ -320,7 +320,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.160463"
     },
     "atom_zoom_integration": {
       "service": "atom_zoom_integration",
@@ -331,7 +331,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.160967"
     },
     "bitbucket_routes": {
       "service": "bitbucket_routes",
@@ -342,7 +342,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.161015"
     },
     "bitbucket_service": {
       "service": "bitbucket_service",
@@ -353,7 +353,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.161015"
     },
     "box_routes": {
       "service": "box_routes",
@@ -364,7 +364,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.161015"
     },
     "box_service": {
       "service": "box_service",
@@ -375,7 +375,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.161564"
     },
     "calendly_routes": {
       "service": "calendly_routes",
@@ -386,7 +386,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.161564"
     },
     "chat_routes": {
       "service": "chat_routes",
@@ -397,7 +397,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.161564"
     },
     "deepgram_routes": {
       "service": "deepgram_routes",
@@ -408,7 +408,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.161564"
     },
     "discord_enhanced_api_routes": {
       "service": "discord_enhanced_api_routes",
@@ -419,7 +419,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.162121"
     },
     "discord_enhanced_service": {
       "service": "discord_enhanced_service",
@@ -430,7 +430,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.162121"
     },
     "discord_routes": {
       "service": "discord_routes",
@@ -441,7 +441,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.737003"
+      "timestamp": "2025-12-14T22:33:14.162121"
     },
     "dropbox_routes": {
       "service": "dropbox_routes",
@@ -452,7 +452,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.747015"
+      "timestamp": "2025-12-14T22:33:14.163900"
     },
     "dropbox_service_enhanced": {
       "service": "dropbox_service_enhanced",
@@ -463,7 +463,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.747337"
+      "timestamp": "2025-12-14T22:33:14.164461"
     },
     "email_routes": {
       "service": "email_routes",
@@ -474,7 +474,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.747337"
+      "timestamp": "2025-12-14T22:33:14.164461"
     },
     "figma_routes": {
       "service": "figma_routes",
@@ -485,7 +485,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.747337"
+      "timestamp": "2025-12-14T22:33:14.164461"
     },
     "figma_routes_fix": {
       "service": "figma_routes_fix",
@@ -496,7 +496,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.747337"
+      "timestamp": "2025-12-14T22:33:14.165026"
     },
     "freshdesk_routes": {
       "service": "freshdesk_routes",
@@ -507,7 +507,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.747337"
+      "timestamp": "2025-12-14T22:33:14.165026"
     },
     "freshdesk_service": {
       "service": "freshdesk_service",
@@ -518,7 +518,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.747337"
+      "timestamp": "2025-12-14T22:33:14.165026"
     },
     "github_integration": {
       "service": "github_integration",
@@ -529,7 +529,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.747337"
+      "timestamp": "2025-12-14T22:33:14.165026"
     },
     "github_routes": {
       "service": "github_routes",
@@ -540,7 +540,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.748586"
+      "timestamp": "2025-12-14T22:33:14.165580"
     },
     "github_routes_fix": {
       "service": "github_routes_fix",
@@ -551,7 +551,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.748586"
+      "timestamp": "2025-12-14T22:33:14.165580"
     },
     "github_service": {
       "service": "github_service",
@@ -562,7 +562,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.748586"
+      "timestamp": "2025-12-14T22:33:14.165580"
     },
     "gitlab_routes": {
       "service": "gitlab_routes",
@@ -573,7 +573,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.748586"
+      "timestamp": "2025-12-14T22:33:14.166085"
     },
     "gmail_routes": {
       "service": "gmail_routes",
@@ -584,7 +584,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.748586"
+      "timestamp": "2025-12-14T22:33:14.166125"
     },
     "gmail_service": {
       "service": "gmail_service",
@@ -595,7 +595,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.748586"
+      "timestamp": "2025-12-14T22:33:14.166125"
     },
     "google_calendar_routes": {
       "service": "google_calendar_routes",
@@ -606,7 +606,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.749584"
+      "timestamp": "2025-12-14T22:33:14.166125"
     },
     "google_calendar_service": {
       "service": "google_calendar_service",
@@ -617,7 +617,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.749584"
+      "timestamp": "2025-12-14T22:33:14.166125"
     },
     "google_chat_enhanced_service": {
       "service": "google_chat_enhanced_service",
@@ -628,7 +628,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.749584"
+      "timestamp": "2025-12-14T22:33:14.166668"
     },
     "google_drive_routes": {
       "service": "google_drive_routes",
@@ -639,7 +639,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.749584"
+      "timestamp": "2025-12-14T22:33:14.166668"
     },
     "google_drive_service": {
       "service": "google_drive_service",
@@ -650,7 +650,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.750304"
+      "timestamp": "2025-12-14T22:33:14.166668"
     },
     "google_integration": {
       "service": "google_integration",
@@ -661,7 +661,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.750304"
+      "timestamp": "2025-12-14T22:33:14.166668"
     },
     "hubspot_routes": {
       "service": "hubspot_routes",
@@ -672,7 +672,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.750304"
+      "timestamp": "2025-12-14T22:33:14.167208"
     },
     "hubspot_service": {
       "service": "hubspot_service",
@@ -683,7 +683,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.750304"
+      "timestamp": "2025-12-14T22:33:14.167208"
     },
     "intercom_routes": {
       "service": "intercom_routes",
@@ -694,7 +694,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.750304"
+      "timestamp": "2025-12-14T22:33:14.167208"
     },
     "jira_routes": {
       "service": "jira_routes",
@@ -705,7 +705,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.751301"
+      "timestamp": "2025-12-14T22:33:14.167208"
     },
     "jira_service": {
       "service": "jira_service",
@@ -716,7 +716,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.751301"
+      "timestamp": "2025-12-14T22:33:14.167808"
     },
     "linear_routes": {
       "service": "linear_routes",
@@ -727,7 +727,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.751301"
+      "timestamp": "2025-12-14T22:33:14.167808"
     },
     "linkedin_routes": {
       "service": "linkedin_routes",
@@ -738,7 +738,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.751301"
+      "timestamp": "2025-12-14T22:33:14.167808"
     },
     "mailchimp_routes": {
       "service": "mailchimp_routes",
@@ -749,7 +749,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.751301"
+      "timestamp": "2025-12-14T22:33:14.167808"
     },
     "microsoft365_routes": {
       "service": "microsoft365_routes",
@@ -760,7 +760,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.752299"
+      "timestamp": "2025-12-14T22:33:14.168313"
     },
     "microsoft365_service": {
       "service": "microsoft365_service",
@@ -771,7 +771,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.752299"
+      "timestamp": "2025-12-14T22:33:14.168354"
     },
     "monday_routes": {
       "service": "monday_routes",
@@ -782,7 +782,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.752299"
+      "timestamp": "2025-12-14T22:33:14.168354"
     },
     "monday_service": {
       "service": "monday_service",
@@ -793,7 +793,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.752299"
+      "timestamp": "2025-12-14T22:33:14.168354"
     },
     "notion_routes": {
       "service": "notion_routes",
@@ -804,7 +804,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.752299"
+      "timestamp": "2025-12-14T22:33:14.168858"
     },
     "notion_routes_fix": {
       "service": "notion_routes_fix",
@@ -815,7 +815,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.752299"
+      "timestamp": "2025-12-14T22:33:14.168898"
     },
     "notion_service": {
       "service": "notion_service",
@@ -826,7 +826,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.753296"
+      "timestamp": "2025-12-14T22:33:14.168898"
     },
     "onedrive_routes": {
       "service": "onedrive_routes",
@@ -837,7 +837,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.753296"
+      "timestamp": "2025-12-14T22:33:14.168898"
     },
     "onedrive_service": {
       "service": "onedrive_service",
@@ -848,7 +848,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.753296"
+      "timestamp": "2025-12-14T22:33:14.169441"
     },
     "outlook_calendar_service": {
       "service": "outlook_calendar_service",
@@ -859,7 +859,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.753296"
+      "timestamp": "2025-12-14T22:33:14.169441"
     },
     "outlook_integration": {
       "service": "outlook_integration",
@@ -870,7 +870,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.753296"
+      "timestamp": "2025-12-14T22:33:14.169441"
     },
     "outlook_routes": {
       "service": "outlook_routes",
@@ -881,7 +881,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.754294"
+      "timestamp": "2025-12-14T22:33:14.169441"
     },
     "outlook_routes_enhanced": {
       "service": "outlook_routes_enhanced",
@@ -892,7 +892,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.754294"
+      "timestamp": "2025-12-14T22:33:14.169987"
     },
     "outlook_service": {
       "service": "outlook_service",
@@ -903,7 +903,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.754294"
+      "timestamp": "2025-12-14T22:33:14.169987"
     },
     "outlook_service_enhanced": {
       "service": "outlook_service_enhanced",
@@ -914,7 +914,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.754294"
+      "timestamp": "2025-12-14T22:33:14.169987"
     },
     "plaid_routes": {
       "service": "plaid_routes",
@@ -925,7 +925,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.754294"
+      "timestamp": "2025-12-14T22:33:14.169987"
     },
     "quickbooks_routes": {
       "service": "quickbooks_routes",
@@ -936,7 +936,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.755291"
+      "timestamp": "2025-12-14T22:33:14.170529"
     },
     "salesforce_core_service": {
       "service": "salesforce_core_service",
@@ -947,7 +947,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.755291"
+      "timestamp": "2025-12-14T22:33:14.170529"
     },
     "salesforce_routes": {
       "service": "salesforce_routes",
@@ -958,7 +958,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.755291"
+      "timestamp": "2025-12-14T22:33:14.170529"
     },
     "salesforce_service": {
       "service": "salesforce_service",
@@ -969,7 +969,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.755291"
+      "timestamp": "2025-12-14T22:33:14.170529"
     },
     "sendgrid_routes": {
       "service": "sendgrid_routes",
@@ -980,7 +980,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.756435"
+      "timestamp": "2025-12-14T22:33:14.171071"
     },
     "shopify_routes": {
       "service": "shopify_routes",
@@ -991,7 +991,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.756561"
+      "timestamp": "2025-12-14T22:33:14.171071"
     },
     "slack_enhanced_api_routes": {
       "service": "slack_enhanced_api_routes",
@@ -1002,7 +1002,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.756561"
+      "timestamp": "2025-12-14T22:33:14.171071"
     },
     "slack_enhanced_service": {
       "service": "slack_enhanced_service",
@@ -1013,7 +1013,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.757286"
+      "timestamp": "2025-12-14T22:33:14.171071"
     },
     "slack_integration": {
       "service": "slack_integration",
@@ -1024,7 +1024,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.757286"
+      "timestamp": "2025-12-14T22:33:14.171613"
     },
     "slack_routes": {
       "service": "slack_routes",
@@ -1035,7 +1035,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.757286"
+      "timestamp": "2025-12-14T22:33:14.171613"
     },
     "slack_service_unified": {
       "service": "slack_service_unified",
@@ -1046,7 +1046,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.758283"
+      "timestamp": "2025-12-14T22:33:14.171613"
     },
     "stripe_routes": {
       "service": "stripe_routes",
@@ -1057,7 +1057,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.758283"
+      "timestamp": "2025-12-14T22:33:14.171613"
     },
     "stripe_service": {
       "service": "stripe_service",
@@ -1068,7 +1068,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.758283"
+      "timestamp": "2025-12-14T22:33:14.172157"
     },
     "tableau_routes": {
       "service": "tableau_routes",
@@ -1079,7 +1079,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.758283"
+      "timestamp": "2025-12-14T22:33:14.172157"
     },
     "teams_enhanced_api_routes": {
       "service": "teams_enhanced_api_routes",
@@ -1090,7 +1090,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.758283"
+      "timestamp": "2025-12-14T22:33:14.172157"
     },
     "teams_enhanced_service": {
       "service": "teams_enhanced_service",
@@ -1101,7 +1101,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.758283"
+      "timestamp": "2025-12-14T22:33:14.172157"
     },
     "teams_integration": {
       "service": "teams_integration",
@@ -1112,7 +1112,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.759284"
+      "timestamp": "2025-12-14T22:33:14.172704"
     },
     "teams_routes": {
       "service": "teams_routes",
@@ -1123,7 +1123,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.759284"
+      "timestamp": "2025-12-14T22:33:14.172704"
     },
     "teams_service": {
       "service": "teams_service",
@@ -1134,7 +1134,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.760052"
+      "timestamp": "2025-12-14T22:33:14.172704"
     },
     "trello_routes": {
       "service": "trello_routes",
@@ -1145,7 +1145,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.760278"
+      "timestamp": "2025-12-14T22:33:14.172704"
     },
     "trello_service": {
       "service": "trello_service",
@@ -1156,7 +1156,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.760278"
+      "timestamp": "2025-12-14T22:33:14.173251"
     },
     "twilio_routes": {
       "service": "twilio_routes",
@@ -1167,7 +1167,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.760278"
+      "timestamp": "2025-12-14T22:33:14.173251"
     },
     "whatsapp_business_integration": {
       "service": "whatsapp_business_integration",
@@ -1178,7 +1178,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.760278"
+      "timestamp": "2025-12-14T22:33:14.173251"
     },
     "whatsapp_fastapi_routes": {
       "service": "whatsapp_fastapi_routes",
@@ -1189,7 +1189,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.760278"
+      "timestamp": "2025-12-14T22:33:14.173251"
     },
     "whatsapp_final_websocket_integration": {
       "service": "whatsapp_final_websocket_integration",
@@ -1200,7 +1200,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.761276"
+      "timestamp": "2025-12-14T22:33:14.173810"
     },
     "whatsapp_service_manager": {
       "service": "whatsapp_service_manager",
@@ -1211,7 +1211,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.761276"
+      "timestamp": "2025-12-14T22:33:14.173810"
     },
     "workflow_automation_routes": {
       "service": "workflow_automation_routes",
@@ -1222,7 +1222,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.761276"
+      "timestamp": "2025-12-14T22:33:14.173810"
     },
     "xero_routes": {
       "service": "xero_routes",
@@ -1233,7 +1233,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.761276"
+      "timestamp": "2025-12-14T22:33:14.174315"
     },
     "zendesk_routes": {
       "service": "zendesk_routes",
@@ -1244,7 +1244,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.761276"
+      "timestamp": "2025-12-14T22:33:14.174363"
     },
     "zoom_routes": {
       "service": "zoom_routes",
@@ -1255,7 +1255,7 @@
         "has_service_class": true,
         "has_auth_method": true
       },
-      "timestamp": "2025-12-07T17:27:04.761276"
+      "timestamp": "2025-12-14T22:33:14.174363"
     }
   }
 }
