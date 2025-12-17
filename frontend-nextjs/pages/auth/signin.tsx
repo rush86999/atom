@@ -35,8 +35,13 @@ export default function SignIn() {
         redirect: false,
       });
 
-      if (result?.error) {
-        setError(result.error);
+      if (result?.error || !result?.ok) {
+        // If there's an error string, use it. If not, check status or provide default.
+        const errorMessage = result?.error || "Authentication failed (check credentials or database)";
+        setError(errorMessage);
+
+        // Log for debugging since NextAuth might return empty error on 401
+        console.error("Sign in failed:", result);
       } else {
         toast({
           title: "Successfully signed in!",
