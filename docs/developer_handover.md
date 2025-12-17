@@ -379,3 +379,12 @@ Even after fixing the Next.js API routes, some frontend components (`SlackIntegr
 -   **UI Tests**: `workflow_builder.test.ts` (Visual rendering, Toolbars, Interactions).
 -   **Engine Tests**: `workflow_engine.test.ts` (Backend logic).
 -   **Manual**: Verified end-to-end "Chat -> Builder -> Save" flow.
+
+### Phase 10.1: Integration Node Enhancements (Dec 14, 2025)
+
+**Goal:** Add local desktop agent support and visual service branding.
+
+**Implementation:**
+1.  **DesktopNode**: New node type (`desktop`) for local desktop actions (open apps, run scripts).
+2.  **ActionNode Branding**: Dynamic color/background based on service (Slack, Gmail, GitHub, etc.).
+3.  **WorkflowBuilder**: Updated toolbar and AI chat to support desktop node creation.
