@@ -581,15 +581,16 @@ const DevStudio = () => {
                             </Card>
                         )}
                     </TabsContent>
-                </TabsContent>
 
-                {/* Agent Console Panel */}
-                <TabsContent value="agent" className="space-y-6">
-                    <AgentConsole />
-                </TabsContent>
-            </Tabs>
+
+                    {/* Agent Console Panel */}
+                    <TabsContent value="agent" className="space-y-6">
+                        <AgentConsole />
+                    </TabsContent>
+                </Tabs>
+            </div>
         </div>
-        </div >
+
     );
 };
 
