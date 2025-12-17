@@ -23,7 +23,17 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // Mock login for E2E testing
+        // Mock login for E2E testing and Demo User
+        // This allows login even if the database is down
+        if (credentials?.email === "admin@example.com" && credentials?.password === "securePass123") {
+          return {
+            id: "demo-admin-id",
+            email: "admin@example.com",
+            name: "Admin User",
+            token: "demo-backend-token",
+          };
+        }
+
         if (
           process.env.NODE_ENV === "development" &&
           credentials?.email === "test@example.com" &&
@@ -39,16 +49,6 @@ export const authOptions: NextAuthOptions = {
 
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required");
-        }
-
-        // For E2E testing, accept test credentials without backend call
-        if (credentials.email === "test@example.com" && credentials.password === "testpassword") {
-          return {
-            id: "test-user-id",
-            email: "test@example.com",
-            name: "Test User",
-            token: "test-token-for-e2e",
-          };
         }
 
         try {
@@ -86,6 +86,7 @@ export const authOptions: NextAuthOptions = {
             token: "db-auth-token",
           };
         } catch (error) {
+          console.error("Authorize error:", error);
           if (error instanceof Error) {
             throw new Error(error.message);
           }

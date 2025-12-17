@@ -1,26 +1,46 @@
 import os
+import threading
+import logging
 from pathlib import Path
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from core.integration_loader import IntegrationLoader
-from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
-# Load environment variables from project root
+# --- V2 IMPORTS (Architecture) ---
+from core.lazy_integration_registry import (
+    load_integration,
+    get_integration_list,
+    get_loaded_integrations,
+    ESSENTIAL_INTEGRATIONS
+)
+from core.circuit_breaker import circuit_breaker
+from core.resource_guards import ResourceGuard, MemoryGuard
+from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
+from core.integration_loader import IntegrationLoader # Kept for backward compatibility if needed
+
+# --- CONFIGURATION & LOGGING ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("ATOM_SERVER")
+
+# Load environment variables
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(env_path)
+logger.info(f"Configuration loaded from {env_path}")
 
-# Initialize FastAPI app
+# --- APP INITIALIZATION ---
 app = FastAPI(
     title="ATOM API",
-    description="Advanced Task Orchestration & Management API",
-    version="1.0.0",
+    description="Advanced Task Orchestration & Management API - Hybrid V2",
+    version="2.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
-# CORS middleware
+# CORS Middleware (Standard V1/V2)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -29,209 +49,194 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Security middleware
+# Security Middleware (V2 Enhanced)
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(RateLimitMiddleware, requests_per_minute=120)  # 120 requests/min per IP
+app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
 
-# Initialize Integration Loader
-loader = IntegrationLoader()
-
-# Core Routes (Always loaded)
+# ============================================================================
+# 1. CORE ROUTES (EAGER LOADING)
+# Restored from V1 to ensure immediate availability of main features
+# ============================================================================
+logger.info("Loading Core API Routes...")
 try:
+    # 1. Main API
     from core.api_routes import router as core_router
     app.include_router(core_router, prefix="/api/v1")
 
+    # 2. Workflow Engine
     from core.workflow_endpoints import router as workflow_router
     app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
 
-    # Include OAuth routers
-    from oauth_routes import router as oauth_router # Assuming oauth_routes is a top-level module
-    app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
-    
-    # Include WebSocket routes
-    from websocket_routes import router as ws_router
-    app.include_router(ws_router, tags=["WebSockets"])
+    # 3. OAuth (Critical for login)
+    try:
+        from oauth_routes import router as oauth_router
+        app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
+    except ImportError:
+        logger.warning("OAuth routes not found, skipping.")
+
+    # 4. WebSockets (Real-time features)
+    try:
+        from websocket_routes import router as ws_router
+        app.include_router(ws_router, tags=["WebSockets"])
+    except ImportError:
+        logger.warning("WebSocket routes not found, skipping.")
+
+    logger.info("✓ Core Routes Loaded Successfully")
 
 except ImportError as e:
-    print("[CRITICAL] Core API routes failed to load: {}".format(e))
+    logger.critical(f"CRITICAL: Core API routes failed to load: {e}")
+    # In production, you might want to raise e here to stop a broken server
 
-# Define Integrations to Load
-# Format: (module_path, router_name, prefix (optional))
-integrations = [
-    # Core Modules
-    ("core.workflow_ui_endpoints", "router", None),
-    ("core.atom_agent_endpoints", "router", None),
-    ("api.agent_routes", "router", None), # Computer Use Agent
-    ("core.missing_endpoints", "router", None),
-    ("core.service_registry", "router", None),
-    ("core.byok_endpoints", "router", None),
-    ("core.byok_competitive_endpoints", "router", None),
-    ("core.system_status", "router", None),
-    ("service_health_endpoints", "router", None),
-    ("core.workflow_endpoints", "router", None),
-    ("core.analytics_endpoints", "router", None),
-    ("core.enterprise_endpoints", "router", None),
-    ("core.workflow_marketplace", "router", None),
-    ("core.enterprise_user_management", "router", None),
-    ("core.integration_enhancement_endpoints", "router", None),
-    ("core.industry_workflow_endpoints", "router", None),
-    ("core.ai_workflow_optimization_endpoints", "router", None),
-    ("core.enterprise_security", "router", "/api/v1"),
-    ("core.auto_healing_endpoints", "router", None),
+# ============================================================================
+# 2. LAZY INTEGRATION ENDPOINTS (V2 ARCHITECTURE)
+# Keeps the server fast by only loading plugins when needed
+# ============================================================================
 
-    # Workflow Versioning
-    ("api.workflow_versioning_endpoints", "router", None),
+@app.get("/api/integrations")
+async def list_integrations():
+    """List all available integrations and their status"""
+    return {
+        "total": len(get_integration_list()),
+        "integrations": list(get_integration_list().keys()),
+        "loaded": get_loaded_integrations(),
+    }
+
+@app.post("/api/integrations/{integration_name}/load")
+async def load_integration_endpoint(integration_name: str):
+    """Load an integration on-demand (Solves the startup speed issue)"""
+    if not circuit_breaker.is_enabled(integration_name):
+        raise HTTPException(
+            status_code=503, 
+            detail=f"Integration {integration_name} is disabled due to repeated failures"
+        )
     
-    # Unified Endpoints
-    ("core.unified_task_endpoints", "router", None),
-    ("core.unified_task_endpoints", "project_router", None),
-    ("core.unified_calendar_endpoints", "router", None),
-    ("core.unified_search_endpoints", "router", None),
+    try:
+        logger.info(f"Loading integration: {integration_name}")
+        router = load_integration(integration_name)
+        
+        if router is None:
+            circuit_breaker.record_failure(integration_name)
+            raise HTTPException(status_code=404, detail="Integration module not found")
+        
+        # Consistent prefixing
+        app.include_router(router, prefix=f"/api/{integration_name}", tags=[integration_name])
+        circuit_breaker.record_success(integration_name)
+        
+        return {"status": "loaded", "integration": integration_name}
+        
+    except Exception as e:
+        circuit_breaker.record_failure(integration_name, e)
+        logger.error(f"Failed to load {integration_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-    # AI & Workflows
-    ("enhanced_ai_workflow_endpoints", "router", None),
-    ("advanced_workflow_api", "router", None),
-    ("evidence_collection_api", "router", None),
-    ("case_studies_api", "router", None),
-    ("service_integrations", "router", None),
-    ("integration_health_endpoints", "router", None),
+@app.get("/api/integrations/stats")
+async def get_all_integration_stats():
+    return circuit_breaker.get_all_stats()
 
-    # Integrations - Productivity & PM
-    ("integrations.asana_routes", "router", None),
-    ("integrations.notion_routes", "router", None),
-    ("integrations.linear_routes", "router", None),
-    ("integrations.jira_routes", "router", None),
-    ("integrations.monday_routes", "router", None),
-    ("integrations.trello_routes", "router", None),
-    ("integrations.airtable_routes", "router", None),
-    ("integrations.clickup_routes", "router", None), # Added if exists
-    ("integrations.google_calendar_routes", "router", None),
-    ("integrations.calendly_routes", "router", None),
+@app.post("/api/integrations/{integration_name}/reset")
+async def reset_integration(integration_name: str):
+    circuit_breaker.reset(integration_name)
+    return {"status": "reset", "integration": integration_name}
 
-    # Integrations - Communication
-    ("integrations.slack_routes", "router", None),
-    ("integrations.zoom_routes", "router", None),
-    ("integrations.teams_routes", "router", None),
-    ("integrations.gmail_routes", "router", None),
-    ("integrations.email_routes", "router", None),
-    ("integrations.outlook_routes", "router", None),
-    ("integrations.twilio_routes", "router", None),
-    ("integrations.sendgrid_routes", "router", None),
-    
-    # Integrations - Storage
-    ("integrations.dropbox_routes", "router", None),
-    ("integrations.google_drive_routes", "google_drive_router", None),
-    ("integrations.onedrive_routes", "onedrive_router", None),
-    ("integrations.microsoft365_routes", "microsoft365_router", None),
-    ("integrations.box_routes", "router", None),
-
-    # Integrations - CRM & Support
-    ("integrations.salesforce_routes", "router", None),
-    ("integrations.hubspot_routes", "router", None),
-    ("integrations.zendesk_routes", "router", None),
-    ("integrations.freshdesk_routes", "router", None),
-    ("integrations.intercom_routes", "router", None),
-
-    # Integrations - Finance & Commerce
-    ("integrations.stripe_routes", "router", None),
-    ("integrations.shopify_routes", "router", None),
-    ("integrations.xero_routes", "router", None),
-    ("integrations.quickbooks_routes", "router", None),
-    ("integrations.plaid_routes", "router", None),
-
-    # Integrations - Dev & Design
-    ("integrations.github_routes", "router", None),
-    ("integrations.figma_routes", "router", None),
-
-    # Integrations - Marketing & Social
-    ("integrations.mailchimp_routes", "router", "/api"),
-    ("integrations.linkedin_routes", "router", None),
-
-    # Integrations - Other
-    ("integrations.deepgram_routes", "router", None),
-    ("integrations.tableau_routes", "router", None),
-    
-    # PDF Processing
-    ("integrations.pdf_processing", "pdf_ocr_router", "/api/v1"),
-    ("integrations.pdf_processing", "pdf_memory_router", "/api/v1"),
-
-    # Memory
-    ("integrations.atom_communication_memory_api", "atom_memory_router", None),
-    ("integrations.atom_communication_memory_production_api", "atom_memory_production_router", None),
-    ("integrations.atom_communication_memory_webhooks", "atom_memory_webhooks_router", None),
-    ("integrations.atom_communication_apps_lancedb_integration", "communication_ingestion_router", None),
-    
-    # OAuth Authentication
-    ("oauth_routes", "router", None),
-    
-    # Core Authentication
-    ("core.auth_endpoints", "router", None),
-    
-    # Team Messaging
-    ("core.team_messaging", "router", None),
-]
-
-
-# Load and Mount Integrations
-for entry in integrations:
-    module, router_name, prefix = entry
-    router = loader.load_integration(module, router_name)
-    if router:
-        if prefix:
-            app.include_router(router, prefix=prefix)
-        else:
-            app.include_router(router)
-
-# Special Handling: WhatsApp Business
+# ============================================================================
+# 3. SPECIAL HANDLING: WHATSAPP (RESTORED FROM V1)
+# ============================================================================
 try:
     from integrations.whatsapp_fastapi_routes import (
         initialize_whatsapp_service,
         register_whatsapp_routes,
     )
+    # Register routes immediately
     if register_whatsapp_routes(app):
-        print("[OK] WhatsApp Business integration routes loaded")
+        logger.info("[OK] WhatsApp Business integration routes loaded")
+        # Initialize service (Wrapped in try/except to prevent startup crash)
         try:
             if initialize_whatsapp_service():
-                print("[OK] WhatsApp Business service initialized")
+                logger.info("[OK] WhatsApp Business service initialized")
         except Exception as e:
-            print(f"[WARN] WhatsApp Business service initialization error: {e}")
-except ImportError as e:
-    print(f"[WARN] WhatsApp integration not available: {e}")
+            logger.warning(f"[WARN] WhatsApp Business service init failed: {e}")
+except ImportError:
+    logger.info("WhatsApp integration module not present, skipping.")
+except Exception as e:
+    logger.warning(f"WhatsApp setup error: {e}")
 
-# Health Check
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "message": "ATOM Platform Backend is running",
-        "version": "1.0.0",
-        "loaded_integrations": len(loader.get_loaded_integrations())
-    }
+# ============================================================================
+# 4. SYSTEM ENDPOINTS
+# ============================================================================
 
-# Root Endpoint
 @app.get("/")
 async def root():
-    """Root endpoint"""
     return {
-        "name": "ATOM Platform",
-        "description": "Complete AI-powered automation platform",
+        "name": "ATOM Platform API",
+        "version": "2.1.0",
         "status": "running",
+        "mode": "Hybrid (Core=Eager, Integrations=Lazy)",
         "docs": "/docs",
     }
 
-# Scheduler Lifecycle
+@app.get("/health")
+async def health_check():
+    memory_mb = MemoryGuard.get_memory_usage_mb()
+    return {
+        "status": "healthy",
+        "memory_mb": round(memory_mb, 2),
+        "active_integrations": len(get_loaded_integrations()),
+    }
+
+# ============================================================================
+# 5. LIFECYCLE & SCHEDULER
+# ============================================================================
+
 @app.on_event("startup")
-async def start_scheduler():
-    from ai.workflow_scheduler import workflow_scheduler
-    workflow_scheduler.start()
-    print("[OK] Workflow Scheduler started")
+async def startup_event():
+    logger.info("=" * 60)
+    logger.info("ATOM Platform Starting (Hybrid Mode)")
+    logger.info("=" * 60)
+    
+    # 1. Load Essential Integrations (defined in registry)
+    # This bridges the gap - specific plugins you ALWAYS want can be defined there
+    if ESSENTIAL_INTEGRATIONS:
+        logger.info(f"Loading {len(ESSENTIAL_INTEGRATIONS)} essential plugins...")
+        for name in ESSENTIAL_INTEGRATIONS:
+            try:
+                router = load_integration(name)
+                if router:
+                    app.include_router(router, prefix=f"/api/{name}", tags=[name])
+                    logger.info(f"  ✓ {name}")
+            except Exception as e:
+                logger.error(f"  ✗ Failed to load essential plugin {name}: {e}")
+
+    # 2. Start Workflow Scheduler (Threaded for Speed, but monitored)
+    try:
+        from ai.workflow_scheduler import workflow_scheduler
+        
+        def start_scheduler_thread():
+            logger.info("Starting Workflow Scheduler...")
+            try:
+                workflow_scheduler.start()
+                logger.info("✓ Workflow Scheduler running")
+            except Exception as e:
+                logger.error(f"!!! Workflow Scheduler Crashed: {e}")
+
+        # Daemon thread ensures API starts even if scheduler is slow
+        scheduler_thread = threading.Thread(target=start_scheduler_thread, daemon=True)
+        scheduler_thread.start()
+        
+    except ImportError:
+        logger.warning("Workflow Scheduler module not found.")
+    
+    logger.info("=" * 60)
+    logger.info("✓ Server Ready")
 
 @app.on_event("shutdown")
-async def stop_scheduler():
-    from ai.workflow_scheduler import workflow_scheduler
-    workflow_scheduler.shutdown()
-    print("[OK] Workflow Scheduler shutdown")
+async def shutdown_event():
+    logger.info("Shutting down ATOM Platform...")
+    try:
+        from ai.workflow_scheduler import workflow_scheduler
+        workflow_scheduler.shutdown()
+        logger.info("✓ Workflow Scheduler stopped")
+    except:
+        pass
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5059)

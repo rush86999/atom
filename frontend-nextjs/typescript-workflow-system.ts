@@ -5,7 +5,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 
 console.log('🚀 Enhanced Workflow System - TypeScript Implementation');
-console.log('=' .repeat(70));
+console.log('='.repeat(70));
 
 interface WorkflowDefinition {
   id: string;
@@ -37,22 +37,22 @@ interface StepConfiguration {
   // Common configuration
   timeout?: number;
   retryPolicy?: RetryPolicy;
-  
+
   // AI Task configuration
-  aiType?: 'custom' | 'prebuilt' | 'workflow' | 'decision' | 'generate';
+  aiType?: 'custom' | 'prebuilt' | 'workflow' | 'decision' | 'generate' | 'classify' | 'sentiment';
   prompt?: string;
   model?: string;
   temperature?: number;
   maxTokens?: number;
   prebuiltTask?: string;
-  
+
   // Branch configuration
   conditionType?: 'field' | 'expression' | 'ai';
   fieldPath?: string;
   operator?: string;
   value?: string;
   branches?: BranchConfig[];
-  
+
   // Integration configuration
   integrationId?: string;
   action?: string;
@@ -89,7 +89,7 @@ interface WorkflowSettings {
 }
 
 interface AIConfiguration {
-  aiType: 'custom' | 'prebuilt' | 'workflow' | 'decision' | 'generate';
+  aiType: 'custom' | 'prebuilt' | 'workflow' | 'decision' | 'generate' | 'classify' | 'sentiment';
   prompt: string;
   model: string;
   temperature: number;
@@ -119,29 +119,29 @@ class EnhancedWorkflowSystem {
     this.executionEngine = new WorkflowExecutionEngine();
     this.monitoringService = new MonitoringService();
     this.optimizationService = new OptimizationService();
-    
+
     this.initializeSystem();
   }
 
   private async initializeSystem(): Promise<void> {
     console.log('\n🔧 Initializing Enhanced Workflow System...');
-    
+
     // Create directories
     this.createDirectories();
-    
+
     // Initialize services
     await this.aiService.initialize();
     await this.branchEvaluator.initialize();
     await this.executionEngine.initialize();
     await this.monitoringService.initialize();
     await this.optimizationService.initialize();
-    
+
     // Load configurations
     this.loadConfigurations();
-    
+
     // Setup event handlers
     this.setupEventHandlers();
-    
+
     console.log('✅ Enhanced Workflow System Initialized');
   }
 
@@ -166,10 +166,10 @@ class EnhancedWorkflowSystem {
   private loadConfigurations(): void {
     // Load workflow definitions
     this.loadWorkflowDefinitions();
-    
+
     // Load AI configurations
     this.loadAIConfigurations();
-    
+
     // Load monitoring configurations
     this.loadMonitoringConfigurations();
   }
@@ -467,7 +467,7 @@ class EnhancedWorkflowSystem {
 
   private validateStepDependencies(steps: WorkflowStep[]): void {
     const stepIds = new Set(steps.map(step => step.id));
-    
+
     steps.forEach(step => {
       if (step.dependsOn) {
         step.dependsOn.forEach(dependency => {
@@ -584,13 +584,13 @@ class EnhancedWorkflowSystem {
 
   public async shutdown(): Promise<void> {
     console.log('\n🛑 Shutting down Enhanced Workflow System...');
-    
+
     this.stopMonitoring();
-    
+
     // Save any pending data
     await this.monitoringService.flush();
     await this.optimizationService.flush();
-    
+
     console.log('✅ Enhanced Workflow System Shutdown Complete');
   }
 }
@@ -635,16 +635,16 @@ class WorkflowExecutionEngine {
   async execute(workflow: WorkflowDefinition, triggerData: Record<string, any>): Promise<string> {
     console.log(`🚀 Executing workflow: ${workflow.name}`);
     const executionId = `exec_${Date.now()}`;
-    
+
     // Emit workflow started event
     this.emit('workflowStarted', { executionId, workflowId: workflow.id });
-    
+
     // Simulate execution
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     // Emit workflow completed event
     this.emit('workflowCompleted', { executionId, workflowId: workflow.id });
-    
+
     return executionId;
   }
 
@@ -952,7 +952,7 @@ async function main(): Promise<void> {
 
   // Create demo workflows
   const demoWorkflows = createDemoWorkflows();
-  
+
   console.log('📝 Creating demo workflows...');
   for (const workflow of demoWorkflows) {
     await workflowSystem.createWorkflow(workflow);
@@ -1013,7 +1013,7 @@ async function main(): Promise<void> {
   console.log('   ⚡ Optimization data: optimization/');
   console.log('   📋 Reports: reports/');
   console.log('   🔧 Configuration: config/');
-  
+
   console.log('\n🎯 Key Features Demonstrated:');
   console.log('   ✅ TypeScript-based implementation with full type safety');
   console.log('   ✅ AI-powered task execution with multiple providers');
@@ -1035,4 +1035,5 @@ if (require.main === module) {
   });
 }
 
-export { EnhancedWorkflowSystem, WorkflowDefinition, WorkflowStep, StepConfiguration };
+export { EnhancedWorkflowSystem };
+export type { WorkflowDefinition, WorkflowStep, StepConfiguration };

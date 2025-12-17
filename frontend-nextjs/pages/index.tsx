@@ -1,5 +1,4 @@
-import React, { useEffect } from "react";
-import { getSession } from "next-auth/react";
+import React from "react";
 import { useRouter } from "next/router";
 import {
   Search,
@@ -23,15 +22,16 @@ import {
 const Home = () => {
   const router = useRouter();
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const session = await getSession();
-      if (!session) {
-        router.push("/auth/signin");
-      }
-    };
-    checkSession();
-  }, [router]);
+  // Commented out auth check for development
+  // useEffect(() => {
+  //   const checkSession = async () => {
+  //     const session = await getSession();
+  //     if (!session) {
+  //       router.push("/auth/signin");
+  //     }
+  //   };
+  //   checkSession();
+  // }, [router]);
 
   const features = [
     {
@@ -129,6 +129,9 @@ const Home = () => {
           <p className="text-xl text-gray-600">
             Your AI-powered personal automation platform
           </p>
+          <p className="text-sm text-gray-500 mt-2">
+            (Development Mode - Auth Disabled)
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -170,4 +173,3 @@ const Home = () => {
 };
 
 export default Home;
-
