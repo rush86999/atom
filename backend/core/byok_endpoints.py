@@ -179,6 +179,38 @@ class BYOKManager:
                 cost_per_token=0.00001, # Estimated
                 model="kimi-k2-thinking",
                 reasoning_level=4
+            ),
+            AIProviderConfig(
+                id="google",
+                name="Google Gemini",
+                description="Gemini 1.5 Pro",
+                api_key_env_var="GOOGLE_API_KEY",
+                base_url="https://generativelanguage.googleapis.com/v1beta",
+                supported_tasks=["general", "chat", "code", "analysis", "multimodal"],
+                cost_per_token=0.0000125,
+                model="gemini-1.5-pro",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="google_flash",
+                name="Google Gemini Flash",
+                description="Gemini 1.5 Flash - High Speed",
+                api_key_env_var="GOOGLE_API_KEY",
+                base_url="https://generativelanguage.googleapis.com/v1beta",
+                supported_tasks=["general", "chat", "summary", "extraction"],
+                cost_per_token=0.0000005,
+                model="gemini-1.5-flash",
+                reasoning_level=2
+            ),
+            AIProviderConfig(
+                id="lux",
+                name="Lux Computer Use",
+                description="Lux Model for Computer Use Agents",
+                api_key_env_var="LUX_MODEL_API_KEY",
+                supported_tasks=["computer_use", "agentic", "desktop"],
+                cost_per_token=0.00002, 
+                model="lux-1.0",
+                reasoning_level=3
             )
         ]
         

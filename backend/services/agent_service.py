@@ -4,6 +4,7 @@ import asyncio
 import logging
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
+from core.byok_endpoints import get_byok_manager
 
 # Try to import Lux SDK, handle missing dependency
 try:
@@ -28,8 +29,9 @@ class ComputerUseAgent:
     Supports 'actor', 'thinker', and 'tasker' modes.
     """
     
+    
     def __init__(self):
-        self.api_key = os.getenv("OPENAGI_API_KEY")
+        self.byok = get_byok_manager()
         self.default_mode = os.getenv("LUX_MODEL_MODE", "thinker")
         self._active_tasks: Dict[str, AgentTask] = {}
         
@@ -67,7 +69,10 @@ class ComputerUseAgent:
             return
 
         try:
-            if HAS_LUX_SDK and self.api_key:
+            # key retrieval logic moved here to ensure freshness and BYOK integration
+            api_key = self.byok.get_api_key("lux")
+            
+            if HAS_LUX_SDK and api_key:
                 # Real Lux SDK Execution
                 task.logs.append("Initializing Lux Agent...")
                 

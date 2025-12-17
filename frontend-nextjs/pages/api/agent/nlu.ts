@@ -2,13 +2,96 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
 
-// Mock NLU service - replace with actual NLU service integration
+// NLU service - uses backend BYOK-powered LLM when available
 async function understandMessage(
   message: string,
   context?: any,
   options?: any,
 ): Promise<any> {
-  // Simple intent detection for demo purposes
+  // Try to use backend LLM with BYOK integration first
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+
+  try {
+    // Call backend chat endpoint which uses BYOK-powered LLM
+    const response = await fetch(`${backendUrl}/api/atom-agent/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: message,
+        user_id: context?.userId || 'anonymous',
+        context: 'workflow_builder'
+      }),
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      // Map backend intent format to frontend format
+      const intent = data.intent || 'general';
+      const entities = data.entities || {};
+
+      // Detect service from entities or message
+      const service = entities.service || extractService(message.toLowerCase());
+      const action = entities.action || extractAction(message.toLowerCase());
+
+      return {
+        primaryGoal: mapIntent(intent),
+        primaryGoalConfidence: 0.85,
+        extractedParameters: {
+          service: service,
+          action: action,
+          time: entities.time_expression || extractTime(message.toLowerCase()),
+          subject: entities.workflow_ref || extractSubject(message),
+        },
+        rawSubAgentResponses: {
+          workflow: {
+            isWorkflowRequest: intent.includes('WORKFLOW') || service !== 'general',
+            trigger: {
+              service: service,
+              event: 'user_request',
+            },
+            actions: [{
+              service: service,
+              action: action,
+              parameters: entities,
+            }],
+          },
+        },
+        confidence: 0.85,
+        llmPowered: true,
+        provider: data.provider || 'byok',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  } catch (error) {
+    console.log('Backend LLM unavailable, falling back to keyword matching:', error);
+  }
+
+  // Fallback to keyword-based intent detection
+  return fallbackUnderstandMessage(message);
+}
+
+// Map backend intent names to frontend format
+function mapIntent(intent: string): string {
+  const intentMap: Record<string, string> = {
+    'CREATE_WORKFLOW': 'workflow',
+    'LIST_WORKFLOWS': 'workflow',
+    'RUN_WORKFLOW': 'workflow',
+    'SCHEDULE_WORKFLOW': 'workflow',
+    'CREATE_EVENT': 'calendar',
+    'LIST_EVENTS': 'calendar',
+    'SEND_EMAIL': 'communication',
+    'SEARCH_EMAILS': 'search',
+    'CREATE_TASK': 'task',
+    'LIST_TASKS': 'task',
+    'HELP': 'general',
+    'UNKNOWN': 'general',
+  };
+  return intentMap[intent] || 'general';
+}
+
+// Fallback keyword-based understanding (used when LLM unavailable)
+function fallbackUnderstandMessage(message: string): any {
   const intents = {
     workflow: ["create workflow", "automate", "when", "if", "schedule"],
     search: ["search", "find", "look for", "where is"],
@@ -18,20 +101,17 @@ async function understandMessage(
   };
 
   const messageLower = message.toLowerCase();
-
-  // Detect primary intent
   let primaryIntent = "general";
   let confidence = 0.3;
 
   for (const [intent, phrases] of Object.entries(intents)) {
     if (phrases.some((phrase) => messageLower.includes(phrase))) {
       primaryIntent = intent;
-      confidence = 0.8;
+      confidence = 0.6;
       break;
     }
   }
 
-  // Extract basic entities
   const entities = {
     service: extractService(messageLower),
     action: extractAction(messageLower),
@@ -48,24 +128,16 @@ async function understandMessage(
         isWorkflowRequest: primaryIntent === "workflow",
         trigger:
           primaryIntent === "workflow"
-            ? {
-                service: entities.service,
-                event: "user_request",
-              }
+            ? { service: entities.service, event: "user_request" }
             : null,
         actions:
           primaryIntent === "workflow"
-            ? [
-                {
-                  service: entities.service,
-                  action: entities.action,
-                  parameters: entities,
-                },
-              ]
+            ? [{ service: entities.service, action: entities.action, parameters: entities }]
             : [],
       },
     },
     confidence: confidence,
+    llmPowered: false,
     timestamp: new Date().toISOString(),
   };
 }
