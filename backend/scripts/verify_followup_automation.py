@@ -96,16 +96,17 @@ async def verify_followup_automation():
             ),
             WorkflowStep(
                 step_id="filter_relevance",
-                step_type=WorkflowStepType.CONDITIONAL_LOGIC,
-                description="Filter out marketing/spam emails",
-                parameters={
-                    "conditions": [
-                        {
-                            "if": "relevance == 'relevant'",
-                            "then": ["create_notion_task"]
-                        }
-                    ]
-                }
+            step_type=WorkflowStepType.CONDITIONAL_LOGIC,
+            description="Filter out marketing/spam emails using AI reasoning",
+            parameters={
+                "ai_option": True,
+                "ai_prompt": "Evaluate if the tasks extracted are actionable. If they are marketing/spam/social noise, return 'false'. If they are real tasks, return 'create_notion_task'.",
+                "conditions": [
+                    {
+                        "then": ["create_notion_task"]
+                    }
+                ]
+            }
             ),
             WorkflowStep(
                 step_id="create_notion_task",
