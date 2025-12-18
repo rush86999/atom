@@ -211,6 +211,28 @@ class BYOKManager:
                 cost_per_token=0.00002, 
                 model="lux-1.0",
                 reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="deepseek",
+                name="DeepSeek",
+                description="DeepSeek-V3 and DeepSeek-R1",
+                api_key_env_var="DEEPSEEK_API_KEY",
+                base_url="https://api.deepseek.com/v1",
+                supported_tasks=["general", "chat", "code", "analysis"],
+                cost_per_token=0.000002,
+                model="deepseek-chat",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="glm",
+                name="Zhipu GLM",
+                description="GLM-4 and GLM-4.6 models",
+                api_key_env_var="GLM_API_KEY",
+                base_url="https://open.bigmodel.cn/api/paas/v4",
+                supported_tasks=["general", "chat", "analysis"],
+                cost_per_token=0.000005,
+                model="glm-4.6",
+                reasoning_level=3
             )
         ]
         
