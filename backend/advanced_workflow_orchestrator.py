@@ -39,6 +39,10 @@ class WorkflowStepType(Enum):
     NOTION_INTEGRATION = "notion_integration"
     GMAIL_FETCH = "gmail_fetch"
     GMAIL_INTEGRATION = "gmail_integration"
+    GMAIL_SEARCH = "gmail_search"
+    NOTION_SEARCH = "notion_search"
+    NOTION_DB_QUERY = "notion_db_query"
+    APP_SEARCH = "app_search"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -694,6 +698,14 @@ class AdvancedWorkflowOrchestrator:
                 result = await self._execute_gmail_fetch(step, context)
             elif step.step_type == WorkflowStepType.GMAIL_INTEGRATION:
                 result = await self._execute_gmail_integration(step, context)
+            elif step.step_type == WorkflowStepType.GMAIL_SEARCH:
+                result = await self._execute_gmail_search(step, context)
+            elif step.step_type == WorkflowStepType.NOTION_SEARCH:
+                result = await self._execute_notion_search(step, context)
+            elif step.step_type == WorkflowStepType.NOTION_DB_QUERY:
+                result = await self._execute_notion_db_query(step, context)
+            elif step.step_type == WorkflowStepType.APP_SEARCH:
+                result = await self._execute_app_search(step, context)
             else:
                 result = {"status": "completed", "message": f"Step type {step.step_type.value} executed"}
 
@@ -1203,6 +1215,122 @@ class AdvancedWorkflowOrchestrator:
             }
         except Exception as e:
             logger.error(f"Gmail integration error: {e}")
+            return {"status": "failed", "error": str(e)}
+
+
+    async def _execute_gmail_search(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Gmail search step"""
+        try:
+            from integrations.gmail_service import GmailService
+            gmail = GmailService()
+            query = step.parameters.get("query", "")
+            max_results = step.parameters.get("max_results", 10)
+            
+            result = gmail.search_messages(query=query, max_results=max_results)
+            
+            return {
+                "status": "completed",
+                "result": result,
+                "count": len(result)
+            }
+        except Exception as e:
+            logger.error(f"Gmail search error: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_notion_search(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Notion search step"""
+        try:
+            from integrations.notion_service import NotionService
+            notion = NotionService()
+            query = step.parameters.get("query", "")
+            page_size = step.parameters.get("page_size", 50)
+            
+            result = notion.search(query=query, page_size=page_size)
+            
+            return {
+                "status": "completed",
+                "result": result,
+                "count": len(result.get("results", []))
+            }
+        except Exception as e:
+            logger.error(f"Notion search error: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_notion_db_query(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Notion database query with AI filter support"""
+        try:
+            from integrations.notion_service import NotionService
+            notion = NotionService()
+            database_id = step.parameters.get("database_id")
+            filter_obj = step.parameters.get("filter")
+            ai_filter_query = step.parameters.get("ai_filter_query")
+            sorts = step.parameters.get("sorts")
+            page_size = step.parameters.get("page_size", 100)
+
+            # If AI query is provided, generate the filter object
+            if ai_filter_query and self.ai_service:
+                logger.info(f"Generating Notion filter for query: {ai_filter_query}")
+                prompt = f"""
+                Generate a Notion API filter object (JSON) for the following requirement:
+                "{ai_filter_query}"
+                
+                The database schema might have properties like:
+                - "Name" (title)
+                - "Status" (select/status)
+                - "Priority" (select)
+                - "Due Date" (date)
+                
+                Return ONLY the JSON filter object as specified in Notion API documentation.
+                Example structure: {{"property": "Status", "select": {{"equals": "Done"}}}}
+                """
+                ai_response = await self.ai_service.analyze_text(prompt, complexity=1)
+                try:
+                    # Extract JSON from response
+                    json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
+                    if json_match:
+                        parsed_filter = json.loads(json_match.group(0))
+                        # Merge or replace filter
+                        if filter_obj and isinstance(filter_obj, dict):
+                            filter_obj = {"and": [filter_obj, parsed_filter]}
+                        else:
+                            filter_obj = parsed_filter
+                except Exception as e:
+                    logger.warning(f"Failed to parse AI-generated filter: {e}")
+
+            result = notion.query_database(database_id, filter=filter_obj, sorts=sorts, page_size=page_size)
+            
+            return {
+                "status": "completed",
+                "result": result,
+                "count": len(result.get("results", []))
+            }
+        except Exception as e:
+            logger.error(f"Notion DB query error: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_app_search(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute App Memory (LanceDB) search step"""
+        try:
+            from integrations.atom_communication_ingestion_pipeline import memory_manager
+            
+            # Ensure initialized
+            if not memory_manager.db:
+                memory_manager.initialize()
+                
+            query = step.parameters.get("query", "")
+            limit = step.parameters.get("limit", 10)
+            app_type = step.parameters.get("app_type") # Optional filter
+            
+            result = memory_manager.search_communications(query=query, limit=limit, app_type=app_type)
+            
+            return {
+                "status": "completed",
+                "result": result,
+                "count": len(result),
+                "memory_system": "LanceDB"
+            }
+        except Exception as e:
+            logger.error(f"App search error: {e}")
             return {"status": "failed", "error": str(e)}
 
     def get_workflow_definitions(self) -> List[Dict[str, Any]]:
