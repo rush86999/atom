@@ -38,6 +38,7 @@ class WorkflowStepType(Enum):
     APPROVAL_REQUIRED = "approval_required"
     NOTION_INTEGRATION = "notion_integration"
     GMAIL_FETCH = "gmail_fetch"
+    GMAIL_INTEGRATION = "gmail_integration"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -528,7 +529,7 @@ class AdvancedWorkflowOrchestrator:
             return
 
         # Execute the step based on its type
-        step_result = await self._execute_step_by_type(step, context)
+        step_result = await self._execute_step_by_type(workflow, step, context)
 
         # Store step result
         context.results[step_id] = step_result
@@ -663,7 +664,7 @@ class AdvancedWorkflowOrchestrator:
             return [self._resolve_variables(v, context) for v in value]
         return value
 
-    async def _execute_step_by_type(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+    async def _execute_step_by_type(self, workflow: WorkflowDefinition, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute a step based on its type"""
         start_time = time.time()
         
@@ -674,7 +675,7 @@ class AdvancedWorkflowOrchestrator:
             if step.step_type == WorkflowStepType.NLU_ANALYSIS:
                 result = await self._execute_nlu_analysis(step, context)
             elif step.step_type == WorkflowStepType.CONDITIONAL_LOGIC:
-                result = await self._execute_conditional_logic(step, context)
+                result = await self._execute_conditional_logic(workflow, step, context)
             elif step.step_type == WorkflowStepType.EMAIL_SEND:
                 result = await self._execute_email_send(step, context)
             elif step.step_type == WorkflowStepType.SLACK_NOTIFICATION:
@@ -691,6 +692,8 @@ class AdvancedWorkflowOrchestrator:
                 result = await self._execute_notion_integration(step, context)
             elif step.step_type == WorkflowStepType.GMAIL_FETCH:
                 result = await self._execute_gmail_fetch(step, context)
+            elif step.step_type == WorkflowStepType.GMAIL_INTEGRATION:
+                result = await self._execute_gmail_integration(step, context)
             else:
                 result = {"status": "completed", "message": f"Step type {step.step_type.value} executed"}
 
@@ -891,17 +894,72 @@ class AdvancedWorkflowOrchestrator:
         except Exception as e:
             return {"status": "failed", "error": str(e)}
 
-    async def _execute_conditional_logic(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute conditional logic step"""
+    async def _execute_conditional_logic(self, workflow: WorkflowDefinition, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute conditional logic step with AI support"""
         conditions = step.parameters.get("conditions", [])
+        ai_option = step.parameters.get("ai_option", False)
+        ai_prompt = step.parameters.get("ai_prompt")
 
+        # 1. AI-Powered Evaluation
+        if ai_option and self.ai_service:
+            try:
+                # Build a reasoning prompt for the AI
+                full_prompt = f"Given the following workflow context and variables, evaluate which path to take.\n\n"
+                full_prompt += f"Context: {json.dumps(context.variables, indent=2)}\n\n"
+                full_prompt += f"Logic Prompt: {ai_prompt}\n\n"
+                full_prompt += "Respond with a JSON object containing:\n"
+                full_prompt += "1. 'path_id': the ID or index of the matching condition (from the 'then' list)\n"
+                full_prompt += "2. 'reasoning': a brief explanation of the decision.\n"
+                
+                # Call AI service (using a reasoning-capable model if available)
+                ai_response = await self.ai_service.analyze_text(full_prompt, complexity=3)
+                
+                # Parse response
+                try:
+                    # Look for JSON in the response
+                    json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
+                    if json_match:
+                        decision = json.loads(json_match.group(0))
+                        next_steps = decision.get("path_id")
+                        # If path_id is a single string but next_steps expects a list
+                        if isinstance(next_steps, str):
+                            # Handle 'false' or 'none' as signals to not proceed
+                            if next_steps.lower() in ["false", "none", "stop", "null"]:
+                                next_steps = []
+                            else:
+                                next_steps = [next_steps]
+                        
+                        # Validate next_steps exist in workflow
+                        valid_steps = []
+                        if next_steps:
+                            for ns in next_steps:
+                                if any(s.step_id == ns for s in workflow.steps):
+                                    valid_steps.append(ns)
+                                else:
+                                    logger.warning(f"AI suggested non-existent step: {ns}. Ignoring.")
+                        
+                        return {
+                            "status": "completed",
+                            "ai_evaluation": True,
+                            "reasoning": decision.get("reasoning"),
+                            "next_steps": valid_steps
+                        }
+                except Exception as parse_e:
+                    logger.warning(f"Failed to parse AI condition response: {parse_e}")
+                    # Fallback to simple first step if AI fails
+                    pass
+            except Exception as ai_e:
+                logger.error(f"AI condition evaluation failed: {ai_e}")
+                # Fallback to normal evaluation
+                pass
+
+        # 2. Standard Evaluation (Dynamic variable comparisons)
         for condition in conditions:
             if_condition = condition.get("if")
             then_steps = condition.get("then", [])
 
             if await self._evaluate_condition(if_condition, context):
                 # Set next steps based on condition
-                context.variables["conditional_next_steps"] = then_steps
                 return {
                     "status": "completed",
                     "condition_met": if_condition,
@@ -1021,12 +1079,14 @@ class AdvancedWorkflowOrchestrator:
             
             if action == "create_page":
                 if database_id:
-                    properties = {
+                    properties = step.parameters.get("properties", {
                         "Name": {"title": [{"text": {"content": title}}]}
-                    }
+                    })
                     
-                    # Use generalized rich formatting
-                    content_blocks = await self._format_content_for_output(content, target_type="notion", title=title)
+                    # Use generalized rich formatting if content is provided
+                    content_blocks = None
+                    if content:
+                        content_blocks = await self._format_content_for_output(content, target_type="notion", title=title)
                     
                     result = notion.create_page_in_database(
                         database_id=database_id,
@@ -1035,51 +1095,114 @@ class AdvancedWorkflowOrchestrator:
                     )
                 else:
                     parent = step.parameters.get("parent")
-                    properties = {
+                    properties = step.parameters.get("properties", {
                         "title": [{"text": {"content": title}}]
-                    }
+                    })
                     result = notion.create_page(parent, properties)
                 
-                if result and content:
-                    # Add content as block children
-                    page_id = result.get("id")
-                    if page_id:
-                        blocks = [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": content}}]}}]
-                        notion.append_block_children(page_id, blocks)
+            elif action == "page_get":
+                page_id = step.parameters.get("page_id")
+                result = notion.get_page(page_id)
                 
-                return {
-                    "status": "completed",
-                    "notion_result": result,
-                    "action": action
-                }
+            elif action == "page_update":
+                page_id = step.parameters.get("page_id")
+                properties = step.parameters.get("properties", {})
+                archived = step.parameters.get("archived", False)
+                result = notion.update_page(page_id, properties, archived=archived)
+                
+            elif action == "db_query":
+                database_id = step.parameters.get("database_id")
+                filter_obj = step.parameters.get("filter")
+                sorts = step.parameters.get("sorts")
+                max_pages = step.parameters.get("page_size", 100)
+                result = notion.query_database(database_id, filter=filter_obj, sorts=sorts, page_size=max_pages)
+                
+            elif action == "db_get":
+                database_id = step.parameters.get("database_id")
+                result = notion.get_database(database_id)
+                
+            elif action == "block_append":
+                block_id = step.parameters.get("block_id")
+                content = step.parameters.get("content", "")
+                blocks = await self._format_content_for_output(content, target_type="notion")
+                result = notion.append_block_children(block_id, blocks)
             else:
                 return {"status": "failed", "error": f"Unsupported Notion action: {action}"}
+
+            return {
+                "status": "completed",
+                "result": result,
+                "notion_result": result, # Backward compatibility
+                "action": action
+            }
         except Exception as e:
             logger.error(f"Notion integration error: {e}")
             return {"status": "failed", "error": str(e)}
 
     async def _execute_gmail_fetch(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Gmail fetch step"""
+        """Execute Gmail fetch step (Backward compatibility)"""
+        step.parameters["action"] = "list"
+        return await self._execute_gmail_integration(step, context)
+
+    async def _execute_gmail_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Gmail integration step with full CRUD support"""
         try:
             from integrations.gmail_service import GmailService
             gmail = GmailService()
             
-            query = step.parameters.get("query", "is:unread")
-            max_results = step.parameters.get("max_results", 5)
+            action = step.parameters.get("action", "list")
             
-            # get_messages already returns parsed messages
-            parsed_messages = gmail.get_messages(query=query, max_results=max_results)
-            
-            # get_messages already returns parsed messages
-            parsed_messages = gmail.get_messages(query=query, max_results=max_results)
-            
+            if action == "list":
+                query = step.parameters.get("query", "is:unread")
+                max_results = step.parameters.get("max_results", 5)
+                # get_messages already returns parsed messages
+                result = gmail.get_messages(query=query, max_results=max_results)
+                return {
+                    "status": "completed",
+                    "result": result, # For consistency
+                    "messages": result,
+                    "count": len(result),
+                    "action": action
+                }
+                
+            elif action == "message_get":
+                message_id = step.parameters.get("message_id")
+                result = gmail.get_message(message_id)
+                
+            elif action == "message_modify":
+                message_id = step.parameters.get("message_id")
+                add_labels = step.parameters.get("add_labels", [])
+                remove_labels = step.parameters.get("remove_labels", [])
+                result = gmail.modify_message(message_id, add_labels=add_labels, remove_labels=remove_labels)
+                
+            elif action == "message_delete":
+                message_id = step.parameters.get("message_id")
+                result = gmail.delete_message(message_id)
+                
+            elif action == "draft_create":
+                to = step.parameters.get("to")
+                subject = step.parameters.get("subject", "Automated Response")
+                body = step.parameters.get("body", "")
+                thread_id = step.parameters.get("thread_id")
+                result = gmail.draft_message(to=to, subject=subject, body=body, thread_id=thread_id)
+                
+            elif action == "send":
+                to = step.parameters.get("to")
+                subject = step.parameters.get("subject", "Automated Response")
+                body = step.parameters.get("body", "")
+                thread_id = step.parameters.get("thread_id")
+                result = gmail.send_message(to=to, subject=subject, body=body, thread_id=thread_id)
+            else:
+                return {"status": "failed", "error": f"Unsupported Gmail action: {action}"}
+
             return {
                 "status": "completed",
-                "messages": parsed_messages,
-                "count": len(parsed_messages)
+                "result": result,
+                "messages": result if action == "list" else None, # Compatibility
+                "action": action
             }
         except Exception as e:
-            logger.error(f"Gmail fetch error: {e}")
+            logger.error(f"Gmail integration error: {e}")
             return {"status": "failed", "error": str(e)}
 
     def get_workflow_definitions(self) -> List[Dict[str, Any]]:

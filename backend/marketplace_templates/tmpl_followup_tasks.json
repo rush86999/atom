@@ -1,7 +1,7 @@
 {
     "id": "tmpl_followup_tasks",
     "name": "Automated Follow-up Tasks",
-    "description": "Fetch unread emails from Gmail, extract tasks using AI, and save them to Notion.",
+    "description": "Automatically extracts tasks from your Gmail and organizes them in Notion, using AI to filter out noise like marketing and social updates.",
     "category": "Productivity",
     "author": "ATOM Team",
     "version": "1.0.0",
@@ -39,12 +39,11 @@
                 "label": "Filter Relevance",
                 "config": {
                     "step_type": "conditional_logic",
+                    "ai_option": true,
+                    "ai_prompt": "Evaluate if the analyzed email content contains actionable business tasks or follow-ups. If it is primarily marketing, spam, or a social update with no clear action for the user, return 'false'. If it contains specific tasks or important information to track, return '3' (the ID for Create Notion Tasks).",
                     "conditions": [
                         {
-                            "if": "relevance == 'relevant'",
-                            "then": [
-                                "3"
-                            ]
+                            "then": ["3"]
                         }
                     ]
                 }
