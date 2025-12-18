@@ -57,11 +57,16 @@ class RealAIWorkflowService:
     """Real AI workflow service with actual API integration"""
 
     def __init__(self):
-        self.glm_api_key = os.getenv("GLM_API_KEY")
-        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        self.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")  # Fallback
-        self.google_api_key = os.getenv("GOOGLE_API_KEY")
+        # Keys will be fetched dynamically via BYOKManager
+        from core.byok_endpoints import get_byok_manager
+        self._byok = get_byok_manager()
+        
+        # Backward compatibility for direct access if needed, though get_api_key is preferred
+        self.glm_api_key = self._byok.get_api_key("glm")
+        self.anthropic_api_key = self._byok.get_api_key("anthropic")
+        self.deepseek_api_key = self._byok.get_api_key("deepseek")
+        self.openai_api_key = self._byok.get_api_key("openai")
+        self.google_api_key = self._byok.get_api_key("google")
 
         # Initialize HTTP sessions
         self.http_sessions = {}
@@ -278,7 +283,8 @@ class RealAIWorkflowService:
 
         try:
             # Gemini REST API format
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.google_api_key}"
+            # Use v1 instead of v1beta to avoid model-not-found issues with some pro models
+            url = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={self.google_api_key}"
             
             request_data = {
                 "contents": [{
@@ -348,20 +354,22 @@ Return your response as a JSON object with this format:
         user_prompt = f"Analyze this request: {text}"
 
         # Try the requested provider, fallback to others if needed
-        # FORCED DEEPSEEK ONLY MODE
-        providers_to_try = ["deepseek"]
+        providers_to_try = []
+        if provider:
+            providers_to_try.append(provider)
         
-        if provider == "google":
-            providers_to_try.insert(0, "google")
-        elif provider == "google_flash":
-            providers_to_try.insert(0, "google_flash")
-
-        # if provider != "openai" and self.openai_api_key:
-        #     providers_to_try.append("openai")
-        # if provider != "anthropic" and self.anthropic_api_key:
-        #     providers_to_try.append("anthropic")
-        # if provider != "deepseek" and self.deepseek_api_key:
-        #     providers_to_try.append("deepseek")
+        # Add fallbacks
+        if self.openai_api_key:
+            providers_to_try.append("openai")
+        if self.anthropic_api_key:
+            providers_to_try.append("anthropic")
+        if self.deepseek_api_key:
+            providers_to_try.append("deepseek")
+        if self.google_api_key:
+            providers_to_try.append("google")
+        
+        # Unique list
+        providers_to_try = list(dict.fromkeys(providers_to_try))
 
         last_error = None
         for provider_name in providers_to_try:
