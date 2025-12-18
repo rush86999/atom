@@ -857,8 +857,40 @@ class AdvancedWorkflowOrchestrator:
                     properties = {
                         "Name": {"title": [{"text": {"content": title}}]}
                     }
-                    # Add additional properties if needed
-                    result = notion.create_page_in_database(database_id, properties, title_value=title)
+                    
+                    # Format content as blocks if it looks like a list
+                    content_blocks = []
+                    
+                    # Parse list-like string back to list if needed
+                    tasks_to_format = []
+                    if isinstance(content, list):
+                        tasks_to_format = content
+                    elif isinstance(content, str):
+                        if content.strip().startswith('[') and content.strip().endswith(']'):
+                            try:
+                                import ast
+                                tasks_to_format = ast.literal_eval(content.strip())
+                            except:
+                                tasks_to_format = [content]
+                        else:
+                            tasks_to_format = [l.strip() for l in content.split('\n') if l.strip()]
+
+                    if tasks_to_format and isinstance(tasks_to_format, list):
+                        content_blocks.append(notion.create_heading_block("Action Items", level=2))
+                        for item in tasks_to_format:
+                            # Remove "Task X: " prefix if present
+                            clean_item = str(item)
+                            import re
+                            clean_item = re.sub(r'^Task\s+\d+:\s*', '', clean_item)
+                            content_blocks.append(notion.create_todo_block(clean_item))
+                    else:
+                        content_blocks.append(notion.create_text_block(str(content)))
+                    
+                    result = notion.create_page_in_database(
+                        database_id=database_id,
+                        properties=properties,
+                        content_blocks=content_blocks
+                    )
                 else:
                     parent = step.parameters.get("parent")
                     properties = {
