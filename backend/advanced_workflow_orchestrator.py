@@ -16,6 +16,8 @@ from enum import Enum
 from fastapi import HTTPException
 import aiohttp
 import uuid
+import re
+import ast
 from core.byok_endpoints import get_byok_manager
 
 # Configure logging
@@ -664,6 +666,114 @@ class AdvancedWorkflowOrchestrator:
                 "execution_time_ms": execution_time
             }
 
+    async def _format_content_for_output(self, content: Any, target_type: str = "markdown", title: str = "Content") -> Any:
+        """
+        Format content for a specific output target (Notion, Slack, Email).
+        Handles strings, lists, and lists-as-strings with robust parsing.
+        """
+        data_to_format = []
+        
+        # 1. Robustly extract list-like data
+        if isinstance(content, list):
+            data_to_format = content
+        elif isinstance(content, str):
+            stripped = content.strip()
+            # Try to find a list within the string (e.g. "Result: ['item1', 'item2']")
+            list_match = re.search(r'\[.*\]', stripped, re.DOTALL)
+            if list_match:
+                try:
+                    content_list = ast.literal_eval(list_match.group(0))
+                    if isinstance(content_list, list):
+                        data_to_format = content_list
+                except:
+                    pass
+            
+            if not data_to_format:
+                # Fallback to line-based parsing
+                lines = [l.strip() for l in stripped.split('\n') if l.strip()]
+                # Remove common prefixes from the first line if it looks like a label
+                if lines:
+                    lines[0] = re.sub(r'^(Tasks extracted|Result|Output|Content|Tasks):\s*', '', lines[0], flags=re.I)
+                    data_to_format = [l for l in lines if l.strip()]
+        else:
+            data_to_format = [str(content)]
+
+        # 2. Flatten any nested lists and clean items
+        flattened_data = []
+        for stage1 in data_to_format:
+            if isinstance(stage1, list):
+                for item in stage1:
+                    flattened_data.append(str(item))
+            else:
+                flattened_data.append(str(stage1))
+        
+        # 3. Target-specific formatting
+        if target_type == "notion":
+            from integrations.notion_service import notion_service as notion
+            blocks = []
+            
+            # Use title as a header if provided and not redundant
+            if title and title.lower() not in ["content", "result"]:
+                blocks.append(notion.create_heading_block(title, level=2))
+            
+            for item in flattened_data:
+                clean_item = item.strip()
+                # Remove common list prefixes
+                clean_item = re.sub(r'^(\d+\.|\*|\-)\s*', '', clean_item)
+                # Remove "Task X: " if present
+                clean_item = re.sub(r'^Task\s+\d+:\s*', '', clean_item)
+                
+                if not clean_item:
+                    continue
+
+                # Determine block type: use To-Do if it's a "task" workflow, otherwise paragraph
+                is_task_context = any(word in (title or "").lower() for word in ["task", "todo", "action", "follow-up"])
+                if is_task_context:
+                    blocks.append(notion.create_todo_block(clean_item))
+                else:
+                    blocks.append(notion.create_text_block(clean_item))
+            return blocks
+
+        elif target_type == "slack":
+            message = ""
+            if title and title.lower() not in ["content", "result"]:
+                message += f"*<{title}>*\n"
+            
+            for item in flattened_data:
+                clean_item = item.strip()
+                clean_item = re.sub(r'^(\d+\.|\*|\-)\s*', '', clean_item)
+                clean_item = re.sub(r'^Task\s+\d+:\s*', '', clean_item)
+                if clean_item:
+                    message += f"• {clean_item}\n"
+            return message
+
+        elif target_type == "email":
+            html = ""
+            if title and title.lower() not in ["content", "result"]:
+                html += f"<h2>{title}</h2>"
+            
+            html += "<ul>"
+            for item in flattened_data:
+                clean_item = item.strip()
+                clean_item = re.sub(r'^(\d+\.|\*|\-)\s*', '', clean_item)
+                clean_item = re.sub(r'^Task\s+\d+:\s*', '', clean_item)
+                if clean_item:
+                    html += f"<li>{clean_item}</li>"
+            html += "</ul>"
+            return html
+
+        else: # Default is markdown-like list
+            text = ""
+            if title and title.lower() not in ["content", "result"]:
+                text += f"### {title}\n"
+            for item in flattened_data:
+                clean_item = item.strip()
+                clean_item = re.sub(r'^(\d+\.|\*|\-)\s*', '', clean_item)
+                clean_item = re.sub(r'^Task\s+\d+:\s*', '', clean_item)
+                if clean_item:
+                    text += f"- {clean_item}\n"
+            return text
+
     async def _execute_nlu_analysis(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute NLU analysis step"""
         if not self.ai_service:
@@ -758,6 +868,11 @@ class AdvancedWorkflowOrchestrator:
         """Execute email send step"""
         template = step.parameters.get("template", "default")
         recipient = step.parameters.get("recipient", context.variables.get("email"))
+        subject = step.parameters.get("subject", "ATOM Notification")
+        content = step.parameters.get("content", context.input_data.get("text", ""))
+
+        # Advanced formatting
+        rich_content = await self._format_content_for_output(content, target_type="email", title=subject)
 
         # Simulate email sending (in real implementation, integrate with email service)
         await asyncio.sleep(0.1)  # Simulate API call
@@ -766,13 +881,19 @@ class AdvancedWorkflowOrchestrator:
             "status": "completed",
             "template": template,
             "recipient": recipient,
+            "subject": subject,
+            "rich_content": rich_content,
             "sent_at": datetime.datetime.now().isoformat()
         }
 
     async def _execute_slack_notification(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute Slack notification step"""
         channel = step.parameters.get("channel", "#general")
-        message = step.parameters.get("message", context.input_data.get("text", ""))
+        content = step.parameters.get("message", context.input_data.get("text", ""))
+        title = step.parameters.get("title", "New Notification")
+
+        # Advanced formatting
+        rich_message = await self._format_content_for_output(content, target_type="slack", title=title)
 
         # Simulate Slack notification (in real implementation, integrate with Slack API)
         await asyncio.sleep(0.1)  # Simulate API call
@@ -780,7 +901,7 @@ class AdvancedWorkflowOrchestrator:
         return {
             "status": "completed",
             "channel": channel,
-            "message": message,
+            "message": rich_message,
             "sent_at": datetime.datetime.now().isoformat()
         }
 
@@ -858,33 +979,8 @@ class AdvancedWorkflowOrchestrator:
                         "Name": {"title": [{"text": {"content": title}}]}
                     }
                     
-                    # Format content as blocks if it looks like a list
-                    content_blocks = []
-                    
-                    # Parse list-like string back to list if needed
-                    tasks_to_format = []
-                    if isinstance(content, list):
-                        tasks_to_format = content
-                    elif isinstance(content, str):
-                        if content.strip().startswith('[') and content.strip().endswith(']'):
-                            try:
-                                import ast
-                                tasks_to_format = ast.literal_eval(content.strip())
-                            except:
-                                tasks_to_format = [content]
-                        else:
-                            tasks_to_format = [l.strip() for l in content.split('\n') if l.strip()]
-
-                    if tasks_to_format and isinstance(tasks_to_format, list):
-                        content_blocks.append(notion.create_heading_block("Action Items", level=2))
-                        for item in tasks_to_format:
-                            # Remove "Task X: " prefix if present
-                            clean_item = str(item)
-                            import re
-                            clean_item = re.sub(r'^Task\s+\d+:\s*', '', clean_item)
-                            content_blocks.append(notion.create_todo_block(clean_item))
-                    else:
-                        content_blocks.append(notion.create_text_block(str(content)))
+                    # Use generalized rich formatting
+                    content_blocks = await self._format_content_for_output(content, target_type="notion", title=title)
                     
                     result = notion.create_page_in_database(
                         database_id=database_id,

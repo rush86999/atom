@@ -101,8 +101,20 @@ async def verify_followup_automation():
                 parameters={
                     "action": "create_page",
                     "database_id": database_id,
-                    "title": "Follow-up Task: {{analyze_content.intent}}",
-                    "content": "Tasks extracted:\n{{analyze_content.tasks}}"
+                    "title": "Tasks: {{analyze_content.intent}}",
+                    "content": "{{analyze_content.tasks}}"
+                },
+                next_steps=["create_notion_notes"]
+            ),
+            WorkflowStep(
+                step_id="create_notion_notes",
+                step_type=WorkflowStepType.NOTION_INTEGRATION,
+                description="Create note in Notion",
+                parameters={
+                    "action": "create_page",
+                    "database_id": database_id,
+                    "title": "Meeting Notes: Deepgram Webinar",
+                    "content": "Attendee list: ['Rish', 'Antigravity']\nSummary: The webinar discussed multi-agent voice AI architecture."
                 },
                 next_steps=[]
             )
