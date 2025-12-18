@@ -347,8 +347,11 @@ Return your response as a JSON object with this format:
     "intent": "summary of all goals (e.g. 'Refund order AND update address')",
     "entities": ["list", "of", "key", "entities"],
     "tasks": ["Task 1: Refund order #12345", "Task 2: Update shipping address to 123 Main St"],
+    "category": "general/technical/billing/etc",
     "priority": "high/medium/low",
-    "confidence": 0.0-1.0
+    "confidence": 0.0-1.0,
+    "relevance": "relevant/marketing/spam",
+    "is_relevant": true/false
 }"""
 
         user_prompt = f"Analyze this request: {text}"

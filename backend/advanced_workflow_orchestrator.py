@@ -541,6 +541,9 @@ class AdvancedWorkflowOrchestrator:
         })
 
         # Determine next steps
+        # Prioritize dynamic next steps from step result (useful for conditional logic)
+        target_next_steps = step_result.get("next_steps", step.next_steps)
+
         if step.parallel_steps:
             # Execute parallel steps concurrently
             parallel_tasks = [
@@ -550,11 +553,11 @@ class AdvancedWorkflowOrchestrator:
             await asyncio.gather(*parallel_tasks, return_exceptions=True)
 
             # After parallel execution, continue to sequential next steps
-            for next_step in step.next_steps:
+            for next_step in target_next_steps:
                 await self._execute_workflow_step(workflow, next_step, context)
         else:
             # Sequential execution
-            for next_step in step.next_steps:
+            for next_step in target_next_steps:
                 await self._execute_workflow_step(workflow, next_step, context)
 
     async def _check_conditions(self, conditions: Dict[str, Any], context: WorkflowContext) -> bool:
@@ -577,20 +580,41 @@ class AdvancedWorkflowOrchestrator:
         return True
 
     async def _evaluate_condition(self, condition: str, context: WorkflowContext) -> bool:
-        """Evaluate a single condition"""
-        # Simple string-based evaluation (can be enhanced with proper expression parser)
+        """Evaluate a single condition with dynamic variable support"""
         try:
-            # Replace variables in condition
+            # Handle simple boolean checks or variable comparisons
+            # Resolve variables in the condition string
+            resolved_condition = condition
             for key, value in context.variables.items():
-                condition = condition.replace(key, str(value))
+                if f"{{key}}" in resolved_condition:
+                    resolved_condition = resolved_condition.replace(f"{{key}}", f"'{value}'" if isinstance(value, str) else str(value))
+                    
+            # Safe evaluation for simple patterns
+            # Pattern 1: variable == 'value'
+            match_eq = re.search(r'(\w+)\s*==\s*[\'"]?(\w+)[\'"]?', condition)
+            if match_eq:
+                var_name, expected_val = match_eq.groups()
+                actual_val = context.variables.get(var_name)
+                return str(actual_val) == str(expected_val)
+            
+            # Pattern 2: variable == True/False
+            match_bool = re.search(r'(\w+)\s*==\s*(True|False)', condition)
+            if match_bool:
+                var_name, expected_bool = match_bool.groups()
+                actual_val = context.variables.get(var_name)
+                return bool(actual_val) == (expected_bool == "True")
 
-            # Add some basic evaluations
+            # Fallback to hardcoded legacy checks
             if "priority == 'urgent'" in condition:
                 return context.variables.get("priority") == "urgent"
             elif "score >= 80" in condition:
                 return context.variables.get("score", 0) >= 80
             elif "category == 'technical'" in condition:
                 return context.variables.get("category") == "technical"
+            elif "relevance == 'relevant'" in condition:
+                return context.variables.get("relevance") == "relevant"
+            elif "is_relevant == True" in condition:
+                return context.variables.get("is_relevant") is True
 
             return True
         except Exception as e:
@@ -828,7 +852,9 @@ class AdvancedWorkflowOrchestrator:
                 "priority": nlu_result.get("priority", "medium"),
                 "confidence": nlu_result.get("confidence", 0.8),
                 "category": nlu_result.get("category", "general"),
-                "tasks": nlu_result.get("tasks", [])
+                "tasks": nlu_result.get("tasks", []),
+                "relevance": nlu_result.get("relevance", "relevant"),
+                "is_relevant": nlu_result.get("is_relevant", True)
             })
 
             return {
@@ -839,7 +865,9 @@ class AdvancedWorkflowOrchestrator:
                 "intent": nlu_result.get("intent"),
                 "entities": nlu_result.get("entities", []),
                 "confidence": nlu_result.get("confidence", 0.8),
-                "tasks": nlu_result.get("tasks", [])
+                "tasks": nlu_result.get("tasks", []),
+                "relevance": nlu_result.get("relevance", "relevant"),
+                "is_relevant": nlu_result.get("is_relevant", True)
             }
 
         except Exception as e:

@@ -81,18 +81,31 @@ async def verify_followup_automation():
                 step_id="fetch_emails",
                 step_type=WorkflowStepType.GMAIL_FETCH,
                 description="Fetch unread follow-up emails",
-                parameters={"query": "label:inbox", "max_results": 2}, 
+                parameters={"query": "label:inbox", "max_results": 5}, 
                 next_steps=["analyze_content"]
             ),
             WorkflowStep(
                 step_id="analyze_content",
                 step_type=WorkflowStepType.NLU_ANALYSIS,
-                description="Extract tasks from emails",
+                description="Extract tasks from emails using AI",
                 parameters={
-                    "complexity": 2,
+                    "complexity": 3,
                     "text_input": "Analyze these emails for follow-up tasks: {{fetch_emails.messages}}"
                 },
-                next_steps=["create_notion_task"]
+                next_steps=["filter_relevance"]
+            ),
+            WorkflowStep(
+                step_id="filter_relevance",
+                step_type=WorkflowStepType.CONDITIONAL_LOGIC,
+                description="Filter out marketing/spam emails",
+                parameters={
+                    "conditions": [
+                        {
+                            "if": "relevance == 'relevant'",
+                            "then": ["create_notion_task"]
+                        }
+                    ]
+                }
             ),
             WorkflowStep(
                 step_id="create_notion_task",
