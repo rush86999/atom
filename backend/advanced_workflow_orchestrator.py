@@ -580,45 +580,63 @@ class AdvancedWorkflowOrchestrator:
         return True
 
     async def _evaluate_condition(self, condition: str, context: WorkflowContext) -> bool:
-        """Evaluate a single condition with dynamic variable support"""
+        """Evaluate a single condition with dynamic variable support (no hardcoding)"""
         try:
-            # Handle simple boolean checks or variable comparisons
-            # Resolve variables in the condition string
-            resolved_condition = condition
-            for key, value in context.variables.items():
-                if f"{{key}}" in resolved_condition:
-                    resolved_condition = resolved_condition.replace(f"{{key}}", f"'{value}'" if isinstance(value, str) else str(value))
-                    
-            # Safe evaluation for simple patterns
-            # Pattern 1: variable == 'value'
-            match_eq = re.search(r'(\w+)\s*==\s*[\'"]?(\w+)[\'"]?', condition)
-            if match_eq:
-                var_name, expected_val = match_eq.groups()
-                actual_val = context.variables.get(var_name)
-                return str(actual_val) == str(expected_val)
+            # 1. Parse the condition using regex to support various operators
+            # Pattern: variable_name OPERATOR expected_value
+            # Operators supported: ==, !=, >=, <=, >, <
+            match = re.search(r'(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)', condition)
+            if not match:
+                logger.warning(f"Invalid condition format: {condition}. Must be 'var operator value'.")
+                return True # Proceed if format is invalid to avoid blocking workflow
+
+            var_name, operator, expected_val_raw = match.groups()
+            actual_val = context.variables.get(var_name)
+
+            # 2. Parse expected value into its proper type
+            expected_val_raw = expected_val_raw.strip()
             
-            # Pattern 2: variable == True/False
-            match_bool = re.search(r'(\w+)\s*==\s*(True|False)', condition)
-            if match_bool:
-                var_name, expected_bool = match_bool.groups()
-                actual_val = context.variables.get(var_name)
-                return bool(actual_val) == (expected_bool == "True")
+            # Handle quoted strings
+            if (expected_val_raw.startswith("'") and expected_val_raw.endswith("'")) or \
+               (expected_val_raw.startswith('"') and expected_val_raw.endswith('"')):
+                expected_val = expected_val_raw[1:-1]
+            # Handle Booleans
+            elif expected_val_raw.lower() == 'true':
+                expected_val = True
+            elif expected_val_raw.lower() == 'false':
+                expected_val = False
+            # Handle Numbers
+            else:
+                try:
+                    if '.' in expected_val_raw:
+                        expected_val = float(expected_val_raw)
+                    else:
+                        expected_val = int(expected_val_raw)
+                except ValueError:
+                    # Fallback to string if not a number
+                    expected_val = expected_val_raw
 
-            # Fallback to hardcoded legacy checks
-            if "priority == 'urgent'" in condition:
-                return context.variables.get("priority") == "urgent"
-            elif "score >= 80" in condition:
-                return context.variables.get("score", 0) >= 80
-            elif "category == 'technical'" in condition:
-                return context.variables.get("category") == "technical"
-            elif "relevance == 'relevant'" in condition:
-                return context.variables.get("relevance") == "relevant"
-            elif "is_relevant == True" in condition:
-                return context.variables.get("is_relevant") is True
+            # 3. Perform the comparison based on operator
+            try:
+                if operator == '==':
+                    return actual_val == expected_val
+                elif operator == '!=':
+                    return actual_val != expected_val
+                elif operator == '>=':
+                    return actual_val >= expected_val
+                elif operator == '<=':
+                    return actual_val <= expected_val
+                elif operator == '>':
+                    return actual_val > expected_val
+                elif operator == '<':
+                    return actual_val < expected_val
+            except TypeError as te:
+                logger.error(f"Type mismatch in condition evaluation: {te} (Var: {var_name}, Type: {type(actual_val)})")
+                return False
 
-            return True
+            return True # Default to True
         except Exception as e:
-            logger.warning(f"Condition evaluation failed: {e}")
+            logger.warning(f"Dynamic condition evaluation failed: {e}")
             return True  # Default to proceeding if condition evaluation fails
 
     def _resolve_variables(self, value: Any, context: WorkflowContext) -> Any:
