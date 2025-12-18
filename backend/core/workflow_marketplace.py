@@ -138,25 +138,23 @@ class MarketplaceEngine:
                 }
             },
             {
-                "id": "tmpl_meeting_notes",
-                "name": "Automated Meeting Notes",
-                "description": "Transcribe Zoom recording, generate action items, and save to Notion.",
+                "id": "tmpl_followup_tasks",
+                "name": "Automated Follow-up Tasks",
+                "description": "Fetch unread emails from Gmail, extract tasks using AI, and save them to Notion.",
                 "category": "Productivity",
                 "author": "ATOM Team",
                 "version": "1.0.0",
-                "integrations": ["zoom", "openai", "notion"],
-                "complexity": "Advanced",
+                "integrations": ["gmail", "openai", "notion"],
+                "complexity": "Intermediate",
                 "workflow_data": {
                     "nodes": [
-                        {"id": "1", "type": "trigger", "label": "New Zoom Recording", "config": {"integration": "zoom", "event": "recording_completed"}},
-                        {"id": "2", "type": "action", "label": "Transcribe Audio", "config": {"integration": "openai", "action": "transcribe"}},
-                        {"id": "3", "type": "action", "label": "Extract Action Items", "config": {"integration": "openai", "action": "extract_tasks"}},
-                        {"id": "4", "type": "action", "label": "Create Notion Page", "config": {"integration": "notion", "action": "create_page"}}
+                        {"id": "1", "type": "trigger", "label": "Fetch Emails", "config": {"integration": "gmail", "action": "list_messages", "query": "is:unread label:followup"}},
+                        {"id": "2", "type": "action", "label": "Extract Tasks with AI", "config": {"integration": "openai", "action": "extract_tasks"}},
+                        {"id": "3", "type": "action", "label": "Create Notion Tasks", "config": {"integration": "notion", "action": "create_page"}}
                     ],
                     "edges": [
                         {"source": "1", "target": "2"},
-                        {"source": "2", "target": "3"},
-                        {"source": "3", "target": "4"}
+                        {"source": "2", "target": "3"}
                     ]
                 }
             }

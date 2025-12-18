@@ -34,6 +34,8 @@ class WorkflowStepType(Enum):
     API_CALL = "api_call"
     DELAY = "delay"
     APPROVAL_REQUIRED = "approval_required"
+    NOTION_INTEGRATION = "notion_integration"
+    GMAIL_FETCH = "gmail_fetch"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -593,9 +595,36 @@ class AdvancedWorkflowOrchestrator:
             logger.warning(f"Condition evaluation failed: {e}")
             return True  # Default to proceeding if condition evaluation fails
 
+    def _resolve_variables(self, value: Any, context: WorkflowContext) -> Any:
+        """Resolve variables in a value (string, dict, or list)"""
+        if isinstance(value, str):
+            # Replace {{variable}} with value from context.variables
+            import re
+            matches = re.findall(r'\{\{([^}]+)\}\}', value)
+            for match in matches:
+                # Support nested access like {{step_id.key}}
+                if '.' in match:
+                    parts = match.split('.')
+                    step_id = parts[0]
+                    key = parts[1]
+                    if step_id in context.results:
+                        val = context.results[step_id].get(key, "")
+                        value = value.replace(f"{{{{{match}}}}}", str(val))
+                elif match in context.variables:
+                    value = value.replace(f"{{{{{match}}}}}", str(context.variables[match]))
+            return value
+        elif isinstance(value, dict):
+            return {k: self._resolve_variables(v, context) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [self._resolve_variables(v, context) for v in value]
+        return value
+
     async def _execute_step_by_type(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute a step based on its type"""
         start_time = time.time()
+        
+        # Resolve variables in parameters before execution
+        step.parameters = self._resolve_variables(step.parameters, context)
 
         try:
             if step.step_type == WorkflowStepType.NLU_ANALYSIS:
@@ -614,6 +643,10 @@ class AdvancedWorkflowOrchestrator:
                 result = await self._execute_delay(step, context)
             elif step.step_type == WorkflowStepType.API_CALL:
                 result = await self._execute_api_call(step, context)
+            elif step.step_type == WorkflowStepType.NOTION_INTEGRATION:
+                result = await self._execute_notion_integration(step, context)
+            elif step.step_type == WorkflowStepType.GMAIL_FETCH:
+                result = await self._execute_gmail_fetch(step, context)
             else:
                 result = {"status": "completed", "message": f"Step type {step.step_type.value} executed"}
 
@@ -636,7 +669,12 @@ class AdvancedWorkflowOrchestrator:
         if not self.ai_service:
             return {"status": "skipped", "message": "AI service not available"}
 
-        input_text = context.input_data.get("text", str(context.input_data))
+        # Prioritize text_input from step parameters (dynamic resolution)
+        input_text = step.parameters.get("text_input")
+        if not input_text:
+            input_text = context.input_data.get("text", str(context.input_data))
+        
+        logger.info(f"NLU Analysis input length: {len(str(input_text))}")
         
         # Determine optimal provider based on complexity
         complexity = step.parameters.get("complexity", 2)
@@ -679,7 +717,8 @@ class AdvancedWorkflowOrchestrator:
                 "entities": nlu_result.get("entities", []),
                 "priority": nlu_result.get("priority", "medium"),
                 "confidence": nlu_result.get("confidence", 0.8),
-                "category": nlu_result.get("category", "general")
+                "category": nlu_result.get("category", "general"),
+                "tasks": nlu_result.get("tasks", [])
             })
 
             return {
@@ -689,7 +728,8 @@ class AdvancedWorkflowOrchestrator:
                 "complexity_level": complexity,
                 "intent": nlu_result.get("intent"),
                 "entities": nlu_result.get("entities", []),
-                "confidence": nlu_result.get("confidence", 0.8)
+                "confidence": nlu_result.get("confidence", 0.8),
+                "tasks": nlu_result.get("tasks", [])
             }
 
         except Exception as e:
@@ -800,6 +840,73 @@ class AdvancedWorkflowOrchestrator:
             "action": action,
             "call_time": datetime.datetime.now().isoformat()
         }
+
+    async def _execute_notion_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Notion integration step"""
+        try:
+            from integrations.notion_service import NotionService
+            notion = NotionService()
+            
+            action = step.parameters.get("action", "create_page")
+            database_id = step.parameters.get("database_id")
+            title = step.parameters.get("title", "New Task")
+            content = step.parameters.get("content", "")
+            
+            if action == "create_page":
+                if database_id:
+                    properties = {
+                        "Name": {"title": [{"text": {"content": title}}]}
+                    }
+                    # Add additional properties if needed
+                    result = notion.create_page_in_database(database_id, properties, title_value=title)
+                else:
+                    parent = step.parameters.get("parent")
+                    properties = {
+                        "title": [{"text": {"content": title}}]
+                    }
+                    result = notion.create_page(parent, properties)
+                
+                if result and content:
+                    # Add content as block children
+                    page_id = result.get("id")
+                    if page_id:
+                        blocks = [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": content}}]}}]
+                        notion.append_block_children(page_id, blocks)
+                
+                return {
+                    "status": "completed",
+                    "notion_result": result,
+                    "action": action
+                }
+            else:
+                return {"status": "failed", "error": f"Unsupported Notion action: {action}"}
+        except Exception as e:
+            logger.error(f"Notion integration error: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_gmail_fetch(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Gmail fetch step"""
+        try:
+            from integrations.gmail_service import GmailService
+            gmail = GmailService()
+            
+            query = step.parameters.get("query", "is:unread")
+            max_results = step.parameters.get("max_results", 5)
+            
+            # get_messages already returns parsed messages
+            parsed_messages = gmail.get_messages(query=query, max_results=max_results)
+            
+            # get_messages already returns parsed messages
+            parsed_messages = gmail.get_messages(query=query, max_results=max_results)
+            
+            return {
+                "status": "completed",
+                "messages": parsed_messages,
+                "count": len(parsed_messages)
+            }
+        except Exception as e:
+            logger.error(f"Gmail fetch error: {e}")
+            return {"status": "failed", "error": str(e)}
 
     def get_workflow_definitions(self) -> List[Dict[str, Any]]:
         """Get all workflow definitions"""
