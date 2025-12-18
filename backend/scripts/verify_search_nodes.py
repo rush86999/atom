@@ -54,7 +54,8 @@ async def verify_search_nodes():
     )
     
     print(f"Executing workflow: {search_workflow.name}")
-    context = await orchestrator.execute_workflow(search_workflow)
+    orchestrator.workflows[search_workflow.workflow_id] = search_workflow
+    context = await orchestrator.execute_workflow(search_workflow.workflow_id, input_data={})
     
     print("\n--- Verification Results ---")
     for step_id, result in context.results.items():

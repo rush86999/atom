@@ -19,7 +19,7 @@ Atom is a multi-agent system designed for workflow orchestration, task automatio
 Atom supports a wide range of third-party integrations to extend its functionality. For a complete list of all available integrations and their setup guides, please see the [Integrations](./docs/INTEGRATIONS.md) document.
 
 ### Communication
-*   **Gmail:** Connect your Gmail account to search emails, retrieve content, and extract information using natural language queries.
+*   **Gmail:** Search entire inbox with native queries, manage messages (list, get, modify, delete), and create/send drafts using natural language and advanced search nodes.
 - **Outlook:** Connect your Outlook/Exchange account for secure email access with natural language search.
 *   **Slack:** Connect your Slack workspace to search messages, send messages, and interact with your team using natural language.
 *   **Microsoft Teams:** Connect your Microsoft Teams account to search messages, retrieve content, and interact with your team using delegated permissions.
@@ -31,7 +31,7 @@ Atom supports a wide range of third-party integrations to extend its functionali
 *   **Zoom:** Connect your Zoom account to create and manage Zoom meetings.
 
 ### Task Management
-*   **Notion:** Connect your Notion workspace to create, query, and update tasks using natural language.
+*   **Notion:** Full CRUD for pages, databases, and blocks. AI-powered database queries convert natural language into structured filters automatically. Global workspace search.
 *   **Trello:** Connect your Trello account to manage your Trello boards and cards.
 *   **Asana:** Connect your Asana account to manage your Asana projects and tasks.
 *   **Jira:** Connect your Jira account to manage your Jira projects and issues.

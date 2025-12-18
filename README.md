@@ -26,6 +26,8 @@ Atom is your conversational AI agent that automates complex workflows through na
 
 **Key Features:**
 - ✅ **Computer Use Agent System** - Desktop automation with visual understanding
+- ✅ **Advanced Workflow Search** - Deep search across Gmail, Notion, and App Memory (LanceDB)
+- ✅ **AI-Powered Condition Nodes** - Branching logic driven by natural language analysis
 - ✅ **8/8 marketing claims verified** - Platform Complete
 - ✅ **33+ service integrations** - 5 actively connected (Slack, Google Calendar, Salesforce, HubSpot, Discord)
 - ✅ **Natural language workflow creation** - Just describe what you want
@@ -136,6 +138,8 @@ Open `http://localhost:3000` and try these commands:
 - Natural language workflow creation
 - Visual drag-and-drop designer
 - Multi-step automation builder
+- **AI-Generated DB Queries** - Natural language to structured Notion filters
+- **Knowledge Search Nodes** - Integrated search across all platforms
 - **Computer Use Agent** - Desktop application control
 
 ### 🖥️ Desktop Automation UI
