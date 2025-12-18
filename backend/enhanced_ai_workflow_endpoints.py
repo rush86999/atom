@@ -349,9 +349,7 @@ Return your response as a JSON object with this format:
     "tasks": ["Task 1: Refund order #12345", "Task 2: Update shipping address to 123 Main St"],
     "category": "general/technical/billing/etc",
     "priority": "high/medium/low",
-    "confidence": 0.0-1.0,
-    "relevance": "relevant/marketing/spam",
-    "is_relevant": true/false
+    "confidence": 0.0-1.0
 }"""
 
         user_prompt = f"Analyze this request: {text}"
@@ -425,6 +423,41 @@ Return your response as a JSON object with this format:
 
         # All providers failed
         raise Exception(f"All AI providers failed. Last error: {last_error}")
+
+    async def analyze_text(self, prompt: str, complexity: int = 2, system_prompt: str = "You are a helpful assistant.") -> str:
+        """Generic text analysis/generation with automated provider selection"""
+        from core.byok_endpoints import get_byok_manager
+        byok = get_byok_manager()
+        
+        # Map complexity 1-4 to reasoning levels
+        provider_id = byok.get_optimal_provider("analysis", min_reasoning_level=complexity) or "openai"
+        
+        try:
+            if provider_id == "openai":
+                result = await self.call_openai_api(prompt, system_prompt)
+            elif provider_id == "anthropic":
+                result = await self.call_anthropic_api(prompt, system_prompt)
+            elif provider_id == "deepseek":
+                result = await self.call_deepseek_api(prompt, system_prompt)
+            elif provider_id == "google":
+                result = await self.call_google_api(prompt, system_prompt)
+            elif provider_id == "glm":
+                result = await self.call_glm_api(prompt, system_prompt)
+            else:
+                # Fallback to OpenAI if provider unknown
+                result = await self.call_openai_api(prompt, system_prompt)
+                
+            return result.get('content', '')
+        except Exception as e:
+            logger.error(f"analyze_text failed with provider {provider_id}: {e}")
+            # Final fallback
+            if provider_id != "openai" and self.openai_api_key:
+                try:
+                    res = await self.call_openai_api(prompt, system_prompt)
+                    return res.get('content', '')
+                except:
+                    pass
+            return str(e)
 
     async def generate_workflow_tasks(self, input_text: str, provider: str = "openai") -> List[str]:
         """Generate actual tasks using AI"""
