@@ -61,9 +61,33 @@ class TokenStorage:
         # Add timestamp
         token_data['updated_at'] = datetime.now().isoformat()
         
+        # Calculate expiry if expires_in is present
+        if 'expires_in' in token_data and 'expires_at' not in token_data:
+            from datetime import timedelta
+            expires_in = int(token_data['expires_in'])
+            token_data['expires_at'] = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
+        
         self._tokens[provider] = token_data
         self._save_tokens()
         logger.info(f"Saved token for provider: {provider}")
+
+    def is_token_expired(self, provider: str) -> bool:
+        """Check if a token is expired"""
+        token = self.get_token(provider)
+        if not token:
+            return True
+        
+        expires_at_str = token.get('expires_at')
+        if not expires_at_str:
+            # If no expiry info, assume it's NOT expired (perpetual token)
+            return False
+            
+        try:
+            expires_at = datetime.fromisoformat(expires_at_str)
+            # Add a 5-minute buffer
+            return datetime.now() >= (expires_at - timedelta(minutes=5))
+        except Exception:
+            return True
 
     def get_token(self, provider: str) -> Optional[Dict[str, Any]]:
         """

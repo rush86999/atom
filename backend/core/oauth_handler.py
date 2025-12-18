@@ -84,21 +84,32 @@ class OAuthHandler:
         data = {
             "grant_type": "authorization_code",
             "code": code,
-            "client_id": self.config.client_id,
-            "client_secret": self.config.client_secret,
             "redirect_uri": self.config.redirect_uri,
         }
+        
+        headers = {"Accept": "application/json"}
+        
+        # Notion requires Basic Auth for exchanging code
+        if "api.notion.com" in self.config.token_url:
+            import base64
+            auth_str = f"{self.config.client_id}:{self.config.client_secret}"
+            encoded_auth = base64.b64encode(auth_str.encode()).decode()
+            headers["Authorization"] = f"Basic {encoded_auth}"
+        else:
+            # Default: include client credentials in the body
+            data["client_id"] = self.config.client_id
+            data["client_secret"] = self.config.client_secret
         
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     self.config.token_url,
                     data=data,
-                    headers={"Accept": "application/json"}
+                    headers=headers
                 )
                 
                 if response.status_code != 200:
-                    logger.error(f"Token exchange failed: {response.text}")
+                    logger.error(f"Token exchange failed: {response.status_code} - {response.text}")
                     raise HTTPException(
                         status_code=400,
                         detail=f"Failed to exchange code for tokens: {response.text}"
@@ -215,4 +226,22 @@ GITHUB_OAUTH_CONFIG = OAuthConfig(
     auth_url="https://github.com/login/oauth/authorize",
     token_url="https://github.com/login/oauth/access_token",
     scopes=["repo", "user", "workflow"]
+)
+
+ASANA_OAUTH_CONFIG = OAuthConfig(
+    client_id_env="ASANA_CLIENT_ID",
+    client_secret_env="ASANA_CLIENT_SECRET",
+    redirect_uri_env="ASANA_REDIRECT_URI",
+    auth_url="https://app.asana.com/-/oauth_authorize",
+    token_url="https://app.asana.com/-/oauth_token",
+    scopes=["default", "openid", "email", "profile"]
+)
+
+NOTION_OAUTH_CONFIG = OAuthConfig(
+    client_id_env="NOTION_CLIENT_ID",
+    client_secret_env="NOTION_CLIENT_SECRET",
+    redirect_uri_env="NOTION_REDIRECT_URI",
+    auth_url="https://api.notion.com/v1/oauth/authorize",
+    token_url="https://api.notion.com/v1/oauth/token",
+    scopes=[]  # Notion selects scopes during auth flow UI
 )
