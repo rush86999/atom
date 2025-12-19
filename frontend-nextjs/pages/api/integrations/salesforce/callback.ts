@@ -9,44 +9,45 @@ export default async function handler(
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
-    return res.status(401).json({ message: "Unauthorized" });
+    // For callback, if session is missing, we might want to redirect to login with callback,
+    // but for now let's just error or redirect to error page
+    return res.redirect('/auth/signin?callbackUrl=/integrations/salesforce');
+  }
+  const backendToken = (session as any).backendToken;
+  if (!backendToken) {
+    return res.redirect('/auth/signin?error=missing_token&callbackUrl=/integrations/salesforce');
   }
 
-  const userId = session.user.id;
-
   try {
+    const { code, state, error } = req.query;
+
+    if (error) {
+      return res.redirect(`/integrations/salesforce?error=${error}`);
+    }
+
+    if (!code) {
+      return res.redirect(`/integrations/salesforce?error=missing_code`);
+    }
+
     // Exchange authorization code for tokens
     const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
-    const response = await fetch(`${backendUrl}/api/salesforce/callback`, {
-      method: 'POST',
+    // Backend expects GET /api/salesforce/callback?code=...
+    const response = await fetch(`${backendUrl}/api/salesforce/callback?code=${code}${state ? `&state=${state}` : ''}`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        code: req.query.code,
-        state: req.query.state,
-        user_id: userId,
-        redirect_uri: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/integrations/salesforce/callback`,
-      }),
+        'Authorization': `Bearer ${backendToken}`
+      }
     });
 
     if (response.ok) {
-      const data = await response.json();
-
       // Redirect to Salesforce integration page with success message
-      res.redirect('/integrations/salesforce?success=true');
+      res.redirect('/integrations/salesforce?success=true&connected=true');
     } else {
-      const errorData = await response.json();
-      return res.status(400).json({
-        error: 'Failed to complete Salesforce OAuth',
-        message: errorData.message || 'Unknown OAuth error',
-      });
+      const errorData = await response.json().catch(() => ({}));
+      return res.redirect(`/integrations/salesforce?error=exchange_failed&details=${errorData.detail || 'unknown'}`);
     }
   } catch (error) {
     console.error('Salesforce OAuth callback error:', error);
-    return res.status(500).json({
-      error: 'Failed to complete Salesforce OAuth flow',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    return res.redirect('/integrations/salesforce?error=server_error');
   }
 }

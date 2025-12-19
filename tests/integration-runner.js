@@ -26,8 +26,8 @@ class IntegrationTestRunner {
     this.config = {
       webUrl: "http://localhost:3000",
       desktopUrl: "http://localhost:1420",
-      apiUrl: "http://localhost:5000",
-      timeout: 10000,
+      apiUrl: "http://localhost:5059",
+      timeout: 20000,
       retries: 3,
     };
   }

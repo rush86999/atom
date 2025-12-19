@@ -11,28 +11,27 @@ export default async function handler(
   if (!session || !session.user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
+  const backendToken = (session as any).backendToken;
+  if (!backendToken) {
+    return res.status(401).json({ error: 'Missing authentication token' });
+  }
 
   const userId = session.user.id;
 
   try {
     // Start OAuth flow
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
-    const response = await fetch(`${backendUrl}/api/auth/salesforce/start`, {
-      method: 'POST',
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
+    const response = await fetch(`${backendUrl}/api/salesforce/auth/url`, {
       headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        redirect_uri: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/integrations/salesforce/auth/callback`,
-      }),
+        'Authorization': `Bearer ${backendToken}`
+      }
     });
 
     if (response.ok) {
       const data = await response.json();
       // Redirect to Salesforce authorization URL
-      if (data.authorization_url) {
-        res.redirect(data.authorization_url);
+      if (data.url) {
+        res.redirect(data.url);
       } else {
         res.status(500).json({
           error: 'Failed to get Salesforce authorization URL',
