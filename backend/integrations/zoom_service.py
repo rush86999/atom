@@ -227,6 +227,79 @@ class ZoomService:
                 "timestamp": datetime.now().isoformat(),
             }
 
+    async def list_users(
+        self,
+        status: str = "active",
+        page_size: int = 30,
+        page_number: int = 1,
+        access_token: str = None
+    ) -> Dict[str, Any]:
+        """List users on the account"""
+        try:
+            token = access_token or self.access_token
+            if not token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            
+            headers = self._get_headers(token)
+            params = {
+                "status": status,
+                "page_size": page_size,
+                "page_number": page_number
+            }
+            
+            response = await self.client.get(
+                f"{self.base_url}/users",
+                headers=headers,
+                params=params
+            )
+            response.raise_for_status()
+            
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to list users: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to list users: {str(e)}"
+            )
+
+    async def list_recordings(
+        self,
+        user_id: str = "me",
+        from_date: str = None,
+        to_date: str = None,
+        page_size: int = 30,
+        access_token: str = None
+    ) -> Dict[str, Any]:
+        """List cloud recordings for a user"""
+        try:
+            token = access_token or self.access_token
+            if not token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            
+            headers = self._get_headers(token)
+            params = {
+                "page_size": page_size
+            }
+            if from_date:
+                params["from"] = from_date
+            if to_date:
+                params["to"] = to_date
+            
+            response = await self.client.get(
+                f"{self.base_url}/users/{user_id}/recordings",
+                headers=headers,
+                params=params
+            )
+            response.raise_for_status()
+            
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to list recordings: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to list recordings: {str(e)}"
+            )
+
 zoom_service = ZoomService()
 
 def get_zoom_service() -> ZoomService:

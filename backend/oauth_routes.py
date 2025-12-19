@@ -92,6 +92,17 @@ async def google_oauth_callback(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Legacy OAuth callback endpoints for compatibility
+@router.get("/callback/google")
+async def google_callback_legacy():
+    """Legacy endpoint for Google OAuth callback"""
+    return {"status": "redirect", "message": "Use /api/auth/google/callback"}
+
+@router.get("/callback/linkedin")
+async def linkedin_callback():
+    """LinkedIn OAuth callback placeholder"""
+    return {"status": "not_implemented", "message": "LinkedIn OAuth not yet implemented"}
+
 # Microsoft OAuth Routes
 @router.get("/microsoft/initiate")
 async def microsoft_oauth_initiate():

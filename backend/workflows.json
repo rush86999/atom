@@ -1,1102 +1,1195 @@
 [
   {
-    "workflow_id": "dynamic_dd187ff0",
-    "name": "Dynamic Workflow: create a workflow to send an e...",
-    "description": "Generated from query: create a workflow to send an email to boss@company.com every monday",
+    "name": "Dynamic Workflow: create a workflow to send an e...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_dd187ff0", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to send an email to boss@company.com every monday",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to send an email to boss@company.com every monday", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to send an email to boss@company.com every monday"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to send an email to boss@company.com every monday"
+  }, 
   {
-    "workflow_id": "dynamic_9bfc7d59",
-    "name": "Dynamic Workflow: create a workflow to send an e...",
-    "description": "Generated from query: create a workflow to send an email to boss@company.com every monday",
+    "name": "Dynamic Workflow: create a workflow to send an e...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_9bfc7d59", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to send an email to boss@company.com every monday",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to send an email to boss@company.com every monday", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to send an email to boss@company.com every monday"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to send an email to boss@company.com every monday"
+  }, 
   {
-    "workflow_id": "dynamic_b7064b2a",
-    "name": "Dynamic Workflow: create a workflow to send an e...",
-    "description": "Generated from query: create a workflow to send an email to boss@company.com every monday",
+    "name": "Dynamic Workflow: create a workflow to send an e...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_b7064b2a", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to send an email to boss@company.com every monday",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to send an email to boss@company.com every monday", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to send an email to boss@company.com every monday"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to send an email to boss@company.com every monday"
+  }, 
   {
-    "workflow_id": "dynamic_d228857f",
-    "name": "Dynamic Workflow: create a workflow to check ser...",
-    "description": "Generated from query: create a workflow to check server status",
+    "name": "Dynamic Workflow: create a workflow to check ser...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_d228857f", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to check server status",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to check server status", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to check server status"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to check server status"
+  }, 
   {
-    "workflow_id": "dynamic_eabf680c",
-    "name": "Dynamic Workflow: schedule the dynamic workflow:...",
-    "description": "Generated from query: schedule the dynamic workflow: create a workflow to check ser... to run every weekday at 9am",
+    "name": "Dynamic Workflow: schedule the dynamic workflow:...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_eabf680c", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: schedule the dynamic workflow: create a workflow to check ser... to run every weekday at 9am",
+        "next_steps": [], 
+        "description": "Handle request: schedule the dynamic workflow: create a workflow to check ser... to run every weekday at 9am", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: schedule the dynamic workflow: create a workflow to check ser... to run every weekday at 9am"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: schedule the dynamic workflow: create a workflow to check ser... to run every weekday at 9am"
+  }, 
   {
-    "workflow_id": "dynamic_17a4418e",
-    "name": "Dynamic Workflow: schedule dynamic workflow: cre...",
-    "description": "Generated from query: schedule dynamic workflow: create a workflow to check ser... tomorrow maybe",
+    "name": "Dynamic Workflow: schedule dynamic workflow: cre...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_17a4418e", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: schedule dynamic workflow: create a workflow to check ser... tomorrow maybe",
+        "next_steps": [], 
+        "description": "Handle request: schedule dynamic workflow: create a workflow to check ser... tomorrow maybe", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: schedule dynamic workflow: create a workflow to check ser... tomorrow maybe"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: schedule dynamic workflow: create a workflow to check ser... tomorrow maybe"
+  }, 
   {
-    "workflow_id": "dynamic_5fe1928a",
-    "name": "Dynamic Workflow: create a new workflow for serv...",
-    "description": "Generated from query: create a new workflow for server monitoring",
+    "name": "Dynamic Workflow: create a new workflow for serv...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_5fe1928a", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a new workflow for server monitoring",
+        "next_steps": [], 
+        "description": "Handle request: create a new workflow for server monitoring", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a new workflow for server monitoring"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a new workflow for server monitoring"
+  }, 
   {
-    "workflow_id": "dynamic_c29554b0",
-    "name": "Dynamic Workflow: schedule the dynamic workflow:...",
-    "description": "Generated from query: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+    "name": "Dynamic Workflow: schedule the dynamic workflow:...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_c29554b0", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+        "next_steps": [], 
+        "description": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am"
+  }, 
   {
-    "workflow_id": "dynamic_982a3afb",
-    "name": "Dynamic Workflow: schedule dynamic workflow: cre...",
-    "description": "Generated from query: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+    "name": "Dynamic Workflow: schedule dynamic workflow: cre...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_982a3afb", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+        "next_steps": [], 
+        "description": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe"
+  }, 
   {
-    "workflow_id": "dynamic_a98e79d5",
-    "name": "Dynamic Workflow: create a new workflow for serv...",
-    "description": "Generated from query: create a new workflow for server monitoring",
+    "name": "Dynamic Workflow: create a new workflow for serv...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_a98e79d5", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a new workflow for server monitoring",
+        "next_steps": [], 
+        "description": "Handle request: create a new workflow for server monitoring", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a new workflow for server monitoring"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a new workflow for server monitoring"
+  }, 
   {
-    "workflow_id": "dynamic_96856c07",
-    "name": "Dynamic Workflow: schedule the dynamic workflow:...",
-    "description": "Generated from query: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+    "name": "Dynamic Workflow: schedule the dynamic workflow:...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_96856c07", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+        "next_steps": [], 
+        "description": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am"
+  }, 
   {
-    "workflow_id": "dynamic_050bfba6",
-    "name": "Dynamic Workflow: schedule dynamic workflow: cre...",
-    "description": "Generated from query: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+    "name": "Dynamic Workflow: schedule dynamic workflow: cre...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_050bfba6", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+        "next_steps": [], 
+        "description": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe"
+  }, 
   {
-    "workflow_id": "dynamic_c4c4d19d",
-    "name": "Dynamic Workflow: create a new workflow for serv...",
-    "description": "Generated from query: create a new workflow for server monitoring",
+    "name": "Dynamic Workflow: create a new workflow for serv...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_c4c4d19d", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a new workflow for server monitoring",
+        "next_steps": [], 
+        "description": "Handle request: create a new workflow for server monitoring", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a new workflow for server monitoring"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a new workflow for server monitoring"
+  }, 
   {
-    "workflow_id": "dynamic_dcc4083f",
-    "name": "Dynamic Workflow: schedule the dynamic workflow:...",
-    "description": "Generated from query: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+    "name": "Dynamic Workflow: schedule the dynamic workflow:...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_dcc4083f", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am",
+        "next_steps": [], 
+        "description": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: schedule the dynamic workflow: create a new workflow for serv... to run every weekday at 9am"
+  }, 
   {
-    "workflow_id": "dynamic_febfeb52",
-    "name": "Dynamic Workflow: schedule dynamic workflow: cre...",
-    "description": "Generated from query: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+    "name": "Dynamic Workflow: schedule dynamic workflow: cre...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_febfeb52", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe",
+        "next_steps": [], 
+        "description": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: schedule dynamic workflow: create a new workflow for serv... tomorrow maybe"
+  }, 
   {
-    "workflow_id": "dynamic_9090c455",
-    "name": "Dynamic Workflow: create a new workflow for serv...",
-    "description": "Generated from query: create a new workflow for server monitoring",
+    "name": "Dynamic Workflow: create a new workflow for serv...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_9090c455", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a new workflow for server monitoring",
+        "next_steps": [], 
+        "description": "Handle request: create a new workflow for server monitoring", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a new workflow for server monitoring"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a new workflow for server monitoring"
+  }, 
   {
-    "workflow_id": "dynamic_e6b0d886",
-    "name": "Dynamic Workflow: create a new workflow for serv...",
-    "description": "Generated from query: create a new workflow for server monitoring",
+    "name": "Dynamic Workflow: create a new workflow for serv...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_e6b0d886", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a new workflow for server monitoring",
+        "next_steps": [], 
+        "description": "Handle request: create a new workflow for server monitoring", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a new workflow for server monitoring"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a new workflow for server monitoring"
+  }, 
   {
-    "workflow_id": "dynamic_7a4eaff4",
-    "name": "Dynamic Workflow: create a new workflow for serv...",
-    "description": "Generated from query: create a new workflow for server monitoring",
+    "name": "Dynamic Workflow: create a new workflow for serv...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_7a4eaff4", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a new workflow for server monitoring",
+        "next_steps": [], 
+        "description": "Handle request: create a new workflow for server monitoring", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a new workflow for server monitoring"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a new workflow for server monitoring"
+  }, 
   {
-    "workflow_id": "dynamic_9ea1de95",
-    "name": "Dynamic Workflow: create a new workflow for serv...",
-    "description": "Generated from query: create a new workflow for server monitoring",
+    "name": "Dynamic Workflow: create a new workflow for serv...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_9ea1de95", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a new workflow for server monitoring",
+        "next_steps": [], 
+        "description": "Handle request: create a new workflow for server monitoring", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a new workflow for server monitoring"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a new workflow for server monitoring"
+  }, 
   {
-    "workflow_id": "dynamic_0b138ed7",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_0b138ed7", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_4fa3997f",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_4fa3997f", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_05f43f30",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_05f43f30", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_fa89e684",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_fa89e684", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_c2bd4392",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_c2bd4392", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_69314112",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_69314112", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_11af48eb",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_11af48eb", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_9a1fbf76",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_9a1fbf76", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_7b5ad537",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_7b5ad537", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_535a85ee",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_535a85ee", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_0a8f9c86",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_0a8f9c86", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_79e9f427",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_79e9f427", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_d70f5db1",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_d70f5db1", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_047c2017",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_047c2017", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_1c353cd9",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_1c353cd9", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_28a7f2aa",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_28a7f2aa", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_6ce00b8b",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_6ce00b8b", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_43082824",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_43082824", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_ef32a77b",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_ef32a77b", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_540cc30c",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_540cc30c", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_19d8d477",
-    "name": "Dynamic Workflow: create a backup workflow...",
-    "description": "Generated from query: create a backup workflow",
+    "name": "Dynamic Workflow: create a backup workflow...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_19d8d477", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a backup workflow",
+        "next_steps": [], 
+        "description": "Handle request: create a backup workflow", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a backup workflow"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a backup workflow"
+  }, 
   {
-    "workflow_id": "dynamic_5855af92",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_5855af92", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_24f9f2da",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_24f9f2da", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_3afdf525",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_3afdf525", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
-  },
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
   {
-    "workflow_id": "dynamic_888bc91e",
-    "name": "Dynamic Workflow: create a workflow to backup fi...",
-    "description": "Generated from query: create a workflow to backup files",
+    "name": "Dynamic Workflow: create a workflow to backup fi...", 
+    "triggers": [], 
+    "workflow_id": "dynamic_888bc91e", 
+    "version": "1.0", 
     "steps": [
       {
-        "step_id": "step_1",
-        "step_type": "nlu_analysis",
-        "description": "Handle request: create a workflow to backup files",
+        "next_steps": [], 
+        "description": "Handle request: create a workflow to backup files", 
         "parameters": {
-          "complexity": 2,
+          "complexity": 2, 
           "original_instruction": "Handle request: create a workflow to backup files"
-        },
-        "conditions": {},
-        "parallel_steps": [],
-        "next_steps": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "timeout_seconds": 30
+        }, 
+        "timeout_seconds": 30, 
+        "step_type": "nlu_analysis", 
+        "retry_count": 0, 
+        "max_retries": 3, 
+        "step_id": "step_1", 
+        "conditions": {}, 
+        "parallel_steps": []
       }
-    ],
-    "start_step": "step_1",
-    "triggers": [],
-    "version": "1.0"
+    ], 
+    "start_step": "step_1", 
+    "description": "Generated from query: create a workflow to backup files"
+  }, 
+  {
+    "connections": [], 
+    "version": "1.0.0", 
+    "name": "Demo Project Management Workflow", 
+    "triggers": [
+      "manual"
+    ], 
+    "nodes": [
+      {
+        "description": "Create a new project", 
+        "title": "Create Project", 
+        "type": "action", 
+        "connections": [], 
+        "position": {
+          "y": 100, 
+          "x": 100
+        }, 
+        "config": {
+          "action": "create_project", 
+          "parameters": {}, 
+          "service": "asana"
+        }, 
+        "id": "node_1"
+      }
+    ], 
+    "updatedAt": "2025-12-13T00:00:00Z", 
+    "enabled": true, 
+    "id": "demo-project-management", 
+    "createdAt": "2025-12-13T00:00:00Z", 
+    "description": "Demo workflow for project management"
+  }, 
+  {
+    "connections": [], 
+    "version": "1.0.0", 
+    "name": "Demo Customer Support Workflow", 
+    "triggers": [
+      "manual"
+    ], 
+    "nodes": [
+      {
+        "description": "Create a support ticket", 
+        "title": "Create Ticket", 
+        "type": "action", 
+        "connections": [], 
+        "position": {
+          "y": 100, 
+          "x": 100
+        }, 
+        "config": {
+          "action": "create_ticket", 
+          "parameters": {}, 
+          "service": "zendesk"
+        }, 
+        "id": "node_1"
+      }
+    ], 
+    "updatedAt": "2025-12-13T00:00:00Z", 
+    "enabled": true, 
+    "id": "demo-customer-support", 
+    "createdAt": "2025-12-13T00:00:00Z", 
+    "description": "Demo workflow for customer support"
+  }, 
+  {
+    "connections": [], 
+    "version": "1.0.0", 
+    "name": "Demo Sales Lead Workflow", 
+    "triggers": [
+      "manual"
+    ], 
+    "nodes": [
+      {
+        "description": "Create a new lead in CRM", 
+        "title": "Create Lead", 
+        "type": "action", 
+        "connections": [], 
+        "position": {
+          "y": 100, 
+          "x": 100
+        }, 
+        "config": {
+          "action": "create_lead", 
+          "parameters": {}, 
+          "service": "salesforce"
+        }, 
+        "id": "node_1"
+      }
+    ], 
+    "updatedAt": "2025-12-13T00:00:00Z", 
+    "enabled": true, 
+    "id": "demo-sales-lead", 
+    "createdAt": "2025-12-13T00:00:00Z", 
+    "description": "Demo workflow for sales lead processing"
   }
 ]

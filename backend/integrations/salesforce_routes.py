@@ -27,14 +27,13 @@ try:
         update_opportunity,
         execute_soql_query
     )
-    from .auth_handler_salesforce import salesforce_auth_handler
-    from backend.core.mock_mode import get_mock_mode_manager
-
     SALESFORCE_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Salesforce integration not available: {e}")
     SALESFORCE_AVAILABLE = False
-    from backend.core.mock_mode import get_mock_mode_manager # Import anyway for mock mode
+
+from .auth_handler_salesforce import salesforce_auth_handler
+from core.mock_mode import get_mock_mode_manager
 
 # Create router
 # Auth Type: OAuth2
@@ -155,20 +154,7 @@ def format_salesforce_error_response(error_msg: str) -> Dict[str, Any]:
 @router.get("/health")
 async def salesforce_health_check():
     """Check Salesforce integration health"""
-    # Check mock mode first
-    mock_manager = get_mock_mode_manager()
     sf = get_salesforce_client_from_env()
-    
-    if mock_manager.is_mock_mode("salesforce", bool(sf)):
-        return {
-            "ok": True,
-            "status": "healthy",
-            "service": "salesforce",
-            "timestamp": datetime.utcnow().isoformat(),
-            "available": True,
-            "connected": True,
-            "is_mock": True
-        }
 
     if not SALESFORCE_AVAILABLE:
         raise HTTPException(
@@ -217,15 +203,12 @@ async def get_salesforce_accounts(
     try:
         # Use simple service with env client
         sf = get_salesforce_client_from_env()
-        
-        # Check mock mode
-        mock_manager = get_mock_mode_manager()
-        if mock_manager.is_mock_mode("salesforce", bool(sf)):
-            return format_salesforce_response({"accounts": mock_manager.get_mock_data("salesforce", "accounts")})
 
+        # Require real credentials - no mock fallback
         if not sf:
-             # Fallback to mock if no credentials
-             return format_salesforce_response({"accounts": [], "message": "No credentials found"})
+             raise HTTPException(
+                status_code=401, detail="Salesforce credentials required. Please configure your Salesforce integration."
+             )
 
         result = await list_accounts(sf)
         return format_salesforce_response({"accounts": result})
@@ -306,22 +289,20 @@ async def get_salesforce_contacts(
 
     try:
         sf = get_salesforce_client_from_env()
-        
-        # Check mock mode
-        mock_manager = get_mock_mode_manager()
-        if mock_manager.is_mock_mode("salesforce", bool(sf)):
-            return format_salesforce_response(mock_manager.get_mock_data("salesforce", "contacts"))
 
+        # Require real credentials - no mock fallback
         if not sf:
-             return format_salesforce_error_response("No credentials found")
-             
+             raise HTTPException(
+                status_code=401, detail="Salesforce credentials required. Please configure your Salesforce integration."
+             )
+
         result = await list_contacts(sf)
         # Filter in memory since simple service list_contacts doesn't take filters
         if account_id:
             result = [c for c in result if c.get('AccountId') == account_id]
         if email:
             result = [c for c in result if c.get('Email') == email]
-            
+
         return format_salesforce_response(result)
     except Exception as e:
         return format_salesforce_error_response(str(e))
@@ -379,14 +360,12 @@ async def get_salesforce_opportunities(
 
     try:
         sf = get_salesforce_client_from_env()
-        
-        # Check mock mode
-        mock_manager = get_mock_mode_manager()
-        if mock_manager.is_mock_mode("salesforce", bool(sf)):
-            return format_salesforce_response(mock_manager.get_mock_data("salesforce", "opportunities"))
 
+        # Require real credentials - no mock fallback
         if not sf:
-             return format_salesforce_error_response("No credentials found")
+             raise HTTPException(
+                status_code=401, detail="Salesforce credentials required. Please configure your Salesforce integration."
+             )
 
         result = await list_opportunities(sf)
         return format_salesforce_response(result)

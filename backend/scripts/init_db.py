@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from core.database import DATABASE_URL, Base
-from core.models import User, Team, Workspace, TeamMessage
+from core.models import User, Team, Workspace, TeamMessage, ChatProcess
 
 def init_db():
     print(f"Initializing database at {DATABASE_URL}...")

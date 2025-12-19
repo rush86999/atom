@@ -295,7 +295,16 @@ async def slack_oauth_callback(request: Request):
 @router.get("/auth/url")
 async def get_auth_url():
     """Get Slack OAuth URL"""
-    return {
-        "url": "https://slack.com/oauth/v2/authorize?client_id=INSERT_CLIENT_ID&scope=chat:write,channels:read,users:read&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fslack%2Fcallback",
-        "timestamp": datetime.now().isoformat()
-    }
+    try:
+        handler = OAuthHandler(SLACK_OAUTH_CONFIG)
+        # Using a default state if not provided, though typically frontend should generate it
+        auth_url = handler.get_authorization_url(state="slack_init")
+        
+        return {
+            "url": auth_url,
+            "service": "slack",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error generating Slack auth URL: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
