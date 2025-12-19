@@ -36,6 +36,7 @@ try:
     from atom_telegram_integration import atom_telegram_integration
     from atom_whatsapp_integration import atom_whatsapp_integration
     from atom_zoom_integration import atom_zoom_integration
+    from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
 
@@ -372,6 +373,13 @@ class AtomHubSpotIntegrationService:
                     # Trigger marketing automation workflows
                     await self._trigger_automation_workflows(contact, 'contact_created')
                     
+                    # Ingest to ATOM memory (LanceDB)
+                    try:
+                        atom_ingestion_pipeline.ingest_record("hubspot", RecordType.CONTACT.value, contact)
+                        logger.info(f"HubSpot contact {contact.get('id')} ingested to memory")
+                    except Exception as me:
+                        logger.error(f"Failed to ingest HubSpot contact to memory: {me}")
+                    
                     logger.info(f"Contact created successfully: {contact.get('id')}")
                     return {
                         'success': True,
@@ -450,6 +458,13 @@ class AtomHubSpotIntegrationService:
                     
                     # Trigger campaign workflows
                     await self._trigger_campaign_workflows(campaign, 'created')
+                    
+                    # Ingest to ATOM memory (LanceDB)
+                    try:
+                        atom_ingestion_pipeline.ingest_record("hubspot", RecordType.CAMPAIGN.value, campaign)
+                        logger.info(f"HubSpot campaign {campaign.get('id')} ingested to memory")
+                    except Exception as me:
+                        logger.error(f"Failed to ingest HubSpot campaign to memory: {me}")
                     
                     logger.info(f"Campaign created successfully: {campaign.get('id')}")
                     return {

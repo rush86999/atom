@@ -34,6 +34,7 @@ except ImportError as e:
 
 from .auth_handler_salesforce import salesforce_auth_handler
 from core.mock_mode import get_mock_mode_manager
+from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
 
 # Create router
 # Auth Type: OAuth2
@@ -211,6 +212,14 @@ async def get_salesforce_accounts(
              )
 
         result = await list_accounts(sf)
+        
+        # Ingest accounts to memory
+        for account in result:
+            try:
+                atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, account) # Mapping to CONTACT if generic not available
+            except:
+                pass
+                
         return format_salesforce_response({"accounts": result})
     except Exception as e:
         return format_salesforce_error_response(str(e))
@@ -303,6 +312,13 @@ async def get_salesforce_contacts(
         if email:
             result = [c for c in result if c.get('Email') == email]
 
+        # Ingest contacts to memory
+        for contact in result:
+            try:
+                atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, contact)
+            except:
+                pass
+
         return format_salesforce_response(result)
     except Exception as e:
         return format_salesforce_error_response(str(e))
@@ -368,6 +384,14 @@ async def get_salesforce_opportunities(
              )
 
         result = await list_opportunities(sf)
+        
+        # Ingest opportunities to memory
+        for opp in result:
+            try:
+                atom_ingestion_pipeline.ingest_record("salesforce", RecordType.DEAL.value, opp)
+            except:
+                pass
+                
         return format_salesforce_response(result)
     except Exception as e:
         return format_salesforce_error_response(str(e))
@@ -426,6 +450,14 @@ async def get_salesforce_leads(
              return format_salesforce_error_response("No credentials found")
 
         result = await list_leads(sf)
+        
+        # Ingest leads to memory
+        for lead in result:
+            try:
+                atom_ingestion_pipeline.ingest_record("salesforce", RecordType.LEAD.value, lead)
+            except:
+                pass
+                
         return format_salesforce_response(result)
     except Exception as e:
         return format_salesforce_error_response(str(e))
