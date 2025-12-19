@@ -13,11 +13,21 @@ from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+
+# Make Google APIs optional for Gmail integration
+try:
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import Flow
+    GOOGLE_APIS_AVAILABLE = True
+except ImportError:
+    GOOGLE_APIS_AVAILABLE = False
+    # Create dummy classes to prevent type errors
+    class Request: pass
+    class Credentials: pass
+    class Flow: pass
+    class HttpError(Exception): pass
+    def build(*args, **kwargs): return None
 from core.token_storage import token_storage
 from core.oauth_handler import GOOGLE_OAUTH_CONFIG
 

@@ -105,3 +105,7 @@ class ConnectionManager:
         }
 
 manager = ConnectionManager()
+
+def get_connection_manager():
+    """Get the global connection manager instance."""
+    return manager

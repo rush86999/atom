@@ -71,6 +71,11 @@ class TestConfig:
         "voice": [
             # "ELEVENLABS_API_KEY",
         ],
+        "scheduling": [],
+        "error_handling": [],
+        "complex_workflows": [],
+        "performance": [],
+        "security": [],
     }
 
     # Marketing claims to verify

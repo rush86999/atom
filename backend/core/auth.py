@@ -1,8 +1,16 @@
 import os
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Union, Any
 from jose import jwt, JWTError
-import bcrypt
+
+# Make bcrypt optional for authentication
+try:
+    import bcrypt
+    BCRYPT_AVAILABLE = True
+except ImportError:
+    BCRYPT_AVAILABLE = False
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -11,15 +19,28 @@ from core.models import User
 import logging
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret_key_change_in_prod")
+logger = logging.getLogger(__name__)
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("ENVIRONMENT") == "production" or os.getenv("NODE_ENV") == "production":
+        raise ValueError("SECRET_KEY environment variable is required in production")
+    else:
+        SECRET_KEY = secrets.token_urlsafe(32)
+        logger.warning("⚠️ Using auto-generated secret key for development. Set SECRET_KEY in production!")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
-logger = logging.getLogger(__name__)
-
 def verify_password(plain_password, hashed_password):
+    """Verify password using bcrypt if available, otherwise fallback"""
+    if not BCRYPT_AVAILABLE:
+        logger.warning("bcrypt not available - using insecure password verification")
+        # Fallback: Simple string comparison (INSECURE - for development only)
+        return plain_password == hashed_password
+
     if isinstance(plain_password, str):
         plain_password = plain_password.encode('utf-8')
     if isinstance(hashed_password, str):
@@ -27,11 +48,19 @@ def verify_password(plain_password, hashed_password):
     return bcrypt.checkpw(plain_password, hashed_password)
 
 def get_password_hash(password):
+    """Hash password using bcrypt if available, otherwise fallback"""
+    if not BCRYPT_AVAILABLE:
+        logger.warning("bcrypt not available - using insecure password hashing")
+        # Fallback: Simple encoding (INSECURE - for development only)
+        if isinstance(password, str):
+            password = password.encode('utf-8')
+        return password.hex()
+
     # Bcrypt has a 72 byte limit
     if isinstance(password, str):
         # Encode to bytes, truncate to 71 bytes (safe margin)
         password = password.encode('utf-8')[:71]
-    
+
     # Generate salt and hash
     hashed = bcrypt.hashpw(password, bcrypt.gensalt())
     return hashed.decode('utf-8')

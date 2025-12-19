@@ -29,11 +29,11 @@ class ExecutionStateManager:
         now = datetime.now().isoformat()
         
         query = """
-            INSERT INTO workflow_executions 
-            (execution_id, workflow_id, status, input_data, steps, outputs, context, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO workflow_executions
+            (execution_id, workflow_id, status, input_data, steps, outputs, context, version, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        
+
         params = (
             execution_id,
             workflow_id,
@@ -42,6 +42,7 @@ class ExecutionStateManager:
             json.dumps({}),  # steps
             json.dumps({}),  # outputs
             json.dumps({}),  # context
+            1,  # initial version
             now,
             now
         )
@@ -81,19 +82,19 @@ class ExecutionStateManager:
         if error is not None:
             step_state["error"] = error
             
-        # Update DB
+        # Update DB with version increment
         query = """
-            UPDATE workflow_executions 
-            SET steps = ?, outputs = ?, updated_at = ?
+            UPDATE workflow_executions
+            SET steps = ?, outputs = ?, version = version + 1, updated_at = ?
             WHERE execution_id = ?
         """
-        
+
         await self.db.execute(
-            query, 
+            query,
             (
-                json.dumps(steps), 
-                json.dumps(state["outputs"]), 
-                datetime.now().isoformat(), 
+                json.dumps(steps),
+                json.dumps(state["outputs"]),
+                datetime.now().isoformat(),
                 execution_id
             )
         )
@@ -101,17 +102,17 @@ class ExecutionStateManager:
     async def update_execution_status(self, execution_id: str, status: str, error: Optional[str] = None):
         """Update the overall execution status"""
         query = """
-            UPDATE workflow_executions 
-            SET status = ?, error = ?, updated_at = ?
+            UPDATE workflow_executions
+            SET status = ?, error = ?, version = version + 1, updated_at = ?
             WHERE execution_id = ?
         """
-        
+
         await self.db.execute(
-            query, 
+            query,
             (
-                status, 
-                error, 
-                datetime.now().isoformat(), 
+                status,
+                error,
+                datetime.now().isoformat(),
                 execution_id
             )
         )
@@ -126,16 +127,16 @@ class ExecutionStateManager:
         current_inputs.update(new_inputs)
         
         query = """
-            UPDATE workflow_executions 
-            SET input_data = ?, updated_at = ?
+            UPDATE workflow_executions
+            SET input_data = ?, version = version + 1, updated_at = ?
             WHERE execution_id = ?
         """
-        
+
         await self.db.execute(
-            query, 
+            query,
             (
-                json.dumps(current_inputs), 
-                datetime.now().isoformat(), 
+                json.dumps(current_inputs),
+                datetime.now().isoformat(),
                 execution_id
             )
         )
@@ -154,6 +155,7 @@ class ExecutionStateManager:
                 "execution_id": row["execution_id"],
                 "workflow_id": row["workflow_id"],
                 "status": row["status"],
+                "version": row.get("version", 1),  # Default to 1 for backward compatibility
                 "input_data": json.loads(row["input_data"]) if row["input_data"] else {},
                 "steps": json.loads(row["steps"]) if row["steps"] else {},
                 "outputs": json.loads(row["outputs"]) if row["outputs"] else {},
