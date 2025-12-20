@@ -54,6 +54,71 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
 
 # ============================================================================
+# AUTO-LOADING MIDDLEWARE (True Lazy Loading)
+# Automatically loads integrations on first request instead of returning 404
+# ============================================================================
+
+# Track which integrations have been loaded
+_loaded_integrations = set()
+
+# Blacklist integrations that crash during loading (Python 3.13 compatibility issues)
+_blacklisted_integrations = {
+    "atom_agent",  # Crashes due to numpy/lancedb issues
+    "unified_calendar",  # May have similar issues
+    "unified_task",  # May have similar issues
+    # "unified_search" - NOW USING MOCK, SAFE TO AUTO-LOAD!
+}
+
+@app.middleware("http")
+async def auto_load_integration_middleware(request, call_next):
+    """
+    Intercept requests and auto-load integrations on-demand.
+    This implements true lazy loading - no more 404s for unloaded integrations!
+    """
+    # Get the request path
+    path = request.url.path
+    
+    # Check if this is an API request
+    if path.startswith("/api/"):
+        # Extract the integration name from the path
+        # e.g., /api/lancedb-search/... -> lancedb-search
+        # e.g., /api/atom-agent/... -> atom-agent
+        path_parts = path.split("/")
+        if len(path_parts) >= 3:
+            potential_integration = path_parts[2]
+            
+            # Map URL paths to integration names in registry
+            integration_map = {
+                "lancedb-search": "unified_search",
+                "atom-agent": "atom_agent",
+                "v1": None,  # Skip - handled by core routes
+            }
+            
+            # Get the actual integration name
+            integration_name = integration_map.get(potential_integration, potential_integration.replace("-", "_"))
+            
+            # Skip blacklisted integrations
+            if integration_name in _blacklisted_integrations:
+                logger.debug(f"⚠️ Skipping blacklisted integration: {integration_name}")
+            # Check if this integration exists in registry and isn't loaded yet
+            elif integration_name and integration_name not in _loaded_integrations:
+                integration_list = get_integration_list()
+                if integration_name in integration_list:
+                    try:
+                        logger.info(f"🔄 Auto-loading integration on-demand: {integration_name}")
+                        router = load_integration(integration_name)
+                        if router:
+                            app.include_router(router, tags=[integration_name])
+                            _loaded_integrations.add(integration_name)
+                            logger.info(f"✓ Auto-loaded: {integration_name}")
+                    except Exception as e:
+                        logger.error(f"✗ Failed to auto-load {integration_name}: {e}")
+    
+    # Continue with the request
+    response = await call_next(request)
+    return response
+
+# ============================================================================
 # 1. CORE ROUTES (EAGER LOADING)
 # Restored from V1 to ensure immediate availability of main features
 # ============================================================================
@@ -67,7 +132,21 @@ try:
     from core.workflow_endpoints import router as workflow_router
     app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
 
-    # 3. OAuth (Critical for login)
+    # 3. Workflow UI (Visual Automations)
+    try:
+        from core.workflow_ui_endpoints import router as workflow_ui_router
+        app.include_router(workflow_ui_router, prefix="/api/v1/workflow-ui", tags=["Workflow UI"])
+    except ImportError:
+        logger.warning("Workflow UI endpoints not found, skipping.")
+
+    # 4. Microsoft 365 Integration
+    try:
+        from integrations.microsoft365_routes import microsoft365_router
+        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365"])
+    except ImportError:
+        logger.warning("Microsoft 365 routes not found, skipping.")
+
+    # 5. OAuth (Critical for login)
     try:
         from oauth_routes import router as oauth_router
         app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
@@ -118,8 +197,8 @@ async def load_integration_endpoint(integration_name: str):
             circuit_breaker.record_failure(integration_name)
             raise HTTPException(status_code=404, detail="Integration module not found")
         
-        # Consistent prefixing
-        app.include_router(router, prefix=f"/api/{integration_name}", tags=[integration_name])
+        # Don't add prefix - routers already have their own prefixes defined
+        app.include_router(router, tags=[integration_name])
         circuit_breaker.record_success(integration_name)
         
         return {"status": "loaded", "integration": integration_name}
@@ -178,9 +257,9 @@ async def root():
 async def health_check():
     memory_mb = MemoryGuard.get_memory_usage_mb()
     return {
-        "status": "healthy",
+        "status": "healthy_check_reload",
         "memory_mb": round(memory_mb, 2),
-        "active_integrations": len(get_loaded_integrations()),
+        "active_integrations": list(_loaded_integrations),
     }
 
 # ============================================================================
@@ -201,26 +280,23 @@ async def startup_event():
             try:
                 router = load_integration(name)
                 if router:
-                    app.include_router(router, prefix=f"/api/{name}", tags=[name])
+                    # Don't add prefix - routers already have their own prefixes defined
+                    app.include_router(router, tags=[name])
+                    _loaded_integrations.add(name)  # Track loaded integration
                     logger.info(f"  ✓ {name}")
             except Exception as e:
                 logger.error(f"  ✗ Failed to load essential plugin {name}: {e}")
 
-    # 2. Start Workflow Scheduler (Threaded for Speed, but monitored)
+    # 2. Start Workflow Scheduler (Run in main event loop)
     try:
         from ai.workflow_scheduler import workflow_scheduler
         
-        def start_scheduler_thread():
-            logger.info("Starting Workflow Scheduler...")
-            try:
-                workflow_scheduler.start()
-                logger.info("✓ Workflow Scheduler running")
-            except Exception as e:
-                logger.error(f"!!! Workflow Scheduler Crashed: {e}")
-
-        # Daemon thread ensures API starts even if scheduler is slow
-        scheduler_thread = threading.Thread(target=start_scheduler_thread, daemon=True)
-        scheduler_thread.start()
+        logger.info("Starting Workflow Scheduler...")
+        try:
+            workflow_scheduler.start()
+            logger.info("✓ Workflow Scheduler running")
+        except Exception as e:
+            logger.error(f"!!! Workflow Scheduler Crashed: {e}")
         
     except ImportError:
         logger.warning("Workflow Scheduler module not found.")
@@ -239,4 +315,4 @@ async def shutdown_event():
         pass
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5059)
+    uvicorn.run("main_api_app:app", host="0.0.0.0", port=5059, reload=True)

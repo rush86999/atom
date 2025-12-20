@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
   Card,
@@ -53,7 +54,7 @@ import {
   ChevronDown,
   RefreshCw,
   Loader2,
-  Layout,
+  Layout as LayoutIcon,
   List,
   Play,
   AlertTriangle,
@@ -112,7 +113,7 @@ interface ServiceInfo {
 }
 
 import WorkflowBuilder from "./Automations/WorkflowBuilder";
-import { List, Layout as LayoutIcon } from "lucide-react";
+// Duplicate import removed
 
 const WorkflowAutomation: React.FC = () => {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
@@ -138,12 +139,10 @@ const WorkflowAutomation: React.FC = () => {
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resumeExecutionId, setResumeExecutionId] = useState<string | null>(null);
 
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
-  const [resumeExecutionId, setResumeExecutionId] = useState<string | null>(null);
   const [builderInitialData, setBuilderInitialData] = useState<any>(null); // For AI generated workflows
   const [genPrompt, setGenPrompt] = useState("");
 
-  const { toast } = useToast();
+  const toast = useToast();
 
   // Fetch initial data
   useEffect(() => {
@@ -166,6 +165,25 @@ const WorkflowAutomation: React.FC = () => {
       }
     }
   }, [router.query.draft]);
+
+  // Poll for execution updates when modal is open or executions are running
+  useEffect(() => {
+    const hasRunning = executions.some(e => e.status === 'running');
+    if (isExecutionModalOpen || hasRunning) {
+      const interval = setInterval(fetchExecutions, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isExecutionModalOpen, executions]);
+
+  // Sync activeExecution with updated list
+  useEffect(() => {
+    if (activeExecution) {
+      const updated = executions.find(e => e.execution_id === activeExecution.execution_id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(activeExecution)) {
+        setActiveExecution(updated);
+      }
+    }
+  }, [executions]);
 
   const handleGenerativeCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -445,7 +463,7 @@ const WorkflowAutomation: React.FC = () => {
       case "asana":
       case "trello":
       case "notion":
-        return <Layout className={`${iconClass} text-teal-500`} />;
+        return <LayoutIcon className={`${iconClass} text-teal-500`} />;
       case "dropbox":
         return <ChevronDown className={`${iconClass} text-blue-500`} />;
       default:

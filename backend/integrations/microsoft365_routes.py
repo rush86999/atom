@@ -19,7 +19,7 @@ from .microsoft365_service import (
 )
 
 # Initialize router
-microsoft365_router = APIRouter(prefix="/microsoft365", tags=["Microsoft 365"])
+microsoft365_router = APIRouter(tags=["Microsoft 365"])
 
 # Service instance
 microsoft365_service = Microsoft365Service()

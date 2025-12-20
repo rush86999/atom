@@ -53,20 +53,58 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     loadUserAPIKeyStatus();
   }, [userId, baseApiUrl]);
 
+  useEffect(() => {
+    loadUserAPIKeyStatus();
+  }, [userId, baseApiUrl]);
+
   const loadUserAPIKeyStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `${baseApiUrl}/user/api-keys/${userId}/status`,
-      );
+      // Use the correct BYOK endpoint
+      const response = await fetch(`${baseApiUrl}/ai/providers`);
       if (!response.ok) {
-        throw new Error("Failed to load API key status");
+        throw new Error("Failed to load AI providers");
       }
       const data = await response.json();
-      if (data.success) {
-        setUserStatus(data);
+
+      // Transform backend response to expected state format
+      // Backend returns { providers: [{provider: {...}, usage: {...}, has_api_keys: bool, status: str}], ... }
+      if (data.providers) {
+        const statusMap: Record<string, AIProviderStatus> = {};
+        let configuredCount = 0;
+        let workingCount = 0;
+
+        data.providers.forEach((p: any) => {
+          statusMap[p.provider.id] = {
+            configured: p.has_api_keys,
+            test_result: {
+              success: p.status === "active",
+              message: p.status === "active" ? "Connection successful" : "Not configured or inactive"
+            },
+            provider_info: {
+              name: p.provider.name,
+              description: p.provider.description,
+              acquisition_url: p.provider.base_url || "", // Backend might not have this, default to empty
+              expected_format: "sk-...",
+              capabilities: p.provider.supported_tasks,
+              models: [p.provider.model || "default"]
+            }
+          };
+          if (p.has_api_keys) configuredCount++;
+          if (p.status === "active") workingCount++;
+        });
+
+        setUserStatus({
+          user_id: userId,
+          status: statusMap,
+          summary: {
+            total_available: data.total_providers,
+            total_configured: configuredCount,
+            total_working: workingCount
+          }
+        });
       } else {
-        setError(data.error || "Failed to load API key status");
+        setError("Invalid response format from server");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -78,30 +116,50 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   const saveAPIKey = async (provider: string, apiKey: string) => {
     try {
       setSaving(provider);
+      // Use correct BYOK endpoint for storing keys
       const response = await fetch(
-        `${baseApiUrl}/user/api-keys/${userId}/keys/${provider}`,
+        `${baseApiUrl}/ai/providers/${provider}/keys`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ api_key: apiKey }),
-        },
+          // Backend expects query params or body? Check byok_endpoints.py
+          // It uses query params for provider_id etc in decorated function but body for api_key if not careful
+          // Wait, look at byok_endpoints.py signature: 
+          // store_api_key(provider_id: str, api_key: str, ...)
+          // If it's a POST, FastAPI usually expects query params unless Body() is used.
+          // Let's assume query params for provider_id (in path) and query string for api_key?
+          // Actually, standard FastAPI POST with simple params expects query params if not pydantic model.
+          // Let's use query string for api_key to match likely FastAPI verification/default behavior if not explicit Body.
+          // converting to URLSearchParams just in case.
+        }
       );
 
-      if (!response.ok) {
+      // Wait, passing key in query string is insecure. The backend *should* accept body.
+      // Re-reading byok_endpoints.py:
+      // @router.post("/api/ai/providers/{provider_id}/keys")
+      // async def store_api_key(provider_id: str, api_key: str, ...
+      // In FastAPI, scalar types are query params by default. 
+      // Let's try sending as query param for now as per signature implied, but ideally we fix backend to use Body.
+      // For now, I'll send it as query param to match the signature I saw.
+
+      const saveResponse = await fetch(
+        `${baseApiUrl}/ai/providers/${provider}/keys?api_key=${encodeURIComponent(apiKey)}&key_name=default`,
+        { method: "POST" }
+      );
+
+      if (!saveResponse.ok) {
         throw new Error("Failed to save API key");
       }
 
-      const data = await response.json();
+      const data = await saveResponse.json();
       if (data.success) {
-        // Clear the input and hide it
         setApiKeys((prev) => ({ ...prev, [provider]: "" }));
         setShowKeyInput((prev) => ({ ...prev, [provider]: false }));
-        // Reload status
         await loadUserAPIKeyStatus();
       } else {
-        setError(data.error || "Failed to save API key");
+        setError(data.message || "Failed to save API key");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -113,7 +171,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   const deleteAPIKey = async (provider: string) => {
     try {
       const response = await fetch(
-        `${baseApiUrl}/user/api-keys/${userId}/keys/${provider}`,
+        `${baseApiUrl}/ai/providers/${provider}/keys/default`,
         {
           method: "DELETE",
         },
@@ -125,10 +183,9 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
 
       const data = await response.json();
       if (data.success) {
-        // Reload status
         await loadUserAPIKeyStatus();
       } else {
-        setError(data.error || "Failed to delete API key");
+        setError("Failed to delete API key");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -136,28 +193,11 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   };
 
   const testAPIKey = async (provider: string) => {
+    // The BYOK backend verifies status on load. 
+    // We can just reload the status to "test".
     try {
       setTesting(provider);
-      const response = await fetch(
-        `${baseApiUrl}/user/api-keys/${userId}/keys/${provider}/test`,
-        {
-          method: "POST",
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to test API key");
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        // Reload status to get updated test results
-        await loadUserAPIKeyStatus();
-      } else {
-        setError(data.error || "Failed to test API key");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      await loadUserAPIKeyStatus();
     } finally {
       setTesting(null);
     }

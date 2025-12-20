@@ -14,7 +14,7 @@ import {
     LayoutGrid,
     List as ListIcon
 } from 'lucide-react'
-import { toast } from 'sonner' // Assuming sonner is used, if not, change to use-toast
+import { toast } from 'react-hot-toast' // Assuming sonner is used, if not, change to use-toast
 
 interface WorkflowTemplate {
     id: string
@@ -47,8 +47,8 @@ export default function MarketplacePage() {
         try {
             setLoading(true)
             const url = selectedCategory
-                ? `http://localhost:5059/api/marketplace/templates?category=${selectedCategory}`
-                : 'http://localhost:5059/api/marketplace/templates'
+                ? `/api/marketplace/templates?category=${selectedCategory}`
+                : '/api/marketplace/templates'
 
             const response = await fetch(url)
             if (!response.ok) throw new Error('Failed to fetch templates')

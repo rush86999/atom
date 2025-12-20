@@ -23,7 +23,8 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
             <Component {...pageProps} />
           </Layout>
         )}
-        <GlobalChatWidget />
+        {/* GlobalChatWidget disabled - atom-agent backend unavailable (Python 3.13 compatibility) */}
+        {/* <GlobalChatWidget /> */}
       </ToastProvider>
     </SessionProvider>
   );

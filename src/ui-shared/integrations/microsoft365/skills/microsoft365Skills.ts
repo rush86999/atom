@@ -3,9 +3,12 @@
  * Complete API client for Microsoft 365 unified platform operations
  */
 
-import { Microsoft365User, Microsoft365Team, Microsoft365Channel, Microsoft365Message,
-         Microsoft365Document, Microsoft365Event, Microsoft365Flow, Microsoft365Site,
-         Microsoft365Analytics, Microsoft365Config } from '../components/Microsoft365Manager';
+import {
+  Microsoft365User, Microsoft365Team, Microsoft365Channel, Microsoft365Message,
+  Microsoft365Document, Microsoft365Event, Microsoft365Flow, Microsoft365Site,
+  Microsoft365Analytics, Microsoft365Config,
+  ExcelWorksheet, ExcelRange, PowerBIReport, PlannerTask, PlannerBucket
+} from '../types';
 
 // API Configuration
 const API_BASE_URL = '/api/m365';
@@ -66,7 +69,7 @@ const makeRequest = async <T = any>(
   options: RequestInit = {}
 ): Promise<T> => {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
-  
+
   const defaultHeaders = {
     'Content-Type': 'application/json',
   };
@@ -845,6 +848,82 @@ export class Microsoft365SkillsService {
   }
 
   // ==============================
+  // EXCEL OPERATIONS
+  // ==============================
+
+  /**
+   * Get Excel worksheets
+   */
+  async getExcelWorksheets(workbookId: string): Promise<PaginatedResponse<ExcelWorksheet[]>> {
+    return makeRequest(`/excel/workbooks/${workbookId}/worksheets`);
+  }
+
+  /**
+   * Get Excel range data
+   */
+  async getExcelRange(workbookId: string, worksheetId: string, range: string): Promise<ApiResponse<ExcelRange>> {
+    return makeRequest(`/excel/workbooks/${workbookId}/worksheets/${worksheetId}/range(address='${range}')`);
+  }
+
+  /**
+   * Update Excel range
+   */
+  async updateExcelRange(workbookId: string, worksheetId: string, range: string, data: Partial<ExcelRange>): Promise<ApiResponse<ExcelRange>> {
+    return makeRequest(`/excel/workbooks/${workbookId}/worksheets/${worksheetId}/range(address='${range}')`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ==============================
+  // POWER BI OPERATIONS
+  // ==============================
+
+  /**
+   * Get Power BI reports
+   */
+  async getPowerBIReports(): Promise<PaginatedResponse<PowerBIReport[]>> {
+    return makeRequest('/powerbi/reports');
+  }
+
+  /**
+   * Refresh Power BI dataset
+   */
+  async refreshPowerBIDataset(datasetId: string): Promise<ApiResponse> {
+    return makeRequest(`/powerbi/datasets/${datasetId}/refreshes`, {
+      method: 'POST',
+    });
+  }
+
+  // ==============================
+  // PLANNER OPERATIONS
+  // ==============================
+
+  /**
+   * Get Planner tasks
+   */
+  async getPlannerTasks(planId: string): Promise<PaginatedResponse<PlannerTask[]>> {
+    return makeRequest(`/planner/plans/${planId}/tasks`);
+  }
+
+  /**
+   * Create Planner task
+   */
+  async createPlannerTask(task: Partial<PlannerTask>): Promise<ApiResponse<PlannerTask>> {
+    return makeRequest('/planner/tasks', {
+      method: 'POST',
+      body: JSON.stringify(task),
+    });
+  }
+
+  /**
+   * Get Planner buckets
+   */
+  async getPlannerBuckets(planId: string): Promise<PaginatedResponse<PlannerBucket[]>> {
+    return makeRequest(`/planner/plans/${planId}/buckets`);
+  }
+
+  // ==============================
   // WORKFLOW OPERATIONS
   // ==============================
 
@@ -1125,10 +1204,8 @@ export const microsoft365Skills = createMicrosoft365SkillsService({
   tenantId: '',
   clientId: '',
   clientSecret: '',
-  redirectUri: '',
   scopes: ['User.Read', 'Mail.Read', 'Files.Read', 'Team.ReadBasic.All'],
 });
 
-// Export types and error class
-export { Microsoft365ApiError };
+// Export types
 export type { ApiResponse, PaginatedResponse };
