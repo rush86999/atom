@@ -16,6 +16,7 @@ import pandas as pd
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 import numpy as np
+from core.knowledge_ingestion import get_knowledge_ingestion
 
 logger = logging.getLogger(__name__)
 
@@ -334,6 +335,10 @@ class LanceDBMemoryManager:
         """Get communications by app type"""
         try:
             results = self.connections_table.search().where(f"app_type = '{app_type}'").limit(limit).to_pandas()
+            
+            if not results.empty:
+                # Sort in Pandas as LanceDB sorting in where clause can be finicky
+                results = results.sort_values("timestamp", ascending=False)
             return results.to_dict('records')
         except Exception as e:
             logger.error(f"Error getting communications by app: {str(e)}")
@@ -342,7 +347,10 @@ class LanceDBMemoryManager:
     def get_communications_by_timeframe(self, start_date: datetime, end_date: datetime) -> List[Dict]:
         """Get communications within time frame"""
         try:
-            filter_query = f"timestamp >= '{start_date}' AND timestamp <= '{end_date}'"
+            # Use ISO format for timestamps in filters
+            start_str = start_date.strftime('%Y-%m-%dT%H:%M:%S.%f')
+            end_str = end_date.strftime('%Y-%m-%dT%H:%M:%S.%f')
+            filter_query = f"timestamp >= to_timestamp('{start_str}') AND timestamp <= to_timestamp('{end_str}')"
             results = self.connections_table.search().where(filter_query).to_pandas()
             return results.to_dict('records')
         except Exception as e:
@@ -415,7 +423,40 @@ class CommunicationIngestionPipeline:
                 comm_data.vector_embedding = self._generate_embedding(comm_data.content)
             
             # Ingest into memory
-            return self.memory_manager.ingest_communication(comm_data)
+            success = self.memory_manager.ingest_communication(comm_data)
+            
+            if success:
+                # Trigger Knowledge Extraction asynchronously if enabled and content exists
+                from core.automation_settings import get_automation_settings
+                settings = get_automation_settings()
+                
+                if settings.is_automations_enabled() and settings.is_extraction_enabled() and comm_data.content and len(comm_data.content.strip()) > 20:
+                    try:
+                        knowledge_manager = get_knowledge_ingestion()
+                        # Use a background task if loop exists
+                        try:
+                            loop = asyncio.get_running_loop()
+                            if loop.is_running():
+                                loop.create_task(knowledge_manager.process_document(
+                                    text=comm_data.content,
+                                    source=f"integration:{app_type}",
+                                    metadata={
+                                        "original_message_id": comm_data.id,
+                                        "sender": comm_data.sender,
+                                        "recipient": comm_data.recipient,
+                                        "subject": comm_data.subject,
+                                        **comm_data.metadata
+                                    }
+                                ))
+                        except RuntimeError:
+                            # Not in an async context with a running loop
+                            pass
+                    except Exception as ex:
+                        logger.error(f"Error triggering knowledge extraction in ingestion pipeline: {ex}")
+                elif not settings.is_automations_enabled() or not settings.is_extraction_enabled():
+                    logger.info(f"Knowledge extraction skipped for {comm_data.id} (automations disabled in settings)")
+            
+            return success
             
         except Exception as e:
             logger.error(f"Error ingesting message from {app_type}: {str(e)}")

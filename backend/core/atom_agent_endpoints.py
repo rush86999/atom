@@ -33,6 +33,7 @@ from dataclasses import asdict
 from core.lancedb_handler import get_chat_history_manager
 from core.chat_session_manager import get_chat_session_manager
 from core.chat_context_manager import get_chat_context_manager
+from core.knowledge_query_endpoints import get_knowledge_query_manager
 
 # Initialize AI service
 ai_service = RealAIWorkflowService()
@@ -280,6 +281,9 @@ async def chat_with_agent(request: ChatRequest):
         elif intent == "GET_SYSTEM_STATUS":
             result = await handle_system_status(request)
             
+        elif intent == "GET_AUTOMATION_INSIGHTS":
+            result = await handle_automation_insights(request)
+            
         # Search Intents (Phase 25C)
         elif intent == "SEARCH_PLATFORM":
             result = await handle_platform_search(request, entities)
@@ -287,7 +291,10 @@ async def chat_with_agent(request: ChatRequest):
         # Workflow Creation (Phase 26)
         elif intent == "CREATE_WORKFLOW":
             result = await handle_create_workflow(request, entities)
-        
+            
+        elif intent == "GET_SILENT_STAKEHOLDERS":
+            result = await handle_silent_stakeholders(request)
+            
         elif intent == "FOLLOW_UP_EMAILS":
             result = await handle_follow_up_emails(request, entities)
         
@@ -303,6 +310,8 @@ async def chat_with_agent(request: ChatRequest):
         elif intent == "GOAL_STATUS":
             result = await handle_goal_status(request, entities)
 
+        elif intent == "KNOWLEDGE_QUERY":
+            result = await handle_knowledge_query(request, entities)
             
         elif intent == "HELP":
             result = handle_help_request()
@@ -330,6 +339,28 @@ async def chat_with_agent(request: ChatRequest):
                 result_data=result
             )
         
+        # Add proactive suggestions to the response
+        try:
+            from core.behavior_analyzer import get_behavior_analyzer
+            analyzer = get_behavior_analyzer()
+            patterns = analyzer.detect_patterns(request.user_id)
+            if patterns:
+                if "response" not in result:
+                    result["response"] = {"message": "", "actions": []}
+                
+                # Append behavioral suggestions as actions
+                for pattern in patterns:
+                    suggestion_action = {
+                        "type": "run_workflow",
+                        "label": pattern["name"],
+                        "description": pattern["description"],
+                        "workflow_id": pattern.get("suggested_actions", [""])[0] # Take first suggested action
+                    }
+                    if suggestion_action not in result["response"]["actions"]:
+                        result["response"]["actions"].append(suggestion_action)
+        except Exception as suggest_e:
+            logger.warning(f"Failed to inject proactive suggestions: {suggest_e}")
+
         # Add session_id to response
         if result:
             result["session_id"] = session_id
@@ -341,9 +372,25 @@ async def chat_with_agent(request: ChatRequest):
         return {"success": False, "error": str(e)}
 
 async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> Dict[str, Any]:
-    """Use LLM to classify user intent via BYOK system"""
+    """Use LLM to classify user intent via BYOK system with Knowledge Graph context"""
     
-    system_prompt = """You are ATOM, an intelligent personal assistant for task orchestration and management.
+    # 0. Preemptive Knowledge Retrieval
+    knowlege_context = ""
+    try:
+        from core.knowledge_query_endpoints import get_knowledge_query_manager
+        km = get_knowledge_query_manager()
+        # Perform a quick search for relevant facts
+        facts = await km.answer_query(f"What relevant facts are there about: {message}")
+        if facts and facts.get("relevant_facts"):
+            knowlege_context = "\n**Knowledge Context:**\n" + "\n".join([f"- {f}" for f in facts["relevant_facts"][:5]])
+    except Exception as e:
+        logger.warning(f"Failed to fetch preemptive knowledge for intent classification: {e}")
+
+    system_prompt = """You are ATOM, an intelligent personal assistant for task orchestration and management."""
+    if knowlege_context:
+        system_prompt += knowlege_context + "\n\n"
+        
+    system_prompt += """
     Classify the user's intent into one of these categories:
     
     **Workflows:**
@@ -359,9 +406,13 @@ async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> 
     **Tasks:** CREATE_TASK, LIST_TASKS
     **Wellness:** WELLNESS_CHECK
     **Finance:** GET_TRANSACTIONS, CHECK_BALANCE, INVOICE_STATUS
-    **System:** GET_SYSTEM_STATUS
+    **System & Analytics:**
+    - GET_SYSTEM_STATUS: User wants to check system health
+    - GET_AUTOMATION_INSIGHTS: User wants to see drift metrics or automation health
+    - GET_SILENT_STAKEHOLDERS: User wants to know who has been quiet or who they should reach out to
     **Search:** SEARCH_PLATFORM
     **Goal Management:** SET_GOAL, GOAL_STATUS
+    **Knowledge Graph:** KNOWLEDGE_QUERY (Use for questions about relationships, decisions, or cross-entity facts like "Who worked on Project X?" or "What decisions were made with Vendor Y?")
     **General:** HELP, UNKNOWN
     
     **For SCHEDULE_WORKFLOW, extract:**
@@ -525,6 +576,10 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
         # Extract search query
         query = msg.replace("search", "").replace("find", "").strip()
         return {"intent": "SEARCH_PLATFORM", "entities": {"query": query}}
+    
+    # Knowledge fallback
+    elif "who" in msg or "what" in msg or "decisions" in msg or "projects" in msg:
+        return {"intent": "KNOWLEDGE_QUERY", "entities": {"query": message}}
         
     # Default to unknown
     return {"intent": "UNKNOWN", "entities": {}}
@@ -798,6 +853,29 @@ async def handle_send_email(request: ChatRequest, entities: Dict[str, Any]) -> D
 async def handle_search_emails(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Search emails"""
     query = entities.get("query", "")
+    return {"success": True, "response": {"message": f"Searching for {query} in your inbox...", "actions": []}}
+
+async def handle_knowledge_query(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+    """Answer complex relationship queries using knowledge graph"""
+    query = entities.get("query", request.message)
+    try:
+        manager = get_knowledge_query_manager()
+        answer = await manager.answer_query(query)
+        return {
+            "success": True,
+            "response": {
+                "message": answer,
+                "actions": [
+                    {"type": "view_knowledge_graph", "label": "🔍 View Knowledge Map"}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Knowledge query handler failed: {e}")
+        return {
+            "success": False,
+            "response": {"message": "I encountered an error while searching your knowledge graph.", "actions": []}
+        }
     try:
         service = GmailService()
         messages = service.search_messages(query=query, max_results=3)
@@ -987,6 +1065,60 @@ async def handle_wellness_check(request: ChatRequest, entities: Dict[str, Any]) 
         logger.error(f"Wellness handler failed: {e}")
         return {"success": False, "error": str(e)}
 
+async def handle_automation_insights(request: ChatRequest) -> Dict[str, Any]:
+    """Handle request to view automation insights and behavioral suggestions"""
+    try:
+        from core.automation_insight_manager import get_insight_manager
+        from core.behavior_analyzer import get_behavior_analyzer
+        
+        insight_manager = get_insight_manager()
+        behavior_analyzer = get_behavior_analyzer()
+        
+        # 1. Get Drift Insights
+        insights = insight_manager.generate_all_insights(request.user_id)
+        critical_drift = [i for i in insights if i["drift_score"] > 0.7]
+        
+        # 2. Get Behavioral Patterns
+        patterns = behavior_analyzer.detect_patterns(request.user_id)
+        
+        # 3. Construct Message
+        message = "**Automation Health Report** 📊\n\n"
+        
+        if critical_drift:
+            message += "⚠️ **Drift Detected**: " + ", ".join([f"'{i['workflow_id']}'" for i in critical_drift]) + " are showing high manual override rates. You might want to optimize their triggers.\n\n"
+        else:
+            message += "✅ All workflows are running within expected parameters.\n\n"
+            
+        if patterns:
+            message += "**Personalized Suggestions** ✨\n"
+            for p in patterns:
+                message += f"- {p['description']}\n"
+        else:
+            message += "I'm still learning your patterns. Keep using ATOM to get personalized automation suggestions!"
+
+        # 4. Define Actions
+        actions = [
+            {"type": "link", "label": "Full Insights Dashboard", "path": "/analytics/insights"}
+        ]
+        
+        for p in patterns:
+            actions.append({
+                "type": "run_workflow",
+                "label": p["name"],
+                "workflow_id": p.get("suggested_actions", [""])[0]
+            })
+            
+        return {
+            "success": True,
+            "response": {
+                "message": message,
+                "actions": actions[:5] # Limit to top 5 actions
+            }
+        }
+    except Exception as e:
+        logger.error(f"Insights handler failed: {e}")
+        return {"success": False, "error": str(e)}
+
 async def handle_resolve_conflicts(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle request to optimize schedule and resolve conflicts"""
     try:
@@ -1035,6 +1167,49 @@ async def handle_set_goal(request: ChatRequest, entities: Dict[str, Any]) -> Dic
         }
     except Exception as e:
         logger.error(f"Set goal handler failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def handle_silent_stakeholders(request: ChatRequest) -> Dict[str, Any]:
+    """Handle request to identify silent stakeholders and suggest outreach"""
+    try:
+        from core.stakeholder_engine import get_stakeholder_engine
+        engine = get_stakeholder_engine()
+        
+        silent_stakeholders = await engine.identify_silent_stakeholders(request.user_id)
+        
+        if not silent_stakeholders:
+            return {
+                "success": True,
+                "response": {
+                    "message": "I've checked your communications and project assignments. Everyone seems to be actively engaged! ✅",
+                    "actions": []
+                }
+            }
+            
+        message = "**Stakeholder Engagement Alert** 📣\n\nI've identified a few key people who haven't engaged in a while:\n\n"
+        actions = []
+        
+        for s in silent_stakeholders[:3]: # Show top 3
+            message += f"- **{s['name']}** ({s['email']}): No interaction for {s['days_since']} days.\n"
+            actions.append({
+                "type": "send_email",
+                "label": f"Nudge {s['name']}",
+                "recipient": s["email"],
+                "subject": f"Checking in - {s.get('name')}",
+                "body": s.get("suggested_outreach", "")
+            })
+            
+        message += "\nWould you like me to draft an outreach message for any of them?"
+        
+        return {
+            "success": True,
+            "response": {
+                "message": message,
+                "actions": actions
+            }
+        }
+    except Exception as e:
+        logger.error(f"Stakeholder handler failed: {e}")
         return {"success": False, "error": str(e)}
 
 async def handle_goal_status(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:

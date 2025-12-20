@@ -45,6 +45,12 @@ try:
     from core.api_routes import router as core_router
     app.include_router(core_router, prefix="/api/v1")
 
+    from core.availability_endpoints import router as availability_router
+    from core.stakeholder_endpoints import router as stakeholder_router
+
+    app.include_router(availability_router, prefix="/api/v1")
+    app.include_router(stakeholder_router, prefix="/api/v1")
+
     from core.workflow_endpoints import router as workflow_router
     app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
 
@@ -84,6 +90,10 @@ integrations = [
     ("core.unified_task_endpoints", "project_router", None),
     ("core.unified_calendar_endpoints", "router", None),
     ("core.unified_search_endpoints", "router", None),
+    ("core.knowledge_query_endpoints", "router", None),
+    ("core.automation_settings_endpoints", "router", None),
+    ("core.automation_insight_endpoints", "router", None),
+    ("core.availability_endpoints", "router", None),
 
     # AI & Workflows
     ("enhanced_ai_workflow_endpoints", "router", None),
