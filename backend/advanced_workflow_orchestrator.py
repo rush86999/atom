@@ -34,6 +34,7 @@ class WorkflowStepType(Enum):
     API_CALL = "api_call"
     DELAY = "delay"
     APPROVAL_REQUIRED = "approval_required"
+    MICROSOFT_365 = "microsoft_365"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -62,6 +63,7 @@ class WorkflowStep:
 class WorkflowContext:
     """Context shared across workflow steps"""
     workflow_id: str
+    execution_id: str
     input_data: Dict[str, Any] = field(default_factory=dict)
     variables: Dict[str, Any] = field(default_factory=dict)
     results: Dict[str, Any] = field(default_factory=dict)
@@ -382,6 +384,84 @@ class AdvancedWorkflowOrchestrator:
         self.workflows[project_management_workflow.workflow_id] = project_management_workflow
         self.workflows[sales_lead_workflow.workflow_id] = sales_lead_workflow
 
+        # Workflow 4: Financial Reporting Automation
+        financial_reporting_workflow = WorkflowDefinition(
+            workflow_id="financial_reporting_automation",
+            name="Financial Reporting Automation",
+            description="Automated financial data processing and reporting",
+            steps=[
+                WorkflowStep(
+                    step_id="ingest_data",
+                    step_type=WorkflowStepType.MICROSOFT_365,
+                    description="Ingest financial data from OneDrive",
+                    parameters={"service": "onedrive", "action": "list_files", "folder": "Finance/Incoming"},
+                    next_steps=["process_excel"]
+                ),
+                WorkflowStep(
+                    step_id="process_excel",
+                    step_type=WorkflowStepType.MICROSOFT_365,
+                    description="Process data in Excel",
+                    parameters={"service": "excel", "action": "update_range", "range": "A1:G100"},
+                    next_steps=["refresh_powerbi"]
+                ),
+                WorkflowStep(
+                    step_id="refresh_powerbi",
+                    step_type=WorkflowStepType.MICROSOFT_365,
+                    description="Refresh Power BI dashboard",
+                    parameters={"service": "powerbi", "action": "refresh_dataset"},
+                    next_steps=["notify_teams"]
+                ),
+                WorkflowStep(
+                    step_id="notify_teams",
+                    step_type=WorkflowStepType.MICROSOFT_365,
+                    description="Notify finance team on Teams",
+                    parameters={"service": "teams", "action": "send_message", "channel": "Finance Reports"},
+                    next_steps=[]
+                )
+            ],
+            start_step="ingest_data"
+        )
+        self.workflows[financial_reporting_workflow.workflow_id] = financial_reporting_workflow
+
+        # Workflow 5: Project Inception Workflow
+        project_inception_workflow = WorkflowDefinition(
+            workflow_id="project_inception_workflow",
+            name="Project Inception Workflow",
+            description="Automated project kickoff and tracking setup",
+            steps=[
+                WorkflowStep(
+                    step_id="analyze_lead",
+                    step_type=WorkflowStepType.NLU_ANALYSIS,
+                    description="Analyze sales lead",
+                    parameters={"extract_entities": True},
+                    next_steps=["update_tracker"]
+                ),
+                WorkflowStep(
+                    step_id="update_tracker",
+                    step_type=WorkflowStepType.MICROSOFT_365,
+                    description="Update project tracker in Excel",
+                    parameters={"service": "excel", "action": "append_row"},
+                    next_steps=["create_planner_tasks"]
+                ),
+                WorkflowStep(
+                    step_id="create_planner_tasks",
+                    step_type=WorkflowStepType.MICROSOFT_365,
+                    description="Create tasks in Planner",
+                    parameters={"service": "planner", "action": "create_task"},
+                    next_steps=["setup_teams"]
+                ),
+                WorkflowStep(
+                    step_id="setup_teams",
+                    step_type=WorkflowStepType.MICROSOFT_365,
+                    description="Setup Teams collaboration space",
+                    parameters={"service": "teams", "action": "create_channel"},
+                    next_steps=[]
+                )
+            ],
+            start_step="analyze_lead"
+        )
+        self.workflows[project_inception_workflow.workflow_id] = project_inception_workflow
+
     async def generate_dynamic_workflow(self, user_query: str) -> WorkflowDefinition:
         """
         Dynamically generate a workflow from a user query using high-reasoning AI.
@@ -462,15 +542,22 @@ class AdvancedWorkflowOrchestrator:
         return workflow
 
     async def execute_workflow(self, workflow_id: str, input_data: Dict[str, Any],
-                             execution_context: Optional[Dict[str, Any]] = None) -> WorkflowContext:
+                             execution_context: Optional[Dict[str, Any]] = None,
+                             execution_id: Optional[str] = None) -> WorkflowContext:
         """Execute a complex workflow"""
 
         if workflow_id not in self.workflows:
             raise ValueError(f"Workflow {workflow_id} not found")
 
         workflow = self.workflows[workflow_id]
+        
+        # Use provided execution_id or generate new one
+        if execution_id is None:
+            execution_id = str(uuid.uuid4())
+            
         context = WorkflowContext(
-            workflow_id=str(uuid.uuid4()),
+            workflow_id=workflow_id,
+            execution_id=execution_id,
             input_data=input_data,
             status=WorkflowStatus.RUNNING,
             started_at=datetime.datetime.now()
@@ -479,7 +566,7 @@ class AdvancedWorkflowOrchestrator:
         if execution_context:
             context.variables.update(execution_context)
 
-        self.active_contexts[context.workflow_id] = context
+        self.active_contexts[context.execution_id] = context
 
         try:
             # Initialize AI service sessions
@@ -614,6 +701,8 @@ class AdvancedWorkflowOrchestrator:
                 result = await self._execute_delay(step, context)
             elif step.step_type == WorkflowStepType.API_CALL:
                 result = await self._execute_api_call(step, context)
+            elif step.step_type == WorkflowStepType.MICROSOFT_365:
+                result = await self._execute_microsoft_365_integration(step, context)
             else:
                 result = {"status": "completed", "message": f"Step type {step.step_type.value} executed"}
 
@@ -800,6 +889,64 @@ class AdvancedWorkflowOrchestrator:
             "action": action,
             "call_time": datetime.datetime.now().isoformat()
         }
+
+    async def _execute_microsoft_365_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Microsoft 365 integration step"""
+        service = step.parameters.get("service")
+        action = step.parameters.get("action")
+        
+        # Get access token from context
+        # In a real scenario, this would likely be retrieved from a secure token store using the user_id
+        access_token = context.variables.get("microsoft365_token")
+        
+        if not access_token:
+            # Fallback for testing/demo without token
+            logger.warning("No Microsoft 365 token found in context, running in simulation mode")
+            await asyncio.sleep(0.5)
+            return {
+                "status": "completed", 
+                "service": service, 
+                "action": action, 
+                "message": "Executed in SIMULATION mode (no token provided)"
+            }
+
+        try:
+            from integrations.microsoft365_service import microsoft365_service
+            
+            result = {"status": "error", "message": "Unknown service"}
+            
+            if service == "onedrive":
+                result = await microsoft365_service.execute_onedrive_action(access_token, action, step.parameters)
+            elif service == "excel":
+                result = await microsoft365_service.execute_excel_action(access_token, action, step.parameters)
+            elif service == "powerbi":
+                result = await microsoft365_service.execute_powerbi_action(access_token, action, step.parameters)
+            elif service == "teams":
+                result = await microsoft365_service.execute_teams_action(access_token, action, step.parameters)
+            elif service == "outlook":
+                result = await microsoft365_service.execute_outlook_action(access_token, action, step.parameters)
+            elif service == "planner":
+                result = await microsoft365_service.execute_planner_action(access_token, action, step.parameters)
+            
+            if result.get("status") == "error":
+                raise Exception(result.get("message"))
+                
+            return {
+                "status": "completed",
+                "service": service,
+                "action": action,
+                "data": result.get("data"),
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"M365 integration failed: {e}")
+            return {
+                "status": "failed",
+                "service": service, 
+                "action": action,
+                "error": str(e)
+            }
 
     def get_workflow_definitions(self) -> List[Dict[str, Any]]:
         """Get all workflow definitions"""

@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  TrendingUp, 
-  Clock, 
-  DollarSign, 
+import {
+  TrendingUp,
+  Clock,
+  DollarSign,
   Activity,
   Download,
   RefreshCw,
@@ -130,16 +130,16 @@ export default function AnalyticsPage() {
           <p className="text-muted-foreground">Monitor workflow performance and business value</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={fetchData}
             disabled={refreshing}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => exportCSV('workflow')}
           >
             <Download className="h-4 w-4 mr-2" />
@@ -171,8 +171,8 @@ export default function AnalyticsPage() {
           <CardContent>
             <div className="text-2xl font-bold">{successRate}%</div>
             <div className="w-full bg-secondary h-2 rounded-full mt-2">
-              <div 
-                className="bg-primary h-2 rounded-full transition-all" 
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
                 style={{ width: `${successRate}%` }}
               />
             </div>
@@ -236,7 +236,7 @@ export default function AnalyticsPage() {
                       <td className="p-2 font-medium">{id}</td>
                       <td className="p-2 text-right">{metric.execution_count}</td>
                       <td className="p-2 text-right">
-                        <Badge 
+                        <Badge
                           variant={metric.success_rate >= 90 ? "default" : metric.success_rate >= 70 ? "secondary" : "destructive"}
                         >
                           {metric.success_rate.toFixed(1)}%
@@ -280,11 +280,11 @@ export default function AnalyticsPage() {
                     <tr key={name} className="border-b hover:bg-muted/50">
                       <td className="p-2 font-medium">{name}</td>
                       <td className="p-2 text-center">
-                        <Badge 
+                        <Badge
                           variant={
-                            metric.status === 'READY' ? 'default' : 
-                            metric.status === 'PARTIAL' ? 'secondary' : 
-                            'destructive'
+                            metric.status === 'READY' ? 'default' :
+                              metric.status === 'PARTIAL' ? 'secondary' :
+                                'destructive'
                           }
                         >
                           {metric.status === 'READY' && <CheckCircle2 className="h-3 w-3 mr-1 inline" />}

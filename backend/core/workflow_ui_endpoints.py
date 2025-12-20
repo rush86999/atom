@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uuid
@@ -8,7 +8,7 @@ import random
 # Import core workflow models if available, otherwise define local ones for UI
 # For now, we'll define UI-specific models to match the frontend expectations
 
-router = APIRouter(prefix="/api/workflows", tags=["workflow_ui"])
+router = APIRouter(tags=["workflow_ui"])
 
 # --- Models matching Frontend Interfaces ---
 
@@ -98,6 +98,47 @@ MOCK_TEMPLATES = [
             },
             "required": ["team_channel"]
         }
+    ),
+    WorkflowTemplate(
+        id="tpl_o365_finance",
+        name="O365 Financial Reporting",
+        description=" OneDrive ingestion -> Excel processing -> Power BI refresh -> Teams notification",
+        category="business",
+        icon="finance",
+        steps=[
+            WorkflowStep(id="s1", type="action", service="onedrive", action="get_file", name="Get Statement", parameters={"file_path": "/Finances/Monthly.xlsx"}),
+            WorkflowStep(id="s2", type="action", service="excel", action="update_range", name="Process Data", parameters={"range": "A1:G100"}),
+            WorkflowStep(id="s3", type="action", service="powerbi", action="refresh_dataset", name="Refresh Dashboard", parameters={"dataset_id": "sales_dashboard"}),
+            WorkflowStep(id="s4", type="action", service="msteams", action="send_message", name="Notify Finance Team", parameters={"channel_id": "finance_channel"}),
+        ],
+        input_schema={
+            "type": "object",
+            "properties": {
+                "month": {"type": "string", "title": "Reporting Month"},
+                "dataset": {"type": "string", "title": "Power BI Dataset ID"}
+            },
+            "required": ["month"]
+        }
+    ),
+    WorkflowTemplate(
+        id="tpl_o365_project",
+        name="Project Inception",
+        description="Setup Project Tracker (Excel) and Tasks (Planner)",
+        category="productivity",
+        icon="assignment",
+        steps=[
+            WorkflowStep(id="s1", type="action", service="excel", action="create_workbook", name="Create Tracker", parameters={"name": "{project_name}_Tracker"}),
+            WorkflowStep(id="s2", type="action", service="planner", action="create_task", name="Create Launch Task", parameters={"title": "Launch {project_name}"}),
+            WorkflowStep(id="s3", type="action", service="msteams", action="send_message", name="Notify PMO", parameters={"message": "Project {project_name} initialized."}),
+        ],
+        input_schema={
+            "type": "object",
+            "properties": {
+                "project_name": {"type": "string", "title": "Project Name"},
+                "pmo_channel": {"type": "string", "title": "PMO Channel ID"}
+            },
+            "required": ["project_name"]
+        }
     )
 ]
 
@@ -131,7 +172,13 @@ MOCK_SERVICES = {
     "asana": ServiceInfo(name="Asana", actions=["get_tasks", "create_task"], description="Project management"),
     "slack": ServiceInfo(name="Slack", actions=["send_message", "create_channel"], description="Team communication"),
     "gmail": ServiceInfo(name="Gmail", actions=["send_email", "read_email"], description="Email service"),
-    "ai": ServiceInfo(name="Atom AI", actions=["generate_content", "summarize", "analyze"], description="AI capabilities")
+    "ai": ServiceInfo(name="Atom AI", actions=["generate_content", "summarize", "analyze"], description="AI capabilities"),
+    "onedrive": ServiceInfo(name="OneDrive", actions=["list_files", "get_content"], description="File storage"),
+    "excel": ServiceInfo(name="Excel", actions=["update_range", "append_row"], description="Spreadsheet automation"),
+    "powerbi": ServiceInfo(name="Power BI", actions=["refresh_dataset"], description="Business intelligence"),
+    "teams": ServiceInfo(name="Microsoft Teams", actions=["send_message", "create_channel"], description="Team collaboration"),
+    "outlook": ServiceInfo(name="Outlook", actions=["send_email", "create_event"], description="Email and calendar"),
+    "planner": ServiceInfo(name="Planner", actions=["create_task"], description="Task management")
 }
 
 # --- Endpoints ---
@@ -139,6 +186,10 @@ MOCK_SERVICES = {
 @router.get("/templates")
 async def get_templates():
     return {"success": True, "templates": [t.dict() for t in MOCK_TEMPLATES]}
+
+@router.get("/services")
+async def get_services():
+    return {"success": True, "services": [s.dict() for s in MOCK_SERVICES.values()]}
 
 @router.get("/definitions")
 async def get_workflows():
@@ -163,27 +214,80 @@ async def create_workflow_definition(payload: Dict[str, Any]):
 
 @router.get("/executions")
 async def get_executions():
-    return {"success": True, "executions": [e.dict() for e in MOCK_EXECUTIONS]}
-
-@router.get("/services")
-async def get_services():
-    return {"success": True, "services": {k: v.dict() for k, v in MOCK_SERVICES.items()}}
+    # Fetch real executions from the orchestrator
+    try:
+        from advanced_workflow_orchestrator import orchestrator, WorkflowStatus
+        
+        executions = []
+        # Convert Orchestrator contexts to UI Execution models
+        for context in orchestrator.active_contexts.values():
+            status_map = {
+                WorkflowStatus.PENDING: "pending",
+                WorkflowStatus.RUNNING: "running",
+                WorkflowStatus.COMPLETED: "completed",
+                WorkflowStatus.FAILED: "failed",
+                WorkflowStatus.CANCELLED: "cancelled"
+            }
+            
+            # Calculate metrics
+            total_steps = 4 # Default estimate
+            current_step = 0
+            if context.results:
+                current_step = len(context.results)
+            
+            executions.append(WorkflowExecution(
+                execution_id=context.execution_id,
+                workflow_id=context.input_data.get("_ui_workflow_id", context.workflow_id), # Prefer UI ID if stored
+                status=status_map.get(context.status, "unknown"),
+                start_time=context.started_at.isoformat() if context.started_at else datetime.now().isoformat(),
+                end_time=context.completed_at.isoformat() if context.completed_at else None,
+                current_step=current_step,
+                total_steps=total_steps,
+                trigger_data=context.input_data,
+                results=context.results,
+                errors=[context.error_message] if context.error_message else []
+            ))
+            
+        # Sort by start time (newest first)
+        executions.sort(key=lambda x: x.start_time, reverse=True)
+        return {"success": True, "executions": [e.dict() for e in executions]}
+            
+    except ImportError:
+        # Fallback if orchestrator not available/path issue
+        return {"success": True, "executions": [e.dict() for e in MOCK_EXECUTIONS]}
 
 @router.post("/execute")
-async def execute_workflow(payload: Dict[str, Any]):
-    # Mock execution start
+async def execute_workflow(payload: Dict[str, Any], background_tasks: BackgroundTasks):
+    from advanced_workflow_orchestrator import orchestrator
+    
+    workflow_id = payload.get("workflow_id")
+    input_data = payload.get("input", {})
+    
+    # Store UI workflow ID in input for correlation
+    input_data["_ui_workflow_id"] = workflow_id
+    
+    # Map UI Template IDs to Orchestrator Workflow IDs
+    # This ensures we run the REAL predefined workflows
+    orchestrator_id = workflow_id
+    if workflow_id == "tpl_o365_finance":
+        orchestrator_id = "financial_reporting_automation"
+    elif workflow_id == "tpl_o365_project":
+        orchestrator_id = "project_inception_workflow"
+    
+    # Check if workflow exists in orchestrator
+    if orchestrator_id not in orchestrator.workflows:
+        # Fallback logic could go here
+        pass
+
+    # Generate Execution ID for immediate UI feedback
     execution_id = f"exec_{uuid.uuid4().hex[:8]}"
-    new_execution = WorkflowExecution(
-        execution_id=execution_id,
-        workflow_id=payload.get("workflow_id", "unknown"),
-        status="running",
-        start_time=datetime.now().isoformat(),
-        current_step=0,
-        total_steps=3, # Mock
-        trigger_data=payload.get("input")
-    )
-    MOCK_EXECUTIONS.insert(0, new_execution)
-    return {"success": True, "execution_id": execution_id, "status": "running"}
+    
+    async def _run_orchestration():
+        await orchestrator.execute_workflow(orchestrator_id, input_data, execution_id=execution_id)
+        
+    background_tasks.add_task(_run_orchestration)
+    
+    return {"success": True, "execution_id": execution_id, "message": "Workflow started via Real Orchestrator"}
 
 @router.post("/executions/{execution_id}/cancel")
 async def cancel_execution(execution_id: str):
