@@ -19,7 +19,11 @@ import httpx
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
-import redis
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
 import jwt
 from cryptography.fernet import Fernet
 from core.token_storage import token_storage
@@ -185,7 +189,7 @@ class SlackFile:
 class SlackRateLimiter:
     """Slack API rate limiter"""
     
-    def __init__(self, redis_client: Optional[redis.Redis] = None):
+    def __init__(self, redis_client: Optional[Any] = None):
         self.redis = redis_client
         self.local_limits: Dict[str, Dict[str, Any]] = {}
         self.default_limits = {
@@ -249,7 +253,7 @@ class SlackEnhancedService:
             port=redis_config.get('port', 6379),
             db=redis_config.get('db', 0),
             decode_responses=True
-        ) if redis_config.get('enabled') else None
+        ) if (redis_config.get('enabled') and REDIS_AVAILABLE) else None
         
         # Encryption for tokens
         self.encryption_key = config.get('encryption_key') or os.getenv('ENCRYPTION_KEY')

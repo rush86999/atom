@@ -6,11 +6,21 @@ Provides comprehensive vector database operations with LanceDB
 import os
 import json
 import logging
-import numpy as np
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    print("Numpy not available")
 from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
-import pandas as pd
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+    print("Pandas not available")
 
 try:
     import lancedb
@@ -219,10 +229,14 @@ class LanceDBHandler:
                     input=text,
                     model="text-embedding-3-small"
                 )
-                return np.array(response.data[0].embedding)
+                if NUMPY_AVAILABLE:
+                    return np.array(response.data[0].embedding)
+                return response.data[0].embedding
             
             elif self.embedder:
-                return self.embedder.encode(text, convert_to_numpy=True)
+                if NUMPY_AVAILABLE:
+                    return self.embedder.encode(text, convert_to_numpy=True)
+                return self.embedder.encode(text, convert_to_numpy=False)
             
             else:
                 logger.error(f"No embedding provider available. Provider: {self.embedding_provider}, Embedder: {self.embedder}")
@@ -354,6 +368,9 @@ class LanceDBHandler:
                 results = results.where(filter_expression)
             
             # Execute search
+            if not PANDAS_AVAILABLE:
+                logger.error("Pandas not available for search results")
+                return []
             search_results = results.to_pandas()
             
             # Convert to list of dictionaries
@@ -482,6 +499,9 @@ class ChatHistoryManager:
             # So we'll fetch all and sort in memory
             # For better performance with large histories, consider using filter + limit
             
+            if not PANDAS_AVAILABLE:
+                logger.error("Pandas not available for session history")
+                return []
             results = table.search().where(f"metadata LIKE '%{session_id}%'").limit(limit * 2).to_pandas()
             
             # Parse and filter
@@ -563,6 +583,9 @@ class ChatHistoryManager:
             
             # Search for entity_id in metadata
             filter_expr = f"metadata LIKE '%{entity_id}%'"
+            if not PANDAS_AVAILABLE:
+                logger.error("Pandas not available for entity mentions")
+                return []
             results = table.search().where(filter_expr).limit(50).to_pandas()
             
             # Parse and filter
@@ -614,14 +637,18 @@ import core.chat_context_manager
 core.chat_context_manager.chat_context_manager = ChatContextManager(lancedb_handler)
 
 # Utility functions
-def embed_documents_batch(texts: List[str], model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> Optional[np.ndarray]:
+def embed_documents_batch(texts: List[str], model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> Optional[Any]:
     """Embed a batch of texts"""
     if not SENTENCE_TRANSFORMERS_AVAILABLE:
         return None
     
     try:
+        from sentence_transformers import SentenceTransformer
         embedder = SentenceTransformer(model_name)
-        embeddings = embedder.encode(texts, convert_to_numpy=True)
+        if NUMPY_AVAILABLE:
+            embeddings = embedder.encode(texts, convert_to_numpy=True)
+        else:
+            embeddings = embedder.encode(texts, convert_to_numpy=False)
         return embeddings
     except Exception as e:
         logger.error(f"Failed to embed batch texts: {e}")

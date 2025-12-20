@@ -132,17 +132,13 @@ class WorkflowTemplate(BaseModel):
 
 class TemplateMarketplace(BaseModel):
     """Template marketplace for sharing and discovering templates"""
+    templates: Dict[str, WorkflowTemplate] = {}
+    categories: Dict[str, List[str]] = {cat.value: [] for cat in TemplateCategory}
+    tags_index: Dict[str, List[str]] = {}
+    search_index: Dict[str, List[str]] = {}
 
     class Config:
         arbitrary_types_allowed = True
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self.templates: Dict[str, WorkflowTemplate] = {}
-        self.categories: Dict[str, List[str]] = {cat.value: [] for cat in TemplateCategory}
-        self.tags_index: Dict[str, List[str]] = {}
-        self.search_index: Dict[str, List[str]] = {}
-        self.load_built_in_templates()
 
 class WorkflowTemplateManager:
     """Manages workflow templates, marketplace, and template operations"""
@@ -157,6 +153,7 @@ class WorkflowTemplateManager:
 
         # Load existing templates
         self.load_templates()
+        self.load_built_in_templates()
 
         logger.info(f"Template manager initialized with {len(self.templates)} templates")
 
@@ -520,7 +517,7 @@ class WorkflowTemplateManager:
 
         self.template_files[template.template_id] = filename
 
-    def _load_templates(self):
+    def load_templates(self):
         """Load templates from files"""
         if not self.template_dir.exists():
             return
@@ -546,7 +543,12 @@ class WorkflowTemplateManager:
             self._create_data_processing_template(),
             self._create_automation_template(),
             self._create_monitoring_template(),
-            self._create_integration_template()
+            self._create_integration_template(),
+            self._create_content_management_template(),
+            self._create_burnout_protection_template(),
+            self._create_deadline_mitigation_template(),
+            self._create_email_followup_template(),
+            self._create_goal_driven_automation_template()
         ]
 
         for template_data in built_in_templates:
@@ -827,6 +829,297 @@ class WorkflowTemplateManager:
             "dependencies": ["requests"],
             "estimated_total_duration": 50,
             "is_public": True
+        }
+
+    def _create_content_management_template(self) -> Dict[str, Any]:
+        """Create built-in content and file management template"""
+        return {
+            "template_id": "content_file_management",
+            "name": "Auto-Archive & Task Linker",
+            "description": "Automatically archive, tag, and link new files from cloud storage (Drive/Dropbox) to related tasks",
+            "category": "data_processing",
+            "complexity": "intermediate",
+            "tags": ["cloud_storage", "files", "archiving", "task_management"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [
+                {
+                    "name": "source_platform",
+                    "label": "Source Platform",
+                    "description": "Platform to monitor for new files",
+                    "type": "select",
+                    "required": True,
+                    "options": ["google_drive", "dropbox", "box"]
+                },
+                {
+                    "name": "target_task_platform",
+                    "label": "Target Task Platform",
+                    "description": "Platform to link files to",
+                    "type": "select",
+                    "required": True,
+                    "options": ["asana", "trello", "jira", "github"]
+                },
+                {
+                    "name": "archive_root",
+                    "label": "Archive Root Folder",
+                    "description": "Root folder for archiving files",
+                    "type": "string",
+                    "required": True,
+                    "default_value": "/Archive"
+                },
+                {
+                    "name": "slack_channel",
+                    "label": "Slack Channel",
+                    "description": "Channel for notifications",
+                    "type": "string",
+                    "required": False
+                }
+            ],
+            "steps": [
+                {
+                    "step_id": "monitor_files",
+                    "name": "Monitor New Files",
+                    "description": "Detect new file uploads in source platform",
+                    "step_type": "event_monitor",
+                    "estimated_duration": 10
+                },
+                {
+                    "step_id": "analyze_context",
+                    "name": "Analyze Context",
+                    "description": "Extract project and task context from file",
+                    "step_type": "ai_analysis",
+                    "estimated_duration": 45,
+                    "depends_on": ["monitor_files"]
+                },
+                {
+                    "step_id": "link_to_task",
+                    "name": "Link to Task",
+                    "description": "Create link between file and related task",
+                    "step_type": "integration_link",
+                    "estimated_duration": 20,
+                    "depends_on": ["analyze_context"]
+                },
+                {
+                    "step_id": "archive_file",
+                    "name": "Archive & Organize",
+                    "description": "Move and tag file in cloud storage",
+                    "step_type": "storage_operation",
+                    "estimated_duration": 15,
+                    "depends_on": ["link_to_task"]
+                },
+                {
+                    "step_id": "notify_team",
+                    "name": "Notify Team",
+                    "description": "Send notification to Slack",
+                    "step_type": "notification",
+                    "estimated_duration": 5,
+                    "depends_on": ["archive_file"],
+                    "is_optional": True
+                }
+            ],
+            "estimated_total_duration": 95,
+            "is_public": True,
+            "is_featured": True
+        }
+
+    def _create_burnout_protection_template(self) -> Dict[str, Any]:
+        """Create built-in burnout protection template"""
+        return {
+            "template_id": "burnout_protection",
+            "name": "Burnout & Overload Protection",
+            "description": "Proactively monitor workload and suggest focus blocks, meeting rescheduling, and delegation.",
+            "category": "monitoring",
+            "complexity": "intermediate",
+            "tags": ["wellness", "productivity", "burnout"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [
+                {
+                    "name": "risk_score",
+                    "label": "Risk Score",
+                    "description": "Detected burnout risk score",
+                    "type": "number",
+                    "required": True
+                }
+            ],
+            "steps": [
+                {
+                    "step_id": "notify_user",
+                    "name": "Send Wellness Alert",
+                    "description": "Notify user about high burnout risk",
+                    "step_type": "action",
+                    "parameters": [
+                        {
+                            "name": "service",
+                            "label": "Service",
+                            "description": "Service to use",
+                            "type": "string",
+                            "default_value": "slack"
+                        },
+                        {
+                            "name": "message",
+                            "label": "Message",
+                            "description": "Message to send",
+                            "type": "string",
+                            "default_value": "⚠️ High burnout risk detected. Time to consider some focus blocks!"
+                        }
+                    ]
+                }
+            ]
+        }
+
+    def _create_deadline_mitigation_template(self) -> Dict[str, Any]:
+        """Create built-in deadline mitigation template"""
+        return {
+            "template_id": "deadline_mitigation",
+            "name": "Deadline Risk Mitigation",
+            "description": "Automatically handle tasks at risk of missing deadlines",
+            "category": "automation",
+            "complexity": "beginner",
+            "tags": ["productivity", "deadlines", "tasks"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [
+                {
+                    "name": "at_risk_count",
+                    "label": "At-Risk Count",
+                    "description": "Number of tasks at risk",
+                    "type": "number",
+                    "required": True
+                }
+            ],
+            "steps": [
+                {
+                    "step_id": "escalate",
+                    "name": "Escalate Priority",
+                    "description": "Notify collaborators about at-risk deadlines",
+                    "step_type": "action",
+                    "parameters": [
+                        {
+                            "name": "service",
+                            "label": "Service",
+                            "description": "Service to use",
+                            "type": "string",
+                            "default_value": "slack"
+                        }
+                    ]
+                }
+            ]
+        }
+
+    def _create_email_followup_template(self) -> Dict[str, Any]:
+        """Create built-in email follow-up automation template"""
+        return {
+            "template_id": "email_followup",
+            "name": "AI Email Follow-up Automation",
+            "description": "Automatically detect sent emails with no replies and draft polite follow-up nudges.",
+            "category": "automation",
+            "complexity": "intermediate",
+            "tags": ["email", "productivity", "follow-up"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [
+                {
+                    "name": "days_threshold",
+                    "label": "Wait Threshold (Days)",
+                    "description": "Number of days to wait before suggesting a follow-up",
+                    "type": "number",
+                    "default_value": 3
+                }
+            ],
+            "steps": [
+                {
+                    "step_id": "detect_candidates",
+                    "name": "Detect Cold Threads",
+                    "description": "Identify sent emails needing follow-up",
+                    "step_type": "action",
+                    "parameters": [
+                        {"name": "service", "label": "Service", "description": "Service to use", "type": "string", "default_value": "email_automation"},
+                        {"name": "action", "label": "Action", "description": "Action to perform", "type": "string", "default_value": "detect_followups"},
+                        {"name": "days_threshold", "label": "Threshold", "description": "Days to wait", "type": "number", "default_value": 3}
+                    ]
+                },
+                {
+                    "step_id": "draft_followups",
+                    "name": "Draft Follow-ups",
+                    "description": "Use AI to draft polite follow-up messages",
+                    "step_type": "action",
+                    "parameters": [
+                        {"name": "service", "label": "Service", "description": "Service to use", "type": "string", "default_value": "email_automation"},
+                        {"name": "action", "label": "Action", "description": "Action to perform", "type": "string", "default_value": "draft_nudge"}
+                    ],
+                    "depends_on": ["detect_candidates"]
+                }
+            ]
+        }
+
+    def _create_goal_driven_automation_template(self) -> Dict[str, Any]:
+        """Create built-in goal-driven automation template"""
+        return {
+            "template_id": "goal_driven_automation",
+            "name": "Goal-Driven Automation",
+            "description": "High-level goal decomposition and progress monitoring",
+            "category": "productivity",
+            "complexity": "advanced",
+            "tags": ["goal", "planning", "automation", "tracking"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [
+                {
+                    "name": "goal_text",
+                    "label": "Goal Description",
+                    "description": "The high-level goal you want to achieve",
+                    "type": "string",
+                    "required": True,
+                    "example_value": "Close the Q4 sales deal with Acme Corp"
+                },
+                {
+                    "name": "target_date",
+                    "label": "Target Date",
+                    "description": "Deadline for achieving this goal",
+                    "type": "string",
+                    "required": True,
+                    "example_value": "2023-12-31T23:59:59Z"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "goal_id",
+                    "label": "Goal ID",
+                    "description": "Identifier for the newly created goal",
+                    "type": "string"
+                },
+                {
+                    "name": "sub_tasks",
+                    "label": "Generated Sub-tasks",
+                    "description": "List of tasks generated to achieve the goal",
+                    "type": "array"
+                }
+            ],
+            "steps": [
+                {
+                    "id": "init_goal",
+                    "name": "Initialize and Decompose Goal",
+                    "service": "goal_management",
+                    "action": "create_goal",
+                    "parameters": {
+                        "title": "${input.goal_text}",
+                        "target_date": "${input.target_date}"
+                    }
+                },
+                {
+                    "id": "notify_user",
+                    "name": "Notify Goal Creation",
+                    "service": "main_agent",
+                    "action": "send_notification",
+                    "parameters": {
+                        "message": "Goal '${input.goal_text}' has been initialized with ${init_goal.result.sub_tasks.length} sub-tasks.",
+                        "type": "success"
+                    }
+                }
+            ],
+            "is_public": True,
+            "cost_estimate": 0.05
         }
 
 # Global template manager instance

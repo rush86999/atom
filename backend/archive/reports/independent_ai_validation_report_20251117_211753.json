@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "validation_date": "2025-11-17T21:17:53.949554",
+    "validator_version": "1.0.0",
+    "total_claims_validated": 1,
+    "providers_used": [
+      "openai",
+      "anthropic",
+      "deepseek"
+    ]
+  },
+  "summary": {
+    "overall_score": 0.592857142857143,
+    "claims_fully_validated": 0,
+    "claims_partially_validated": 0,
+    "claims_not_validated": 1,
+    "average_confidence": 0.592857142857143
+  },
+  "category_scores": {
+    "ai_features": 0.592857142857143
+  },
+  "detailed_results": {
+    "atom_ai_workflows": {
+      "claim": "AI-Powered Workflow Automation: Automate complex workflows with intelligent AI assistance",
+      "category": "ai_features",
+      "score": 0.592857142857143,
+      "evidence_strength": "MODERATE",
+      "recommendations": [
+        "anthropic: Recommendations:",
+        "deepseek: ### **Recommendations**",
+        "openai: Recommendations: To validate this claim, evidence should be provided that demonstrates the product's ability to automate complex workflows. This could include case studies, user testimonials, or technical specifications. Additionally, performance metrics and reliability data would help substantiate the claim."
+      ],
+      "individual_scores": {
+        "openai": 0.4,
+        "anthropic": 0.7,
+        "deepseek": 0.7
+      }
+    }
+  }
+}

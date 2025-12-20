@@ -1,0 +1,406 @@
+{
+  "overall_status": "FAILED",
+  "start_time": "2025-12-13T17:14:58.451642",
+  "end_time": "2025-12-13T17:15:15.104353",
+  "duration_seconds": 16.652711,
+  "total_tests": 27,
+  "tests_passed": 17,
+  "tests_failed": 10,
+  "test_categories": [
+    "scheduling",
+    "error_handling",
+    "complex_workflows",
+    "performance",
+    "security"
+  ],
+  "category_results": {
+    "scheduling": {
+      "category": "scheduling",
+      "tests_run": 3,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "test_details": {
+        "schedule_workflow": {
+          "status": "passed",
+          "job_id": "job_demo-customer-support_1765664098.550021",
+          "message": "Workflow scheduled with ID job_demo-customer-support_1765664098.550021"
+        },
+        "job_id": "job_demo-customer-support_1765664098.550021",
+        "list_scheduled_jobs": {
+          "status": "passed",
+          "jobs_count": 8,
+          "jobs": [
+            {
+              "id": "job_demo-customer-support_1765664074.261246",
+              "next_run_time": "2025-12-13T17:15:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='*', minute='*']"
+            },
+            {
+              "id": "job_demo-customer-support_1765664098.550021",
+              "next_run_time": "2025-12-13T17:15:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='*', minute='*']"
+            },
+            {
+              "id": "dynamic_3afdf525_bc7b5a82",
+              "next_run_time": "2025-12-14T02:00:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='2', minute='0']"
+            },
+            {
+              "id": "dynamic_888bc91e_d79ea286",
+              "next_run_time": "2025-12-14T02:00:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='2', minute='0']"
+            },
+            {
+              "id": "dynamic_540cc30c_01ea4141",
+              "next_run_time": "2025-12-14T09:00:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='9', minute='0']"
+            }
+          ]
+        },
+        "unschedule_workflow": {
+          "status": "passed",
+          "status_code": 200,
+          "response": {
+            "success": true,
+            "message": "Schedule removed"
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1765664098.4598348,
+      "test_outputs": {},
+      "end_time": 1765664098.7025769,
+      "duration_seconds": 0.24274206161499023
+    },
+    "error_handling": {
+      "category": "error_handling",
+      "tests_run": 4,
+      "tests_passed": 3,
+      "tests_failed": 1,
+      "test_details": {
+        "missing_input_error": {
+          "status": "passed",
+          "status_code": 422,
+          "error_type": "validation_error",
+          "response": {
+            "detail": [
+              {
+                "type": "missing",
+                "loc": [
+                  "body",
+                  "name"
+                ],
+                "msg": "Field required",
+                "input": {}
+              },
+              {
+                "type": "missing",
+                "loc": [
+                  "body",
+                  "description"
+                ],
+                "msg": "Field required",
+                "input": {}
+              },
+              {
+                "type": "missing",
+                "loc": [
+                  "body",
+                  "version"
+                ],
+                "msg": "Field required",
+                "input": {}
+              },
+              {
+                "type": "missing",
+                "loc": [
+                  "body",
+                  "nodes"
+                ],
+                "msg": "Field required",
+                "input": {}
+              },
+              {
+                "type": "missing",
+                "loc": [
+                  "body",
+                  "connections"
+                ],
+                "msg": "Field required",
+                "input": {}
+              },
+              {
+                "type": "missing",
+                "loc": [
+                  "body",
+                  "triggers"
+                ],
+                "msg": "Field required",
+                "input": {}
+              },
+              {
+                "type": "missing",
+                "loc": [
+                  "body",
+                  "enabled"
+                ],
+                "msg": "Field required",
+                "input": {}
+              }
+            ]
+          }
+        },
+        "invalid_workflow_error": {
+          "status": "failed",
+          "status_code": 500,
+          "expected_codes": [
+            404,
+            400
+          ],
+          "response": "Internal Server Error"
+        },
+        "invalid_schedule_error": {
+          "status": "passed",
+          "status_code": 400,
+          "error_type": "validation_error",
+          "response": {
+            "detail": "Unrecognized expression \"invalid\" for field \"minute\""
+          }
+        },
+        "service_failure_fallback": {
+          "status": "passed",
+          "note": "Workflow creation failed as expected for non-existent service",
+          "status_code": 422
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1765664098.708341,
+      "test_outputs": {},
+      "end_time": 1765664100.7528052,
+      "duration_seconds": 2.044464349746704
+    },
+    "complex_workflows": {
+      "category": "complex_workflows",
+      "tests_run": 5,
+      "tests_passed": 0,
+      "tests_failed": 5,
+      "test_details": {
+        "conditional_high_priority_case": {
+          "status": "failed",
+          "status_code": 500,
+          "response": "Internal Server Error"
+        },
+        "conditional_low_priority_case": {
+          "status": "failed",
+          "status_code": 500,
+          "response": "Internal Server Error"
+        },
+        "multi_step_workflow": {
+          "status": "failed",
+          "status_code": 500,
+          "response": "Internal Server Error"
+        },
+        "workflow_with_fallbacks": {
+          "status": "failed",
+          "status_code": 500,
+          "response": "Internal Server Error"
+        },
+        "workflow_modification": {
+          "status": "failed",
+          "status_code": 405,
+          "response": "{\"detail\":\"Method Not Allowed\"}"
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1765664100.7748952,
+      "test_outputs": {},
+      "end_time": 1765664101.405091,
+      "duration_seconds": 0.6301958560943604
+    },
+    "performance": {
+      "category": "performance",
+      "tests_run": 6,
+      "tests_passed": 5,
+      "tests_failed": 1,
+      "test_details": {
+        "response_latency": {
+          "status": "passed",
+          "results": {
+            "health_check": {
+              "status": "passed",
+              "avg_latency_ms": 39.32,
+              "max_latency_ms": 48.03,
+              "min_latency_ms": 30.47,
+              "threshold_ms": 1000,
+              "sample_size": 5
+            },
+            "list_workflows": {
+              "status": "passed",
+              "avg_latency_ms": 126.05,
+              "max_latency_ms": 182.99,
+              "min_latency_ms": 95.25,
+              "threshold_ms": 1000,
+              "sample_size": 5
+            },
+            "service_registry": {
+              "status": "passed",
+              "avg_latency_ms": 41.15,
+              "max_latency_ms": 50.49,
+              "min_latency_ms": 32.6,
+              "threshold_ms": 1000,
+              "sample_size": 5
+            }
+          },
+          "performance_metrics": {
+            "production_ready_threshold_ms": 1000,
+            "endpoints_tested": 3
+          }
+        },
+        "concurrent_requests": {
+          "status": "passed",
+          "success_rate_percent": 100.0,
+          "successful_requests": 10,
+          "total_requests": 10,
+          "avg_latency_ms": 504.28,
+          "max_latency_ms": 525.98,
+          "min_latency_ms": 448.87,
+          "concurrency_level": 10,
+          "performance_characteristics": {
+            "handles_concurrent_load": true,
+            "response_time_consistency": true,
+            "scalability_indicator": true
+          }
+        },
+        "throughput": {
+          "status": "passed",
+          "requests_per_second": 12.18,
+          "target_rps": 10,
+          "total_requests": 61,
+          "successful_requests": 61,
+          "success_rate_percent": 100.0,
+          "test_duration_seconds": 5.01,
+          "avg_latency_ms": 82.11,
+          "throughput_characteristics": {
+            "meets_target_throughput": true,
+            "high_success_rate": true,
+            "consistent_performance": true
+          }
+        },
+        "workflow_performance": {
+          "status": "failed",
+          "reason": "Not all workflow executions were successful",
+          "successful_executions": 0,
+          "total_executions": 3
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1765664102.004391,
+      "test_outputs": {},
+      "end_time": 1765664113.419349,
+      "duration_seconds": 11.414958000183105
+    },
+    "security": {
+      "category": "security",
+      "tests_run": 9,
+      "tests_passed": 6,
+      "tests_failed": 3,
+      "test_details": {
+        "authentication": {
+          "status": "failed",
+          "results": {
+            "/api/auth/health": {
+              "status": "passed",
+              "status_code": 200,
+              "auth_protected": false,
+              "endpoint_exists": true
+            },
+            "/api/auth/callback/google": {
+              "status": "failed",
+              "status_code": 404,
+              "endpoint_exists": false
+            },
+            "/api/auth/callback/linkedin": {
+              "status": "failed",
+              "status_code": 404,
+              "endpoint_exists": false
+            }
+          },
+          "security_characteristics": {
+            "authentication_endpoints_exist": true,
+            "auth_protection_present": false,
+            "oauth_integrations": true
+          }
+        },
+        "input_validation": {
+          "status": "passed",
+          "results": {
+            "sql_injection": {
+              "status": "passed",
+              "status_code": 422,
+              "input_rejected": true,
+              "security_measure": "input_validation"
+            },
+            "xss_attempt": {
+              "status": "passed",
+              "status_code": 422,
+              "input_rejected": true,
+              "security_measure": "input_validation"
+            },
+            "command_injection": {
+              "status": "passed",
+              "status_code": 422,
+              "input_rejected": true,
+              "security_measure": "input_validation"
+            },
+            "path_traversal": {
+              "status": "passed",
+              "status_code": 422,
+              "input_rejected": true,
+              "security_measure": "input_validation"
+            }
+          },
+          "security_characteristics": {
+            "sql_injection_protection": true,
+            "xss_protection": true,
+            "command_injection_protection": true,
+            "path_traversal_protection": true,
+            "comprehensive_input_validation": true
+          }
+        },
+        "https_configuration": {
+          "status": "failed",
+          "backend_url": "http://localhost:5059",
+          "uses_https": false,
+          "security_characteristics": {
+            "encrypted_communications": false,
+            "production_ready_ssl": false,
+            "data_in_transit_protection": false
+          }
+        },
+        "rate_limiting": {
+          "status": "passed",
+          "total_requests": 20,
+          "successful_responses": 9,
+          "rate_limit_responses": 11,
+          "rate_limit_percentage": 55.00000000000001,
+          "security_characteristics": {
+            "rate_limiting_detected": true,
+            "ddos_protection": true,
+            "api_abuse_protection": true
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1765664113.432711,
+      "test_outputs": {},
+      "end_time": 1765664115.10427,
+      "duration_seconds": 1.6715590953826904
+    }
+  },
+  "llm_verification_available": false,
+  "marketing_claims_verified": {
+    "total": 0,
+    "verified": 0,
+    "verification_rate": 0.0
+  }
+}

@@ -1,0 +1,669 @@
+{
+  "validation_metadata": {
+    "timestamp": "2025-11-17T18:49:52.577614",
+    "overall_score": 0.878749563217163,
+    "total_claims": 5,
+    "validator_version": "2.0.0",
+    "validation_methodology": "Enhanced evidence-based validation with structured testing"
+  },
+  "claim_results": {
+    "atom_33_integrations": {
+      "claim_text": "33+ Service Integrations: Connect with Asana, Notion, Linear, Outlook, Dropbox, Stripe, Salesforce, Zoom, and 25+ more",
+      "category": "integrations",
+      "validation_score": 1.0,
+      "validation_status": "VALIDATED",
+      "confidence": 0.7300000000000001,
+      "evidence_count": 16,
+      "missing_evidence": [],
+      "performance_metrics": {
+        "validation_time_seconds": 0.31297922134399414,
+        "evidence_collected": 16,
+        "evidence_strength_avg": 0.9000000000000002,
+        "api_calls_made": 16
+      },
+      "recommendations": [],
+      "supporting_evidence": [
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "asana_api_response",
+          "evidence_data": {
+            "service": "asana",
+            "endpoint": "/api/v1/asana/health",
+            "status_code": 200,
+            "response_time": 0.004966,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:51.987410",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "notion_api_response",
+          "evidence_data": {
+            "service": "notion",
+            "endpoint": "/api/v1/notion/health",
+            "status_code": 200,
+            "response_time": 0.004227,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:51.998153",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "linear_api_response",
+          "evidence_data": {
+            "service": "linear",
+            "endpoint": "/api/v1/linear/health",
+            "status_code": 200,
+            "response_time": 0.004362,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.005210",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "outlook_api_response",
+          "evidence_data": {
+            "service": "outlook",
+            "endpoint": "/api/v1/outlook/health",
+            "status_code": 200,
+            "response_time": 0.011353,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.020507",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "dropbox_api_response",
+          "evidence_data": {
+            "service": "dropbox",
+            "endpoint": "/api/v1/dropbox/health",
+            "status_code": 200,
+            "response_time": 0.016603,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.040781",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "stripe_api_response",
+          "evidence_data": {
+            "service": "stripe",
+            "endpoint": "/api/v1/stripe/health",
+            "status_code": 200,
+            "response_time": 0.015852,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.061935",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "salesforce_api_response",
+          "evidence_data": {
+            "service": "salesforce",
+            "endpoint": "/api/v1/salesforce/health",
+            "status_code": 200,
+            "response_time": 0.015172,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.087331",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "zoom_api_response",
+          "evidence_data": {
+            "service": "zoom",
+            "endpoint": "/api/v1/zoom/health",
+            "status_code": 200,
+            "response_time": 0.011858,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.113130",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "github_api_response",
+          "evidence_data": {
+            "service": "github",
+            "endpoint": "/api/v1/github/health",
+            "status_code": 200,
+            "response_time": 0.019033,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.148351",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "google_drive_api_response",
+          "evidence_data": {
+            "service": "google_drive",
+            "endpoint": "/api/v1/google-drive/health",
+            "status_code": 200,
+            "response_time": 0.016956,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.169007",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "onedrive_api_response",
+          "evidence_data": {
+            "service": "onedrive",
+            "endpoint": "/api/v1/onedrive/health",
+            "status_code": 200,
+            "response_time": 0.019384,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.192374",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "microsoft365_api_response",
+          "evidence_data": {
+            "service": "microsoft365",
+            "endpoint": "/api/v1/microsoft365/health",
+            "status_code": 200,
+            "response_time": 0.023304,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.220999",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "box_api_response",
+          "evidence_data": {
+            "service": "box",
+            "endpoint": "/api/v1/box/health",
+            "status_code": 200,
+            "response_time": 0.025457,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.264385",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "slack_api_response",
+          "evidence_data": {
+            "service": "slack",
+            "endpoint": "/api/v1/slack/health",
+            "status_code": 200,
+            "response_time": 0.00443,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.272293",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "whatsapp_api_response",
+          "evidence_data": {
+            "service": "whatsapp",
+            "endpoint": "/api/v1/whatsapp/health",
+            "status_code": 200,
+            "response_time": 0.00621,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.281731",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_33_integrations",
+          "evidence_type": "tableau_api_response",
+          "evidence_data": {
+            "service": "tableau",
+            "endpoint": "/api/v1/tableau/health",
+            "status_code": 200,
+            "response_time": 0.003129,
+            "response_available": true,
+            "service_registered": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.292044",
+          "source": "e2e_api_test",
+          "validation_status": "VERIFIED"
+        }
+      ]
+    },
+    "atom_real_time_analytics": {
+      "claim_text": "Real-Time Analytics: Get instant insights with real-time data analysis",
+      "category": "analytics",
+      "validation_score": 0.9637478160858155,
+      "validation_status": "VALIDATED",
+      "confidence": 0.73,
+      "evidence_count": 5,
+      "missing_evidence": [
+        "latency_measurements",
+        "data_processing_verification"
+      ],
+      "performance_metrics": {
+        "validation_time_seconds": 0.06556987762451172,
+        "evidence_collected": 5,
+        "evidence_strength_avg": 0.9,
+        "api_calls_made": 5
+      },
+      "recommendations": [],
+      "supporting_evidence": [
+        {
+          "claim_id": "atom_real_time_analytics",
+          "evidence_type": "analytics_dashboard_response",
+          "evidence_data": {
+            "endpoint": "/api/analytics/dashboard",
+            "status_code": 200,
+            "response_time_ms": 10.426759719848633,
+            "real_time_processing": true,
+            "instant_insights": true,
+            "data_available": true,
+            "response_type": "dictionary"
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.302876",
+          "source": "analytics_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_real_time_analytics",
+          "evidence_type": "real_time_insights_response",
+          "evidence_data": {
+            "endpoint": "/api/analytics/insights",
+            "status_code": 200,
+            "response_time_ms": 14.564752578735352,
+            "real_time_processing": true,
+            "instant_insights": true,
+            "data_available": true,
+            "response_type": "list"
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.317548",
+          "source": "analytics_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_real_time_analytics",
+          "evidence_type": "performance_metrics_response",
+          "evidence_data": {
+            "endpoint": "/api/analytics/performance",
+            "status_code": 200,
+            "response_time_ms": 9.840250015258789,
+            "real_time_processing": true,
+            "instant_insights": true,
+            "data_available": true,
+            "response_type": "list"
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.327546",
+          "source": "analytics_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_real_time_analytics",
+          "evidence_type": "analytics_health_response",
+          "evidence_data": {
+            "endpoint": "/api/analytics/health",
+            "status_code": 200,
+            "response_time_ms": 5.967140197753906,
+            "real_time_processing": false,
+            "instant_insights": true,
+            "data_available": true,
+            "response_type": "dictionary"
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.336971",
+          "source": "analytics_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_real_time_analytics",
+          "evidence_type": "analytics_status_response",
+          "evidence_data": {
+            "endpoint": "/api/analytics/status",
+            "status_code": 200,
+            "response_time_ms": 13.375043869018555,
+            "real_time_processing": false,
+            "instant_insights": true,
+            "data_available": true,
+            "response_type": "dictionary"
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.357628",
+          "source": "analytics_api_test",
+          "validation_status": "VERIFIED"
+        }
+      ]
+    },
+    "atom_enterprise_reliability": {
+      "claim_text": "Enterprise-Grade Reliability: 99.9% uptime with enterprise security features",
+      "category": "enterprise_features",
+      "validation_score": 0.9999999999999999,
+      "validation_status": "VALIDATED",
+      "confidence": 0.73,
+      "evidence_count": 6,
+      "missing_evidence": [
+        "monitoring_status_response"
+      ],
+      "performance_metrics": {
+        "validation_time_seconds": 0.0698099136352539,
+        "evidence_collected": 6,
+        "evidence_strength_avg": 0.9,
+        "api_calls_made": 6
+      },
+      "recommendations": [
+        "Improve uptime monitoring and reporting to meet 99.9% target"
+      ],
+      "supporting_evidence": [
+        {
+          "claim_id": "atom_enterprise_reliability",
+          "evidence_type": "uptime_metrics_response",
+          "evidence_data": {
+            "endpoint": "/api/enterprise/uptime",
+            "status_code": 200,
+            "uptime_percentage": 99.9750294084079,
+            "security_features": 0,
+            "compliance_standards": 0,
+            "enterprise_features_active": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.373598",
+          "source": "enterprise_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_enterprise_reliability",
+          "evidence_type": "security_status_response",
+          "evidence_data": {
+            "endpoint": "/api/enterprise/security/status",
+            "status_code": 200,
+            "uptime_percentage": 0,
+            "security_features": 8,
+            "compliance_standards": 6,
+            "enterprise_features_active": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.381145",
+          "source": "enterprise_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_enterprise_reliability",
+          "evidence_type": "compliance_reports_response",
+          "evidence_data": {
+            "endpoint": "/api/enterprise/compliance/reports",
+            "status_code": 200,
+            "uptime_percentage": 0,
+            "security_features": 0,
+            "compliance_standards": 4,
+            "enterprise_features_active": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.394477",
+          "source": "enterprise_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_enterprise_reliability",
+          "evidence_type": "sla_status_response",
+          "evidence_data": {
+            "endpoint": "/api/enterprise/sla/status",
+            "status_code": 200,
+            "uptime_percentage": 99.97,
+            "security_features": 0,
+            "compliance_standards": 0,
+            "enterprise_features_active": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.401467",
+          "source": "enterprise_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_enterprise_reliability",
+          "evidence_type": "backup_status_response",
+          "evidence_data": {
+            "endpoint": "/api/enterprise/backup/status",
+            "status_code": 200,
+            "uptime_percentage": 99.9,
+            "security_features": 0,
+            "compliance_standards": 0,
+            "enterprise_features_active": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.409531",
+          "source": "enterprise_api_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_enterprise_reliability",
+          "evidence_type": "enterprise_status_response",
+          "evidence_data": {
+            "endpoint": "/api/enterprise/status",
+            "status_code": 200,
+            "uptime_percentage": 99.97,
+            "security_features": 0,
+            "compliance_standards": 0,
+            "enterprise_features_active": true
+          },
+          "strength_score": 0.9,
+          "timestamp": "2025-11-17T18:49:52.427528",
+          "source": "enterprise_api_test",
+          "validation_status": "VERIFIED"
+        }
+      ]
+    },
+    "atom_ai_workflows": {
+      "claim_text": "AI-Powered Workflows: Natural language understanding for automated task creation and assignment",
+      "category": "ai_features",
+      "validation_score": 0.43000000000000005,
+      "validation_status": "NOT_VALIDATED",
+      "confidence": 0.4033333333333333,
+      "evidence_count": 3,
+      "missing_evidence": [
+        "multi_provider_validation",
+        "task_creation_verification"
+      ],
+      "performance_metrics": {
+        "validation_time_seconds": 0.06388521194458008,
+        "evidence_collected": 3,
+        "evidence_strength_avg": 0.43333333333333335,
+        "api_calls_made": 3
+      },
+      "recommendations": [
+        "Major improvements needed - most validation tests failed"
+      ],
+      "supporting_evidence": [
+        {
+          "claim_id": "atom_ai_workflows",
+          "evidence_type": "ai_providers_response",
+          "evidence_data": {
+            "endpoint": "/api/v1/ai/providers",
+            "status_code": 200,
+            "ai_providers_available": 4,
+            "workflow_execution_supported": true,
+            "nlu_processing_available": true,
+            "multi_provider_support": true,
+            "natural_language_understanding": true,
+            "ai_workflows_operational": false,
+            "nlu_capability_verified": true,
+            "multi_provider_confirmed": true,
+            "workflow_execution_ready": true,
+            "natural_language_understanding_confirmed": false,
+            "marketing_claim_validated": true
+          },
+          "strength_score": 0.7,
+          "timestamp": "2025-11-17T18:49:52.434756",
+          "source": "ai_workflow_test",
+          "validation_status": "PARTIAL"
+        },
+        {
+          "claim_id": "atom_ai_workflows",
+          "evidence_type": "workflow_execution_response",
+          "evidence_data": {
+            "endpoint": "/api/v1/ai/execute",
+            "status_code": 405,
+            "ai_providers_available": 0,
+            "workflow_execution_supported": false,
+            "nlu_processing_available": false,
+            "multi_provider_support": false,
+            "natural_language_understanding": false,
+            "ai_workflows_operational": false,
+            "nlu_capability_verified": false,
+            "multi_provider_confirmed": false,
+            "workflow_execution_ready": false,
+            "natural_language_understanding_confirmed": false,
+            "marketing_claim_validated": false
+          },
+          "strength_score": 0.3,
+          "timestamp": "2025-11-17T18:49:52.445320",
+          "source": "ai_workflow_test",
+          "validation_status": "PARTIAL"
+        },
+        {
+          "claim_id": "atom_ai_workflows",
+          "evidence_type": "nlu_processing_response",
+          "evidence_data": {
+            "endpoint": "/api/v1/ai/nlu",
+            "status_code": 405,
+            "ai_providers_available": 0,
+            "workflow_execution_supported": false,
+            "nlu_processing_available": false,
+            "multi_provider_support": false,
+            "natural_language_understanding": false,
+            "ai_workflows_operational": false,
+            "nlu_capability_verified": false,
+            "multi_provider_confirmed": false,
+            "workflow_execution_ready": false,
+            "natural_language_understanding_confirmed": false,
+            "marketing_claim_validated": false
+          },
+          "strength_score": 0.3,
+          "timestamp": "2025-11-17T18:49:52.491495",
+          "source": "ai_workflow_test",
+          "validation_status": "PARTIAL"
+        }
+      ]
+    },
+    "atom_cross_platform": {
+      "claim_text": "Cross-Platform Coordination: Unified workflow management across all your favorite tools",
+      "category": "coordination",
+      "validation_score": 1.0,
+      "validation_status": "VALIDATED",
+      "confidence": 0.66,
+      "evidence_count": 3,
+      "missing_evidence": [
+        "cross_platform_workflows",
+        "unified_management_test",
+        "data_synchronization_verification",
+        "multi_tool_scenarios"
+      ],
+      "performance_metrics": {
+        "validation_time_seconds": 0.08562874794006348,
+        "evidence_collected": 3,
+        "evidence_strength_avg": 0.8000000000000002,
+        "api_calls_made": 3
+      },
+      "recommendations": [],
+      "supporting_evidence": [
+        {
+          "claim_id": "atom_cross_platform",
+          "evidence_type": "service_registry_response",
+          "evidence_data": {
+            "endpoint": "/api/v1/services",
+            "status_code": 200,
+            "services_available": 5,
+            "workflows_supported": false,
+            "cross_platform_coordination": true
+          },
+          "strength_score": 0.8,
+          "timestamp": "2025-11-17T18:49:52.548642",
+          "source": "coordination_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_cross_platform",
+          "evidence_type": "workflow_status_response",
+          "evidence_data": {
+            "endpoint": "/api/v1/workflows",
+            "status_code": 200,
+            "services_available": 0,
+            "workflows_supported": true,
+            "cross_platform_coordination": true
+          },
+          "strength_score": 0.8,
+          "timestamp": "2025-11-17T18:49:52.553769",
+          "source": "coordination_test",
+          "validation_status": "VERIFIED"
+        },
+        {
+          "claim_id": "atom_cross_platform",
+          "evidence_type": "integration_health_response",
+          "evidence_data": {
+            "endpoint": "/api/v1/integrations/health",
+            "status_code": 200,
+            "services_available": 0,
+            "workflows_supported": false,
+            "cross_platform_coordination": true
+          },
+          "strength_score": 0.8,
+          "timestamp": "2025-11-17T18:49:52.577146",
+          "source": "coordination_test",
+          "validation_status": "VERIFIED"
+        }
+      ]
+    }
+  }
+}

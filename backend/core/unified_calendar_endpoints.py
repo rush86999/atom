@@ -3,10 +3,17 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import uuid
+from core.schedule_optimizer import schedule_optimizer, ResolutionSlot
 
 router = APIRouter(prefix="/api/v1/calendar", tags=["unified_calendar"])
 
 # --- Models ---
+
+class Attendee(BaseModel):
+    id: str
+    name: str
+    email: str
+    role: str = "required"  # "required" | "optional" | "decision_maker" | "organizer"
 
 class CalendarEvent(BaseModel):
     id: str
@@ -15,9 +22,9 @@ class CalendarEvent(BaseModel):
     start: datetime
     end: datetime
     location: Optional[str] = None
-    attendees: Optional[List[str]] = []
-    status: str = "confirmed"  # "confirmed" | "tentative" | "cancelled"
-    platform: str = "local"  # "google" | "outlook" | "local"
+    attendees: Optional[List[Attendee]] = []
+    status: str = "confirmed"
+    platform: str = "local"
     color: Optional[str] = "#3182CE"
 
 class CreateEventRequest(BaseModel):
@@ -70,7 +77,11 @@ MOCK_EVENTS: List[CalendarEvent] = [
         location="Zoom",
         status="confirmed",
         platform="google",
-        color="#4285F4"
+        color="#4285F4",
+        attendees=[
+            Attendee(id="u1", name="Alice", email="alice@example.com", role="organizer"),
+            Attendee(id="u2", name="Bob", email="bob@example.com", role="required")
+        ]
     ),
     CalendarEvent(
         id="2",
@@ -81,7 +92,11 @@ MOCK_EVENTS: List[CalendarEvent] = [
         location="Conference Room A",
         status="confirmed",
         platform="outlook",
-        color="#0078D4"
+        color="#0078D4",
+        attendees=[
+            Attendee(id="u1", name="Alice", email="alice@example.com", role="decision_maker"),
+            Attendee(id="u3", name="Charlie", email="charlie@example.com", role="required")
+        ]
     )
 ]
 
@@ -169,3 +184,38 @@ async def check_conflicts(request: ConflictCheckRequest):
         conflict_count=len(conflicts),
         message=message
     )
+
+@router.get("/optimize", response_model=List[Dict[str, Any]])
+async def get_schedule_optimization():
+    """
+    Detect all conflicts and provide resolution suggestions.
+    """
+    # Convert mock events to dicts for optimizer
+    events_as_dict = [e.dict() for e in MOCK_EVENTS]
+    conflicts = await schedule_optimizer.detect_all_conflicts(events_as_dict)
+    
+    resolutions = []
+    for conflict in conflicts:
+        e1 = conflict["event1"]
+        e2 = conflict["event2"]
+        p1 = conflict["priority1"]
+        p2 = conflict["priority2"]
+        
+        # Move the event with lower priority
+        event_to_move = e2 if p2 <= p1 else e1
+        conflict_with = e1 if p2 <= p1 else e2
+        
+        slots = await schedule_optimizer.find_resolution_slots(event_to_move, events_as_dict)
+        
+        if slots:
+            resolutions.append({
+                "type": "conflict",
+                "event_to_move": event_to_move["title"],
+                "event_id": event_to_move["id"],
+                "event_priority": min(p1, p2),
+                "conflict_with": conflict_with["title"],
+                "suggested_slots": [s.dict() for s in slots],
+                "reason": f"Rescheduling lower priority event '{event_to_move['title']}' ({min(p1, p2)} pts) to respect higher priority '{conflict_with['title']}' ({max(p1, p2)} pts)."
+            })
+            
+    return resolutions
