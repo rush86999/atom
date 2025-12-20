@@ -143,6 +143,37 @@ export class NLUService {
     this.leadAgent = null;
     this.initializePlatformIntegrations();
     this.initializeDataIntegrations();
+    this.registerWellnessIntents();
+  }
+
+  private registerWellnessIntents(): void {
+    const wellnessIntents: IntentDefinition[] = [
+      {
+        name: "workload_assessment",
+        description: "Analyze meeting density and task backlog for burnout risk",
+        patterns: ["am i burning out", "check my workload", "is my schedule too busy", "how am i doing with work"],
+        examples: ["Hey Atom, am I at risk of burnout?", "Check my workload for this week"],
+        entities: ["date_range"],
+        action: "wellnessSkill.checkRisk",
+      },
+      {
+        name: "wellness_mitigation",
+        description: "Execute actions to reduce workload stress",
+        patterns: ["help me reduce stress", "fix my schedule", "i need more focus time", "clear my meetings"],
+        examples: ["Help me reduce my stress levels", "Schedule some focus time for me"],
+        entities: ["action_type"],
+        action: "wellnessSkill.mitigate",
+      },
+      {
+        name: "schedule_optimization",
+        description: "Detect and resolve calendar conflicts",
+        patterns: ["fix my calendar conflicts", "optimize my schedule", "resolve meeting overlaps", "find free time in my schedule"],
+        examples: ["Hey Atom, fix my calendar conflicts", "Optimize my schedule for next week"],
+        entities: ["date_range"],
+        action: "schedulingSkill.autoResolveConflicts",
+      }
+    ];
+    this.intentDefinitions.push(...wellnessIntents);
   }
 
   private initializePlatformIntegrations(): void {
@@ -467,6 +498,29 @@ export class NLUService {
         action: "execute_workflow",
         workflow: "workflow_execution",
       },
+      {
+        name: "content_tagging_management",
+        description: "Configure or query the automatic file tagging and archiving system",
+        patterns: [
+          "how are my files tagged",
+          "set up file tagging",
+          "change archive folder",
+          "link my drive to asana",
+          "auto-archive settings",
+          "where are my files going",
+          "tagging rules"
+        ],
+        examples: [
+          "Set up automatic tagging for my Google Drive files",
+          "How are my documents being archived?",
+          "Link my Dropbox to my Jira project for auto-tagging"
+        ],
+        entities: ["platform", "target_folder", "tag_rules", "integration"],
+        action: "manage_content_tagging",
+        workflow: "content_file_management",
+        crossPlatform: true,
+        platforms: ["google_drive", "dropbox", "asana", "trello", "slack"]
+      },
     ];
   }
 
@@ -535,19 +589,19 @@ export class NLUService {
     // Build enhanced prompt for cross-platform understanding
     const platformContext = context?.platformContext || {};
     const userPreferences = context?.userPreferences || {};
-    
+
     const prompt = `
 You are a cross-platform AI assistant for ATOM platform. You must understand user intent across multiple integrated platforms.
 
 AVAILABLE PLATFORMS:
-${Array.from(this.platformIntegrations.entries()).map(([name, info]) => 
-  `- ${name}: ${info.capabilities.join(', ')}`
-).join('\n')}
+${Array.from(this.platformIntegrations.entries()).map(([name, info]) =>
+      `- ${name}: ${info.capabilities.join(', ')}`
+    ).join('\n')}
 
 CROSS-PLATFORM INTEGRATIONS:
-${Array.from(this.dataIntegrations.entries()).map(([key, plan]) => 
-  `- ${key}: ${plan.sourcePlatforms.join(' → ')} ${plan.syncOperation} ${plan.targetPlatforms.join(' & ')}`
-).join('\n')}
+${Array.from(this.dataIntegrations.entries()).map(([key, plan]) =>
+      `- ${key}: ${plan.sourcePlatforms.join(' → ')} ${plan.syncOperation} ${plan.targetPlatforms.join(' & ')}`
+    ).join('\n')}
 
 USER PREFERENCES:
 ${JSON.stringify(userPreferences, null, 2)}
@@ -584,7 +638,7 @@ RESPOND WITH JSON:
       });
 
       const aiResult = JSON.parse(openaiResponse.content);
-      
+
       return {
         ...aiResult,
         suggestedResponses: this.generateSuggestedResponses(aiResult.intent, aiResult.entities),
@@ -605,14 +659,14 @@ RESPOND WITH JSON:
     context?: ConversationContext,
   ): CrossPlatformIntent {
     const lowerMessage = message.toLowerCase();
-    
+
     // Enhanced rule-based matching with cross-platform patterns
     for (const intent of this.intentDefinitions) {
       if (intent.crossPlatform && intent.platforms) {
         for (const pattern of intent.patterns) {
           if (lowerMessage.includes(pattern.toLowerCase())) {
             const entities = this.extractCrossPlatformEntities(lowerMessage, intent);
-            
+
             return {
               intent: intent.name,
               confidence: 0.85,
@@ -651,9 +705,9 @@ RESPOND WITH JSON:
     options?: { apiKey?: string },
   ): Promise<CrossPlatformIntent> {
     // Combine AI and rule-based approaches for best accuracy
-    
+
     const ruleResponse = this.understandCrossPlatformWithRules(message, context);
-    
+
     // If high confidence rule match, use it
     if (ruleResponse.confidence > 0.9) {
       ruleResponse.context = {
@@ -666,7 +720,7 @@ RESPOND WITH JSON:
     // Otherwise, use AI for complex understanding
     try {
       const aiResponse = await this.understandCrossPlatformWithAI(message, context, options);
-      
+
       // Merge AI and rule results
       const hybridResponse: CrossPlatformIntent = {
         ...aiResponse,
@@ -749,17 +803,17 @@ RESPOND WITH JSON:
           responses.push(`📋 Create task in all connected platforms?`);
         }
         break;
-        
+
       case "cross_platform_search":
         responses.push(`🔍 Searching across all connected platforms...`);
         responses.push(`📊 Unified search results will be compiled`);
         break;
-        
+
       case "automated_workflow_trigger":
         responses.push(`⚡ Creating cross-platform automation rule...`);
         responses.push(`🤖 Workflow will trigger automatically when conditions are met`);
         break;
-        
+
       default:
         responses.push(`🚀 Executing cross-platform action...`);
         responses.push(`📱 Results will be synchronized across all platforms`);
@@ -821,8 +875,8 @@ RESPOND WITH JSON:
     const lowerMessage = message.toLowerCase();
 
     for (const [platform, info] of this.platformIntegrations.entries()) {
-      if (lowerMessage.includes(platform) || 
-          info.capabilities.some(cap => lowerMessage.includes(cap))) {
+      if (lowerMessage.includes(platform) ||
+        info.capabilities.some(cap => lowerMessage.includes(cap))) {
         platforms.push(platform);
       }
     }
@@ -832,10 +886,10 @@ RESPOND WITH JSON:
 
   private isCrossPlatformRequest(message: string): boolean {
     const crossPlatformKeywords = [
-      'all platforms', 'everywhere', 'sync', 'across', 'all tools', 
+      'all platforms', 'everywhere', 'sync', 'across', 'all tools',
       'cross-platform', 'in all', 'each platform', 'multiple'
     ];
-    
+
     const lowerMessage = message.toLowerCase();
     return crossPlatformKeywords.some(keyword => lowerMessage.includes(keyword));
   }
@@ -847,20 +901,20 @@ RESPOND WITH JSON:
   ): void {
     if (success) {
       this.metrics.successfulRequests++;
-      this.metrics.averageProcessingTime = 
+      this.metrics.averageProcessingTime =
         (this.metrics.averageProcessingTime * (this.metrics.successfulRequests - 1) + processingTime) /
         this.metrics.successfulRequests;
-      
-      this.metrics.intentDistribution[response.intent] = 
+
+      this.metrics.intentDistribution[response.intent] =
         (this.metrics.intentDistribution[response.intent] || 0) + 1;
-      
+
       if (response.crossPlatformAction) {
         this.metrics.crossPlatformSuccess++;
       }
     } else {
       this.metrics.failedRequests++;
     }
-    
+
     this.metrics.lastRequestTime = new Date();
   }
 
@@ -1633,14 +1687,14 @@ Respond only with valid JSON.`,
       oldestExample:
         this.trainingExamples.length > 0
           ? this.trainingExamples.reduce((oldest, current) =>
-              current.timestamp < oldest.timestamp ? current : oldest,
-            ).timestamp
+            current.timestamp < oldest.timestamp ? current : oldest,
+          ).timestamp
           : null,
       newestExample:
         this.trainingExamples.length > 0
           ? this.trainingExamples.reduce((newest, current) =>
-              current.timestamp > newest.timestamp ? current : newest,
-            ).timestamp
+            current.timestamp > newest.timestamp ? current : newest,
+          ).timestamp
           : null,
     };
   }

@@ -1,0 +1,302 @@
+{
+  "session_id": "20251118_225748",
+  "timestamp": "2025-11-18T22:57:49.097322",
+  "target_validation_score": 0.98,
+  "actual_validation_score": 0.12714285714285714,
+  "target_achieved": false,
+  "total_tests": 13,
+  "passed_tests": 2,
+  "failed_tests": 7,
+  "skipped_tests": 4,
+  "overall_success_rate": 0.12714285714285714,
+  "confidence_level": 0.19615384615384615,
+  "test_results": [
+    {
+      "test_name": "OpenAI Integration",
+      "category": "ai_nlp_processing",
+      "status": "skipped",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0,
+      "evidence": [],
+      "error_message": "OpenAI API key not provided",
+      "timestamp": "2025-11-18T22:57:48.847919",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Anthropic Integration",
+      "category": "ai_nlp_processing",
+      "status": "skipped",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0,
+      "evidence": [],
+      "error_message": "Anthropic API key not provided",
+      "timestamp": "2025-11-18T22:57:48.847935",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "DeepSeek Integration",
+      "category": "ai_nlp_processing",
+      "status": "skipped",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0,
+      "evidence": [],
+      "error_message": "DeepSeek API key not provided",
+      "timestamp": "2025-11-18T22:57:48.847941",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "GLM API Integration",
+      "category": "ai_nlp_processing",
+      "status": "skipped",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0,
+      "evidence": [],
+      "error_message": "GLM API key not provided",
+      "timestamp": "2025-11-18T22:57:48.847947",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Workflow Engine Execution",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.050707101821899414,
+      "evidence": [],
+      "error_message": "Failed to execute workflow: 404",
+      "timestamp": "2025-11-18T22:57:48.898673",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "BYOK Key Management",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.11927294731140137,
+      "evidence": [],
+      "error_message": "BYOK system unhealthy: 404",
+      "timestamp": "2025-11-18T22:57:49.018009",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Real-Time Monitoring System",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.010280847549438477,
+      "evidence": [],
+      "error_message": "Metrics endpoint failed: 404",
+      "timestamp": "2025-11-18T22:57:49.028343",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Analytics API",
+      "category": "analytics",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.9,
+      "execution_time": 0.014245033264160156,
+      "evidence": [
+        {
+          "analytics_status": 404
+        }
+      ],
+      "error_message": "Metrics failed: 404",
+      "timestamp": "2025-11-18T22:57:49.042642",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Project Management Workflow",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.014625072479248047,
+      "evidence": [],
+      "error_message": "Failed to execute project workflow: 404",
+      "timestamp": "2025-11-18T22:57:49.057820",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Content Creation Pipeline",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.026625871658325195,
+      "evidence": [],
+      "error_message": "Failed to execute content workflow: 404",
+      "timestamp": "2025-11-18T22:57:49.084514",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Customer Support Automation",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.012592077255249023,
+      "evidence": [],
+      "error_message": "Failed to execute support workflow: 404",
+      "timestamp": "2025-11-18T22:57:49.097171",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Concurrent Workflows",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.9,
+      "confidence": 0.85,
+      "execution_time": 8.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-18T22:57:49.097230",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Stress Scenarios",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.88,
+      "confidence": 0.8,
+      "execution_time": 10.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-18T22:57:49.097240",
+      "screenshot_path": null
+    }
+  ],
+  "category_breakdown": {
+    "ai_nlp_processing": {
+      "total": 4,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 4,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "core_systems": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "analytics": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "real_world_scenarios": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "performance_testing": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 0.89,
+      "avg_confidence": 0.825
+    }
+  },
+  "gap_analysis": {
+    "gaps": [
+      {
+        "test_name": "OpenAI Integration",
+        "category": "ai_nlp_processing",
+        "reason": "OpenAI API key not provided",
+        "severity": "medium"
+      },
+      {
+        "test_name": "Anthropic Integration",
+        "category": "ai_nlp_processing",
+        "reason": "Anthropic API key not provided",
+        "severity": "medium"
+      },
+      {
+        "test_name": "DeepSeek Integration",
+        "category": "ai_nlp_processing",
+        "reason": "DeepSeek API key not provided",
+        "severity": "medium"
+      },
+      {
+        "test_name": "GLM API Integration",
+        "category": "ai_nlp_processing",
+        "reason": "GLM API key not provided",
+        "severity": "medium"
+      },
+      {
+        "test_name": "Stress Scenarios",
+        "category": "performance_testing",
+        "reason": "Low success rate: 88.0%",
+        "severity": "low"
+      }
+    ],
+    "bugs": [
+      {
+        "test_name": "Workflow Engine Execution",
+        "category": "core_systems",
+        "error": "Failed to execute workflow: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "BYOK Key Management",
+        "category": "core_systems",
+        "error": "BYOK system unhealthy: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Real-Time Monitoring System",
+        "category": "core_systems",
+        "error": "Metrics endpoint failed: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Analytics API",
+        "category": "analytics",
+        "error": "Metrics failed: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Project Management Workflow",
+        "category": "real_world_scenarios",
+        "error": "Failed to execute project workflow: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Content Creation Pipeline",
+        "category": "real_world_scenarios",
+        "error": "Failed to execute content workflow: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Customer Support Automation",
+        "category": "real_world_scenarios",
+        "error": "Failed to execute support workflow: 404",
+        "severity": "high"
+      }
+    ],
+    "gap_count": 5,
+    "bug_count": 7
+  },
+  "recommendations": [
+    "\ud83c\udfaf NEEDS IMPROVEMENT: Gap of 85.3% to reach 98% target",
+    "\ud83d\udd27 PRIORITY: Focus on fixing failed test cases first",
+    "\ud83d\udd10 CREDENTIALS: Add skipped service integrations for higher validation score"
+  ]
+}

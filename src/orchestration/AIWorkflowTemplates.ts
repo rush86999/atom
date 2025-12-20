@@ -55,7 +55,7 @@ export class AIWorkflowTemplates extends EventEmitter {
     this.userWorkflows = new Map();
     this.performanceData = new Map();
     this.aiInsights = new Map();
-    
+
     this.initializeTemplates();
     this.startAIOptimization();
   }
@@ -197,7 +197,7 @@ export class AIWorkflowTemplates extends EventEmitter {
               },
               {
                 from: "trello",
-                to: "asana", 
+                to: "asana",
                 fields: ["status", "due_date", "checklists"]
               }
             ],
@@ -498,7 +498,7 @@ export class AIWorkflowTemplates extends EventEmitter {
               },
               {
                 platform: "teams",
-                action: "send_message", 
+                action: "send_message",
                 conditions: ["enterprise_context", "formal_discussion", "corporate_environment"]
               },
               {
@@ -597,10 +597,139 @@ export class AIWorkflowTemplates extends EventEmitter {
       enabled: true
     };
 
+    // Template 4: Content & File Management Automation
+    const contentFileManagementTemplate: WorkflowDefinition = {
+      id: "content-file-management",
+      name: "Auto-Archive & Task Linker",
+      description: "Automatically archive, tag, and link new files from cloud storage to related tasks with intelligent context extraction",
+      version: "1.0.0",
+      category: "data_management",
+      steps: [
+        {
+          id: "analyze-file-content",
+          name: "Analyze File Content & Context",
+          type: "data_transform",
+          parameters: {
+            extractionFields: ["project_name", "task_id", "keywords", "importance"],
+            aiVisionEnabled: true,
+            contextAwareness: "high"
+          },
+          dependsOn: [],
+          retryPolicy: {
+            maxAttempts: 3,
+            delay: 1000,
+            backoffMultiplier: 1.5
+          },
+          timeout: 20000,
+          metadata: { aiPowered: true, model: "vision-analyzer-v1" }
+        },
+        {
+          id: "identify-related-tasks",
+          name: "Identify & Map to Related Tasks",
+          type: "condition",
+          parameters: {
+            platforms: ["asana", "trello", "jira"],
+            matchLogic: "semantic_similarity",
+            confidenceThreshold: 0.8
+          },
+          dependsOn: ["analyze-file-content"],
+          retryPolicy: {
+            maxAttempts: 2,
+            delay: 500,
+            backoffMultiplier: 1.5
+          },
+          timeout: 10000,
+          condition: {
+            field: "task_mapping",
+            operator: "ai_optimized",
+            value: "contextual_linking"
+          },
+          metadata: { aiMatching: true }
+        },
+        {
+          id: "execute-storage-organization",
+          name: "Execute Storage Organization & Archiving",
+          type: "integration_action",
+          integrationId: "google_drive",
+          action: "move_and_tag_file",
+          parameters: {
+            targetPath: "/Archive/{{extracted.project_name}}/{{current_year}}",
+            tags: "predicted.tags",
+            applyMetadata: true
+          },
+          dependsOn: ["identify-related-tasks"],
+          retryPolicy: {
+            maxAttempts: 3,
+            delay: 2000,
+            backoffMultiplier: 2
+          },
+          timeout: 15000,
+          metadata: { platform: "google_drive", autoArchive: true }
+        },
+        {
+          id: "send-team-notification",
+          name: "Send Multi-Platform Notification",
+          type: "integration_action",
+          integrationId: "slack",
+          action: "send_message",
+          parameters: {
+            channel: "extracted.project_channel",
+            messageTemplate: "file_auto_linked",
+            mentions: ["@project-team"]
+          },
+          dependsOn: ["execute-storage-organization"],
+          retryPolicy: {
+            maxAttempts: 2,
+            delay: 1000,
+            backoffMultiplier: 1.5
+          },
+          timeout: 8000,
+          metadata: { platform: "slack", notification: true }
+        }
+      ],
+      triggers: [
+        {
+          id: "new-file-trigger",
+          type: "integration_event",
+          integrationId: "google_drive",
+          eventType: "new_file",
+          enabled: true,
+          metadata: { aiMonitoring: true }
+        },
+        {
+          id: "manual-link-trigger",
+          type: "manual",
+          enabled: true,
+          metadata: { uiShortcut: true }
+        }
+      ],
+      variables: {
+        fileMetadata: {},
+        extractedContext: {},
+        mappedTasks: {},
+        archivingResults: {}
+      },
+      settings: {
+        timeout: 60000,
+        retryPolicy: {
+          maxAttempts: 3,
+          delay: 5000
+        },
+        priority: "normal",
+        parallelExecution: false
+      },
+      integrations: ["google_drive", "dropbox", "asana", "trello", "slack"],
+      tags: ["data-management", "ai-powered", "archiving", "automation"],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      enabled: true
+    };
+
     // Register templates with engine
     this.engine.registerWorkflow(crossPlatformTaskTemplate);
     this.engine.registerWorkflow(unifiedSearchTemplate);
     this.engine.registerWorkflow(communicationOrchestrationTemplate);
+    this.engine.registerWorkflow(contentFileManagementTemplate);
 
     // Store template metadata
     this.templates.set("cross-platform-task-creation", {
@@ -669,7 +798,29 @@ export class AIWorkflowTemplates extends EventEmitter {
       prerequisites: ["communication_integrations", "ai_context_analysis"]
     });
 
-    this.logger.info("AI Workflow Templates initialized with 3 intelligent templates");
+    this.templates.set("content-file-management", {
+      id: "content-file-management",
+      name: "Auto-Archive & Task Linker",
+      description: "AI-powered cloud storage organization and task linking automation",
+      category: "data_management",
+      targetIntegrations: ["google_drive", "dropbox", "asana", "trello", "slack"],
+      aiOptimizations: {
+        autoRouting: true,
+        predictiveExecution: true,
+        errorReduction: true,
+        performanceOptimization: true
+      },
+      userPersonalization: {
+        adaptToUserBehavior: true,
+        learnFromUsage: true,
+        customizeInterface: true
+      },
+      estimatedTimeSavings: "35 minutes per day",
+      complexity: "moderate",
+      prerequisites: ["storage_integrations", "task_management_integrations"]
+    });
+
+    this.logger.info("AI Workflow Templates initialized with 4 intelligent templates");
   }
 
   private startAIOptimization(): void {
@@ -690,7 +841,7 @@ export class AIWorkflowTemplates extends EventEmitter {
       const recentExecutions = executions.slice(-20); // Analyze last 20 executions
       const avgExecutionTime = recentExecutions.reduce((sum, exec) => sum + exec.duration, 0) / recentExecutions.length;
       const successRate = recentExecutions.filter(exec => exec.success).length / recentExecutions.length;
-      
+
       // Store performance metrics
       const metrics = {
         workflowId,
@@ -729,7 +880,7 @@ export class AIWorkflowTemplates extends EventEmitter {
 
       // Usage pattern insights
       const userWorkflows = Array.from(this.userWorkflows.entries());
-      const usageCount = userWorkflows.filter(([_, workflows]) => 
+      const usageCount = userWorkflows.filter(([_, workflows]) =>
         workflows.includes(workflowId)
       ).length;
 
@@ -751,7 +902,7 @@ export class AIWorkflowTemplates extends EventEmitter {
   private optimizeWorkflows(): void {
     for (const [workflowId, insights] of this.aiInsights.entries()) {
       const highImpactInsights = insights.filter(insight => insight.impact === 'high');
-      
+
       if (highImpactInsights.length >= 2) {
         // Auto-optimize workflow if multiple high-impact issues
         this.autoOptimizeWorkflow(workflowId);
@@ -829,7 +980,7 @@ export class AIWorkflowTemplates extends EventEmitter {
     const insights = this.aiInsights.get(workflowId) || [];
     insights.push(insight);
     this.aiInsights.set(workflowId, insights);
-    
+
     this.emit("workflow-insight-generated", { workflowId, insight });
     this.logger.info(`Generated insight for workflow ${workflowId}: ${insight.message}`);
   }

@@ -778,11 +778,13 @@ class DiscordEnhancedService:
                 ).fetchone()
                 if result:
                     return DiscordGuild(**result)
-            else:
+            elif self.redis_client:
                 # Get from cache (development)
                 cached = self.redis_client.get(f"discord_guild:{guild_id}")
                 if cached:
                     return DiscordGuild(**json.loads(cached))
+            else:
+                logger.warning(f"Neither DB nor Redis available to fetch guild {guild_id}")
         except Exception as e:
             logger.error(f"Error getting Discord guild by ID {guild_id}: {e}")
         return None

@@ -18,7 +18,7 @@ import jsonschema
 from jsonschema import validate, ValidationError
 
 from core.execution_state_manager import get_state_manager, ExecutionStateManager
-from core.auto_healing import with_retry
+from core.auto_healing import async_retry_with_backoff
 from core.websockets import get_connection_manager
 
 logger = logging.getLogger(__name__)
@@ -688,7 +688,7 @@ class WorkflowEngine:
                 errors=[e.message]
             )
 
-    @with_retry(max_retries=3)
+    @async_retry_with_backoff(max_retries=3)
     async def _execute_step(self, step: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute a single step.
@@ -713,7 +713,9 @@ class WorkflowEngine:
             "webhook": self._execute_webhook_action,
             "mcp": self._execute_mcp_action,
             "main_agent": self._execute_main_agent_action,
-            "workflow": self._execute_workflow_action
+            "workflow": self._execute_workflow_action,
+            "email_automation": self._execute_email_automation_action,
+            "goal_management": self._execute_goal_management_action
         }
 
         # Check for fallback service
@@ -994,6 +996,47 @@ class WorkflowEngine:
         except Exception as e:
             raise Exception(f"Agent execution failed: {e}")
 
+    async def _execute_email_automation_action(self, action: str, params: dict) -> dict:
+        """Execute email automation service actions (Follow-ups, etc.)"""
+        try:
+            from core.email_followup_engine import followup_engine
+            
+            if action == "detect_followups":
+                # In a real app, we'd fetch actual emails here. 
+                # For now, we'll use mock data like the analytics endpoint did.
+                from datetime import datetime, timedelta
+                now = datetime.now()
+                mock_sent = [
+                    {"id": "e1", "to": "investor@venture.com", "subject": "Quarterly Update", "sent_at": (now - timedelta(days=5)).isoformat(), "thread_id": "thread_1", "snippet": "Hey, checking in on the report..."},
+                ]
+                mock_received = []
+                
+                days_threshold = params.get("days_threshold", 3)
+                followup_engine.days_threshold = days_threshold
+                
+                candidates = await followup_engine.detect_missing_replies(mock_sent, mock_received)
+                return {
+                    "status": "success",
+                    "candidates": [c.dict() for c in candidates],
+                    "count": len(candidates)
+                }
+            
+            elif action == "draft_nudge":
+                subject = params.get("subject", "Following up")
+                # Simple AI-like drafting
+                draft = f"Hi there,\n\nI'm just following up on my previous email regarding \"{subject}\". I assume you've been busy, but I wanted to make sure this stayed on your radar. Looking forward to hearing from you!\n\nBest, [Your Name]"
+                return {
+                    "status": "success",
+                    "draft": draft
+                }
+            
+            else:
+                raise ValueError(f"Unknown email_automation action: {action}")
+                
+        except Exception as e:
+            logger.error(f"Email automation failed: {e}")
+            return {"status": "error", "error": str(e)}
+
     async def _execute_workflow_action(self, action: str, params: dict) -> dict:
         """Execute a sub-workflow as a step."""
         try:
@@ -1065,6 +1108,47 @@ class WorkflowEngine:
             logger.error(f"Error loading workflow {workflow_id}: {e}")
             return None
 
+    async def _execute_goal_management_action(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute goal management actions"""
+        from core.goal_engine import goal_engine
+        
+        if action == "create_goal":
+            title = params.get("title")
+            target_date_str = params.get("target_date")
+            owner_id = params.get("owner_id", "default")
+            
+            if not title or not target_date_str:
+                raise ValueError("Missing title or target_date for create_goal")
+                
+            from datetime import datetime
+            target_date = datetime.fromisoformat(target_date_str.replace('Z', '+00:00'))
+            goal = await goal_engine.create_goal_from_text(title, target_date, owner_id)
+            return goal.dict()
+            
+        elif action == "check_escalations":
+            escalations = await goal_engine.check_for_escalations()
+            return {"escalations": escalations}
+            
+        elif action == "update_subtask":
+            goal_id = params.get("goal_id")
+            sub_task_id = params.get("sub_task_id")
+            status = params.get("status")
+            
+            if goal_id not in goal_engine.goals:
+                raise ValueError(f"Goal {goal_id} not found")
+                
+            goal = goal_engine.goals[goal_id]
+            for st in goal.sub_tasks:
+                if st.id == sub_task_id:
+                    st.status = status
+                    break
+            
+            await goal_engine.update_goal_progress(goal_id)
+            return goal.dict()
+            
+        else:
+            raise ValueError(f"Unknown goal_management action: {action}")
+
 class MissingInputError(Exception):
     def __init__(self, message: str, missing_var: str):
         super().__init__(message)
@@ -1089,4 +1173,5 @@ def get_workflow_engine() -> WorkflowEngine:
     global _workflow_engine
     if _workflow_engine is None:
         _workflow_engine = WorkflowEngine()
+    return _workflow_engine
     return _workflow_engine

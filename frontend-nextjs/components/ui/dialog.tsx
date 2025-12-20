@@ -92,6 +92,14 @@ export function DialogTitle({ children, className }: DialogTitleProps) {
     );
 }
 
+export function DialogDescription({ children, className }: { children: React.ReactNode; className?: string }) {
+    return (
+        <p className={cn("text-sm text-gray-500 dark:text-gray-400", className)}>
+            {children}
+        </p>
+    );
+}
+
 export function DialogFooter({ children, className }: DialogFooterProps) {
     return (
         <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}>

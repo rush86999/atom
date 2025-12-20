@@ -1,0 +1,57 @@
+{
+  "overall_status": "FAILED",
+  "start_time": "2025-12-13T21:35:17.153784",
+  "end_time": "2025-12-13T21:36:01.826957",
+  "duration_seconds": 44.673173,
+  "total_tests": 5,
+  "tests_passed": 0,
+  "tests_failed": 5,
+  "test_categories": [
+    "complex_workflows"
+  ],
+  "category_results": {
+    "complex_workflows": {
+      "category": "complex_workflows",
+      "tests_run": 5,
+      "tests_passed": 0,
+      "tests_failed": 5,
+      "test_details": {
+        "conditional_high_priority_case": {
+          "status": "error",
+          "error": "HTTPConnectionPool(host='localhost', port=5059): Read timed out. (read timeout=30)"
+        },
+        "conditional_low_priority_case": {
+          "status": "failed",
+          "status_code": 500,
+          "response": "Internal Server Error"
+        },
+        "multi_step_workflow": {
+          "status": "failed",
+          "status_code": 500,
+          "response": "Internal Server Error"
+        },
+        "workflow_with_fallbacks": {
+          "status": "failed",
+          "status_code": 500,
+          "response": "Internal Server Error"
+        },
+        "workflow_modification": {
+          "status": "failed",
+          "status_code": 405,
+          "response": "{\"detail\":\"Method Not Allowed\"}"
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1765679718.613038,
+      "test_outputs": {},
+      "end_time": 1765679761.826623,
+      "duration_seconds": 43.213584899902344
+    }
+  },
+  "llm_verification_available": true,
+  "marketing_claims_verified": {
+    "total": 0,
+    "verified": 0,
+    "verification_rate": 0.0
+  }
+}

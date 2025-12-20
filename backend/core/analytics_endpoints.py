@@ -9,7 +9,12 @@ from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import time
 import random
+import asyncio
 from datetime import datetime, timedelta
+from core.burnout_detection_engine import BurnoutDetectionEngine, WellnessScore
+from core.industry_workflow_templates import IndustryWorkflowEngine, Industry
+from core.workflow_engine import WorkflowEngine
+from core.email_followup_engine import followup_engine, FollowUpCandidate
 
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
@@ -342,3 +347,75 @@ async def get_analytics_status():
             "enterprise_grade_performance": True
         }
     }
+
+@router.get("/burnout-risk", response_model=WellnessScore)
+async def get_burnout_risk():
+    """
+    Get user burnout and overload risk assessment.
+    """
+    # Mock metrics for demonstration
+    mock_meetings = {"total_hours": 28, "day_count": 5}
+    mock_tasks = {
+        "open_tasks": 65, 
+        "previous_open_tasks": 45, 
+        "completed_last_7_days": 12
+    }
+    mock_comm = {
+        "avg_response_latency_hours": 5.2, 
+        "message_volume": 850
+    }
+    
+    risk_assessment = await burnout_engine.calculate_burnout_risk(
+        mock_meetings, mock_tasks, mock_comm
+    )
+
+    # Trigger workflow if risk is high
+    if risk_assessment.risk_level in ["High", "Critical"]:
+        try:
+            workflow_engine = WorkflowEngine()
+            asyncio.create_task(workflow_engine.start_workflow(
+                {"id": "burnout_protection", "name": "Burnout Protection"},
+                {"risk_score": risk_assessment.score, "factors": risk_assessment.factors}
+            ))
+        except:
+            pass
+            
+    return risk_assessment
+
+@router.get("/email-followups", response_model=List[FollowUpCandidate])
+async def get_email_followups():
+    """
+    Detect sent emails with no replies.
+    """
+    now = datetime.now()
+    mock_sent = [
+        {"id": "e1", "to": "investor@venture.com", "subject": "Quarterly Update", "sent_at": (now - timedelta(days=5)).isoformat(), "thread_id": "thread_1", "snippet": "Hey, checking in on the report..."},
+        {"id": "e2", "to": "candidate@hire.me", "subject": "Offer Letter", "sent_at": (now - timedelta(days=1)).isoformat(), "thread_id": "thread_2", "snippet": "Welcome to the team!"}
+    ]
+    mock_received = []
+    
+    candidates = await followup_engine.detect_missing_replies(mock_sent, mock_received)
+    return candidates
+
+@router.get("/deadline-risk", response_model=WellnessScore)
+async def get_deadline_risk():
+    """
+    Identify tasks likely to miss deadlines.
+    """
+    # Mock task data
+    mock_tasks = [
+        {"id": "t1", "title": "DB Migration", "due_date": (datetime.now() + timedelta(days=1)).isoformat(), "progress": 0.2, "estimated_hours": 16},
+        {"id": "t2", "title": "API Docs", "due_date": (datetime.now() + timedelta(days=3)).isoformat(), "progress": 0.8, "estimated_hours": 8}
+    ]
+    risk_assessment = await burnout_engine.calculate_deadline_risk(mock_tasks)
+    
+    if risk_assessment.risk_level in ["High", "Critical"]:
+        try:
+            workflow_engine = WorkflowEngine()
+            asyncio.create_task(workflow_engine.start_workflow(
+                {"id": "deadline_mitigation", "name": "Deadline Risk Mitigation"},
+                {"risk_score": risk_assessment.score, "factors": risk_assessment.factors}
+            ))
+        except:
+            pass
+    return risk_assessment

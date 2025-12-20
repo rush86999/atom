@@ -50,6 +50,8 @@ import {
   InputGroup,
   InputLeftElement,
   InputRightElement,
+  useColorModeValue,
+  Icon
 } from "@chakra-ui/react";
 import {
   AddIcon,
@@ -57,7 +59,6 @@ import {
   EditIcon,
   DeleteIcon,
   CheckCircleIcon,
-  TimeIcon,
   ViewIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -71,6 +72,9 @@ import {
   RepeatIcon,
   CopyIcon,
   ChevronDownIcon,
+  InfoIcon,
+  WarningIcon,
+  RepeatClockIcon
 } from "@chakra-ui/icons";
 
 export interface Message {
@@ -112,7 +116,7 @@ export interface QuickReplyTemplate {
 }
 
 export interface CommunicationView {
-  type: "inbox" | "thread" | "compose";
+  type: "inbox" | "thread" | "compose" | "followups";
   filter: {
     platform?: string[];
     priority?: string[];
@@ -523,6 +527,25 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
     return filtered;
   };
 
+  const renderFollowUps = () => {
+    // Lazy load the dashboard or summary
+    return (
+      <Box p={4} bg={useColorModeValue('gray.50', 'gray.800')} borderRadius="lg">
+        <VStack align="stretch" spacing={4}>
+          <Heading size="md">Pending Follow-ups</Heading>
+          <Text fontSize="sm">AI has detected threads needing attention.</Text>
+          <Button
+            leftIcon={<RepeatIcon />}
+            colorScheme="blue"
+            onClick={() => setView({ ...view, type: "followups" })}
+          >
+            Manage Follow-ups
+          </Button>
+        </VStack>
+      </Box>
+    );
+  };
+
   const MessageComposer: React.FC<{
     onSubmit: (data: Omit<Message, "id" | "timestamp" | "status">) => void;
     onCancel: () => void;
@@ -790,277 +813,265 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
             <Heading size={compactView ? "md" : "lg"}>
               Communication Hub
             </Heading>
-            <Button
-              leftIcon={<AddIcon />}
-              colorScheme="blue"
-              size={compactView ? "sm" : "md"}
-              onClick={onComposeOpen}
-            >
-              New Message
-            </Button>
+            <HStack spacing={2}>
+              <Button
+                leftIcon={<TimeIcon />}
+                variant="outline"
+                size={compactView ? "sm" : "md"}
+                onClick={() => setView({ ...view, type: "followups" })}
+              >
+                Follow-ups
+              </Button>
+              <Button
+                leftIcon={<AddIcon />}
+                colorScheme="blue"
+                size={compactView ? "sm" : "md"}
+                onClick={onComposeOpen}
+              >
+                New Message
+              </Button>
+            </HStack>
           </Flex>
         )}
 
-        {/* Search and Filters */}
-        {showNavigation && (
-          <Card size={compactView ? "sm" : "md"}>
-            <CardBody>
-              <VStack spacing={4}>
-                <InputGroup>
-                  <InputLeftElement>
-                    <SearchIcon color="gray.300" />
-                  </InputLeftElement>
-                  <Input
-                    placeholder="Search messages..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  {searchQuery && (
-                    <InputRightElement>
-                      <IconButton
-                        aria-label="Clear search"
-                        icon={<DeleteIcon />}
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setSearchQuery("")}
-                      />
-                    </InputRightElement>
-                  )}
-                </InputGroup>
-                <HStack spacing={4} wrap="wrap">
-                  <Button
-                    size="sm"
-                    variant={view.filter.unread ? "solid" : "outline"}
-                    onClick={() =>
-                      setView((prev) => ({
-                        ...prev,
-                        filter: { ...prev.filter, unread: !prev.filter.unread },
-                      }))
-                    }
-                  >
-                    Unread Only
+        {view.type === "followups" ? (
+          <Box mt={4}>
+            <VStack align="stretch" spacing={6}>
+              <HStack justify="space-between">
+                <Button leftIcon={<ChevronLeftIcon />} variant="ghost" onClick={() => setView({ ...view, type: "inbox" })}>
+                  Back to Inbox
+                </Button>
+              </HStack>
+              <Box p={6} border="1px dashed gray" borderRadius="md" bg={useColorModeValue('white', 'gray.700')}>
+                <VStack spacing={4}>
+                  <Icon as={EmailIcon} boxSize={8} color="blue.500" />
+                  <Text fontWeight="bold">AI Email Follow-up Automation is Ready</Text>
+                  <Text textAlign="center">
+                    Atom is monitoring your threads. 2 items are overdue for a reply.
+                  </Text>
+                  <Button colorScheme="blue" onClick={() => window.location.href = '/email/followups'}>
+                    Launch Follow-up Center
                   </Button>
-                  <Menu>
-                    <MenuButton as={Button} size="sm" variant="outline">
-                      Platform: {view.filter.platform?.length || "All"}
-                    </MenuButton>
-                    <MenuList>
-                      {[
-                        "email",
-                        "slack",
-                        "teams",
-                        "discord",
-                        "whatsapp",
-                        "sms",
-                      ].map((platform) => (
-                        <MenuItem key={platform}>
-                          <Checkbox
-                            isChecked={view.filter.platform?.includes(platform)}
-                            onChange={(e) => {
-                              const newPlatforms = e.target.checked
-                                ? [...(view.filter.platform || []), platform]
-                                : (view.filter.platform || []).filter(
-                                    (p) => p !== platform,
-                                  );
-                              setView((prev) => ({
-                                ...prev,
-                                filter: {
-                                  ...prev.filter,
-                                  platform: newPlatforms,
-                                },
-                              }));
-                            }}
-                          >
-                            {platform.charAt(0).toUpperCase() +
-                              platform.slice(1)}
-                          </Checkbox>
-                        </MenuItem>
-                      ))}
-                    </MenuList>
-                  </Menu>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleMarkAllAsRead}
-                  >
-                    Mark All Read
-                  </Button>
-                </HStack>
-              </VStack>
-            </CardBody>
-          </Card>
-        )}
-
-        {/* Messages List */}
-        <Card size={compactView ? "sm" : "md"}>
-          <CardHeader>
-            <Heading size={compactView ? "sm" : "md"}>
-              Messages ({filteredMessages.length})
-            </Heading>
-          </CardHeader>
-          <CardBody>
-            <VStack spacing={2} align="stretch">
-              {filteredMessages.map((message) => (
-                <Flex
-                  key={message.id}
-                  p={3}
-                  borderWidth="1px"
-                  borderRadius="md"
-                  bg={message.unread ? "blue.50" : "white"}
-                  cursor="pointer"
-                  onClick={() => {
-                    setSelectedMessage(message);
-                    onMessageOpen();
-                    if (message.unread) {
-                      handleMarkAsRead(message.id);
-                    }
-                  }}
-                >
-                  <HStack spacing={3} flex={1}>
-                    <Box color={getPlatformColor(message.platform)}>
-                      {getPlatformIcon(message.platform)}
-                    </Box>
-                    <Box flex={1}>
-                      <HStack justify="space-between" mb={1}>
-                        <Text
-                          fontWeight="bold"
-                          fontSize={compactView ? "sm" : "md"}
-                        >
-                          {message.from}
-                        </Text>
-                        <HStack spacing={2}>
-                          {message.unread && (
-                            <Badge colorScheme="blue" size="sm">
-                              New
-                            </Badge>
-                          )}
-                          <Badge
-                            colorScheme={
-                              message.priority === "high"
-                                ? "red"
-                                : message.priority === "normal"
-                                  ? "blue"
-                                  : "gray"
-                            }
-                            size="sm"
-                          >
-                            {message.priority}
-                          </Badge>
-                          <Text fontSize="xs" color="gray.500">
-                            {formatTime(message.timestamp)}
-                          </Text>
-                        </HStack>
-                      </HStack>
-                      <Text
-                        fontWeight="bold"
-                        fontSize={compactView ? "xs" : "sm"}
-                        mb={1}
-                      >
-                        {message.subject}
-                      </Text>
-                      <Text
-                        fontSize={compactView ? "xs" : "sm"}
-                        color="gray.600"
-                        noOfLines={2}
-                      >
-                        {message.preview}
-                      </Text>
-                    </Box>
-                  </HStack>
-                </Flex>
-              ))}
-              {filteredMessages.length === 0 && (
-                <Box textAlign="center" py={8}>
-                  <Text color="gray.500">No messages found</Text>
-                  <Button
-                    mt={2}
-                    colorScheme="blue"
-                    variant="outline"
-                    onClick={onComposeOpen}
-                  >
-                    Compose New Message
-                  </Button>
-                </Box>
-              )}
+                </VStack>
+              </Box>
             </VStack>
-          </CardBody>
-        </Card>
+          </Box>
+        ) : (
+          <VStack spacing={compactView ? 3 : 6} align="stretch">
+            {/* Search and Filters */}
+            {showNavigation && (
+              <Card size={compactView ? "sm" : "md"}>
+                <CardBody>
+                  <VStack spacing={4}>
+                    <InputGroup>
+                      <InputLeftElement>
+                        <SearchIcon color="gray.300" />
+                      </InputLeftElement>
+                      <Input
+                        placeholder="Search messages..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                      {searchQuery && (
+                        <InputRightElement>
+                          <IconButton
+                            aria-label="Clear search"
+                            icon={<DeleteIcon />}
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSearchQuery("")}
+                          />
+                        </InputRightElement>
+                      )}
+                    </InputGroup>
+                    <HStack spacing={4} wrap="wrap">
+                      <Button
+                        size="sm"
+                        variant={view.filter.unread ? "solid" : "outline"}
+                        onClick={() =>
+                          setView((prev) => ({
+                            ...prev,
+                            filter: { ...prev.filter, unread: !prev.filter.unread },
+                          }))
+                        }
+                      >
+                        Unread Only
+                      </Button>
+                      <Menu>
+                        <MenuButton as={Button} size="sm" variant="outline">
+                          Platform: {view.filter.platform?.length || "All"}
+                        </MenuButton>
+                        <MenuList>
+                          {[
+                            "email",
+                            "slack",
+                            "teams",
+                            "discord",
+                            "whatsapp",
+                            "sms",
+                          ].map((platform) => (
+                            <MenuItem key={platform}>
+                              <Checkbox
+                                isChecked={view.filter.platform?.includes(platform)}
+                                onChange={(e) => {
+                                  const newPlatforms = e.target.checked
+                                    ? [...(view.filter.platform || []), platform]
+                                    : (view.filter.platform || []).filter(
+                                      (p) => p !== platform,
+                                    );
+                                  setView((prev) => ({
+                                    ...prev,
+                                    filter: {
+                                      ...prev.filter,
+                                      platform: newPlatforms,
+                                    },
+                                  }));
+                                }}
+                              >
+                                {platform.charAt(0).toUpperCase() +
+                                  platform.slice(1)}
+                              </Checkbox>
+                            </MenuItem>
+                          ))}
+                        </MenuList>
+                      </Menu>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleMarkAllAsRead}
+                      >
+                        Mark All Read
+                      </Button>
+                    </HStack>
+                  </VStack>
+                </CardBody>
+              </Card>
+            )}
 
-        {/* Recent Conversations */}
-        {conversations.length > 0 && (
-          <Card size={compactView ? "sm" : "md"}>
-            <CardHeader>
-              <Heading size={compactView ? "sm" : "md"}>
-                Recent Conversations
-              </Heading>
-            </CardHeader>
-            <CardBody>
-              <VStack spacing={2} align="stretch">
-                {conversations
-                  .sort(
-                    (a, b) => b.lastMessage.getTime() - a.lastMessage.getTime(),
-                  )
-                  .slice(0, compactView ? 3 : 5)
-                  .map((conversation) => (
+            {/* Messages List */}
+            <Card size={compactView ? "sm" : "md"}>
+              <CardHeader>
+                <Heading size={compactView ? "sm" : "md"}>
+                  Messages ({filteredMessages.length})
+                </Heading>
+              </CardHeader>
+              <CardBody>
+                <VStack spacing={2} align="stretch">
+                  {filteredMessages.map((message) => (
                     <Flex
-                      key={conversation.id}
-                      p={2}
+                      key={message.id}
+                      p={3}
                       borderWidth="1px"
                       borderRadius="md"
+                      bg={message.unread ? (useColorModeValue("blue.50", "blue.900")) : (useColorModeValue("white", "gray.800"))}
                       cursor="pointer"
-                      onClick={() => setSelectedConversation(conversation)}
+                      onClick={() => {
+                        setSelectedMessage(message);
+                        onMessageOpen();
+                        if (message.unread) {
+                          handleMarkAsRead(message.id);
+                        }
+                      }}
+                      _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
                     >
                       <HStack spacing={3} flex={1}>
-                        <Avatar
-                          size="sm"
-                          name={conversation.title}
-                          bg={getPlatformColor(conversation.platform)}
-                        />
+                        <Box color={getPlatformColor(message.platform)}>
+                          {getPlatformIcon(message.platform)}
+                        </Box>
                         <Box flex={1}>
                           <HStack justify="space-between" mb={1}>
-                            <Text
-                              fontWeight="bold"
-                              fontSize={compactView ? "sm" : "md"}
-                            >
-                              {conversation.title}
+                            <Text fontWeight="bold" fontSize={compactView ? "sm" : "md"}>
+                              {message.from}
                             </Text>
-                            {conversation.unreadCount > 0 && (
-                              <Badge colorScheme="blue">
-                                {conversation.unreadCount}
+                            <HStack spacing={2}>
+                              <Badge
+                                colorScheme={
+                                  message.priority === "high" ? "red" : message.priority === "normal" ? "blue" : "gray"
+                                }
+                                size="sm"
+                              >
+                                {message.priority}
                               </Badge>
-                            )}
+                              <Text fontSize="xs" color="gray.500">
+                                {formatTime(message.timestamp)}
+                              </Text>
+                            </HStack>
                           </HStack>
-                          <Text
-                            fontSize={compactView ? "xs" : "sm"}
-                            color="gray.600"
-                          >
-                            {conversation.participants.join(", ")}
+                          <Text fontWeight="bold" fontSize={compactView ? "xs" : "sm"} mb={1} noOfLines={1}>
+                            {message.subject}
                           </Text>
-                          <Text fontSize="xs" color="gray.500">
-                            Last: {formatDate(conversation.lastMessage)}
+                          <Text fontSize={compactView ? "xs" : "sm"} color="gray.600" noOfLines={1}>
+                            {message.preview}
                           </Text>
                         </Box>
                       </HStack>
                     </Flex>
                   ))}
-              </VStack>
-            </CardBody>
-          </Card>
+                  {filteredMessages.length === 0 && (
+                    <Box textAlign="center" py={8}>
+                      <Text color="gray.500">No messages found</Text>
+                      <Button mt={2} colorScheme="blue" variant="outline" onClick={onComposeOpen}>
+                        Compose New Message
+                      </Button>
+                    </Box>
+                  )}
+                </VStack>
+              </CardBody>
+            </Card>
+
+            {/* Recent Conversations */}
+            {conversations.length > 0 && (
+              <Card size={compactView ? "sm" : "md"}>
+                <CardHeader>
+                  <Heading size={compactView ? "sm" : "md"}>Recent Conversations</Heading>
+                </CardHeader>
+                <CardBody>
+                  <VStack spacing={2} align="stretch">
+                    {conversations
+                      .sort((a, b) => b.lastMessage.getTime() - a.lastMessage.getTime())
+                      .slice(0, compactView ? 3 : 5)
+                      .map((conversation) => (
+                        <Flex
+                          key={conversation.id}
+                          p={2}
+                          borderWidth="1px"
+                          borderRadius="md"
+                          cursor="pointer"
+                          _hover={{ bg: useColorModeValue("gray.50", "gray.700") }}
+                          onClick={() => setSelectedConversation(conversation)}
+                        >
+                          <HStack spacing={3} flex={1}>
+                            <Avatar size="sm" name={conversation.title} bg={getPlatformColor(conversation.platform)} />
+                            <Box flex={1}>
+                              <HStack justify="space-between" mb={1}>
+                                <Text fontWeight="bold" fontSize={compactView ? "sm" : "md"}>
+                                  {conversation.title}
+                                </Text>
+                                {conversation.unreadCount > 0 && (
+                                  <Badge colorScheme="blue">{conversation.unreadCount}</Badge>
+                                )}
+                              </HStack>
+                              <Text fontSize={compactView ? "xs" : "sm"} color="gray.600" noOfLines={1}>
+                                {conversation.participants.join(", ")}
+                              </Text>
+                            </Box>
+                          </HStack>
+                        </Flex>
+                      ))}
+                  </VStack>
+                </CardBody>
+              </Card>
+            )}
+          </VStack>
         )}
       </VStack>
 
       {/* Compose Modal */}
-      <Modal
-        isOpen={isComposeOpen}
-        onClose={onComposeClose}
-        size={compactView ? "md" : "lg"}
-      >
+      <Modal isOpen={isComposeOpen} onClose={onComposeClose} size={compactView ? "md" : "lg"}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>
-            {selectedMessage
-              ? `Reply to ${selectedMessage.from}`
-              : "Compose New Message"}
+            {selectedMessage ? `Reply to ${selectedMessage.from}` : "Compose New Message"}
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody>

@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
   Card,
@@ -94,7 +95,7 @@ interface WorkflowDefinition {
 interface WorkflowExecution {
   execution_id: string;
   workflow_id: string;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  status: "pending" | "running" | "completed" | "failed" | "cancelled" | "paused";
   start_time: string;
   end_time?: string;
   current_step: number;
@@ -112,7 +113,7 @@ interface ServiceInfo {
 }
 
 import WorkflowBuilder from "./Automations/WorkflowBuilder";
-import { List, Layout as LayoutIcon } from "lucide-react";
+import { Layout as LayoutIcon } from "lucide-react";
 
 const WorkflowAutomation: React.FC = () => {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
@@ -137,13 +138,10 @@ const WorkflowAutomation: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resumeExecutionId, setResumeExecutionId] = useState<string | null>(null);
-
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
-  const [resumeExecutionId, setResumeExecutionId] = useState<string | null>(null);
   const [builderInitialData, setBuilderInitialData] = useState<any>(null); // For AI generated workflows
   const [genPrompt, setGenPrompt] = useState("");
 
-  const { toast } = useToast();
+  const toast = useToast();
 
   // Fetch initial data
   useEffect(() => {
@@ -207,7 +205,7 @@ const WorkflowAutomation: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to load workflow data",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setLoading(false);
@@ -289,7 +287,7 @@ const WorkflowAutomation: React.FC = () => {
       }
     } catch (e) {
       console.error("Save error", e);
-      toast({ title: "Error", description: "Failed to save workflow", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to save workflow", variant: "error" });
     } finally {
       setLoading(false);
     }
@@ -345,7 +343,7 @@ const WorkflowAutomation: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to execute workflow",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setExecuting(false);
@@ -376,7 +374,7 @@ const WorkflowAutomation: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to cancel execution",
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -415,7 +413,7 @@ const WorkflowAutomation: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to resume execution",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setExecuting(false);

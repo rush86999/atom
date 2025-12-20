@@ -104,7 +104,7 @@ def retry_with_backoff(
     return decorator
 
 
-async def async_retry_with_backoff(
+def async_retry_with_backoff(
     max_retries: int = 3,
     base_delay: float = 1.0,
     max_delay: float = 60.0,

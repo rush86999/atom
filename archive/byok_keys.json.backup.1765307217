@@ -1,0 +1,26 @@
+{
+  "keys": {
+    "openai_default_production": {
+      "provider_id": "openai",
+      "key_name": "default",
+      "encrypted_key": "gAAAAABpKOVuN_nW8wdHmoitiGeEp4DxmN-uUqMo2qjYy7ionUh0T6v9YVZSFEqfIhDn4lWxpjC7sNlBsxlX47U585yOOGkZW6jGXHRDeUj2Fm5nzp1_z5UY0CiZtpvvRBOvqkePRYLD65kNVUWJtfD-B6QVMFlFJUSRhFtt-riP2Axc1QE1SQoJrG6NSJ7JHd25tOpmKbBF9lYWK4PPQOF2lHArHQ62Lq8KsH87ctvc7fr3nWHy5Dwj8yYooZ_tQjn4R56KY5Dfcj4HEnbdXw3glsXapzAbAf1XplTKsmMh8ybOxo4ea_M=",
+      "key_hash": "96819be807c25a8b1cba975bb186488c7fe8a9957f6cb7b857c3eabf95c3a830",
+      "created_at": "2025-11-27T18:57:34.309511",
+      "last_used": null,
+      "is_active": true,
+      "usage_count": 0,
+      "environment": "production"
+    },
+    "anthropic_default_production": {
+      "provider_id": "anthropic",
+      "key_name": "default",
+      "encrypted_key": "gAAAAABpKOVuFxwgCAvkStdMO-GGaPyZWTQDwOswhdCJmSG2LWEhVHeIR6YUtRVC3vh4rjQ2z6zPun6CZd1sh7ieFFurvvqSQJnTM1-g-56sSaJITcyjv21rzyAeLoehz0DtUfrhjNy7nh5CEIWKeB_v2tb5pPQVtgRxOAeR89OAQtOYDn1ebGAX2Rc28O-raup_RlZOyHKiilIx1_25JePaqFR7J05hMQ==",
+      "key_hash": "f6e36d64bbae99c2500659777922aef9383c99718aa0b103e5ceb9c44e85bfa5",
+      "created_at": "2025-11-27T18:57:34.311042",
+      "last_used": null,
+      "is_active": true,
+      "usage_count": 0,
+      "environment": "production"
+    }
+  }
+}

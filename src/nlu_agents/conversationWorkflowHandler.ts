@@ -1,6 +1,6 @@
 <file_path>
-atom/src/nlu_agents/conversationWorkflowHandler.ts
-</file_path>
+  atom / src / nlu_agents / conversationWorkflowHandler.ts
+  </file_path>
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
@@ -80,6 +80,8 @@ export class ConversationWorkflowHandler extends EventEmitter {
     this.intentClassifier.patterns.set('MANAGE_WORKFLOW', /(?:manage|schedule|update|pause|cancel|monitor)\s+(?:workflow|process|automation)/i);
     this.intentClassifier.patterns.set('OPTIMIZE_PROCESS', /(?:optimize|improve|enhance|streamline)\s+(?:process|workflow|system)/i);
     this.intentClassifier.patterns.set('ANALYZE_IMPACT', /(?:impact|benefit|roi|outcome)\s+(?:of|from)\s+(?:automation|workflow)/i);
+    this.intentClassifier.patterns.set('TAG_MANAGEMENT', /(?:tag|label|organize|classify)\s+(?:file|document|content|data)/i);
+    this.intentClassifier.patterns.set('FILE_ARCHIVING', /(?:archive|store|move|backup)\s+(?:file|document|content|data)/i);
   }
 
   async processUserMessage(userId: string, text: string, context?: any): Promise<{
