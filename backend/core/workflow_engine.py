@@ -215,7 +215,9 @@ class WorkflowEngine:
                         "continue_on_error": config.get("continue_on_error", False),
                         "timeout": config.get("timeout", None),
                         "input_schema": config.get("input_schema", {}),
-                        "output_schema": config.get("output_schema", {})
+                        "output_schema": config.get("output_schema", {}),
+                        "workflow_id": workflow.get("id", "unknown"),
+                        "execution_id": execution_id
                     }
 
                     async with self.semaphore:
@@ -244,8 +246,35 @@ class WorkflowEngine:
 
                         # Execute step
                         try:
+                            start_step_time = datetime.utcnow()
                             output = await self._execute_step(step, resolved_params)
+                            duration_ms = int((datetime.utcnow() - start_step_time).total_seconds() * 1000)
                             self._validate_output_schema(step, output)
+                            
+                            # Extract resource_id from output
+                            resource_id = None
+                            if isinstance(output, dict):
+                                result_data = output.get("result", {})
+                                if isinstance(result_data, dict):
+                                    resource_id = str(result_data.get("id") or 
+                                                     result_data.get("resource_id") or 
+                                                     result_data.get("task_id") or 
+                                                     result_data.get("email_id") or 
+                                                     result_data.get("execution_id") or "")
+                            
+                            # Track step execution in analytics
+                            analytics.track_step_execution(
+                                workflow_id=workflow.get("id", "unknown"),
+                                execution_id=execution_id,
+                                step_id=step_id,
+                                step_name=step.get("name", step_id),
+                                event_type="step_completed",
+                                duration_ms=duration_ms,
+                                status="COMPLETED",
+                                resource_id=resource_id if resource_id else None,
+                                user_id=user_id
+                            )
+
                             async with state_lock:
                                 await self.state_manager.update_step_status(execution_id, step_id, "COMPLETED", output=output)
                                 await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_COMPLETED", {"step_id": step_id})
@@ -266,6 +295,25 @@ class WorkflowEngine:
 
                         except Exception as e:
                             logger.error(f"Step {step_id} failed: {e}")
+                            
+                            # Track step failure in analytics
+                            try:
+                                # Calculate duration for failed step if start_step_time was set
+                                duration_ms = int((datetime.utcnow() - start_step_time).total_seconds() * 1000) if 'start_step_time' in locals() else None
+                                analytics.track_step_execution(
+                                    workflow_id=workflow.get("id", "unknown"),
+                                    execution_id=execution_id,
+                                    step_id=step_id,
+                                    step_name=step.get("name", step_id),
+                                    event_type="step_failed",
+                                    duration_ms=duration_ms,
+                                    status="FAILED",
+                                    error_message=str(e),
+                                    user_id=user_id
+                                )
+                            except Exception as ae:
+                                logger.error(f"Failed to track step failure: {ae}")
+
                             async with state_lock:
                                 await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=str(e))
                             return (step_id, False, None, e)
@@ -730,6 +778,12 @@ class WorkflowEngine:
 
         executor = service_registry[service]
         try:
+            # Pass automation context if executor supports it
+            context = {
+                "workflow_id": step.get("workflow_id"),
+                "execution_id": step.get("execution_id")
+            }
+            
             if timeout is not None and timeout > 0:
                 try:
                     result = await asyncio.wait_for(executor(action, params), timeout=timeout)
