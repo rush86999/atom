@@ -37,7 +37,7 @@ export default function MarketplacePage() {
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-    const categories = ["Productivity", "Sales", "Marketing", "Finance", "Development"]
+    const categories = ["Productivity", "Sales", "Marketing", "Finance", "Development", "Data Management"]
 
     useEffect(() => {
         fetchTemplates()

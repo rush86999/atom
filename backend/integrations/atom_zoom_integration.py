@@ -36,6 +36,8 @@ try:
     from atom_discord_integration import atom_discord_integration
     from atom_telegram_integration import atom_telegram_integration
     from atom_whatsapp_integration import atom_whatsapp_integration
+    from atom_zoom_integration import atom_zoom_integration
+    from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
 
@@ -987,6 +989,13 @@ class AtomZoomIntegration:
             if self.zoom_config['enable_enterprise_features']:
                 await self._trigger_automations('meeting_started', meeting, event_data)
             
+            # Ingest to ATOM memory (LanceDB)
+            try:
+                atom_ingestion_pipeline.ingest_record("zoom", RecordType.MEETING.value, asdict(meeting))
+                logger.info(f"Zoom meeting {meeting_id} ingested to memory")
+            except Exception as me:
+                logger.error(f"Failed to ingest Zoom meeting to memory: {me}")
+            
             logger.info(f"Meeting started: {meeting_id} - {topic}")
             
         except Exception as e:
@@ -1009,6 +1018,13 @@ class AtomZoomIntegration:
                 # Trigger automation
                 if self.zoom_config['enable_enterprise_features']:
                     await self._trigger_automations('meeting_ended', meeting, event_data)
+                
+                # Update memory
+                try:
+                    atom_ingestion_pipeline.ingest_record("zoom", RecordType.MEETING.value, asdict(meeting))
+                    logger.info(f"Zoom meeting {meeting_id} (ended) updated in memory")
+                except Exception as me:
+                    logger.error(f"Failed to update Zoom meeting in memory: {me}")
             
             logger.info(f"Meeting ended: {meeting_id}")
             
@@ -1077,6 +1093,13 @@ class AtomZoomIntegration:
                 # Trigger automation
                 if self.zoom_config['enable_enterprise_features']:
                     await self._trigger_automations('recording_completed', meeting, event_data)
+                
+                # Update memory with recording info
+                try:
+                    atom_ingestion_pipeline.ingest_record("zoom", RecordType.MEETING.value, asdict(meeting))
+                    logger.info(f"Zoom meeting {meeting_id} (recording completed) updated in memory")
+                except Exception as me:
+                    logger.error(f"Failed to update Zoom meeting in memory: {me}")
             
             logger.info(f"Recording completed for meeting: {meeting_id}")
             

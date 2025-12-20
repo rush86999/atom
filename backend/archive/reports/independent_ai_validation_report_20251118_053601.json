@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "validation_date": "2025-11-18T05:36:01.853357",
+    "validator_version": "1.0.0",
+    "total_claims_validated": 1,
+    "providers_used": [
+      "openai",
+      "anthropic",
+      "deepseek"
+    ]
+  },
+  "summary": {
+    "overall_score": 0.6857142857142857,
+    "claims_fully_validated": 0,
+    "claims_partially_validated": 0,
+    "claims_not_validated": 1,
+    "average_confidence": 0.6857142857142857
+  },
+  "category_scores": {
+    "integrations": 0.6857142857142857
+  },
+  "detailed_results": {
+    "atom_multi_provider": {
+      "claim": "Multi-Provider Integration: Connect with 15+ third-party services seamlessly",
+      "category": "integrations",
+      "score": 0.6857142857142857,
+      "evidence_strength": "WEAK",
+      "recommendations": [
+        "anthropic: Recommendations:",
+        "deepseek: **Recommendations**:",
+        "openai: - Recommendations: The product's ability to connect with third-party services needs to be improved before this claim can be substantiated. It is recommended that the product's developers investigate the issues causing the 404 status codes and work to resolve them. Once these issues have been resolved, the product's integration capabilities should be retested to determine if the claim can be substantiated."
+      ],
+      "individual_scores": {
+        "openai": 1.0,
+        "anthropic": 0.2,
+        "deepseek": 0.9
+      }
+    }
+  }
+}

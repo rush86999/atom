@@ -92,162 +92,50 @@ const StripeIntegration: React.FC = () => {
   // const bgColor = useColorModeValue("white", "gray.800"); // Removed
   // const borderColor = useColorModeValue("gray.200", "gray.700"); // Removed
 
-  // Mock data for demonstration
-  const mockPayments: StripePayment[] = [
-    {
-      id: "pi_1Jk123456789",
-      amount: 2500,
-      currency: "usd",
-      status: "succeeded",
-      customer: "cus_LKJ123456",
-      description: "Monthly subscription payment",
-      created: "2024-01-15T10:30:00Z",
-      receipt_url: "https://receipt.stripe.com/test",
-      metadata: { invoice_id: "inv_12345" },
-    },
-    {
-      id: "pi_1Jk987654321",
-      amount: 4999,
-      currency: "usd",
-      status: "succeeded",
-      customer: "cus_MNB456789",
-      description: "One-time purchase",
-      created: "2024-01-14T14:20:00Z",
-      receipt_url: "https://receipt.stripe.com/test",
-      metadata: { order_id: "ord_67890" },
-    },
-    {
-      id: "pi_1Jk555555555",
-      amount: 1500,
-      currency: "usd",
-      status: "failed",
-      customer: "cus_XYZ789012",
-      description: "Failed payment attempt",
-      created: "2024-01-13T09:15:00Z",
-    },
-  ];
-
-  const mockCustomers: StripeCustomer[] = [
-    {
-      id: "cus_LKJ123456",
-      email: "premium@example.com",
-      name: "Premium Customer",
-      description: "Enterprise plan subscriber",
-      created: "2024-01-10T08:00:00Z",
-      balance: 0,
-      currency: "usd",
-      metadata: { company: "ACME Corp", tier: "enterprise" },
-    },
-    {
-      id: "cus_MNB456789",
-      email: "standard@example.com",
-      name: "Standard Customer",
-      description: "Basic plan subscriber",
-      created: "2024-01-09T11:30:00Z",
-      balance: 0,
-      currency: "usd",
-      metadata: { company: "Startup Inc", tier: "basic" },
-    },
-    {
-      id: "cus_XYZ789012",
-      email: "trial@example.com",
-      name: "Trial User",
-      description: "Free trial period",
-      created: "2024-01-08T16:45:00Z",
-      balance: 0,
-      currency: "usd",
-      metadata: { company: "Test Corp", tier: "trial" },
-    },
-  ];
-
-  const mockSubscriptions: StripeSubscription[] = [
-    {
-      id: "sub_ABC123456",
-      customer: "cus_LKJ123456",
-      status: "active",
-      current_period_start: "2024-01-01T00:00:00Z",
-      current_period_end: "2024-02-01T00:00:00Z",
-      items: [
-        {
-          price: {
-            product: "prod_ENTERPRISE",
-            unit_amount: 2500,
-            currency: "usd",
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: { plan: "enterprise", billing_cycle: "monthly" },
-    },
-    {
-      id: "sub_DEF789012",
-      customer: "cus_MNB456789",
-      status: "active",
-      current_period_start: "2024-01-01T00:00:00Z",
-      current_period_end: "2024-02-01T00:00:00Z",
-      items: [
-        {
-          price: {
-            product: "prod_BASIC",
-            unit_amount: 999,
-            currency: "usd",
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: { plan: "basic", billing_cycle: "monthly" },
-    },
-  ];
-
-  const mockProducts: StripeProduct[] = [
-    {
-      id: "prod_ENTERPRISE",
-      name: "Enterprise Plan",
-      description: "Full feature access with premium support",
-      active: true,
-      created: "2024-01-01T00:00:00Z",
-      metadata: { features: "all", support: "premium" },
-    },
-    {
-      id: "prod_BASIC",
-      name: "Basic Plan",
-      description: "Essential features for small businesses",
-      active: true,
-      created: "2024-01-01T00:00:00Z",
-      metadata: { features: "essential", support: "standard" },
-    },
-    {
-      id: "prod_PREMIUM",
-      name: "Premium Plan",
-      description: "Advanced features with priority support",
-      active: false,
-      created: "2024-01-01T00:00:00Z",
-      metadata: { features: "advanced", support: "priority" },
-    },
-  ];
-
-  const mockAnalytics: StripeAnalytics = {
-    totalRevenue: 125000,
-    monthlyRecurringRevenue: 85000,
-    activeCustomers: 245,
-    totalPayments: 312,
-    paymentSuccessRate: 98.5,
-    averageOrderValue: 401.28,
-    revenueGrowth: 15.2,
-    customerGrowth: 8.7,
-  };
+  // Real Stripe data will be fetched from API endpoints
 
   const loadStripeData = async () => {
     setLoading(true);
     try {
-      // In a real implementation, these would be API calls
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Real API calls to fetch Stripe data
+      const [paymentsRes, customersRes, subscriptionsRes, productsRes, analyticsRes] = await Promise.all([
+        fetch("/api/stripe/payments"),
+        fetch("/api/stripe/customers"),
+        fetch("/api/stripe/subscriptions"),
+        fetch("/api/stripe/products"),
+        fetch("/api/stripe/analytics")
+      ]);
 
-      setPayments(mockPayments);
-      setCustomers(mockCustomers);
-      setSubscriptions(mockSubscriptions);
-      setProducts(mockProducts);
-      setAnalytics(mockAnalytics);
+      // Check if all responses are successful
+      const responses = [paymentsRes, customersRes, subscriptionsRes, productsRes, analyticsRes];
+      const failedRequests = responses.filter(res => !res.ok);
+
+      if (failedRequests.length > 0) {
+        throw new Error(`Failed to fetch ${failedRequests.length} Stripe endpoints`);
+      }
+
+      const [paymentsData, customersData, subscriptionsData, productsData, analyticsData] = await Promise.all([
+        paymentsRes.json(),
+        customersRes.json(),
+        subscriptionsRes.json(),
+        productsRes.json(),
+        analyticsRes.json()
+      ]);
+
+      setPayments(paymentsData.payments || []);
+      setCustomers(customersData.customers || []);
+      setSubscriptions(subscriptionsData.subscriptions || []);
+      setProducts(productsData.products || []);
+      setAnalytics(analyticsData.analytics || {
+        totalRevenue: 0,
+        monthlyRecurringRevenue: 0,
+        activeCustomers: 0,
+        totalPayments: 0,
+        paymentSuccessRate: 0,
+        averageOrderValue: 0,
+        revenueGrowth: 0,
+        customerGrowth: 0,
+      });
 
       toast({
         title: "Stripe data loaded",
@@ -255,10 +143,27 @@ const StripeIntegration: React.FC = () => {
         duration: 2000,
       });
     } catch (error) {
+      console.error("Error loading Stripe data:", error);
       toast({
         title: "Failed to load Stripe data",
+        description: "Please check your Stripe configuration and try again.",
         status: "error",
         duration: 3000,
+      });
+      // Set empty data on error to prevent infinite loading
+      setPayments([]);
+      setCustomers([]);
+      setSubscriptions([]);
+      setProducts([]);
+      setAnalytics({
+        totalRevenue: 0,
+        monthlyRecurringRevenue: 0,
+        activeCustomers: 0,
+        totalPayments: 0,
+        paymentSuccessRate: 0,
+        averageOrderValue: 0,
+        revenueGrowth: 0,
+        customerGrowth: 0,
       });
     } finally {
       setLoading(false);

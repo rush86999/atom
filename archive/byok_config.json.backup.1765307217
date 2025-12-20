@@ -1,0 +1,65 @@
+{
+  "providers": [
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "description": "GPT-4 and GPT-3.5 models",
+      "api_key_env_var": "OPENAI_API_KEY",
+      "base_url": null,
+      "model": "gpt-4-turbo",
+      "cost_per_token": 3e-05,
+      "supported_tasks": [
+        "general",
+        "chat",
+        "code",
+        "analysis"
+      ],
+      "max_requests_per_minute": 60,
+      "rate_limit_window": 60,
+      "is_active": true,
+      "requires_encryption": true,
+      "reasoning_level": 3
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "description": "Claude 3 Opus, Sonnet, and Haiku",
+      "api_key_env_var": "ANTHROPIC_API_KEY",
+      "base_url": null,
+      "model": "claude-3-sonnet-20240229",
+      "cost_per_token": 1.5e-05,
+      "supported_tasks": [
+        "general",
+        "chat",
+        "code",
+        "analysis",
+        "writing"
+      ],
+      "max_requests_per_minute": 60,
+      "rate_limit_window": 60,
+      "is_active": true,
+      "requires_encryption": true,
+      "reasoning_level": 2
+    },
+    {
+      "id": "moonshot",
+      "name": "Moonshot AI (Kimi)",
+      "description": "Kimi k1.5 Thinking Model",
+      "api_key_env_var": "MOONSHOT_API_KEY",
+      "base_url": "https://api.moonshot.cn/v1",
+      "model": "kimi-k2-thinking",
+      "cost_per_token": 1e-05,
+      "supported_tasks": [
+        "general",
+        "chat",
+        "thinking",
+        "reasoning"
+      ],
+      "max_requests_per_minute": 60,
+      "rate_limit_window": 60,
+      "is_active": true,
+      "requires_encryption": true,
+      "reasoning_level": 4
+    }
+  ]
+}

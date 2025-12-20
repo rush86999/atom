@@ -57,11 +57,16 @@ class RealAIWorkflowService:
     """Real AI workflow service with actual API integration"""
 
     def __init__(self):
-        self.glm_api_key = os.getenv("GLM_API_KEY")
-        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        self.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")  # Fallback
-        self.google_api_key = os.getenv("GOOGLE_API_KEY")
+        # Keys will be fetched dynamically via BYOKManager
+        from core.byok_endpoints import get_byok_manager
+        self._byok = get_byok_manager()
+        
+        # Backward compatibility for direct access if needed, though get_api_key is preferred
+        self.glm_api_key = self._byok.get_api_key("glm")
+        self.anthropic_api_key = self._byok.get_api_key("anthropic")
+        self.deepseek_api_key = self._byok.get_api_key("deepseek")
+        self.openai_api_key = self._byok.get_api_key("openai")
+        self.google_api_key = self._byok.get_api_key("google")
 
         # Initialize HTTP sessions
         self.http_sessions = {}
@@ -278,7 +283,8 @@ class RealAIWorkflowService:
 
         try:
             # Gemini REST API format
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.google_api_key}"
+            # Use v1 instead of v1beta to avoid model-not-found issues with some pro models
+            url = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={self.google_api_key}"
             
             request_data = {
                 "contents": [{
@@ -341,6 +347,7 @@ Return your response as a JSON object with this format:
     "intent": "summary of all goals (e.g. 'Refund order AND update address')",
     "entities": ["list", "of", "key", "entities"],
     "tasks": ["Task 1: Refund order #12345", "Task 2: Update shipping address to 123 Main St", "Task 3: Update financial spreadsheet in Excel"],
+    "category": "general/technical/billing/etc",
     "priority": "high/medium/low",
     "confidence": 0.0-1.0
 }"""
@@ -348,20 +355,22 @@ Return your response as a JSON object with this format:
         user_prompt = f"Analyze this request: {text}"
 
         # Try the requested provider, fallback to others if needed
-        # FORCED DEEPSEEK ONLY MODE
-        providers_to_try = ["deepseek"]
+        providers_to_try = []
+        if provider:
+            providers_to_try.append(provider)
         
-        if provider == "google":
-            providers_to_try.insert(0, "google")
-        elif provider == "google_flash":
-            providers_to_try.insert(0, "google_flash")
-
-        # if provider != "openai" and self.openai_api_key:
-        #     providers_to_try.append("openai")
-        # if provider != "anthropic" and self.anthropic_api_key:
-        #     providers_to_try.append("anthropic")
-        # if provider != "deepseek" and self.deepseek_api_key:
-        #     providers_to_try.append("deepseek")
+        # Add fallbacks
+        if self.openai_api_key:
+            providers_to_try.append("openai")
+        if self.anthropic_api_key:
+            providers_to_try.append("anthropic")
+        if self.deepseek_api_key:
+            providers_to_try.append("deepseek")
+        if self.google_api_key:
+            providers_to_try.append("google")
+        
+        # Unique list
+        providers_to_try = list(dict.fromkeys(providers_to_try))
 
         last_error = None
         for provider_name in providers_to_try:
@@ -415,6 +424,41 @@ Return your response as a JSON object with this format:
         # All providers failed
         raise Exception(f"All AI providers failed. Last error: {last_error}")
 
+    async def analyze_text(self, prompt: str, complexity: int = 2, system_prompt: str = "You are a helpful assistant.") -> str:
+        """Generic text analysis/generation with automated provider selection"""
+        from core.byok_endpoints import get_byok_manager
+        byok = get_byok_manager()
+        
+        # Map complexity 1-4 to reasoning levels
+        provider_id = byok.get_optimal_provider("analysis", min_reasoning_level=complexity) or "openai"
+        
+        try:
+            if provider_id == "openai":
+                result = await self.call_openai_api(prompt, system_prompt)
+            elif provider_id == "anthropic":
+                result = await self.call_anthropic_api(prompt, system_prompt)
+            elif provider_id == "deepseek":
+                result = await self.call_deepseek_api(prompt, system_prompt)
+            elif provider_id == "google":
+                result = await self.call_google_api(prompt, system_prompt)
+            elif provider_id == "glm":
+                result = await self.call_glm_api(prompt, system_prompt)
+            else:
+                # Fallback to OpenAI if provider unknown
+                result = await self.call_openai_api(prompt, system_prompt)
+                
+            return result.get('content', '')
+        except Exception as e:
+            logger.error(f"analyze_text failed with provider {provider_id}: {e}")
+            # Final fallback
+            if provider_id != "openai" and self.openai_api_key:
+                try:
+                    res = await self.call_openai_api(prompt, system_prompt)
+                    return res.get('content', '')
+                except:
+                    pass
+            return str(e)
+
     async def generate_workflow_tasks(self, input_text: str, provider: str = "openai") -> List[str]:
         """Generate actual tasks using AI"""
         system_prompt = """Based on the user's request, generate a comprehensive and professional list of actionable tasks.
@@ -447,36 +491,69 @@ Return your response as a JSON object with this format:
             # Fallback: create basic task from input
             return [f"Handle: {input_text[:100]}"]
 
-    async def break_down_task(self, user_query: str, provider: str = "moonshot") -> List[Dict[str, Any]]:
+    async def break_down_task(self, user_query: str, provider: str = "openai") -> Dict[str, Any]:
         """
-        Break down a complex task into manageable steps using a high-reasoning model.
-        Returns a list of steps, each with a description and complexity score (1-4).
+        Break down a complex task into manageable steps and triggers using a high-reasoning model.
+        Returns a dict containing 'trigger' (optional) and 'steps' list.
         """
-        system_prompt = """You are an expert task planner. Your goal is to break down a complex user query into a series of logical, manageable steps.
-For each step, you must assign a 'complexity' score from 1 to 4:
-1 = Low complexity (simple formatting, basic data retrieval, simple text generation) - Can be handled by cheaper models (e.g. Haiku, GPT-3.5)
-2 = Medium complexity (standard analysis, summarization, single-step reasoning) - Can be handled by standard models (e.g. Sonnet, GPT-4o-mini)
-3 = High complexity (complex analysis, code generation, multi-step reasoning) - Requires strong models (e.g. GPT-4, Opus)
-4 = Very High complexity (deep reasoning, strategic planning, complex problem solving) - Requires reasoning models (e.g. o1, Kimi k1.5)
-
-Domain Specific Guidelines:
-- Dev Studio: Code generation steps are usually High (3) or Very High (4). Documentation is Medium (2).
-- Scheduling: Conflict resolution is High (3). Simple booking is Low (1).
-- Finance: Financial analysis/forecasting is High (3) or Very High (4). Expense categorization is Medium (2).
-- Project Management: Critical path analysis is High (3). Task creation is Low (1). Microsoft Planner task management is Medium (2).
-- Marketing: Campaign strategy is Very High (4). Content generation is Medium (2) or High (3).
+        system_prompt = """You are an expert task planner and workflow architect. Your goal is to break down a user's instruction into a functional automation workflow.
+        
+1. Identify the Trigger: If the user says "Every time...", "When...", "Whenever...", extract the trigger event.
+3. Identify Purpose: If the user wants to "save a template", "create a reusable automation", or "set up a blueprint", set "is_template": true in the response and provide a "category".
+        
+Supported Service Types (Universal Integration):
+- communication: slack, discord, google_chat, microsoft_teams, whatsapp, telegram, twilio
+- crm_support: hubspot, salesforce, zendesk, intercom, freshdesk
+- project_mgmt: asana, notion, trello, jira, linear, monday
+- finance: stripe, quickbooks, plaid, xero
+- mail_calendar: gmail, outlook, google_calendar, calendly
+- storage: dropbox, box, onedrive, google_drive
+- devops: github, gitlab, bitbucket
+- design: figma
+- utilities: delay, task, ai_analysis, api_call
+- office_365: excel, power_bi, planner (Medium to High Complexity)
+        
+Domain Specific Guidelines for Complexity (1-4):
 - Office 365: Excel data manipulation is High (3). Power BI report refresh is Medium (2). Teams channel creation is Low (1).
+- Dev Studio: Code generation steps are usually High (3) or Very High (4).
+- Finance: Financial analysis/forecasting is High (3).
 
 Return your response as a JSON object with this format:
 {
+    "is_template": false, // true if user wants a reusable template
+    "category": "automation", // e.g., automation, business, marketing, etc.
+    "trigger": {
+        "type": "event", // event, schedule, or manual
+        "service": "hubspot", // hubspot, gmail, slack, etc.
+        "event": "contact_created", // specific event name
+        "description": "Every time a new contact is created in HubSpot"
+    },
     "steps": [
         {
             "step_id": "step_1",
-            "description": "Detailed description of what to do in this step",
-            "complexity": 1,
-            "step_type": "api_call/analysis/generation/etc"
+            "title": "Send Welcome Email",
+            "description": "Send a personalized intro email via Gmail",
+            "complexity": 2,
+            "service": "gmail",
+            "action": "send_email",
+            "parameters": {
+                "recipient": "{{input.email}}",
+                "subject": "Welcome!",
+                "body": "Hi, thanks for reaching out..."
+            }
         },
-        ...
+        {
+            "step_id": "step_2",
+            "title": "Wait 5 Days",
+            "description": "Wait for 5 days before the next action",
+            "complexity": 1,
+            "service": "delay",
+            "action": "wait",
+            "parameters": {
+                "duration": "5",
+                "unit": "days"
+            }
+        }
     ]
 }"""
 
@@ -484,25 +561,31 @@ Return your response as a JSON object with this format:
             logger.info(f"Breaking down task: {user_query} using provider: {provider}")
             result = await self.process_with_nlu(user_query, provider, system_prompt=system_prompt)
             
-            if 'steps' in result:
-                return result['steps']
-            else:
-                # Fallback if structure is missing
-                return [{
+            # Ensure it has steps
+            if 'steps' not in result:
+                result['steps'] = [{
                     "step_id": "step_1",
-                    "description": f"Process request: {user_query}",
+                    "title": "Process Request",
+                    "description": f"Handle task: {user_query}",
                     "complexity": 2,
-                    "step_type": "general"
+                    "service": "task",
+                    "action": "execute",
+                    "parameters": {}
                 }]
+            return result
         except Exception as e:
             logger.error(f"Error breaking down task: {e}")
-            # Fallback on error
-            return [{
-                "step_id": "step_1",
-                "description": f"Handle request: {user_query}",
-                "complexity": 2,
-                "step_type": "general"
-            }]
+            return {
+                "steps": [{
+                    "step_id": "step_1",
+                    "title": "Fallback Task",
+                    "description": f"Handle request: {user_query}",
+                    "complexity": 2,
+                    "service": "task",
+                    "action": "execute",
+                    "parameters": {}
+                }]
+            }
 
 # Global AI service instance
 ai_service = RealAIWorkflowService()

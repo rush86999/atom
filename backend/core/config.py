@@ -16,13 +16,74 @@ class DatabaseConfig:
     echo: bool = False
     pool_size: int = 10
     max_overflow: int = 20
+    engine_type: str = "sqlite" # sqlite, postgresql
     
     def __post_init__(self):
         env_url = os.getenv('DATABASE_URL')
         if env_url:
             self.url = env_url
+            if env_url.startswith('postgresql'):
+                self.engine_type = "postgresql"
         elif not self.url:
             self.url = "sqlite:///atom_data.db"
+
+@dataclass
+class RedisConfig:
+    """Redis configuration for caching and scheduling"""
+    enabled: bool = False
+    url: str = "redis://localhost:6379/0"
+    host: str = "localhost"
+    port: int = 6379
+    db: int = 0
+    password: Optional[str] = None
+    ssl: bool = False
+    
+    def __post_init__(self):
+        self.url = os.getenv('REDIS_URL', self.url)
+        # Parse URL if provided to populate other fields
+        if self.url and '://' in self.url:
+            self.enabled = True
+            # Simple parsing (improvement: use urllib.parse)
+            try:
+                import urllib.parse as urlparse
+                url = urlparse.urlparse(self.url)
+                self.host = url.hostname or 'localhost'
+                self.port = url.port or 6379
+                self.password = url.password
+                if url.path:
+                    try:
+                        self.db = int(url.path.lstrip('/'))
+                    except:
+                        pass
+                self.ssl = url.scheme == 'rediss'
+            except:
+                pass
+        
+        # Override with specific env vars if present
+        if os.getenv('REDIS_HOST'):
+            self.host = os.getenv('REDIS_HOST')
+            self.enabled = True
+        if os.getenv('REDIS_PORT'):
+            self.port = int(os.getenv('REDIS_PORT'))
+        if os.getenv('REDIS_PASSWORD'):
+            self.password = os.getenv('REDIS_PASSWORD')
+        if os.getenv('REDIS_DB'):
+            self.db = int(os.getenv('REDIS_DB'))
+
+@dataclass
+class SchedulerConfig:
+    """Workflow scheduler configuration"""
+    job_store_type: str = "sqlalchemy" # sqlalchemy, redis
+    job_store_url: str = "sqlite:///jobs.sqlite"
+    misfire_grace_time: int = 3600
+    coalesce: bool = True
+    max_instances: int = 3
+    
+    def __post_init__(self):
+        self.job_store_type = os.getenv('SCHEDULER_JOB_STORE_TYPE', self.job_store_type)
+        self.job_store_url = os.getenv('SCHEDULER_JOB_STORE_URL', self.job_store_url)
+        if os.getenv('SCHEDULER_MISFIRE_GRACE_TIME'):
+            self.misfire_grace_time = int(os.getenv('SCHEDULER_MISFIRE_GRACE_TIME'))
 
 @dataclass
 class LanceDBConfig:
@@ -176,6 +237,8 @@ class ATOMConfig:
     """Main ATOM configuration class"""
     database: DatabaseConfig = None
     lancedb: LanceDBConfig = None
+    redis: RedisConfig = None
+    scheduler: SchedulerConfig = None
     server: ServerConfig = None
     security: SecurityConfig = None
     api: APIConfig = None
@@ -189,6 +252,10 @@ class ATOMConfig:
             self.database = DatabaseConfig()
         if self.lancedb is None:
             self.lancedb = LanceDBConfig()
+        if self.redis is None:
+            self.redis = RedisConfig()
+        if self.scheduler is None:
+            self.scheduler = SchedulerConfig()
         if self.server is None:
             self.server = ServerConfig()
         if self.security is None:
@@ -219,6 +286,10 @@ class ATOMConfig:
                 config_data['database'] = DatabaseConfig(**config_data['database'])
             if 'lancedb' in config_data:
                 config_data['lancedb'] = LanceDBConfig(**config_data['lancedb'])
+            if 'redis' in config_data:
+                config_data['redis'] = RedisConfig(**config_data['redis'])
+            if 'scheduler' in config_data:
+                config_data['scheduler'] = SchedulerConfig(**config_data['scheduler'])
             if 'server' in config_data:
                 config_data['server'] = ServerConfig(**config_data['server'])
             if 'security' in config_data:

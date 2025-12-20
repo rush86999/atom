@@ -103,3 +103,117 @@ class TeamMessage(Base):
     # Relationships
     team = relationship("Team", back_populates="messages")
     sender = relationship("User", back_populates="messages")
+
+# Additional enums
+class WorkflowExecutionStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    PAUSED = "PAUSED"
+
+class AuditEventType(str, enum.Enum):
+    LOGIN = "login"
+    LOGOUT = "logout"
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+    ACCESS = "access"
+    EXECUTE = "execute"
+    ERROR = "error"
+
+class SecurityLevel(str, enum.Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class ThreatLevel(str, enum.Enum):
+    NONE = "none"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+# Additional models
+class WorkflowExecution(Base):
+    __tablename__ = "workflow_executions"
+
+    execution_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, nullable=False)
+    status = Column(String, default=WorkflowExecutionStatus.PENDING.value)
+    input_data = Column(Text, nullable=True)
+    steps = Column(Text, nullable=True)
+    outputs = Column(Text, nullable=True)
+    context = Column(Text, nullable=True)
+    version = Column(Integer, default=1)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    error = Column(Text, nullable=True)
+    # Add user_id foreign key for user binding
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="workflow_executions")
+
+class ChatProcess(Base):
+    __tablename__ = "chat_processes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)
+    current_step = Column(Integer, default=0)
+    total_steps = Column(Integer, nullable=False)
+    steps = Column(Text, nullable=True)  # JSON array of step definitions
+    context = Column(Text, nullable=True)  # JSON context data
+    inputs = Column(Text, nullable=True)  # JSON collected inputs
+    outputs = Column(Text, nullable=True)  # JSON aggregated outputs
+    status = Column(String, default="active")  # active, paused, completed, cancelled
+    missing_parameters = Column(Text, nullable=True)  # JSON array of missing param names
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="chat_processes")
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    event_type = Column(String, nullable=False)
+    security_level = Column(String, nullable=False)
+    threat_level = Column(String, nullable=False)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    user_email = Column(String, nullable=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    resource = Column(String, nullable=True)
+    action = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    metadata_json = Column(Text, nullable=True)
+    success = Column(Boolean, nullable=False)
+    error_message = Column(Text, nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="audit_logs")
+    workspace = relationship("Workspace", backref="audit_logs")
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    session_token = Column(String, nullable=False, unique=True)
+    user_agent = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    device_type = Column(String, nullable=True)
+    browser = Column(String, nullable=True)
+    os = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_active_at = Column(DateTime(timezone=True), onupdate=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+    # Relationships
+    user = relationship("User", backref="sessions")

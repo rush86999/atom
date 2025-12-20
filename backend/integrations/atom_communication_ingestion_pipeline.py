@@ -119,8 +119,8 @@ class LanceDBMemoryManager:
             pa.field("status", pa.string()),
             pa.field("priority", pa.string()),
             pa.field("tags", pa.list_(pa.string())),
-            pa.field("vector", pa.list_(pa.float32())),  # For vector search
-            pa.field("search_vector", pa.list_(pa.float32()))  # Primary search vector
+            pa.field("vector", pa.list_(pa.float32(), 768)),  # For vector search
+            pa.field("search_vector", pa.list_(pa.float32(), 768))  # Primary search vector
         ])
         
         # Check if table exists
@@ -131,6 +131,14 @@ class LanceDBMemoryManager:
         else:
             self.connections_table = self.db.open_table("atom_communications")
             logger.info("Opened existing atom_communications table")
+            
+        # Create FTS index for hybrid search if it doesn't exist
+        try:
+            # Note: create_fts_index is idempotent in recent lancedb versions or we catch the error
+            self.connections_table.create_fts_index("content", replace=False)
+            logger.info("FTS index enabled on 'content' column")
+        except Exception as e:
+            logger.warning(f"Could not create FTS index (might already exist): {e}")
     
     def _create_metadata_table(self):
         """Create metadata table for ingestion pipeline"""
@@ -184,6 +192,49 @@ class LanceDBMemoryManager:
         except Exception as e:
             logger.error(f"Error ingesting communication: {str(e)}")
             return False
+
+    def ingest_generic_record(self, record_data: Any) -> bool:
+        """Ingest a generic record (lead, contact, etc.) into LanceDB memory"""
+        try:
+            # For simplicity, we currently map generic records to the communications table
+            # but with different metadata and record type markers.
+            # In a more advanced version, we might use separate tables.
+            
+            # Map AtomRecordData to a format compatible with atom_communications table
+            record = {
+                "id": record_data.id,
+                "app_type": record_data.app_type,
+                "timestamp": record_data.timestamp,
+                "direction": "internal", # Generic records are internal state
+                "sender": "system",
+                "recipient": "user",
+                "subject": f"{record_data.record_type.value.title()}: {record_data.id}",
+                "content": record_data.content,
+                "attachments": "[]",
+                "metadata": json.dumps({
+                    **(record_data.metadata or {}),
+                    "record_type": record_data.record_type.value,
+                    "atom_unified_ingestion": True
+                }),
+                "status": "completed",
+                "priority": "normal",
+                "tags": [record_data.record_type.value],
+                "vector": record_data.vector_embedding or self.generate_embedding(record_data.content),
+                "search_vector": record_data.vector_embedding or self.generate_embedding(record_data.content)
+            }
+            
+            # Add to database
+            self.connections_table.add([record])
+            
+            # Update metadata
+            self._update_metadata(record_data.app_type, 1)
+            
+            logger.info(f"Ingested generic record {record_data.id} ({record_data.record_type.value}) from {record_data.app_type}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error ingesting generic record: {str(e)}")
+            return False
     
     def ingest_batch(self, data_list: List[CommunicationData]) -> bool:
         """Ingest batch of communications"""
@@ -236,17 +287,37 @@ class LanceDBMemoryManager:
             return [0.0] * 768
 
     def search_communications(self, query: str, limit: int = 10, app_type: str = None) -> List[Dict]:
-        """Search communications using vector similarity"""
+        """Search communications using hybrid search (vector + FTS)"""
         try:
             if not self.connections_table:
                 logger.error("Connections table not initialized")
                 return []
                 
-            # Generate query embedding
+            # Generate query embedding for vector search
             query_vector = self.generate_embedding(query)
             
-            # Perform vector search
-            search_builder = self.connections_table.search(query_vector).limit(limit)
+            # Perform hybrid search if FTS is available
+            # In LanceDB, hybrid search is done by calling search() with a vector
+            # and then filtering or using text search.
+            # However, the most direct way for hybrid is often combining results or using the search API
+            # with both text and vector if the version supports it directly.
+            
+            # For older lancedb, we might do:
+            # search_builder = self.connections_table.search(query_vector, vector_column_name="vector")
+            
+            # For newer lancedb (hybrid):
+            # Perform hybrid search
+            try:
+                # LanceDB 0.25.x hybrid search syntax: search(None, query_type="hybrid").vector(v).text(t)
+                search_builder = (
+                    self.connections_table.search(None, query_type="hybrid", vector_column_name="vector")
+                    .vector(query_vector)
+                    .text(query)
+                    .limit(limit)
+                )
+            except Exception as e:
+                logger.warning(f"Hybrid search failed, falling back to pure vector search: {e}")
+                search_builder = self.connections_table.search(query_vector, vector_column_name="vector").limit(limit)
             
             if app_type:
                 search_builder = search_builder.where(f"app_type = '{app_type}'")

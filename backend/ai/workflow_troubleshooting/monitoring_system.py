@@ -8,7 +8,11 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
-import redis
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 # Configure logging
@@ -116,9 +120,12 @@ class WorkflowMonitoringSystem:
     """
 
     def __init__(self, redis_host: str = "localhost", redis_port: int = 6379):
-        self.redis_client = redis.Redis(
-            host=redis_host, port=redis_port, decode_responses=True
-        )
+        if REDIS_AVAILABLE:
+            self.redis_client = redis.Redis(
+                host=redis_host, port=redis_port, decode_responses=True
+            )
+        else:
+            self.redis_client = None
         self.monitoring_rules: Dict[str, MonitoringRule] = {}
         self.active_alerts: Dict[str, WorkflowAlert] = {}
         self.metric_history: Dict[str, List[WorkflowMetric]] = {}
@@ -223,16 +230,17 @@ class WorkflowMonitoringSystem:
                     metric.workflow_id
                 ][-1000:]
 
-            # Store in Redis for persistence
-            redis_key = f"workflow_metric:{metric.workflow_id}:{metric.metric_name}"
-            metric_data = {
-                "value": metric.value,
-                "unit": metric.unit,
-                "timestamp": metric.timestamp.isoformat(),
-                "tags": json.dumps(metric.tags),
-            }
-            self.redis_client.hset(redis_key, mapping=metric_data)
-            self.redis_client.expire(redis_key, 3600)  # Keep for 1 hour
+            if self.redis_client:
+                # Store in Redis for persistence
+                redis_key = f"workflow_metric:{metric.workflow_id}:{metric.metric_name}"
+                metric_data = {
+                    "value": metric.value,
+                    "unit": metric.unit,
+                    "timestamp": metric.timestamp.isoformat(),
+                    "tags": json.dumps(metric.tags),
+                }
+                self.redis_client.hset(redis_key, mapping=metric_data)
+                self.redis_client.expire(redis_key, 3600)  # Keep for 1 hour
 
             # Update Prometheus metrics
             self._update_prometheus_metrics(metric)
@@ -305,9 +313,11 @@ class WorkflowMonitoringSystem:
 
     async def _is_in_cooldown(self, rule_id: str) -> bool:
         """Check if rule is in cooldown period"""
-        cooldown_key = f"alert_cooldown:{rule_id}"
-        cooldown_exists = self.redis_client.exists(cooldown_key)
-        return cooldown_exists
+        if self.redis_client:
+            cooldown_key = f"alert_cooldown:{rule_id}"
+            cooldown_exists = self.redis_client.exists(cooldown_key)
+            return cooldown_exists
+        return False
 
     async def _fire_alert(self, rule: MonitoringRule, metric: WorkflowMetric):
         """Fire an alert based on monitoring rule"""
@@ -334,10 +344,11 @@ class WorkflowMonitoringSystem:
             self.active_alerts[alert_id] = alert
 
             # Set cooldown
-            cooldown_key = f"alert_cooldown:{rule.rule_id}"
-            self.redis_client.setex(
-                cooldown_key, rule.cooldown_minutes * 60, "cooldown"
-            )
+            if self.redis_client:
+                cooldown_key = f"alert_cooldown:{rule.rule_id}"
+                self.redis_client.setex(
+                    cooldown_key, rule.cooldown_minutes * 60, "cooldown"
+                )
 
             # Update Prometheus metrics
             self.active_alerts_gauge.labels(

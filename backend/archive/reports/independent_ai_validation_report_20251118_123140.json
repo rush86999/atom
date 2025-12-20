@@ -1,0 +1,67 @@
+{
+  "metadata": {
+    "validation_date": "2025-11-18T12:31:40.253567",
+    "validator_version": "1.0.0",
+    "total_claims_validated": 4,
+    "providers_used": [
+      "glm",
+      "anthropic",
+      "deepseek"
+    ]
+  },
+  "summary": {
+    "overall_score": 0.0,
+    "claims_fully_validated": 0,
+    "claims_partially_validated": 0,
+    "claims_not_validated": 4,
+    "average_confidence": 0.0
+  },
+  "category_scores": {
+    "ai_features": 0.0,
+    "integrations": 0.0,
+    "analytics": 0.0,
+    "enterprise_features": 0.0
+  },
+  "detailed_results": {
+    "atom_ai_workflows": {
+      "claim": "AI-Powered Workflow Automation: Automate complex workflows with intelligent AI assistance",
+      "category": "ai_features",
+      "score": 0.0,
+      "evidence_strength": "INSUFFICIENT",
+      "recommendations": [
+        "All AI providers failed to validate this claim"
+      ],
+      "individual_scores": {}
+    },
+    "atom_multi_provider": {
+      "claim": "Multi-Provider Integration: Connect with 15+ third-party services seamlessly",
+      "category": "integrations",
+      "score": 0.0,
+      "evidence_strength": "INSUFFICIENT",
+      "recommendations": [
+        "All AI providers failed to validate this claim"
+      ],
+      "individual_scores": {}
+    },
+    "atom_real_time_analytics": {
+      "claim": "Real-Time Analytics: Get instant insights with real-time data analysis",
+      "category": "analytics",
+      "score": 0.0,
+      "evidence_strength": "INSUFFICIENT",
+      "recommendations": [
+        "All AI providers failed to validate this claim"
+      ],
+      "individual_scores": {}
+    },
+    "atom_enterprise_reliability": {
+      "claim": "Enterprise-Grade Reliability: 99.9% uptime with enterprise security features",
+      "category": "enterprise_features",
+      "score": 0.0,
+      "evidence_strength": "INSUFFICIENT",
+      "recommendations": [
+        "All AI providers failed to validate this claim"
+      ],
+      "individual_scores": {}
+    }
+  }
+}

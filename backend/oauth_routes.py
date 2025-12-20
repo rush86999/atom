@@ -92,6 +92,17 @@ async def google_oauth_callback(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Legacy OAuth callback endpoints for compatibility
+@router.get("/callback/google")
+async def google_callback_legacy():
+    """Legacy endpoint for Google OAuth callback"""
+    return {"status": "redirect", "message": "Use /api/auth/google/callback"}
+
+@router.get("/callback/linkedin")
+async def linkedin_callback():
+    """LinkedIn OAuth callback placeholder"""
+    return {"status": "not_implemented", "message": "LinkedIn OAuth not yet implemented"}
+
 # Microsoft OAuth Routes
 @router.get("/microsoft/initiate")
 async def microsoft_oauth_initiate():
@@ -257,6 +268,45 @@ async def github_oauth_callback(request: Request):
         raise e
     except Exception as e:
         logger.error(f"GitHub OAuth callback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{provider}/refresh")
+async def refresh_provider_token(provider: str):
+    """Refresh tokens for a specific provider"""
+    try:
+        stored_token = token_storage.get_token(provider)
+        if not stored_token or not stored_token.get("refresh_token"):
+            raise HTTPException(status_code=404, detail=f"No refresh token found for {provider}")
+
+        # Get the appropriate config
+        configs = {
+            "google": GOOGLE_OAUTH_CONFIG,
+            "microsoft": MICROSOFT_OAUTH_CONFIG,
+            "salesforce": SALESFORCE_OAUTH_CONFIG,
+            "slack": SLACK_OAUTH_CONFIG,
+            "github": GITHUB_OAUTH_CONFIG
+        }
+        
+        if provider not in configs:
+            raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+            
+        handler = OAuthHandler(configs[provider])
+        new_tokens = await handler.refresh_access_token(stored_token["refresh_token"])
+        
+        # Merge with old tokens to preserve refresh_token if not returned
+        for key, value in stored_token.items():
+            if key not in new_tokens:
+                new_tokens[key] = value
+                
+        token_storage.save_token(provider, new_tokens)
+        
+        return {"status": "success", "message": f"Token refreshed for {provider}"}
+    
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Token refresh error for {provider}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

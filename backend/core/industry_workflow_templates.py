@@ -678,6 +678,97 @@ class IndustryWorkflowEngine:
             ]
         )
 
+        # Technology Templates
+        self.templates["tech_content_file_management"] = IndustryWorkflowTemplate(
+            id="tech_content_file_management",
+            name="Content & File Management",
+            description="Automatically archive, tag, or link new files from cloud storage to related tasks",
+            industry=Industry.TECHNOLOGY,
+            sub_category="File Management",
+            complexity="Intermediate",
+            estimated_time_savings="5 hours/week",
+            required_integrations=["google_drive", "asana", "slack"],
+            optional_integrations=["dropbox", "trello"],
+            workflow_data={
+                "nodes": [
+                    {
+                        "id": "1",
+                        "type": "trigger",
+                        "label": "New File in Drive",
+                        "config": {
+                            "integration": "google_drive",
+                            "event": "new_file",
+                            "folder": "root"
+                        }
+                    },
+                    {
+                        "id": "2",
+                        "type": "action",
+                        "label": "Analyze File Content",
+                        "config": {
+                            "integration": "openai",
+                            "action": "extract_metadata",
+                            "fields": ["project", "task_id", "priority"]
+                        }
+                    },
+                    {
+                        "id": "3",
+                        "type": "action",
+                        "label": "Link to Asana Task",
+                        "config": {
+                            "integration": "asana",
+                            "action": "attach_file",
+                            "task_id": "{{task_id}}"
+                        }
+                    },
+                    {
+                        "id": "4",
+                        "type": "action",
+                        "label": "Archive File",
+                        "config": {
+                            "integration": "google_drive",
+                            "action": "move_file",
+                            "target_folder": "Archive/{{project}}"
+                        }
+                    },
+                    {
+                        "id": "5",
+                        "type": "action",
+                        "label": "Notify Slack",
+                        "config": {
+                            "integration": "slack",
+                            "action": "send_message",
+                            "channel": "#file-updates"
+                        }
+                    }
+                ],
+                "edges": [
+                    {"source": "1", "target": "2"},
+                    {"source": "2", "target": "3"},
+                    {"source": "3", "target": "4"},
+                    {"source": "4", "target": "5"}
+                ]
+            },
+            setup_instructions=[
+                "Configure Google Drive folder monitoring",
+                "Set up Asana project and task mapping",
+                "Configure Slack notification channel",
+                "Define archiving folder structure"
+            ],
+            benefits=[
+                "Reduce manual file organization time by 90%",
+                "Ensure all project files are correctly linked to tasks",
+                "Maintain clean and organized cloud storage",
+                "Improve team visibility on new document uploads"
+            ],
+            use_cases=[
+                "Software development projects",
+                "Marketing campaign management",
+                "Design asset organization",
+                "General business document management"
+            ]
+        )
+
     def get_templates_by_industry(self, industry: Industry) -> List[IndustryWorkflowTemplate]:
         """Get all templates for a specific industry"""
         return [template for template in self.templates.values() if template.industry == industry]

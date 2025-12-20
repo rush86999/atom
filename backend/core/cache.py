@@ -3,25 +3,33 @@ import os
 import json
 import logging
 from typing import Any, Optional, Union
-import redis
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
 from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
 class CacheManager:
     def __init__(self):
-        self.redis_url = os.getenv("REDIS_URL")
+        from core.config import get_config
+        self.config = get_config()
         self.redis_client = None
         self.memory_cache = {}
         
-        if self.redis_url:
+        if self.config.redis.enabled and REDIS_AVAILABLE:
             try:
-                self.redis_client = redis.from_url(self.redis_url, decode_responses=True)
+                self.redis_client = redis.from_url(self.config.redis.url, decode_responses=True)
                 logger.info("Connected to Redis cache")
             except Exception as e:
                 logger.warning(f"Failed to connect to Redis: {e}. Using in-memory cache.")
         else:
-            logger.info("No REDIS_URL found. Using in-memory cache.")
+            if not REDIS_AVAILABLE:
+                logger.info("Redis module not available. Using in-memory cache.")
+            else:
+                logger.info("Redis not enabled or no configuration found. Using in-memory cache.")
 
     async def get(self, key: str) -> Optional[Any]:
         """Get value from cache"""

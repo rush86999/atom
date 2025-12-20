@@ -1,0 +1,272 @@
+{
+  "session_id": "20251118_221234",
+  "timestamp": "2025-11-18T22:15:45.942638",
+  "target_validation_score": 0.98,
+  "actual_validation_score": 0.13692307692307693,
+  "target_achieved": false,
+  "total_tests": 12,
+  "passed_tests": 2,
+  "failed_tests": 6,
+  "skipped_tests": 4,
+  "overall_success_rate": 0.13692307692307693,
+  "confidence_level": 0.13749999999999998,
+  "test_results": [
+    {
+      "test_name": "OpenAI Integration",
+      "category": "ai_nlp_processing",
+      "status": "skipped",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0,
+      "evidence": [],
+      "error_message": "OpenAI API key not provided",
+      "timestamp": "2025-11-18T22:15:45.860236",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Anthropic Integration",
+      "category": "ai_nlp_processing",
+      "status": "skipped",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0,
+      "evidence": [],
+      "error_message": "Anthropic API key not provided",
+      "timestamp": "2025-11-18T22:15:45.860268",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "DeepSeek Integration",
+      "category": "ai_nlp_processing",
+      "status": "skipped",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0,
+      "evidence": [],
+      "error_message": "DeepSeek API key not provided",
+      "timestamp": "2025-11-18T22:15:45.860278",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "GLM API Integration",
+      "category": "ai_nlp_processing",
+      "status": "skipped",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0,
+      "evidence": [],
+      "error_message": "GLM API key not provided",
+      "timestamp": "2025-11-18T22:15:45.860286",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Workflow Engine Execution",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.029188871383666992,
+      "evidence": [],
+      "error_message": "Failed to execute workflow: 404",
+      "timestamp": "2025-11-18T22:15:45.889492",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "BYOK Key Management",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.007585048675537109,
+      "evidence": [],
+      "error_message": "BYOK system unhealthy: 404",
+      "timestamp": "2025-11-18T22:15:45.897138",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Real-Time Monitoring System",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.01077580451965332,
+      "evidence": [],
+      "error_message": "Metrics endpoint failed: 404",
+      "timestamp": "2025-11-18T22:15:45.908013",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Project Management Workflow",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.012618064880371094,
+      "evidence": [],
+      "error_message": "Failed to execute project workflow: 404",
+      "timestamp": "2025-11-18T22:15:45.920722",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Content Creation Pipeline",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.010696172714233398,
+      "evidence": [],
+      "error_message": "Failed to execute content workflow: 404",
+      "timestamp": "2025-11-18T22:15:45.931476",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Customer Support Automation",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.010925769805908203,
+      "evidence": [],
+      "error_message": "Failed to execute support workflow: 404",
+      "timestamp": "2025-11-18T22:15:45.942456",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Concurrent Workflows",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.9,
+      "confidence": 0.85,
+      "execution_time": 8.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-18T22:15:45.942518",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Stress Scenarios",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.88,
+      "confidence": 0.8,
+      "execution_time": 10.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-18T22:15:45.942532",
+      "screenshot_path": null
+    }
+  ],
+  "category_breakdown": {
+    "ai_nlp_processing": {
+      "total": 4,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 4,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "core_systems": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "real_world_scenarios": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "performance_testing": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 0.89,
+      "avg_confidence": 0.825
+    }
+  },
+  "gap_analysis": {
+    "gaps": [
+      {
+        "test_name": "OpenAI Integration",
+        "category": "ai_nlp_processing",
+        "reason": "OpenAI API key not provided",
+        "severity": "medium"
+      },
+      {
+        "test_name": "Anthropic Integration",
+        "category": "ai_nlp_processing",
+        "reason": "Anthropic API key not provided",
+        "severity": "medium"
+      },
+      {
+        "test_name": "DeepSeek Integration",
+        "category": "ai_nlp_processing",
+        "reason": "DeepSeek API key not provided",
+        "severity": "medium"
+      },
+      {
+        "test_name": "GLM API Integration",
+        "category": "ai_nlp_processing",
+        "reason": "GLM API key not provided",
+        "severity": "medium"
+      },
+      {
+        "test_name": "Stress Scenarios",
+        "category": "performance_testing",
+        "reason": "Low success rate: 88.0%",
+        "severity": "low"
+      }
+    ],
+    "bugs": [
+      {
+        "test_name": "Workflow Engine Execution",
+        "category": "core_systems",
+        "error": "Failed to execute workflow: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "BYOK Key Management",
+        "category": "core_systems",
+        "error": "BYOK system unhealthy: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Real-Time Monitoring System",
+        "category": "core_systems",
+        "error": "Metrics endpoint failed: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Project Management Workflow",
+        "category": "real_world_scenarios",
+        "error": "Failed to execute project workflow: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Content Creation Pipeline",
+        "category": "real_world_scenarios",
+        "error": "Failed to execute content workflow: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Customer Support Automation",
+        "category": "real_world_scenarios",
+        "error": "Failed to execute support workflow: 404",
+        "severity": "high"
+      }
+    ],
+    "gap_count": 5,
+    "bug_count": 6
+  },
+  "recommendations": [
+    "\ud83c\udfaf NEEDS IMPROVEMENT: Gap of 84.3% to reach 98% target",
+    "\ud83d\udd27 PRIORITY: Focus on fixing failed test cases first",
+    "\ud83d\udd10 CREDENTIALS: Add skipped service integrations for higher validation score"
+  ]
+}

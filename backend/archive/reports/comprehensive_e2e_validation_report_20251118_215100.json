@@ -1,0 +1,485 @@
+{
+  "session_id": "20251118_215100",
+  "timestamp": "2025-11-18T21:51:40.833011",
+  "target_validation_score": 0.98,
+  "actual_validation_score": 0.39249999999999985,
+  "target_achieved": false,
+  "total_tests": 15,
+  "passed_tests": 6,
+  "failed_tests": 9,
+  "skipped_tests": 0,
+  "overall_success_rate": 0.39249999999999985,
+  "confidence_level": 0.36,
+  "test_results": [
+    {
+      "test_name": "OpenAI API Integration",
+      "category": "ai_nlp_processing",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 4.15080189704895,
+      "evidence": [
+        {
+          "provider": "OpenAI",
+          "request": {
+            "model": "gpt-4",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Create a workflow for processing customer support tickets automatically"
+              }
+            ],
+            "max_tokens": 150,
+            "temperature": 0.7
+          },
+          "response": {
+            "id": "chatcmpl-CdSa1hL8atZOhyqHiYvAuPkDjoau3",
+            "object": "chat.completion",
+            "created": 1763520689,
+            "model": "gpt-4-0613",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "1. **Ticket Receipt**: The process starts when a customer submits a ticket through the company's support platform. This could be via email, a form on the website, a live chat, or a phone call transcribed into a ticket.\n\n2. **Ticket Categorization**: An automatic system categorizes the ticket based on the content. The system can use keywords or phrases to determine the category, such as 'billing, 'technical issue,' 'product inquiry' etc.\n\n3. **Ticket Prioritization**: Based on the severity or urgency indicated by the customer or determined from the issue type, the system automatically assigns a priority level to the ticket. \n\n4. **Ticket Assignment**: The system then assigns the ticket to the appropriate customer support representative",
+                  "refusal": null,
+                  "annotations": []
+                },
+                "logprobs": null,
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 16,
+              "completion_tokens": 150,
+              "total_tokens": 166,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "audio_tokens": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 0,
+                "audio_tokens": 0,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "service_tier": "default",
+            "system_fingerprint": null
+          },
+          "status_code": 200,
+          "test_type": "ai_nlp_integration",
+          "timestamp": "2025-11-18T21:51:33.076250"
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-18T21:51:33.076286",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Anthropic API Integration",
+      "category": "ai_nlp_processing",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.11544513702392578,
+      "evidence": [],
+      "error_message": "HTTP 404: {\"type\":\"error\",\"error\":{\"type\":\"not_found_error\",\"message\":\"model: claude-3-sonnet-20240229\"},\"request_id\":\"req_011CVGVMXLg5af5FuDFb3tVD\"}",
+      "timestamp": "2025-11-18T21:51:33.193002",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "DeepSeek API Integration",
+      "category": "ai_nlp_processing",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 6.965381860733032,
+      "evidence": [
+        {
+          "provider": "OpenAI",
+          "request": {
+            "model": "gpt-4",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Create a workflow for processing customer support tickets automatically"
+              }
+            ],
+            "max_tokens": 150,
+            "temperature": 0.7
+          },
+          "response": {
+            "id": "chatcmpl-CdSa1hL8atZOhyqHiYvAuPkDjoau3",
+            "object": "chat.completion",
+            "created": 1763520689,
+            "model": "gpt-4-0613",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "1. **Ticket Receipt**: The process starts when a customer submits a ticket through the company's support platform. This could be via email, a form on the website, a live chat, or a phone call transcribed into a ticket.\n\n2. **Ticket Categorization**: An automatic system categorizes the ticket based on the content. The system can use keywords or phrases to determine the category, such as 'billing, 'technical issue,' 'product inquiry' etc.\n\n3. **Ticket Prioritization**: Based on the severity or urgency indicated by the customer or determined from the issue type, the system automatically assigns a priority level to the ticket. \n\n4. **Ticket Assignment**: The system then assigns the ticket to the appropriate customer support representative",
+                  "refusal": null,
+                  "annotations": []
+                },
+                "logprobs": null,
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 16,
+              "completion_tokens": 150,
+              "total_tokens": 166,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "audio_tokens": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 0,
+                "audio_tokens": 0,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "service_tier": "default",
+            "system_fingerprint": null
+          },
+          "status_code": 200,
+          "test_type": "ai_nlp_integration",
+          "timestamp": "2025-11-18T21:51:33.076250"
+        },
+        {
+          "provider": "DeepSeek",
+          "request": {
+            "model": "deepseek-chat",
+            "messages": [
+              {
+                "role": "system",
+                "content": "You are an AI assistant helping with workflow automation."
+              },
+              {
+                "role": "user",
+                "content": "Generate a cost-effective analysis of this workflow requirement"
+              }
+            ],
+            "max_tokens": 150,
+            "temperature": 0.7
+          },
+          "response": {
+            "id": "cfa9ad16-476c-4b26-903d-243c208a7012",
+            "object": "chat.completion",
+            "created": 1763520693,
+            "model": "deepseek-chat",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "Of course. To perform a cost-effective analysis, I need a specific workflow requirement to analyze.\n\nSince you haven't provided one, I will create a **generic, structured framework** that you can apply to any workflow. I'll use a common business example\u2014**\"Automating the Employee Onboarding Process\"**\u2014to illustrate how the analysis works.\n\n---\n\n### **Cost-Effective Analysis Framework for a Workflow Requirement**\n\n**Workflow Example:** Automating the Employee Onboarding Process (from offer letter to first-day setup).\n\n#### **1. Define the \"As-Is\" (Current State) Costs**\n\nFirst, quantify the cost of the *manual* or current process. This is your baseline.\n\n*   **Labor Costs:**\n"
+                },
+                "logprobs": null,
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 23,
+              "completion_tokens": 150,
+              "total_tokens": 173,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "prompt_cache_hit_tokens": 0,
+              "prompt_cache_miss_tokens": 23
+            },
+            "system_fingerprint": "fp_ffc7281d48_prod0820_fp8_kvcache"
+          },
+          "status_code": 200,
+          "test_type": "ai_nlp_integration",
+          "timestamp": "2025-11-18T21:51:40.158412"
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-18T21:51:40.158442",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "AI NLP Processing",
+      "category": "ai_nlp_processing",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 11.23452091217041,
+      "evidence": [],
+      "error_message": "'ComprehensiveE2ETester' object has no attribute '_test_glm_integration'",
+      "timestamp": "2025-11-18T21:51:40.160032",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Workflow Engine Execution",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.053526878356933594,
+      "evidence": [],
+      "error_message": "Failed to execute workflow: 404",
+      "timestamp": "2025-11-18T21:51:40.213649",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "BYOK Key Management",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.01083993911743164,
+      "evidence": [],
+      "error_message": "BYOK system unhealthy: 404",
+      "timestamp": "2025-11-18T21:51:40.224536",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Real-Time Monitoring System",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.007710933685302734,
+      "evidence": [],
+      "error_message": "Metrics endpoint failed: 404",
+      "timestamp": "2025-11-18T21:51:40.232302",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Slack Integration",
+      "category": "service_integration",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 0.1116628646850586,
+      "evidence": [
+        {
+          "type": "auth_data",
+          "data": {
+            "ok": true,
+            "url": "https://atom-ai-group.slack.com/",
+            "team": "Atom AI",
+            "user": "atom_ai",
+            "team_id": "T09PFB2DT3P",
+            "user_id": "U09P3JQ3J2K",
+            "bot_id": "B09PNK4LK52",
+            "is_enterprise_install": false
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-18T21:51:40.344014",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "GitHub Integration",
+      "category": "service_integration",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 0.30658698081970215,
+      "evidence": [
+        {
+          "type": "user_data",
+          "login": "atomaiassistant-ux"
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-18T21:51:40.651504",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Asana Integration",
+      "category": "service_integration",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.12472987174987793,
+      "evidence": [],
+      "error_message": "Asana auth failed: 401",
+      "timestamp": "2025-11-18T21:51:40.781510",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Project Management Workflow",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0345616340637207,
+      "evidence": [],
+      "error_message": "Failed to execute project workflow: 404",
+      "timestamp": "2025-11-18T21:51:40.816193",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Content Creation Pipeline",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.009967803955078125,
+      "evidence": [],
+      "error_message": "Failed to execute content workflow: 404",
+      "timestamp": "2025-11-18T21:51:40.826213",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Customer Support Automation",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.006610870361328125,
+      "evidence": [],
+      "error_message": "Failed to execute support workflow: 404",
+      "timestamp": "2025-11-18T21:51:40.832880",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Concurrent Workflows",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.9,
+      "confidence": 0.85,
+      "execution_time": 8.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-18T21:51:40.832926",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Stress Scenarios",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.88,
+      "confidence": 0.8,
+      "execution_time": 10.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-18T21:51:40.832937",
+      "screenshot_path": null
+    }
+  ],
+  "category_breakdown": {
+    "ai_nlp_processing": {
+      "total": 4,
+      "passed": 2,
+      "failed": 2,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.925
+    },
+    "core_systems": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "service_integration": {
+      "total": 3,
+      "passed": 2,
+      "failed": 1,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.95
+    },
+    "real_world_scenarios": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "performance_testing": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 0.89,
+      "avg_confidence": 0.825
+    }
+  },
+  "gap_analysis": {
+    "gaps": [
+      {
+        "test_name": "Stress Scenarios",
+        "category": "performance_testing",
+        "reason": "Low success rate: 88.0%",
+        "severity": "low"
+      }
+    ],
+    "bugs": [
+      {
+        "test_name": "Anthropic API Integration",
+        "category": "ai_nlp_processing",
+        "error": "HTTP 404: {\"type\":\"error\",\"error\":{\"type\":\"not_found_error\",\"message\":\"model: claude-3-sonnet-20240229\"},\"request_id\":\"req_011CVGVMXLg5af5FuDFb3tVD\"}",
+        "severity": "high"
+      },
+      {
+        "test_name": "AI NLP Processing",
+        "category": "ai_nlp_processing",
+        "error": "'ComprehensiveE2ETester' object has no attribute '_test_glm_integration'",
+        "severity": "high"
+      },
+      {
+        "test_name": "Workflow Engine Execution",
+        "category": "core_systems",
+        "error": "Failed to execute workflow: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "BYOK Key Management",
+        "category": "core_systems",
+        "error": "BYOK system unhealthy: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Real-Time Monitoring System",
+        "category": "core_systems",
+        "error": "Metrics endpoint failed: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Asana Integration",
+        "category": "service_integration",
+        "error": "Asana auth failed: 401",
+        "severity": "high"
+      },
+      {
+        "test_name": "Project Management Workflow",
+        "category": "real_world_scenarios",
+        "error": "Failed to execute project workflow: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Content Creation Pipeline",
+        "category": "real_world_scenarios",
+        "error": "Failed to execute content workflow: 404",
+        "severity": "high"
+      },
+      {
+        "test_name": "Customer Support Automation",
+        "category": "real_world_scenarios",
+        "error": "Failed to execute support workflow: 404",
+        "severity": "high"
+      }
+    ],
+    "gap_count": 1,
+    "bug_count": 9
+  },
+  "recommendations": [
+    "\ud83c\udfaf NEEDS IMPROVEMENT: Gap of 58.8% to reach 98% target",
+    "\ud83d\udd27 PRIORITY: Focus on fixing failed test cases first"
+  ]
+}

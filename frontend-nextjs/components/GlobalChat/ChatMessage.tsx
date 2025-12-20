@@ -19,9 +19,12 @@ import {
 
 export interface ChatAction {
     type: "execute" | "schedule" | "edit" | "confirm" | "cancel" |
-    "create_event" | "send_email" | "view_inbox" | "view_calendar";
+    "create_event" | "send_email" | "view_inbox" | "view_calendar" |
+    "view_template" | "open_builder";
     label: string;
     workflowId?: string;
+    templateId?: string;
+    workflowData?: any;
     data?: any;
 }
 
@@ -59,6 +62,8 @@ export function ChatMessage({ message, onActionClick }: ChatMessageProps) {
             case 'confirm': return <CheckCircle className="h-3 w-3 mr-1" />;
             case 'cancel': return <XCircle className="h-3 w-3 mr-1" />;
             case 'edit': return <Edit className="h-3 w-3 mr-1" />;
+            case 'view_template': return <Eye className="h-3 w-3 mr-1" />;
+            case 'open_builder': return <Edit className="h-3 w-3 mr-1" />;
             default: return <Settings className="h-3 w-3 mr-1" />;
         }
     };

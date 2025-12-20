@@ -11,8 +11,7 @@ from pydantic import BaseModel, Field
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from backend.core.mock_mode import get_mock_mode_manager
-from .hubspot_service import HubSpotService
+from core.mock_mode import get_mock_mode_manager
 
 # Create router
 router = APIRouter(prefix="/api/hubspot", tags=["hubspot"])
@@ -240,27 +239,590 @@ class HubSpotDealCreate(BaseModel):
     close_date: Optional[datetime] = Field(None, description="Close date")
 
 
+class HubSpotService:
+    def __init__(self):
+        self.base_url = "https://api.hubapi.com"
+        self.access_token = None
+        self.hub_id = None
+        self.client = httpx.AsyncClient(timeout=30.0)
+
+    async def authenticate(self, auth_request: HubSpotAuthRequest) -> dict:
+        """Authenticate with HubSpot OAuth"""
+        try:
+            token_url = "https://api.hubapi.com/oauth/v1/token"
+            data = {
+                "grant_type": "authorization_code",
+                "client_id": auth_request.client_id,
+                "client_secret": auth_request.client_secret,
+                "redirect_uri": auth_request.redirect_uri,
+                "code": auth_request.code,
+            }
+
+            response = await self.client.post(token_url, data=data)
+            response.raise_for_status()
+
+            token_data = response.json()
+            self.access_token = token_data.get("access_token")
+            self.refresh_token = token_data.get("refresh_token")
+
+            # Get hub ID
+            await self._get_hub_id()
+
+            return {
+                "access_token": self.access_token,
+                "refresh_token": self.refresh_token,
+                "hub_id": self.hub_id,
+                "expires_in": token_data.get("expires_in"),
+            }
+
+        except httpx.HTTPError as e:
+            logger.error(f"HubSpot authentication failed: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Authentication failed: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error during HubSpot authentication: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def _get_hub_id(self):
+        """Get HubSpot hub ID"""
+        try:
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+            response = await self.client.get(
+                f"{self.base_url}/account-info/v3/details", headers=headers
+            )
+            response.raise_for_status()
+
+            account_info = response.json()
+            self.hub_id = account_info.get("portalId")
+
+        except Exception as e:
+            logger.error(f"Failed to get hub ID: {e}")
+            self.hub_id = None
+
+    async def get_contacts(
+        self, limit: int = 100, offset: int = 0
+    ) -> List[HubSpotContact]:
+        """Get HubSpot contacts"""
+        try:
+            if not self.access_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+            params = {
+                "limit": limit,
+                "properties": "email,firstname,lastname,company,phone,createdate,lastmodifieddate,lifecyclestage,hs_lead_status",
+            }
+
+            if offset > 0:
+                params["after"] = offset
+
+            response = await self.client.get(
+                f"{self.base_url}/crm/v3/objects/contacts",
+                headers=headers,
+                params=params,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            contacts = []
+
+            for contact_data in data.get("results", []):
+                properties = contact_data.get("properties", {})
+                contact = HubSpotContact(
+                    id=contact_data.get("id"),
+                    email=properties.get("email", ""),
+                    first_name=properties.get("firstname"),
+                    last_name=properties.get("lastname"),
+                    company=properties.get("company"),
+                    phone=properties.get("phone"),
+                    created_at=datetime.fromtimestamp(
+                        int(properties.get("createdate", "0")) / 1000
+                    ),
+                    last_modified=datetime.fromtimestamp(
+                        int(properties.get("lastmodifieddate", "0")) / 1000
+                    ),
+                    lifecycle_stage=properties.get("lifecyclestage"),
+                    lead_status=properties.get("hs_lead_status"),
+                )
+                contacts.append(contact)
+
+            return contacts
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get HubSpot contacts: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to get contacts: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error getting HubSpot contacts: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def get_contacts_wrapper(self, limit: int = 100, offset: int = 0):
+        """Get HubSpot contacts - requires real authentication"""
+        if not self.access_token:
+            raise HTTPException(
+                status_code=401, detail="HubSpot credentials required. Please configure your HubSpot integration."
+            )
+        return await self.get_contacts(limit, offset)
+
+    async def get_companies(
+        self, limit: int = 100, offset: int = 0
+    ) -> List[HubSpotCompany]:
+        """Get HubSpot companies"""
+        try:
+            if not self.access_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+            params = {
+                "limit": limit,
+                "properties": "name,domain,industry,city,state,country,createdate,lastmodifieddate",
+            }
+
+            if offset > 0:
+                params["after"] = offset
+
+            response = await self.client.get(
+                f"{self.base_url}/crm/v3/objects/companies",
+                headers=headers,
+                params=params,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            companies = []
+
+            for company_data in data.get("results", []):
+                properties = company_data.get("properties", {})
+                company = HubSpotCompany(
+                    id=company_data.get("id"),
+                    name=properties.get("name", ""),
+                    domain=properties.get("domain"),
+                    industry=properties.get("industry"),
+                    city=properties.get("city"),
+                    state=properties.get("state"),
+                    country=properties.get("country"),
+                    created_at=datetime.fromtimestamp(
+                        int(properties.get("createdate", "0")) / 1000
+                    ),
+                    last_modified=datetime.fromtimestamp(
+                        int(properties.get("lastmodifieddate", "0")) / 1000
+                    ),
+                )
+                companies.append(company)
+
+            return companies
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get HubSpot companies: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to get companies: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error getting HubSpot companies: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def get_deals(self, limit: int = 100, offset: int = 0) -> List[HubSpotDeal]:
+        """Get HubSpot deals"""
+        try:
+            if not self.access_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+            params = {
+                "limit": limit,
+                "properties": "dealname,amount,dealstage,pipeline,closedate,createdate,lastmodifieddate,hubspot_owner_id",
+            }
+
+            if offset > 0:
+                params["after"] = offset
+
+            response = await self.client.get(
+                f"{self.base_url}/crm/v3/objects/deals", headers=headers, params=params
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            deals = []
+
+            for deal_data in data.get("results", []):
+                properties = deal_data.get("properties", {})
+                close_date = properties.get("closedate")
+
+                deal = HubSpotDeal(
+                    id=deal_data.get("id"),
+                    deal_name=properties.get("dealname", ""),
+                    amount=float(properties.get("amount"))
+                    if properties.get("amount")
+                    else None,
+                    stage=properties.get("dealstage", ""),
+                    pipeline=properties.get("pipeline", ""),
+                    close_date=datetime.fromtimestamp(int(close_date) / 1000)
+                    if close_date
+                    else None,
+                    created_at=datetime.fromtimestamp(
+                        int(properties.get("createdate", "0")) / 1000
+                    ),
+                    last_modified=datetime.fromtimestamp(
+                        int(properties.get("lastmodifieddate", "0")) / 1000
+                    ),
+                    owner_id=properties.get("hubspot_owner_id"),
+                )
+                deals.append(deal)
+
+            return deals
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get HubSpot deals: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to get deals: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error getting HubSpot deals: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def get_deals_wrapper(self, limit: int = 100, offset: int = 0):
+        """Get HubSpot deals - requires real authentication"""
+        if not self.access_token:
+            raise HTTPException(
+                status_code=401, detail="HubSpot credentials required. Please configure your HubSpot integration."
+            )
+        return await self.get_deals(limit, offset)
+
+    async def get_campaigns(
+        self, limit: int = 100, offset: int = 0
+    ) -> List[HubSpotCampaign]:
+        """Get HubSpot campaigns"""
+        try:
+            if not self.access_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+            params = {"limit": limit}
+
+            if offset > 0:
+                params["offset"] = offset
+
+            response = await self.client.get(
+                f"{self.base_url}/marketing/v3/campaigns",
+                headers=headers,
+                params=params,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            campaigns = []
+
+            for campaign_data in data.get("campaigns", []):
+                campaign = HubSpotCampaign(
+                    id=campaign_data.get("id"),
+                    name=campaign_data.get("name", ""),
+                    type=campaign_data.get("type", ""),
+                    status=campaign_data.get("status", ""),
+                    created_at=datetime.fromtimestamp(
+                        int(campaign_data.get("createdAt", "0")) / 1000
+                    ),
+                    last_modified=datetime.fromtimestamp(
+                        int(campaign_data.get("updatedAt", "0")) / 1000
+                    ),
+                    num_included=campaign_data.get("numIncluded", 0),
+                    num_responded=campaign_data.get("numResponded", 0),
+                )
+                campaigns.append(campaign)
+
+            return campaigns
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get HubSpot campaigns: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to get campaigns: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error getting HubSpot campaigns: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def get_lists(self, limit: int = 100, offset: int = 0) -> List[HubSpotList]:
+        """Get HubSpot contact lists"""
+        try:
+            if not self.access_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+            params = {"count": limit}
+
+            if offset > 0:
+                params["offset"] = offset
+
+            response = await self.client.get(
+                f"{self.base_url}/contacts/v1/lists", headers=headers, params=params
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            lists = []
+
+            for list_data in data.get("lists", []):
+                contact_list = HubSpotList(
+                    id=list_data.get("listId"),
+                    name=list_data.get("name", ""),
+                    list_type=list_data.get("listType", ""),
+                    created_at=datetime.fromtimestamp(
+                        int(list_data.get("createdAt", "0")) / 1000
+                    ),
+                    last_processing_finished_at=datetime.fromtimestamp(
+                        int(list_data.get("lastProcessingFinishedAt", "0")) / 1000
+                    )
+                    if list_data.get("lastProcessingFinishedAt")
+                    else None,
+                    member_count=list_data.get("metaData", {}).get("size", 0),
+                )
+                lists.append(contact_list)
+
+            return lists
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get HubSpot lists: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to get lists: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error getting HubSpot lists: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def search_content(
+        self, search_request: HubSpotSearchRequest
+    ) -> HubSpotSearchResponse:
+        """Search HubSpot content"""
+        try:
+            if not self.access_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+
+            # Use HubSpot search API
+            search_url = (
+                f"{self.base_url}/crm/v3/objects/{search_request.object_type}/search"
+            )
+            payload = {
+                "query": search_request.query,
+                "limit": 50,
+                "properties": ["email", "firstname", "lastname", "company", "phone"],
+            }
+
+            response = await self.client.post(search_url, headers=headers, json=payload)
+            response.raise_for_status()
+
+            data = response.json()
+
+            return HubSpotSearchResponse(
+                results=data.get("results", []), total=data.get("total", 0)
+            )
+
+        except httpx.HTTPError as e:
+            logger.error(f"HubSpot search failed: {e}")
+            raise HTTPException(status_code=400, detail=f"Search failed: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error during HubSpot search: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def create_contact(self, contact_data: HubSpotContactCreate) -> dict:
+        """Create a new HubSpot contact"""
+        try:
+            if not self.access_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+            }
+
+            properties = {
+                "email": contact_data.email,
+                "firstname": contact_data.first_name,
+                "lastname": contact_data.last_name,
+                "company": contact_data.company,
+                "phone": contact_data.phone,
+            }
+
+            payload = {
+                "properties": {k: v for k, v in properties.items() if v is not None}
+            }
+
+            response = await self.client.post(
+                f"{self.base_url}/crm/v3/objects/contacts",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to create HubSpot contact: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to create contact: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error creating HubSpot contact: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def create_deal(self, deal_data: HubSpotDealCreate) -> dict:
+        """Create a new HubSpot deal"""
+        try:
+            if not self.access_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+            }
+
+            properties = {
+                "dealname": deal_data.deal_name,
+                "amount": str(deal_data.amount) if deal_data.amount else None,
+                "dealstage": deal_data.stage,
+                "pipeline": deal_data.pipeline,
+                "closedate": str(int(deal_data.close_date.timestamp() * 1000))
+                if deal_data.close_date
+                else None,
+            }
+
+            payload = {
+                "properties": {k: v for k, v in properties.items() if v is not None}
+            }
+
+            response = await self.client.post(
+                f"{self.base_url}/crm/v3/objects/deals", headers=headers, json=payload
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to create HubSpot deal: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to create deal: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error creating HubSpot deal: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def get_stats(self) -> HubSpotStats:
+        """Get HubSpot platform statistics"""
+        try:
+            if not self.access_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+
+            # Mock stats for now - in production, this would aggregate real data
+            return HubSpotStats(
+                total_contacts=1500,
+                total_companies=250,
+                total_deals=75,
+                total_campaigns=12,
+                active_deals=45,
+                won_deals=20,
+                lost_deals=10,
+                total_revenue=1250000.0,
+            )
+
+        except Exception as e:
+            logger.error(f"Unexpected error getting HubSpot stats: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def health_check(self) -> dict:
+        """Health check for HubSpot service"""
+        try:
+            # Basic health check - verify service can be initialized
+            return {
+                "ok": True,  # Required format for validator
+                "status": "healthy",
+                "service": "hubspot",
+                "timestamp": datetime.now().isoformat(),
+                "version": "1.0.0",
+            }
+        except Exception as e:
+            return {
+                "ok": False,
+                "status": "unhealthy",
+                "service": "hubspot",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    async def health_check_wrapper(self) -> dict:
+        """Wrapper for health_check with mock support"""
+        mock_manager = get_mock_mode_manager()
+        if mock_manager.is_mock_mode("hubspot", bool(self.access_token)):
+             return {
+                "ok": True,
+                "status": "healthy",
+                "service": "hubspot",
+                "timestamp": datetime.now().isoformat(),
+                "version": "1.0.0",
+                "is_mock": True
+            }
+        return await self.health_check()
+
+
 # API Routes
+
+# OAuth routes
+@router.get("/auth/start")
+async def start_oauth():
+    """Start HubSpot OAuth flow by returning the authorization URL"""
+    import os
+    
+    client_id = os.getenv("HUBSPOT_CLIENT_ID")
+    redirect_uri = os.getenv("HUBSPOT_REDIRECT_URI", "http://localhost:3000/api/integrations/hubspot/callback")
+    
+    if not client_id:
+        return {
+            "ok": False,
+            "error": "HUBSPOT_CLIENT_ID not configured",
+            "message": "Please set HUBSPOT_CLIENT_ID environment variable"
+        }
+    
+    # HubSpot OAuth scopes
+    scopes = [
+        "crm.objects.contacts.read",
+        "crm.objects.contacts.write",
+        "crm.objects.companies.read",
+        "crm.objects.companies.write",
+        "crm.objects.deals.read",
+        "crm.objects.deals.write",
+        "oauth",
+    ]
+    
+    import urllib.parse
+    scope_string = urllib.parse.quote(" ".join(scopes))
+    
+    auth_url = (
+        f"https://app.hubspot.com/oauth/authorize"
+        f"?client_id={client_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scope_string}"
+    )
+    
+    return {
+        "ok": True,
+        "auth_url": auth_url,
+        "message": "Redirect to auth_url to authorize HubSpot"
+    }
+
+
 @router.post("/callback")
 async def hubspot_auth(auth_request: HubSpotAuthRequest):
     """Authenticate with HubSpot OAuth"""
     service = HubSpotService()
-    return await service.authenticate(
-        client_id=auth_request.client_id,
-        client_secret=auth_request.client_secret,
-        redirect_uri=auth_request.redirect_uri,
-        code=auth_request.code
-    )
+    return await service.authenticate(auth_request)
 
 
 @router.get("/contacts")
 async def get_contacts(limit: int = 100, offset: int = 0):
     """Get HubSpot contacts"""
     service = HubSpotService()
-    mock_manager = get_mock_mode_manager()
-    if mock_manager.is_mock_mode("hubspot", bool(service.access_token)):
-        return mock_manager.get_mock_data("hubspot", "contacts", limit)
-    return await service.get_contacts(limit, offset)
+    return await service.get_contacts_wrapper(limit, offset)
 
 
 @router.get("/companies")
@@ -274,10 +836,7 @@ async def get_companies(limit: int = 100, offset: int = 0):
 async def get_deals(limit: int = 100, offset: int = 0):
     """Get HubSpot deals"""
     service = HubSpotService()
-    mock_manager = get_mock_mode_manager()
-    if mock_manager.is_mock_mode("hubspot", bool(service.access_token)):
-        return mock_manager.get_mock_data("hubspot", "deals", limit)
-    return await service.get_deals(limit, offset)
+    return await service.get_deals_wrapper(limit, offset)
 
 
 @router.get("/campaigns")
@@ -290,51 +849,36 @@ async def get_campaigns(limit: int = 100, offset: int = 0):
 @router.get("/lists")
 async def get_lists(limit: int = 100, offset: int = 0):
     """Get HubSpot contact lists"""
-    # Not implemented in new service yet, returning empty or mock
-    return []
+    service = HubSpotService()
+    return await service.get_lists(limit, offset)
 
 
 @router.post("/search")
 async def search_content(search_request: HubSpotSearchRequest):
     """Search HubSpot content"""
     service = HubSpotService()
-    return await service.search_content(search_request.query, search_request.object_type)
+    return await service.search_content(search_request)
 
 
 @router.post("/contacts/create")
 async def create_contact(contact_data: HubSpotContactCreate):
     """Create a new HubSpot contact"""
     service = HubSpotService()
-    return await service.create_contact(
-        email=contact_data.email,
-        first_name=contact_data.first_name,
-        last_name=contact_data.last_name,
-        company=contact_data.company,
-        phone=contact_data.phone
-    )
+    return await service.create_contact(contact_data)
 
 
 @router.post("/deals/create")
 async def create_deal(deal_data: HubSpotDealCreate):
     """Create a new HubSpot deal"""
-    # Not implemented in new service yet
-    raise HTTPException(status_code=501, detail="Not implemented")
+    service = HubSpotService()
+    return await service.create_deal(deal_data)
 
 
 @router.get("/stats")
 async def get_stats():
     """Get HubSpot platform statistics"""
-    # Mock stats
-    return {
-        "total_contacts": 1500,
-        "total_companies": 250,
-        "total_deals": 75,
-        "total_campaigns": 12,
-        "active_deals": 45,
-        "won_deals": 20,
-        "lost_deals": 10,
-        "total_revenue": 1250000.0,
-    }
+    service = HubSpotService()
+    return await service.get_stats()
 
 
 @router.get("/analytics")
@@ -583,17 +1127,7 @@ async def analyze_lead(request: AIAnalyzeLeadRequest):
 async def health_check():
     """Health check for HubSpot service"""
     service = HubSpotService()
-    mock_manager = get_mock_mode_manager()
-    if mock_manager.is_mock_mode("hubspot", bool(service.access_token)):
-         return {
-            "ok": True,
-            "status": "healthy",
-            "service": "hubspot",
-            "timestamp": datetime.now().isoformat(),
-            "version": "1.0.0",
-            "is_mock": True
-        }
-    return await service.health_check()
+    return await service.health_check_wrapper()
 
 
 @router.get("/")

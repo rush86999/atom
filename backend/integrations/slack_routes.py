@@ -4,12 +4,13 @@ Complete Slack integration with comprehensive API endpoints using FastAPI
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import os
+import secrets
 from fastapi import Request
 from core.oauth_handler import OAuthHandler, SLACK_OAUTH_CONFIG
 from core.token_storage import token_storage
@@ -150,13 +151,19 @@ async def slack_search(request: SlackSearchRequest):
         }
         for i in range(1, request.max_results + 1)
     ]
+    # Ingest search results to memory
+    for result in results:
+        try:
+            atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, result)
+        except:
+            pass
 
     return SlackSearchResponse(
         ok=True,
         query=request.query,
-        results=mock_results,
-        total_results=len(mock_results),
-        timestamp=datetime.now().isoformat(),
+        results=results,
+        total_results=len(results),
+        timestamp=datetime.now(timezone.utc).isoformat(),
     )
 
 
@@ -232,7 +239,7 @@ async def get_conversation_history(
     """Get conversation history for a channel"""
     logger.info(f"Getting conversation history for channel: {channel}")
 
-    mock_messages = [
+    messages = [
         {
             "id": f"msg_{i}",
             "user": f"user_{i}",
@@ -243,13 +250,16 @@ async def get_conversation_history(
         for i in range(1, limit + 1)
     ]
 
-    return {
-        "ok": True,
-        "channel": channel,
-        "messages": mock_messages,
-        "total_messages": len(mock_messages),
-        "timestamp": datetime.now().isoformat(),
-    }
+    # Ingest history to memory
+    for msg in messages:
+        try:
+            # Add channel info to message for better context in memory
+            msg_with_context = {**msg, "channel": channel}
+            atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, msg_with_context)
+        except:
+            pass
+
+    return {"ok": True, "messages": messages}
 
 
 @router.post("/reactions/add")
@@ -295,7 +305,16 @@ async def slack_oauth_callback(request: Request):
 @router.get("/auth/url")
 async def get_auth_url():
     """Get Slack OAuth URL"""
-    return {
-        "url": "https://slack.com/oauth/v2/authorize?client_id=INSERT_CLIENT_ID&scope=chat:write,channels:read,users:read&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fslack%2Fcallback",
-        "timestamp": datetime.now().isoformat()
-    }
+    try:
+        handler = OAuthHandler(SLACK_OAUTH_CONFIG)
+        # Using a default state if not provided, though typically frontend should generate it
+        auth_url = handler.get_authorization_url(state="slack_init")
+        
+        return {
+            "url": auth_url,
+            "service": "slack",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error generating Slack auth URL: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
