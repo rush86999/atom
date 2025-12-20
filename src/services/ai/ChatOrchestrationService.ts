@@ -58,6 +58,7 @@ export class ChatOrchestrationService extends EventEmitter {
   private conversationalOrchestration: ConversationalOrchestration;
   private activeProcesses: Map<string, MultiStepProcess>;
   private chatContexts: Map<string, ChatContext>;
+  private apiBaseUrl = '/api';
 
   constructor() {
     super();

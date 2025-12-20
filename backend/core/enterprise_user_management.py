@@ -8,7 +8,16 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
+
+# Make EmailStr optional to avoid email-validator dependency
+try:
+    from pydantic import EmailStr
+    EMAIL_VALIDATION_AVAILABLE = True
+except ImportError:
+    EMAIL_VALIDATION_AVAILABLE = False
+    EmailStr = str  # Fallback to regular string
+
 import logging
 
 from core.database import get_db
@@ -41,7 +50,7 @@ class TeamUpdate(BaseModel):
     description: Optional[str] = None
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str  # Using str instead of EmailStr to avoid email-validator dependency
     password: str
     first_name: str
     last_name: str

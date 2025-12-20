@@ -13,6 +13,15 @@ const publicRoutes = [
 // Define API routes that don't require authentication
 const publicApiRoutes = [
   '/api/auth',
+  '/api/health',
+  '/api/hubspot/oauth/start',
+  '/api/integrations/hubspot/callback',
+  '/api/integrations/zoom/auth/start',
+  '/api/integrations/zoom/callback',
+  '/api/integrations/salesforce/auth/start',
+  '/api/integrations/salesforce/callback',
+  '/api/integrations/slack/auth/start',
+  '/api/integrations/slack/callback',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -33,15 +42,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Bypass for E2E Tests
-  if (request.cookies.get('test-mode-bypass')) {
-    return NextResponse.next();
-  }
-
   // Get the token from the request
   const token = await getToken({
     req: request,
-    secret: process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production',
+    secret: process.env.NEXTAUTH_SECRET,
   });
 
   // If there's no token and the route is not public, redirect to sign in

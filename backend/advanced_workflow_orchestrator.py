@@ -35,6 +35,16 @@ class WorkflowStepType(Enum):
     DELAY = "delay"
     APPROVAL_REQUIRED = "approval_required"
     MICROSOFT_365 = "microsoft_365"
+    NOTION_INTEGRATION = "notion_integration"
+    GMAIL_FETCH = "gmail_fetch"
+    GMAIL_INTEGRATION = "gmail_integration"
+    GMAIL_SEARCH = "gmail_search"
+    NOTION_SEARCH = "notion_search"
+    NOTION_DB_QUERY = "notion_db_query"
+    APP_SEARCH = "app_search"
+    HUBSPOT_INTEGRATION = "hubspot_integration"
+    SALESFORCE_INTEGRATION = "salesforce_integration"
+    UNIVERSAL_INTEGRATION = "universal_integration"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""

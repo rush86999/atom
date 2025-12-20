@@ -37,7 +37,7 @@ export const TriggerNode = memo(({ data, isConnectable }: any) => {
 
 export const ActionNode = memo(({ data, isConnectable }: any) => {
     // Service branding map
-    const serviceBranding: Record<string, { color: string; bgColor: string }> = {
+    const serviceBranding: Record<string, { color: string; bgColor: string; icon?: React.ReactNode }> = {
         'Slack': { color: 'border-l-[#4A154B]', bgColor: 'bg-purple-50' },
         'Gmail': { color: 'border-l-red-500', bgColor: 'bg-red-50' },
         'Google Drive': { color: 'border-l-yellow-500', bgColor: 'bg-yellow-50' },
@@ -45,6 +45,14 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
         'Notion': { color: 'border-l-black', bgColor: 'bg-gray-50' },
         'Asana': { color: 'border-l-pink-500', bgColor: 'bg-pink-50' },
         'Trello': { color: 'border-l-blue-500', bgColor: 'bg-blue-50' },
+        'HubSpot': { color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+        'Salesforce': { color: 'border-l-blue-600', bgColor: 'bg-blue-50' },
+        'Discord': { color: 'border-l-indigo-500', bgColor: 'bg-indigo-50' },
+        'Stripe': { color: 'border-l-purple-500', bgColor: 'bg-purple-50' },
+        'Jira': { color: 'border-l-blue-700', bgColor: 'bg-blue-50' },
+        'Zendesk': { color: 'border-l-green-800', bgColor: 'bg-green-50' },
+        'Figma': { color: 'border-l-purple-500', bgColor: 'bg-purple-50' },
+        'Twilio': { color: 'border-l-red-600', bgColor: 'bg-red-50' },
     };
     const branding = serviceBranding[data.service] || { color: 'border-l-green-500', bgColor: '' };
 
@@ -62,7 +70,7 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
                         <Play className="w-4 h-4 text-green-500" />
                         <CardTitle className="text-sm font-bold">{data.service || 'Action'}</CardTitle>
                     </div>
-                    {data.waitForInput && <PauseCircle className="w-4 h-4 text-amber-500" title="Waits for Input" />}
+                    {data.waitForInput && <PauseCircle className="w-4 h-4 text-amber-500" />}
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">

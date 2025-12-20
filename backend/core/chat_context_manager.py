@@ -126,8 +126,47 @@ class ChatContextManager:
         """
         Get a text summary of recent context to feed into the LLM.
         """
-        # This could be used to prepend to the system prompt
-        return ""
+        from core.lancedb_handler import get_chat_history_manager
+        chat_history = get_chat_history_manager()
+        messages = chat_history.get_session_history(session_id, limit=limit)
+        if not messages:
+            return ""
+
+        # Format messages as conversation
+        formatted = []
+        for msg in messages:
+            role = msg.get("role", "unknown")
+            content = msg.get("text", "")
+            # Truncate long content
+            if len(content) > 200:
+                content = content[:197] + "..."
+            formatted.append(f"{role.capitalize()}: {content}")
+
+        return "\n".join(formatted)
+
+    async def store_workflow_context(self, session_id: str, user_id: str, workflow_id: str, workflow_name: str, execution_id: str = None, status: str = "started") -> bool:
+        """
+        Store workflow execution context in chat memory.
+        """
+        from core.lancedb_handler import get_chat_history_manager
+        chat_history = get_chat_history_manager()
+        content = f"Workflow '{workflow_name}' ({workflow_id}) {status}."
+        if execution_id:
+            content += f" Execution ID: {execution_id}"
+        metadata = {
+            "workflow_id": workflow_id,
+            "workflow_name": workflow_name,
+            "execution_id": execution_id,
+            "status": status,
+            "type": "workflow_execution"
+        }
+        return chat_history.save_message(
+            session_id=session_id,
+            user_id=user_id,
+            role="system",
+            content=content,
+            metadata=metadata
+        )
 
 # Global instance - to be created in lancedb_handler.py after lancedb_handler is initialized
 chat_context_manager = None
