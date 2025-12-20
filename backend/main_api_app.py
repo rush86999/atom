@@ -139,6 +139,13 @@ try:
     except ImportError:
         logger.warning("Workflow UI endpoints not found, skipping.")
 
+    # 4. Auth Routes (Standard Login)
+    try:
+        from core.auth_endpoints import router as auth_router
+        app.include_router(auth_router)  # Already has prefix="/api/auth"
+    except ImportError:
+        logger.warning("Auth endpoints not found, skipping.")
+
     # 4. Microsoft 365 Integration
     try:
         from integrations.microsoft365_routes import microsoft365_router

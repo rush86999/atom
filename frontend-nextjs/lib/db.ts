@@ -14,11 +14,27 @@ let pool: Pool;
 if (process.env.NODE_ENV === 'production') {
     pool = new Pool(poolConfig);
 } else {
-    // Check if a pool already exists on the global object
-    if (!(global as any).postgresPool) {
-        (global as any).postgresPool = new Pool(poolConfig);
+    // Graceful handling for development without DATABASE_URL
+    if (!poolConfig.connectionString) {
+        console.warn('⚠️  WARNING: DATABASE_URL is not set. Database features will not work.');
+        // Create a mock pool to prevent crashes on import
+        pool = {
+            query: async () => {
+                console.error('❌  Cannot execute query: Database not connected (missing DATABASE_URL)');
+                throw new Error('Database not connected');
+            },
+            on: () => { },
+            connect: async () => {
+                throw new Error('Database not connected');
+            }
+        } as any;
+    } else {
+        // Check if a pool already exists on the global object
+        if (!(global as any).postgresPool) {
+            (global as any).postgresPool = new Pool(poolConfig);
+        }
+        pool = (global as any).postgresPool;
     }
-    pool = (global as any).postgresPool;
 }
 
 export const query = async (text: string, params?: any[]) => {
