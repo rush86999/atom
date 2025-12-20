@@ -45,7 +45,7 @@ export async function middleware(request: NextRequest) {
   // Get the token from the request
   const token = await getToken({
     req: request,
-    secret: process.env.NEXTAUTH_SECRET,
+    secret: process.env.NEXTAUTH_SECRET || "development-fallback-secret-123",
   });
 
   // If there's no token and the route is not public, redirect to sign in
