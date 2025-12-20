@@ -26,10 +26,11 @@ Atom is your conversational AI agent that automates complex workflows through na
 
 **Key Features:**
 - ✅ **Computer Use Agent System** - Desktop automation with visual understanding
+- ✅ **AI Sales & CRM Automation** - Lead scoring, deal health, & Order-to-Cash bridge
 - ✅ **Advanced Workflow Search** - Deep search across Gmail, Notion, and App Memory (LanceDB)
 - ✅ **AI-Powered Condition Nodes** - Branching logic driven by natural language analysis
 - ✅ **8/8 marketing claims verified** - Platform Complete
-- ✅ **33+ service integrations** - 5 actively connected (Slack, Google Calendar, Salesforce, HubSpot, Discord)
+- ✅ **33+ service integrations** - 7 actively connected (Slack, Google Calendar, Salesforce, HubSpot, Discord, Zoho CRM, Zoho Books)
 - ✅ **Natural language workflow creation** - Just describe what you want
 - ✅ **Cross-platform coordination** - Works across all your tools
 - ✅ **Production-ready architecture** - FastAPI backend, Next.js frontend
@@ -116,6 +117,9 @@ Open `http://localhost:3000` and try these commands:
 **"Open Excel and create a sales report"**
 **"Copy data from my desktop app to Google Sheets"**
 **"Automate filling out this form on my screen"**
+**"Who are my top leads to follow up on?"**
+**"Which deals in my pipeline are at risk?"**
+**"Summarize my last sales call with GrowthCorp"**
 
 ## 🔍 Specialized Interfaces
 
@@ -152,6 +156,12 @@ Open `http://localhost:3000` and try these commands:
 - Unified calendar view
 - Smart scheduling and conflict detection
 - Meeting coordination
+
+### 🚀 AI Sales & CRM
+- **Lead IQ** - Automated lead scoring and qualification
+- **Deal Health** - AI analysis of pipeline risk and health
+- **Talk-to-Task** - Call transcriptions to automated action items
+- **Order-to-Cash Bridge** - Automated invoicing upon winning deals
 
 ## 🛠️ Architecture
 

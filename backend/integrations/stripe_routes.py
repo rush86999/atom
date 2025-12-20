@@ -9,6 +9,10 @@ from typing import Any, Dict, List, Optional
 
 import stripe
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
+from sqlalchemy.orm import Session
+from core.database import get_db
+from core.automation_settings import get_automation_settings
+from accounting.ingestion import TransactionIngestor
 
 # Import Stripe services
 try:
@@ -46,49 +50,63 @@ class StripeServiceMock:
         self.api_key = "mock_api_key"
 
 # Webhook event handlers
-async def handle_payment_success(payment_intent):
+async def handle_payment_success(payment_intent, db: Session):
     """Handle successful payment webhook"""
     logging.info(f"Payment succeeded: {payment_intent.get('id')}")
-    # Add business logic here: update database, send notifications, etc.
+    
+    # Ingest into Accounting Ledger
+    try:
+        if get_automation_settings().is_accounting_enabled():
+            # We need a workspace_id. In a real app, this comes from the Stripe account metadata
+            # or a mapping table. For now, we'll use a placeholder or look it up.
+            workspace_id = payment_intent.get("metadata", {}).get("workspace_id", "default-workspace")
+            ingestor = TransactionIngestor(db)
+            await ingestor.ingest_stripe_payment(workspace_id, payment_intent)
+            logging.info(f"Ingested Stripe payment {payment_intent.get('id')} into ledger")
+        else:
+            logging.info(f"Skipping accounting ingestion for {payment_intent.get('id')} (Accounting disabled)")
+    except Exception as e:
+        logging.error(f"Failed to ingest Stripe payment: {e}")
+
     return {"status": "processed", "payment_id": payment_intent.get("id")}
 
 
-async def handle_payment_failure(payment_intent):
+async def handle_payment_failure(payment_intent, db: Session):
     """Handle failed payment webhook"""
     logging.warning(f"Payment failed: {payment_intent.get('id')}")
     # Add business logic here: notify customer, update records, etc.
     return {"status": "failed", "payment_id": payment_intent.get("id")}
 
 
-async def handle_subscription_created(subscription):
+async def handle_subscription_created(subscription, db: Session):
     """Handle new subscription webhook"""
     logging.info(f"Subscription created: {subscription.get('id')}")
     # Add business logic here: update customer records, send welcome email, etc.
     return {"status": "created", "subscription_id": subscription.get("id")}
 
 
-async def handle_subscription_updated(subscription):
+async def handle_subscription_updated(subscription, db: Session):
     """Handle subscription update webhook"""
     logging.info(f"Subscription updated: {subscription.get('id')}")
     # Add business logic here: update billing records, notify customer, etc.
     return {"status": "updated", "subscription_id": subscription.get("id")}
 
 
-async def handle_subscription_deleted(subscription):
+async def handle_subscription_deleted(subscription, db: Session):
     """Handle subscription cancellation webhook"""
     logging.info(f"Subscription deleted: {subscription.get('id')}")
     # Add business logic here: update customer status, send cancellation email, etc.
     return {"status": "deleted", "subscription_id": subscription.get("id")}
 
 
-async def handle_invoice_payment_succeeded(invoice):
+async def handle_invoice_payment_succeeded(invoice, db: Session):
     """Handle successful invoice payment webhook"""
     logging.info(f"Invoice payment succeeded: {invoice.get('id')}")
     # Add business logic here: update accounting records, send receipt, etc.
     return {"status": "paid", "invoice_id": invoice.get("id")}
 
 
-async def handle_invoice_payment_failed(invoice):
+async def handle_invoice_payment_failed(invoice, db: Session):
     """Handle failed invoice payment webhook"""
     logging.warning(f"Invoice payment failed: {invoice.get('id')}")
     # Add business logic here: notify customer, update billing status, etc.
@@ -461,7 +479,9 @@ async def get_stripe_account(
 # Error handlers
 @router.post("/webhooks")
 async def handle_stripe_webhook(
-    request: Request, stripe_signature: str = Header(None, alias="Stripe-Signature")
+    request: Request, 
+    stripe_signature: str = Header(None, alias="Stripe-Signature"),
+    db: Session = Depends(get_db)
 ):
     """Handle Stripe webhook events"""
     if not STRIPE_AVAILABLE:
@@ -498,7 +518,7 @@ async def handle_stripe_webhook(
 
         handler = handlers.get(event_type)
         if handler:
-            result = await handler(event_data)
+            result = await handler(event_data, db)
             return {
                 "status": "success",
                 "event_type": event_type,

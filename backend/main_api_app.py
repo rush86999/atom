@@ -137,6 +137,7 @@ integrations = [
     # Integrations - CRM & Support
     ("integrations.salesforce_routes", "router", None),
     ("integrations.hubspot_routes", "router", None),
+    ("sales.routes", "router", None),
     ("integrations.zendesk_routes", "router", None),
     ("integrations.freshdesk_routes", "router", None),
     ("integrations.intercom_routes", "router", None),
@@ -147,6 +148,7 @@ integrations = [
     ("integrations.xero_routes", "router", None),
     ("integrations.quickbooks_routes", "router", None),
     ("integrations.plaid_routes", "router", None),
+    ("accounting.routes", "router", None),
     ("api.financial_routes", "router", None),
 
     # LUX Computer Use and Automation - Moved to Frontend

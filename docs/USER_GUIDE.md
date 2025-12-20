@@ -107,6 +107,25 @@ Atom is your intelligent personal assistant that helps you manage your entire li
 - Spending patterns and trends
 - Savings goals tracking
 - Investment portfolio overview
+### 🚀 Sales & CRM Intelligence
+
+**Lead Qualification & Intake**
+- Automatically ingest leads from Zoho CRM, HubSpot, and Salesforce
+- AI-powered lead scoring based on firmographics and behavior
+- Intelligent spam and competitor filtering
+- Natural language queries like "Show me my top leads this week"
+
+**Deal Health & Pipeline Analytics**
+- Real-time health scoring for every deal in your pipeline
+- Automated risk detection for stalled or inactive deals
+- Weighted forecasting based on deal value and health scores
+- "High-Risk Deal" alerts to focus your attention where it matters most
+
+**Call & Meeting Automation**
+- "Talk-to-Task" conversion: Summaries and action items extracted from transcripts
+- Automatic creation of follow-up tasks linked to deals
+- Objection tracking: Summaries of red flags and concerns raised in meetings
+- Semantic search across all historical sales calls and transcripts
 
 ## Advanced Features
 

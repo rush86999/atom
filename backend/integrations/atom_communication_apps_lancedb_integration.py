@@ -207,6 +207,36 @@ class CommunicationAppIngestionIntegration:
                 embed_content=True,
                 retention_days=365,
                 vector_dim=768
+            ),
+            "zoho": IngestionConfig(
+                app_type=CommunicationAppType.ZOHO,
+                enabled=True,
+                real_time=False,
+                batch_size=50,
+                ingest_attachments=True,
+                embed_content=True,
+                retention_days=365,
+                vector_dim=768
+            ),
+            "xero": IngestionConfig(
+                app_type=CommunicationAppType.XERO,
+                enabled=True,
+                real_time=False,
+                batch_size=50,
+                ingest_attachments=True,
+                embed_content=True,
+                retention_days=365,
+                vector_dim=768
+            ),
+            "quickbooks": IngestionConfig(
+                app_type=CommunicationAppType.QUICKBOOKS,
+                enabled=True,
+                real_time=False,
+                batch_size=50,
+                ingest_attachments=True,
+                embed_content=True,
+                retention_days=365,
+                vector_dim=768
             )
         }
         
