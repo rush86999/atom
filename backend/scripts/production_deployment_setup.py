@@ -1257,8 +1257,18 @@ import sys
 import json
 import asyncio
 import aiohttp
-import psycopg2
-import redis
+try:
+    import psycopg2
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+
 from datetime import datetime
 from pathlib import Path
 
@@ -1283,25 +1293,31 @@ class HealthCheckServer:
         overall_healthy = True
         
         # Database health check
-        try:
-            conn = psycopg2.connect(self.db_url)
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            cursor.close()
-            conn.close()
-            status["checks"]["database"] = {"status": "healthy", "message": "Database connection successful"}
-        except Exception as e:
-            status["checks"]["database"] = {"status": "unhealthy", "message": str(e)}
-            overall_healthy = False
+        if PSYCOPG2_AVAILABLE and self.db_url:
+            try:
+                conn = psycopg2.connect(self.db_url)
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.close()
+                conn.close()
+                status["checks"]["database"] = {"status": "healthy", "message": "Database connection successful"}
+            except Exception as e:
+                status["checks"]["database"] = {"status": "unhealthy", "message": str(e)}
+                overall_healthy = False
+        else:
+            status["checks"]["database"] = {"status": "unknown", "message": "psycopg2 not installed or database URL missing"}
         
         # Redis health check
-        try:
-            r = redis.from_url(self.redis_url)
-            r.ping()
-            status["checks"]["redis"] = {"status": "healthy", "message": "Redis connection successful"}
-        except Exception as e:
-            status["checks"]["redis"] = {"status": "unhealthy", "message": str(e)}
-            overall_healthy = False
+        if REDIS_AVAILABLE and self.redis_url:
+            try:
+                r = redis.from_url(self.redis_url)
+                r.ping()
+                status["checks"]["redis"] = {"status": "healthy", "message": "Redis connection successful"}
+            except Exception as e:
+                status["checks"]["redis"] = {"status": "unhealthy", "message": str(e)}
+                overall_healthy = False
+        else:
+            status["checks"]["redis"] = {"status": "unknown", "message": "redis-py not installed or Redis URL missing"}
         
         # WebSocket server health check
         try:

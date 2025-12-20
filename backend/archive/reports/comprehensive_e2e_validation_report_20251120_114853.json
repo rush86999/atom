@@ -1,0 +1,279 @@
+{
+  "session_id": "20251120_114853",
+  "timestamp": "2025-11-20T11:48:54.425818",
+  "target_validation_score": 0.98,
+  "actual_validation_score": 0.8565853658536585,
+  "target_achieved": false,
+  "total_tests": 10,
+  "passed_tests": 9,
+  "failed_tests": 1,
+  "skipped_tests": 0,
+  "overall_success_rate": 0.8565853658536585,
+  "confidence_level": 0.8099999999999999,
+  "test_results": [
+    {
+      "test_name": "DeepSeek API Integration",
+      "category": "ai_nlp_processing",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.35993003845214844,
+      "evidence": [],
+      "error_message": "HTTP 401: {\"error\":{\"message\":\"Authentication Fails, Your api key: ****8870 is invalid\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "timestamp": "2025-11-20T11:48:54.246903",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Workflow Engine Execution",
+      "category": "core_systems",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 0.01095128059387207,
+      "evidence": [
+        {
+          "type": "execution_result",
+          "data": {
+            "execution_id": "exec_1763657334",
+            "workflow_id": "None",
+            "status": "completed",
+            "result": {
+              "success": true,
+              "steps_completed": 3
+            },
+            "started_at": "2025-11-20T11:48:54.253663",
+            "completed_at": "2025-11-20T11:48:54.253696"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-20T11:48:54.257906",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "BYOK Key Management",
+      "category": "core_systems",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 0.008034229278564453,
+      "evidence": [
+        {
+          "type": "health_check",
+          "data": {
+            "status": "healthy",
+            "service": "BYOK Key Management",
+            "timestamp": "2025-11-20T11:48:54.265895"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-20T11:48:54.267383",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Real-Time Monitoring System",
+      "category": "core_systems",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 0.11497187614440918,
+      "evidence": [
+        {
+          "type": "metrics_sample",
+          "size": 237
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-20T11:48:54.382977",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Analytics API",
+      "category": "analytics",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 0.00455784797668457,
+      "evidence": [
+        {
+          "analytics_status": 200
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-20T11:48:54.388043",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Project Management Workflow",
+      "category": "real_world_scenarios",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 0.006002187728881836,
+      "evidence": [
+        {
+          "type": "workflow_result",
+          "data": {
+            "execution_id": "exec_1763657334",
+            "workflow_id": "None",
+            "status": "completed",
+            "result": {
+              "success": true,
+              "steps_completed": 3
+            },
+            "started_at": "2025-11-20T11:48:54.393916",
+            "completed_at": "2025-11-20T11:48:54.393928"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-20T11:48:54.394557",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Content Creation Pipeline",
+      "category": "real_world_scenarios",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 0.017285823822021484,
+      "evidence": [
+        {
+          "type": "workflow_result",
+          "data": {
+            "execution_id": "exec_1763657334",
+            "workflow_id": "None",
+            "status": "completed",
+            "result": {
+              "success": true,
+              "steps_completed": 3
+            },
+            "started_at": "2025-11-20T11:48:54.400141",
+            "completed_at": "2025-11-20T11:48:54.400158"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-20T11:48:54.412334",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Customer Support Automation",
+      "category": "real_world_scenarios",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 0.00958108901977539,
+      "evidence": [
+        {
+          "type": "workflow_result",
+          "data": {
+            "execution_id": "exec_1763657334",
+            "workflow_id": "None",
+            "status": "completed",
+            "result": {
+              "success": true,
+              "steps_completed": 3
+            },
+            "started_at": "2025-11-20T11:48:54.424607",
+            "completed_at": "2025-11-20T11:48:54.424619"
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-11-20T11:48:54.425231",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Concurrent Workflows",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.9,
+      "confidence": 0.85,
+      "execution_time": 8.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-20T11:48:54.425744",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Stress Scenarios",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.88,
+      "confidence": 0.8,
+      "execution_time": 10.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-11-20T11:48:54.425764",
+      "screenshot_path": null
+    }
+  ],
+  "category_breakdown": {
+    "ai_nlp_processing": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "core_systems": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.9499999999999998
+    },
+    "analytics": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.9
+    },
+    "real_world_scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.9
+    },
+    "performance_testing": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 0.89,
+      "avg_confidence": 0.825
+    }
+  },
+  "gap_analysis": {
+    "gaps": [
+      {
+        "test_name": "Stress Scenarios",
+        "category": "performance_testing",
+        "reason": "Low success rate: 88.0%",
+        "severity": "low"
+      }
+    ],
+    "bugs": [
+      {
+        "test_name": "DeepSeek API Integration",
+        "category": "ai_nlp_processing",
+        "error": "HTTP 401: {\"error\":{\"message\":\"Authentication Fails, Your api key: ****8870 is invalid\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+        "severity": "high"
+      }
+    ],
+    "gap_count": 1,
+    "bug_count": 1
+  },
+  "recommendations": [
+    "\ud83c\udfaf NEEDS IMPROVEMENT: Gap of 12.3% to reach 98% target",
+    "\ud83d\udd27 PRIORITY: Focus on fixing failed test cases first"
+  ]
+}
