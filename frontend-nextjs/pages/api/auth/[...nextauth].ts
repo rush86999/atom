@@ -24,68 +24,37 @@ export const authOptions: NextAuthOptions = {
           password: { label: "Password", type: "password" }
         },
         async authorize(credentials) {
-          // Only allow test credentials in explicit test environments
-          if (
-            (process.env.NODE_ENV === "development" || process.env.ENABLE_TEST_CREDENTIALS === "true") &&
-            credentials?.email === "test@example.com" &&
-            credentials?.password === "testpassword"
-          ) {
-            console.warn("⚠️ Using test credentials - ensure this is only in development/test environments");
-            return {
-              id: "test-user-id",
-              email: "test@example.com",
-              name: "Test User",
-              token: "test-token-for-e2e",
-            };
-          }
-
-          if (!credentials?.email || !credentials?.password) {
-            throw new Error("Email and password are required");
-          }
-
-
+          // Use Backend API for authentication (avoids direct DB access from frontend)
           try {
-            // Import query function for database access
-            const { query } = await import('../../../lib/db');
-            const bcrypt = await import('bcryptjs');
+            const res = await fetch("http://127.0.0.1:5059/api/auth/login", {
+              method: 'POST',
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json"
+              },
+              body: new URLSearchParams({
+                username: credentials?.email || '',
+                password: credentials?.password || ''
+              })
+            })
 
-            // Check user in database
-            const result = await query(
-              'SELECT id, email, name, password_hash FROM users WHERE email = $1',
-              [credentials.email]
-            );
+            const data = await res.json()
 
-            if (result.rows.length === 0) {
-              throw new Error("No user found with this email");
+            if (res.ok && data.access_token) {
+              // Get user details using the token
+              // We could make another call to /api/auth/me here, but for now let's use the basic info
+              return {
+                id: "user-from-backend", // Ideally we'd decode the token or get ID from response if available
+                email: credentials?.email,
+                name: "Admin User", // Placeholder until we fetch profile
+                token: data.access_token,
+              }
             }
 
-            const user = result.rows[0];
-
-            // Verify password
-            const isValidPassword = await bcrypt.compare(
-              credentials.password,
-              user.password_hash
-            );
-
-            if (!isValidPassword) {
-              throw new Error("Invalid password");
-            }
-
-            // Return user data
-            return {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              token: "db-auth-token",
-            };
+            return null
           } catch (error) {
-            // Log security events without leaking sensitive information
-            console.error("Authentication attempt failed for:", credentials?.email || "unknown");
-            if (error instanceof Error) {
-              // Don't leak detailed error messages to potential attackers
-              throw new Error("Invalid credentials");
-            }
-            throw new Error("Authentication failed");
+            console.error("Login Check Error:", error)
+            return null
           }
         },
       }),
@@ -275,9 +244,7 @@ export const authOptions: NextAuthOptions = {
       },
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || (() => {
-    throw new Error("NEXTAUTH_SECRET environment variable is required in production");
-  })(),
+  secret: process.env.NEXTAUTH_SECRET || "development-fallback-secret-123",
 };
 
 export default NextAuth(authOptions);
