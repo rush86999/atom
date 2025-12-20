@@ -46,6 +46,9 @@ class WorkflowStepType(Enum):
     HUBSPOT_INTEGRATION = "hubspot_integration"
     SALESFORCE_INTEGRATION = "salesforce_integration"
     UNIVERSAL_INTEGRATION = "universal_integration"
+    KNOWLEDGE_LOOKUP = "knowledge_lookup"
+    KNOWLEDGE_UPDATE = "knowledge_update"
+    SYSTEM_REASONING = "system_reasoning"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -69,6 +72,7 @@ class WorkflowStep:
     retry_count: int = 0
     max_retries: int = 3
     timeout_seconds: int = 30
+    confidence_threshold: float = 0.7 # Default threshold for autonomous execution
 
 @dataclass
 class WorkflowContext:
@@ -83,6 +87,7 @@ class WorkflowContext:
     completed_at: Optional[datetime.datetime] = None
     current_step: Optional[str] = None
     error_message: Optional[str] = None
+    user_id: str = "default_user"
 
 @dataclass
 class WorkflowDefinition:
@@ -395,12 +400,75 @@ class AdvancedWorkflowOrchestrator:
             start_step="analyze_lead"
         )
 
+        # Workflow 4: Contract Processing Automation
+        contract_workflow = WorkflowDefinition(
+            workflow_id="contract_processing_automation",
+            name="Contract Processing Automation",
+            description="Extracts terms, creates reminders, and logs obligations from a contract",
+            steps=[
+                WorkflowStep(
+                    step_id="extract_terms",
+                    step_type=WorkflowStepType.NLU_ANALYSIS,
+                    description="Extract key contract terms and obligations",
+                    parameters={
+                        "system_prompt": """Analyze the contract text and extract:
+1. Obligations (as a list of tasks)
+2. Renewal Date (if found)
+3. Owner/Point of Person
+4. Summary
+
+Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
+                        "include_kg_context": True
+                    },
+                    next_steps=["log_obligations", "create_reminders"]
+                ),
+                WorkflowStep(
+                    step_id="log_obligations",
+                    step_type=WorkflowStepType.KNOWLEDGE_UPDATE,
+                    description="Log contract obligations into Knowledge Graph",
+                    parameters={
+                        "update_type": "obligation",
+                        "subject": "{{entities.contract_id or 'New Contract'}}",
+                        "facts": "{{tasks}}"
+                    }
+                ),
+                WorkflowStep(
+                    step_id="create_reminders",
+                    step_type=WorkflowStepType.TASK_CREATION,
+                    description="Create renewal reminders",
+                    parameters={
+                        "task_title": "Contract Renewal: {{entities.contract_id}}",
+                        "due_date": "{{renewal_date}}",
+                        "description": "Auto-generated reminder from contract analysis."
+                    }
+                )
+            ],
+            start_step="extract_terms",
+            triggers=["document_uploaded"]
+        )
+
         # Register workflows
         self.workflows[customer_support_workflow.workflow_id] = customer_support_workflow
         self.workflows[project_management_workflow.workflow_id] = project_management_workflow
-        self.workflows[customer_support_workflow.workflow_id] = customer_support_workflow
-        self.workflows[project_management_workflow.workflow_id] = project_management_workflow
         self.workflows[sales_lead_workflow.workflow_id] = sales_lead_workflow
+        self.workflows[contract_workflow.workflow_id] = contract_workflow
+
+    async def trigger_event(self, event_type: str, data: Dict[str, Any]):
+        """
+        Trigger workflows based on an external event.
+        Scans all workflows for matching triggers.
+        """
+        logger.info(f"Triggering event: {event_type} with data from {data.get('source', 'unknown')}")
+        
+        triggered_count = 0
+        for workflow_id, workflow in self.workflows.items():
+            if event_type in (workflow.triggers or []):
+                logger.info(f"Found matching workflow for event '{event_type}': {workflow_id}")
+                # Start workflow in a separate background task
+                asyncio.create_task(self.execute_workflow(workflow_id, data))
+                triggered_count += 1
+        
+        return triggered_count
 
     async def generate_dynamic_workflow(self, user_query: str) -> Dict[str, Any]:
         """
@@ -583,6 +651,7 @@ class AdvancedWorkflowOrchestrator:
         workflow = self.workflows[workflow_id]
         context = WorkflowContext(
             workflow_id=str(uuid.uuid4()),
+            user_id=execution_context.get("user_id", "default_user") if execution_context else "default_user",
             input_data=input_data,
             status=WorkflowStatus.RUNNING,
             started_at=datetime.datetime.now()
@@ -601,8 +670,9 @@ class AdvancedWorkflowOrchestrator:
             # Execute workflow steps
             await self._execute_workflow_step(workflow, workflow.start_step, context)
 
-            context.status = WorkflowStatus.COMPLETED
-            context.completed_at = datetime.datetime.now()
+            if context.status != WorkflowStatus.WAITING_APPROVAL:
+                context.status = WorkflowStatus.COMPLETED
+                context.completed_at = datetime.datetime.now()
 
         except Exception as e:
             logger.error(f"Workflow execution failed: {e}")
@@ -616,6 +686,68 @@ class AdvancedWorkflowOrchestrator:
                 await self.ai_service.cleanup_sessions()
 
         return context
+
+    async def resume_workflow(self, execution_id: str, step_id: str) -> WorkflowContext:
+        """Resume a workflow execution after approval"""
+        if execution_id not in self.active_contexts:
+            # In a real environment, we'd load this from the database
+            raise ValueError(f"Workflow execution {execution_id} not found in active contexts")
+
+        context = self.active_contexts[execution_id]
+        
+        # We need the original workflow definition to find next steps
+        # This is tricky because we don't store definition ID explicitly in context in a way that maps back to definition
+        # But for now, we'll try to find it in self.workflows by name match or similar
+        # Real implementation should store workflow_definition_id in context
+        
+        # Finding the workflow definition
+        workflow_def = None
+        for wf in self.workflows.values():
+            if any(s.step_id == step_id for s in wf.steps):
+                workflow_def = wf
+                break
+        
+        if not workflow_def:
+            raise ValueError(f"Could not find workflow definition containing step {step_id}")
+
+        step = next(s for s in workflow_def.steps if s.step_id == step_id)
+        step_result = context.results.get(step_id)
+        
+        if not step_result or step_result.get("status") != "waiting_approval":
+            logger.warning(f"Step {step_id} is not waiting for approval")
+            return context
+
+        logger.info(f"Resuming workflow {execution_id} from step {step_id} after approval")
+        
+        # Update status
+        context.status = WorkflowStatus.RUNNING
+        step_result["status"] = "completed"
+        step_result["approved_at"] = datetime.datetime.now().isoformat()
+        
+        # Continue execution from next steps
+        target_next_steps = step_result.get("next_steps", step.next_steps)
+        
+        # We run the next steps in the background to avoid blocking the response
+        asyncio.create_task(self._continue_workflow(workflow_def, target_next_steps, context))
+        
+        return context
+
+    async def _continue_workflow(self, workflow: WorkflowDefinition, next_steps: List[str], context: WorkflowContext):
+        """Helper to continue workflow execution from a list of steps"""
+        try:
+            for next_step_id in next_steps:
+                await self._execute_workflow_step(workflow, next_step_id, context)
+            
+            # If all branches finish, mark as completed
+            # This is a bit simplified, a real orchestrator would track all active branches
+            if all(s.get("status") != "running" for s in context.execution_history):
+                context.status = WorkflowStatus.COMPLETED
+                context.completed_at = datetime.datetime.now()
+        except Exception as e:
+            logger.error(f"Error continuing workflow: {e}")
+            context.status = WorkflowStatus.FAILED
+            context.error_message = str(e)
+            context.completed_at = datetime.datetime.now()
 
     async def _execute_workflow_step(self, workflow: WorkflowDefinition, step_id: str,
                                    context: WorkflowContext) -> None:
@@ -637,6 +769,18 @@ class AdvancedWorkflowOrchestrator:
 
         # Execute the step based on its type
         step_result = await self._execute_step_by_type(workflow, step, context)
+        
+        # Check confidence threshold for human-in-the-loop (Phase 11)
+        confidence = step_result.get("confidence", 1.0) # Default to 1.0 if not provided
+        if confidence < step.confidence_threshold:
+            logger.warning(f"Step {step_id} confidence ({confidence}) below threshold ({step.confidence_threshold}). Waiting for approval.")
+            context.status = WorkflowStatus.WAITING_APPROVAL
+            step_result["status"] = "waiting_approval"
+            step_result["requires_confirmation"] = True
+            
+            # Store step result as pending
+            context.results[step_id] = step_result
+            return # Pause execution of this branch
 
         # Store step result
         context.results[step_id] = step_result
@@ -796,6 +940,10 @@ class AdvancedWorkflowOrchestrator:
                 result = await self._execute_hubspot_integration(step, context)
             elif step.step_type == WorkflowStepType.SALESFORCE_INTEGRATION:
                 result = await self._execute_salesforce_integration(step, context)
+            elif step.step_type == WorkflowStepType.KNOWLEDGE_LOOKUP:
+                result = await self._execute_knowledge_lookup(step, context)
+            elif step.step_type == WorkflowStepType.KNOWLEDGE_UPDATE:
+                result = await self._execute_knowledge_update(step, context)
             elif step.step_type == WorkflowStepType.DELAY:
                 result = await self._execute_delay(step, context)
             elif step.step_type == WorkflowStepType.API_CALL:
@@ -816,6 +964,8 @@ class AdvancedWorkflowOrchestrator:
                 result = await self._execute_notion_db_query(step, context)
             elif step.step_type == WorkflowStepType.APP_SEARCH:
                 result = await self._execute_app_search(step, context)
+            elif step.step_type == WorkflowStepType.SYSTEM_REASONING:
+                result = await self._execute_system_reasoning(step, context)
             else:
                 result = {"status": "completed", "message": f"Step type {step.step_type.value} executed"}
 
@@ -976,17 +1126,88 @@ class AdvancedWorkflowOrchestrator:
             logger.warning(f"Provider selection failed: {e}")
             provider_id = context.variables.get("preferred_ai_provider", "openai")
 
+        # Knowledge Graph Context Injection
+        kg_context = ""
+        if step.parameters.get("include_kg_context"):
+            try:
+                from core.knowledge_query_endpoints import get_knowledge_query_manager
+                km = get_knowledge_query_manager()
+                logger.info(f"Injecting KG context for AI step: {step.step_id}")
+                facts = await km.answer_query(f"What relevant facts are there about: {input_text}")
+                if facts and facts.get("relevant_facts"):
+                    kg_context = "\n**Knowledge Context from ATOM KG:**\n" + "\n".join([f"- {f}" for f in facts["relevant_facts"][:5]])
+            except Exception as e:
+                logger.warning(f"Failed to fetch KG context for AI step: {e}")
+
         try:
             # Use the specific instruction if available (from dynamic workflow)
             instruction = step.parameters.get("original_instruction")
+            
+            # Use provided system_prompt or the default NLU prompt
+            base_system_prompt = step.parameters.get("system_prompt", """Analyze the user's request and extract ALL intents and goals:
+1. The main intent(s)/goal(s) - List ALL distinct goals found
+2. Key entities (people, dates, times, locations, actions)
+3. Specific tasks that should be created for EACH intent
+4. Priority level
+
+Return your response as a JSON object with this format:
+{
+    "intent": "summary of all goals",
+    "entities": ["list", "of", "key", "entities"],
+    "tasks": ["Task 1", "Task 2"],
+    "category": "general",
+    "priority": "medium",
+    "confidence": 0.8
+}""")
+            
+            integrated_system_prompt = base_system_prompt
+            if kg_context:
+                integrated_system_prompt = f"{kg_context}\n\n{base_system_prompt}"
+
             if instruction:
                 # Prepend instruction to input
                 input_text = f"Instruction: {instruction}\n\nInput Data: {input_text}"
 
             nlu_result = await self.ai_service.process_with_nlu(
                 input_text,
-                provider_id
+                provider_id,
+                system_prompt=integrated_system_prompt,
+                user_id=context.user_id
             )
+
+            # STAKEHOLDER CHECK: Ensure context is complete
+            # Check if the AI identified entities that are missing from our Knowledge Graph
+            identified_entities = nlu_result.get("entities", [])
+            missing_context = []
+            
+            # We'll specifically look for human names or roles that might be stakeholders
+            for entity in identified_entities:
+                # Simple heuristic: If it looks like a person and we have no KG info, it's a gap
+                try:
+                    from core.knowledge_query_endpoints import get_knowledge_query_manager
+                    km = get_knowledge_query_manager()
+                    facts = await km.answer_query(f"Who is {entity}?", user_id=context.user_id)
+                    if not facts.get("relevant_facts") or "not found" in str(facts.get("answer", "")).lower():
+                        # Check if this entity is a person/owner (heuristic)
+                        if any(role in str(entity).lower() for role in ["manager", "stakeholder", "lead", "owner"]):
+                            missing_context.append(entity)
+                except:
+                    pass
+
+            if missing_context:
+                logger.info(f"Missing critical context for entities: {missing_context}")
+                # Instead of failing, we can trigger an implicit 'approval' or 'input' step
+                # For now, we'll add it to the context and mark a flag for the UI to intercept
+                context.variables["missing_stakeholders"] = missing_context
+                context.variables["requires_user_input"] = True
+                
+                # Update status to waiting for user to fill the gap
+                return {
+                    "status": "waiting_approval", # Reusing status for user input
+                    "message": f"Critical stakeholder data missing: {', '.join(missing_context)}. Please provide context.",
+                    "missing_entities": missing_context,
+                    "workflow_id": context.workflow_id
+                }
 
             # Update context with NLU results
             context.variables.update({
@@ -1394,6 +1615,37 @@ class AdvancedWorkflowOrchestrator:
             logger.error(f"Gmail search error: {e}")
             return {"status": "failed", "error": str(e)}
 
+    async def _execute_system_reasoning(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute system reasoning step for cross-system consistency and deduplication"""
+        try:
+            from core.cross_system_reasoning import get_reasoning_engine
+            reasoning = get_reasoning_engine()
+            
+            reasoning_type = step.parameters.get("reasoning_type", "consistency")
+            
+            if reasoning_type == "consistency":
+                issues = await reasoning.enforce_consistency(context.user_id)
+                return {
+                    "status": "completed",
+                    "reasoning_type": "consistency",
+                    "issues": issues,
+                    "count": len(issues)
+                }
+            elif reasoning_type == "deduplication":
+                duplicates = await reasoning.deduplicate_tasks(context.user_id)
+                return {
+                    "status": "completed",
+                    "reasoning_type": "deduplication",
+                    "duplicates": duplicates,
+                    "count": len(duplicates)
+                }
+            else:
+                return {"status": "failed", "error": f"Unknown reasoning type: {reasoning_type}"}
+                
+        except Exception as e:
+            logger.error(f"System reasoning step failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
     async def _execute_notion_search(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute Notion search step"""
         try:
@@ -1619,6 +1871,70 @@ class AdvancedWorkflowOrchestrator:
         except Exception as e:
             logger.error(f"Failed to create template from workflow: {e}")
             return None
+
+    async def _execute_knowledge_lookup(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute a knowledge graph lookup within a workflow"""
+        query = step.parameters.get("query")
+        if not query:
+            return {"status": "failed", "error": "No query provided for knowledge lookup"}
+
+        try:
+            from core.knowledge_query_endpoints import get_knowledge_query_manager
+            km = get_knowledge_query_manager()
+            
+            logger.info(f"Performing Knowledge Lookup: {query}")
+            answer_data = await km.answer_query(query, user_id=context.user_id)
+            
+            # Extract facts and answer
+            result = {
+                "status": "completed",
+                "answer": answer_data.get("answer", ""),
+                "facts_found": len(answer_data.get("relevant_facts", [])),
+                "execution_time_ms": answer_data.get("execution_time_ms", 0)
+            }
+            
+            # Option to store specific answer in a variable
+            output_var = step.parameters.get("output_variable")
+            if output_var:
+                context.variables[output_var] = result["answer"]
+                logger.debug(f"Stored KG result in variable: {output_var}")
+                
+            return result
+        except Exception as e:
+            logger.error(f"Knowledge lookup failed in workflow: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_knowledge_update(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute a knowledge graph update within a workflow"""
+        update_type = step.parameters.get("update_type", "fact")
+        subject = step.parameters.get("subject", "unknown")
+        facts = step.parameters.get("facts", [])
+        
+        if not isinstance(facts, list):
+            facts = [facts]
+
+        try:
+            from core.knowledge_ingestion import get_knowledge_ingestion
+            ki = get_knowledge_ingestion()
+            
+            logger.info(f"Performing Knowledge Update: {update_type} for {subject}")
+            
+            for fact in facts:
+                # Log as a relationship: Subject -> HAS_OBLIGATION -> Fact (simplified for now)
+                await ki.process_document(
+                    f"{subject} has the following obligation/fact: {fact}",
+                    doc_id=f"wf_update_{uuid.uuid4().hex[:8]}",
+                    source=f"workflow_{context.workflow_id}"
+                )
+            
+            return {
+                "status": "completed",
+                "message": f"Logged {len(facts)} facts to Knowledge Graph",
+                "subject": subject
+            }
+        except Exception as e:
+            logger.error(f"Knowledge update failed in workflow: {e}")
+            return {"status": "failed", "error": str(e)}
 
 # Global orchestrator instance
 orchestrator = AdvancedWorkflowOrchestrator()

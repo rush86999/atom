@@ -82,6 +82,36 @@ class ScheduleOptimizer:
             
         return score
 
+    async def calculate_density_penalty(self, target_start: datetime, target_end: datetime, all_events: List[Dict[str, Any]], window_hours: int = 2) -> float:
+        """
+        Calculate a penalty score based on proximity to other meetings.
+        Penalty increases if the slot is directly adjacent to or surrounded by other meetings.
+        """
+        penalty = 0.0
+        buffer_window = timedelta(hours=window_hours)
+        window_start = target_start - buffer_window
+        window_end = target_end + buffer_window
+        
+        for event in all_events:
+            e_start = event["start"]
+            e_end = event["end"]
+            
+            # Check if event is within the window
+            if e_start < window_end and e_end > window_start:
+                # Direct adjacency penalty (back-to-back)
+                if abs((e_start - target_end).total_seconds()) < 60 or abs((target_start - e_end).total_seconds()) < 60:
+                    penalty += 30.0
+                else:
+                    # Proximity penalty: increases as events get closer
+                    dist_before = (target_start - e_end).total_seconds() / 60 if target_start > e_end else window_hours * 60
+                    dist_after = (e_start - target_end).total_seconds() / 60 if e_start > target_end else window_hours * 60
+                    
+                    min_dist = min(dist_before, dist_after)
+                    if min_dist < 60: # Within an hour
+                        penalty += (60 - min_dist) / 2.0
+                        
+        return min(penalty, 100.0) # Cap penalty at 100
+
     async def detect_all_conflicts(self, all_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Identifies all overlapping events in a list, with priority info.
