@@ -62,6 +62,11 @@ const DevStatus = () => {
   });
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load system status
   const loadSystemStatus = useCallback(async () => {
@@ -76,7 +81,7 @@ const DevStatus = () => {
       // Simulate service status checks
       const services = {
         frontend: await checkService("Frontend", "http://localhost:3000"),
-        backend: await checkService("Backend", "http://localhost:3001"),
+        backend: await checkService("Backend", "http://localhost:5059", false, "GET"),
         database: await checkService("Database", null, true), // Assume database is running
         desktop: await checkService("Desktop App", null, true), // Assume desktop is running
       };
@@ -115,10 +120,11 @@ const DevStatus = () => {
     name: string,
     url: string | null,
     isRunning: boolean = false,
+    method: string = "HEAD",
   ): Promise<ServiceStatus> => {
     if (url) {
       try {
-        const response = await fetch(url, { method: "HEAD" });
+        const response = await fetch(url, { method });
         return {
           name,
           status: response.ok ? "healthy" : "unhealthy",
@@ -262,9 +268,9 @@ const DevStatus = () => {
                 <RefreshCw className="h-4 w-4 text-gray-500" />
               </div>
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {lastUpdate.toLocaleTimeString()}
+                {mounted ? lastUpdate.toLocaleTimeString() : "--:--:--"}
               </div>
-              <p className="text-xs text-gray-500 pt-1">{lastUpdate.toLocaleDateString()}</p>
+              <p className="text-xs text-gray-500 pt-1">{mounted ? lastUpdate.toLocaleDateString() : "--/--/----"}</p>
             </CardContent>
           </Card>
         </div>
@@ -317,7 +323,7 @@ const DevStatus = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500 dark:text-gray-400">Last Check:</span>
                           <span className="text-sm text-gray-900 dark:text-gray-100">
-                            {service.lastCheck.toLocaleTimeString()}
+                            {mounted ? service.lastCheck.toLocaleTimeString() : "--:--:--"}
                           </span>
                         </div>
                       </div>
@@ -356,7 +362,7 @@ const DevStatus = () => {
                           <td className="p-4 align-middle">
                             {service.responseTime ? `${service.responseTime.toFixed(0)}ms` : "N/A"}
                           </td>
-                          <td className="p-4 align-middle">{service.lastCheck.toLocaleTimeString()}</td>
+                          <td className="p-4 align-middle">{mounted ? service.lastCheck.toLocaleTimeString() : "--:--:--"}</td>
                           <td className="p-4 align-middle">
                             <Button variant="outline" size="sm">
                               Restart
@@ -392,7 +398,7 @@ const DevStatus = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500 dark:text-gray-400">Completed:</span>
                     <span className="text-sm text-gray-900 dark:text-gray-100">
-                      {buildStatus.lastBuild ? buildStatus.lastBuild.toLocaleString() : "Never"}
+                      {mounted ? (buildStatus.lastBuild ? buildStatus.lastBuild.toLocaleString() : "Never") : "..."}
                     </span>
                   </div>
                 </CardContent>

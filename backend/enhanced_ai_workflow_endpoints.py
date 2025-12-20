@@ -271,6 +271,62 @@ class RealAIWorkflowService:
             logger.error(f"Error calling DeepSeek: {e}")
             raise Exception(f"DeepSeek API call failed: {str(e)}")
 
+    async def call_google_api(self, prompt: str, system_prompt: str = "You are a helpful assistant that analyzes requests and generates structured tasks.", model: str = "gemini-1.5-pro") -> Dict[str, Any]:
+        """Call Google Gemini API for real NLU processing"""
+        if not self.google_api_key:
+            raise Exception("Google API key not configured")
+
+        try:
+            # Gemini REST API format
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.google_api_key}"
+            
+            request_data = {
+                "contents": [{
+                    "parts": [{"text": f"{system_prompt}\n\nUser Request: {prompt}"}]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 800
+                }
+            }
+
+            async with self.http_sessions['google'].post(
+                url,
+                headers={'Content-Type': 'application/json'},
+                json=request_data
+            ) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"Google Gemini API error: {response.status} - {error_text}")
+                    raise Exception(f"Google Gemini API error: {response.status}")
+
+                result = await response.json()
+                
+                # Extract content from Gemini response structure
+                try:
+                    content = result['candidates'][0]['content']['parts'][0]['text']
+                    token_usage = result.get('usageMetadata', {})
+                except (KeyError, IndexError):
+                    logger.error(f"Unexpected Gemini response format: {result}")
+                    raise Exception("Failed to parse Gemini response")
+
+                # Map usage to standard format
+                standard_usage = {
+                    'prompt_tokens': token_usage.get('promptTokenCount', 0),
+                    'completion_tokens': token_usage.get('candidatesTokenCount', 0),
+                    'total_tokens': token_usage.get('totalTokenCount', 0)
+                }
+
+                return {
+                    'content': content,
+                    'confidence': 0.88,
+                    'token_usage': standard_usage,
+                    'provider': 'google'
+                }
+        except Exception as e:
+            logger.error(f"Error calling Google Gemini: {e}")
+            raise Exception(f"Google Gemini API call failed: {str(e)}")
+
     async def process_with_nlu(self, text: str, provider: str = "openai", system_prompt: str = None) -> Dict[str, Any]:
         """Process text using real NLU capabilities"""
         if system_prompt is None:
@@ -284,7 +340,7 @@ Return your response as a JSON object with this format:
 {
     "intent": "summary of all goals (e.g. 'Refund order AND update address')",
     "entities": ["list", "of", "key", "entities"],
-    "tasks": ["Task 1: Refund order #12345", "Task 2: Update shipping address to 123 Main St"],
+    "tasks": ["Task 1: Refund order #12345", "Task 2: Update shipping address to 123 Main St", "Task 3: Update financial spreadsheet in Excel"],
     "priority": "high/medium/low",
     "confidence": 0.0-1.0
 }"""
@@ -295,6 +351,11 @@ Return your response as a JSON object with this format:
         # FORCED DEEPSEEK ONLY MODE
         providers_to_try = ["deepseek"]
         
+        if provider == "google":
+            providers_to_try.insert(0, "google")
+        elif provider == "google_flash":
+            providers_to_try.insert(0, "google_flash")
+
         # if provider != "openai" and self.openai_api_key:
         #     providers_to_try.append("openai")
         # if provider != "anthropic" and self.anthropic_api_key:
@@ -311,6 +372,10 @@ Return your response as a JSON object with this format:
                     result = await self.call_anthropic_api(user_prompt, system_prompt)
                 elif provider_name == "deepseek" and self.deepseek_api_key:
                     result = await self.call_deepseek_api(user_prompt, system_prompt)
+                elif provider_name == "google" and self.google_api_key:
+                    result = await self.call_google_api(user_prompt, system_prompt)
+                elif provider_name == "google_flash" and self.google_api_key:
+                    result = await self.call_google_api(user_prompt, system_prompt, model="gemini-1.5-flash")
                 else:
                     continue
 
@@ -398,8 +463,9 @@ Domain Specific Guidelines:
 - Dev Studio: Code generation steps are usually High (3) or Very High (4). Documentation is Medium (2).
 - Scheduling: Conflict resolution is High (3). Simple booking is Low (1).
 - Finance: Financial analysis/forecasting is High (3) or Very High (4). Expense categorization is Medium (2).
-- Project Management: Critical path analysis is High (3). Task creation is Low (1).
+- Project Management: Critical path analysis is High (3). Task creation is Low (1). Microsoft Planner task management is Medium (2).
 - Marketing: Campaign strategy is Very High (4). Content generation is Medium (2) or High (3).
+- Office 365: Excel data manipulation is High (3). Power BI report refresh is Medium (2). Teams channel creation is Low (1).
 
 Return your response as a JSON object with this format:
 {

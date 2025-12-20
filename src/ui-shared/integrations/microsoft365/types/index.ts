@@ -172,6 +172,64 @@ export interface Microsoft365Flow {
   apiId: string;
 }
 
+export interface ExcelWorksheet {
+  id: string;
+  name: string;
+  position: number;
+  visibility: 'visible' | 'hidden' | 'veryHidden';
+}
+
+export interface ExcelTable {
+  id: string;
+  name: string;
+  showHeaders: boolean;
+  showTotals: boolean;
+  style: string;
+}
+
+export interface ExcelRange {
+  address: string;
+  values: any[][];
+  formulas: any[][];
+  numberFormat: string[][];
+  columnCount: number;
+  rowCount: number;
+}
+
+export interface PowerBIReport {
+  id: string;
+  name: string;
+  webUrl: string;
+  embedUrl: string;
+  datasetId: string;
+}
+
+export interface PowerBIDataset {
+  id: string;
+  name: string;
+  addRowsAPIEnabled: boolean;
+  configuredBy: string;
+  isRefreshable: boolean;
+}
+
+export interface PlannerTask {
+  id: string;
+  title: string;
+  percentComplete: number;
+  startDateTime?: string;
+  dueDateTime?: string;
+  assigneePriority?: string;
+  bucketId: string;
+  planId: string;
+}
+
+export interface PlannerBucket {
+  id: string;
+  name: string;
+  orderHint: string;
+  planId: string;
+}
+
 export interface Microsoft365Site {
   id: string;
   name: string;
@@ -377,19 +435,19 @@ export interface Microsoft365Action {
 
 export interface Microsoft365Permission {
   id: string;
-    roles: string[];
-    grantedToIdentities: Array<{
-      application: {
-        displayName: string;
-        id: string;
-        appId: string;
-      };
-      user?: {
-        displayName: string;
-        id: string;
-        email: string;
-      };
-    }>;
+  roles: string[];
+  grantedToIdentities: Array<{
+    application: {
+      displayName: string;
+      id: string;
+      appId: string;
+    };
+    user?: {
+      displayName: string;
+      id: string;
+      email: string;
+    };
+  }>;
   grantedToIdentitiesV2?: Array<{
     type: string;
     id: string;

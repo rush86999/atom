@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Play, GitBranch, Zap, Settings, PauseCircle, Code, MessageSquare } from 'lucide-react';
+import { Play, GitBranch, Zap, Settings, PauseCircle, Code, MessageSquare, Mail, Globe, Clock } from 'lucide-react';
 
 export const TriggerNode = memo(({ data, isConnectable }: any) => {
     return (
@@ -36,8 +36,20 @@ export const TriggerNode = memo(({ data, isConnectable }: any) => {
 });
 
 export const ActionNode = memo(({ data, isConnectable }: any) => {
+    // Service branding map
+    const serviceBranding: Record<string, { color: string; bgColor: string }> = {
+        'Slack': { color: 'border-l-[#4A154B]', bgColor: 'bg-purple-50' },
+        'Gmail': { color: 'border-l-red-500', bgColor: 'bg-red-50' },
+        'Google Drive': { color: 'border-l-yellow-500', bgColor: 'bg-yellow-50' },
+        'GitHub': { color: 'border-l-gray-800', bgColor: 'bg-gray-50' },
+        'Notion': { color: 'border-l-black', bgColor: 'bg-gray-50' },
+        'Asana': { color: 'border-l-pink-500', bgColor: 'bg-pink-50' },
+        'Trello': { color: 'border-l-blue-500', bgColor: 'bg-blue-50' },
+    };
+    const branding = serviceBranding[data.service] || { color: 'border-l-green-500', bgColor: '' };
+
     return (
-        <Card className="min-w-[200px] border-l-4 border-l-green-500 shadow-sm">
+        <Card className={`min-w-[200px] border-l-4 ${branding.color} ${branding.bgColor} shadow-sm`}>
             <Handle
                 type="target"
                 position={Position.Top}
@@ -187,9 +199,156 @@ export const AINode = memo(({ data, isConnectable }: any) => {
     );
 });
 
+export const DesktopNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[200px] border-l-4 border-l-cyan-500 shadow-md">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-cyan-100 p-1 rounded-full">
+                        <Settings className="w-4 h-4 text-cyan-600" />
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Desktop Action</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="font-semibold">{data.app || 'Application'}</div>
+                <div className="text-gray-500">{data.action || 'Open'}</div>
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-cyan-500"
+            />
+        </Card>
+    );
+});
+
+// Email Node - for sending emails
+export const EmailNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[200px] border-l-4 border-l-red-500 shadow-md bg-red-50">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-red-100 p-1 rounded-full">
+                        <Mail className="w-4 h-4 text-red-600" />
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Send Email</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="font-semibold text-gray-700">To: {data.recipient || 'recipient@email.com'}</div>
+                <div className="text-gray-500 truncate">Subject: {data.subject || 'Email Subject'}</div>
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-red-500"
+            />
+        </Card>
+    );
+});
+
+// HTTP Request Node - for making API calls
+export const HttpNode = memo(({ data, isConnectable }: any) => {
+    const methodColors: Record<string, string> = {
+        'GET': 'bg-green-100 text-green-700',
+        'POST': 'bg-blue-100 text-blue-700',
+        'PUT': 'bg-yellow-100 text-yellow-700',
+        'DELETE': 'bg-red-100 text-red-700',
+        'PATCH': 'bg-purple-100 text-purple-700',
+    };
+    const method = data.method || 'GET';
+    const methodClass = methodColors[method] || 'bg-gray-100 text-gray-700';
+
+    return (
+        <Card className="min-w-[220px] border-l-4 border-l-orange-500 shadow-md">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-orange-100 p-1 rounded-full">
+                        <Globe className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">HTTP Request</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="flex items-center space-x-2 mb-1">
+                    <Badge className={`text-[10px] ${methodClass}`}>{method}</Badge>
+                </div>
+                <div className="text-gray-600 truncate font-mono text-[10px]">
+                    {data.url || 'https://api.example.com/endpoint'}
+                </div>
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-orange-500"
+            />
+        </Card>
+    );
+});
+
+// Timer/Delay Node - for adding delays in workflow
+export const TimerNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[180px] border-l-4 border-l-indigo-500 shadow-md bg-indigo-50">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-indigo-100 p-1 rounded-full">
+                        <Clock className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Delay</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="flex items-center space-x-1">
+                    <span className="text-2xl font-bold text-indigo-700">{data.duration || '5'}</span>
+                    <span className="text-gray-500">{data.unit || 'minutes'}</span>
+                </div>
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-indigo-500"
+            />
+        </Card>
+    );
+});
+
 export const nodeTypes = {
     trigger: TriggerNode,
     action: ActionNode,
     condition: ConditionNode,
     ai_node: AINode,
+    desktop: DesktopNode,
+    email: EmailNode,
+    http: HttpNode,
+    timer: TimerNode,
 };
