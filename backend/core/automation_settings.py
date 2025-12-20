@@ -18,7 +18,9 @@ class AutomationSettingsManager:
     DEFAULT_SETTINGS = {
         "enable_automatic_knowledge_extraction": True,
         "enable_out_of_workflow_automations": True,
-        "document_processing_auto_trigger": True
+        "document_processing_auto_trigger": True,
+        "enable_accounting_automations": True,
+        "enable_sales_automations": True
     }
     
     def __init__(self):
@@ -65,6 +67,14 @@ class AutomationSettingsManager:
     def is_automations_enabled(self) -> bool:
         """Check if general out-of-workflow automations are enabled"""
         return self._settings.get("enable_out_of_workflow_automations", True)
+
+    def is_accounting_enabled(self) -> bool:
+        """Check if accounting automations are enabled"""
+        return self._settings.get("enable_accounting_automations", True)
+
+    def is_sales_enabled(self) -> bool:
+        """Check if sales automations are enabled"""
+        return self._settings.get("enable_sales_automations", True)
 
 # Global Manager Instance
 automation_settings_manager = AutomationSettingsManager()

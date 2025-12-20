@@ -4,6 +4,9 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from core.unified_calendar_endpoints import MOCK_EVENTS
 from core.unified_task_endpoints import MOCK_TASKS
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from accounting.models import Budget, Account, Transaction, JournalEntry, EntryType, AccountType
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +68,51 @@ class CrossSystemReasoningEngine:
                 seen_titles[title_norm] = task.id
                 
         return duplicates
+
+    async def check_financial_integrity(self, db: Session, workspace_id: str) -> List[Dict[str, Any]]:
+        """
+        Cross-reasoning between Tasks/Projects and Accounting.
+        Detects budget overruns and missing records.
+        """
+        alerts = []
+        
+        # 1. Detect Budget Overruns
+        budgets = db.query(Budget).filter(Budget.workspace_id == workspace_id).all()
+        for budget in budgets:
+            # Sum actual spend for this category/project
+            actual_spend = db.query(func.sum(JournalEntry.amount)).join(Account).filter(
+                Account.workspace_id == workspace_id,
+                Account.id == budget.category_id,
+                JournalEntry.type == EntryType.DEBIT
+            ).scalar() or 0.0
+            
+            if actual_spend > budget.amount:
+                alerts.append({
+                    "type": "FINANCIAL_BUDGET_OVERRUN",
+                    "severity": "high",
+                    "resource_id": budget.id,
+                    "description": f"Spend of ${actual_spend} exceeds budget of ${budget.amount} for category '{budget.category_id}'."
+                })
+
+        # 2. Check for missing bills on completed project tasks
+        # Mocking completed tasks that should have associated bills
+        for task in MOCK_TASKS:
+            if task.status == "completed" and "service" in task.title.lower():
+                # Check if we have a transaction matching this task_id in metadata
+                has_bill = db.query(Transaction).filter(
+                    Transaction.workspace_id == workspace_id,
+                    Transaction.metadata_json["task_id"].as_string() == task.id
+                ).first()
+                
+                if not has_bill:
+                    alerts.append({
+                        "type": "ACCOUNTING_MISSING_RECORD",
+                        "severity": "medium",
+                        "resource_id": task.id,
+                        "description": f"Task '{task.title}' is completed, but no associated bill or payment was found."
+                    })
+        
+        return alerts
 
     async def check_dependencies(self, workflow_id: str, results: Dict[str, Any]) -> bool:
         """

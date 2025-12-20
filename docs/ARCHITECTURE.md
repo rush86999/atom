@@ -15,6 +15,8 @@ atom/
 │   ├── core/                 # Core backend modules
 │   ├── integrations/         # 100+ integration services
 │   ├── ai/                   # AI/LLM services
+│   ├── accounting/           # Financial ledger and automations
+│   ├── sales/                # CRM and Sales intelligence
 │   └── migrations/           # Database migrations
 ├── packages/                 # Shared packages (AI, integrations, utils)
 └── docs/                     # Documentation
@@ -133,7 +135,16 @@ backend/
 │   └── *_service.py         # Business logic
 ├── ai/                       # AI services
 │   └── Multi-provider LLM support
-└── migrations/               # Database schema migrations
+├── migrations/               # Database schema migrations
+├── accounting/               # Financial Engine
+│   ├── ledger.py             # Double-entry ledger engine
+│   ├── categorizer.py        # AI-driven transaction categorization
+│   └── fpa_service.py        # Forecasting and strategic planning
+└── sales/                    # CRM & Sales Intelligence
+    ├── lead_manager.py       # Lead intake and AI scoring
+    ├── intelligence.py       # Deal health and risk analysis
+    ├── call_service.py       # Meeting transcription and task extraction
+    └── order_to_cash.py      # Sales-to-Finance automation bridge
 ```
 
 ## Storage Architecture
