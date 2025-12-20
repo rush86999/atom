@@ -50,13 +50,21 @@ if "sqlite" in DATABASE_URL:
     pool_size = None
     max_overflow = None
 elif "postgresql" in DATABASE_URL:
-    # PostgreSQL production configuration
-    connect_args = {
-        "sslmode": "require",
-        "sslcert": os.getenv("DB_SSL_CERT"),
-        "sslkey": os.getenv("DB_SSL_KEY"),
-        "sslrootcert": os.getenv("DB_SSL_ROOT_CERT")
-    }
+    # PostgreSQL configuration
+    env = os.getenv("ENVIRONMENT", "development")
+    if env == "production":
+        connect_args = {
+            "sslmode": "require",
+            "sslcert": os.getenv("DB_SSL_CERT"),
+            "sslkey": os.getenv("DB_SSL_KEY"),
+            "sslrootcert": os.getenv("DB_SSL_ROOT_CERT")
+        }
+    else:
+        # Local development usually doesn't need SSL
+        connect_args = {
+            "sslmode": os.getenv("DB_SSL_MODE", "prefer")
+        }
+    
     # Remove None values
     connect_args = {k: v for k, v in connect_args.items() if v is not None}
     poolclass = "QueuePool"

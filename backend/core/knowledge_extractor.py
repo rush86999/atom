@@ -31,6 +31,11 @@ class KnowledgeExtractor:
         - File (filename, type)
         - Decision (summary, context, date)
         - Organization (name)
+        - Transaction (amount, currency, merchant, date)
+        - Invoice (invoice_number, amount, recipient, status)
+        - Budget (name, limit, category)
+        - Lead (name, company, email, score)
+        - Deal (name, value, stage, health_score)
         
         **Target Relationships:**
         - PARTICIPATED_IN (Person -> Meeting/Decision)
@@ -38,6 +43,9 @@ class KnowledgeExtractor:
         - OWNS (Person/Org -> Project/Task/File)
         - MEMBER_OF (Person -> Organization/Project)
         - DECIDED_ON (Person/Group -> Decision)
+        - PAID_FOR (Transaction -> Task/Project/Entity)
+        - PART_OF_BUDGET (Transaction/Task -> Budget)
+        - BILLED_BY (Entity -> Invoice)
         
         **Output Format (JSON strictly):**
         {
