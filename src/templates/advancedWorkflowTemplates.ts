@@ -561,4 +561,176 @@ export const AdvancedWorkflowTemplates = {
       qualityScore: "4.5/5+",
     },
   },
+
+  // Content & File Management Automation
+  contentFileManagement: {
+    id: "template-content-file-management-001",
+    name: "Auto-Archive & Task Linker",
+    description:
+      "Automatically archive, tag, and link new files from cloud storage (Drive/Dropbox) to related tasks in Asana or Trello with Slack notifications.",
+    category: "data_management",
+    complexity: "medium",
+    estimatedSetupTime: "15-25 minutes",
+    expectedMonthlyImpact: "15-20% reduction in document retrieval time",
+    tags: ["google_drive", "dropbox", "asana", "trello", "slack", "automation"],
+
+    trigger: {
+      type: "integration_event",
+      integrationId: "google_drive",
+      eventType: "new_file_uploaded",
+      parameters: {
+        monitorFolders: ["auto_detect", "specific_folders"],
+        fileTypes: ["all", "documents", "images", "pdfs"],
+      },
+    },
+
+    actions: [
+      {
+        type: "skill_execution",
+        description: "Analyze file content and extract context",
+        parameters: {
+          skill: "aiVisionSkill.analyzeDocument",
+          extractionFields: ["project_name", "task_id", "keywords", "importance"],
+          context: "cross_integration_mapping",
+        },
+      },
+      {
+        type: "skill_execution",
+        description: "Identify and link to related tasks",
+        parameters: {
+          skill: "taskManagerSkills.linkFileToTask",
+          platforms: ["asana", "trello", "jira"],
+          matchCriteria: ["filename_pattern", "content_context", "metadata"],
+          autoLinkConfidence: 0.8,
+        },
+      },
+      {
+        type: "skill_execution",
+        description: "Organize and archive file in cloud storage",
+        parameters: {
+          skill: "fileSystemSkills.organizeFile",
+          targetPath: "/Archive/{{project_name}}/{{year}}/{{month}}",
+          tagging: ["auto_generated_tags", "process_labels"],
+        },
+      },
+      {
+        type: "notification",
+        description: "Notify team of new file link",
+        parameters: {
+          channels: ["slack"],
+          recipients: "project_channel",
+          messageTemplate: "file_archived_and_linked",
+          includePreview: true,
+        },
+      },
+    ],
+
+    successMetrics: {
+      fileLinkAccuracy: "95%+",
+      archivingSpeed: "< 5 minutes",
+      searchEfficiency: "improved by 40%",
+      teamAwareness: "100% notification rate",
+    },
+  },
+  burnoutProtection: {
+    id: "template-burnout-protection-001",
+    name: "Burnout & Overload Protection",
+    description: "Proactively monitor workload and suggest focus blocks, meeting rescheduling, and delegation.",
+    category: "wellness",
+    trigger: {
+      type: "scheduled",
+      schedule: "0 9 * * 1", // Every Monday morning
+    },
+    actions: [
+      {
+        type: "skill_execution",
+        description: "Analyze current burnout risk",
+        parameters: {
+          skill: "wellnessSkill.getCurrentRisk",
+        },
+      },
+      {
+        type: "conditional_branch",
+        condition: "risk_level == 'High' || risk_level == 'Critical'",
+        actions: [
+          {
+            type: "skill_execution",
+            description: "Generate focus block suggestions",
+            parameters: {
+              skill: "wellnessSkill.suggestFocusBlocks",
+            },
+          },
+          {
+            type: "notification",
+            channel: "slack",
+            message: "⚠️ High burnout risk detected. I've prepared some focus block suggestions for you.",
+          },
+        ],
+      },
+    ],
+    successMetrics: {
+      weeklyFocusHours: "> 10 hours",
+      stressLevelReduction: "20%",
+    },
+  },
+  autoScheduleConflictResolution: {
+    id: "template-schedule-conflict-resolution-001",
+    name: "Auto Schedule Conflict Resolution",
+    description: "Detect and automatically resolve calendar conflicts by finding the best available gaps.",
+    category: "scheduling",
+    trigger: {
+      type: "event",
+      event: "scheduling_conflict_detected",
+    },
+    actions: [
+      {
+        type: "skill_execution",
+        description: "Fetch schedule optimizations",
+        parameters: {
+          skill: "schedulingSkill.getOptimizations",
+        },
+      },
+      {
+        type: "skill_execution",
+        description: "Check stakeholder opinions based on roles",
+        parameters: {
+          skill: "schedulingSkill.getAttendeeOpinionByRole",
+          role: "decision_maker",
+        },
+        condition: "optimizations.length > 0",
+      },
+      {
+        type: "conditional_branch",
+        condition: "optimizations.length > 0 && stakeholderOpinion.approved",
+        actions: [
+          {
+            type: "skill_execution",
+            description: "Automatically resolve conflicts and notify attendees",
+            parameters: {
+              skill: "schedulingSkill.autoResolveConflicts",
+            },
+          },
+          {
+            type: "skill_execution",
+            description: "Initiate follow-up meeting if necessary",
+            parameters: {
+              skill: "schedulingSkill.initiateNewMeeting",
+              title: "Draft Sync: Conflict Follow-up",
+              durationMinutes: 30,
+            },
+            condition: "resolutionSucceeded && requiresFollowUp",
+          },
+          {
+            type: "notification",
+            channel: "slack",
+            message: "📅 Resolved schedule conflicts and updated all participants. New slots have been secured and notifications sent.",
+          },
+        ],
+      },
+    ],
+    successMetrics: {
+      conflictResolutionRate: "100%",
+      manualCleanupTimeReduced: "30 min/week",
+    },
+  },
 };

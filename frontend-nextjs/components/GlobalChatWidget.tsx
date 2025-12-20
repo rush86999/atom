@@ -19,7 +19,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string>("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const { toast } = useToast();
+    const toast = useToast();
     const router = useRouter();
 
     // Initialize session
@@ -146,7 +146,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             toast({
                 title: "Error",
                 description: "Failed to process message. Please try again.",
-                variant: "destructive",
+                variant: "error",
             });
             setMessages(prev => [...prev, {
                 id: `error_${Date.now()}`,
@@ -167,6 +167,14 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                 pathname: '/automation',
                 query: { draft: JSON.stringify(action.workflowData) }
             });
+            setIsOpen(false);
+            return;
+        }
+
+        // Handle "View Template" action
+        if (action.type === 'view_template' && action.templateId) {
+            toast({ title: "Opening Template", description: `Loading template: ${action.templateId}` });
+            router.push(`/marketplace?template=${action.templateId}`);
             setIsOpen(false);
             return;
         }
@@ -193,7 +201,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     throw new Error(data.error);
                 }
             } catch (e) {
-                toast({ title: "Execution Failed", description: String(e), variant: "destructive" });
+                toast({ title: "Execution Failed", description: String(e), variant: "error" });
             }
         }
     };

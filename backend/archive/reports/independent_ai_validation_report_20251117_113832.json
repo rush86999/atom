@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "validation_date": "2025-11-17T11:38:32.185253",
+    "validator_version": "1.0.0",
+    "total_claims_validated": 0,
+    "providers_used": [
+      "openai"
+    ]
+  },
+  "summary": {
+    "overall_score": 0,
+    "claims_fully_validated": 0,
+    "claims_partially_validated": 0,
+    "claims_not_validated": 0,
+    "average_confidence": 0
+  },
+  "category_scores": {},
+  "detailed_results": {}
+}

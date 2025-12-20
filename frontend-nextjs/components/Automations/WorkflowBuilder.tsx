@@ -61,7 +61,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
     // Use prop data if available, otherwise fallback to default initialNodes
     const [nodes, setNodes, onNodesChange] = useNodesState(initialData?.nodes || initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialData?.edges || initialEdges);
-    const { toast } = useToast();
+    const toast = useToast();
 
     const onConnect = useCallback(
         (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -169,6 +169,14 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                     'google calendar': 'Google Calendar',
                     'drive': 'Google Drive',
                     'dropbox': 'Dropbox',
+                    'hubspot': 'HubSpot',
+                    'salesforce': 'Salesforce',
+                    'discord': 'Discord',
+                    'stripe': 'Stripe',
+                    'jira': 'Jira',
+                    'zendesk': 'Zendesk',
+                    'figma': 'Figma',
+                    'twilio': 'Twilio',
                 };
 
                 const serviceName = serviceMap[service] || service.charAt(0).toUpperCase() + service.slice(1);

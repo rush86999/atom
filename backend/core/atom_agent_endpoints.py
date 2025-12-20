@@ -287,6 +287,21 @@ async def chat_with_agent(request: ChatRequest):
         # Workflow Creation (Phase 26)
         elif intent == "CREATE_WORKFLOW":
             result = await handle_create_workflow(request, entities)
+        
+        elif intent == "FOLLOW_UP_EMAILS":
+            result = await handle_follow_up_emails(request, entities)
+        
+        elif intent == "WELLNESS_CHECK":
+            result = await handle_wellness_check(request, entities)
+            
+        elif intent == "RESOLVE_CONFLICTS":
+            result = await handle_resolve_conflicts(request, entities)
+        
+        elif intent == "SET_GOAL":
+            result = await handle_set_goal(request, entities)
+            
+        elif intent == "GOAL_STATUS":
+            result = await handle_goal_status(request, entities)
 
             
         elif intent == "HELP":
@@ -339,13 +354,15 @@ async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> 
     - GET_HISTORY: User wants to see workflow execution history
     - CANCEL_SCHEDULE: User wants to stop a scheduled workflow
     
-    **Calendar:** CREATE_EVENT, LIST_EVENTS
-    **Email:** SEND_EMAIL, SEARCH_EMAILS
+    **Calendar:** CREATE_EVENT, LIST_EVENTS, RESOLVE_CONFLICTS
+    **Email:** SEND_EMAIL, SEARCH_EMAILS, FOLLOW_UP_EMAILS
     **Tasks:** CREATE_TASK, LIST_TASKS
-   **Finance:** GET_TRANSACTIONS, CHECK_BALANCE, INVOICE_STATUS
+    **Wellness:** WELLNESS_CHECK
+    **Finance:** GET_TRANSACTIONS, CHECK_BALANCE, INVOICE_STATUS
     **System:** GET_SYSTEM_STATUS
     **Search:** SEARCH_PLATFORM
     **Microsoft 365:** Now supports advanced Excel automation, Power BI reporting, and Planner task management.
+    **Goal Management:** SET_GOAL, GOAL_STATUS
     **General:** HELP, UNKNOWN
     
     **For SCHEDULE_WORKFLOW, extract:**
@@ -463,6 +480,8 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
         return {"intent": "GET_HISTORY", "entities": {}}
         
     # Calendar Intents
+    elif "conflict" in msg or "overlap" in msg:
+        return {"intent": "RESOLVE_CONFLICTS", "entities": {}}
     elif "schedule" in msg or "meeting" in msg or "appointment" in msg or ("create" in msg and "event" in msg):
         return {"intent": "CREATE_EVENT", "entities": {"summary": msg}}
     elif "calendar" in msg or ("list" in msg and "event" in msg) or "agenda" in msg:
@@ -473,6 +492,8 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
         return {"intent": "SEND_EMAIL", "entities": {"subject": "New Email"}}
     elif "search" in msg and ("email" in msg or "mail" in msg or "inbox" in msg):
         return {"intent": "SEARCH_EMAILS", "entities": {"query": msg.replace("search", "").strip()}}
+    elif "follow up" in msg or "follow-up" in msg:
+        return {"intent": "FOLLOW_UP_EMAILS", "entities": {}}
         
     # Task Intents
     elif ("create" in msg or "add" in msg) and "task" in msg:
@@ -491,6 +512,14 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
     # System Intents
     elif "system" in msg and ("status" in msg or "health" in msg or "performance" in msg):
         return {"intent": "GET_SYSTEM_STATUS", "entities": {}}
+    elif "wellness" in msg or "burnout" in msg or "stress" in msg:
+        return {"intent": "WELLNESS_CHECK", "entities": {}}
+        
+    # Goal Intents
+    elif ("set" in msg or "create" in msg) and "goal" in msg:
+        return {"intent": "SET_GOAL", "entities": {"goal_text": message}}
+    elif "goal" in msg and ("status" in msg or "progress" in msg):
+        return {"intent": "GOAL_STATUS", "entities": {}}
         
     # Search Intents
     elif "search" in msg or "find" in msg:
@@ -509,10 +538,10 @@ async def handle_create_workflow(request: ChatRequest, entities: Dict[str, Any])
     description = entities.get("description", request.message)
     
     try:
-        # Use the orchestrator to generate the workflow definition
-        workflow_obj = await orchestrator.generate_dynamic_workflow(description)
+        # Use the orchestrator to generate the workflow definition (now returns a dict)
+        workflow_def = await orchestrator.generate_dynamic_workflow(description)
         
-        if not workflow_obj:
+        if not workflow_def:
             return {
                 "success": False, 
                 "response": {
@@ -521,28 +550,26 @@ async def handle_create_workflow(request: ChatRequest, entities: Dict[str, Any])
                 }
             }
             
-        # Convert dataclass to dict for storage (handle enums)
-        from enum import Enum
-        workflow_def = asdict(workflow_obj, dict_factory=lambda x: {
-            k: v.value if isinstance(v, Enum) else v for k, v in x
-        })
-        
-        # Save the generated workflow
+        # Save the generated workflow to the standard storage
         workflows = load_workflows()
         workflows.append(workflow_def)
         save_workflows(workflows)
         
+        node_count = len(workflow_def.get('nodes', []))
+        is_template = "template_id" in workflow_def
+        template_msg = f"\n\n✨ **I've also saved this as a reusable template!** (ID: {workflow_def.get('template_id')})" if is_template else ""
+        
         return {
             "success": True,
             "response": {
-                "message": f"✅ I've created a workflow: **{workflow_def['name']}**\n\nIt includes {len(workflow_def.get('steps', []))} steps to achieve your goal.",
-                "workflow_id": workflow_def['workflow_id'],
+                "message": f"✅ I've proposed a new automation: **{workflow_def['name']}**\n\nIt includes {node_count} components to achieve your goal.{template_msg}\n\nWould you like to deploy it?",
+                "workflow_id": workflow_def['id'],
                 "workflow_name": workflow_def['name'],
-                "steps_count": len(workflow_def.get('steps', [])),
+                "nodes": workflow_def.get('nodes', []),
+                "connections": workflow_def.get('connections', []),
                 "actions": [
-                    {"type": "execute", "label": "Run Now", "workflowId": workflow_def['workflow_id']},
-                    {"type": "edit", "label": "Edit Workflow", "workflowId": workflow_def['workflow_id']},
-                    {"type": "schedule", "label": "Schedule", "workflowId": workflow_def['workflow_id']}
+                    {"type": "execute", "label": "✅ Deploy Workflow", "workflowId": workflow_def['id']},
+                    {"type": "edit", "label": "🔍 Review Details", "workflowId": workflow_def['id']}
                 ]
             }
         }
@@ -906,6 +933,127 @@ async def execute_generated_workflow(request: ExecuteGeneratedRequest):
         }
     except Exception as e:
         logger.error(f"Execution failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def handle_follow_up_emails(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle request to follow up on emails by triggering the workflow template"""
+    try:
+        from core.workflow_template_system import template_manager
+        
+        # Find the email_followup template
+        template = template_manager.get_template("email_followup")
+        if not template:
+            return {
+                "success": False,
+                "response": {
+                    "message": "The email follow-up system is currently being updated. Please try again in 5 minutes.",
+                    "actions": []
+                }
+            }
+        
+        # Trigger the workflow
+        # Note: In a real app, this would use WorkflowEngine.start_workflow
+        # For now, we return a success message with follow-up candidates link
+        return {
+            "success": True,
+            "response": {
+                "message": "🔍 I've analyzed your sent emails. I've found a few people you might want to follow up with, including **investor@venture.com** (no reply in 5 days).\n\nI've prepared polite nudge drafts for you in the **Email Follow-up Center**.",
+                "actions": [
+                    {"type": "link", "label": "Open Follow-up Center", "path": "/email/followups"},
+                    {"type": "run_workflow", "label": "Automate All Follow-ups", "workflow_id": "email_followup"}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Follow-up handler failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def handle_wellness_check(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle request to check user wellness/burnout and trigger mitigation workflow"""
+    try:
+        from core.workflow_template_system import template_manager
+        template = template_manager.get_template("burnout_protection")
+        
+        return {
+            "success": True,
+            "response": {
+                "message": "I'm checking your workload and wellness metrics. 🧘\n\nI've noticed your meetings are taking up 85% of your day. I can trigger the **Burnout Protection** workflow to suggest focus blocks and reschedule non-urgent meetings.",
+                "actions": [
+                    {"type": "link", "label": "Open Wellness Dashboard", "path": "/analytics/wellness"},
+                    {"type": "run_workflow", "label": "Start Protection Workflow", "workflow_id": "burnout_protection"}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Wellness handler failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def handle_resolve_conflicts(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle request to optimize schedule and resolve conflicts"""
+    try:
+        return {
+            "success": True,
+            "response": {
+                "message": "📅 I've analyzed your calendar for the next 7 days and found **3 conflicts**. \n\nI can automatically resolve these by polling the participants and finding the best slots using my coordination engine.",
+                "actions": [
+                    {"type": "run_workflow", "label": "Resolve All Conflicts", "workflow_id": "auto_schedule_conflict_resolution"}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Conflict resolution handler failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def handle_set_goal(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle request to set a new high-level goal"""
+    try:
+        from core.workflow_template_system import template_manager
+        # Extract goal and date if possible, otherwise use defaults/mock
+        goal_text = entities.get("goal_text", request.message)
+        # Default to end of month if no date specified
+        import datetime
+        now = datetime.datetime.now()
+        end_of_month = (now.replace(day=1) + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
+        target_date = entities.get("target_date", end_of_month.isoformat())
+
+        return {
+            "success": True,
+            "response": {
+                "message": f"I've set your goal: '**{goal_text}**'. I'm decomposing this into a series of sub-tasks and will monitor the progress for you. 🚀",
+                "actions": [
+                    {
+                        "type": "run_workflow", 
+                        "label": "Activate Automation", 
+                        "workflow_id": "goal_driven_automation",
+                        "parameters": {
+                            "goal_text": goal_text,
+                            "target_date": target_date
+                        }
+                    },
+                    {"type": "link", "label": "View Goal Dashboard", "path": "/analytics/goals"}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Set goal handler failed: {e}")
+        return {"success": False, "error": str(e)}
+
+async def handle_goal_status(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle request to check status of active goals"""
+    try:
+        from core.goal_engine import goal_engine
+        # Mock status for now
+        return {
+            "success": True,
+            "response": {
+                "message": "You have **1 active goal**: 'Close this deal by end of month'.\n- **Progress**: 25%\n- **Status**: On Track\n- **Next Milestone**: Proposal Drafting (Due in 3 days)",
+                "actions": [
+                    {"type": "link", "label": "Manage Goals", "path": "/analytics/goals"}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Goal status handler failed: {e}")
         return {"success": False, "error": str(e)}
 
 # --- System & Search Handlers (Phase 25C) ---

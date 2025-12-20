@@ -4,26 +4,18 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
 
   try {
     // Start OAuth flow
-    const response = await fetch(`${backendUrl}/api/slack/oauth/start`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_id: 'current',
-        redirect_uri: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/integrations/slack/auth/callback`,
-      }),
-    });
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
+    const response = await fetch(`${backendUrl}/api/slack/auth/url`);
 
     if (response.ok) {
       const data = await response.json();
       // Redirect to Slack authorization URL
-      if (data.authorization_url) {
-        res.redirect(data.authorization_url);
+      if (data.url) {
+        res.redirect(data.url);
       } else {
         res.status(500).json({
           error: 'Failed to get Slack authorization URL',

@@ -8,11 +8,23 @@ import json
 import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta, timezone
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+
+# Make Google APIs optional for calendar integration
+try:
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+    GOOGLE_APIS_AVAILABLE = True
+except ImportError as e:
+    GOOGLE_APIS_AVAILABLE = False
+    # Create dummy classes to prevent type errors
+    class Credentials: pass
+    class Request: pass
+    class InstalledAppFlow: pass
+    class HttpError(Exception): pass
+    def build(*args, **kwargs): return None
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +49,10 @@ class GoogleCalendarService:
         
     def authenticate(self) -> bool:
         """Authenticate with Google Calendar API"""
+        if not GOOGLE_APIS_AVAILABLE:
+            logger.warning("Google APIs not available - calendar integration disabled")
+            return False
+
         try:
             # Load existing token if available
             if os.path.exists(self.token_file):
@@ -142,6 +158,9 @@ class GoogleCalendarService:
         Returns:
             List of events in unified format
         """
+        if not GOOGLE_APIS_AVAILABLE:
+            logger.warning("Google APIs not available - cannot get events")
+            return []
         if not self.service:
             if not self.authenticate():
                 return []

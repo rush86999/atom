@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 # Initialize router
 router = APIRouter(prefix="/api/asana", tags=["asana"])
 
-# In-memory token storage
-_token_store: Dict[str, str] = {}
+from core.token_storage import token_storage
+from core.oauth_handler import OAuthHandler, ASANA_OAUTH_CONFIG
 
 
 # Pydantic models for request/response
@@ -50,21 +50,37 @@ class SearchQuery(BaseModel):
     limit: Optional[int] = Field(20, description="Result limit")
 
 
-# Helper function to extract access token (in production, use proper auth)
+# Helper function to extract access token
 async def get_access_token(user_id: Optional[str] = Query(None, description="User ID")) -> str:
     """
     Extract access token for user.
-    In production, this would fetch from secure token storage.
+    Uses centralized token storage and handles automatic refresh.
     """
-    """
-    Extract access token for user.
-    In production, this would fetch from secure token storage.
-    """
-    # Check in-memory store first
-    if user_id and user_id in _token_store:
-        return _token_store[user_id]
+    # 1. Try to get from persistent storage
+    stored_token = token_storage.get_token("asana")
+    
+    if stored_token:
+        # Check if expired
+        if token_storage.is_token_expired("asana"):
+            logger.info("Asana token expired, attempting refresh...")
+            try:
+                if stored_token.get("refresh_token"):
+                    handler = OAuthHandler(ASANA_OAUTH_CONFIG)
+                    new_tokens = await handler.refresh_access_token(stored_token["refresh_token"])
+                    
+                    # Merge and save
+                    for key, value in stored_token.items():
+                        if key not in new_tokens:
+                            new_tokens[key] = value
+                    
+                    token_storage.save_token("asana", new_tokens)
+                    return new_tokens["access_token"]
+            except Exception as e:
+                logger.error(f"Failed to refresh Asana token: {e}")
         
-    # Check environment variable for production/local dev
+        return stored_token["access_token"]
+        
+    # 2. Check environment variable for production/local dev
     import os
     env_token = os.getenv("ASANA_ACCESS_TOKEN")
     if env_token:
@@ -75,9 +91,9 @@ async def get_access_token(user_id: Optional[str] = Query(None, description="Use
     return "mock_access_token_placeholder"
 
 @router.post("/auth/token")
-async def set_access_token(token: str = Body(..., embed=True), user_id: str = Body(..., embed=True)):
+async def set_access_token(token: str = Body(..., embed=True), user_id: str = Body(None, embed=True)):
     """Set access token for a user (for testing/development)"""
-    _token_store[user_id] = token
+    token_storage.save_token("asana", {"access_token": token, "user_id": user_id})
     return {"status": "success", "message": "Token stored successfully"}
 
 

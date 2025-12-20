@@ -13,7 +13,39 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
-from colorama import Fore, Style, init
+
+# Import colorama for colored output (if available)
+try:
+    from colorama import Fore, Style, init
+    COLORAMA_AVAILABLE = True
+    # Initialize colorama for colored output
+    init(autoreset=True)
+except ImportError:
+    # Define dummy colorama classes if not available
+    class Fore:
+        CYAN = ''
+        RED = ''
+        YELLOW = ''
+        GREEN = ''
+        BLUE = ''
+        MAGENTA = ''
+        BLACK = ''
+        WHITE = ''
+        RESET = ''
+        LIGHTBLUE_EX = ''
+        LIGHTCYAN_EX = ''
+        LIGHTGREEN_EX = ''
+        LIGHTMAGENTA_EX = ''
+        LIGHTRED_EX = ''
+        LIGHTYELLOW_EX = ''
+        LIGHTWHITE_EX = ''
+        LIGHTBLACK_EX = ''
+    class Style:
+        RESET_ALL = ''
+        BRIGHT = ''
+        DIM = ''
+        NORMAL = ''
+    COLORAMA_AVAILABLE = False
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -23,9 +55,6 @@ from config.test_config import TestConfig
 import os
 from utils.llm_verifier import LLMVerifier
 from utils.glm_verifier import GLMVerifier
-
-# Initialize colorama for colored output
-init(autoreset=True)
 
 
 class E2ETestRunner:
@@ -192,6 +221,11 @@ class E2ETestRunner:
                 "voice_integration",
                 "conversational_automation",
             ],
+            "scheduling": [],
+            "error_handling": [],
+            "complex_workflows": [],
+            "performance": [],
+            "security": [],
         }
 
         relevant_claims = claim_mapping.get(category, [])

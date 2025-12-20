@@ -16,11 +16,37 @@ class WorkflowScheduler:
     Persists jobs to a SQLite database.
     """
     
-    def __init__(self, db_url: str = "sqlite:///jobs.sqlite"):
-        self.job_store_url = db_url
+    def __init__(self, db_url: Optional[str] = None):
+        from core.config import get_config
+        self.config = get_config()
+        
+        jobstores = {}
+        
+        # Use configured job store
+        if self.config.scheduler.job_store_type == 'redis' and self.config.redis.enabled:
+            try:
+                from apscheduler.jobstores.redis import RedisJobStore
+                jobstores['default'] = RedisJobStore(
+                    host=self.config.redis.host,
+                    port=self.config.redis.port,
+                    db=self.config.redis.db,
+                    password=self.config.redis.password
+                )
+                logger.info("WorkflowScheduler using RedisJobStore")
+            except Exception as e:
+                logger.warning(f"Failed to initialize RedisJobStore: {e}. Falling back to SQLAlchemy.")
+                jobstores['default'] = SQLAlchemyJobStore(url=db_url or self.config.scheduler.job_store_url)
+        else:
+            job_store_url = db_url or self.config.scheduler.job_store_url
+            jobstores['default'] = SQLAlchemyJobStore(url=job_store_url)
+            logger.info(f"WorkflowScheduler using SQLAlchemyJobStore")
+
         self.scheduler = AsyncIOScheduler(
-            jobstores={
-                'default': SQLAlchemyJobStore(url=self.job_store_url)
+            jobstores=jobstores,
+            job_defaults={
+                'misfire_grace_time': self.config.scheduler.misfire_grace_time,
+                'coalesce': self.config.scheduler.coalesce,
+                'max_instances': self.config.scheduler.max_instances
             }
         )
         self.engine = None # Will be set later to avoid circular imports
