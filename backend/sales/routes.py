@@ -21,6 +21,14 @@ async def ingest_lead(
         return {"status": "skipped", "message": "Lead ingestion disabled or failed"}
     return {"status": "success", "lead_id": lead.id, "ai_score": lead.ai_score}
 
+@router.get("/leads")
+async def list_leads(
+    workspace_id: str,
+    db: Session = Depends(get_db)
+):
+    leads = db.query(Lead).filter(Lead.workspace_id == workspace_id).order_by(Lead.ai_score.desc()).all()
+    return leads
+
 @router.get("/deals/{deal_id}/health")
 async def get_deal_health(
     deal_id: str, 
@@ -33,6 +41,14 @@ async def get_deal_health(
     intelligence = SalesIntelligence(db)
     result = intelligence.analyze_deal_health(deal)
     return result
+
+@router.get("/deals")
+async def list_deals(
+    workspace_id: str,
+    db: Session = Depends(get_db)
+):
+    deals = db.query(Deal).filter(Deal.workspace_id == workspace_id).all()
+    return deals
 
 @router.post("/calls/process")
 async def process_call(
@@ -51,6 +67,17 @@ async def process_call(
         "summary": transcript.summary,
         "action_items": transcript.action_items
     }
+
+@router.get("/calls")
+async def list_calls(
+    workspace_id: str,
+    deal_id: str = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(CallTranscript).filter(CallTranscript.workspace_id == workspace_id)
+    if deal_id:
+        query = query.filter(CallTranscript.deal_id == deal_id)
+    return query.order_by(CallTranscript.created_at.desc()).all()
 
 @router.post("/deals/{deal_id}/win")
 async def win_deal(
