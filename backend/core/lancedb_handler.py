@@ -187,6 +187,7 @@ class LanceDBHandler:
                 
                 schema = pa.schema([
                     pa.field("id", pa.string()),
+                    pa.field("user_id", pa.string()),
                     pa.field("from_id", pa.string()),
                     pa.field("to_id", pa.string()),
                     pa.field("type", pa.string()),

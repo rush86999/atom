@@ -145,3 +145,29 @@ class DoubleEntryEngine:
             {"account_id": receivable_account_id, "type": EntryType.DEBIT, "amount": amount},
             {"account_id": revenue_account_id, "type": EntryType.CREDIT, "amount": amount}
         ]
+
+    @staticmethod
+    def create_bill_entry(
+        payable_account_id: str,
+        expense_account_id: str,
+        amount: float,
+        description: str
+    ) -> List[Dict[str, Any]]:
+        """Pattern: Receive a bill (Expense incurred, but not yet paid)"""
+        return [
+            {"account_id": expense_account_id, "type": EntryType.DEBIT, "amount": amount, "description": description},
+            {"account_id": payable_account_id, "type": EntryType.CREDIT, "amount": amount, "description": description}
+        ]
+
+    @staticmethod
+    def create_payment_for_bill(
+        cash_account_id: str,
+        payable_account_id: str,
+        amount: float,
+        description: str
+    ) -> List[Dict[str, Any]]:
+        """Pattern: Pay off a recorded bill"""
+        return [
+            {"account_id": payable_account_id, "type": EntryType.DEBIT, "amount": amount, "description": description},
+            {"account_id": cash_account_id, "type": EntryType.CREDIT, "amount": amount, "description": description}
+        ]

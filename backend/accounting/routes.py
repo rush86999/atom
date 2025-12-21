@@ -7,7 +7,14 @@ from accounting.fpa_service import FPAService
 from accounting.export_service import AccountExporter
 from accounting.categorizer import AICategorizer
 from accounting.sync_manager import AccountingSyncManager
+from accounting.ap_service import APService
+from accounting.dashboard_service import AccountingDashboardService
+from accounting.models import Document as FinancialDocument
 from core.auth_endpoints import get_current_user
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, File, UploadFile, Form
+import shutil
+import os
+import uuid
 from core.automation_settings import get_automation_settings
 
 router = APIRouter(prefix="/api/v1/accounting", tags=["Accounting"])
@@ -130,3 +137,57 @@ async def trigger_external_sync(
     sync_manager = AccountingSyncManager(db)
     result = await sync_manager.sync_external_transactions(workspace_id, platform, credentials)
     return result
+
+@router.get("/dashboard/summary")
+async def get_accounting_summary(
+    workspace_id: str,
+    db: Session = Depends(get_db),
+    _user = Depends(get_current_user)
+):
+    check_accounting_enabled()
+    service = AccountingDashboardService(db)
+    return service.get_financial_summary(workspace_id)
+
+@router.post("/bills/upload")
+async def upload_invoice(
+    workspace_id: str = Form(...),
+    file: UploadFile = File(...),
+    expense_account_code: str = Form("5100"),
+    db: Session = Depends(get_db),
+    _user = Depends(get_current_user)
+):
+    check_accounting_enabled()
+    
+    # 1. Save file locally (Simulating cloud storage)
+    upload_dir = "/Users/rushiparikh/projects/atom/backend/data/uploads/invoices"
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    file_id = str(uuid.uuid4())
+    file_ext = os.path.splitext(file.filename)[1]
+    file_path = os.path.join(upload_dir, f"{file_id}{file_ext}")
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # 2. Track in Document table
+    doc = FinancialDocument(
+        workspace_id=workspace_id,
+        file_path=file_path,
+        file_name=file.filename,
+        file_type="pdf" if file_ext.lower() == ".pdf" else "image"
+    )
+    db.add(doc)
+    db.flush()
+    
+    # 3. Process with AP Service
+    ap_service = APService(db)
+    try:
+        result = await ap_service.process_invoice_document(
+            document_id=doc.id, 
+            workspace_id=workspace_id,
+            expense_account_code=expense_account_code
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error processing invoice: {e}")
+        raise HTTPException(status_code=500, detail=f"Invoice processing failed: {str(e)}")

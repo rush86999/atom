@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 import uvicorn
+from datetime import datetime
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,6 +51,39 @@ try:
 
     app.include_router(availability_router, prefix="/api/v1")
     app.include_router(stakeholder_router, prefix="/api/v1")
+
+    from api.reports import router as reports_router
+    from api.agent_routes import router as agent_router
+
+    app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
+    app.include_router(agent_router, prefix="/api/agents", tags=["agents"])
+
+    from api.workflow_template_routes import router as template_router
+    app.include_router(template_router, prefix="/api/workflow-templates", tags=["workflow-templates"])
+
+    from api.notification_settings_routes import router as notification_router
+    app.include_router(notification_router, prefix="/api/notification-settings", tags=["notification-settings"])
+
+    from api.workflow_analytics_routes import router as analytics_router
+    app.include_router(analytics_router, prefix="/api/workflows", tags=["workflow-analytics"])
+
+    from api.background_agent_routes import router as background_router
+    app.include_router(background_router, prefix="/api/background-agents", tags=["background-agents"])
+
+    from api.financial_ops_routes import router as financial_router
+    app.include_router(financial_router, prefix="/api/financial", tags=["financial-ops"])
+
+    from api.ai_accounting_routes import router as accounting_router
+    app.include_router(accounting_router, prefix="/api/accounting", tags=["ai-accounting"])
+
+    from api.reconciliation_routes import router as reconciliation_router
+    app.include_router(reconciliation_router, prefix="/api/reconciliation", tags=["reconciliation"])
+
+    from api.apar_routes import router as apar_router
+    app.include_router(apar_router, prefix="/api/apar", tags=["ap-ar"])
+
+    from api.graphrag_routes import router as graphrag_router
+    app.include_router(graphrag_router, prefix="/api/graphrag", tags=["graphrag"])
 
     from core.workflow_endpoints import router as workflow_router
     app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
@@ -145,8 +179,10 @@ integrations = [
     # Integrations - Finance & Commerce
     ("integrations.stripe_routes", "router", None),
     ("integrations.shopify_routes", "router", None),
+    ("integrations.shopify_webhooks", "router", None),
     ("integrations.xero_routes", "router", None),
     ("integrations.quickbooks_routes", "router", None),
+    ("integrations.workflow_approval_routes", "router", None),
     ("integrations.plaid_routes", "router", None),
     ("accounting.routes", "router", None),
     ("api.financial_routes", "router", None),
@@ -243,18 +279,20 @@ async def root():
         "docs": "/docs",
     }
 
-# Scheduler Lifecycle
 @app.on_event("startup")
 async def start_scheduler():
     from ai.workflow_scheduler import workflow_scheduler
+    from core.scheduler import AgentScheduler
+    
     workflow_scheduler.start()
-    print("[OK] Workflow Scheduler started")
+    AgentScheduler.get_instance() # Starts background scheduler
+    print("[OK] Workflow & Agent Schedulers started")
 
 @app.on_event("shutdown")
 async def stop_scheduler():
     from ai.workflow_scheduler import workflow_scheduler
     workflow_scheduler.shutdown()
-    print("[OK] Workflow Scheduler shutdown")
+    print("[OK] Schedulers shutdown")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5059)

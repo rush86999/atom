@@ -20,6 +20,12 @@ class DealStage(str, enum.Enum):
     CLOSED_WON = "closed_won"
     CLOSED_LOST = "closed_lost"
 
+class CommissionStatus(str, enum.Enum):
+    ACCRUED = "accrued"
+    APPROVED = "approved"
+    PAID = "paid"
+    CANCELLED = "cancelled"
+
 class Lead(Base):
     __tablename__ = "sales_leads"
 
@@ -37,6 +43,7 @@ class Lead(Base):
     ai_score = Column(Float, default=0.0)
     ai_qualification_summary = Column(Text, nullable=True)
     is_spam = Column(Boolean, default=False)
+    is_converted = Column(Boolean, default=False)
     
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -65,6 +72,28 @@ class Deal(Base):
 
     # Relationships
     transcripts = relationship("CallTranscript", back_populates="deal")
+    commissions = relationship("CommissionEntry", back_populates="deal")
+
+class CommissionEntry(Base):
+    __tablename__ = "sales_commissions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
+    deal_id = Column(String, ForeignKey("sales_deals.id"), nullable=False)
+    invoice_id = Column(String, nullable=True) # Linked accounting invoice
+    
+    payee_id = Column(String, nullable=True) # User/Rep ID
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="USD")
+    status = Column(SQLEnum(CommissionStatus), default=CommissionStatus.ACCRUED)
+    
+    calculated_at = Column(DateTime(timezone=True), server_default=func.now())
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    
+    metadata_json = Column(JSON, nullable=True)
+
+    # Relationships
+    deal = relationship("Deal", back_populates="commissions")
 
 class CallTranscript(Base):
     __tablename__ = "sales_call_transcripts"
@@ -79,6 +108,7 @@ class CallTranscript(Base):
     summary = Column(Text, nullable=True)
     objections = Column(JSON, nullable=True) # List of extracted objections
     action_items = Column(JSON, nullable=True) # List of extracted tasks
+    metadata_json = Column(JSON, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

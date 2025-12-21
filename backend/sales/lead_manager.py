@@ -3,9 +3,16 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from sales.models import Lead, LeadStatus
 from core.automation_settings import get_automation_settings
-from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, CommunicationAppType
+from core.websockets import manager
 
 logger = logging.getLogger(__name__)
+
+try:
+    from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, CommunicationAppType
+    INGESTION_AVAILABLE = True
+except ImportError:
+    INGESTION_AVAILABLE = False
+    logger.warning("Ingestion pipeline not available. Sales memory will be disabled.")
 
 class LeadManager:
     """
@@ -15,7 +22,7 @@ class LeadManager:
         self.db = db
         self.settings = get_automation_settings()
 
-    def ingest_lead(self, workspace_id: str, lead_data: Dict[str, Any]) -> Lead:
+    async def ingest_lead(self, workspace_id: str, lead_data: Dict[str, Any]) -> Lead:
         """
         Normalize and ingest a lead from any source.
         """
@@ -51,11 +58,11 @@ class LeadManager:
         self.db.flush()
 
         # Trigger AI Scoring
-        self.score_lead(lead)
+        await self.score_lead(lead)
 
         return lead
 
-    def score_lead(self, lead: Lead):
+    async def score_lead(self, lead: Lead):
         """
         Use AI to score the lead and detect spam/competitors.
         """
@@ -90,24 +97,43 @@ class LeadManager:
         self.db.commit()
         logger.info(f"Scored lead {lead.email}: {score}")
 
-        # Ingest into LanceDB Memory
+        # Broadcast update
         try:
-            from datetime import datetime
-            ingestion_pipeline.ingest_message(
-                CommunicationAppType.CRM_LEAD.value,
-                {
+            await manager.broadcast(f"workspace:{lead.workspace_id}", {
+                "type": "new_lead",
+                "workspace_id": lead.workspace_id,
+                "data": {
                     "id": lead.id,
-                    "timestamp": datetime.now().isoformat(),
-                    "sender": lead.email,
-                    "content": f"New Lead: {lead.first_name or ''} {lead.last_name or ''} from {lead.company or 'Unknown'}. Source: {lead.source}. AI Score: {lead.ai_score}. Summary: {lead.ai_qualification_summary}",
-                    "metadata": {
-                        "lead_id": lead.id,
-                        "workspace_id": lead.workspace_id,
-                        "company": lead.company,
-                        "ai_score": lead.ai_score,
-                        "status": lead.status.value
-                    }
+                    "first_name": lead.first_name,
+                    "last_name": lead.last_name,
+                    "company": lead.company,
+                    "ai_score": lead.ai_score,
+                    "status": lead.status.value,
+                    "summary": lead.ai_qualification_summary
                 }
-            )
+            })
         except Exception as e:
-            logger.error(f"Failed to ingest lead into LanceDB: {e}")
+            logger.error(f"Failed to broadcast lead update: {e}")
+
+        # Ingest into LanceDB Memory
+        if INGESTION_AVAILABLE:
+            try:
+                from datetime import datetime
+                ingestion_pipeline.ingest_message(
+                    CommunicationAppType.CRM_LEAD.value,
+                    {
+                        "id": lead.id,
+                        "timestamp": datetime.now().isoformat(),
+                        "sender": lead.email,
+                        "content": f"New Lead: {lead.first_name or ''} {lead.last_name or ''} from {lead.company or 'Unknown'}. Source: {lead.source}. AI Score: {lead.ai_score}. Summary: {lead.ai_qualification_summary}",
+                        "metadata": {
+                            "lead_id": lead.id,
+                            "workspace_id": lead.workspace_id,
+                            "company": lead.company,
+                            "ai_score": lead.ai_score,
+                            "status": lead.status.value
+                        }
+                    }
+                )
+            except Exception as e:
+                logger.error(f"Failed to ingest lead into LanceDB: {e}")

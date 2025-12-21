@@ -19,9 +19,20 @@ import uuid
 import re
 import ast
 from core.byok_endpoints import get_byok_manager
+from core.meta_automation import get_meta_automation
+from core.meta_automation import get_meta_automation
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Database and models for Phase 11 persistence
+try:
+    from core.database import SessionLocal
+    from core.models import WorkflowExecution, WorkflowExecutionStatus
+    MODELS_AVAILABLE = True
+except ImportError:
+    MODELS_AVAILABLE = False
+    logger.warning("Workflow persistence models not available")
 
 class WorkflowStepType(Enum):
     """Types of workflow steps"""
@@ -49,6 +60,17 @@ class WorkflowStepType(Enum):
     KNOWLEDGE_LOOKUP = "knowledge_lookup"
     KNOWLEDGE_UPDATE = "knowledge_update"
     SYSTEM_REASONING = "system_reasoning"
+    INVOICE_PROCESSING = "invoice_processing"
+    ECOMMERCE_SYNC = "ecommerce_sync"
+    AGENT_EXECUTION = "agent_execution"  # Phase 28: Run a Computer Use Agent
+    # Phase 37: Financial & Ops Automations
+    COST_LEAK_DETECTION = "cost_leak_detection"
+    BUDGET_CHECK = "budget_check"
+    INVOICE_RECONCILIATION = "invoice_reconciliation"
+    # Phase 35: Background Agents
+    BACKGROUND_AGENT_START = "background_agent_start"
+    BACKGROUND_AGENT_STOP = "background_agent_stop"
+    GRAPHRAG_QUERY = "graphrag_query"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -60,6 +82,29 @@ class WorkflowStatus(Enum):
     WAITING_APPROVAL = "waiting_approval"
 
 @dataclass
+class RetryPolicy:
+    """Configuration for retry behavior on step failures (Phase 32)"""
+    max_retries: int = 3
+    initial_delay_seconds: float = 1.0
+    max_delay_seconds: float = 60.0
+    exponential_base: float = 2.0  # Delay multiplier per retry
+    retryable_errors: List[str] = field(default_factory=lambda: [
+        "timeout", "connection", "rate_limit", "temporary"
+    ])
+    
+    def get_delay(self, attempt: int) -> float:
+        """Calculate delay for given attempt using exponential backoff"""
+        delay = self.initial_delay_seconds * (self.exponential_base ** attempt)
+        return min(delay, self.max_delay_seconds)
+    
+    def should_retry(self, error: str, attempt: int) -> bool:
+        """Check if error is retryable and attempts remain"""
+        if attempt >= self.max_retries:
+            return False
+        error_lower = error.lower()
+        return any(e in error_lower for e in self.retryable_errors)
+
+@dataclass
 class WorkflowStep:
     """Individual workflow step definition"""
     step_id: str
@@ -69,10 +114,10 @@ class WorkflowStep:
     conditions: Dict[str, Any] = field(default_factory=dict)
     parallel_steps: List[str] = field(default_factory=list)
     next_steps: List[str] = field(default_factory=list)
-    retry_count: int = 0
-    max_retries: int = 3
+    retry_policy: RetryPolicy = field(default_factory=RetryPolicy)
     timeout_seconds: int = 30
-    confidence_threshold: float = 0.7 # Default threshold for autonomous execution
+    confidence_threshold: float = 0.7
+    agent_fallback_id: Optional[str] = None  # Phase 33: Explicit agent to use on API failure
 
 @dataclass
 class WorkflowContext:
@@ -447,11 +492,37 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             triggers=["document_uploaded"]
         )
 
+        # Workflow 5: Shopify Order to Ledger Sync
+        shopify_sync_workflow = WorkflowDefinition(
+            workflow_id="shopify_to_ledger_sync",
+            name="Shopify Order to Ledger Sync",
+            description="Automatically sync Shopify orders to the accounting ledger",
+            steps=[
+                WorkflowStep(
+                    step_id="ledger_mapping",
+                    step_type=WorkflowStepType.ECOMMERCE_SYNC,
+                    description="Map Shopify order to ledger entries",
+                    parameters={"action": "order_to_ledger"},
+                    next_steps=["notify_success"]
+                ),
+                WorkflowStep(
+                    step_id="notify_success",
+                    step_type=WorkflowStepType.SLACK_NOTIFICATION,
+                    description="Notify team of successful ledger sync",
+                    parameters={"channel": "#finance-sync", "message": "Order {order_number} synced to ledger for ${total_price}"},
+                    next_steps=[]
+                )
+            ],
+            start_step="ledger_mapping",
+            triggers=["SHOPIFY_ORDER_CREATED"]
+        )
+
         # Register workflows
         self.workflows[customer_support_workflow.workflow_id] = customer_support_workflow
         self.workflows[project_management_workflow.workflow_id] = project_management_workflow
         self.workflows[sales_lead_workflow.workflow_id] = sales_lead_workflow
         self.workflows[contract_workflow.workflow_id] = contract_workflow
+        self.workflows[shopify_sync_workflow.workflow_id] = shopify_sync_workflow
 
     async def trigger_event(self, event_type: str, data: Dict[str, Any]):
         """
@@ -681,24 +752,68 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             context.completed_at = datetime.datetime.now()
 
         finally:
+            # Persistent state update
+            self._save_execution_state(context)
+            
             # Cleanup AI service sessions
             if self.ai_service:
                 await self.ai_service.cleanup_sessions()
 
         return context
 
-    async def resume_workflow(self, execution_id: str, step_id: str) -> WorkflowContext:
-        """Resume a workflow execution after approval"""
-        if execution_id not in self.active_contexts:
-            # In a real environment, we'd load this from the database
-            raise ValueError(f"Workflow execution {execution_id} not found in active contexts")
+    def _save_execution_state(self, context: WorkflowContext):
+        """Persist workflow execution state to database (Phase 11)"""
+        if not MODELS_AVAILABLE:
+            return
 
-        context = self.active_contexts[execution_id]
-        
-        # We need the original workflow definition to find next steps
-        # This is tricky because we don't store definition ID explicitly in context in a way that maps back to definition
-        # But for now, we'll try to find it in self.workflows by name match or similar
-        # Real implementation should store workflow_definition_id in context
+        try:
+            with SessionLocal() as db:
+                # Find or create execution record
+                execution = db.query(WorkflowExecution).filter(
+                    WorkflowExecution.execution_id == context.workflow_id
+                ).first()
+                
+                if not execution:
+                    execution = WorkflowExecution(
+                        execution_id=context.workflow_id,
+                        workflow_id=context.workflow_id, # Simplified mapping
+                        user_id=context.user_id if context.user_id != "default_user" else None
+                    )
+                    db.add(execution)
+                
+                # Update status and data
+                execution.status = context.status.value
+                execution.input_data = json.dumps(context.input_data)
+                execution.outputs = json.dumps(context.results)
+                
+                # Context state including variables and history
+                state = {
+                    "variables": context.variables,
+                    "execution_history": context.execution_history,
+                    "results": context.results
+                }
+                execution.context = json.dumps(state)
+                
+                if context.error_message:
+                    execution.error = context.error_message
+                
+                db.commit()
+                logger.info(f"Persisted state for workflow {context.workflow_id} (Status: {context.status.value})")
+        except Exception as e:
+            logger.error(f"Failed to persist workflow state: {e}")
+
+    async def resume_workflow(self, execution_id: str, step_id: str) -> WorkflowContext:
+        """Resume a workflow execution after approval (Phase 11 Enhanced)"""
+        if execution_id in self.active_contexts:
+            context = self.active_contexts[execution_id]
+        elif MODELS_AVAILABLE:
+            # Attempt to load from database
+            context = self._load_execution_state(execution_id)
+            if not context:
+                raise ValueError(f"Workflow execution {execution_id} not found in memory or database")
+            self.active_contexts[execution_id] = context
+        else:
+            raise ValueError(f"Workflow execution {execution_id} not found")
         
         # Finding the workflow definition
         workflow_def = None
@@ -727,10 +842,43 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         # Continue execution from next steps
         target_next_steps = step_result.get("next_steps", step.next_steps)
         
-        # We run the next steps in the background to avoid blocking the response
-        asyncio.create_task(self._continue_workflow(workflow_def, target_next_steps, context))
+        # Run continue_workflow and ensure it persists after
+        await self._continue_workflow(workflow_def, target_next_steps, context)
+        self._save_execution_state(context)
         
         return context
+
+    def _load_execution_state(self, execution_id: str) -> Optional[WorkflowContext]:
+        """Load workflow state from database (Phase 11)"""
+        if not MODELS_AVAILABLE:
+            return None
+
+        try:
+            with SessionLocal() as db:
+                execution = db.query(WorkflowExecution).filter(
+                    WorkflowExecution.execution_id == execution_id
+                ).first()
+                
+                if not execution:
+                    return None
+                
+                state = json.loads(execution.context) if execution.context else {}
+                
+                context = WorkflowContext(
+                    workflow_id=execution.execution_id,
+                    user_id=execution.user_id or "default_user",
+                    input_data=json.loads(execution.input_data) if execution.input_data else {},
+                    status=WorkflowStatus(execution.status),
+                    started_at=execution.created_at
+                )
+                context.variables = state.get("variables", {})
+                context.execution_history = state.get("execution_history", [])
+                context.results = state.get("results", {})
+                
+                return context
+        except Exception as e:
+            logger.error(f"Failed to load workflow state: {e}")
+            return None
 
     async def _continue_workflow(self, workflow: WorkflowDefinition, next_steps: List[str], context: WorkflowContext):
         """Helper to continue workflow execution from a list of steps"""
@@ -748,6 +896,27 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             context.status = WorkflowStatus.FAILED
             context.error_message = str(e)
             context.completed_at = datetime.datetime.now()
+
+    async def _generate_fallback_instructions(self, step: WorkflowStep, error_msg: str) -> str:
+        """
+        Generate natural language instructions for the fallback agent (Self-Healing).
+        """
+        prompt = f"The workflow step '{step.description}' (Service: {step.parameters.get('service')}) failed with error: {error_msg}. Perform this task manually via the UI."
+        if self.ai_service:
+            try:
+                # Use AI to refine instructions (MVP: just return prompt to agent)
+                return prompt 
+            except Exception:
+                pass
+        return prompt
+
+    def _get_fallback_url(self, service: str) -> str:
+        """Get the starting URL for the fallback agent"""
+        service = service.upper()
+        if service == "SALESFORCE": return "https://login.salesforce.com"
+        elif service == "HUBSPOT": return "https://app.hubspot.com/login"
+        elif service == "BANKING": return "https://bank.com/login"
+        return "about:blank"
 
     async def _execute_workflow_step(self, workflow: WorkflowDefinition, step_id: str,
                                    context: WorkflowContext) -> None:
@@ -767,8 +936,101 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             logger.info(f"Conditions not met for step {step_id}, skipping")
             return
 
-        # Execute the step based on its type
-        step_result = await self._execute_step_by_type(workflow, step, context)
+        # Execute the step with retry logic (Phase 32)
+        step_result = None
+        last_error = None
+        retry_policy = step.retry_policy
+        
+        for attempt in range(retry_policy.max_retries + 1):
+            try:
+                step_result = await self._execute_step_by_type(workflow, step, context)
+                break  # Success, exit retry loop
+                
+            except Exception as e:
+                last_error = e
+                error_str = str(e)
+                
+                # Check if we should retry
+                if retry_policy.should_retry(error_str, attempt):
+                    delay = retry_policy.get_delay(attempt)
+                    logger.warning(f"Step {step_id} failed (attempt {attempt + 1}/{retry_policy.max_retries}): {error_str}. Retrying in {delay:.1f}s...")
+                    await asyncio.sleep(delay)
+                    continue
+                
+                # Check for Meta-Automation Fallback as last resort
+                # Phase 33: Use agent_fallback_id or registered agents
+                desktop_available = os.getenv("DESKTOP_ENV_AVAILABLE", "false").lower() == "true"
+                
+                if desktop_available and (step.agent_fallback_id or meta_automation.should_fallback(e)):
+                    logger.warning(f"API Error detected: {e}. Attempting Agent Fallback...")
+                    
+                    # Try explicit agent_fallback_id first
+                    if step.agent_fallback_id:
+                        try:
+                            from api.agent_routes import AGENTS, execute_agent_task
+                            if step.agent_fallback_id in AGENTS:
+                                agent_def = AGENTS[step.agent_fallback_id]
+                                logger.info(f"Using explicit fallback agent: {step.agent_fallback_id}")
+                                
+                                fallback_result = await execute_agent_task(
+                                    step.agent_fallback_id, 
+                                    agent_def, 
+                                    {**step.parameters, "fallback_error": str(e)}
+                                )
+                                
+                                if fallback_result:
+                                    step_result = {
+                                        "status": "completed",
+                                        "output": fallback_result,
+                                        "notes": f"Completed via Agent Fallback ({step.agent_fallback_id})"
+                                    }
+                                    break
+                        except Exception as agent_err:
+                            logger.error(f"Explicit agent fallback failed: {agent_err}")
+                    
+                    # Fall back to Meta-Automation service detection
+                    service = step.parameters.get("service", "").upper()
+                    if not service:
+                        if step.step_type == WorkflowStepType.SALESFORCE_INTEGRATION:
+                            service = "SALESFORCE"
+                        elif step.step_type == WorkflowStepType.HUBSPOT_INTEGRATION:
+                            service = "HUBSPOT"
+                    
+                    meta_automation = get_meta_automation()
+                    agent = meta_automation.get_fallback_agent(service)
+                    
+                    if agent:
+                        logger.info(f"Fallback Agent {type(agent).__name__} engaged for step {step_id}")
+                        instructions = await self._generate_fallback_instructions(step, str(e))
+                        target_url = self._get_fallback_url(service)
+                        
+                        try:
+                            sys_result = await agent.execute_task(target_url, instructions)
+                            if sys_result.get("status") == "success":
+                                logger.info(f"Meta-Automation Fallback Successful for {step_id}")
+                                step_result = {
+                                    "status": "completed",
+                                    "output": sys_result.get("data", {}),
+                                    "notes": "Completed via Self-Healing UI Fallback"
+                                }
+                                break
+                            else:
+                                raise Exception(f"Fallback UI Agent failed: {sys_result.get('error')}")
+                        except Exception as fallback_err:
+                            logger.error(f"Meta-Automation Fallback failed: {fallback_err}")
+                            raise e
+                    else:
+                        raise e
+                elif not desktop_available:
+                    logger.warning(f"Agent fallback skipped - no desktop environment available")
+                    raise e
+                else:
+                    raise e
+        
+        # If we exhausted retries without success
+        if step_result is None and last_error:
+            logger.error(f"Step {step_id} failed after {retry_policy.max_retries} retries: {last_error}")
+            raise last_error
         
         # Check confidence threshold for human-in-the-loop (Phase 11)
         confidence = step_result.get("confidence", 1.0) # Default to 1.0 if not provided
@@ -966,6 +1228,26 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 result = await self._execute_app_search(step, context)
             elif step.step_type == WorkflowStepType.SYSTEM_REASONING:
                 result = await self._execute_system_reasoning(step, context)
+            elif step.step_type == WorkflowStepType.INVOICE_PROCESSING:
+                result = await self._execute_invoice_processing(step, context)
+            elif step.step_type == WorkflowStepType.ECOMMERCE_SYNC:
+                result = await self._execute_ecommerce_sync(step, context)
+            elif step.step_type == WorkflowStepType.AGENT_EXECUTION:
+                result = await self._execute_agent_step(step, context)
+            # Phase 37: Financial & Ops Automations
+            elif step.step_type == WorkflowStepType.COST_LEAK_DETECTION:
+                result = await self._execute_cost_leak_detection(step, context)
+            elif step.step_type == WorkflowStepType.BUDGET_CHECK:
+                result = await self._execute_budget_check(step, context)
+            elif step.step_type == WorkflowStepType.INVOICE_RECONCILIATION:
+                result = await self._execute_invoice_reconciliation(step, context)
+            # Phase 35: Background Agents
+            elif step.step_type == WorkflowStepType.BACKGROUND_AGENT_START:
+                result = await self._execute_background_agent_start(step, context)
+            elif step.step_type == WorkflowStepType.BACKGROUND_AGENT_STOP:
+                result = await self._execute_background_agent_stop(step, context)
+            elif step.step_type == WorkflowStepType.GRAPHRAG_QUERY:
+                result = await self._execute_graphrag_query(step, context)
             else:
                 result = {"status": "completed", "message": f"Step type {step.step_type.value} executed"}
 
@@ -982,6 +1264,40 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 "error": str(e),
                 "execution_time_ms": execution_time
             }
+
+    async def _execute_ecommerce_sync(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute automated ecommerce to ledger mapping"""
+        order_id = step.parameters.get("order_id") or context.input_data.get("order_id")
+        workspace_id = context.input_data.get("workspace_id", "default")
+        action = step.parameters.get("action", "order_to_ledger")
+
+        if not order_id:
+            return {"status": "failed", "error": "No order_id provided for ecommerce sync"}
+
+        try:
+            from ecommerce.ledger_mapper import OrderToLedgerMapper
+            from core.database import SessionLocal
+            
+            with SessionLocal() as db:
+                mapper = OrderToLedgerMapper(db)
+                if action == "order_to_ledger":
+                    tx_id = mapper.process_order(order_id)
+                    
+                    if tx_id:
+                        context.variables.update({"ledger_transaction_id": tx_id})
+                        return {
+                            "status": "success",
+                            "message": f"Successfully synced order {order_id} to ledger",
+                            "ledger_transaction_id": tx_id
+                        }
+                    else:
+                        return {"status": "failed", "error": "Order mapping returned no transaction ID"}
+                else:
+                    return {"status": "failed", "error": f"Unsupported ecommerce action: {action}"}
+
+        except Exception as e:
+            logger.error(f"Ecommerce sync failed: {e}")
+            return {"status": "failed", "error": str(e)}
 
     async def _format_content_for_output(self, content: Any, target_type: str = "markdown", title: str = "Content") -> Any:
         """
@@ -1351,6 +1667,41 @@ Return your response as a JSON object with this format:
             "message": rich_message,
             "sent_at": datetime.datetime.now().isoformat()
         }
+
+    async def _execute_invoice_processing(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute automated invoice processing and ledger recording"""
+        document_id = step.parameters.get("document_id") or context.input_data.get("document_id")
+        workspace_id = step.parameters.get("workspace_id") or context.input_data.get("workspace_id", "default_workspace")
+        expense_account_code = step.parameters.get("expense_account_code", "5100")
+
+        if not document_id:
+            return {"status": "failed", "error": "No document_id provided for invoice processing"}
+
+        try:
+            from core.database import SessionLocal
+            from accounting.ap_service import APService
+            
+            with SessionLocal() as db:
+                ap_service = APService(db)
+                result = await ap_service.process_invoice_document(
+                    document_id=document_id,
+                    workspace_id=workspace_id,
+                    expense_account_code=expense_account_code
+                )
+                
+                # Merge bill results into context variables for subsequent steps
+                if result["status"] == "success":
+                    context.variables.update({
+                        "bill_id": result.get("bill_id"),
+                        "transaction_id": result.get("transaction_id"),
+                        "vendor_name": result.get("vendor"),
+                        "bill_amount": result.get("amount")
+                    })
+                
+                return result
+        except Exception as e:
+            logger.error(f"Invoice processing step failed: {e}")
+            return {"status": "failed", "error": str(e)}
 
     async def _execute_asana_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute Asana integration step"""
@@ -1904,6 +2255,58 @@ Return your response as a JSON object with this format:
             logger.error(f"Knowledge lookup failed in workflow: {e}")
             return {"status": "failed", "error": str(e)}
 
+    async def _execute_graphrag_query(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """
+        Execute a GraphRAG query within a workflow.
+        Supports advanced stakeholder and hierarchy traversal.
+        """
+        query = step.parameters.get("query")
+        mode = step.parameters.get("mode", "auto")
+        entity_name = step.parameters.get("entity_name")
+        depth = step.parameters.get("depth", 2)
+        
+        if not query:
+            return {"status": "failed", "error": "No query provided for GraphRAG"}
+
+        try:
+            from core.graphrag_engine import graphrag_engine
+            
+            logger.info(f"Performing GraphRAG Query ({mode}): {query}")
+            result_data = graphrag_engine.query(
+                context.user_id, 
+                query, 
+                mode=mode
+            )
+            
+            # If it's a local search and an entity was specified/found
+            if mode == "local" or (mode == "auto" and result_data.get("mode") == "local"):
+                # Potential starting point for chain-of-thought or further discovery
+                context.variables["last_graph_entity"] = result_data.get("start_entity")
+            
+            # Store primary answer/summary in context
+            output_var = step.parameters.get("output_variable", "graphrag_result")
+            answer = result_data.get("answer", "")
+            
+            # If no direct answer, format the entities/relationships found
+            if not answer and result_data.get("entities"):
+                entities = result_data.get("entities", [])
+                entity_str = ", ".join([f"{e['name']} ({e['type']})" for e in entities[:5]])
+                answer = f"Relevant entities found in GraphRAG: {entity_str}"
+            
+            context.variables[output_var] = answer
+            
+            return {
+                "status": "completed",
+                "mode": result_data.get("mode"),
+                "entities_found": result_data.get("entities_found", 0),
+                "relationships_found": result_data.get("relationships_found", 0),
+                "answer": answer,
+                "raw_result": result_data
+            }
+        except Exception as e:
+            logger.error(f"GraphRAG query failed in workflow: {e}")
+            return {"status": "failed", "error": str(e)}
+
     async def _execute_knowledge_update(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute a knowledge graph update within a workflow"""
         update_type = step.parameters.get("update_type", "fact")
@@ -1934,6 +2337,137 @@ Return your response as a JSON object with this format:
             }
         except Exception as e:
             logger.error(f"Knowledge update failed in workflow: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_agent_step(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """
+        Execute a Computer Use Agent as a workflow step (Phase 28).
+        Enables chaining agents together where output of one is input to the next.
+        """
+        agent_id = step.parameters.get("agent_id")
+        if not agent_id:
+            return {"status": "failed", "error": "No agent_id provided in step parameters"}
+
+        try:
+            # Import agent registry
+            from api.agent_routes import AGENTS, execute_agent_task
+
+            if agent_id not in AGENTS:
+                return {"status": "failed", "error": f"Agent {agent_id} not found in registry"}
+
+            agent_def = AGENTS[agent_id]
+
+            # Merge context variables into agent parameters (Output piping)
+            agent_params = {**agent_def["default_params"], **step.parameters.get("agent_params", {}), **context.variables}
+
+            logger.info(f"Executing agent step: {agent_id} with params: {agent_params}")
+
+            # Execute the agent
+            result = await execute_agent_task(agent_id, agent_def, agent_params)
+
+            # Store agent output in context for next step
+            if result:
+                context.variables[f"{agent_id}_output"] = result
+
+            return {
+                "status": "success",
+                "agent_id": agent_id,
+                "output": result,
+                "message": f"Agent {agent_id} executed successfully"
+            }
+
+        except Exception as e:
+            logger.error(f"Agent step execution failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    # ==================== PHASE 37: FINANCIAL OPS HANDLERS ====================
+    
+    async def _execute_cost_leak_detection(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute cost leak detection step"""
+        try:
+            from core.financial_ops_engine import cost_detector
+            report = cost_detector.get_savings_report()
+            context.variables["cost_report"] = report
+            return {
+                "status": "completed",
+                "unused_count": len(report.get("unused_subscriptions", [])),
+                "potential_savings": report.get("potential_monthly_savings", 0),
+                "report": report
+            }
+        except Exception as e:
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_budget_check(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute budget check step"""
+        try:
+            from core.financial_ops_engine import budget_guardrails
+            category = step.parameters.get("category")
+            amount = step.parameters.get("amount", 0)
+            deal_stage = step.parameters.get("deal_stage") or context.variables.get("deal_stage")
+            milestone = step.parameters.get("milestone") or context.variables.get("milestone")
+            
+            result = budget_guardrails.check_spend(category, amount, deal_stage, milestone)
+            context.variables["budget_check_result"] = result
+            return {"status": "completed", **result}
+        except Exception as e:
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_invoice_reconciliation(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute invoice reconciliation step"""
+        try:
+            from core.financial_ops_engine import invoice_reconciler
+            result = invoice_reconciler.reconcile()
+            context.variables["reconciliation_result"] = result
+            return {
+                "status": "completed",
+                "matched": result["summary"]["matched_count"],
+                "discrepancies": result["summary"]["discrepancy_count"],
+                "result": result
+            }
+        except Exception as e:
+            return {"status": "failed", "error": str(e)}
+
+    # ==================== PHASE 35: BACKGROUND AGENT HANDLERS ====================
+    
+    async def _execute_background_agent_start(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Start a background agent for periodic execution"""
+        try:
+            from core.background_agent_runner import background_runner
+            agent_id = step.parameters.get("agent_id")
+            interval = step.parameters.get("interval_seconds", 3600)
+            
+            if not agent_id:
+                return {"status": "failed", "error": "No agent_id specified"}
+            
+            background_runner.register_agent(agent_id, interval)
+            await background_runner.start_agent(agent_id)
+            
+            return {
+                "status": "completed",
+                "agent_id": agent_id,
+                "interval": interval,
+                "message": f"Background agent {agent_id} started"
+            }
+        except Exception as e:
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_background_agent_stop(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Stop a background agent"""
+        try:
+            from core.background_agent_runner import background_runner
+            agent_id = step.parameters.get("agent_id")
+            
+            if not agent_id:
+                return {"status": "failed", "error": "No agent_id specified"}
+            
+            await background_runner.stop_agent(agent_id)
+            
+            return {
+                "status": "completed",
+                "agent_id": agent_id,
+                "message": f"Background agent {agent_id} stopped"
+            }
+        except Exception as e:
             return {"status": "failed", "error": str(e)}
 
 # Global orchestrator instance
