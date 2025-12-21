@@ -85,13 +85,33 @@ class ProjectService:
 
     def check_delivery_gating(self, project_id: str):
         """
-        Daily Job: Check if project should be paused due to financial risk
+        Check if project should be paused due to financial risk
         """
+        from service_delivery.delivery_guard import delivery_guard
         project = self.db.query(Project).filter(Project.id == project_id).first()
-        if not project or project.status == ProjectStatus.COMPLETED:
+        if not project or project.status in [ProjectStatus.COMPLETED, ProjectStatus.CANCELED]:
             return
             
-        # Find Client Entity
-        # This requires traversing Project -> Contract -> Deal -> ? -> Entity
-        # MVP: Skip strict entity lookups, rely on metadata if present
-        pass
+        if project.contract_id:
+            risk_data = delivery_guard.check_overdue_risk(project.contract_id, self.db)
+            if risk_data.get("risk") == "high":
+                project.status = ProjectStatus.PAUSED_PAYMENT
+                project.metadata_json = project.metadata_json or {}
+                project.metadata_json["pause_reason"] = risk_data.get("reason")
+                self.db.commit()
+                logger.warning(f"Project {project.name} gated due to payment risk: {risk_data.get('reason')}")
+                
+                # Notify PM via TeamMessage
+                from core.models import TeamMessage, Team
+                # Find the team associated with the project's workspace (MVP simplification)
+                team = self.db.query(Team).filter(Team.workspace_id == project.workspace_id).first()
+                if team:
+                    msg = TeamMessage(
+                        team_id=team.id,
+                        user_id="system", # Reserved system user
+                        content=f"🚨 FINANCIAL GATING: Project '{project.name}' has been paused. Reason: {risk_data.get('reason')}",
+                        context_type="project",
+                        context_id=project.id
+                    )
+                    self.db.add(msg)
+                    self.db.commit()

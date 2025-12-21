@@ -442,6 +442,7 @@ class CommunicationIngestionPipeline:
                 
                 if settings.is_automations_enabled() and settings.is_extraction_enabled() and comm_data.content and len(comm_data.content.strip()) > 20:
                     try:
+                        # 1. Standard Knowledge Extraction
                         knowledge_manager = get_knowledge_ingestion()
                         # Use a background task if loop exists
                         try:
@@ -449,14 +450,17 @@ class CommunicationIngestionPipeline:
                             if loop.is_running():
                                 loop.create_task(knowledge_manager.process_document(
                                     text=comm_data.content,
+                                    doc_id=comm_data.id,
                                     source=f"integration:{app_type}",
-                                    metadata={
-                                        "original_message_id": comm_data.id,
-                                        "sender": comm_data.sender,
-                                        "recipient": comm_data.recipient,
-                                        "subject": comm_data.subject,
-                                        **comm_data.metadata
-                                    }
+                                    user_id=comm_data.metadata.get("user_id", "default_user")
+                                ))
+                                
+                                # 2. Advanced Communication Intelligence (Intent + Responses)
+                                from core.communication_intelligence import CommunicationIntelligenceService
+                                intel_service = CommunicationIntelligenceService()
+                                loop.create_task(intel_service.analyze_and_route(
+                                    comm_data=asdict(comm_data),
+                                    user_id=comm_data.metadata.get("user_id", "default_user")
                                 ))
                         except RuntimeError:
                             # Not in an async context with a running loop
