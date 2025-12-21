@@ -25,6 +25,10 @@ class SaaSTier(Base):
     overage_rate_api = Column(Float, default=0.01)      # per extra call
     overage_rate_storage = Column(Float, default=0.50)  # per extra GB
     
+    # Advanced Tiered Pricing
+    # Example: {"api_call": [{"limit": 10000, "rate": 0.01}, {"limit": 100000, "rate": 0.005}]}
+    pricing_config = Column(JSON, nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

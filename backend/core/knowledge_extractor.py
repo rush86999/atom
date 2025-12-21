@@ -29,25 +29,26 @@ class KnowledgeExtractor:
         - Project (name, status)
         - Task (description, status, owner)
         - File (filename, type)
-        - Decision (summary, context, date)
+        - Decision (summary, context, date, impact_level)
         - Organization (name)
-        - Transaction (amount, currency, merchant, date)
-        - Invoice (invoice_number, amount, recipient, status)
-        - Budget (name, limit, category)
-        - Lead (name, company, email, score)
-        - Deal (name, value, stage, health_score)
+        - Transaction (amount, currency, merchant, date, category)
+        - Invoice (invoice_number, amount, recipient, status, due_date)
+        - Lead (name, company, email, score, external_id)
+        - Deal (name, value, stage, health_score, external_id)
         
-        **Target Relationships:**
+        **Target Relationships & Intents:**
         - PARTICIPATED_IN (Person -> Meeting/Decision)
-        - REFERENCE_TO (Text -> File/Project)
-        - OWNS (Person/Org -> Project/Task/File)
+        - REFERENCE_TO (Text -> File/Project/ExternalLink)
+        - OWNS (Person/Org -> Project/Task/File/Asset)
         - MEMBER_OF (Person -> Organization/Project)
         - DECIDED_ON (Person/Group -> Decision)
         - PAID_FOR (Transaction -> Task/Project/Entity)
         - PART_OF_BUDGET (Transaction/Task -> Budget)
         - BILLED_BY (Entity -> Invoice)
-        - REPORTS_TO (Person -> Person: indicates hierarchy/management line)
-        - STAKEHOLDER_OF (Person -> Project/Organization/User: indicates key interest or role)
+        - REPORTS_TO (Person -> Person: indicates hierarchy)
+        - STAKEHOLDER_OF (Person -> Project/Organization)
+        - INTENT (Message -> intent_type): values=[payment_commitment, churn_threat, upsell_inquiry, meeting_request, approval]
+        - LINKS_TO_EXTERNAL (Entity -> external_system_id): Map to CRM/ERP IDs if mentioned.
         
         **Output Format (JSON strictly):**
         {
@@ -55,7 +56,8 @@ class KnowledgeExtractor:
             {"id": "unique_id", "type": "Person", "properties": {"name": "...", "role": "...", "is_stakeholder": true/false}}
           ],
           "relationships": [
-            {"from": "id1", "to": "id2", "type": "OWNS", "properties": {}}
+            {"from": "id1", "to": "id2", "type": "OWNS", "properties": {}},
+            {"from": "msg_id", "to": "intent_type", "type": "INTENT", "properties": {"confidence": 0.9}}
           ]
         }
         
@@ -67,10 +69,7 @@ class KnowledgeExtractor:
             provider_id = self.byok.get_optimal_provider("chat")
             
             # If our internal ai_service is a wrapper that supports multiple backends
-            if self.ai_service and hasattr(self.ai_service, 'call_openai_api'):
-                # Handle different providers via the ai_service if possible
-                # For now, let's assume a simplified call and we can refine if needed
-                # We'll use the RealAIWorkflowService if provided
+            if self.ai_service and hasattr(self.ai_service, 'analyze_text'):
                 result = await self.ai_service.analyze_text(text, system_prompt=system_prompt)
             else:
                 # Fallback to a direct call if we have to, but better to use the centralized service
