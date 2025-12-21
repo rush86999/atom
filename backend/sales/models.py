@@ -49,6 +49,15 @@ class Lead(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+class NegotiationState(str, enum.Enum):
+    INITIAL = "initial"
+    DISCOVERY = "discovery"
+    BARGAINING = "bargaining"
+    CLOSING = "closing"
+    FOLLOW_UP = "follow_up"
+    WON = "won"
+    LOST = "lost"
+
 class Deal(Base):
     __tablename__ = "sales_deals"
 
@@ -65,6 +74,9 @@ class Deal(Base):
     health_score = Column(Float, default=0.0) # 0 to 100
     risk_level = Column(String, default="low") # low, medium, high
     last_engagement_at = Column(DateTime(timezone=True), nullable=True)
+    negotiation_state = Column(SQLEnum(NegotiationState), default=NegotiationState.INITIAL)
+    last_followup_at = Column(DateTime(timezone=True), nullable=True)
+    followup_count = Column(Integer, default=0)
     
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

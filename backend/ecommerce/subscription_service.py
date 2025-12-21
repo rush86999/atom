@@ -109,6 +109,71 @@ class SubscriptionService:
             
         return None
 
+    def generate_renewal_order(self, subscription_id: str) -> Optional[EcommerceOrder]:
+        """
+        Calculates total bill (Base + Overages) and generates an EcommerceOrder.
+        Resets usage counters upon successful generation.
+        """
+        sub = self.db.query(Subscription).filter(Subscription.id == subscription_id).first()
+        if not sub:
+            return None
+
+        # 1. Calculate Billing via SaaS Billing Engine
+        from saas.billing_engine import TieredBillingService
+        billing_service = TieredBillingService(self.db)
+        
+        usage_data = sub.current_period_usage or {}
+        bill_result = billing_service.calculate_billable_amount(sub, usage_data)
+        
+        # 2. Create Order
+        order = EcommerceOrder(
+            id=str(uuid.uuid4()),
+            workspace_id=sub.workspace_id,
+            customer_id=sub.customer_id,
+            subscription_id=sub.id,
+            order_number=f"RENEW-{sub.id[:8]}-{datetime.now().strftime('%Y%m%d')}",
+            status="paid", # Assuming auto-pay success for MVP
+            total_price=bill_result["total"],
+            currency=bill_result.get("currency", "USD"),
+            metadata_json={"billing_breakdown": bill_result["breakdown"]}
+        )
+        self.db.add(order)
+
+        # 3. Create items for each breakdown entry
+        from ecommerce.models import EcommerceOrderItem
+        for item in bill_result["breakdown"]:
+            order_item = EcommerceOrderItem(
+                id=str(uuid.uuid4()),
+                order_id=order.id,
+                title=item["item"],
+                quantity=1,
+                price=item["amount"]
+            )
+            self.db.add(order_item)
+
+        # 4. Advance Billing Date & Reset Usage
+        if sub.billing_interval == "month":
+             sub.next_billing_at = (sub.next_billing_at or datetime.now(timezone.utc)) + timedelta(days=30)
+        else:
+             sub.next_billing_at = (sub.next_billing_at or datetime.now(timezone.utc)) + timedelta(days=365)
+        
+        # Reset usage counters
+        sub.current_period_usage = {}
+        
+        # Log Audit
+        audit = SubscriptionAudit(
+            subscription_id=sub.id,
+            event_type="renewal",
+            previous_mrr=sub.mrr,
+            new_mrr=sub.mrr, # Base doesn't change, overage is one-time extra
+            metadata_json={"order_id": order.id, "total": bill_result["total"]}
+        )
+        self.db.add(audit)
+        
+        self.db.commit()
+        logger.info(f"Generated renewal order {order.id} for subscription {sub.id}, usage reset.")
+        return order
+
     def get_analytics(self, workspace_id: str) -> Dict[str, float]:
         """Returns MRR, ARR, and Active Subscriber count"""
         subs = self.db.query(Subscription).filter(

@@ -71,6 +71,13 @@ class WorkflowStepType(Enum):
     BACKGROUND_AGENT_START = "background_agent_start"
     BACKGROUND_AGENT_STOP = "background_agent_stop"
     GRAPHRAG_QUERY = "graphrag_query"
+    PROJECT_CREATE = "project_create"
+    PROJECT_STATUS_SYNC = "project_status_sync"
+    CONTRACT_PROVISION = "contract_provision"
+    MILESTONE_BILLING = "milestone_billing"
+    AUTO_STAFFING = "auto_staffing"
+    REVENUE_RECOGNITION = "revenue_recognition"
+    RETENTION_PLAYBOOK = "retention_playbook"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -1248,6 +1255,20 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 result = await self._execute_background_agent_stop(step, context)
             elif step.step_type == WorkflowStepType.GRAPHRAG_QUERY:
                 result = await self._execute_graphrag_query(step, context)
+            elif step.step_type == WorkflowStepType.PROJECT_CREATE:
+                result = await self._execute_project_create(step, context)
+            elif step.step_type == WorkflowStepType.PROJECT_STATUS_SYNC:
+                result = await self._execute_project_status_sync(step, context)
+            elif step.step_type == WorkflowStepType.CONTRACT_PROVISION:
+                result = await self._execute_contract_provision(step, context)
+            elif step.step_type == WorkflowStepType.MILESTONE_BILLING:
+                result = await self._execute_milestone_billing(step, context)
+            elif step.step_type == WorkflowStepType.AUTO_STAFFING:
+                result = await self._execute_auto_staffing(step, context)
+            elif step.step_type == WorkflowStepType.REVENUE_RECOGNITION:
+                result = await self._execute_revenue_recognition(step, context)
+            elif step.step_type == WorkflowStepType.RETENTION_PLAYBOOK:
+                result = await self._execute_retention_playbook(step, context)
             else:
                 result = {"status": "completed", "message": f"Step type {step.step_type.value} executed"}
 
@@ -2468,6 +2489,199 @@ Return your response as a JSON object with this format:
                 "message": f"Background agent {agent_id} stopped"
             }
         except Exception as e:
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_project_create(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """
+        Execute automated project creation from a requirement prompt.
+        """
+        try:
+            from core.pm_engine import pm_engine
+            
+            prompt = step.parameters.get("prompt") or context.input_data.get("text")
+            contract_id = step.parameters.get("contract_id") or context.variables.get("contract_id")
+            workspace_id = step.parameters.get("workspace_id") or context.input_data.get("workspace_id", "default")
+            
+            if not prompt:
+                return {"status": "failed", "error": "No prompt provided for project creation"}
+
+            result = await pm_engine.generate_project_from_nl(
+                prompt=prompt,
+                user_id=context.user_id,
+                workspace_id=workspace_id,
+                contract_id=contract_id
+            )
+            
+            if result["status"] == "success":
+                context.variables["created_project_id"] = result["project_id"]
+                context.variables["created_project_name"] = result["name"]
+                
+            return result
+        except Exception as e:
+            logger.error(f"Project creation step failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_project_status_sync(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """
+        Sync project status by inferring progress from GraphRAG and system activity.
+        """
+        try:
+            from core.pm_engine import pm_engine
+            
+            project_id = step.parameters.get("project_id") or context.variables.get("created_project_id")
+            
+            if not project_id:
+                return {"status": "failed", "error": "No project_id provided for status sync"}
+
+            # 1. Infer status
+            status_result = await pm_engine.infer_project_status(project_id, context.user_id)
+            
+            # 2. Analyze risks
+            risk_result = await pm_engine.analyze_project_risks(project_id, context.user_id)
+            
+            return {
+                "status": "completed",
+                "status_sync": status_result,
+                "risk_analysis": risk_result,
+                "overall_risk": risk_result.get("risk_level", "unknown")
+            }
+        except Exception as e:
+            logger.error(f"Project status sync failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_contract_provision(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute automated contract and project provisioning from a deal"""
+        deal_id = step.parameters.get("deal_id") or context.input_data.get("deal_id")
+        external_platform = step.parameters.get("external_platform") or context.input_data.get("external_platform")
+        workspace_id = context.input_data.get("workspace_id", "default")
+        user_id = context.input_data.get("user_id", "default")
+
+        if not deal_id:
+            return {"status": "failed", "error": "No deal_id provided for contract provision"}
+
+        try:
+            from core.pm_orchestrator import pm_orchestrator
+            result = await pm_orchestrator.provision_from_deal(deal_id, user_id, workspace_id, external_platform)
+            
+            if result["status"] == "success":
+                context.variables.update({
+                    "contract_id": result["contract_id"],
+                    "project_id": result["project_id"]
+                })
+                # Auto-notify stakeholders if identified
+                if result.get("stakeholders_identified"):
+                    await pm_orchestrator.notify_startup(
+                        result["project_id"], 
+                        result["stakeholders_identified"]
+                    )
+                
+            return result
+        except Exception as e:
+            logger.error(f"Contract provision failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_milestone_billing(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute automated milestone billing"""
+        milestone_id = step.parameters.get("milestone_id") or context.input_data.get("milestone_id")
+        workspace_id = context.input_data.get("workspace_id", "default")
+
+        if not milestone_id:
+            return {"status": "failed", "error": "No milestone_id provided for billing"}
+
+        try:
+            from core.billing_orchestrator import billing_orchestrator
+            result = await billing_orchestrator.process_milestone_completion(milestone_id, workspace_id)
+            
+            if result["status"] == "success":
+                context.variables.update({
+                    "invoice_id": result["invoice_id"],
+                    "billed_amount": result["amount"]
+                })
+                
+            return result
+        except Exception as e:
+            logger.error(f"Milestone billing failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_auto_staffing(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute AI-driven staffing recommendation"""
+        description = step.parameters.get("description") or context.input_data.get("description")
+        workspace_id = context.input_data.get("workspace_id", "default")
+
+        if not description:
+            return {"status": "failed", "error": "No description provided for staffing"}
+
+        try:
+            from core.staffing_advisor import staffing_advisor
+            limit = step.parameters.get("limit", 3)
+            result = await staffing_advisor.recommend_staff(description, workspace_id, limit=limit)
+            
+            if result["status"] == "success":
+                context.variables.update({
+                    "staffing_recommendations": result["recommendations"],
+                    "required_skills": result["required_skills"]
+                })
+                
+            return result
+        except Exception as e:
+            logger.error(f"Auto staffing failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_revenue_recognition(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute automated revenue recognition for a milestone"""
+        milestone_id = step.parameters.get("milestone_id") or context.input_data.get("milestone_id")
+        
+        if not milestone_id:
+            return {"status": "failed", "error": "No milestone_id provided"}
+
+        try:
+            from accounting.revenue_recognition import revenue_recognition_service
+            result = await revenue_recognition_service.record_revenue_recognition(milestone_id)
+            return result
+        except Exception as e:
+            logger.error(f"Revenue recognition failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_retention_playbook(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """
+        Execute an automated retention playbook for at-risk customers.
+        """
+        sub_id = step.parameters.get("subscription_id") or context.input_data.get("subscription_id")
+        reason = step.parameters.get("reason", "Unknown churn signal")
+        
+        if not sub_id:
+            return {"status": "failed", "error": "No subscription_id provided for retention playbook"}
+
+        try:
+            from saas.models import Subscription
+            from core.models import TeamMessage, Team
+            from core.database import SessionLocal
+            
+            db = SessionLocal()
+            sub = db.query(Subscription).filter(Subscription.id == sub_id).first()
+            if not sub:
+                return {"status": "failed", "error": "Subscription not found"}
+                
+            # Simulate high-priority intervention
+            # 1. Notify the team
+            team = db.query(Team).filter(Team.workspace_id == sub.workspace_id).first()
+            if team:
+                msg = TeamMessage(
+                    team_id=team.id,
+                    user_id="system",
+                    content=f"🚨 RETENTION PLAYBOOK ACTIVATED for Subscription {sub_id}. Reason: {reason}. Action required: Reach out to customer immediately."
+                )
+                db.add(msg)
+                db.commit()
+                
+            return {
+                "status": "success",
+                "message": "Retention playbook activated",
+                "subscription_id": sub_id,
+                "workflow_steps_logged": True
+            }
+        except Exception as e:
+            logger.error(f"Retention playbook execution failed: {e}")
             return {"status": "failed", "error": str(e)}
 
 # Global orchestrator instance

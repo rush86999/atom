@@ -2,8 +2,9 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from accounting.models import Account, AccountType, Transaction, JournalEntry, EntryType, Bill, BillStatus, Invoice, InvoiceStatus
+from service_delivery.models import Milestone, MilestoneStatus, Contract, Project
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +16,8 @@ class FPAService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_current_cash_balance(self, workspace_id: str) -> float:
-        """Calculate the total current cash-on-hand"""
+    def get_current_cash_balance(self, workspace_id: str, product_service_id: Optional[str] = None) -> float:
+        """Calculate the total current cash-on-hand. Product filter ignored for cash balance as cash is fungible."""
         cash_accounts = self.db.query(Account).filter(
             Account.workspace_id == workspace_id,
             Account.type == AccountType.ASSET,
@@ -40,7 +41,7 @@ class FPAService:
         
         return total_cash
 
-    def get_13_week_forecast(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def get_13_week_forecast(self, workspace_id: str, product_service_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Generate a 13-week weekly cash flow forecast.
         """
@@ -49,11 +50,17 @@ class FPAService:
         
         # 1. Analyze historical burn/profit (last 12 weeks)
         lookback = start_date - timedelta(weeks=12)
-        historical_entries = self.db.query(JournalEntry).join(Transaction).filter(
+        query = self.db.query(JournalEntry).join(Transaction).filter(
             Transaction.workspace_id == workspace_id,
             Transaction.transaction_date >= lookback,
             Transaction.transaction_date < start_date
-        ).all()
+        )
+        
+        if product_service_id:
+            # More portable JSON filtering
+            query = query.filter(Transaction.metadata_json["product_service_id"] == product_service_id)
+            
+        historical_entries = query.all()
 
         weekly_avg_diff = 0.0
         if historical_entries:
@@ -82,6 +89,17 @@ class FPAService:
             Invoice.due_date >= start_date
         ).all()
 
+        # 3. Get Contracted but Unbilled Milestones
+        milestone_query = self.db.query(Milestone).join(Project).join(Contract).filter(
+            Milestone.workspace_id == workspace_id,
+            Milestone.status.in_([MilestoneStatus.PENDING, MilestoneStatus.IN_PROGRESS]),
+            Milestone.due_date >= start_date
+        )
+        if product_service_id:
+            milestone_query = milestone_query.filter(Contract.product_service_id == product_service_id)
+        
+        unbilled_milestones = milestone_query.all()
+
         forecast = []
         running_cash = current_cash
 
@@ -95,9 +113,10 @@ class FPAService:
             # Add discrete known items
             bills_this_week = sum(b.amount for b in open_bills if week_start <= b.due_date < week_end)
             invoices_this_week = sum(i.amount for i in open_invoices if week_start <= i.due_date < week_end)
+            milestones_this_week = sum(m.amount for m in unbilled_milestones if m.due_date and week_start <= m.due_date < week_end)
             
             weekly_change -= bills_this_week
-            weekly_change += invoices_this_week
+            weekly_change += (invoices_this_week + milestones_this_week)
             
             running_cash += weekly_change
             
@@ -109,6 +128,7 @@ class FPAService:
                 "details": {
                     "inflows": invoices_this_week,
                     "outflows": bills_this_week,
+                    "contracted_revenue": milestones_this_week,
                     "average_burn": weekly_avg_diff
                 }
             })

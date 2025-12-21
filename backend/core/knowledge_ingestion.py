@@ -77,8 +77,31 @@ class KnowledgeIngestionManager:
             except Exception as e:
                 logger.warning(f"GraphRAG structured ingestion failed: {e}")
                 
+        # 4. Enrich external integrations if enabled
+        settings = get_automation_settings()
+        if settings.get_settings().get("enable_integration_enrichment"):
+            try:
+                self.enrich_integrations(user_id, knowledge)
+            except Exception as e:
+                logger.error(f"Integration enrichment failed: {e}")
+
         logger.info(f"Ingested {success_count} knowledge edges from document {doc_id}")
         return {"lancedb_edges": success_count, "graphrag": graphrag_stats}
+
+    def enrich_integrations(self, user_id: str, knowledge: Dict[str, Any]):
+        """
+        Pushes extracted knowledge back to external systems (Salesforce, HubSpot, etc.)
+        """
+        entities = knowledge.get("entities", [])
+        for entity in entities:
+            props = entity.get("properties", {})
+            ext_id = props.get("external_id")
+            
+            if ext_id and entity.get("type") in ["Lead", "Deal", "Person"]:
+                logger.info(f"Enriching integration record {ext_id} for user {user_id}")
+                # Mock integration update
+                # In production: hubspot_client.crm.deals.basic_api.update(ext_id, props)
+                pass
     
     def build_user_communities(self, user_id: str) -> int:
         """Build GraphRAG communities for a user after ingestion"""

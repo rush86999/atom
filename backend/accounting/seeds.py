@@ -21,13 +21,19 @@ def seed_default_accounts(db: Session, workspace_id: str):
         description="Money owed by customers"
     )
     
-    # 2. Liabilities
     payables = Account(
         workspace_id=workspace_id,
         name="Accounts Payable",
         code="2000",
         type=AccountType.LIABILITY,
         description="Money owed to vendors"
+    )
+    deferred_revenue = Account(
+        workspace_id=workspace_id,
+        name="Deferred Revenue",
+        code="2100",
+        type=AccountType.LIABILITY,
+        description="Revenue received but not yet earned"
     )
     
     # 3. Revenue
@@ -62,7 +68,7 @@ def seed_default_accounts(db: Session, workspace_id: str):
         description="Office rent and utilities"
     )
 
-    db.add_all([cash, receivables, payables, sales, marketing, software, rent])
+    db.add_all([cash, receivables, payables, deferred_revenue, sales, marketing, software, rent])
     db.commit()
     return {
         "cash": cash.id,

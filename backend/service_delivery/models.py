@@ -31,6 +31,7 @@ class Contract(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
     deal_id = Column(String, ForeignKey("sales_deals.id"), nullable=True) 
+    product_service_id = Column(String, ForeignKey("business_product_services.id"), nullable=True)
     # Link to Deal is crucial for Deal -> Contract automation
     
     name = Column(String, nullable=False)
@@ -47,6 +48,7 @@ class Contract(Base):
 
     # Relationships
     deal = relationship("Deal") # Assuming Deal model is imported where used or using string
+    product_service = relationship("core.models.BusinessProductService")
     projects = relationship("Project", back_populates="contract")
 
 class Project(Base):
@@ -54,7 +56,7 @@ class Project(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
-    contract_id = Column(String, ForeignKey("service_contracts.id"), nullable=False)
+    contract_id = Column(String, ForeignKey("service_contracts.id"), nullable=True)
     
     name = Column(String, nullable=False)
     status = Column(SQLEnum(ProjectStatus), default=ProjectStatus.PENDING)
@@ -64,8 +66,20 @@ class Project(Base):
     # Financial Controls
     budget_hours = Column(Float, default=0.0)
     actual_hours = Column(Float, default=0.0)
+    budget_amount = Column(Float, default=0.0) # Total financial budget
+    
+    priority = Column(String, default="medium") # low, medium, high, critical
+    project_type = Column(String, default="general")
+    
+    planned_start_date = Column(DateTime(timezone=True), nullable=True)
+    planned_end_date = Column(DateTime(timezone=True), nullable=True)
+    actual_start_date = Column(DateTime(timezone=True), nullable=True)
+    actual_end_date = Column(DateTime(timezone=True), nullable=True)
     
     risk_level = Column(String, default="low") # auto-calculated
+    predicted_end_date = Column(DateTime(timezone=True), nullable=True)
+    risk_score = Column(Float, default=0.0) # 0 to 100
+    risk_rationale = Column(Text, nullable=True)
     
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -87,6 +101,9 @@ class Milestone(Base):
     percentage = Column(Float, default=0.0) # % of contract
     
     status = Column(SQLEnum(MilestoneStatus), default=MilestoneStatus.PENDING)
+    order = Column(Integer, default=0) # For sequential tracking
+    
+    planned_start_date = Column(DateTime(timezone=True), nullable=True)
     due_date = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     
@@ -98,3 +115,30 @@ class Milestone(Base):
 
     # Relationships
     project = relationship("Project", back_populates="milestones")
+    tasks = relationship("ProjectTask", back_populates="milestone")
+
+class ProjectTask(Base):
+    __tablename__ = "service_tasks"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
+    project_id = Column(String, ForeignKey("service_projects.id"), nullable=False)
+    milestone_id = Column(String, ForeignKey("service_milestones.id"), nullable=False)
+    
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String, default="pending") # pending, in_progress, completed, blocked
+    
+    assigned_to = Column(String, ForeignKey("users.id"), nullable=True)
+    
+    due_date = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    actual_hours = Column(Float, default=0.0)
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    milestone = relationship("Milestone", back_populates="tasks")
+    assignee = relationship("User")

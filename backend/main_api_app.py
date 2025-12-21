@@ -85,6 +85,9 @@ try:
     from api.graphrag_routes import router as graphrag_router
     app.include_router(graphrag_router, prefix="/api/graphrag", tags=["graphrag"])
 
+    from api.pm_routes import router as pm_router
+    app.include_router(pm_router, prefix="/api/v1", tags=["Project Management"])
+
     from core.workflow_endpoints import router as workflow_router
     app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
 
@@ -175,6 +178,8 @@ integrations = [
     ("integrations.zendesk_routes", "router", None),
     ("integrations.freshdesk_routes", "router", None),
     ("integrations.intercom_routes", "router", None),
+    ("api.billing_routes", "router", None),
+    ("api.resource_routes", "router", None),
 
     # Integrations - Finance & Commerce
     ("integrations.stripe_routes", "router", None),

@@ -1,5 +1,5 @@
 
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text, Table, Enum as SQLEnum
+from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Table, JSON, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -36,6 +36,15 @@ team_members = Table(
     Column('joined_at', DateTime(timezone=True), server_default=func.now())
 )
 
+user_workspaces = Table(
+    'user_workspaces',
+    Base.metadata,
+    Column('user_id', String, ForeignKey('users.id'), primary_key=True),
+    Column('workspace_id', String, ForeignKey('workspaces.id'), primary_key=True),
+    Column('role', String, default="member"),
+    Column('joined_at', DateTime(timezone=True), server_default=func.now())
+)
+
 class Workspace(Base):
     __tablename__ = "workspaces"
 
@@ -48,8 +57,9 @@ class Workspace(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    users = relationship("User", back_populates="workspace")
+    users = relationship("User", secondary=user_workspaces, back_populates="workspaces")
     teams = relationship("Team", back_populates="workspace")
+    products_services = relationship("BusinessProductService", back_populates="workspace")
 
 class Team(Base):
     __tablename__ = "teams"
@@ -76,13 +86,19 @@ class User(Base):
     last_name = Column(String, nullable=True)
     role = Column(String, default=UserRole.MEMBER.value)
     status = Column(String, default=UserStatus.ACTIVE.value)
-    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)
+    
+    # Resource Management
+    skills = Column(Text, nullable=True) # JSON string of skills
+    capacity_hours = Column(Float, default=40.0) # Weekly capacity
+    hourly_cost_rate = Column(Float, default=0.0) # Internal labor cost
+    metadata_json = Column(JSON, nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    workspace = relationship("Workspace", back_populates="users")
+    workspaces = relationship("Workspace", secondary=user_workspaces, back_populates="users")
     teams = relationship("Team", secondary=team_members, back_populates="members")
     messages = relationship("TeamMessage", back_populates="sender")
 
@@ -234,3 +250,25 @@ class AgentJob(Base):
     end_time = Column(DateTime(timezone=True), nullable=True)
     logs = Column(Text, nullable=True) # JSON Logs
     result_summary = Column(Text, nullable=True) # JSON Result
+
+class BusinessProductService(Base):
+    """Catalog of products or services provided by a business"""
+    __tablename__ = "business_product_services"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
+    external_id = Column(String, nullable=True, index=True) # ID from legacy system
+    name = Column(String, nullable=False)
+    type = Column(String, default="service") # product, service
+    description = Column(Text, nullable=True)
+    base_price = Column(Float, default=0.0)
+    unit_cost = Column(Float, default=0.0) # COGS for tangible products
+    currency = Column(String, default="USD")
+    stock_quantity = Column(Integer, default=0) # For tangible products
+    
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace", back_populates="products_services")

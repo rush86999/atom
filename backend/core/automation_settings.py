@@ -20,7 +20,9 @@ class AutomationSettingsManager:
         "enable_out_of_workflow_automations": True,
         "document_processing_auto_trigger": True,
         "enable_accounting_automations": True,
-        "enable_sales_automations": True
+        "enable_sales_automations": True,
+        "response_control_mode": "suggest", # suggest, draft, auto_send
+        "enable_integration_enrichment": True
     }
     
     def __init__(self):
