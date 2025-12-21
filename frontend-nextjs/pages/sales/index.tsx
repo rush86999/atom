@@ -5,8 +5,37 @@ import { RefreshCw, LayoutDashboard, Target, Users, Zap } from "lucide-react";
 import LeadManagement from "../../components/sales/LeadManagement";
 import DealIntelligence from "../../components/sales/DealIntelligence";
 import MeetingAutomation from "../../components/sales/MeetingAutomation";
+import { useWebSocket } from "../../hooks/useWebSocket";
+import { useToast } from "../../components/ui/use-toast";
+import { useEffect } from "react";
 
 const SalesIntelligencePage = () => {
+    const toast = useToast();
+    const { lastMessage, subscribe } = useWebSocket();
+    const workspaceId = "sales-test-ws"; // This would be dynamic in a real app
+
+    useEffect(() => {
+        subscribe(`workspace:${workspaceId}`);
+    }, [subscribe]);
+
+    useEffect(() => {
+        if (!lastMessage) return;
+
+        if (lastMessage.type === "new_lead") {
+            toast({
+                title: "New Lead Ingested",
+                description: `${lastMessage.data.first_name} ${lastMessage.data.last_name || ""} from ${lastMessage.data.company || "Unknown"} (Score: ${lastMessage.data.ai_score})`,
+                variant: lastMessage.data.ai_score > 70 ? "success" : "default",
+            });
+        } else if (lastMessage.type === "deal_update") {
+            toast({
+                title: "Deal Health Updated",
+                description: `${lastMessage.data.name}: Health Score ${lastMessage.data.health_score} (${lastMessage.data.risk_level} risk)`,
+                variant: lastMessage.data.health_score < 40 ? "warning" : "default",
+            });
+        }
+    }, [lastMessage, toast]);
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">

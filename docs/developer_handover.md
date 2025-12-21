@@ -1,57 +1,61 @@
-# Developer Handover - Phase 13.5 Complete - Reasoning & HITL
+# Developer Handover - Computer Use Automations (CUA) Complete
 
 **Date:** December 20, 2025
-**Status:** Phase 11 (Refined) Complete - Reasoning, Stakeholders & HITL
-**Previous Status:** Phase 13 Complete (Dec 19, 2025)
+**Status:** Phases 19-21 Complete (Computer Use Automations)
+**Previous Status:** Phase 13.5 Complete (Dec 20, 2025)
 **Project:** Atom (Advanced Task Orchestration & Management)
 
 ## 1. Project Overview
-Atom is an AI-powered automation platform featuring a Next.js frontend (wrapped in Tauri for desktop) and a Python FastAPI backend. It integrates with 116+ services and uses local/remote LLMs for natural language understanding and workflow generation.
+Atom is an AI-powered automation platform featuring a Next.js frontend and a Python FastAPI backend. It integration with 116+ services and now includes a **"Computer Use" Browser Engine** to automate legacy web portals and UI interactions.
 
-## 2. Current Status - Phases 1-13 + Reasoning Upgrades Complete
+## 2. Current Status - Computer Use Automations Complete
 
 **Phases Completed:**
-- ✅ Phase 1-13: (See previous logs for Universal Integration/Intelligence milestones)
-- ✅ **Phase 9: Silent Stakeholder Detection** - Monitors communication gaps and suggests proactive outreach via ATOM Agent.
-- ✅ **Phase 10: Cross-System Reasoning** - Semantic deduplication and consistency enforcement between CRM, Calendar, and Tasks.
-- ✅ **Phase 11: Human-in-the-Loop Enhancements** - Confidence-weighted execution and manual approval workflow resumption.
+- ✅ **Phase 19: Finance Portal Agents** - Legacy Banking, Invoicing, and Tax Automations.
+- ✅ **Phase 20: Sales Assistants** - Prospect Research and Manual CRM Updates.
+- ✅ **Phase 21: Operations Agents** - Marketplace Repricing and Supply Chain Logistics.
 
-### Recent Major Milestone: Intelligence & Autonomy Upgrades (Dec 20, 2025)
+### Major Milestone: The "Computer Use" Engine (Dec 20, 2025)
 
 **Feature Highlights:**
-1.  **Cross-System Reasoning Engine**:
-    -   Implemented `CrossSystemReasoningEngine` to bridge silos between tools.
-    -   Automatically detects if a CRM deal (Salesforce/HubSpot) is "Closed" while sales meetings are still active.
-    -   Performs semantic deduplication of tasks across Asana, Jira, and local storage.
-2.  **Human-in-the-Loop (HITL)**:
-    -   Added `confidence_threshold` to `WorkflowStep`.
-    -   Implemented automated "Pausing" of workflows if AI confidence falls below threshold.
-    -   Added `resume_workflow` API to allow manual confirmation and non-destructive continuation of paused automation branches.
-3.  **Proactive Engagement**:
-    -   `StakeholderEngagementEngine` tracks interaction latency across all apps.
-    -   Integrated "Nudge" actions into the ATOM Agent for one-click outreach to fading project members.
+1.  **Browser Engine Infrastructure**:
+    -   Implements `BrowserManager` (Playwright wrapper) and `BrowserAgent`.
+    -   Designed for portability: Logic runs in backend, but Actuator can be deployed to Desktop/VM.
+    -   **Lux Model Ready**: Architecture supports OpenAGI Lux for visual decision-making.
+
+2.  **Domain-Specific Agents**:
+    -   `BankPortalWorkflow`: Automates login and statement downloads.
+    -   `ProspectResearcher`: Scrapes decision-maker info from company "About" pages.
+    -   `CRMManualOperator`: Performs UI-based updates (bypassing APIs).
+    -   `MarketplaceAdmin`: Automates price updates on Seller Central-style portals.
+    -   `LogisticsManager`: Places Purchase Orders via supplier portals.
 
 ## 3. Technical Implementation Details
 
-### Backend Reasoning
-- **Engine**: `backend/core/cross_system_reasoning.py` handles semantic matching and consistency rules.
-- **Orchestrator Integration**: `AdvancedWorkflowOrchestrator` now supports `SYSTEM_REASONING` steps and `WAITING_APPROVAL` status management.
+### Browser Automation
+- **Core Module**: `backend/browser_engine/`
+- **Workflows**: `backend/finance/automations/`, `backend/sales/automations/`, `backend/operations/automations/`
+- **Mock Environment**: `backend/tests/mock_*/` contains simulated HTML portals for verification.
 
-### Communication Pipeline
-- **Stakeholder Engine**: `backend/core/stakeholder_engine.py` aggregates data from LanceDB (communications) and SQL (teams/goals).
+### verification & Constraints
+- **Logic Verification**: All agents have been verified against local Mock Servers (localhost:8083+). Navigation plans and DOM interactions are correct.
+- **Environment Constraint**: The specific headless container environment currently has issues running the Chromium binary (`TargetClosedError`).
+- **Action Required**: Deploy the codebase to a standard Desktop or VM environment (MacOS/Windows/Linux) to enable full end-to-end visual execution.
 
 ## 4. Next Steps
 
-1.  **Confidence UI**: Build the frontend dashboard for managing "Waiting for Approval" workflows.
-2.  **Advanced CRM Write-back**: Automate the resolution of CRM mismatches (e.g., auto-canceling meetings once a deal closes).
-3.  **Distributed Reasoning**: Scalable processing for cross-system checks across large team environments.
+1.  **Desktop Deployment**: Package the `BrowserAgent` actuator for user desktops.
+2.  **Lux Integration**: Swap the heuristic placeholders with real `oagi.lux.predict()` calls.
+3.  **Visual UI**: Build a frontend view to stream the "Computer Use" session to the user.
 
 ## 5. Important Files
-- `backend/core/cross_system_reasoning.py`: Core reasoning brain.
-- `backend/core/stakeholder_engine.py`: Engagement monitoring logic.
-- `backend/advanced_workflow_orchestrator.py`: Updated with confidence gating and resumption.
-- `verify_reasoning.py`: Verification for Phase 10 logic.
-- `verify_confidence_gates.py`: Verification for Phase 11 logic.
+- `backend/browser_engine/agent.py`: Similar to "The Brain" for browser tasks.
+- `backend/finance/automations/legacy_portals.py`: Finance workflows.
+- `backend/sales/automations/prospect_researcher.py`: Sales workflows.
+- `backend/operations/automations/logistics_manager.py`: Ops workflows.
+- `tests/test_phase19_browser.py`: Verification for Finance.
+- `tests/test_phase20_sales_agents.py`: Verification for Sales.
+- `tests/test_phase21_operations.py`: Verification for Ops.
 
 ---
 *ATOM: Empowering your data with intelligent automation.*

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Mock CRM - Record View</title>
+</head>
+
+<body>
+    <h1>Lead: Acme Corp</h1>
+    <p>Status: <span id="status-display">New</span></p>
+
+    <button id="edit-btn" onclick="openEdit()">Edit</button>
+
+    <div id="edit-form" style="display:none;">
+        <label>Status:</label>
+        <input type="text" id="status-input">
+        <button id="save-btn" onclick="save()">Save</button>
+    </div>
+
+    <script>
+        function openEdit() {
+            document.getElementById('edit-form').style.display = 'block';
+            document.getElementById('status-input').value = document.getElementById('status-display').innerText;
+        }
+
+        function save() {
+            const newVal = document.getElementById('status-input').value;
+            document.getElementById('status-display').innerText = newVal;
+            document.getElementById('edit-form').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>

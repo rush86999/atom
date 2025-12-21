@@ -217,3 +217,20 @@ class UserSession(Base):
 
     # Relationships
     user = relationship("User", backref="sessions")
+
+class AgentJobStatus(str, enum.Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+class AgentJob(Base):
+    __tablename__ = "agent_jobs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String, nullable=False)
+    status = Column(String, default=AgentJobStatus.PENDING.value)
+    start_time = Column(DateTime(timezone=True), server_default=func.now())
+    end_time = Column(DateTime(timezone=True), nullable=True)
+    logs = Column(Text, nullable=True) # JSON Logs
+    result_summary = Column(Text, nullable=True) # JSON Result

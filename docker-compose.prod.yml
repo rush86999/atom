@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  browser-node:
+    image: browserless/chrome:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - MAX_CONCURRENT_SESSIONS=10
+      - MAX_QUEUE_LENGTH=5
+      - PREBOOT_CHROME=true
+    restart: unless-stopped
+    networks:
+      - atom_network
+
+networks:
+  atom_network:
+    driver: bridge

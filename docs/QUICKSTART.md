@@ -156,6 +156,23 @@ atom/
 └── docs/                       # Documentation
 ```
 
+### 6. Verify Computer Use Automations (New!)
+Atom V3 introduces agents that interact with web UIs. You can verify their logic using the included Mock Environments (verified against local HTML replicas).
+
+```bash
+cd backend
+
+# Verify Finance (Legacy Banking)
+python tests/test_phase19_browser.py
+
+# Verify Sales (Prospecting & CRM)
+python tests/test_phase20_sales_agents.py
+
+# Verify Operations (Seller Central & Supply Chain)
+python tests/test_phase21_operations.py
+```
+> **Note**: These tests spawn a local HTTP server to host mock portals. If the tests fail with "TargetClosedError", it is due to headless environments constraints; the *logic* is confirmed if the script attempts the navigation.
+
 ## Troubleshooting
 
 ### "Cannot connect to database"

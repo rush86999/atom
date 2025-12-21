@@ -23,7 +23,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
             <Component {...pageProps} />
           </Layout>
         )}
-        <GlobalChatWidget />
+        {!isAuthPage && <GlobalChatWidget />}
       </ToastProvider>
     </SessionProvider>
   );

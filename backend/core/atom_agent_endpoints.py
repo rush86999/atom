@@ -54,8 +54,11 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     user_id: str
-    session_id: Optional[str] = None  # Now optional, will create if not provided
-    conversation_history: List[ChatMessage] = []  # Deprecated, loaded from storage
+    session_id: Optional[str] = None
+    workspace_id: Optional[str] = None
+    current_page: Optional[str] = None
+    context: Optional[Dict[str, Any]] = None
+    conversation_history: List[ChatMessage] = []
 
 class ExecuteGeneratedRequest(BaseModel):
     workflow_id: str
@@ -108,6 +111,37 @@ def save_chat_interaction(
         session_manager.update_session_activity(session_id)
     except Exception as e:
         logger.error(f"Failed to save chat interaction: {e}")
+
+@router.get("/sessions")
+async def list_sessions(user_id: str = "default_user", limit: int = 50):
+    """List all chat sessions for a user"""
+    try:
+        sessions = session_manager.list_user_sessions(user_id, limit=limit)
+        return {
+            "success": True,
+            "sessions": [
+                {
+                    "id": s["session_id"],
+                    "title": s.get("metadata", {}).get("title") or f"Session {s['session_id'][:8]}",
+                    "date": s["last_active"],
+                    "preview": s.get("metadata", {}).get("last_message", "New conversation")
+                }
+                for s in sessions
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Failed to list sessions: {e}")
+        return {"success": False, "error": str(e)}
+
+@router.post("/sessions")
+async def create_new_session(user_id: str = Body(..., embed=True)):
+    """Create a new chat session"""
+    try:
+        session_id = session_manager.create_session(user_id=user_id)
+        return {"success": True, "session_id": session_id}
+    except Exception as e:
+        logger.error(f"Failed to create session: {e}")
+        return {"success": False, "error": str(e)}
 
 @router.get("/sessions/{session_id}/history")
 async def get_session_history(session_id: str):
@@ -196,7 +230,8 @@ async def chat_with_agent(request: ChatRequest):
         # Use LLM to classify intent
         intent_response = await classify_intent_with_llm(
             request.message, 
-            conversation_history
+            conversation_history,
+            current_page=request.current_page
         )
         
         intent = intent_response.get("intent")
@@ -243,6 +278,10 @@ async def chat_with_agent(request: ChatRequest):
         logger.info(f"Classified intent: {intent}, entities: {entities}")
         
         # Route to appropriate handler based on intent
+        # Inject workspace_id into entities if present in request
+        if request.workspace_id:
+            entities["workspace_id"] = request.workspace_id
+        
         if intent == "LIST_WORKFLOWS":
             result = await handle_list_workflows(request)
         elif intent == "RUN_WORKFLOW":
@@ -313,6 +352,9 @@ async def chat_with_agent(request: ChatRequest):
         elif intent == "KNOWLEDGE_QUERY":
             result = await handle_knowledge_query(request, entities)
             
+        elif intent == "CRM_QUERY":
+            result = await handle_crm_intent(request, entities)
+            
         elif intent == "HELP":
             result = handle_help_request()
         
@@ -371,7 +413,11 @@ async def chat_with_agent(request: ChatRequest):
         logger.error(f"Error in chat agent: {str(e)}")
         return {"success": False, "error": str(e)}
 
-async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> Dict[str, Any]:
+async def classify_intent_with_llm(
+    message: str, 
+    history: List[ChatMessage],
+    current_page: Optional[str] = None
+) -> Dict[str, Any]:
     """Use LLM to classify user intent via BYOK system with Knowledge Graph context"""
     
     # 0. Preemptive Knowledge Retrieval
@@ -386,7 +432,9 @@ async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> 
     except Exception as e:
         logger.warning(f"Failed to fetch preemptive knowledge for intent classification: {e}")
 
-    system_prompt = """You are ATOM, an intelligent personal assistant for task orchestration and management."""
+    system_prompt = f"""You are ATOM, an intelligent personal assistant for task orchestration and management.
+Current User Context (Page): {current_page or 'Unknown'}
+"""
     if knowlege_context:
         system_prompt += knowlege_context + "\n\n"
         
@@ -406,6 +454,8 @@ async def classify_intent_with_llm(message: str, history: List[ChatMessage]) -> 
     **Tasks:** CREATE_TASK, LIST_TASKS
     **Wellness:** WELLNESS_CHECK
     **Finance:** GET_TRANSACTIONS, CHECK_BALANCE, INVOICE_STATUS
+    **CRM & Sales:** 
+    - CRM_QUERY: Use for questions about sales, leads, deals, pipeline, forecasts, or sales follow-ups.
     **System & Analytics:**
     - GET_SYSTEM_STATUS: User wants to check system health
     - GET_AUTOMATION_INSIGHTS: User wants to see drift metrics or automation health
@@ -558,6 +608,10 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
         return {"intent": "CHECK_BALANCE", "entities": {}}
     elif "invoice" in msg:
         return {"intent": "INVOICE_STATUS", "entities": {}}
+        
+    # CRM & Sales Intents
+    elif any(word in msg for word in ["sale", "lead", "deal", "pipeline", "prospect", "forecast"]):
+        return {"intent": "CRM_QUERY", "entities": {}}
         
     # System Intents
     elif "system" in msg and ("status" in msg or "health" in msg or "performance" in msg):
@@ -792,6 +846,40 @@ async def handle_cancel_schedule(request: ChatRequest, entities: Dict[str, Any])
 async def handle_get_status(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     return {"success": True, "response": {"message": "Check the Workflow Editor for detailed status.", "actions": []}}
 
+# --- CRM/Sales Handlers ---
+
+async def handle_crm_intent(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle sales and CRM queries via SalesAssistant"""
+    try:
+        from core.database import SessionLocal
+        from sales.assistant import SalesAssistant
+        
+        db = SessionLocal()
+        try:
+            # Get workspace_id from entities or default to temp_ws for now
+            workspace_id = entities.get("workspace_id") or "temp_ws"
+            assistant = SalesAssistant(db)
+            answer = await assistant.answer_sales_query(workspace_id, request.message)
+            
+            return {
+                "success": True,
+                "response": {
+                    "message": answer,
+                    "actions": [
+                        {"type": "view_leads", "label": "View Leads"},
+                        {"type": "view_pipeline", "label": "View Pipeline"}
+                    ]
+                }
+            }
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"CRM handler failed: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to process sales query: {str(e)}"
+        }
+
 # --- Calendar Handlers ---
 
 async def handle_create_event(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
@@ -860,11 +948,12 @@ async def handle_knowledge_query(request: ChatRequest, entities: Dict[str, Any])
     query = entities.get("query", request.message)
     try:
         manager = get_knowledge_query_manager()
-        answer = await manager.answer_query(query)
+        res = await manager.answer_query(query)
+        answer_text = res.get("answer", "I couldn't find an answer.")
         return {
             "success": True,
             "response": {
-                "message": answer,
+                "message": answer_text,
                 "actions": [
                     {"type": "view_knowledge_graph", "label": "🔍 View Knowledge Map"}
                 ]

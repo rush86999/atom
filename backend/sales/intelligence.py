@@ -4,9 +4,16 @@ from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from sales.models import Deal, DealStage
 from core.automation_settings import get_automation_settings
-from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, CommunicationAppType
+from core.websockets import manager
 
 logger = logging.getLogger(__name__)
+
+try:
+    from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, CommunicationAppType
+    INGESTION_AVAILABLE = True
+except ImportError:
+    INGESTION_AVAILABLE = False
+    logger.warning("Ingestion pipeline not available. Sales memory will be disabled.")
 
 class SalesIntelligence:
     """
@@ -16,7 +23,7 @@ class SalesIntelligence:
         self.db = db
         self.settings = get_automation_settings()
 
-    def analyze_deal_health(self, deal: Deal) -> Dict[str, Any]:
+    async def analyze_deal_health(self, deal: Deal) -> Dict[str, Any]:
         """
         Calculate a composite health score (0-100) for a deal.
         """
@@ -60,27 +67,44 @@ class SalesIntelligence:
 
         self.db.commit()
 
-        # Ingest into LanceDB Memory
+        # Broadcast update
         try:
-            ingestion_pipeline.ingest_message(
-                CommunicationAppType.CRM_DEAL.value,
-                {
+            await manager.broadcast(f"workspace:{deal.workspace_id}", {
+                "type": "deal_update",
+                "workspace_id": deal.workspace_id,
+                "data": {
                     "id": deal.id,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "sender": "Sales Intelligence",
-                    "subject": f"Deal Health: {deal.name}",
-                    "content": f"Deal: {deal.name}. Health Score: {deal.health_score}. Risk Level: {deal.risk_level}. Risks: {', '.join(risks)}",
-                    "metadata": {
-                        "deal_id": deal.id,
-                        "workspace_id": deal.workspace_id,
-                        "health_score": deal.health_score,
-                        "risk_level": deal.risk_level,
-                        "risks": risks
-                    }
+                    "name": deal.name,
+                    "health_score": deal.health_score,
+                    "risk_level": deal.risk_level,
+                    "risks": risks
                 }
-            )
+            })
         except Exception as e:
-            logger.error(f"Failed to ingest deal health into LanceDB: {e}")
+            logger.error(f"Failed to broadcast deal update: {e}")
+
+        # Ingest into LanceDB Memory
+        if INGESTION_AVAILABLE:
+            try:
+                ingestion_pipeline.ingest_message(
+                    CommunicationAppType.CRM_DEAL.value,
+                    {
+                        "id": deal.id,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "sender": "Sales Intelligence",
+                        "subject": f"Deal Health: {deal.name}",
+                        "content": f"Deal: {deal.name}. Health Score: {deal.health_score}. Risk Level: {deal.risk_level}. Risks: {', '.join(risks)}",
+                        "metadata": {
+                            "deal_id": deal.id,
+                            "workspace_id": deal.workspace_id,
+                            "health_score": deal.health_score,
+                            "risk_level": deal.risk_level,
+                            "risks": risks
+                        }
+                    }
+                )
+            except Exception as e:
+                logger.error(f"Failed to ingest deal health into LanceDB: {e}")
 
         return {
             "health_score": deal.health_score,

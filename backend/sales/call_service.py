@@ -3,10 +3,17 @@ import json
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 from sales.models import Deal, CallTranscript, FollowUpTask
+from sales.objection_service import ObjectionService
 from core.automation_settings import get_automation_settings
-from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, CommunicationAppType
 
 logger = logging.getLogger(__name__)
+
+try:
+    from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, CommunicationAppType
+    INGESTION_AVAILABLE = True
+except ImportError:
+    INGESTION_AVAILABLE = False
+    logger.warning("Ingestion pipeline not available. Sales memory will be disabled.")
 
 class CallAutomationService:
     """
@@ -45,6 +52,18 @@ class CallAutomationService:
         self.db.add(transcript)
         self.db.flush()
 
+        # Handle Objections
+        objection_service = ObjectionService(self.db)
+        objection_intelligence = []
+        for obj in transcript.objections or []:
+            intel = objection_service.track_objection(workspace_id, deal_id, obj)
+            objection_intelligence.append(intel)
+        
+        # Store in metadata for the UI
+        if not transcript.metadata_json:
+            transcript.metadata_json = {}
+        transcript.metadata_json["objection_analysis"] = objection_intelligence
+
         # Update deal engagement
         deal = self.db.query(Deal).filter(Deal.id == deal_id).first()
         if deal:
@@ -57,27 +76,28 @@ class CallAutomationService:
         self.db.commit()
 
         # Ingest into LanceDB Memory
-        try:
-            from datetime import datetime
-            ingestion_pipeline.ingest_message(
-                CommunicationAppType.CALLS.value,
-                {
-                    "id": transcript.id,
-                    "timestamp": datetime.now().isoformat(),
-                    "sender": "Meeting Transcript",
-                    "subject": transcript.title,
-                    "content": f"Meeting: {transcript.title}. Summary: {transcript.summary}. Action Items: {', '.join(transcript.action_items)}",
-                    "metadata": {
-                        "transcript_id": transcript.id,
-                        "deal_id": deal_id,
-                        "workspace_id": workspace_id,
-                        "objections": transcript.objections,
-                        "meeting_id": transcript.meeting_id
+        if INGESTION_AVAILABLE:
+            try:
+                from datetime import datetime
+                ingestion_pipeline.ingest_message(
+                    CommunicationAppType.CALLS.value,
+                    {
+                        "id": transcript.id,
+                        "timestamp": datetime.now().isoformat(),
+                        "sender": "Meeting Transcript",
+                        "subject": transcript.title,
+                        "content": f"Meeting: {transcript.title}. Summary: {transcript.summary}. Action Items: {', '.join(transcript.action_items)}",
+                        "metadata": {
+                            "transcript_id": transcript.id,
+                            "deal_id": deal_id,
+                            "workspace_id": workspace_id,
+                            "objections": transcript.objections,
+                            "meeting_id": transcript.meeting_id
+                        }
                     }
-                }
-            )
-        except Exception as e:
-            logger.error(f"Failed to ingest transcript into LanceDB: {e}")
+                )
+            except Exception as e:
+                logger.error(f"Failed to ingest transcript into LanceDB: {e}")
 
         return transcript
 

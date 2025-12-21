@@ -5,9 +5,18 @@ from core.database import get_db
 from sales.lead_manager import LeadManager
 from sales.intelligence import SalesIntelligence
 from sales.call_service import CallAutomationService
+from sales.dashboard_service import SalesDashboardService
 from sales.models import Lead, Deal, CallTranscript
 
 router = APIRouter(prefix="/api/sales", tags=["Sales Automation"])
+
+@router.get("/dashboard/summary")
+async def get_dashboard_summary(
+    workspace_id: str,
+    db: Session = Depends(get_db)
+):
+    service = SalesDashboardService(db)
+    return service.get_sales_summary(workspace_id)
 
 @router.post("/leads/ingest")
 async def ingest_lead(
@@ -16,7 +25,7 @@ async def ingest_lead(
     db: Session = Depends(get_db)
 ):
     manager = LeadManager(db)
-    lead = manager.ingest_lead(workspace_id, lead_data)
+    lead = await manager.ingest_lead(workspace_id, lead_data)
     if not lead:
         return {"status": "skipped", "message": "Lead ingestion disabled or failed"}
     return {"status": "success", "lead_id": lead.id, "ai_score": lead.ai_score}
@@ -39,7 +48,7 @@ async def get_deal_health(
         raise HTTPException(status_code=404, detail="Deal not found")
     
     intelligence = SalesIntelligence(db)
-    result = intelligence.analyze_deal_health(deal)
+    result = await intelligence.analyze_deal_health(deal)
     return result
 
 @router.get("/deals")
