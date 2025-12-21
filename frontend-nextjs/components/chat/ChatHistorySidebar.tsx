@@ -29,16 +29,37 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
     const fetchChatHistory = async () => {
         try {
             setLoading(true);
-            const response = await fetch("/api/chat/history");
+            const response = await fetch("/api/atom-agent/sessions");
             if (!response.ok) {
                 throw new Error("Failed to fetch chat history");
             }
             const data = await response.json();
-            setHistory(data.sessions || []);
+            if (data.success && data.sessions) {
+                setHistory(data.sessions);
+            }
         } catch (error) {
             console.error("Error fetching chat history:", error);
-            // Set empty array on error to avoid infinite loading
             setHistory([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleNewChat = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch("/api/atom-agent/sessions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: "default_user" })
+            });
+            const data = await response.json();
+            if (data.success && data.session_id) {
+                onSelectSession(data.session_id);
+                fetchChatHistory();
+            }
+        } catch (error) {
+            console.error("Error creating new chat:", error);
         } finally {
             setLoading(false);
         }
@@ -52,7 +73,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
     return (
         <div className="flex flex-col h-full border-r border-border">
             <div className="p-4 border-b border-border space-y-4">
-                <Button className="w-full justify-start gap-2" variant="default" onClick={fetchChatHistory}>
+                <Button className="w-full justify-start gap-2" variant="default" onClick={handleNewChat}>
                     <Plus className="h-4 w-4" /> New Chat
                 </Button>
                 <div className="relative">

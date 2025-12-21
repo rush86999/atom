@@ -25,7 +25,7 @@ class KnowledgeExtractor:
         You are a Knowledge Graph Extraction Agent. Your goal is to analyze the provided text and extract a structured set of Entities and Relationships.
         
         **Target Entities:**
-        - Person (name, role, organization)
+        - Person (name, role, organization, is_stakeholder: bool)
         - Project (name, status)
         - Task (description, status, owner)
         - File (filename, type)
@@ -46,18 +46,20 @@ class KnowledgeExtractor:
         - PAID_FOR (Transaction -> Task/Project/Entity)
         - PART_OF_BUDGET (Transaction/Task -> Budget)
         - BILLED_BY (Entity -> Invoice)
+        - REPORTS_TO (Person -> Person: indicates hierarchy/management line)
+        - STAKEHOLDER_OF (Person -> Project/Organization/User: indicates key interest or role)
         
         **Output Format (JSON strictly):**
         {
           "entities": [
-            {"id": "unique_id", "type": "Person", "properties": {"name": "...", "role": "..."}}
+            {"id": "unique_id", "type": "Person", "properties": {"name": "...", "role": "...", "is_stakeholder": true/false}}
           ],
           "relationships": [
             {"from": "id1", "to": "id2", "type": "OWNS", "properties": {}}
           ]
         }
         
-        **Important:** Deduplicate entities. If "John" and "John Doe" refer to the same person, use a single ID.
+        **Important:** Deduplicate entities. If "John" and "John Doe" refer to the same person, use a single ID. Correctly identify hierarchy (REPORTS_TO) and those with key roles (STAKEHOLDER_OF).
         """
         
         try:
