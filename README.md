@@ -29,7 +29,10 @@ Atom is your conversational AI agent that automates complex workflows through na
 - ✅ **AI Sales & CRM Automation** - Lead scoring, deal health, & Order-to-Cash bridge
 - ✅ **Advanced Workflow Search** - Deep search across Gmail, Notion, and App Memory (LanceDB)
 - ✅ **AI-Powered Condition Nodes** - Branching logic driven by natural language analysis
-- ✅ **8/8 marketing claims verified** - Platform Complete
+- ✅ **AI Accounting Engine** - Confidence-based categorization, continuous reconciliation
+- ✅ **AP/AR Automation** - Invoice intake, approval workflows, intelligent collections
+- ✅ **Financial Ops** - Cost leak detection, budget guardrails, invoice reconciliation
+- ✅ **Event-Sourced Architecture** - Perception → Planning → Execution with audit trails
 - ✅ **33+ service integrations** - 7 actively connected (Slack, Google Calendar, Salesforce, HubSpot, Discord, Zoho CRM, Zoho Books)
 - ✅ **Natural language workflow creation** - Just describe what you want
 - ✅ **Cross-platform coordination** - Works across all your tools
@@ -163,6 +166,19 @@ Open `http://localhost:3000` and try these commands:
 - **Talk-to-Task** - Call transcriptions to automated action items
 - **Order-to-Cash Bridge** - Automated invoicing upon winning deals
 
+### 🧾 AI Accounting (NEW)
+- **Transaction Categorization** - AI-powered with 85% confidence threshold
+- **Continuous Reconciliation** - Daily bank ↔ ledger matching
+- **Anomaly Detection** - Unusual amounts, duplicates, missing transactions
+- **AP Automation** - Invoice intake, auto-approve under threshold
+- **AR & Collections** - Invoice generation, smart reminder escalation
+- **Chart of Accounts Learning** - Adapts to your categorization patterns
+
+### 💰 Financial Ops (NEW)
+- **Cost Leak Detection** - Find unused SaaS and redundant tools
+- **Budget Guardrails** - Spending limits tied to deal stages
+- **Invoice Reconciliation** - Match invoices to contracts automatically
+
 ## 🛠️ Architecture
 
 ### Frontend
@@ -201,6 +217,7 @@ Open `http://localhost:3000` and try these commands:
 
 ### 💰 Financial
 - Stripe, QuickBooks, Xero
+- **Built-in AI Accounting** - Transaction engine, AP/AR, reconciliation
 
 ## 📊 Current Status
 
@@ -211,6 +228,7 @@ Open `http://localhost:3000` and try these commands:
 - ✅ Natural language workflow generation
 - ✅ Complete BYOK system
 - ✅ 132 blueprints loaded
+- ✅ **Computer Use Engine**: Finance, Sales, Operations Agents (Logic Verified)
 
 ## 🚢 Deployment
 
