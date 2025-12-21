@@ -25,6 +25,7 @@ ATOM (Advanced Task Orchestration & Management) is an AI-powered automation plat
 Atom is your conversational AI agent that automates complex workflows through natural language chat. Now with Computer Use Agent capabilities, Atom can see and interact with your desktop applications, automate repetitive tasks, and create visual workflows that bridge web services with local desktop software.
 
 **Key Features:**
+- ✅ **Knowledge Graph Memory** - All integrations indexed in LanceDB for AI recall
 - ✅ **Computer Use Agent System** - Desktop automation with visual understanding
 - ✅ **AI Sales & CRM Automation** - Lead scoring, deal health, & Order-to-Cash bridge
 - ✅ **Advanced Workflow Search** - Deep search across Gmail, Notion, and App Memory (LanceDB)
@@ -37,6 +38,19 @@ Atom is your conversational AI agent that automates complex workflows through na
 - ✅ **Natural language workflow creation** - Just describe what you want
 - ✅ **Cross-platform coordination** - Works across all your tools
 - ✅ **Production-ready architecture** - FastAPI backend, Next.js frontend
+
+### 🧠 Knowledge Graph & AI Memory
+
+Atom doesn't just connect to your apps — it **remembers everything**:
+
+| Feature | How It Works |
+|---------|--------------|
+| **Unified Memory** | All emails, tasks, documents indexed in LanceDB vector store |
+| **Cross-App Context** | Ask "What did we discuss about Project X?" across Gmail, Slack, Notion |
+| **Semantic Search** | Find related content even with different keywords |
+| **Workflow Intelligence** | Automations use past context for smarter decisions |
+| **Continuous Ingestion** | Real-time sync keeps memory up-to-date |
+
 
 ### 🎯 The Atom Difference
 
