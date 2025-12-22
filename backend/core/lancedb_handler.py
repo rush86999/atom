@@ -43,12 +43,17 @@ except (ImportError, Exception) as e:
     print(f"Sentence transformers not available: {e}")
 
 # Import OpenAI for embeddings
-try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except (ImportError, Exception) as e:
     OPENAI_AVAILABLE = False
     print(f"OpenAI not available: {e}")
+
+# BYOK Integration
+try:
+    from core.byok_endpoints import get_byok_manager
+except ImportError:
+    get_byok_manager = None
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +77,12 @@ class LanceDBHandler:
         self.db = None
         self.embedder = None
         self.openai_client = None
+        
+        # BYOK Manager
+        try:
+            self.byok_manager = get_byok_manager() if get_byok_manager else None
+        except:
+            self.byok_manager = None
         
         # Initialize LanceDB if available
         logger.info(f"LanceDBHandler initialized. ID: {id(self)}. LANCEDB_AVAILABLE: {LANCEDB_AVAILABLE}")
@@ -100,13 +111,20 @@ class LanceDBHandler:
         """Initialize embedding provider"""
         try:
             if self.embedding_provider == "openai" and OPENAI_AVAILABLE:
-                if not self.openai_api_key:
+                # BYOK Key Retrieval
+                api_key = self.openai_api_key
+                if self.byok_manager:
+                    byok_key = self.byok_manager.get_api_key("openai")
+                    if byok_key:
+                        api_key = byok_key
+                
+                if not api_key:
                     logger.warning("OpenAI API key not found, falling back to local embeddings")
                     self.embedding_provider = "local"
                     self._init_local_embedder()
                 else:
-                    self.openai_client = OpenAI(api_key=self.openai_api_key)
-                    logger.info("OpenAI embeddings initialized")
+                    self.openai_client = OpenAI(api_key=api_key)
+                    logger.info("OpenAI embeddings initialized (BYOK enabled)")
             else:
                 self._init_local_embedder()
                 

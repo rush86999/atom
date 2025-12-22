@@ -9,6 +9,9 @@ from service_delivery.models import Project, Milestone, ProjectTask, ProjectStat
 from core.graphrag_engine import graphrag_engine
 from core.knowledge_extractor import KnowledgeExtractor
 from core.ai_service import get_ai_service
+from core.workforce_analytics import WorkforceAnalyticsService
+from core.resource_reasoning import ResourceReasoningEngine
+from core.pm_swarm import AutonomousBusinessSwarm
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +19,12 @@ class AIProjectManager:
     """
     Engine for AI-driven Project Management automations.
     """
-    def __init__(self):
+    def __init__(self, db_session: Any = None):
         self.extractor = KnowledgeExtractor()
         self.ai = get_ai_service()
+        self.db_session = db_session
+        self.analytics = WorkforceAnalyticsService(db_session=db_session)
+        self.reasoning = ResourceReasoningEngine(db_session=db_session)
 
     async def generate_project_from_nl(self, prompt: str, user_id: str, workspace_id: str, contract_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -49,10 +55,19 @@ class AIProjectManager:
             # Assuming nlu_result contains the parsed JSON
             project_data = response.get("nlu_result", response)
             
-            with SessionLocal() as db:
+            db = self.db_session or SessionLocal()
+            try:
+                # 0. Calculate Workspace Bias for duration adjustment
+                ws_bias = self.analytics.calculate_estimation_bias(workspace_id)
+                bias_factor = ws_bias.get("bias_factor", 1.0)
+                
                 # 1. Create Project
                 start_date = datetime.now()
-                end_date = start_date + timedelta(days=project_data.get("planned_duration_days", 30))
+                planned_days = project_data.get("planned_duration_days", 30)
+                
+                # Adjust duration by workspace bias
+                adjusted_days = planned_days * bias_factor
+                end_date = start_date + timedelta(days=adjusted_days)
                 
                 project = Project(
                     id=f"proj_{uuid.uuid4().hex[:8]}",
@@ -101,6 +116,9 @@ class AIProjectManager:
                 db.commit()
                 logger.info(f"Successfully generated project {project.id}")
                 return {"status": "success", "project_id": project.id, "name": project.name}
+            finally:
+                if not self.db_session:
+                    db.close()
                 
         except Exception as e:
             logger.error(f"Failed to generate project: {e}")
@@ -112,7 +130,8 @@ class AIProjectManager:
         """
         logger.info(f"Inferring status for project {project_id}")
         
-        with SessionLocal() as db:
+        db = self.db_session or SessionLocal()
+        try:
             project = db.query(Project).filter(Project.id == project_id).first()
             if not project:
                 return {"status": "error", "message": "Project not found"}
@@ -152,12 +171,16 @@ class AIProjectManager:
             
             db.commit()
             return {"status": "success", "updates": updates}
+        finally:
+            if not self.db_session:
+                db.close()
 
     async def analyze_project_risks(self, project_id: str, user_id: str) -> Dict[str, Any]:
         """
         Detects schedule slips and budget risks.
         """
-        with SessionLocal() as db:
+        db = self.db_session or SessionLocal()
+        try:
             project = db.query(Project).filter(Project.id == project_id).first()
             if not project:
                 return {"status": "error", "message": "Project not found"}
@@ -202,6 +225,55 @@ class AIProjectManager:
             
             db.commit()
             return {"status": "success", "risks": risks, "risk_level": project.risk_level}
+        finally:
+            if not self.db_session:
+                db.close()
+
+    async def auto_assign_resources(self, project_id: str, workspace_id: str) -> Dict[str, Any]:
+        """
+        Automatically assigns the best team members to all tasks in a project.
+        """
+        logger.info(f"Auto-assigning resources for project {project_id}")
+        
+        db = self.db_session or SessionLocal()
+        try:
+            tasks = db.query(ProjectTask).filter(ProjectTask.project_id == project_id).all()
+            assignments = []
+            
+            for task in tasks:
+                if task.assigned_to:
+                    continue
+                
+                suggestion = await self.reasoning.get_optimal_assignee(workspace_id, task.name, task.description)
+                best_user = suggestion.get("suggested_user")
+                
+                if best_user:
+                    task.assigned_to = best_user["user_id"]
+                    assignments.append({
+                        "task_id": task.id,
+                        "task_name": task.name,
+                        "assigned_to": best_user["name"],
+                        "confidence": best_user["composite_score"]
+                    })
+            
+            db.commit()
+            return {"status": "success", "assignments": assignments}
+        finally:
+            if not self.db_session:
+                db.close()
+
+    async def trigger_autonomous_correction(self, workspace_id: str, project_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Invokes the PM Swarm to analyze the current state and apply autonomous corrections.
+        """
+        logger.info(f"Triggering autonomous correction for workspace {workspace_id}, project {project_id}")
+        swarm = AutonomousBusinessSwarm(db_session=self.db_session)
+        try:
+            result = await swarm.run_correction_cycle(workspace_id, project_id)
+            return result
+        except Exception as e:
+            logger.error(f"Autonomous correction failed: {e}")
+            return {"status": "failed", "error": str(e)}
 
 # Global Instance
 pm_engine = AIProjectManager()

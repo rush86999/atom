@@ -30,8 +30,9 @@ try:
     from atom_teams_integration import atom_teams_integration
     from atom_google_chat_integration import atom_google_chat_integration
     from atom_discord_integration import atom_discord_integration
+    from core.byok_endpoints import get_byok_manager
 except ImportError as e:
-    logging.warning(f"AI integration services not available: {e}")
+    logging.warning(f"AI integration services or core byok manager not available: {e}")
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -165,6 +166,13 @@ class AIEnhancedService:
         # Cache and rate limiting
         self.cache = config.get('cache')
         self.rate_limiter = config.get('rate_limiter')
+        
+        # BYOK Manager
+        try:
+            self.byok_manager = get_byok_manager()
+        except:
+            self.byok_manager = None
+            logger.warning("BYOK Manager not initialized in AIEnhancedService")
         
         # AI sessions and contexts
         self.active_sessions: Dict[str, Dict[str, Any]] = {}
@@ -1216,11 +1224,18 @@ class AIEnhancedService:
                 'temperature': temperature
             }
             
+            # BYOK Key Retrieval
+            api_key = self.openai_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("openai")
+                if byok_key:
+                    api_key = byok_key
+            
             # Make API call
             async with self.http_sessions['openai'].post(
                 f"{self.openai_config['base_url']}/chat/completions",
                 headers={
-                    'Authorization': f"Bearer {self.openai_config['api_key']}",
+                    'Authorization': f"Bearer {api_key}",
                     'Content-Type': 'application/json',
                     'OpenAI-Organization': self.openai_config['organization']
                 },
@@ -1274,11 +1289,18 @@ class AIEnhancedService:
                 ]
             }
             
+            # BYOK Key Retrieval
+            api_key = self.anthropic_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("anthropic")
+                if byok_key:
+                    api_key = byok_key
+            
             # Make API call
             async with self.http_sessions['anthropic'].post(
                 f"{self.anthropic_config['base_url']}/messages",
                 headers={
-                    'x-api-key': self.anthropic_config['api_key'],
+                    'x-api-key': api_key,
                     'Content-Type': 'application/json',
                     'anthropic-version': '2023-06-01'
                 },
@@ -1335,11 +1357,18 @@ class AIEnhancedService:
                 }
             }
             
+            # BYOK Key Retrieval
+            api_key = self.google_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("google")
+                if byok_key:
+                    api_key = byok_key
+            
             # Make API call
             async with self.http_sessions['google'].post(
                 f"{self.google_config['base_url']}/models/{model_name}:generateContent",
                 headers={
-                    'Authorization': f"Bearer {self.google_config['api_key']}",
+                    'Authorization': f"Bearer {api_key}",
                     'Content-Type': 'application/json'
                 },
                 json=request_data
