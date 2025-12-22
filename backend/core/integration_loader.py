@@ -2,7 +2,9 @@ import importlib
 import logging
 import sys
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-import time
+import asyncio
+from functools import wraps
+from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -94,3 +96,41 @@ class IntegrationLoader:
 
     def get_loaded_integrations(self):
         return [i for i in self.integrations if i["status"] == "loaded"]
+
+def auto_ingest(app_type: str, record_type: str):
+    """
+    Decorator to automatically ingest API response data into the ATOM Ingestion Pipeline.
+    Expects the decorated function to return a dict or a list of dicts.
+    """
+    def decorator(func):
+        @wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            result = await func(*args, **kwargs)
+            if result:
+                # Ingest safely in background
+                try:
+                    if isinstance(result, list):
+                        for item in result:
+                            atom_ingestion_pipeline.ingest_record(app_type, record_type, item)
+                    elif isinstance(result, dict):
+                        atom_ingestion_pipeline.ingest_record(app_type, record_type, result)
+                except Exception as e:
+                    logger.error(f"AutoIngest failed for {app_type}: {e}")
+            return result
+
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+            if result:
+                try:
+                    if isinstance(result, list):
+                        for item in result:
+                            atom_ingestion_pipeline.ingest_record(app_type, record_type, item)
+                    elif isinstance(result, dict):
+                        atom_ingestion_pipeline.ingest_record(app_type, record_type, result)
+                except Exception as e:
+                    logger.error(f"AutoIngest failed for {app_type}: {e}")
+            return result
+
+        return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
+    return decorator

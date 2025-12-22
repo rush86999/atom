@@ -25,20 +25,17 @@ ATOM (Advanced Task Orchestration & Management) is an AI-powered automation plat
 Atom is your conversational AI agent that automates complex workflows through natural language chat. Now with Computer Use Agent capabilities, Atom can see and interact with your desktop applications, automate repetitive tasks, and create visual workflows that bridge web services with local desktop software.
 
 **Key Features:**
-- ✅ **Knowledge Graph Memory** - All integrations indexed in LanceDB for AI recall
+- ✅ **Universal BYOK (Bring Your Own Key)** - User-managed API keys with budget guardrails
+- ✅ **External Stakeholder Governance** - HITL "Learning Phase" for all agent communications
+- ✅ **GraphRAG & Cognitive Search** - Knowledge graph + vector search for perfect AI recall
+- ✅ **Autonomous Business Swarm** - Multi-agent orchestration for project management (PM Swarm)
 - ✅ **Computer Use Agent System** - Desktop automation with visual understanding
 - ✅ **AI Sales & CRM Automation** - Lead scoring, deal health, & Order-to-Cash bridge
 - ✅ **Small Business Mastery** - Smart scheduling, no-show recovery, & autonomous collections
-- ✅ **Advanced Workflow Search** - Deep search across Gmail, Notion, and App Memory (LanceDB)
-- ✅ **AI-Powered Condition Nodes** - Branching logic driven by natural language analysis
 - ✅ **AI Accounting Engine** - Confidence-based categorization, continuous reconciliation
-- ✅ **AP/AR Automation** - Invoice intake, approval workflows, intelligent collections
 - ✅ **Financial Ops** - Cost leak detection, budget guardrails, invoice reconciliation
-- ✅ **Event-Sourced Architecture** - Perception → Planning → Execution with audit trails
-- ✅ **33+ service integrations** - 7 actively connected (Slack, Google Calendar, Salesforce, HubSpot, Discord, Zoho CRM, Zoho Books)
+- ✅ **33+ service integrations** - Slack, WhatsApp, Meta, Google, Salesforce, HubSpot, and more
 - ✅ **Natural language workflow creation** - Just describe what you want
-- ✅ **Cross-platform coordination** - Works across all your tools
-- ✅ **Production-ready architecture** - FastAPI backend, Next.js frontend
 
 ### 🧠 Knowledge Graph & AI Memory
 
@@ -191,10 +188,12 @@ Open `http://localhost:3000` and try these commands:
 - **AR & Collections** - Invoice generation, smart reminder escalation
 - **Chart of Accounts Learning** - Adapts to your categorization patterns
 
-### 💰 Financial Ops (NEW)
-- **Cost Leak Detection** - Find unused SaaS and redundant tools
-- **Budget Guardrails** - Spending limits tied to deal stages
-- **Invoice Reconciliation** - Match invoices to contracts automatically
+### 🛡️ Security & Governance (NEW)
+- **Universal BYOK** - Bring your own keys for OpenAI, Anthropic, and Google Gemini
+- **Budget Guardrails** - Enforce spending limits on agent-driven AI requests
+- **External Safety Layer** - Mandatory "Learning Phase" for all external messaging
+- **HITL Approval** - Human-in-the-loop queue for sensitive agent actions
+- **Encrypted Secrets** - Zero-trust architecture for integration credentials
 
 ## 🛠️ Architecture
 
