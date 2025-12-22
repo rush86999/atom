@@ -6,6 +6,7 @@ Central memory system for all communication data with LanceDB vector storage
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass, asdict
@@ -80,8 +81,10 @@ class IngestionConfig:
 class LanceDBMemoryManager:
     """LanceDB-based memory manager for ATOM"""
     
-    def __init__(self, db_path: str = "./data/atom_memory"):
-        self.db_path = Path(db_path)
+    def __init__(self, db_path: str = None, workspace_id: Optional[str] = None):
+        self.workspace_id = workspace_id or "default"
+        base_path = db_path or os.getenv("LANCEDB_URI_BASE", "./data/atom_memory")
+        self.db_path = Path(base_path) / self.workspace_id
         self.db_path.mkdir(parents=True, exist_ok=True)
         self.db = None
         self.connections_table = None
@@ -605,9 +608,25 @@ class CommunicationIngestionPipeline:
             logger.error(f"Error getting ingestion stats: {str(e)}")
             return {"error": str(e)}
 
-# Global instance
-memory_manager = LanceDBMemoryManager()
-ingestion_pipeline = CommunicationIngestionPipeline(memory_manager)
+# Handle multiple managers for physical isolation
+_workspace_memory_managers: Dict[str, 'LanceDBMemoryManager'] = {}
+
+def get_memory_manager(workspace_id: Optional[str] = None) -> LanceDBMemoryManager:
+    """Get workspace-isolated memory manager"""
+    ws_id = workspace_id or "default"
+    if ws_id not in _workspace_memory_managers:
+        _workspace_memory_managers[ws_id] = LanceDBMemoryManager(workspace_id=ws_id)
+    return _workspace_memory_managers[ws_id]
+
+# Legacy instance for backward compatibility
+memory_manager = get_memory_manager()
+
+def get_ingestion_pipeline(workspace_id: Optional[str] = None) -> CommunicationIngestionPipeline:
+    """Get workspace-aware ingestion pipeline"""
+    mgr = get_memory_manager(workspace_id)
+    return CommunicationIngestionPipeline(mgr)
+
+ingestion_pipeline = get_ingestion_pipeline()
 
 # Export for use
 __all__ = [

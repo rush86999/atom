@@ -272,3 +272,20 @@ class BusinessProductService(Base):
 
     # Relationships
     workspace = relationship("Workspace", back_populates="products_services")
+
+class BusinessRule(Base):
+    """Logical rules or calculation patterns extracted from business docs"""
+    __tablename__ = "business_rules"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
+    description = Column(String, nullable=False)
+    rule_type = Column(String, nullable=False) # pricing, discount, tax, workflow
+    formula = Column(Text, nullable=True) # e.g., "base_price * 1.2"
+    value = Column(Float, nullable=True) # Fixed value if applicable
+    applies_to = Column(String, nullable=True) # Entity or category this applies to
+    is_active = Column(Boolean, default=True)
+    
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

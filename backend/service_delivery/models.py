@@ -25,6 +25,11 @@ class MilestoneStatus(str, enum.Enum):
     APPROVED = "approved"   # Client signed off
     INVOICED = "invoiced"   # Sent to billing
 
+class BudgetStatus(str, enum.Enum):
+    ON_TRACK = "on_track"
+    AT_RISK = "at_risk"
+    OVER_BUDGET = "over_budget"
+
 class AppointmentStatus(str, enum.Enum):
     SCHEDULED = "scheduled"
     COMPLETED = "completed"
@@ -73,6 +78,8 @@ class Project(Base):
     budget_hours = Column(Float, default=0.0)
     actual_hours = Column(Float, default=0.0)
     budget_amount = Column(Float, default=0.0) # Total financial budget
+    actual_burn = Column(Float, default=0.0) # Total costs (labor + expenses)
+    budget_status = Column(SQLEnum(BudgetStatus), default=BudgetStatus.ON_TRACK)
     
     priority = Column(String, default="medium") # low, medium, high, critical
     project_type = Column(String, default="general")
@@ -108,6 +115,10 @@ class Milestone(Base):
     
     status = Column(SQLEnum(MilestoneStatus), default=MilestoneStatus.PENDING)
     order = Column(Integer, default=0) # For sequential tracking
+    
+    # Financial Controls
+    actual_burn = Column(Float, default=0.0)
+    budget_status = Column(SQLEnum(BudgetStatus), default=BudgetStatus.ON_TRACK)
     
     planned_start_date = Column(DateTime(timezone=True), nullable=True)
     due_date = Column(DateTime(timezone=True), nullable=True)

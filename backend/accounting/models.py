@@ -79,6 +79,11 @@ class Transaction(Base):
     metadata_json = Column(JSON, nullable=True)
     is_intercompany = Column(Boolean, default=False)
     counterparty_workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)
+    
+    # Project Linking
+    project_id = Column(String, ForeignKey("service_projects.id"), nullable=True)
+    milestone_id = Column(String, ForeignKey("service_milestones.id"), nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -154,6 +159,10 @@ class Bill(Base):
     status = Column(SQLEnum(BillStatus), default=BillStatus.DRAFT)
     description = Column(Text, nullable=True)
     transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=True) # Linked ledger tx
+    
+    # Project Linking
+    project_id = Column(String, ForeignKey("service_projects.id"), nullable=True)
+    milestone_id = Column(String, ForeignKey("service_milestones.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

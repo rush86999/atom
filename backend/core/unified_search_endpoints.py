@@ -94,26 +94,8 @@ MOCK_DOCUMENTS = [
     }
 ]
 
-# Seed data on module load (for demo/validation purposes)
-try:
-    handler = get_lancedb_handler()
-    # Check if table exists and has data
-    stats = handler.get_table_stats("documents")
-    if not stats or stats.get("document_count", 0) == 0:
-        logger.info("Seeding LanceDB with mock documents...")
-        # Flatten metadata for LanceDB
-        seeded_docs = []
-        for doc in MOCK_DOCUMENTS:
-            doc_copy = doc.copy()
-            # Ensure text field exists for embedding
-            doc_copy["text"] = doc["title"] + "\n" + doc["content"]
-            doc_copy["source"] = doc["source_uri"]
-            seeded_docs.append(doc_copy)
-        
-        handler.seed_mock_data(seeded_docs)
-        logger.info("LanceDB seeding complete.")
-except Exception as e:
-    logger.error(f"Failed to seed LanceDB: {e}")
+# Seeding is now handled per-workspace via specific admin tools or migration scripts.
+# The module-level seeding is removed to support multi-tenancy.
 
 # Pydantic Models
 class SearchFilters(BaseModel):
@@ -125,6 +107,7 @@ class SearchFilters(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     user_id: str
+    workspace_id: Optional[str] = None
     filters: Optional[SearchFilters] = None
     limit: int = Field(default=20, ge=1, le=100)
     search_type: str = Field(default="hybrid", pattern="^(hybrid|semantic|keyword)$")
@@ -157,7 +140,7 @@ async def hybrid_search(request: SearchRequest):
     Perform hybrid search combining semantic and keyword matching using LanceDB.
     """
     try:
-        handler = get_lancedb_handler()
+        handler = get_lancedb_handler(request.workspace_id)
         
         # Construct filter expression if needed
         filter_expr = None
@@ -235,6 +218,7 @@ async def hybrid_search(request: SearchRequest):
 async def get_suggestions(
     query: str = Query(..., min_length=1),
     user_id: str = Query(...),
+    workspace_id: Optional[str] = Query(None),
     limit: int = Query(default=5, ge=1, le=10)
 ):
     """

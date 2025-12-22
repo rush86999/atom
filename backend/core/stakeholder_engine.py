@@ -18,9 +18,10 @@ class StakeholderEngagementEngine:
         self.db_handler = get_lancedb_handler()
         self.engagement_threshold_days = 3 # Logic: >3 days is "silent" for active stakeholders
         
-    async def get_stakeholders_for_user(self, user_id: str) -> List[Dict[str, Any]]:
+    async def get_stakeholders_for_user(self, user_id: str, workspace_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Identify a list of stakeholders (people of interest) for the user"""
         stakeholders = {} # Email/ID -> Metadata
+        ws_id = workspace_id or "default"
         
         # 1. Get Team Members from SQL
         db = SessionLocal()
@@ -66,7 +67,8 @@ class StakeholderEngagementEngine:
             
         # 3. Add people from recent communications (last 30 days)
         try:
-            from integrations.atom_communication_ingestion_pipeline import memory_manager
+            from integrations.atom_communication_ingestion_pipeline import get_memory_manager
+            memory_manager = get_memory_manager(ws_id)
             if not memory_manager.db:
                 memory_manager.initialize()
             
@@ -94,9 +96,10 @@ class StakeholderEngagementEngine:
             
         return list(stakeholders.values())
 
-    async def calculate_engagement(self, user_id: str, email: str) -> Dict[str, Any]:
+    async def calculate_engagement(self, user_id: str, email: str, workspace_id: Optional[str] = None) -> Dict[str, Any]:
         """Calculate engagement metrics for a specific stakeholder"""
-        from integrations.atom_communication_ingestion_pipeline import memory_manager
+        from integrations.atom_communication_ingestion_pipeline import get_memory_manager
+        memory_manager = get_memory_manager(workspace_id)
         if not memory_manager.db:
             memory_manager.initialize()
             
@@ -139,13 +142,13 @@ class StakeholderEngagementEngine:
             logger.error(f"Error calculating engagement for {email}: {e}")
             return {"error": str(e)}
 
-    async def identify_silent_stakeholders(self, user_id: str) -> List[Dict[str, Any]]:
+    async def identify_silent_stakeholders(self, user_id: str, workspace_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Identify stakeholders who haven't engaged recently"""
-        all_stakeholders = await self.get_stakeholders_for_user(user_id)
+        all_stakeholders = await self.get_stakeholders_for_user(user_id, workspace_id=workspace_id)
         silent_list = []
         
         for s in all_stakeholders:
-            engagement = await self.calculate_engagement(user_id, s["email"])
+            engagement = await self.calculate_engagement(user_id, s["email"], workspace_id=workspace_id)
             if engagement.get("is_silent"):
                 s.update(engagement)
                 # Generate suggested outreach (Mock LLM)

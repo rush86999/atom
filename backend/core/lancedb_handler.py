@@ -56,11 +56,13 @@ class LanceDBHandler:
     """LanceDB vector database handler"""
     
     def __init__(self, db_path: str = None, 
+                 workspace_id: Optional[str] = None,
                  embedding_provider: str = "local",
                  embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
         
         # Determine DB path (S3 or local)
         self.db_path = db_path or os.getenv("LANCEDB_URI", "./data/atom_memory")
+        self.workspace_id = workspace_id or "default"
         
         # Embedding configuration
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", embedding_provider)
@@ -174,6 +176,7 @@ class LanceDBHandler:
                 schema = pa.schema([
                     pa.field("id", pa.string()),
                     pa.field("user_id", pa.string()),
+                    pa.field("workspace_id", pa.string()),
                     pa.field("text", pa.string()),
                     pa.field("source", pa.string()),
                     pa.field("metadata", pa.string()),
@@ -188,6 +191,7 @@ class LanceDBHandler:
                 schema = pa.schema([
                     pa.field("id", pa.string()),
                     pa.field("user_id", pa.string()),
+                    pa.field("workspace_id", pa.string()),
                     pa.field("from_id", pa.string()),
                     pa.field("to_id", pa.string()),
                     pa.field("type", pa.string()),
@@ -297,7 +301,8 @@ class LanceDBHandler:
             # Create record
             record = {
                 "id": edge_id,
-                "user_id": user_id, # Added user_id
+                "user_id": user_id,
+                "workspace_id": self.workspace_id,
                 "from_id": from_id,
                 "to_id": to_id,
                 "type": rel_type,
@@ -316,7 +321,8 @@ class LanceDBHandler:
             return False
 
     def add_document(self, table_name: str, text: str, source: str = "", 
-                    metadata: Dict[str, Any] = None, user_id: str = "default_user") -> bool:
+                    metadata: Dict[str, Any] = None, user_id: str = "default_user",
+                    extract_knowledge: bool = True) -> bool:
         """Add a single document to memory"""
         if self.db is None:
             return False
@@ -335,10 +341,11 @@ class LanceDBHandler:
             
             doc_id = str(datetime.utcnow().timestamp())
             
-            # Record with user_id
+            # Record with user_id and workspace_id
             record = {
                 "id": doc_id,
                 "user_id": user_id,
+                "workspace_id": self.workspace_id,
                 "text": text,
                 "source": source,
                 "metadata": json.dumps(metadata) if metadata else "{}",
@@ -370,8 +377,8 @@ class LanceDBHandler:
                     
                     if settings.is_extraction_enabled():
                         from core.knowledge_ingestion import get_knowledge_ingestion
-                        ingestor = get_knowledge_ingestion()
-                        asyncio.create_task(ingestor.process_document(text, doc_id, source))
+                        ingestor = get_knowledge_ingestion(self.workspace_id)
+                        asyncio.create_task(ingestor.process_document(text, doc_id, source, user_id=user_id, workspace_id=self.workspace_id))
                     else:
                         logger.info(f"Automatic knowledge extraction skipped for {doc_id} (disabled in settings)")
                 
@@ -429,6 +436,7 @@ class LanceDBHandler:
                 record = {
                     "id": doc_id,
                     "user_id": user_id,
+                    "workspace_id": self.workspace_id,
                     "text": text,
                     "source": source,
                     "metadata": json.dumps(metadata),
@@ -732,24 +740,43 @@ class ChatHistoryManager:
             logger.error(f"Failed to get entity mentions: {e}")
             return []
 
-# Global instance for easy access (must be first)
-lancedb_handler = LanceDBHandler()
+# Handle multiple handlers (one per workspace) for physical isolation
+_workspace_handlers: Dict[str, 'LanceDBHandler'] = {}
 
-def get_lancedb_handler() -> LanceDBHandler:
-    """Get LanceDB handler instance"""
-    return lancedb_handler
+def get_lancedb_handler(workspace_id: Optional[str] = None) -> 'LanceDBHandler':
+    """
+    Get or create a LanceDBHandler instance for a specific workspace.
+    Provides physical data isolation by using separate directories.
+    """
+    ws_id = workspace_id or "default_shared"
+    
+    if ws_id not in _workspace_handlers:
+        # Determine isolated path
+        base_uri = os.getenv("LANCEDB_URI_BASE", "./data/atom_memory")
+        ws_path = os.path.join(base_uri, ws_id)
+        
+        logger.info(f"Creating isolated LanceDBHandler for workspace: {ws_id} at {ws_path}")
+        _workspace_handlers[ws_id] = LanceDBHandler(db_path=ws_path, workspace_id=ws_id)
+    
+    return _workspace_handlers[ws_id]
 
-# Global chat history manager (uses lancedb_handler)
+# Legacy instance for backward compatibility (points to default)
+lancedb_handler = get_lancedb_handler()
+
+# Global chat history manager (uses default handler for now, should ideally be workspace-aware)
 chat_history_manager = ChatHistoryManager(lancedb_handler)
 
-def get_chat_history_manager() -> ChatHistoryManager:
-    """Get global chat history manager instance"""
-    return chat_history_manager
+def get_chat_history_manager(workspace_id: Optional[str] = None) -> ChatHistoryManager:
+    """Get workspace-aware chat history manager instance"""
+    handler = get_lancedb_handler(workspace_id)
+    return ChatHistoryManager(handler)
 
-# Global chat context manager (uses lancedb_handler)
-from core.chat_context_manager import ChatContextManager
-import core.chat_context_manager
-core.chat_context_manager.chat_context_manager = ChatContextManager(lancedb_handler)
+# Global chat context manager helper
+def get_chat_context_manager(workspace_id: Optional[str] = None) -> 'ChatContextManager':
+    """Get workspace-aware chat context manager instance"""
+    from core.chat_context_manager import ChatContextManager
+    handler = get_lancedb_handler(workspace_id)
+    return ChatContextManager(handler)
 
 # Utility functions
 def embed_documents_batch(texts: List[str], model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> Optional[Any]:
