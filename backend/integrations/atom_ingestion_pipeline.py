@@ -33,6 +33,11 @@ class RecordType(Enum):
     MEETING = "meeting"
     TASK = "task"
     CAMPAIGN = "campaign"
+    ORDER = "order"
+    INVENTORY = "inventory"
+    AD_PERFORMANCE = "ad_performance"
+    DOCUMENT = "document"
+    SPREADSHEET = "spreadsheet"
     GENERIC = "generic"
 
 @dataclass
@@ -82,16 +87,32 @@ class AtomIngestionPipeline:
             elif record_type == RecordType.DEAL or record_type == RecordType.RECORD:
                 normalized["content"] = f"Opportunity: {data.get('Name')} (Stage: {data.get('StageName')})"
         
-        # Zoom Specifics
-        elif app_type == "zoom":
-            if record_type == RecordType.MEETING:
-                normalized["content"] = f"Meeting: {data.get('topic')} (ID: {data.get('id')})"
-        
-        # Slack Specifics
-        elif app_type == "slack":
-            normalized["content"] = data.get("text") or data.get("content") or ""
-            normalized["timestamp"] = datetime.fromtimestamp(float(data.get("ts", 0))) if data.get("ts") else datetime.now()
-            
+        # Meta & WhatsApp Specifics
+        elif app_type in ["meta_business", "whatsapp"]:
+            if record_type == RecordType.COMMUNICATION:
+                normalized["content"] = f"Message ({app_type}): {data.get('text') or data.get('content')}"
+            elif record_type == RecordType.AD_PERFORMANCE:
+                normalized["content"] = f"Meta Ad Performance: {data.get('spend')} spend, {data.get('conversions')} conv"
+
+        # Ecommerce Specifics (Amazon, Etsy, WooCommerce, Shopify)
+        elif app_type in ["amazon", "etsy", "woocommerce", "shopify"]:
+            if record_type == RecordType.ORDER:
+                normalized["content"] = f"Order {data.get('id')}: {data.get('total_price')} from {data.get('email')}"
+            elif record_type == RecordType.INVENTORY:
+                normalized["content"] = f"Inventory Update: {data.get('sku')} -> {data.get('quantity')}"
+
+        # Marketing Specifics (Google Ads, TikTok Ads)
+        elif app_type in ["google_ads", "tiktok_ads"]:
+            if record_type == RecordType.AD_PERFORMANCE:
+                normalized["content"] = f"Marketing Performance ({app_type}): {data.get('spend')} spend, ROI: {data.get('roas', 'N/A')}"
+            elif record_type == RecordType.CAMPAIGN:
+                normalized["content"] = f"Campaign {data.get('name')}: {data.get('status')}"
+
+        # Document & Spreadsheet Logic Extraction
+        elif record_type in [RecordType.DOCUMENT, RecordType.SPREADSHEET]:
+            normalized["content"] = f"Business Logic Snippet: {data.get('logic_snippet') or data.get('content')}"
+            normalized["metadata"]["file_path"] = data.get("file_path")
+
         # Fallback for content if not set
         if not normalized["content"]:
             normalized["content"] = str(data)

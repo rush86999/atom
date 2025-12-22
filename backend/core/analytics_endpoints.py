@@ -15,6 +15,7 @@ from core.burnout_detection_engine import BurnoutDetectionEngine, WellnessScore
 from core.industry_workflow_templates import IndustryWorkflowEngine, Industry
 from core.workflow_engine import WorkflowEngine
 from core.email_followup_engine import followup_engine, FollowUpCandidate
+from core.workforce_analytics import WorkforceAnalyticsService
 
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
@@ -381,6 +382,39 @@ async def get_burnout_risk():
             pass
             
     return risk_assessment
+
+@router.get("/estimation-bias")
+async def get_estimation_bias(workspace_id: str, user_id: Optional[str] = None):
+    """
+    Get estimation bias metrics for a user or the entire workspace.
+    """
+    try:
+        analytics_service = WorkforceAnalyticsService()
+        bias_data = analytics_service.calculate_estimation_bias(workspace_id, user_id)
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "user_id": user_id,
+            "data": bias_data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/skill-gaps")
+async def get_skill_gaps(workspace_id: str):
+    """
+    Get skill gap analysis for a workspace.
+    """
+    try:
+        analytics_service = WorkforceAnalyticsService()
+        gap_data = analytics_service.map_skill_gaps(workspace_id)
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "data": gap_data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/email-followups", response_model=List[FollowUpCandidate])
 async def get_email_followups():
