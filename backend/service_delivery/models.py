@@ -25,6 +25,12 @@ class MilestoneStatus(str, enum.Enum):
     APPROVED = "approved"   # Client signed off
     INVOICED = "invoiced"   # Sent to billing
 
+class AppointmentStatus(str, enum.Enum):
+    SCHEDULED = "scheduled"
+    COMPLETED = "completed"
+    NO_SHOW = "no_show"
+    CANCELED = "canceled"
+
 class Contract(Base):
     __tablename__ = "service_contracts"
 
@@ -142,3 +148,31 @@ class ProjectTask(Base):
     # Relationships
     milestone = relationship("Milestone", back_populates="tasks")
     assignee = relationship("User")
+
+class Appointment(Base):
+    """Tracks service engagements for small businesses"""
+    __tablename__ = "service_appointments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
+    customer_id = Column(String, ForeignKey("accounting_entities.id"), nullable=False)
+    service_id = Column(String, ForeignKey("business_product_services.id"), nullable=True)
+    
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=False)
+    
+    status = Column(SQLEnum(AppointmentStatus), default=AppointmentStatus.SCHEDULED)
+    
+    deposit_amount = Column(Float, default=0.0)
+    is_deposit_paid = Column(Boolean, default=False)
+    
+    notes = Column(Text, nullable=True)
+    metadata_json = Column(JSON, nullable=True) # Travel heuristics, etc.
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace")
+    customer = relationship("accounting.models.Entity")
+    service = relationship("core.models.BusinessProductService")
