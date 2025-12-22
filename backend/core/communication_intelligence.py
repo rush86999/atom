@@ -9,6 +9,8 @@ from ecommerce.models import EcommerceCustomer
 from sales.models import Deal, Lead
 from core.negotiation_engine import NegotiationStateMachine
 from core.business_intelligence import BusinessEventIntelligence
+from core.business_intelligence import BusinessEventIntelligence
+from core.lifecycle_comm_generator import LifecycleCommGenerator
 import json
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,7 @@ class CommunicationIntelligenceService:
         self.db_session = db_session
         self.negotiation_engine = NegotiationStateMachine(db_session)
         self.business_intel = BusinessEventIntelligence(db_session)
+        self.lifecycle_comm = LifecycleCommGenerator(ai_service)
 
     async def analyze_and_route(self, comm_data: Dict[str, Any], user_id: str):
         """
@@ -53,13 +56,36 @@ class CommunicationIntelligenceService:
         
         # 5. Generate & Execute Response
         if mode in ["suggest", "draft", "auto_send"]:
-            suggestion = await self._generate_response_suggestion(content, enriched_context, user_id, strategy_prompt)
+            # Check for specialized lifecycle intents
+            lifecycle_intents = {"request_quote", "offer_quote", "confirm_shipping", "po_confirmation"}
+            detected_lifecycle = list(set(signals) & lifecycle_intents)
+            
+            if detected_lifecycle:
+                # Use specialized generator
+                intent = detected_lifecycle[0]
+                # Gather context from knowledge
+                context = enriched_context.copy()
+                context.update({
+                    "entities": knowledge.get("entities", []),
+                    "original_content": content
+                })
+                # Flatten some entities for easier prompt usage
+                for e in knowledge.get("entities", []):
+                    if e["type"] in ["Quote", "Shipment", "PurchaseOrder"]:
+                        context.update(e["properties"])
+                
+                suggestion = await self.lifecycle_comm.generate_draft(intent, context)
+            else:
+                # Use default fallback generator
+                suggestion = await self._generate_response_suggestion(content, enriched_context, user_id, strategy_prompt)
+            
             await self._execute_response_mode(user_id, suggestion, mode, comm_data)
 
         return {
             "knowledge": knowledge,
             "response_mode": mode,
-            "enriched_context": enriched_context
+            "enriched_context": enriched_context,
+            "suggestion": suggestion if mode in ["suggest", "draft", "auto_send"] else None
         }
 
     def _get_cross_system_context(self, knowledge: Dict[str, Any], user_id: str) -> Dict[str, Any]:
