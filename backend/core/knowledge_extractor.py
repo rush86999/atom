@@ -39,6 +39,7 @@ class KnowledgeExtractor:
         - PurchaseOrder (id, items, total_amount, vendor, shipping_address)
         - SalesOrder (id, order_number, total_amount, items)
         - Shipment (tracking_number, carrier, status, estimated_delivery)
+        - BusinessRule (description, type, value, applies_to)
         
         **Target Relationships & Intents:**
         - PARTICIPATED_IN (Person -> Meeting/Decision)

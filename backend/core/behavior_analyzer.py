@@ -10,38 +10,43 @@ logger = logging.getLogger(__name__)
 class BehaviorAnalyzer:
     def __init__(self):
         self.analytics = get_analytics_engine()
-        # In-memory window of recent actions per user for pattern detection
-        self.user_action_windows: Dict[str, List[Dict[str, Any]]] = {}
-        self.window_size = 10 # Keep last 10 actions per user
+        # In-memory window of recent actions per user+workspace for pattern detection
+        self.user_action_windows: Dict[str, List[Dict[str, Any]]] = {} # key: "ws_user"
+        self.window_size = 10 
 
-    def log_user_action(self, user_id: str, action_type: str, metadata: Optional[Dict] = None):
+    def log_user_action(self, user_id: str, action_type: str, metadata: Optional[Dict] = None, workspace_id: Optional[str] = None):
         """Log a high-level user action for pattern analysis"""
+        ws_id = workspace_id or "default"
+        key = f"{ws_id}_{user_id}"
+        
         action = {
             "action_id": str(uuid.uuid4()),
             "user_id": user_id,
+            "workspace_id": ws_id,
             "action_type": action_type,
             "timestamp": datetime.now(),
             "metadata": metadata or {}
         }
         
-        if user_id not in self.user_action_windows:
-            self.user_action_windows[user_id] = []
+        if key not in self.user_action_windows:
+            self.user_action_windows[key] = []
             
-        self.user_action_windows[user_id].append(action)
+        self.user_action_windows[key].append(action)
         
         # Keep window clean
-        if len(self.user_action_windows[user_id]) > self.window_size:
-            self.user_action_windows[user_id].pop(0)
+        if len(self.user_action_windows[key]) > self.window_size:
+            self.user_action_windows[key].pop(0)
 
         # Also track in general analytics
-        self.analytics.track_user_activity(user_id, action_type, metadata=metadata)
+        self.analytics.track_user_activity(user_id, action_type, metadata=metadata, workspace_id=ws_id)
 
-    def detect_patterns(self, user_id: str) -> List[Dict[str, Any]]:
+    def detect_patterns(self, user_id: str, workspace_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Analyze the recent actions for a user to find repeated sequences.
-        Example: [Meeting Ended, Task Created, Slack Notification Sent]
         """
-        actions = self.user_action_windows.get(user_id, [])
+        ws_id = workspace_id or "default"
+        key = f"{ws_id}_{user_id}"
+        actions = self.user_action_windows.get(key, [])
         if len(actions) < 3:
             return []
 
