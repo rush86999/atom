@@ -78,6 +78,7 @@ Atom supports a wide range of third-party integrations to extend its functionali
     - **Smart Scheduling:** Autonomous intent-to-booking flows with no-show recovery.
     - **Autonomous Collections:** Multi-stage escalation sequences for overdue invoices.
     - **Lifecycle Intelligence:** Extraction of POs, Sales Orders, Shipping updates, and Quotes (requests/offers) from emails.
+    - **Stakeholder Communication:** Specialized AI generator for professional lifecycle-aligned emails (Quotes, PO confirms, Shipping).
 
 ## Agent Skills
 

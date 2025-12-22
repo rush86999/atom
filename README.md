@@ -180,7 +180,8 @@ Open `http://localhost:3000` and try these commands:
 - **Deal Health** - AI analysis of pipeline risk and health
 - **Talk-to-Task** - Call transcriptions to automated action items
 - **Order-to-Cash Bridge** - Automated invoicing upon winning deals
-- **Small Business Mastery** - Smart scheduling, no-show recovery, & autonomous collections (POs, shipping, quotes)
+- **Small Business Mastery** - Smart scheduling, no-show recovery, & autonomous collections
+- **Lifecycle Communication** - Professional AI-generated responses for POs, shipping, and quotes
 
 ### 🧾 AI Accounting (NEW)
 - **Transaction Categorization** - AI-powered with 85% confidence threshold
