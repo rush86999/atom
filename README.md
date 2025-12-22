@@ -28,6 +28,7 @@ Atom is your conversational AI agent that automates complex workflows through na
 - ✅ **Knowledge Graph Memory** - All integrations indexed in LanceDB for AI recall
 - ✅ **Computer Use Agent System** - Desktop automation with visual understanding
 - ✅ **AI Sales & CRM Automation** - Lead scoring, deal health, & Order-to-Cash bridge
+- ✅ **Small Business Mastery** - Smart scheduling, no-show recovery, & autonomous collections
 - ✅ **Advanced Workflow Search** - Deep search across Gmail, Notion, and App Memory (LanceDB)
 - ✅ **AI-Powered Condition Nodes** - Branching logic driven by natural language analysis
 - ✅ **AI Accounting Engine** - Confidence-based categorization, continuous reconciliation
@@ -179,6 +180,7 @@ Open `http://localhost:3000` and try these commands:
 - **Deal Health** - AI analysis of pipeline risk and health
 - **Talk-to-Task** - Call transcriptions to automated action items
 - **Order-to-Cash Bridge** - Automated invoicing upon winning deals
+- **Small Business Mastery** - Smart scheduling, no-show recovery, & autonomous collections (POs, shipping, quotes)
 
 ### 🧾 AI Accounting (NEW)
 - **Transaction Categorization** - AI-powered with 85% confidence threshold

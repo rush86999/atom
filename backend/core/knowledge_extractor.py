@@ -35,19 +35,18 @@ class KnowledgeExtractor:
         - Invoice (invoice_number, amount, recipient, status, due_date)
         - Lead (name, company, email, score, external_id)
         - Deal (name, value, stage, health_score, external_id)
+        - Quote (id, amount, items, terms, status: [requested, offered])
+        - PurchaseOrder (id, items, total_amount, vendor, shipping_address)
+        - SalesOrder (id, order_number, total_amount, items)
+        - Shipment (tracking_number, carrier, status, estimated_delivery)
         
         **Target Relationships & Intents:**
         - PARTICIPATED_IN (Person -> Meeting/Decision)
         - REFERENCE_TO (Text -> File/Project/ExternalLink)
         - OWNS (Person/Org -> Project/Task/File/Asset)
-        - MEMBER_OF (Person -> Organization/Project)
-        - DECIDED_ON (Person/Group -> Decision)
-        - PAID_FOR (Transaction -> Task/Project/Entity)
-        - PART_OF_BUDGET (Transaction/Task -> Budget)
-        - BILLED_BY (Entity -> Invoice)
-        - REPORTS_TO (Person -> Person: indicates hierarchy)
         - STAKEHOLDER_OF (Person -> Project/Organization)
-        - INTENT (Message -> intent_type): values=[payment_commitment, churn_threat, upsell_inquiry, meeting_request, approval]
+        - INTENT (Message -> intent_type): values=[payment_commitment, churn_threat, upsell_inquiry, meeting_request, approval, request_quote, offer_quote, confirm_shipping, dispute_invoice]
+        - UPDATES_STATUS (Shipment/Quote -> EcommerceOrder/Deal/Contract)
         - LINKS_TO_EXTERNAL (Entity -> external_system_id): Map to CRM/ERP IDs if mentioned.
         
         **Output Format (JSON strictly):**

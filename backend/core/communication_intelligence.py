@@ -8,6 +8,7 @@ from core.models import User
 from ecommerce.models import EcommerceCustomer
 from sales.models import Deal, Lead
 from core.negotiation_engine import NegotiationStateMachine
+from core.business_intelligence import BusinessEventIntelligence
 import json
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ class CommunicationIntelligenceService:
         self.ai_service = ai_service
         self.db_session = db_session
         self.negotiation_engine = NegotiationStateMachine(db_session)
+        self.business_intel = BusinessEventIntelligence(db_session)
 
     async def analyze_and_route(self, comm_data: Dict[str, Any], user_id: str):
         """
@@ -38,7 +40,12 @@ class CommunicationIntelligenceService:
             self.negotiation_engine.update_deal_state(deal_id, signals)
             strategy_prompt = self.negotiation_engine.get_strategy_prompt(deal_id)
 
-        # 3. Cross-System Enrichment (Simulated)
+        # 3. Process Business Lifecycle Events (POs, Shipping, etc.)
+        workspace_id = metadata.get("workspace_id")
+        if workspace_id:
+            await self.business_intel.process_extracted_events(knowledge, workspace_id)
+
+        # 4. Cross-System Enrichment (Simulated)
         enriched_context = self._get_cross_system_context(knowledge, user_id)
         
         # 4. Determine Response Mode
