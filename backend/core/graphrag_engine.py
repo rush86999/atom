@@ -19,7 +19,8 @@ class Entity:
     id: str
     name: str
     entity_type: str
-    user_id: str
+    workspace_id: str
+    user_id: Optional[str] = None # For private notes
     description: str = ""
     properties: Dict[str, Any] = field(default_factory=dict)
     community_id: Optional[str] = None
@@ -31,7 +32,8 @@ class Relationship:
     from_entity: str
     to_entity: str
     rel_type: str
-    user_id: str
+    workspace_id: str
+    user_id: Optional[str] = None
     description: str = ""
     weight: float = 1.0
     properties: Dict[str, Any] = field(default_factory=dict)
@@ -42,7 +44,8 @@ class Community:
     id: str
     level: int
     entity_ids: List[str]
-    user_id: str
+    workspace_id: str
+    user_id: Optional[str] = None
     summary: str = ""
     keywords: List[str] = field(default_factory=list)
 
@@ -54,14 +57,14 @@ class GraphRAGEngine:
     """
     
     def __init__(self):
-        self._entities: Dict[str, Dict[str, Entity]] = defaultdict(dict)
+        self._entities: Dict[str, Dict[str, Entity]] = defaultdict(dict)  # workspace_id -> {entity_id -> Entity}
         self._relationships: Dict[str, Dict[str, Relationship]] = defaultdict(dict)
         self._communities: Dict[str, Dict[str, Community]] = defaultdict(dict)
-        self._adjacency: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))  # user_id -> {entity_id -> neighbor_ids}
+        self._adjacency: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))  # workspace_id -> {entity_id -> neighbor_ids}
 
     # ==================== STRUCTURED INGESTION ====================
 
-    def add_entities_and_relationships(self, user_id: str, entities: List[Dict[str, Any]], relationships: List[Dict[str, Any]]) -> Dict[str, int]:
+    def add_entities_and_relationships(self, workspace_id: str, entities: List[Dict[str, Any]], relationships: List[Dict[str, Any]], user_id: Optional[str] = None) -> Dict[str, int]:
         """
         Ingest pre-extracted structured entities and relationships from an LLM.
         """
@@ -74,6 +77,7 @@ class GraphRAGEngine:
                 id=e_data["id"],
                 name=props.get("name", e_data["id"]),
                 entity_type=e_data.get("type", "unknown"),
+                workspace_id=workspace_id,
                 user_id=user_id,
                 description=props.get("description", ""),
                 properties=props
@@ -87,6 +91,7 @@ class GraphRAGEngine:
                 from_entity=r_data["from"],
                 to_entity=r_data["to"],
                 rel_type=r_data["type"],
+                workspace_id=workspace_id,
                 user_id=user_id,
                 description=r_data.get("properties", {}).get("description", f"{r_data['from']} {r_data['type']} {r_data['to']}"),
                 properties=r_data.get("properties", {})
@@ -98,30 +103,30 @@ class GraphRAGEngine:
     # ==================== INDEXING (User-Specific) ====================
     
     def add_entity(self, entity: Entity) -> str:
-        """Add entity to user's graph"""
-        self._entities[entity.user_id][entity.id] = entity
+        """Add entity to workspace graph"""
+        self._entities[entity.workspace_id][entity.id] = entity
         return entity.id
     
     def add_relationship(self, rel: Relationship) -> str:
-        """Add relationship to user's graph"""
-        self._relationships[rel.user_id][rel.id] = rel
-        self._adjacency[rel.user_id][rel.from_entity].add(rel.to_entity)
-        self._adjacency[rel.user_id][rel.to_entity].add(rel.from_entity)
+        """Add relationship to workspace graph"""
+        self._relationships[rel.workspace_id][rel.id] = rel
+        self._adjacency[rel.workspace_id][rel.from_entity].add(rel.to_entity)
+        self._adjacency[rel.workspace_id][rel.to_entity].add(rel.from_entity)
         return rel.id
     
-    def ingest_document(self, user_id: str, doc_id: str, text: str, source: str = "unknown") -> Dict[str, int]:
-        """Ingest document for a specific user"""
-        entities = self._extract_entities(text, doc_id, source, user_id)
-        relationships = self._extract_relationships(text, entities, user_id)
+    def ingest_document(self, workspace_id: str, doc_id: str, text: str, source: str = "unknown", user_id: Optional[str] = None) -> Dict[str, int]:
+        """Ingest document for a specific workspace"""
+        entities = self._extract_entities(text, doc_id, source, workspace_id, user_id)
+        relationships = self._extract_relationships(text, entities, workspace_id, user_id)
         
         for entity in entities:
             self.add_entity(entity)
         for rel in relationships:
             self.add_relationship(rel)
         
-        return {"entities": len(entities), "relationships": len(relationships), "user_id": user_id}
+        return {"entities": len(entities), "relationships": len(relationships), "workspace_id": workspace_id}
     
-    def _extract_entities(self, text: str, doc_id: str, source: str, user_id: str) -> List[Entity]:
+    def _extract_entities(self, text: str, doc_id: str, source: str, workspace_id: str, user_id: Optional[str] = None) -> List[Entity]:
         """Extract entities from text"""
         entities = []
         patterns = {
@@ -143,6 +148,7 @@ class GraphRAGEngine:
                         id=f"{entity_type}_{uuid.uuid4().hex[:8]}",
                         name=context[:30].strip(),
                         entity_type=entity_type,
+                        workspace_id=workspace_id,
                         user_id=user_id,
                         description=context,
                         properties={"source": source, "doc_id": doc_id}
@@ -155,13 +161,14 @@ class GraphRAGEngine:
                     id=f"noun_{word.lower()}_{uuid.uuid4().hex[:4]}",
                     name=word,
                     entity_type="noun",
+                    workspace_id=workspace_id,
                     user_id=user_id,
                     properties={"source": source}
                 ))
         
         return entities[:20]
     
-    def _extract_relationships(self, text: str, entities: List[Entity], user_id: str) -> List[Relationship]:
+    def _extract_relationships(self, text: str, entities: List[Entity], workspace_id: str, user_id: Optional[str] = None) -> List[Relationship]:
         """Extract relationships between entities"""
         relationships = []
         
@@ -173,6 +180,7 @@ class GraphRAGEngine:
                         from_entity=e1.id,
                         to_entity=e2.id,
                         rel_type="related_to",
+                        workspace_id=workspace_id,
                         user_id=user_id,
                         description=f"{e1.name} is related to {e2.name}"
                     ))
@@ -181,12 +189,12 @@ class GraphRAGEngine:
     
     # ==================== COMMUNITY DETECTION (Per-User) ====================
     
-    def build_communities(self, user_id: str, min_community_size: int = 2) -> int:
-        """Build communities for a specific user"""
+    def build_communities(self, workspace_id: str, min_community_size: int = 2) -> int:
+        """Build communities for a specific workspace"""
         visited = set()
         community_count = 0
-        user_entities = self._entities.get(user_id, {})
-        user_adjacency = self._adjacency.get(user_id, {})
+        user_entities = self._entities.get(workspace_id, {})
+        user_adjacency = self._adjacency.get(workspace_id, {})
         
         for entity_id in user_entities:
             if entity_id in visited:
@@ -196,10 +204,10 @@ class GraphRAGEngine:
             
             if len(component) >= min_community_size:
                 community = Community(
-                    id=f"community_{user_id}_{community_count}",
+                    id=f"community_{workspace_id}_{community_count}",
                     level=0,
                     entity_ids=list(component),
-                    user_id=user_id,
+                    workspace_id=workspace_id,
                     summary=self._generate_community_summary(component, user_id),
                     keywords=self._extract_community_keywords(component, user_id)
                 )
@@ -248,10 +256,10 @@ class GraphRAGEngine:
     
     # ==================== GLOBAL SEARCH (Per-User) ====================
     
-    def global_search(self, user_id: str, query: str, top_k: int = 5) -> Dict[str, Any]:
-        """Global Search for user: holistic questions using community summaries"""
+    def global_search(self, workspace_id: str, query: str, top_k: int = 5) -> Dict[str, Any]:
+        """Global Search for workspace: holistic questions using community summaries"""
         query_lower = query.lower()
-        user_communities = self._communities.get(user_id, {})
+        user_communities = self._communities.get(workspace_id, {})
         
         scored = []
         for community in user_communities.values():
@@ -264,7 +272,7 @@ class GraphRAGEngine:
         summaries = [c.summary for c, _ in scored[:top_k]]
         
         return {
-            "user_id": user_id, "query": query, "mode": "global",
+            "workspace_id": workspace_id, "query": query, "mode": "global",
             "communities_found": len(scored[:top_k]),
             "summaries": summaries,
             "answer": " | ".join(summaries) if summaries else "No relevant communities found"
@@ -272,11 +280,11 @@ class GraphRAGEngine:
     
     # ==================== LOCAL SEARCH (Per-User) ====================
     
-    def local_search(self, user_id: str, query: str, entity_name: str = None, depth: int = 2) -> Dict[str, Any]:
-        """Local Search for user: entity-specific reasoning"""
-        user_entities = self._entities.get(user_id, {})
-        user_adjacency = self._adjacency.get(user_id, {})
-        user_relationships = self._relationships.get(user_id, {})
+    def local_search(self, workspace_id: str, query: str, entity_name: str = None, depth: int = 2) -> Dict[str, Any]:
+        """Local Search for workspace: entity-specific reasoning"""
+        user_entities = self._entities.get(workspace_id, {})
+        user_adjacency = self._adjacency.get(workspace_id, {})
+        user_relationships = self._relationships.get(workspace_id, {})
         
         start_entity = None
         search_term = entity_name or query.lower()
@@ -287,7 +295,7 @@ class GraphRAGEngine:
                 break
         
         if not start_entity:
-            return {"user_id": user_id, "query": query, "mode": "local", "error": "No matching entity", "entities_found": 0}
+            return {"workspace_id": workspace_id, "query": query, "mode": "local", "error": "No matching entity", "entities_found": 0}
         
         visited = set()
         frontier = {start_entity.id}
@@ -313,7 +321,7 @@ class GraphRAGEngine:
             frontier = next_frontier
         
         return {
-            "user_id": user_id, "query": query, "mode": "local",
+            "workspace_id": workspace_id, "query": query, "mode": "local",
             "start_entity": start_entity.name,
             "entities_found": len(all_entities),
             "relationships_found": len(all_rels),
@@ -323,19 +331,19 @@ class GraphRAGEngine:
     
     # ==================== UNIFIED QUERY (Per-User) ====================
     
-    def query(self, user_id: str, query: str, mode: str = "auto") -> Dict[str, Any]:
-        """Unified query interface for a user"""
+    def query(self, workspace_id: str, query: str, mode: str = "auto") -> Dict[str, Any]:
+        """Unified query interface for a workspace"""
         if mode == "auto":
             holistic = ["overview", "themes", "main", "all", "summary", "what are"]
             mode = "global" if any(kw in query.lower() for kw in holistic) else "local"
         
-        return self.global_search(user_id, query) if mode == "global" else self.local_search(user_id, query)
+        return self.global_search(workspace_id, query) if mode == "global" else self.local_search(workspace_id, query)
     
     # ==================== AI NODE INTEGRATION ====================
     
-    def get_context_for_ai(self, user_id: str, query: str) -> str:
+    def get_context_for_ai(self, workspace_id: str, query: str) -> str:
         """Get relevant context for AI nodes/chat - main integration point"""
-        result = self.query(user_id, query)
+        result = self.query(workspace_id, query)
         
         if result.get("mode") == "global":
             return f"Context from knowledge graph: {result.get('answer', '')}"
@@ -344,16 +352,16 @@ class GraphRAGEngine:
             entity_str = ", ".join([f"{e['name']} ({e['type']})" for e in entities[:5]])
             return f"Relevant entities: {entity_str}" if entities else ""
     
-    def get_stats(self, user_id: str = None) -> Dict[str, int]:
-        """Get stats, optionally for a specific user"""
-        if user_id:
+    def get_stats(self, workspace_id: str = None) -> Dict[str, int]:
+        """Get stats, optionally for a specific workspace"""
+        if workspace_id:
             return {
-                "entities": len(self._entities.get(user_id, {})),
-                "relationships": len(self._relationships.get(user_id, {})),
-                "communities": len(self._communities.get(user_id, {}))
+                "entities": len(self._entities.get(workspace_id, {})),
+                "relationships": len(self._relationships.get(workspace_id, {})),
+                "communities": len(self._communities.get(workspace_id, {}))
             }
         return {
-            "total_users": len(self._entities),
+            "total_workspaces": len(self._entities),
             "total_entities": sum(len(e) for e in self._entities.values()),
             "total_relationships": sum(len(r) for r in self._relationships.values()),
             "total_communities": sum(len(c) for c in self._communities.values())
@@ -362,6 +370,6 @@ class GraphRAGEngine:
 # Global instance
 graphrag_engine = GraphRAGEngine()
 
-def get_graphrag_context(user_id: str, query: str) -> str:
+def get_graphrag_context(workspace_id: str, query: str) -> str:
     """Helper function for AI nodes to get GraphRAG context"""
-    return graphrag_engine.get_context_for_ai(user_id, query)
+    return graphrag_engine.get_context_for_ai(workspace_id, query)

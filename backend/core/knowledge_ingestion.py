@@ -14,8 +14,9 @@ class KnowledgeIngestionManager:
     Now integrates with GraphRAG for hierarchical knowledge retrieval.
     """
     
-    def __init__(self):
-        self.handler = get_lancedb_handler()
+    def __init__(self, workspace_id: Optional[str] = None):
+        self.workspace_id = workspace_id
+        self.handler = get_lancedb_handler(workspace_id)
         self.ai_service = RealAIWorkflowService()
         self.extractor = KnowledgeExtractor(self.ai_service)
         # Initialize GraphRAG engine
@@ -25,11 +26,13 @@ class KnowledgeIngestionManager:
         except ImportError:
             self.graphrag = None
 
-    async def process_document(self, text: str, doc_id: str, source: str = "unknown", user_id: str = "default_user"):
+    async def process_document(self, text: str, doc_id: str, source: str = "unknown", user_id: str = "default_user", workspace_id: Optional[str] = None):
         """
         Extracts knowledge from a document and updates both LanceDB and GraphRAG.
         """
-        logger.info(f"Processing knowledge for document {doc_id} from {source} for user {user_id}")
+        ws_id = workspace_id or self.workspace_id
+        handler = get_lancedb_handler(ws_id)
+        logger.info(f"Processing knowledge for document {doc_id} from {source} for user {user_id} in workspace {ws_id}")
         
         # 1. Extract knowledge
         knowledge = await self.extractor.extract_knowledge(text, source)
@@ -52,7 +55,7 @@ class KnowledgeIngestionManager:
             if props:
                 description += f" ({str(props)})"
             
-            success = self.handler.add_knowledge_edge(
+            success = handler.add_knowledge_edge(
                 from_id=from_id,
                 to_id=to_id,
                 rel_type=rel_type,
@@ -60,7 +63,8 @@ class KnowledgeIngestionManager:
                 metadata={
                     "doc_id": doc_id,
                     "source": source,
-                    "properties": props
+                    "properties": props,
+                    "workspace_id": ws_id # Label for within-DB context
                 },
                 user_id=user_id
             )

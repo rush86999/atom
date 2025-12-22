@@ -13,17 +13,19 @@ router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 class KnowledgeQueryRequest(BaseModel):
     query: str
     user_id: str
+    workspace_id: Optional[str] = None
 
 class KnowledgeQueryManager:
     """
     Traverses the knowledge graph to synthesize answers for complex queries.
     """
     
-    def __init__(self):
-        self.handler = get_lancedb_handler()
+    def __init__(self, workspace_id: Optional[str] = None):
+        self.workspace_id = workspace_id or "default"
+        self.handler = get_lancedb_handler(self.workspace_id)
         self.ai_service = RealAIWorkflowService()
 
-    async def answer_query(self, query: str, user_id: str = "default_user") -> Dict[str, Any]:
+    async def answer_query(self, query: str, user_id: str = "default_user", workspace_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Answers a natural language query using the knowledge graph context.
         Returns a dict with 'answer' and 'relevant_facts'.
@@ -72,8 +74,12 @@ class KnowledgeQueryManager:
             "relevant_facts": facts
         }
 
-# Global instance
-knowledge_query_manager = KnowledgeQueryManager()
+# Helper for factory pattern
+def get_knowledge_query_manager(workspace_id: Optional[str] = None) -> KnowledgeQueryManager:
+    return KnowledgeQueryManager(workspace_id=workspace_id)
+
+# Legacy instance
+knowledge_query_manager = get_knowledge_query_manager()
 
 @router.post("/query")
 async def knowledge_query(request: KnowledgeQueryRequest):
@@ -81,7 +87,8 @@ async def knowledge_query(request: KnowledgeQueryRequest):
     Natural language query endpoint for the knowledge graph.
     """
     try:
-        result = await knowledge_query_manager.answer_query(request.query, user_id=request.user_id)
+        manager = get_knowledge_query_manager(request.workspace_id)
+        result = await manager.answer_query(request.query, user_id=request.user_id, workspace_id=request.workspace_id)
         return {"success": True, "answer": result.get("answer"), "relevant_facts": result.get("relevant_facts")}
     except Exception as e:
         logger.error(f"Knowledge query failed: {e}")
