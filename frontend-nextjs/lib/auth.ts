@@ -107,7 +107,7 @@ export const authOptions = {
   session: {
     strategy: "jwt" as const,
   },
-  secret: process.env.NEXTAUTH_SECRET || "your-secret-key-change-in-production",
+  secret: process.env.NEXTAUTH_SECRET || "atom_secure_secret_2025_fixed_key",
 };
 
 export default NextAuth(authOptions);
