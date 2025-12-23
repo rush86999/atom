@@ -28,8 +28,10 @@ logger = logging.getLogger("ATOM_SERVER")
 
 # Load environment variables
 env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(env_path)
+load_dotenv(env_path, override=True)
 logger.info(f"Configuration loaded from {env_path}")
+deepseek_status = os.getenv("DEEPSEEK_API_KEY")
+logger.info(f"DEBUG: Startup DEEPSEEK_API_KEY present: {bool(deepseek_status)}")
 
 # --- APP INITIALIZATION ---
 app = FastAPI(
@@ -63,7 +65,7 @@ _loaded_integrations = set()
 
 # Blacklist integrations that crash during loading (Python 3.13 compatibility issues)
 _blacklisted_integrations = {
-    "atom_agent",  # Crashes due to numpy/lancedb issues
+    # "atom_agent",  # Crashes due to numpy/lancedb issues
     "unified_calendar",  # May have similar issues
     "unified_task",  # May have similar issues
     # "unified_search" - NOW USING MOCK, SAFE TO AUTO-LOAD!
@@ -138,6 +140,13 @@ try:
         app.include_router(workflow_ui_router, prefix="/api/v1/workflow-ui", tags=["Workflow UI"])
     except ImportError:
         logger.warning("Workflow UI endpoints not found, skipping.")
+
+    # 3b. AI Workflow Endpoints (Real NLU)
+    try:
+        from enhanced_ai_workflow_endpoints import router as ai_router
+        app.include_router(ai_router) # Prefix defined in router
+    except ImportError as e:
+        logger.warning(f"AI endpoints not found: {e}")
 
     # 4. Auth Routes (Standard Login)
     try:

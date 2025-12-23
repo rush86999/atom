@@ -8,19 +8,20 @@ import json
 import logging
 try:
     import numpy as np
-    NUMPY_AVAILABLE = True
-except ImportError:
+    # FORCE DISABLE numpy to prevent crash
+    NUMPY_AVAILABLE = False # True
+except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
-    print("Numpy not available")
+    print(f"Numpy not available: {e}")
 from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
 try:
     import pandas as pd
     PANDAS_AVAILABLE = True
-except ImportError:
+except (ImportError, BaseException) as e:
     PANDAS_AVAILABLE = False
-    print("Pandas not available")
+    print(f"Pandas not available: {e}")
 
 try:
     import lancedb
@@ -28,16 +29,19 @@ try:
     from lancedb.table import Table
     from lancedb.pydantic import LanceModel, Vector
     import pyarrow as pa
-    LANCEDB_AVAILABLE = True
-except (ImportError, Exception) as e:
+    # FORCE DISABLE LanceDB to prevent crash
+    LANCEDB_AVAILABLE = False # True
+except (ImportError, BaseException) as e:
     LANCEDB_AVAILABLE = False
     print(f"LanceDB not available: {e}")
 
 # Import sentence transformers for embeddings
 try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except (ImportError, Exception) as e:
+    # FORCE DISABLE Sentence Transformers to prevent crash
+    SENTENCE_TRANSFORMERS_AVAILABLE = False # True
+    # from sentence_transformers import SentenceTransformer
+    # SENTENCE_TRANSFORMERS_AVAILABLE = True
+except (ImportError, BaseException) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
     print(f"Sentence transformers not available: {e}")
 
@@ -618,23 +622,45 @@ class ChatHistoryManager:
             return []
 
 # Global instance for easy access (must be first)
-lancedb_handler = LanceDBHandler()
+try:
+    lancedb_handler = LanceDBHandler()
+except Exception as e:
+    logger.error(f"Failed to initialize global LanceDBHandler: {e}")
+    lancedb_handler = None
 
 def get_lancedb_handler() -> LanceDBHandler:
     """Get LanceDB handler instance"""
     return lancedb_handler
 
 # Global chat history manager (uses lancedb_handler)
-chat_history_manager = ChatHistoryManager(lancedb_handler)
+try:
+    if lancedb_handler:
+        chat_history_manager = ChatHistoryManager(lancedb_handler)
+    else:
+        chat_history_manager = None
+except Exception as e:
+    logger.error(f"Failed to initialize global ChatHistoryManager: {e}")
+    chat_history_manager = None
 
 def get_chat_history_manager() -> ChatHistoryManager:
     """Get global chat history manager instance"""
     return chat_history_manager
 
 # Global chat context manager (uses lancedb_handler)
-from core.chat_context_manager import ChatContextManager
-import core.chat_context_manager
-core.chat_context_manager.chat_context_manager = ChatContextManager(lancedb_handler)
+try:
+    from core.chat_context_manager import ChatContextManager
+    import core.chat_context_manager
+    if lancedb_handler:
+        core.chat_context_manager.chat_context_manager = ChatContextManager(lancedb_handler)
+    else:
+        core.chat_context_manager.chat_context_manager = None
+except Exception as e:
+    logger.error(f"Failed to initialize global ChatContextManager: {e}")
+    try:
+        import core.chat_context_manager
+        core.chat_context_manager.chat_context_manager = None
+    except:
+        pass
 
 # Utility functions
 def embed_documents_batch(texts: List[str], model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> Optional[Any]:

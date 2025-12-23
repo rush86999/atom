@@ -8,9 +8,19 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
+# Handle optional heavy ML libraries
+try:
+    import numpy as np
+    from sklearn.ensemble import IsolationForest
+    from sklearn.preprocessing import StandardScaler
+    ML_AVAILABLE = True
+except (ImportError, BaseException):
+    # Fallback for environments without heavy ML libraries
+    ML_AVAILABLE = False
+    np = None
+    IsolationForest = None
+    StandardScaler = None
+    print("WARNING: sklearn/numpy not available in diagnostic_analyzer. Using degradation mode.")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -80,8 +90,13 @@ class AIDiagnosticAnalyzer:
     """
 
     def __init__(self):
-        self.anomaly_detector = IsolationForest(contamination=0.1, random_state=42)
-        self.scaler = StandardScaler()
+        if ML_AVAILABLE:
+            self.anomaly_detector = IsolationForest(contamination=0.1, random_state=42)
+            self.scaler = StandardScaler()
+        else:
+            self.anomaly_detector = None
+            self.scaler = None
+            
         self.pattern_rules = self._initialize_pattern_rules()
         self.correlation_threshold = 0.7
         self.anomaly_threshold = -0.5
@@ -155,6 +170,10 @@ class AIDiagnosticAnalyzer:
             return findings
 
         # Convert metrics to feature vectors
+        if not ML_AVAILABLE:
+            # Fallback: Just return empty findings if ML is down
+            return []
+            
         features = self._extract_features_from_metrics(metrics_history)
 
         if len(features) < 10:  # Need sufficient data for analysis
@@ -231,6 +250,9 @@ class AIDiagnosticAnalyzer:
         findings = []
 
         try:
+            if not ML_AVAILABLE or not self.scaler or not self.anomaly_detector:
+                return []
+                
             # Scale features
             scaled_features = self.scaler.fit_transform(features)
 
@@ -395,6 +417,16 @@ class AIDiagnosticAnalyzer:
         """Calculate the trend of a time series (simple linear regression)"""
         if len(values) < 2:
             return 0.0
+            
+        if not ML_AVAILABLE:
+            # Simple fallback for trend if numpy is missing
+            try:
+                first = values[0]
+                last = values[-1]
+                if first == 0: return 0.0
+                return (last - first) / first
+            except:
+                return 0.0
 
         x = np.arange(len(values))
         y = np.array(values)
@@ -419,6 +451,9 @@ class AIDiagnosticAnalyzer:
         """Calculate Pearson correlation coefficient"""
         if len(values1) != len(values2) or len(values1) < 2:
             return 0.0
+
+        if not ML_AVAILABLE:
+            return 0.0 # Cannot easily calculate pearson without numpy
 
         try:
             correlation = np.corrcoef(values1, values2)[0, 1]
