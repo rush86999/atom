@@ -155,8 +155,10 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
             const action = extractedParameters?.action || 'process';
 
             // Map NLU output to workflow operations
+            const workflowActions = nluResult.rawSubAgentResponses?.workflow?.actions;
+
             if (primaryGoal === 'workflow' || service !== 'general') {
-                // Service-specific nodes
+                // Service-specific nodes mapping
                 const serviceMap: Record<string, string> = {
                     'slack': 'Slack',
                     'gmail': 'Gmail',
@@ -177,18 +179,92 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                     'zendesk': 'Zendesk',
                     'figma': 'Figma',
                     'twilio': 'Twilio',
+                    'excel': 'Excel',
+                    'teams': 'Microsoft Teams',
+                    'outlook': 'Outlook',
+                    'word': 'Word',
+                    'powerpoint': 'PowerPoint',
+                    'onenote': 'OneNote',
+                    'forms': 'Google Forms',
+                    'google_forms': 'Google Forms',
+                    'microsoft_forms': 'Microsoft Forms',
+                    'planner': 'Planner'
                 };
 
-                const serviceName = serviceMap[service] || service.charAt(0).toUpperCase() + service.slice(1);
+                // Clear existing if requested OR if we are building a completely new workflow
+                const isNewWorkflow = message.toLowerCase().includes('create') || (workflowActions && workflowActions.length > 1);
+                let currentNodes = isNewWorkflow ? [] : [...nodes];
+                let currentEdges = isNewWorkflow ? [] : [...edges];
 
-                if (action === 'delete' || message.toLowerCase().includes('clear') || message.toLowerCase().includes('reset')) {
+                if (isNewWorkflow) {
                     setNodes([]);
                     setEdges([]);
-                    toast({ title: "AI Copilot", description: "Cleared workflow." });
-                } else {
-                    addServiceNode(serviceName);
-                    toast({ title: "AI Copilot", description: `Added ${serviceName} node via NLU.` });
+                    toast({ title: "AI Copilot", description: "Starting new workflow..." });
                 }
+
+                // Helper to add node with auto-layout
+                const addNodeAuto = (label: string, service: string, index: number, total: number) => {
+                    const id = (currentNodes.length + 1).toString();
+                    const isTrigger = index === 0 && total > 1; // Assume first node is trigger for multi-step
+                    const type = isTrigger ? 'trigger' : 'action';
+
+                    // Smart Layout: Top to Bottom placement
+                    const x = 250;
+                    const y = index * 200 + 50;
+
+                    const newNode: Node = {
+                        id,
+                        type,
+                        position: { x, y },
+                        data: {
+                            label: isTrigger ? `${label} Trigger` : `${label} Action`,
+                            service: service, // Pass service for styling 
+                            action: 'Perform Action'
+                        },
+                    };
+
+                    currentNodes.push(newNode);
+
+                    // Auto-connect to previous node
+                    if (index > 0) {
+                        const prevNode = currentNodes[index - 1];
+                        if (prevNode) {
+                            const newEdge: Edge = {
+                                id: `e${prevNode.id}-${id}`,
+                                source: prevNode.id,
+                                target: id
+                            };
+                            currentEdges.push(newEdge);
+                        }
+                    }
+                    return newNode;
+                };
+
+                // Handle Multi-Node Workflow Response
+                if (workflowActions && Array.isArray(workflowActions) && workflowActions.length > 0) {
+                    let addedCount = 0;
+                    workflowActions.forEach((act: any, index: number) => {
+                        const svc = act.service?.toLowerCase();
+                        if (svc) {
+                            const mappedService = serviceMap[svc] || svc.charAt(0).toUpperCase() + svc.slice(1);
+                            addNodeAuto(mappedService, mappedService, index, workflowActions.length);
+                            addedCount++;
+                        }
+                    });
+
+                    if (addedCount > 0) {
+                        setNodes(currentNodes);
+                        setEdges(currentEdges);
+                        toast({ title: "AI Copilot", description: `Generated ${addedCount} steps workflow.` });
+                        return;
+                    }
+                }
+
+                // Fallback to single node if no actions array
+                const serviceName = serviceMap[service] || service.charAt(0).toUpperCase() + service.slice(1);
+                addServiceNode(serviceName); // Fallback to random placement for single nodes
+                toast({ title: "AI Copilot", description: `Added ${serviceName} node via NLU.` });
+
             } else if (message.toLowerCase().includes('clear') || message.toLowerCase().includes('reset')) {
                 setNodes([]);
                 setEdges([]);

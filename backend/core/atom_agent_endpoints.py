@@ -7,40 +7,103 @@ import logging
 import json
 
 # Import workflow management components
-from core.workflow_endpoints import load_workflows, save_workflows
-from ai.automation_engine import AutomationEngine
-from ai.workflow_scheduler import workflow_scheduler
+print("DEBUG: Importing workflow components...", flush=True)
+try:
+    from core.workflow_endpoints import load_workflows, save_workflows
+    from ai.automation_engine import AutomationEngine
+    from ai.workflow_scheduler import workflow_scheduler
+except Exception as e:
+    print(f"DEBUG: Error importing workflow components: {e}", flush=True)
+    load_workflows = None
+    save_workflows = None
+    AutomationEngine = None
+    workflow_scheduler = None
 
 # Import Calendar and Email services
-from integrations.google_calendar_service import GoogleCalendarService
-from integrations.gmail_service import GmailService
+print("DEBUG: Importing Integration services...", flush=True)
+try:
+    from integrations.google_calendar_service import GoogleCalendarService
+    from integrations.gmail_service import GmailService
+except Exception as e:
+    print(f"DEBUG: Error importing Integration services: {e}", flush=True)
+    GoogleCalendarService = None
+    GmailService = None
 
 # Import Task and Finance services
-from core.unified_task_endpoints import get_tasks, create_task, CreateTaskRequest
-from integrations.quickbooks_routes import list_quickbooks_items
-
-# Import System and Search services
-from core.system_status import SystemStatus
-from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
-from core.unified_search_endpoints import SearchRequest
+print("DEBUG: Importing Task/Finance/System services...", flush=True)
+try:
+    from core.unified_task_endpoints import get_tasks, create_task, CreateTaskRequest
+    from integrations.quickbooks_routes import list_quickbooks_items
+    from core.system_status import SystemStatus
+    from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
+    from core.unified_search_endpoints import SearchRequest
+except Exception as e:
+    print(f"DEBUG: Error importing Task/Finance/System services: {e}", flush=True)
+    get_tasks = None
+    create_task = None
+    CreateTaskRequest = None
+    list_quickbooks_items = None
+    SystemStatus = None
+    unified_hybrid_search = None
+    SearchRequest = None
 
 # Import AI service for intent classification
-from enhanced_ai_workflow_endpoints import RealAIWorkflowService
-from advanced_workflow_orchestrator import orchestrator
-from dataclasses import asdict
+print("DEBUG: Importing AI Service...", flush=True)
+try:
+    from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+    from advanced_workflow_orchestrator import orchestrator
+    from dataclasses import asdict
+except Exception as e:
+    print(f"DEBUG: Error importing AI Service: {e}", flush=True)
+    RealAIWorkflowService = None
+    orchestrator = None
+    asdict = None
 
 # Import chat history management
-from core.lancedb_handler import get_chat_history_manager
-from core.chat_session_manager import get_chat_session_manager
-from core.chat_context_manager import get_chat_context_manager
+# Import chat history management
+try:
+    from core.lancedb_handler import get_chat_history_manager
+    from core.chat_session_manager import get_chat_session_manager
+    from core.chat_context_manager import get_chat_context_manager
+except (ImportError, BaseException):
+    get_chat_history_manager = None
+    get_chat_session_manager = None
+    get_chat_context_manager = None
 
 # Initialize AI service
-ai_service = RealAIWorkflowService()
+try:
+    if RealAIWorkflowService:
+        ai_service = RealAIWorkflowService()
+    else:
+        ai_service = None # Will cause runtime errors if used
+except Exception as e:
+    print(f"DEBUG: Error initializing AI Service: {e}", flush=True)
+    ai_service = None
 
 # Initialize chat history components
-chat_history = get_chat_history_manager()
-session_manager = get_chat_session_manager()
-context_manager = get_chat_context_manager()
+# Initialize chat history components
+try:
+    if get_chat_history_manager:
+        chat_history = get_chat_history_manager()
+        session_manager = get_chat_session_manager()
+        context_manager = get_chat_context_manager()
+    else:
+        raise Exception("Modules failed to import")
+except (Exception, BaseException) as e:
+    logger.error(f"Failed to initialize chat history components (Using Mock): {e}")
+    # Define Mock classes to prevent runtime errors
+    class MockManager:
+        def getattr(self, name): return lambda *args, **kwargs: None
+        def save_message(self, *args, **kwargs): return True
+        def get_session_history(self, *args, **kwargs): return []
+        def get_session(self, *args, **kwargs): return "mock_session"
+        def create_session(self, *args, **kwargs): return "mock_session"
+        def update_session_activity(self, *args, **kwargs): pass
+        def resolve_reference(self, *args, **kwargs): return None
+        
+    chat_history = MockManager()
+    session_manager = MockManager()
+    context_manager = MockManager()
 
 router = APIRouter(prefix="/api/atom-agent", tags=["atom_agent"])
 
