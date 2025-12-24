@@ -48,25 +48,39 @@ class NLUProcessing(BaseModel):
     request_id: str
     input_text: str
     intent_confidence: float
-    entities_extracted: List[str]
+    entities: Optional[Union[Dict[str, Any], List[str]]] = None
     tasks_generated: List[str]
     processing_time_ms: float
     ai_provider_used: str
+    workflow_suggestion: Optional[Dict[str, Any]] = None
+
+from dotenv import load_dotenv
 
 class RealAIWorkflowService:
     """Real AI workflow service with actual API integration"""
 
     def __init__(self):
+        # Force reload .env to pick up new keys without restarting process
+        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+        load_dotenv(env_path, override=True)
+        
         # Keys will be fetched dynamically via BYOKManager
         from core.byok_endpoints import get_byok_manager
         self._byok = get_byok_manager()
         
-        # Backward compatibility for direct access if needed, though get_api_key is preferred
-        self.glm_api_key = self._byok.get_api_key("glm")
-        self.anthropic_api_key = self._byok.get_api_key("anthropic")
-        self.deepseek_api_key = self._byok.get_api_key("deepseek")
-        self.openai_api_key = self._byok.get_api_key("openai")
-        self.google_api_key = self._byok.get_api_key("google")
+        # Check raw env var first
+        env_key = os.getenv("DEEPSEEK_API_KEY")
+        print(f"DEBUG: Raw DEEPSEEK_API_KEY from env: {bool(env_key)} (Len: {len(env_key) if env_key else 0})")
+        
+        # FORCE RELOAD from os.environ if BYOK fails
+        self.glm_api_key = self._byok.get_api_key("glm") or os.getenv("GLM_API_KEY")
+        self.anthropic_api_key = self._byok.get_api_key("anthropic") or os.getenv("ANTHROPIC_API_KEY")
+        self.deepseek_api_key = self._byok.get_api_key("deepseek") or env_key
+        self.openai_api_key = self._byok.get_api_key("openai") or os.getenv("OPENAI_API_KEY")
+        self.google_api_key = self._byok.get_api_key("google") or os.getenv("GOOGLE_API_KEY")
+
+        print(f"DEBUG: RealAIWorkflowService Initialized.")
+        print(f"DEBUG: Final Deepseek Key present: {bool(self.deepseek_api_key)}")
 
         # Initialize HTTP sessions
         self.http_sessions = {}
@@ -83,11 +97,20 @@ class RealAIWorkflowService:
             self.http_sessions['openai'] = aiohttp.ClientSession()
         if self.google_api_key:
             self.http_sessions['google'] = aiohttp.ClientSession()
+        print("DEBUG: HTTP Sessions initialized explicitly.")
+
+    def get_session(self, provider: str):
+        """Get or create session lazily"""
+        if provider not in self.http_sessions or self.http_sessions[provider].closed:
+            print(f"DEBUG: Creating new session for {provider}")
+            self.http_sessions[provider] = aiohttp.ClientSession()
+        return self.http_sessions[provider]
 
     async def cleanup_sessions(self):
         """Cleanup HTTP sessions"""
         for session in self.http_sessions.values():
             await session.close()
+
 
     async def call_glm_api(self, prompt: str, system_prompt: str = "You are a helpful assistant that analyzes requests and generates structured tasks.") -> Dict[str, Any]:
         """Call GLM 4.6 API for real NLU processing"""
@@ -107,7 +130,8 @@ class RealAIWorkflowService:
                 'stream': False
             }
 
-            async with self.http_sessions['glm'].post(
+            session = self.get_session('glm')
+            async with session.post(
                 "https://api.z.ai/api/paas/v4/chat/completions",
                 headers={
                     'Authorization': f"Bearer {self.glm_api_key}",
@@ -116,6 +140,7 @@ class RealAIWorkflowService:
                 json=request_data,
                 timeout=60
             ) as response:
+                print(f"DEBUG: GLM API Response Status: {response.status}")
 
                 if response.status != 200:
                     error_text = await response.text()
@@ -165,7 +190,8 @@ class RealAIWorkflowService:
                 'temperature': 0.7
             }
 
-            async with self.http_sessions['openai'].post(
+            session = self.get_session('openai')
+            async with session.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={
                     'Authorization': f"Bearer {self.openai_api_key}",
@@ -173,6 +199,7 @@ class RealAIWorkflowService:
                 },
                 json=request_data
             ) as response:
+                print(f"DEBUG: OpenAI API Response Status: {response.status}")
                 if response.status != 200:
                     error_text = await response.text()
                     logger.error(f"OpenAI API error: {response.status} - {error_text}")
@@ -206,7 +233,8 @@ class RealAIWorkflowService:
                 ]
             }
 
-            async with self.http_sessions['anthropic'].post(
+            session = self.get_session('anthropic')
+            async with session.post(
                 "https://api.anthropic.com/v1/messages",
                 headers={
                     'x-api-key': self.anthropic_api_key,
@@ -215,6 +243,7 @@ class RealAIWorkflowService:
                 },
                 json=request_data
             ) as response:
+                print(f"DEBUG: Anthropic API Response Status: {response.status}")
                 if response.status != 200:
                     error_text = await response.text()
                     logger.error(f"Anthropic API error: {response.status} - {error_text}")
@@ -249,14 +278,16 @@ class RealAIWorkflowService:
                 'temperature': 0.7
             }
 
-            async with self.http_sessions['deepseek'].post(
-                "https://api.deepseek.com/v1/chat/completions",
+            session = self.get_session('deepseek')
+            async with session.post(
+                "https://api.deepseek.com/chat/completions", # FIXED URL v1 -> chat/completions? NO, v1/chat/completions is correct but let's debug
                 headers={
                     'Authorization': f"Bearer {self.deepseek_api_key}",
                     'Content-Type': 'application/json'
                 },
                 json=request_data
             ) as response:
+                print(f"DEBUG: Deepseek API Response Status: {response.status}")
                 if response.status != 200:
                     error_text = await response.text()
                     logger.error(f"DeepSeek API error: {response.status} - {error_text}")
@@ -296,11 +327,13 @@ class RealAIWorkflowService:
                 }
             }
 
-            async with self.http_sessions['google'].post(
+            session = self.get_session('google')
+            async with session.post(
                 url,
                 headers={'Content-Type': 'application/json'},
                 json=request_data
             ) as response:
+                print(f"DEBUG: Google API Response Status: {response.status}")
                 if response.status != 200:
                     error_text = await response.text()
                     logger.error(f"Google Gemini API error: {response.status} - {error_text}")
@@ -346,7 +379,7 @@ Return your response as a JSON object with this format:
 {
     "intent": "summary of all goals (e.g. 'Refund order AND update address')",
     "entities": ["list", "of", "key", "entities"],
-    "tasks": ["Task 1: Refund order #12345", "Task 2: Update shipping address to 123 Main St"],
+    "tasks": ["Task 1: Refund order #12345", "Task 2: Update shipping address to 123 Main St", "Task 3: Update financial spreadsheet in Excel"],
     "category": "general/technical/billing/etc",
     "priority": "high/medium/low",
     "confidence": 0.0-1.0
@@ -385,9 +418,12 @@ Return your response as a JSON object with this format:
         
         # Unique list
         providers_to_try = list(dict.fromkeys(providers_to_try))
-
+        
+        print(f"DEBUG: Providers to try: {providers_to_try}")
+        
         last_error = None
         for provider_name in providers_to_try:
+            print(f"DEBUG: Attempting provider: {provider_name}")
             try:
                 if provider_name == "openai" and self.openai_api_key:
                     result = await self.call_openai_api(user_prompt, system_prompt)
@@ -406,6 +442,7 @@ Return your response as a JSON object with this format:
                 try:
                     import json
                     content = result['content']
+                    print(f"DEBUG: RAW AI RESPONSE (len={len(content)}): {content}", flush=True)
                     logger.info(f"RAW AI RESPONSE: {content}")
                     
                     # Strip markdown code blocks if present
@@ -537,7 +574,13 @@ Supported Service Types (Universal Integration):
 - devops: github, gitlab, bitbucket
 - design: figma
 - utilities: delay, task, ai_analysis, api_call
+- office_365: excel, power_bi, planner (Medium to High Complexity)
         
+Domain Specific Guidelines for Complexity (1-4):
+- Office 365: Excel data manipulation is High (3). Power BI report refresh is Medium (2). Teams channel creation is Low (1).
+- Dev Studio: Code generation steps are usually High (3) or Very High (4).
+- Finance: Financial analysis/forecasting is High (3).
+
 Return your response as a JSON object with this format:
 {
     "is_template": false, // true if user wants a reusable template
@@ -773,33 +816,117 @@ async def process_natural_language(request: Dict[str, Any]):
 
     try:
         # Use real NLU processing
-        nlu_result = await ai_service.process_with_nlu(input_text, ai_provider)
+        print(f"DEBUG: /nlu REQUEST RECEIVED. Provider: {ai_provider}")
+        print(f"DEBUG: Runtime Key Check - Deepseek: {bool(ai_service.deepseek_api_key)}")
+        if ai_service.deepseek_api_key:
+             print(f"DEBUG: Key: {ai_service.deepseek_api_key[:10]}...")
+        
+        # Enhanced System Prompt for Workflow Graph Generation
+        system_prompt = """Analyze the user's request and extract intents, entities, tasks, and workflow graph.
+
+1. "intent": Summary of the goal.
+2. "entities": Key values extracted.
+3. "tasks": List of actionable steps (e.g. ["Step 1: ...", "Step 2: ..."]).
+4. "workflow_suggestion": A structured graph.
+
+CRITICAL RULE: If the user mentions multiple services or steps (e.g. "Forms -> Email -> Excel"), YOU MUST GENERATE "workflow_suggestion".
+
+Structure for "workflow_suggestion":
+{
+    "nodes": [
+        {"id": "1", "service": "google_forms", "action": "on_submit", "params": {}},
+        {"id": "2", "service": "outlook", "action": "send_email", "params": {"to": "user@example.com"}},
+        {"id": "3", "service": "teams", "action": "send_message", "params": {}},
+        {"id": "4", "service": "excel", "action": "add_row", "params": {}}
+    ]
+}
+
+Return valid JSON only. Do not wrap in markdown code blocks.
+If the user's request implies connecting multiple tools, you MUST return a 'workflow_suggestion' with populated 'nodes'."""
+
+        try:
+            nlu_result = await ai_service.process_with_nlu(input_text, ai_provider, system_prompt=system_prompt)
+        except Exception as nlu_error:
+            print(f"DEBUG: NLU Service Failed: {nlu_error}. Proceeding to fallback.")
+            nlu_result = {
+                'confidence': 0.0,
+                'entities': [],
+                'tasks': [],
+                'ai_provider_used': "fallback_script",
+                'workflow_suggestion': None
+            }
+
+        # --- FALLBACK: Manual Graph Construction if LLM fails or returns None ---
+        workflow = nlu_result.get('workflow_suggestion')
+        print(f"DEBUG: NLU Result Keys: {list(nlu_result.keys())}", flush=True)
+        print(f"DEBUG: Workflow Suggestion Content: {json.dumps(workflow, indent=2) if workflow else 'None'}", flush=True)
+
+        if not workflow or not workflow.get('nodes'):
+            print("DEBUG: Checking deterministic fallback for graph (workflow logic triggered)...")
+            nodes = []
+            text_lower = input_text.lower()
+            
+            # 1. Trigger
+            if "form" in text_lower:
+                nodes.append({"id": "1", "service": "google_forms", "action": "on_submit", "params": {}})
+            elif "schedule" in text_lower or "every" in text_lower:
+                nodes.append({"id": "1", "service": "schedule", "action": "cron", "params": {"cron": "0 9 * * *"}})
+            else:
+                nodes.append({"id": "1", "service": "manual", "action": "trigger", "params": {}})
+
+            # 2. Actions
+            current_id = 2
+            if "outlook" in text_lower or "email" in text_lower:
+                nodes.append({"id": str(current_id), "service": "outlook", "action": "send_email", "params": {}})
+                current_id += 1
+            if "excel" in text_lower or "spreadsheet" in text_lower:
+                nodes.append({"id": str(current_id), "service": "excel", "action": "add_row", "params": {}})
+                current_id += 1
+            if "teams" in text_lower or "slack" in text_lower:
+                nodes.append({"id": str(current_id), "service": "teams", "action": "send_message", "params": {}})
+                current_id += 1
+            
+            # Only apply fallback if we found relevant services
+            if len(nodes) > 1:
+                display_nodes = []
+                for idx, node in enumerate(nodes):
+                    node["id"] = str(idx + 1)
+                    display_nodes.append(node)
+                workflow = {"nodes": display_nodes}
+                nlu_result['workflow_suggestion'] = workflow
+                print(f"DEBUG: Generated fallback graph with {len(display_nodes)} nodes")
 
         processing_time = (time.time() - start_time) * 1000  # Convert to ms
 
+        # Ensure response model compatibility even if LLM adds extra fields
         return NLUProcessing(
             request_id=f"nlu_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
             input_text=input_text,
             intent_confidence=nlu_result.get('confidence', 0.85),
-            entities_extracted=nlu_result.get('entities', []),
+            entities=nlu_result.get('entities', {}),
             tasks_generated=nlu_result.get('tasks', []),
             processing_time_ms=processing_time,
-            ai_provider_used=nlu_result.get('ai_provider_used', ai_provider)
+            ai_provider_used=nlu_result.get('ai_provider_used', ai_provider),
+            workflow_suggestion=workflow
         )
 
     except Exception as e:
         processing_time = (time.time() - start_time) * 1000
         logger.error(f"NLU processing failed: {e}")
-
+        
+        # Debug info
+        key_status = f"DS:{bool(ai_service.deepseek_api_key)}"
+        
         # Return failure response
         return NLUProcessing(
             request_id=f"nlu_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
             input_text=input_text,
             intent_confidence=0.0,
-            entities_extracted=[],
-            tasks_generated=[f"Error: {str(e)}"],
+            entities={},
+            tasks_generated=[f"Error: {str(e)} | Keys: {key_status}"],
             processing_time_ms=processing_time,
-            ai_provider_used=ai_provider
+            ai_provider_used="failed",
+            workflow_suggestion=None 
         )
 
 @router.post("/analyze", response_model=Dict[str, Any])

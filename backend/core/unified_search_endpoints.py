@@ -94,8 +94,36 @@ MOCK_DOCUMENTS = [
     }
 ]
 
-# Seeding is now handled per-workspace via specific admin tools or migration scripts.
-# The module-level seeding is removed to support multi-tenancy.
+# NOTE: Seeding moved to lazy initialization to prevent startup crashes
+# The seeding will happen on first endpoint call if needed
+# See: https://github.com/your-repo/issues/xxx
+
+_seeded = False  # Track if we've seeded data
+
+def ensure_seeded():
+    """Lazy seeding - only seed on first use"""
+    global _seeded
+    if _seeded:
+        return
+    
+    try:
+        handler = get_lancedb_handler()
+        stats = handler.get_table_stats("documents")
+        if not stats or stats.get("document_count", 0) == 0:
+            logger.info("Seeding LanceDB with mock documents...")
+            seeded_docs = []
+            for doc in MOCK_DOCUMENTS:
+                doc_copy = doc.copy()
+                doc_copy["text"] = doc["title"] + "\n" + doc["content"]
+                doc_copy["source"] = doc["source_uri"]
+                seeded_docs.append(doc_copy)
+            
+            handler.seed_mock_data(seeded_docs)
+            logger.info("LanceDB seeding complete.")
+        _seeded = True
+    except Exception as e:
+        logger.warning(f"Failed to seed LanceDB: {e}")
+        # Don't set _seeded = True so we can retry later
 
 # Pydantic Models
 class SearchFilters(BaseModel):
@@ -139,6 +167,7 @@ async def hybrid_search(request: SearchRequest):
     """
     Perform hybrid search combining semantic and keyword matching using LanceDB.
     """
+    ensure_seeded()  # Lazy seeding on first use
     try:
         handler = get_lancedb_handler(request.workspace_id)
         
@@ -224,6 +253,7 @@ async def get_suggestions(
     """
     Get search suggestions based on partial query.
     """
+    ensure_seeded()  # Lazy seeding on first use
     try:
         # For suggestions, we can still use the static list + some DB queries if needed
         # Keeping it simple for now to ensure speed

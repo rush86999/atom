@@ -38,27 +38,43 @@ class VerifyTokenRequest(BaseModel):
 
 @router.post("/login", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    if user.status != UserStatus.ACTIVE:
-        raise HTTPException(status_code=400, detail="Inactive user")
+    import traceback
+    from fastapi.responses import JSONResponse
+    try:
+        user = db.query(User).filter(User.email == form_data.username).first()
+        if not user or not verify_password(form_data.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        if user.status != UserStatus.ACTIVE:
+            raise HTTPException(status_code=400, detail="Inactive user")
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.id}, expires_delta=access_token_expires
-    )
-    
-    # Update last login
-    user.last_login = datetime.utcnow()
-    db.commit()
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.id}, expires_delta=access_token_expires
+        )
+        
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.commit()
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login Verification Error: {e}")
+        logger.error(traceback.format_exc())
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "Internal Server Error", 
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }
+        )
 
 @router.post("/register", response_model=Token)
 async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
