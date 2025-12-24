@@ -9,19 +9,20 @@ import logging
 import asyncio
 try:
     import numpy as np
-    NUMPY_AVAILABLE = True
-except ImportError:
+    # FORCE DISABLE numpy to prevent crash
+    NUMPY_AVAILABLE = False # True
+except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
-    print("Numpy not available")
+    print(f"Numpy not available: {e}")
 from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
 try:
     import pandas as pd
     PANDAS_AVAILABLE = True
-except ImportError:
+except (ImportError, BaseException) as e:
     PANDAS_AVAILABLE = False
-    print("Pandas not available")
+    print(f"Pandas not available: {e}")
 
 try:
     import lancedb
@@ -29,16 +30,19 @@ try:
     from lancedb.table import Table
     from lancedb.pydantic import LanceModel, Vector
     import pyarrow as pa
-    LANCEDB_AVAILABLE = True
-except (ImportError, Exception) as e:
+    # FORCE DISABLE LanceDB to prevent crash
+    LANCEDB_AVAILABLE = False # True
+except (ImportError, BaseException) as e:
     LANCEDB_AVAILABLE = False
     print(f"LanceDB not available: {e}")
 
 # Import sentence transformers for embeddings
 try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except (ImportError, Exception) as e:
+    # FORCE DISABLE Sentence Transformers to prevent crash
+    SENTENCE_TRANSFORMERS_AVAILABLE = False # True
+    # from sentence_transformers import SentenceTransformer
+    # SENTENCE_TRANSFORMERS_AVAILABLE = True
+except (ImportError, BaseException) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
     print(f"Sentence transformers not available: {e}")
 
