@@ -25,14 +25,30 @@ ATOM (Advanced Task Orchestration & Management) is an AI-powered automation plat
 Atom is your conversational AI agent that automates complex workflows through natural language chat. Now with Computer Use Agent capabilities, Atom can see and interact with your desktop applications, automate repetitive tasks, and create visual workflows that bridge web services with local desktop software.
 
 **Key Features:**
+- ✅ **Universal BYOK (Bring Your Own Key)** - User-managed API keys with budget guardrails
+- ✅ **External Stakeholder Governance** - HITL "Learning Phase" for all agent communications
+- ✅ **GraphRAG & Cognitive Search** - Knowledge graph + vector search for perfect AI recall
+- ✅ **Autonomous Business Swarm** - Multi-agent orchestration for project management (PM Swarm)
 - ✅ **Computer Use Agent System** - Desktop automation with visual understanding
-- ✅ **Advanced Workflow Search** - Deep search across Gmail, Notion, and App Memory (LanceDB)
-- ✅ **AI-Powered Condition Nodes** - Branching logic driven by natural language analysis
-- ✅ **8/8 marketing claims verified** - Platform Complete
-- ✅ **33+ service integrations** - 5 actively connected (Slack, Google Calendar, Salesforce, HubSpot, Discord)
+- ✅ **AI Sales & CRM Automation** - Lead scoring, deal health, & Order-to-Cash bridge
+- ✅ **Small Business Mastery** - Smart scheduling, no-show recovery, & autonomous collections
+- ✅ **AI Accounting Engine** - Confidence-based categorization, continuous reconciliation
+- ✅ **Financial Ops** - Cost leak detection, budget guardrails, invoice reconciliation
+- ✅ **33+ service integrations** - Slack, WhatsApp, Meta, Google, Salesforce, HubSpot, and more
 - ✅ **Natural language workflow creation** - Just describe what you want
-- ✅ **Cross-platform coordination** - Works across all your tools
-- ✅ **Production-ready architecture** - FastAPI backend, Next.js frontend
+
+### 🧠 Knowledge Graph & AI Memory
+
+Atom doesn't just connect to your apps — it **remembers everything**:
+
+| Feature | How It Works |
+|---------|--------------|
+| **Unified Memory** | All emails, tasks, documents indexed in LanceDB vector store |
+| **Cross-App Context** | Ask "What did we discuss about Project X?" across Gmail, Slack, Notion |
+| **Semantic Search** | Find related content even with different keywords |
+| **Workflow Intelligence** | Automations use past context for smarter decisions |
+| **Continuous Ingestion** | Real-time sync keeps memory up-to-date |
+
 
 ### 🎯 The Atom Difference
 
@@ -116,6 +132,9 @@ Open `http://localhost:3000` and try these commands:
 **"Open Excel and create a sales report"**
 **"Copy data from my desktop app to Google Sheets"**
 **"Automate filling out this form on my screen"**
+**"Who are my top leads to follow up on?"**
+**"Which deals in my pipeline are at risk?"**
+**"Summarize my last sales call with GrowthCorp"**
 
 ## 🔍 Specialized Interfaces
 
@@ -152,6 +171,29 @@ Open `http://localhost:3000` and try these commands:
 - Unified calendar view
 - Smart scheduling and conflict detection
 - Meeting coordination
+
+### 🚀 AI Sales & CRM
+- **Lead IQ** - Automated lead scoring and qualification
+- **Deal Health** - AI analysis of pipeline risk and health
+- **Talk-to-Task** - Call transcriptions to automated action items
+- **Order-to-Cash Bridge** - Automated invoicing upon winning deals
+- **Small Business Mastery** - Smart scheduling, no-show recovery, & autonomous collections
+- **Lifecycle Communication** - Professional AI-generated responses for POs, shipping, and quotes
+
+### 🧾 AI Accounting (NEW)
+- **Transaction Categorization** - AI-powered with 85% confidence threshold
+- **Continuous Reconciliation** - Daily bank ↔ ledger matching
+- **Anomaly Detection** - Unusual amounts, duplicates, missing transactions
+- **AP Automation** - Invoice intake, auto-approve under threshold
+- **AR & Collections** - Invoice generation, smart reminder escalation
+- **Chart of Accounts Learning** - Adapts to your categorization patterns
+
+### 🛡️ Security & Governance (NEW)
+- **Universal BYOK** - Bring your own keys for OpenAI, Anthropic, and Google Gemini
+- **Budget Guardrails** - Enforce spending limits on agent-driven AI requests
+- **External Safety Layer** - Mandatory "Learning Phase" for all external messaging
+- **HITL Approval** - Human-in-the-loop queue for sensitive agent actions
+- **Encrypted Secrets** - Zero-trust architecture for integration credentials
 
 ## 🛠️ Architecture
 
@@ -191,6 +233,7 @@ Open `http://localhost:3000` and try these commands:
 
 ### 💰 Financial
 - Stripe, QuickBooks, Xero
+- **Built-in AI Accounting** - Transaction engine, AP/AR, reconciliation
 
 ## 📊 Current Status
 
@@ -201,6 +244,7 @@ Open `http://localhost:3000` and try these commands:
 - ✅ Natural language workflow generation
 - ✅ Complete BYOK system
 - ✅ 132 blueprints loaded
+- ✅ **Computer Use Engine**: Finance, Sales, Operations Agents (Logic Verified)
 
 ## 🚢 Deployment
 

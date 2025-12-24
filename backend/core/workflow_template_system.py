@@ -548,7 +548,13 @@ class WorkflowTemplateManager:
             self._create_burnout_protection_template(),
             self._create_deadline_mitigation_template(),
             self._create_email_followup_template(),
-            self._create_goal_driven_automation_template()
+            self._create_goal_driven_automation_template(),
+            self._create_agent_pipeline_template(),  # Phase 28
+            # Phase 38: Financial Ops & Background Agent Templates
+            self._create_cost_optimization_template(),
+            self._create_budget_approval_template(),
+            self._create_invoice_reconciliation_template(),
+            self._create_periodic_portal_check_template()
         ]
 
         for template_data in built_in_templates:
@@ -1122,5 +1128,172 @@ class WorkflowTemplateManager:
             "cost_estimate": 0.05
         }
 
-# Global template manager instance
-template_manager = WorkflowTemplateManager()
+    def _create_agent_pipeline_template(self) -> Dict[str, Any]:
+        """Create built-in agent pipeline template (Phase 28)"""
+        return {
+            "template_id": "agent_pipeline_sales",
+            "name": "Sales Prospecting Pipeline",
+            "description": "Multi-step agent workflow: Research prospects, update CRM, and check for pricing discrepancies.",
+            "category": "automation",
+            "complexity": "advanced",
+            "tags": ["agents", "sales", "crm", "computer-use", "pipeline"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [
+                {
+                    "name": "target_company",
+                    "label": "Target Company",
+                    "description": "Company name to research",
+                    "type": "string",
+                    "required": True,
+                    "example_value": "Acme Corp"
+                },
+                {
+                    "name": "competitor_url",
+                    "label": "Competitor URL",
+                    "description": "URL of competitor pricing page",
+                    "type": "string",
+                    "required": False,
+                    "example_value": "https://competitor.com/pricing"
+                }
+            ],
+            "steps": [
+                {
+                    "step_id": "research_prospect",
+                    "name": "Research Prospect",
+                    "description": "Use Prospect Researcher agent to find decision makers",
+                    "step_type": "agent_execution",
+                    "estimated_duration": 60,
+                    "parameters": [
+                        {"name": "agent_id", "type": "string", "default_value": "prospect_researcher", "required": True},
+                        {"name": "agent_params", "type": "object", "default_value": {"company_name": "{{target_company}}"}}
+                    ]
+                },
+                {
+                    "step_id": "update_crm",
+                    "name": "Update CRM",
+                    "description": "Use CRM Wolf agent to update Salesforce with findings",
+                    "step_type": "agent_execution",
+                    "estimated_duration": 45,
+                    "depends_on": ["research_prospect"],
+                    "parameters": [
+                        {"name": "agent_id", "type": "string", "default_value": "crm_wolf", "required": True}
+                    ]
+                },
+                {
+                    "step_id": "check_competitor_pricing",
+                    "name": "Check Competitor Pricing",
+                    "description": "Use Competitive Intel agent to monitor pricing changes",
+                    "step_type": "agent_execution",
+                    "estimated_duration": 30,
+                    "depends_on": ["research_prospect"],
+                    "is_optional": True,
+                    "condition": "{{competitor_url}}",
+                    "parameters": [
+                        {"name": "agent_id", "type": "string", "default_value": "competitive_intel", "required": True},
+                        {"name": "agent_params", "type": "object", "default_value": {"target_url": "{{competitor_url}}"}}
+                    ]
+                }
+            ],
+            "dependencies": ["browser_engine", "lancedb"],
+            "estimated_total_duration": 135,
+            "is_public": True,
+            "is_featured": True
+        }
+
+    # ==================== PHASE 38: FINANCIAL OPS TEMPLATES ====================
+    
+    def _create_cost_optimization_template(self) -> Dict[str, Any]:
+        """Create cost optimization workflow template"""
+        return {
+            "template_id": "cost_optimization_workflow",
+            "name": "Cost Optimization Workflow",
+            "description": "Detect unused SaaS subscriptions, redundant tools, and generate savings report",
+            "category": "financial_ops",
+            "complexity": "intermediate",
+            "tags": ["cost", "optimization", "saas", "savings"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [
+                {"name": "threshold_days", "label": "Unused Threshold (Days)", "type": "number", "required": False, "default_value": 30}
+            ],
+            "steps": [
+                {"step_id": "detect_leaks", "name": "Detect Cost Leaks", "step_type": "cost_leak_detection", "estimated_duration": 10},
+                {"step_id": "notify_finance", "name": "Notify Finance Team", "step_type": "slack_notification", "depends_on": ["detect_leaks"],
+                 "parameters": [{"name": "channel", "default_value": "#finance"}, {"name": "message", "default_value": "Cost Report: {{cost_report}}"}]}
+            ],
+            "is_public": True
+        }
+
+    def _create_budget_approval_template(self) -> Dict[str, Any]:
+        """Create budget check and approval workflow template"""
+        return {
+            "template_id": "budget_approval_workflow",
+            "name": "Budget Check & Approval",
+            "description": "Check spending against budget limits tied to deal stages and milestones",
+            "category": "financial_ops",
+            "complexity": "simple",
+            "tags": ["budget", "approval", "spending", "guardrails"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [
+                {"name": "category", "label": "Budget Category", "type": "string", "required": True},
+                {"name": "amount", "label": "Spend Amount", "type": "number", "required": True},
+                {"name": "deal_stage", "label": "Deal Stage", "type": "string", "required": False}
+            ],
+            "steps": [
+                {"step_id": "check_budget", "name": "Check Budget", "step_type": "budget_check", "estimated_duration": 5,
+                 "parameters": [{"name": "category", "default_value": "{{category}}"}, {"name": "amount", "default_value": "{{amount}}"}]},
+                {"step_id": "conditional_approval", "name": "Route Based on Result", "step_type": "conditional_logic", "depends_on": ["check_budget"],
+                 "parameters": [{"name": "conditions", "default_value": [{"if": "budget_check_result.status == 'approved'", "then": ["notify_approved"]}, {"if": "budget_check_result.status == 'paused'", "then": ["notify_paused"]}]}]},
+                {"step_id": "notify_approved", "name": "Notify Approved", "step_type": "slack_notification", "is_optional": True},
+                {"step_id": "notify_paused", "name": "Notify Paused", "step_type": "slack_notification", "is_optional": True}
+            ],
+            "is_public": True
+        }
+
+    def _create_invoice_reconciliation_template(self) -> Dict[str, Any]:
+        """Create invoice reconciliation pipeline template"""
+        return {
+            "template_id": "invoice_reconciliation_pipeline",
+            "name": "Invoice Reconciliation Pipeline",
+            "description": "Match invoices to contracts, flag discrepancies, and alert on mismatches",
+            "category": "financial_ops",
+            "complexity": "intermediate",
+            "tags": ["invoice", "reconciliation", "contracts", "discrepancies"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [],
+            "steps": [
+                {"step_id": "reconcile", "name": "Reconcile Invoices", "step_type": "invoice_reconciliation", "estimated_duration": 15},
+                {"step_id": "check_discrepancies", "name": "Check for Discrepancies", "step_type": "conditional_logic", "depends_on": ["reconcile"],
+                 "parameters": [{"name": "conditions", "default_value": [{"if": "reconciliation_result.summary.discrepancy_count > 0", "then": ["alert_discrepancies"]}]}]},
+                {"step_id": "alert_discrepancies", "name": "Alert on Discrepancies", "step_type": "slack_notification", "is_optional": True,
+                 "parameters": [{"name": "channel", "default_value": "#finance-alerts"}, {"name": "message", "default_value": "⚠️ Invoice discrepancies detected: {{reconciliation_result.summary.discrepancy_count}}"}]}
+            ],
+            "is_public": True
+        }
+
+    def _create_periodic_portal_check_template(self) -> Dict[str, Any]:
+        """Create periodic portal check background agent template"""
+        return {
+            "template_id": "periodic_portal_check",
+            "name": "Periodic Portal Check",
+            "description": "Start a background agent for periodic portal monitoring with status updates",
+            "category": "automation",
+            "complexity": "simple",
+            "tags": ["background", "periodic", "monitoring", "agent"],
+            "author": "System",
+            "version": "1.0.0",
+            "inputs": [
+                {"name": "agent_id", "label": "Agent ID", "type": "string", "required": True},
+                {"name": "interval_seconds", "label": "Check Interval (seconds)", "type": "number", "required": False, "default_value": 3600}
+            ],
+            "steps": [
+                {"step_id": "start_agent", "name": "Start Background Agent", "step_type": "background_agent_start", "estimated_duration": 5,
+                 "parameters": [{"name": "agent_id", "default_value": "{{agent_id}}"}, {"name": "interval_seconds", "default_value": "{{interval_seconds}}"}]},
+                {"step_id": "confirm_started", "name": "Confirm Started", "step_type": "slack_notification",
+                 "parameters": [{"name": "message", "default_value": "🤖 Background agent {{agent_id}} started with {{interval_seconds}}s interval"}]}
+            ],
+            "is_public": True
+        }

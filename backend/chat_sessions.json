@@ -262,5 +262,85 @@
     "last_active": "2025-12-20T01:35:29.874952",
     "metadata": {},
     "message_count": 1
+  },
+  {
+    "session_id": "c23ea71e-d138-4a1e-b90e-ab99b350e57a",
+    "user_id": "anonymous",
+    "created_at": "2025-12-20T16:07:16.702955",
+    "last_active": "2025-12-20T16:07:18.554329",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "f4a59d92-6ac4-445a-8037-54f9c54ff259",
+    "user_id": "anonymous",
+    "created_at": "2025-12-20T16:08:41.488643",
+    "last_active": "2025-12-20T16:08:43.111020",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "e8f6352a-c581-40c7-a5fd-370243617e96",
+    "user_id": "anonymous",
+    "created_at": "2025-12-20T16:09:15.932775",
+    "last_active": "2025-12-20T16:09:17.636191",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "1c3ba7fd-1cce-4703-b812-9c5a79cd1a57",
+    "user_id": "anonymous_sales_user",
+    "created_at": "2025-12-20T16:20:26.606320",
+    "last_active": "2025-12-20T16:20:28.647740",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "0d5fb70b-604b-4991-9f8b-295031894eee",
+    "user_id": "anonymous_sales_user",
+    "created_at": "2025-12-20T16:20:49.581568",
+    "last_active": "2025-12-20T16:20:51.556765",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "818da301-bb43-4746-aa44-4be423b8ad4f",
+    "user_id": "anonymous_sales_user",
+    "created_at": "2025-12-20T16:22:25.394741",
+    "last_active": "2025-12-20T16:22:28.533454",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "2129abcf-150f-4a2e-a7f8-b794fb45d2cc",
+    "user_id": "anonymous_sales_user",
+    "created_at": "2025-12-20T16:22:38.768131",
+    "last_active": "2025-12-20T16:22:41.267124",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "daa0d461-9b2c-4dff-bab8-a7e0197afa60",
+    "user_id": "anonymous",
+    "created_at": "2025-12-20T16:32:28.736241",
+    "last_active": "2025-12-20T16:32:30.794540",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "8b081142-08c5-4d9e-bcc2-dde827e4095a",
+    "user_id": "default_user",
+    "created_at": "2025-12-20T17:00:48.330907",
+    "last_active": "2025-12-20T17:00:49.996327",
+    "metadata": {},
+    "message_count": 1
+  },
+  {
+    "session_id": "66f95f6f-5070-4f72-abb7-7db5c8178dc0",
+    "user_id": "anonymous",
+    "created_at": "2025-12-20T17:01:29.842425",
+    "last_active": "2025-12-20T17:01:31.641245",
+    "metadata": {},
+    "message_count": 1
   }
 ]
