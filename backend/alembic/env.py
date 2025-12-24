@@ -24,6 +24,11 @@ sys.path.append(str(Path(__file__).parent.parent))
 from core.models import Base
 target_metadata = Base.metadata
 
+# Override sqlalchemy.url from environment if present
+from core.database import DATABASE_URL
+if DATABASE_URL:
+    config.set_main_option("sqlalchemy.url", DATABASE_URL)
+
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")

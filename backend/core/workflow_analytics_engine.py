@@ -49,6 +49,7 @@ class WorkflowMetric:
     tags: Dict[str, str] = None
     step_id: Optional[str] = None
     step_name: Optional[str] = None
+    user_id: str = "default_user"
 
 @dataclass
 class WorkflowExecutionEvent:
@@ -56,7 +57,7 @@ class WorkflowExecutionEvent:
     event_id: str
     workflow_id: str
     execution_id: str
-    event_type: str  # "started", "completed", "failed", "step_started", "step_completed", etc.
+    event_type: str  # "started", "completed", "failed", "step_started", "step_completed", "manual_override"
     timestamp: datetime
     step_id: Optional[str] = None
     step_name: Optional[str] = None
@@ -64,6 +65,8 @@ class WorkflowExecutionEvent:
     status: Optional[str] = None
     error_message: Optional[str] = None
     metadata: Dict[str, Any] = None
+    resource_id: Optional[str] = None  # ID of the produced resource (e.g., task_id)
+    user_id: str = "default_user"  # ID of the user who owns this execution
 
 @dataclass
 class PerformanceMetrics:
@@ -156,6 +159,7 @@ class WorkflowAnalyticsEngine:
                 tags TEXT,
                 step_id TEXT,
                 step_name TEXT,
+                user_id TEXT NOT NULL DEFAULT 'default_user',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -167,6 +171,7 @@ class WorkflowAnalyticsEngine:
                 event_id TEXT UNIQUE NOT NULL,
                 workflow_id TEXT NOT NULL,
                 execution_id TEXT NOT NULL,
+                user_id TEXT NOT NULL DEFAULT 'default_user',
                 event_type TEXT NOT NULL,
                 timestamp DATETIME NOT NULL,
                 step_id TEXT,
@@ -175,6 +180,7 @@ class WorkflowAnalyticsEngine:
                 status TEXT,
                 error_message TEXT,
                 metadata TEXT,
+                resource_id TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -199,24 +205,38 @@ class WorkflowAnalyticsEngine:
             )
         """)
 
+        # Migrations: Add user_id column if it doesn't exist
+        try:
+            cursor.execute("ALTER TABLE workflow_metrics ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default_user'")
+        except sqlite3.OperationalError:
+            pass # Column might already exist
+            
+        try:
+            cursor.execute("ALTER TABLE workflow_events ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default_user'")
+        except sqlite3.OperationalError:
+            pass # Column might already exist
+
         # Indexes for performance
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_workflow_time ON workflow_metrics(workflow_id, timestamp)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_workflow_time ON workflow_events(workflow_id, timestamp)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON workflow_events(event_type)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_user ON workflow_metrics(user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_user ON workflow_events(user_id)")
 
         conn.commit()
         conn.close()
 
     def track_workflow_start(self, workflow_id: str, execution_id: str,
-                           user_id: Optional[str] = None, metadata: Optional[Dict] = None):
+                           user_id: Optional[str] = "default_user", metadata: Optional[Dict] = None):
         """Track workflow execution start"""
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
             execution_id=execution_id,
+            user_id=user_id,
             event_type="workflow_started",
             timestamp=datetime.now(),
-            metadata=metadata or {"user_id": user_id}
+            metadata=metadata or {}
         )
 
         self.events_buffer.append(event)
@@ -228,19 +248,22 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.COUNTER,
             value=1,
             timestamp=datetime.now(),
-            tags={"event_type": "started"}
+            tags={"event_type": "started"},
+            user_id=user_id
         )
         self.metrics_buffer.append(metric)
 
     def track_workflow_completion(self, workflow_id: str, execution_id: str,
                                 status: WorkflowStatus, duration_ms: int,
                                 step_outputs: Optional[Dict] = None,
-                                error_message: Optional[str] = None):
+                                error_message: Optional[str] = None,
+                                user_id: str = "default_user"):
         """Track workflow execution completion"""
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
             execution_id=execution_id,
+            user_id=user_id,
             event_type="workflow_completed",
             timestamp=datetime.now(),
             duration_ms=duration_ms,
@@ -258,7 +281,8 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.HISTOGRAM,
             value=duration_ms,
             timestamp=datetime.now(),
-            tags={"status": status.value}
+            tags={"status": status.value},
+            user_id=user_id
         )
         self.metrics_buffer.append(metric)
 
@@ -269,25 +293,29 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.COUNTER,
             value=1,
             timestamp=datetime.now(),
-            tags={"status": status.value}
+            tags={"status": status.value},
+            user_id=user_id
         )
         self.metrics_buffer.append(status_metric)
 
     def track_step_execution(self, workflow_id: str, execution_id: str, step_id: str,
                            step_name: str, event_type: str, duration_ms: Optional[int] = None,
-                           status: Optional[str] = None, error_message: Optional[str] = None):
+                           status: Optional[str] = None, error_message: Optional[str] = None,
+                           resource_id: Optional[str] = None, user_id: str = "default_user"):
         """Track individual step execution"""
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
             execution_id=execution_id,
+            user_id=user_id,
             event_type=event_type,
             timestamp=datetime.now(),
             step_id=step_id,
             step_name=step_name,
             duration_ms=duration_ms,
             status=status,
-            error_message=error_message
+            error_message=error_message,
+            resource_id=resource_id
         )
 
         self.events_buffer.append(event)
@@ -300,13 +328,48 @@ class WorkflowAnalyticsEngine:
                 metric_type=MetricType.HISTOGRAM,
                 value=duration_ms,
                 timestamp=datetime.now(),
-                tags={"step_id": step_id, "step_name": step_name, "event_type": event_type}
+                tags={"step_id": step_id, "step_name": step_name, "event_type": event_type},
+                user_id=user_id
             )
             self.metrics_buffer.append(metric)
 
+    def track_manual_override(self, workflow_id: str, execution_id: str, resource_id: str, 
+                             action: str, original_value: Any = None, new_value: Any = None,
+                             user_id: str = "default_user"):
+        """Track when a user manually overrides an automated action"""
+        event = WorkflowExecutionEvent(
+            event_id=str(uuid.uuid4()),
+            workflow_id=workflow_id,
+            execution_id=execution_id,
+            user_id=user_id,
+            event_type="manual_override",
+            timestamp=datetime.now(),
+            resource_id=resource_id,
+            metadata={
+                "action": action,
+                "original_value": original_value,
+                "new_value": new_value
+            },
+            status="OVERRIDDEN",
+            step_name=action # Using step_name to store the override action (e.g., "modified_deadline")
+        )
+        
+        self.events_buffer.append(event)
+        
+        # Also increment a specific metric for easy reporting
+        self.track_metric(
+            workflow_id=workflow_id,
+            metric_name="manual_override_count",
+            metric_type=MetricType.COUNTER,
+            value=1,
+            user_id=user_id,
+            tags={"resource_id": resource_id, "action": action}
+        )
+
     def track_resource_usage(self, workflow_id: str, cpu_usage: float, memory_usage: float,
                            step_id: Optional[str] = None,
-                           disk_io: Optional[int] = None, network_io: Optional[int] = None):
+                           disk_io: Optional[int] = None, network_io: Optional[int] = None,
+                           user_id: str = "default_user"):
         """Track resource usage during workflow execution"""
         timestamp = datetime.now()
 
@@ -317,7 +380,8 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.GAUGE,
             value=cpu_usage,
             timestamp=timestamp,
-            step_id=step_id
+            step_id=step_id,
+            user_id=user_id
         )
         self.metrics_buffer.append(cpu_metric)
 
@@ -328,7 +392,8 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.GAUGE,
             value=memory_usage,
             timestamp=timestamp,
-            step_id=step_id
+            step_id=step_id,
+            user_id=user_id
         )
         self.metrics_buffer.append(memory_metric)
 
@@ -340,7 +405,8 @@ class WorkflowAnalyticsEngine:
                 metric_type=MetricType.COUNTER,
                 value=disk_io,
                 timestamp=timestamp,
-                step_id=step_id
+                step_id=step_id,
+                user_id=user_id
             )
             self.metrics_buffer.append(disk_metric)
 
@@ -352,7 +418,8 @@ class WorkflowAnalyticsEngine:
                 metric_type=MetricType.COUNTER,
                 value=network_io,
                 timestamp=timestamp,
-                step_id=step_id
+                step_id=step_id,
+                user_id=user_id
             )
             self.metrics_buffer.append(network_metric)
 
@@ -365,7 +432,25 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.COUNTER,
             value=1,
             timestamp=datetime.now(),
-            tags={"user_id": user_id, "action": action}
+            tags={"user_id": user_id, "action": action},
+            user_id=user_id
+        )
+        self.metrics_buffer.append(metric)
+
+    def track_metric(self, workflow_id: str, metric_name: str, metric_type: MetricType,
+                     value: Any, tags: Dict[str, str] = None, step_id: str = None,
+                     step_name: str = None, user_id: str = "default_user"):
+        """Track a general workflow metric"""
+        metric = WorkflowMetric(
+            workflow_id=workflow_id,
+            metric_name=metric_name,
+            metric_type=metric_type,
+            value=value,
+            timestamp=datetime.now(),
+            tags=tags,
+            step_id=step_id,
+            step_name=step_name,
+            user_id=user_id
         )
         self.metrics_buffer.append(metric)
 
@@ -652,7 +737,7 @@ class WorkflowAnalyticsEngine:
 
                         # Evaluate alert condition
                         # Simple threshold check for now
-                        if metric_value > alert_data[5]:  # threshold_value
+                        if metric_value > float(alert_data[5]):  # threshold_value
                             # Trigger alert
                             self._trigger_alert(alert_id)
                         else:
@@ -766,8 +851,8 @@ class WorkflowAnalyticsEngine:
             for metric in metrics:
                 cursor.execute("""
                     INSERT INTO workflow_metrics
-                    (workflow_id, metric_name, metric_type, value, timestamp, tags, step_id, step_name)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (workflow_id, metric_name, metric_type, value, timestamp, tags, step_id, step_name, user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     metric.workflow_id,
                     metric.metric_name,
@@ -776,7 +861,8 @@ class WorkflowAnalyticsEngine:
                     metric.timestamp.isoformat(),
                     json.dumps(metric.tags) if metric.tags else None,
                     metric.step_id,
-                    metric.step_name
+                    metric.step_name,
+                    metric.user_id
                 ))
 
             conn.commit()
@@ -796,13 +882,14 @@ class WorkflowAnalyticsEngine:
             for event in events:
                 cursor.execute("""
                     INSERT OR REPLACE INTO workflow_events
-                    (event_id, workflow_id, execution_id, event_type, timestamp,
-                     step_id, step_name, duration_ms, status, error_message, metadata)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (event_id, workflow_id, execution_id, user_id, event_type, timestamp,
+                     step_id, step_name, duration_ms, status, error_message, metadata, resource_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     event.event_id,
                     event.workflow_id,
                     event.execution_id,
+                    event.user_id,
                     event.event_type,
                     event.timestamp.isoformat(),
                     event.step_id,
@@ -810,7 +897,8 @@ class WorkflowAnalyticsEngine:
                     event.duration_ms,
                     event.status,
                     event.error_message,
-                    json.dumps(event.metadata) if event.metadata else None
+                    json.dumps(event.metadata) if event.metadata else None,
+                    event.resource_id
                 ))
 
             conn.commit()
@@ -840,5 +928,24 @@ class WorkflowAnalyticsEngine:
         finally:
             conn.close()
 
+
+    async def flush(self):
+        """Manually flush all buffers to database"""
+        if self.metrics_buffer:
+            metrics = list(self.metrics_buffer)
+            self.metrics_buffer.clear()
+            await self._process_metrics_batch(metrics)
+
+        if self.events_buffer:
+            events = list(self.events_buffer)
+            self.events_buffer.clear()
+            await self._process_events_batch(events)
+
 # Global analytics engine instance
-analytics_engine = WorkflowAnalyticsEngine()
+_analytics_engine = None
+
+def get_analytics_engine() -> WorkflowAnalyticsEngine:
+    global _analytics_engine
+    if _analytics_engine is None:
+        _analytics_engine = WorkflowAnalyticsEngine()
+    return _analytics_engine

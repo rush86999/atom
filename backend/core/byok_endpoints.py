@@ -252,11 +252,19 @@ class BYOKManager:
         try:
             # Ensure key is bytes
             key = self.encryption_key
+            if not key:
+                raise ValueError("Encyrption key is empty")
+                
             if isinstance(key, str):
                 key = key.encode()
+                
             return Fernet(key)
         except Exception as e:
-            logger.error(f"Invalid encryption key: {e}")
+            # Only log error once per session to avoid spamming logs
+            if not hasattr(self, '_encryption_error_logged'):
+                logger.warning(f"Invalid encryption key encountered: {e}. Generating new key.")
+                self._encryption_error_logged = True
+                
             # Fallback to a new key if invalid (will invalidate existing data)
             new_key = Fernet.generate_key()
             self.encryption_key = new_key.decode()

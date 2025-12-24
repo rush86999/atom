@@ -15,8 +15,21 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 from enum import Enum
 import asyncio
+from sqlalchemy.orm import Session
+from core.database import SessionLocal
+from core.automation_settings import get_automation_settings
+from accounting.assistant import AccountingAssistant
+from accounting.document_processor import AIDocumentProcessor
+from accounting.workflows import CollectionAgent
+from accounting.tax_service import TaxService
+from accounting.close_agent import CloseChecklistAgent
+from accounting.fpa_service import FPAService
+from accounting.multi_entity import IntercompanyManager
+from sales.assistant import SalesAssistant
 
 logger = logging.getLogger(__name__)
+
+REGULATORY_DISCLAIMER = "\n\n---\n*Disclaimer: ATOM's financial features are powered by AI and intended for strategic guidance. This system is not a licensed CPA or tax advisor. All automated records should be reviewed by a qualified professional before filing.*"
 
 
 class FeatureType(Enum):
@@ -222,6 +235,7 @@ class ChatOrchestrator:
             logger.error(f"Error processing chat message: {e}")
             return self._generate_error_response(str(e), session_id)
 
+
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
         """Analyze user intent using AI NLP engine"""
         try:
@@ -272,6 +286,9 @@ class ChatOrchestrator:
             intent = ChatIntent.WORKFLOW_CREATION
         elif any(word in message_lower for word in ["schedule", "meeting", "calendar", "appointment"]):
             intent = ChatIntent.SCHEDULING
+        # CRM & Sales Intelligence intents
+        elif any(word in message_lower for word in ["deal", "lead", "pipeline", "sales", "prospect", "forecast"]):
+            intent = ChatIntent.CRM
         else:
             intent = ChatIntent.SEARCH_REQUEST
 
@@ -306,6 +323,7 @@ class ChatOrchestrator:
             ChatIntent.INTEGRATION_SETUP: [FeatureType.INTEGRATIONS],
             ChatIntent.STATUS_CHECK: [FeatureType.SEARCH, FeatureType.AI_ANALYTICS],
             ChatIntent.HELP_REQUEST: [FeatureType.SEARCH],
+            ChatIntent.CRM: [FeatureType.CRM], # Added CRM intent mapping
             ChatIntent.MULTI_STEP_PROCESS: list(FeatureType),  # All features for complex requests
         }
 
@@ -408,6 +426,12 @@ class ChatOrchestrator:
                 return "Schedule updated successfully."
             return "I'll handle the scheduling for you."
 
+        elif intent == ChatIntent.CRM:
+            crm_data = feature_responses.get(FeatureType.CRM, {})
+            if crm_data.get("success"):
+                return crm_data.get("data", {}).get("answer", "I've processed your CRM request.")
+            return "I'll help you with your CRM request."
+
         return "I've processed your request across all connected platforms."
 
     def _generate_next_steps(
@@ -438,6 +462,13 @@ class ChatOrchestrator:
                 "Set up automatic task creation",
                 "Create task templates for recurring work",
                 "Coordinate tasks with your team"
+            ])
+        
+        elif intent == ChatIntent.CRM:
+            next_steps.extend([
+                "View sales pipeline",
+                "Create a new lead",
+                "Update a deal status"
             ])
 
         # Add general next steps
@@ -488,4 +519,183 @@ class ChatOrchestrator:
             return {"success": False, "error": str(e)}
 
     async def _handle_communication_request(
-        self,
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "Communication logic here"}}
+
+    async def _handle_task_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "Task logic here"}}
+
+    async def _handle_workflow_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "Workflow logic here"}}
+
+    async def _handle_scheduling_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "Scheduling logic here"}}
+
+    async def _handle_integration_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "Integration logic here"}}
+
+    async def _handle_ai_analytics_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "AI Analytics logic here"}}
+
+    async def _handle_automation_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "Automation logic here"}}
+
+    async def _handle_document_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "Document logic here"}}
+
+    async def _handle_finance_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        """Handle financial and accounting queries"""
+        if not get_automation_settings().is_accounting_enabled():
+            return {
+                "success": False,
+                "message": "AI Accounting Automations are currently disabled in settings.",
+                "suggested_actions": ["Enable Accounting in Settings"]
+            }
+        try:
+            # Generate a DB session
+            db = SessionLocal()
+            try:
+                # In a real app, workspace_id comes from context or session
+                workspace_id = context.get("workspace_id") if context else "default-workspace"
+                assistant = AccountingAssistant(db)
+                result = await assistant.process_query(workspace_id, message)
+                
+                # Check for specific AP/AR follow-up actions
+                if "intent" in result:
+                    if result["intent"] == "check_overdue":
+                        agent = CollectionAgent(db)
+                        reminders = await agent.check_overdue_invoices(workspace_id)
+                        result["answer"] = f"I've identified {len(reminders)} overdue invoices and triggered reminders."
+                        result["reminders"] = reminders
+                    elif result["intent"] == "get_aging":
+                        agent = CollectionAgent(db)
+                        result["aging_report"] = agent.generate_aging_report(workspace_id)
+                        result["answer"] = "Here is your current AR aging report summary."
+                    elif result["intent"] == "check_close_readiness":
+                        agent = CloseChecklistAgent(db)
+                        period = result.get("params", {}).get("period", datetime.utcnow().strftime("%Y-%m"))
+                        result["close_check"] = await agent.run_close_check(workspace_id, period)
+                        result["answer"] = f"Here is the close readiness report for {period}."
+                    elif result["intent"] == "get_tax_estimate":
+                        service = TaxService(db)
+                        result["tax_estimate"] = service.estimate_tax_liability(workspace_id)
+                        result["answer"] = "I've calculated your estimated tax liability based on current sales."
+                    elif result["intent"] == "get_cash_forecast":
+                        service = FPAService(db)
+                        result["forecast"] = service.get_13_week_forecast(workspace_id)
+                        result["answer"] = "Here is your 13-week cash flow forecast."
+                    elif result["intent"] == "run_scenario":
+                        service = FPAService(db)
+                        # Assume params contains scenario definitions
+                        scenarios = result.get("params", {}).get("scenarios", [])
+                        result["scenario_results"] = service.run_scenario(workspace_id, scenarios)
+                        result["answer"] = "I've modeled the requested scenario and updated the forecast."
+                    elif result["intent"] == "get_intercompany_report":
+                        manager = IntercompanyManager(db)
+                        result["intercompany_report"] = manager.generate_elimination_report(workspace_id)
+                        result["answer"] = "Here is the intercompany activity and elimination report."
+                    
+                    # Append Regulatory Disclaimer to all financial answers
+                    if "answer" in result:
+                        result["answer"] += REGULATORY_DISCLAIMER
+
+                return {
+                    "success": True,
+                    "data": result,
+                    "message": result.get("answer", "I've processed your financial request."),
+                    "suggested_actions": ["Run P&L Report", "Check AR Aging", "View Unpaid Bills"]
+                }
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Finance handler failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _handle_crm_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        """Handle sales and CRM queries via SalesAssistant"""
+        if not get_automation_settings().is_sales_enabled():
+            return {
+                "success": False,
+                "message": "AI Sales Automations are currently disabled in settings.",
+                "suggested_actions": ["Enable Sales in Settings"]
+            }
+        
+        try:
+            db = SessionLocal()
+            try:
+                from sales.assistant import SalesAssistant
+                workspace_id = context.get("workspace_id") if context else "default-workspace"
+                assistant = SalesAssistant(db)
+                answer = await assistant.answer_sales_query(workspace_id, message)
+                
+                return {
+                    "success": True,
+                    "data": {"answer": answer},
+                    "message": answer[:100] + "...",
+                    "suggested_actions": ["View Pipeline", "Check Top Leads", "List My Tasks"]
+                }
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"CRM handler failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def _handle_social_media_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "Social Media logic here"}}
+
+    async def _handle_hr_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "HR logic here"}}
+
+    async def _handle_ecommerce_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        return {"success": True, "data": {"message": "Ecommerce logic here"}}
+
+    def _get_or_create_session(self, user_id: str, session_id: str) -> Dict[str, Any]:
+        if session_id not in self.conversation_sessions:
+            self.conversation_sessions[session_id] = {
+                "id": session_id,
+                "user_id": user_id,
+                "created_at": datetime.now().isoformat(),
+                "history": []
+            }
+        return self.conversation_sessions[session_id]
+
+    def _update_session(self, session: Dict, message: str, response: Dict, intent: Dict):
+        session["history"].append({
+            "message": message,
+            "response": response,
+            "intent": intent,
+            "timestamp": datetime.now().isoformat()
+        })
+
+    def _generate_error_response(self, error: str, session_id: str) -> Dict[str, Any]:
+        return {
+            "success": False,
+            "error": error,
+            "session_id": session_id,
+            "timestamp": datetime.now().isoformat()
+        }

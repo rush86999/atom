@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Body
+from fastapi import APIRouter, HTTPException, Query, Body, Depends
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -6,6 +6,7 @@ import uuid
 import asyncio
 import os
 import sys
+from core.auth import get_current_user
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -52,6 +53,7 @@ class Task(BaseModel):
     color: Optional[str] = "#3182CE"
     createdAt: datetime
     updatedAt: datetime
+    metadata: Optional[Dict[str, Any]] = {}  # Store automation context (workflow_id, etc.)
 
 class CreateTaskRequest(BaseModel):
     title: str
@@ -79,6 +81,7 @@ class UpdateTaskRequest(BaseModel):
     actualHours: Optional[float] = None
     platform: Optional[str] = None
     color: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 class Project(BaseModel):
     id: str
@@ -227,9 +230,9 @@ async def get_tasks(platform: str = Query("all")):
     # Return mock tasks if Asana not available or error
     return {"success": True, "tasks": MOCK_TASKS, "source": "mock"}
 
-@router.post("/")
-async def create_task(task_data: CreateTaskRequest):
-    """Create task on specified platform"""
+@router.post("/", response_model=Dict[str, Any])
+async def create_task(task_data: CreateTaskRequest, current_user: Any = Depends(get_current_user)):
+    """Create a task in Asana or local mock system"""
     
     import logging
     logger = logging.getLogger(__name__)
@@ -311,16 +314,39 @@ async def create_task(task_data: CreateTaskRequest):
                 p.task_count += 1
                 break
                 
+    # Log user action for behavior analysis
+    from core.behavior_analyzer import get_behavior_analyzer
+    analyzer = get_behavior_analyzer()
+    analyzer.log_user_action(
+        user_id=current_user.id,
+        action_type="task_created",
+        metadata={"task_id": new_task.id, "platform": new_task.platform}
+    )
+    
     return {"success": True, "task": new_task, "platform": "local"}
 
 @router.put("/{task_id}", response_model=Dict[str, Any])
-async def update_task(task_id: str, updates: UpdateTaskRequest):
+async def update_task(task_id: str, updates: UpdateTaskRequest, current_user: Any = Depends(get_current_user)):
     for i, task in enumerate(MOCK_TASKS):
         if task.id == task_id:
             update_data = updates.dict(exclude_unset=True)
             updated_task = task.copy(update=update_data)
             updated_task.updatedAt = datetime.now()
             MOCK_TASKS[i] = updated_task
+            
+            # Track manual override if this was an automated task
+            if task.metadata and "workflow_id" in task.metadata:
+                from core.workflow_analytics_engine import get_analytics_engine
+                analytics = get_analytics_engine()
+                analytics.track_manual_override(
+                    workflow_id=task.metadata.get("workflow_id"),
+                    execution_id=task.metadata.get("execution_id", "manual"),
+                    resource_id=task_id,
+                    action="task_updated",
+                    user_id=current_user.id,
+                    metadata={"updates": update_data}
+                )
+            
             return {"success": True, "task": updated_task}
     
     raise HTTPException(status_code=404, detail="Task not found")
@@ -333,6 +359,17 @@ async def delete_task(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
         
     MOCK_TASKS = [t for t in MOCK_TASKS if t.id != task_id]
+    
+    # Track manual override/deletion if this was an automated task
+    if task_to_delete.metadata and "workflow_id" in task_to_delete.metadata:
+        from core.workflow_analytics_engine import get_analytics_engine
+        analytics = get_analytics_engine()
+        analytics.track_manual_override(
+            workflow_id=task_to_delete.metadata.get("workflow_id"),
+            execution_id=task_to_delete.metadata.get("execution_id", "manual"),
+            resource_id=task_id,
+            action="task_deleted"
+        )
     
     # Update project counts
     if task_to_delete.project:

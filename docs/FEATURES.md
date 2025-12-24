@@ -74,6 +74,11 @@ Atom supports a wide range of third-party integrations to extend its functionali
 *   **Zapier:** Connect your Zapier account to automate workflows between Atom and other apps.
 *   **Zoho:** Connect your Zoho account to manage your CRM, email, and other business apps.
 *   **DocuSign:** Connect your DocuSign account to manage your electronic signatures and agreements.
+*   **Small Business Mastery:** 
+    - **Smart Scheduling:** Autonomous intent-to-booking flows with no-show recovery.
+    - **Autonomous Collections:** Multi-stage escalation sequences for overdue invoices.
+    - **Lifecycle Intelligence:** Extraction of POs, Sales Orders, Shipping updates, and Quotes (requests/offers) from emails.
+    - **Stakeholder Communication:** Specialized AI generator for professional lifecycle-aligned emails (Quotes, PO confirms, Shipping).
 
 ## Agent Skills
 

@@ -8,6 +8,9 @@ import TransactionsList from "../../components/finance/TransactionsList";
 import BudgetPlanner from "../../components/finance/BudgetPlanner";
 import InvoiceManager from "../../components/finance/InvoiceManager";
 import SubscriptionTracker from "../../components/finance/SubscriptionTracker";
+import CategorizationReview from "../../components/finance/CategorizationReview";
+import AccountantPortal from "../../components/finance/AccountantPortal";
+import ForecastingSandbox from "../../components/finance/ForecastingSandbox";
 
 const FinancePage = () => {
     return (
@@ -35,7 +38,9 @@ const FinancePage = () => {
                     <TabsTrigger value="transactions">Transactions</TabsTrigger>
                     <TabsTrigger value="budget">Budgeting</TabsTrigger>
                     <TabsTrigger value="invoices">Invoices</TabsTrigger>
-                    <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+                    <TabsTrigger value="review">Accounting Review</TabsTrigger>
+                    <TabsTrigger value="compliance">Accountant Portal</TabsTrigger>
+                    <TabsTrigger value="forecasting">Forecasting</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-4">
@@ -56,6 +61,18 @@ const FinancePage = () => {
 
                 <TabsContent value="subscriptions" className="space-y-4">
                     <SubscriptionTracker />
+                </TabsContent>
+
+                <TabsContent value="review" className="space-y-4">
+                    <CategorizationReview />
+                </TabsContent>
+
+                <TabsContent value="compliance" className="space-y-4">
+                    <AccountantPortal />
+                </TabsContent>
+
+                <TabsContent value="forecasting" className="space-y-4">
+                    <ForecastingSandbox />
                 </TabsContent>
             </Tabs>
         </div>
