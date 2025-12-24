@@ -32,6 +32,12 @@ import {
   Activity,
   RefreshCw,
   LayoutDashboard,
+  TrendingUp,
+  DollarSign,
+  TrendingDown,
+  PieChart,
+  Target,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,8 +50,11 @@ const DashboardPage: React.FC = () => {
     healthy: 0,
     errors: 0,
   });
-  const { toast } = useToast();
+  const [financials, setFinancials] = useState<any>(null);
+  const [sales, setSales] = useState<any>(null);
+  const toast = useToast();
   const router = useRouter();
+  const workspaceId = "default-workspace"; // Consistent with other components
 
   const integrationIcons: Record<string, any> = {
     box: HardDrive,
@@ -63,9 +72,11 @@ const DashboardPage: React.FC = () => {
     asana: CheckSquare,
   };
 
-  const checkIntegrationsHealth = async () => {
+  const refreshDashboardData = async () => {
     try {
       setLoading(true);
+
+      // 1. Health Checks
       const healthChecks = await Promise.all([
         fetch("/api/integrations/box/health"),
         fetch("/api/integrations/dropbox/health"),
@@ -112,27 +123,29 @@ const DashboardPage: React.FC = () => {
         };
       });
 
-      const connected = updatedIntegrations.filter((i) => i.connected).length;
-      const healthy = updatedIntegrations.filter(
-        (i) => i.health === "healthy",
-      ).length;
-      const errors = updatedIntegrations.filter(
-        (i) => i.health === "error",
-      ).length;
-
       setIntegrations(updatedIntegrations);
       setStats({
-        connected,
+        connected: updatedIntegrations.filter((i) => i.connected).length,
         total: updatedIntegrations.length,
-        healthy,
-        errors,
+        healthy: updatedIntegrations.filter((i) => i.health === "healthy").length,
+        errors: updatedIntegrations.filter((i) => i.health === "error").length,
       });
+
+      // 2. Fetch Business Intelligence Summary (Phase 12)
+      const [finRes, salesRes] = await Promise.all([
+        fetch(`/api/v1/accounting/dashboard/summary?workspace_id=${workspaceId}`),
+        fetch(`/api/sales/dashboard/summary?workspace_id=${workspaceId}`)
+      ]);
+
+      if (finRes.ok) setFinancials(await finRes.json());
+      if (salesRes.ok) setSales(await salesRes.json());
+
     } catch (error) {
-      console.error("Health check failed:", error);
+      console.error("Dashboard refresh failed:", error);
       toast({
-        title: "Health check failed",
-        description: "Could not fetch integration status.",
-        variant: "destructive",
+        title: "Refresh failed",
+        description: "Could not fetch latest intelligence data.",
+        variant: "error",
       });
     } finally {
       setLoading(false);
@@ -161,18 +174,18 @@ const DashboardPage: React.FC = () => {
       health === "healthy"
         ? "default" // Greenish usually
         : health === "warning"
-        ? "secondary" // Yellowish
-        : "destructive"; // Red
+          ? "secondary" // Yellowish
+          : "destructive"; // Red
 
     // Custom coloring since Shadcn badges are limited
     const className =
       health === "healthy"
         ? "bg-green-500 hover:bg-green-600"
         : health === "warning"
-        ? "bg-yellow-500 hover:bg-yellow-600"
-        : health === "error"
-        ? "bg-red-500 hover:bg-red-600"
-        : "bg-gray-500 hover:bg-gray-600";
+          ? "bg-yellow-500 hover:bg-yellow-600"
+          : health === "error"
+            ? "bg-red-500 hover:bg-red-600"
+            : "bg-gray-500 hover:bg-gray-600";
 
     return (
       <Badge className={className}>
@@ -190,10 +203,10 @@ const DashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
-    checkIntegrationsHealth();
+    refreshDashboardData();
 
     // Auto-refresh every 2 minutes
-    const interval = setInterval(checkIntegrationsHealth, 120000);
+    const interval = setInterval(refreshDashboardData, 120000);
     return () => clearInterval(interval);
   }, []);
 
@@ -212,78 +225,86 @@ const DashboardPage: React.FC = () => {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
+          <Card className="border-l-4 border-l-blue-600">
             <CardContent className="pt-6">
               <div className="flex flex-col space-y-2">
-                <span className="text-sm font-medium text-gray-500">
-                  Connected Integrations
-                </span>
+                <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+                  <span>Cash on Hand</span>
+                  <DollarSign className="w-4 h-4 text-blue-600" />
+                </div>
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-3xl font-bold text-blue-600">
-                    {stats.connected}
+                  <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    ${financials?.total_cash?.toLocaleString() || "0"}
                   </span>
-                  <span className="text-sm text-gray-500">
-                    of {stats.total} available
+                  <span className="text-sm font-medium text-green-600">
+                    Stable
                   </span>
                 </div>
-                <Progress value={getConnectionProgress()} className="h-2" />
+                <div className="text-xs text-gray-500">
+                  Runway: <span className="font-bold text-blue-600">{financials?.runway_months || "0"} months</span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-orange-600">
             <CardContent className="pt-6">
               <div className="flex flex-col space-y-2">
-                <span className="text-sm font-medium text-gray-500">
-                  Healthy Services
-                </span>
+                <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+                  <span>Sales Pipeline</span>
+                  <TrendingUp className="w-4 h-4 text-orange-600" />
+                </div>
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-3xl font-bold text-green-600">
-                    {stats.healthy}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {stats.errors} issues detected
+                  <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    ${sales?.pipeline_value?.toLocaleString() || "0"}
                   </span>
                 </div>
-                <Progress value={getHealthProgress()} className="h-2" />
+                <div className="text-xs text-gray-500">
+                  Forecast (weighted): <span className="font-bold text-orange-600">${sales?.weighted_forecast?.toLocaleString() || "0"}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-purple-600">
             <CardContent className="pt-6">
               <div className="flex flex-col space-y-2">
-                <span className="text-sm font-medium text-gray-500">
-                  Data Ingestion
-                </span>
-                <div className="flex items-baseline space-x-2">
-                  <span className="text-3xl font-bold text-purple-600">
-                    Active
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    Last sync: Just now
-                  </span>
+                <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+                  <span>Active Deals</span>
+                  <PieChart className="w-4 h-4 text-purple-600" />
                 </div>
-                <Progress value={100} className="h-2" />
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    {sales?.active_deals_count || "0"}
+                  </span>
+                  {sales?.high_risk_deals_count > 0 && (
+                    <Badge variant="destructive" className="ml-2 animate-pulse">
+                      {sales.high_risk_deals_count} at risk
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Avg. Conversion: <span className="font-bold text-purple-600">{sales?.conversion_rate || "0"}%</span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-red-600">
             <CardContent className="pt-6">
               <div className="flex flex-col space-y-2">
-                <span className="text-sm font-medium text-gray-500">
-                  AI Skills
-                </span>
+                <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+                  <span>Accounts Payable</span>
+                  <TrendingDown className="w-4 h-4 text-red-600" />
+                </div>
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-3xl font-bold text-orange-600">
-                    72
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    Available commands
+                  <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    ${financials?.accounts_payable?.toLocaleString() || "0"}
                   </span>
                 </div>
-                <Progress value={100} className="h-2" />
+                <div className="text-xs text-gray-500">
+                  Receivables (AR): <span className="font-bold text-green-600">${financials?.accounts_receivable?.toLocaleString() || "0"}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -303,14 +324,22 @@ const DashboardPage: React.FC = () => {
           <div className="flex space-x-4">
             <Button
               variant="outline"
+              onClick={() => router.push("/accounting/bills/upload")}
+              className="gap-2 border-dashed border-blue-300 hover:border-blue-500"
+            >
+              <Zap className="w-4 h-4 text-blue-500" />
+              Process Invoice
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => router.push("/integrations")}
               className="gap-2"
             >
               <Settings className="w-4 h-4" />
-              Manage Integrations
+              Config
             </Button>
             <Button
-              onClick={checkIntegrationsHealth}
+              onClick={refreshDashboardData}
               disabled={loading}
               className="gap-2"
             >
@@ -319,7 +348,7 @@ const DashboardPage: React.FC = () => {
               ) : (
                 <RefreshCw className="w-4 h-4" />
               )}
-              Refresh Status
+              Sync Now
             </Button>
           </div>
         </div>

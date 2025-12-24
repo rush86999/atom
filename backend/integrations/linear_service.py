@@ -237,6 +237,43 @@ class LinearService:
         result = await self._graphql_query(query, variables, access_token)
         return result.get("data", {}).get("issueCreate", {})
 
+    async def create_project(
+        self,
+        name: str,
+        team_ids: List[str],
+        access_token: str = None,
+        description: str = None,
+        state: str = "planned"
+    ) -> Dict[str, Any]:
+        """Create a new project in Linear"""
+        variables = {
+            "name": name,
+            "teamIds": team_ids,
+            "state": state
+        }
+        if description:
+            variables["description"] = description
+            
+        query = """
+            mutation($name: String!, $teamIds: [String!]!, $description: String, $state: String) {
+                projectCreate(input: {
+                    name: $name
+                    teamIds: $teamIds
+                    description: $description
+                    state: $state
+                }) {
+                    success
+                    project {
+                        id
+                        name
+                        url
+                    }
+                }
+            }
+        """
+        result = await self._graphql_query(query, variables, access_token)
+        return result.get("data", {}).get("projectCreate", {})
+
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Linear service"""
         try:

@@ -476,3 +476,14 @@ Refer to individual platform sections above for usage instructions for each spec
 1.  Atom connects to your CRM (HubSpot or Salesforce) and retrieves a list of new leads created in the last 7 days.
 2.  For each lead, Atom uses the Content Creation Agent to draft a personalized email, using the lead's name, company, and any other available information to tailor the message.
 3.  Atom connects to your Gmail or Outlook account and saves each personalized email as a draft, ready for you to review and send.
++
++### Use Case 33: Small Business Command Center
++**Scenario**: A small business owner wants to automate customer scheduling and payments without manual intervention.
++
++**Workflow**:
++1. **Intent Detection**: Atom extracts a booking request from a customer email ("I want to book a hair cut Tuesday at 2pm").
++2. **Smart Booking**: Atom checks the calendar, confirms the slot, and sends a confirmation.
++3. **No-Show Guard**: If the appointment is missed, Atom detects the no-show and triggers a polite rebooking nudge.
++4. **Instant Invoicing**: Once work is completed (or shipped), Atom generates an invoice in the ledger.
++5. **Autonomous Collections**: If the invoice goes overdue, Atom's collection agent executes an escalation sequence (Friendly -> Firm -> Final) until payment is received.
++6. **Lifecycle Extraction**: Atom monitors for incoming Purchase Orders and Shipping updates, automatically linking them to deals and marking orders as fulfilled.

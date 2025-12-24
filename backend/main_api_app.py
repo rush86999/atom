@@ -3,6 +3,7 @@ import threading
 import logging
 from pathlib import Path
 import uvicorn
+from datetime import datetime
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -127,19 +128,112 @@ async def auto_load_integration_middleware(request, call_next):
 logger.info("Loading Core API Routes...")
 try:
     # 1. Main API
-    from core.api_routes import router as core_router
-    app.include_router(core_router, prefix="/api/v1")
+    try:
+        from core.api_routes import router as core_router
+        app.include_router(core_router, prefix="/api/v1")
+    except ImportError as e:
+        logger.error(f"Failed to load Core API routes: {e}")
 
     # 2. Workflow Engine
-    from core.workflow_endpoints import router as workflow_router
-    app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
+    try:
+        from core.availability_endpoints import router as availability_router
+        app.include_router(availability_router, prefix="/api/v1")
+    except ImportError as e:
+        logger.warning(f"Failed to load availability routes: {e}")
+        
+    try:
+        from core.stakeholder_endpoints import router as stakeholder_router
+        app.include_router(stakeholder_router, prefix="/api/v1")
+    except ImportError as e:
+        logger.warning(f"Failed to load stakeholder routes: {e}")
+
+    try:
+        from api.reports import router as reports_router
+        app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
+    except ImportError as e:
+        logger.warning(f"Failed to load reports routes (skipping): {e}")
+
+    try:
+        from api.agent_routes import router as agent_router
+        app.include_router(agent_router, prefix="/api/agents", tags=["agents"])
+    except ImportError as e:
+        logger.warning(f"Failed to load agent routes (skipping): {e}")
+
+    try:
+        from api.workflow_template_routes import router as template_router
+        app.include_router(template_router, prefix="/api/workflow-templates", tags=["workflow-templates"])
+    except ImportError as e:
+         logger.warning(f"Failed to load workflow template routes: {e}")
+
+    try:
+        from api.notification_settings_routes import router as notification_router
+        app.include_router(notification_router, prefix="/api/notification-settings", tags=["notification-settings"])
+    except ImportError as e:
+        logger.warning(f"Failed to load notification settings routes: {e}")
+
+    try:
+        from api.workflow_analytics_routes import router as analytics_router
+        app.include_router(analytics_router, prefix="/api/workflows", tags=["workflow-analytics"])
+    except ImportError as e:
+        logger.warning(f"Failed to load workflow analytics routes: {e}")
+
+    try:
+        from api.background_agent_routes import router as background_router
+        app.include_router(background_router, prefix="/api/background-agents", tags=["background-agents"])
+    except ImportError as e:
+        logger.warning(f"Failed to load background agent routes: {e}")
+    
+    try:
+        from api.financial_ops_routes import router as financial_router
+        app.include_router(financial_router, prefix="/api/financial", tags=["financial-ops"])
+    except ImportError as e:
+        logger.warning(f"Failed to load financial ops routes: {e}")
+
+    try:
+        from api.ai_accounting_routes import router as accounting_router
+        app.include_router(accounting_router, prefix="/api/accounting", tags=["ai-accounting"])
+    except ImportError as e:
+        logger.warning(f"Failed to load AI accounting routes: {e}")
+
+    try:
+        from api.reconciliation_routes import router as reconciliation_router
+        app.include_router(reconciliation_router, prefix="/api/reconciliation", tags=["reconciliation"])
+    except ImportError as e:
+        logger.warning(f"Failed to load reconciliation routes: {e}")
+
+    try:
+        from api.apar_routes import router as apar_router
+        app.include_router(apar_router, prefix="/api/apar", tags=["ap-ar"])
+    except ImportError as e:
+        logger.warning(f"Failed to load AP/AR routes: {e}")
+
+    try:
+        from api.graphrag_routes import router as graphrag_router
+        app.include_router(graphrag_router, prefix="/api/graphrag", tags=["graphrag"])
+    except ImportError as e:
+        logger.warning(f"Failed to load GraphRAG routes: {e}")
+
+    try:
+        from api.pm_routes import router as pm_router
+        app.include_router(pm_router, prefix="/api/v1", tags=["Project Management"])
+    except ImportError as e:
+        logger.warning(f"Failed to load PM routes: {e}")
+
+    try:
+        from core.workflow_endpoints import router as workflow_router
+        app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
+    except ImportError as e:
+        logger.error(f"Failed to load Core Workflow routes: {e}")
 
     # 3. Workflow UI (Visual Automations)
+    # Eagerly load this to ensure 404s don't happen silently
     try:
         from core.workflow_ui_endpoints import router as workflow_ui_router
         app.include_router(workflow_ui_router, prefix="/api/v1/workflow-ui", tags=["Workflow UI"])
-    except ImportError:
-        logger.warning("Workflow UI endpoints not found, skipping.")
+        logger.info("✓ Workflow UI Endpoints Loaded")
+    except Exception as e:
+        logger.error(f"CRITICAL: Workflow UI endpoints failed to load: {e}")
+        # raise e # Uncomment to crash on startup if strict
 
     # 3b. AI Workflow Endpoints (Real NLU)
     try:
@@ -316,6 +410,14 @@ async def startup_event():
         
     except ImportError:
         logger.warning("Workflow Scheduler module not found.")
+
+    # 3. Start Agent Scheduler (Upstream compatibility)
+    try:
+        from core.scheduler import AgentScheduler
+        AgentScheduler.get_instance()
+        logger.info("✓ Agent Scheduler running")
+    except ImportError:
+        logger.warning("Agent Scheduler module not found.")
     
     logger.info("=" * 60)
     logger.info("✓ Server Ready")

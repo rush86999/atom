@@ -366,7 +366,7 @@ class RealAIWorkflowService:
             logger.error(f"Error calling Google Gemini: {e}")
             raise Exception(f"Google Gemini API call failed: {str(e)}")
 
-    async def process_with_nlu(self, text: str, provider: str = "openai", system_prompt: str = None) -> Dict[str, Any]:
+    async def process_with_nlu(self, text: str, provider: str = "openai", system_prompt: str = None, user_id: str = "default_user") -> Dict[str, Any]:
         """Process text using real NLU capabilities"""
         if system_prompt is None:
             system_prompt = """Analyze the user's request and extract ALL intents and goals:
@@ -386,6 +386,20 @@ Return your response as a JSON object with this format:
 }"""
 
         user_prompt = f"Analyze this request: {text}"
+
+        # OPTIONAL: Knowledge Graph Context Injection
+        kg_context = ""
+        if system_prompt and "**Knowledge Context" not in system_prompt: # Avoid double injection
+            try:
+                from core.knowledge_query_endpoints import get_knowledge_query_manager
+                km = get_knowledge_query_manager()
+                # Search for entities in the text to provide context
+                facts = await km.answer_query(f"What relevant facts are there about the entities in: {text}", user_id=user_id)
+                if facts and facts.get("relevant_facts"):
+                    kg_context = "\n**Knowledge Context from ATOM KG:**\n" + "\n".join([f"- {f}" for f in facts["relevant_facts"][:5]])
+                    system_prompt = f"{kg_context}\n\n{system_prompt}"
+            except Exception as e:
+                logger.warning(f"Failed to fetch KG context for NLU: {e}")
 
         # Try the requested provider, fallback to others if needed
         providers_to_try = []
@@ -461,7 +475,7 @@ Return your response as a JSON object with this format:
         # All providers failed
         raise Exception(f"All AI providers failed. Last error: {last_error}")
 
-    async def analyze_text(self, prompt: str, complexity: int = 2, system_prompt: str = "You are a helpful assistant.") -> str:
+    async def analyze_text(self, prompt: str, complexity: int = 2, system_prompt: str = "You are a helpful assistant.", user_id: str = "default_user") -> str:
         """Generic text analysis/generation with automated provider selection"""
         from core.byok_endpoints import get_byok_manager
         byok = get_byok_manager()
@@ -469,6 +483,18 @@ Return your response as a JSON object with this format:
         # Map complexity 1-4 to reasoning levels
         provider_id = byok.get_optimal_provider("analysis", min_reasoning_level=complexity) or "openai"
         
+        # OPTIONAL: Knowledge Graph Context Injection
+        if "**Knowledge Context" not in system_prompt:
+            try:
+                from core.knowledge_query_endpoints import get_knowledge_query_manager
+                km = get_knowledge_query_manager()
+                facts = await km.answer_query(f"What relevant facts are there about: {prompt[:200]}", user_id=user_id)
+                if facts and facts.get("relevant_facts"):
+                    kg_context = "\n**Knowledge Context from ATOM KG:**\n" + "\n".join([f"- {f}" for f in facts["relevant_facts"][:3]])
+                    system_prompt = f"{kg_context}\n\n{system_prompt}"
+            except Exception as e:
+                logger.warning(f"Failed to fetch KG context for analysis: {e}")
+
         try:
             if provider_id == "openai":
                 result = await self.call_openai_api(prompt, system_prompt)

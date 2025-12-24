@@ -18,6 +18,14 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: "/api/sales/:path*",
+        destination: "http://127.0.0.1:5059/api/sales/:path*",
+      },
+      {
+        source: "/api/accounting/:path*",
+        destination: "http://127.0.0.1:5059/api/accounting/:path*",
+      },
+      {
         source: "/api/integrations/:path*",
         destination: "http://127.0.0.1:5059/api/v1/integrations/:path*",
       },

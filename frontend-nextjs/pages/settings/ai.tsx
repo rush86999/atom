@@ -1,7 +1,7 @@
 import React from 'react';
 import Head from 'next/head';
 import { Box, Heading, Container } from '@chakra-ui/react';
-import AIProviderSettings from '../../src/components/AIProviders/AIProviderSettings';
+import AIProviderSettings from '@/src/components/AIProviders/AIProviderSettings';
 import Layout from '../../components/layout/Layout';
 
 const AISettingsPage = () => {

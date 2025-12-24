@@ -6,6 +6,7 @@ Provides comprehensive vector database operations with LanceDB
 import os
 import json
 import logging
+import asyncio
 try:
     import numpy as np
     # FORCE DISABLE numpy to prevent crash
@@ -46,12 +47,17 @@ except (ImportError, BaseException) as e:
     print(f"Sentence transformers not available: {e}")
 
 # Import OpenAI for embeddings
-try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except (ImportError, Exception) as e:
     OPENAI_AVAILABLE = False
     print(f"OpenAI not available: {e}")
+
+# BYOK Integration
+try:
+    from core.byok_endpoints import get_byok_manager
+except ImportError:
+    get_byok_manager = None
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +65,13 @@ class LanceDBHandler:
     """LanceDB vector database handler"""
     
     def __init__(self, db_path: str = None, 
+                 workspace_id: Optional[str] = None,
                  embedding_provider: str = "local",
                  embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
         
         # Determine DB path (S3 or local)
         self.db_path = db_path or os.getenv("LANCEDB_URI", "./data/atom_memory")
+        self.workspace_id = workspace_id or "default"
         
         # Embedding configuration
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", embedding_provider)
@@ -73,6 +81,12 @@ class LanceDBHandler:
         self.db = None
         self.embedder = None
         self.openai_client = None
+        
+        # BYOK Manager
+        try:
+            self.byok_manager = get_byok_manager() if get_byok_manager else None
+        except:
+            self.byok_manager = None
         
         # Initialize LanceDB if available
         logger.info(f"LanceDBHandler initialized. ID: {id(self)}. LANCEDB_AVAILABLE: {LANCEDB_AVAILABLE}")
@@ -101,13 +115,20 @@ class LanceDBHandler:
         """Initialize embedding provider"""
         try:
             if self.embedding_provider == "openai" and OPENAI_AVAILABLE:
-                if not self.openai_api_key:
+                # BYOK Key Retrieval
+                api_key = self.openai_api_key
+                if self.byok_manager:
+                    byok_key = self.byok_manager.get_api_key("openai")
+                    if byok_key:
+                        api_key = byok_key
+                
+                if not api_key:
                     logger.warning("OpenAI API key not found, falling back to local embeddings")
                     self.embedding_provider = "local"
                     self._init_local_embedder()
                 else:
-                    self.openai_client = OpenAI(api_key=self.openai_api_key)
-                    logger.info("OpenAI embeddings initialized")
+                    self.openai_client = OpenAI(api_key=api_key)
+                    logger.info("OpenAI embeddings initialized (BYOK enabled)")
             else:
                 self._init_local_embedder()
                 
@@ -176,8 +197,26 @@ class LanceDBHandler:
                 # Create PyArrow schema
                 schema = pa.schema([
                     pa.field("id", pa.string()),
+                    pa.field("user_id", pa.string()),
+                    pa.field("workspace_id", pa.string()),
                     pa.field("text", pa.string()),
                     pa.field("source", pa.string()),
+                    pa.field("metadata", pa.string()),
+                    pa.field("created_at", pa.string()),
+                    pa.field("vector", pa.list_(pa.float32(), vector_size))
+                ])
+            elif table_name == "knowledge_graph":
+                # Knowledge Graph Relationship Table
+                if self.embedding_provider == "openai":
+                    vector_size = 1536
+                
+                schema = pa.schema([
+                    pa.field("id", pa.string()),
+                    pa.field("user_id", pa.string()),
+                    pa.field("workspace_id", pa.string()),
+                    pa.field("from_id", pa.string()),
+                    pa.field("to_id", pa.string()),
+                    pa.field("type", pa.string()),
                     pa.field("metadata", pa.string()),
                     pa.field("created_at", pa.string()),
                     pa.field("vector", pa.list_(pa.float32(), vector_size))
@@ -250,17 +289,71 @@ class LanceDBHandler:
             logger.error(f"Failed to embed text: {e}")
             return None
     
-    def add_document(self, table_name: str, text: str, source: str = "",
-                    metadata: Dict[str, Any] = None, doc_id: str = None) -> bool:
-        """Add a document to the vector database"""
+    def add_knowledge_edge(self, from_id: str, to_id: str, rel_type: str, 
+                         description: str = "", metadata: Dict[str, Any] = None,
+                         user_id: str = "default_user") -> bool:
+        """Add a relationship edge to the knowledge graph"""
+        if self.db is None:
+            return False
+            
+        try:
+            table_name = "knowledge_graph"
+            table = self.get_table(table_name)
+            if table is None:
+                table = self.create_table(table_name)
+                if table is None:
+                    return False
+            
+            # Generate embedding of the relationship description
+            embedding = self.embed_text(description)
+            if embedding is None:
+                # Fallback to zero vector if embedding fails (though not ideal)
+                vector_size = 1536 if self.embedding_provider == "openai" else 384
+                if NUMPY_AVAILABLE:
+                    embedding = np.zeros(vector_size)
+                else:
+                    embedding = [0.0] * vector_size
+            
+            # Create unique edge ID
+            edge_id = f"{from_id}_{rel_type}_{to_id}"
+            
+            if metadata is None:
+                metadata = {}
+            
+            # Create record
+            record = {
+                "id": edge_id,
+                "user_id": user_id,
+                "workspace_id": self.workspace_id,
+                "from_id": from_id,
+                "to_id": to_id,
+                "type": rel_type,
+                "metadata": json.dumps(metadata),
+                "created_at": datetime.utcnow().isoformat(),
+                "vector": embedding.tolist() if hasattr(embedding, 'tolist') else embedding
+            }
+            
+            # Add to table
+            table.add([record])
+            logger.info(f"Knowledge edge added: {edge_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to add knowledge edge: {e}")
+            return False
+
+    def add_document(self, table_name: str, text: str, source: str = "", 
+                    metadata: Dict[str, Any] = None, user_id: str = "default_user",
+                    extract_knowledge: bool = True) -> bool:
+        """Add a single document to memory"""
         if self.db is None:
             return False
         
         try:
             table = self.get_table(table_name)
-            if table is None:
+            if not table:
                 table = self.create_table(table_name)
-                if table is None:
+                if not table:
                     return False
             
             # Generate embedding
@@ -268,19 +361,16 @@ class LanceDBHandler:
             if embedding is None:
                 return False
             
-            # Prepare data
-            if doc_id is None:
-                doc_id = str(datetime.utcnow().timestamp())
+            doc_id = str(datetime.utcnow().timestamp())
             
-            if metadata is None:
-                metadata = {}
-            
-            # Create record
+            # Record with user_id and workspace_id
             record = {
                 "id": doc_id,
+                "user_id": user_id,
+                "workspace_id": self.workspace_id,
                 "text": text,
                 "source": source,
-                "metadata": json.dumps(metadata),
+                "metadata": json.dumps(metadata) if metadata else "{}",
                 "created_at": datetime.utcnow().isoformat(),
                 "vector": embedding.tolist()
             }
@@ -289,6 +379,44 @@ class LanceDBHandler:
             try:
                 table.add([record])
                 logger.info(f"Document added to '{table_name}': {doc_id}")
+
+                # Log user action for behavior analysis
+                try:
+                    from core.behavior_analyzer import get_behavior_analyzer
+                    analyzer = get_behavior_analyzer()
+                    analyzer.log_user_action(
+                        user_id="user1", # Mock for now
+                        action_type="document_uploaded",
+                        metadata={"doc_id": doc_id, "table": table_name, "source": source}
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to log user action for document upload: {e}")
+                
+                # Optional: Trigger knowledge extraction (non-blocking)
+                if extract_knowledge:
+                    from core.automation_settings import get_automation_settings
+                    settings = get_automation_settings()
+                    
+                    if settings.is_extraction_enabled():
+                        from core.knowledge_ingestion import get_knowledge_ingestion
+                        ingestor = get_knowledge_ingestion(self.workspace_id)
+                        asyncio.create_task(ingestor.process_document(text, doc_id, source, user_id=user_id, workspace_id=self.workspace_id))
+                    else:
+                        logger.info(f"Automatic knowledge extraction skipped for {doc_id} (disabled in settings)")
+                
+                # NEW: Trigger Workflow Events
+                try:
+                    from advanced_workflow_orchestrator import orchestrator
+                    # Non-blocking trigger
+                    asyncio.create_task(orchestrator.trigger_event("document_uploaded", {
+                        "text": text,
+                        "doc_id": doc_id,
+                        "source": source,
+                        "metadata": metadata
+                    }))
+                except Exception as trigger_err:
+                    logger.warning(f"Failed to trigger workflow event: {trigger_err}")
+                
                 return True
             except Exception as e:
                 logger.error(f"CRITICAL: Failed to add record to table '{table_name}': {e}")
@@ -319,6 +447,7 @@ class LanceDBHandler:
                 source = doc.get("source", "")
                 metadata = doc.get("metadata", {})
                 doc_id = doc.get("id", str(datetime.utcnow().timestamp()))
+                user_id = doc.get("user_id", "default_user") # Assuming user_id can be in doc
                 
                 # Generate embedding
                 embedding = self.embed_text(text)
@@ -328,6 +457,8 @@ class LanceDBHandler:
                 # Prepare record
                 record = {
                     "id": doc_id,
+                    "user_id": user_id,
+                    "workspace_id": self.workspace_id,
                     "text": text,
                     "source": source,
                     "metadata": json.dumps(metadata),
@@ -347,39 +478,45 @@ class LanceDBHandler:
             logger.error(f"Failed to add batch documents to '{table_name}': {e}")
             return 0
     
-    def search(self, table_name: str, query: str, limit: int = 10,
-              filter_expression: str = None) -> List[Dict[str, Any]]:
-        """Search for similar documents"""
+    def search(self, table_name: str, query: str, user_id: str = None, limit: int = 10,
+               filter_str: str = None) -> List[Dict[str, Any]]:
+        """Search for documents in memory with optional user filtering"""
         if self.db is None:
             return []
         
         try:
             table = self.get_table(table_name)
-            if table is None:
-                logger.warning(f"Table '{table_name}' does not exist")
+            if not table:
                 return []
             
-            # Generate query embedding
-            query_embedding = self.embed_text(query)
-            if query_embedding is None:
+            # Generate embedding for query
+            query_vector = self.embed_text(query)
+            if query_vector is None:
                 return []
             
-            # Search
-            results = table.search(query_embedding).limit(limit)
+            # Build search query
+            search_query = table.search(query_vector.tolist()).limit(limit)
             
-            # Apply filter if provided
-            if filter_expression:
-                results = results.where(filter_expression)
+            # Apply user filter if provided
+            if user_id:
+                user_filter = f"user_id == '{user_id}'"
+                if filter_str:
+                    filter_str = f"({filter_str}) AND ({user_filter})"
+                else:
+                    filter_str = user_filter
+            
+            if filter_str:
+                search_query = search_query.where(filter_str)
             
             # Execute search
             if not PANDAS_AVAILABLE:
                 logger.error("Pandas not available for search results")
                 return []
-            search_results = results.to_pandas()
+            results = search_query.to_pandas() # Changed from `search_results = results.to_pandas()`
             
             # Convert to list of dictionaries
             results_list = []
-            for _, row in search_results.iterrows():
+            for _, row in results.iterrows():
                 try:
                     metadata = json.loads(row['metadata']) if row['metadata'] else {}
                     result = {
@@ -400,6 +537,10 @@ class LanceDBHandler:
         except Exception as e:
             logger.error(f"Failed to search in '{table_name}': {e}")
             return []
+
+    def query_knowledge_graph(self, query: str, user_id: str = None, limit: int = 20) -> List[Dict[str, Any]]:
+        """Search the knowledge graph using semantic similarity on relationship descriptions"""
+        return self.search("knowledge_graph", query, limit=limit)
 
     def seed_mock_data(self, documents: List[Dict[str, Any]]) -> int:
         """Seed mock data for validation"""
@@ -621,46 +762,43 @@ class ChatHistoryManager:
             logger.error(f"Failed to get entity mentions: {e}")
             return []
 
-# Global instance for easy access (must be first)
-try:
-    lancedb_handler = LanceDBHandler()
-except Exception as e:
-    logger.error(f"Failed to initialize global LanceDBHandler: {e}")
-    lancedb_handler = None
+# Handle multiple handlers (one per workspace) for physical isolation
+_workspace_handlers: Dict[str, 'LanceDBHandler'] = {}
 
-def get_lancedb_handler() -> LanceDBHandler:
-    """Get LanceDB handler instance"""
-    return lancedb_handler
+def get_lancedb_handler(workspace_id: Optional[str] = None) -> 'LanceDBHandler':
+    """
+    Get or create a LanceDBHandler instance for a specific workspace.
+    Provides physical data isolation by using separate directories.
+    """
+    ws_id = workspace_id or "default_shared"
+    
+    if ws_id not in _workspace_handlers:
+        # Determine isolated path
+        base_uri = os.getenv("LANCEDB_URI_BASE", "./data/atom_memory")
+        ws_path = os.path.join(base_uri, ws_id)
+        
+        logger.info(f"Creating isolated LanceDBHandler for workspace: {ws_id} at {ws_path}")
+        _workspace_handlers[ws_id] = LanceDBHandler(db_path=ws_path, workspace_id=ws_id)
+    
+    return _workspace_handlers[ws_id]
 
-# Global chat history manager (uses lancedb_handler)
-try:
-    if lancedb_handler:
-        chat_history_manager = ChatHistoryManager(lancedb_handler)
-    else:
-        chat_history_manager = None
-except Exception as e:
-    logger.error(f"Failed to initialize global ChatHistoryManager: {e}")
-    chat_history_manager = None
+# Legacy instance for backward compatibility (points to default)
+lancedb_handler = get_lancedb_handler()
 
-def get_chat_history_manager() -> ChatHistoryManager:
-    """Get global chat history manager instance"""
-    return chat_history_manager
+# Global chat history manager (uses default handler for now, should ideally be workspace-aware)
+chat_history_manager = ChatHistoryManager(lancedb_handler)
 
-# Global chat context manager (uses lancedb_handler)
-try:
+def get_chat_history_manager(workspace_id: Optional[str] = None) -> ChatHistoryManager:
+    """Get workspace-aware chat history manager instance"""
+    handler = get_lancedb_handler(workspace_id)
+    return ChatHistoryManager(handler)
+
+# Global chat context manager helper
+def get_chat_context_manager(workspace_id: Optional[str] = None) -> 'ChatContextManager':
+    """Get workspace-aware chat context manager instance"""
     from core.chat_context_manager import ChatContextManager
-    import core.chat_context_manager
-    if lancedb_handler:
-        core.chat_context_manager.chat_context_manager = ChatContextManager(lancedb_handler)
-    else:
-        core.chat_context_manager.chat_context_manager = None
-except Exception as e:
-    logger.error(f"Failed to initialize global ChatContextManager: {e}")
-    try:
-        import core.chat_context_manager
-        core.chat_context_manager.chat_context_manager = None
-    except:
-        pass
+    handler = get_lancedb_handler(workspace_id)
+    return ChatContextManager(handler)
 
 # Utility functions
 def embed_documents_batch(texts: List[str], model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> Optional[Any]:

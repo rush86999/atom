@@ -13,14 +13,7 @@ interface ChatInterfaceProps {
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     const [input, setInput] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
-    const [messages, setMessages] = useState<ChatMessageData[]>([
-        {
-            id: "welcome",
-            type: "assistant",
-            content: "Hello! I'm your Atom Assistant. How can I help you today?",
-            timestamp: new Date(),
-        }
-    ]);
+    const [messages, setMessages] = useState<ChatMessageData[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -28,8 +21,47 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     };
 
     useEffect(() => {
+        if (sessionId) {
+            loadSessionHistory(sessionId);
+        } else {
+            setMessages([
+                {
+                    id: "welcome",
+                    type: "assistant",
+                    content: "Hello! I'm your Atom Assistant. How can I help you today?",
+                    timestamp: new Date(),
+                }
+            ]);
+        }
+    }, [sessionId]);
+
+    useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    const loadSessionHistory = async (sid: string) => {
+        try {
+            setIsProcessing(true);
+            const response = await fetch(`/api/atom-agent/sessions/${sid}/history`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.messages) {
+                    const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
+                        id: msg.id || `msg_${Date.now()}_${Math.random()}`,
+                        type: msg.role === 'user' ? 'user' : 'assistant',
+                        content: msg.content || '',
+                        timestamp: new Date(msg.timestamp),
+                        actions: msg.metadata?.actions || [],
+                    }));
+                    setMessages(chatMessages);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load history:", error);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
 
     const handleSend = async () => {
         if (!input.trim()) return;
@@ -45,17 +77,52 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         setInput("");
         setIsProcessing(true);
 
-        // Simulate agent processing
-        setTimeout(() => {
-            const agentMsg: ChatMessageData = {
-                id: (Date.now() + 1).toString(),
-                type: "assistant",
-                content: "I'm processing your request. I'll update the workspace on the right with my plan.",
+        try {
+            const response = await fetch("/api/atom-agent/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: input,
+                    session_id: sessionId,
+                    user_id: "default_user",
+                    current_page: "/chat",
+                    conversation_history: messages.slice(-5).map(m => ({
+                        role: m.type === "user" ? "user" : "assistant",
+                        content: m.content
+                    }))
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.response) {
+                const agentMsg: ChatMessageData = {
+                    id: (Date.now() + 1).toString(),
+                    type: "assistant",
+                    content: data.response.message,
+                    timestamp: new Date(),
+                    actions: data.response.actions || [],
+                };
+                setMessages(prev => [...prev, agentMsg]);
+            } else {
+                throw new Error(data.error || "Failed to process request");
+            }
+        } catch (error) {
+            console.error("Chat error:", error);
+            setMessages(prev => [...prev, {
+                id: "error",
+                type: "system",
+                content: "⚠️ I encountered an error. Please check your connection and try again.",
                 timestamp: new Date(),
-            };
-            setMessages(prev => [...prev, agentMsg]);
+            }]);
+        } finally {
             setIsProcessing(false);
-        }, 1500);
+        }
+    };
+
+    const handleActionClick = (action: any) => {
+        console.log("Action clicked:", action);
+        // Hub for global actions like 'execute', 'view', etc.
     };
 
     const handleStop = () => {
@@ -84,7 +151,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
             <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4 max-w-3xl mx-auto">
                     {messages.map((msg) => (
-                        <ChatMessage key={msg.id} message={msg} />
+                        <ChatMessage
+                            key={msg.id}
+                            message={msg}
+                            onActionClick={handleActionClick}
+                        />
                     ))}
                     {isProcessing && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground ml-2">

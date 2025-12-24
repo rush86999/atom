@@ -1,5 +1,6 @@
 import React from "react";
 import { SessionProvider } from "next-auth/react";
+import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import type { AppProps } from "next/app";
 
 import { ToastProvider } from "../components/ui/use-toast";
@@ -15,17 +16,18 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
 
   return (
     <SessionProvider session={session}>
-      <ToastProvider>
-        {isAuthPage ? (
-          <Component {...pageProps} />
-        ) : (
-          <Layout>
+      <ChakraProvider value={defaultSystem}>
+        <ToastProvider>
+          {isAuthPage ? (
             <Component {...pageProps} />
-          </Layout>
-        )}
-        {/* GlobalChatWidget disabled - atom-agent backend unavailable (Python 3.13 compatibility) */}
-        {/* <GlobalChatWidget /> */}
-      </ToastProvider>
+          ) : (
+            <Layout>
+              <Component {...pageProps} />
+            </Layout>
+          )}
+          {!isAuthPage && <GlobalChatWidget />}
+        </ToastProvider>
+      </ChakraProvider>
     </SessionProvider>
   );
 }

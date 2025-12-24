@@ -6,6 +6,7 @@ Central memory system for all communication data with LanceDB vector storage
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass, asdict
@@ -16,6 +17,7 @@ import pandas as pd
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 import numpy as np
+from core.knowledge_ingestion import get_knowledge_ingestion
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,12 @@ class CommunicationAppType(Enum):
     DROPBOX = "dropbox"
     BOX = "box"
     TABLEAU = "tableau"
+    ACCOUNTING = "accounting"
+    ZOHO = "zoho"
+    XERO = "xero"
+    QUICKBOOKS = "quickbooks"
+    CRM_LEAD = "crm_lead"
+    CRM_DEAL = "crm_deal"
 
 @dataclass
 class CommunicationData:
@@ -73,8 +81,10 @@ class IngestionConfig:
 class LanceDBMemoryManager:
     """LanceDB-based memory manager for ATOM"""
     
-    def __init__(self, db_path: str = "./data/atom_memory"):
-        self.db_path = Path(db_path)
+    def __init__(self, db_path: str = None, workspace_id: Optional[str] = None):
+        self.workspace_id = workspace_id or "default"
+        base_path = db_path or os.getenv("LANCEDB_URI_BASE", "./data/atom_memory")
+        self.db_path = Path(base_path) / self.workspace_id
         self.db_path.mkdir(parents=True, exist_ok=True)
         self.db = None
         self.connections_table = None
@@ -334,6 +344,10 @@ class LanceDBMemoryManager:
         """Get communications by app type"""
         try:
             results = self.connections_table.search().where(f"app_type = '{app_type}'").limit(limit).to_pandas()
+            
+            if not results.empty:
+                # Sort in Pandas as LanceDB sorting in where clause can be finicky
+                results = results.sort_values("timestamp", ascending=False)
             return results.to_dict('records')
         except Exception as e:
             logger.error(f"Error getting communications by app: {str(e)}")
@@ -342,7 +356,10 @@ class LanceDBMemoryManager:
     def get_communications_by_timeframe(self, start_date: datetime, end_date: datetime) -> List[Dict]:
         """Get communications within time frame"""
         try:
-            filter_query = f"timestamp >= '{start_date}' AND timestamp <= '{end_date}'"
+            # Use ISO format for timestamps in filters
+            start_str = start_date.strftime('%Y-%m-%dT%H:%M:%S.%f')
+            end_str = end_date.strftime('%Y-%m-%dT%H:%M:%S.%f')
+            filter_query = f"timestamp >= to_timestamp('{start_str}') AND timestamp <= to_timestamp('{end_str}')"
             results = self.connections_table.search().where(filter_query).to_pandas()
             return results.to_dict('records')
         except Exception as e:
@@ -404,6 +421,10 @@ class CommunicationIngestionPipeline:
     def ingest_message(self, app_type: str, message_data: Dict[str, Any]) -> bool:
         """Ingest single message from any communication app"""
         try:
+            # Initialize memory manager if needed
+            if not self.memory_manager.db:
+                self.memory_manager.initialize()
+
             # Normalize message data
             normalized_data = self._normalize_message(app_type, message_data)
             
@@ -415,7 +436,44 @@ class CommunicationIngestionPipeline:
                 comm_data.vector_embedding = self._generate_embedding(comm_data.content)
             
             # Ingest into memory
-            return self.memory_manager.ingest_communication(comm_data)
+            success = self.memory_manager.ingest_communication(comm_data)
+            
+            if success:
+                # Trigger Knowledge Extraction asynchronously if enabled and content exists
+                from core.automation_settings import get_automation_settings
+                settings = get_automation_settings()
+                
+                if settings.is_automations_enabled() and settings.is_extraction_enabled() and comm_data.content and len(comm_data.content.strip()) > 20:
+                    try:
+                        # 1. Standard Knowledge Extraction
+                        knowledge_manager = get_knowledge_ingestion()
+                        # Use a background task if loop exists
+                        try:
+                            loop = asyncio.get_running_loop()
+                            if loop.is_running():
+                                loop.create_task(knowledge_manager.process_document(
+                                    text=comm_data.content,
+                                    doc_id=comm_data.id,
+                                    source=f"integration:{app_type}",
+                                    user_id=comm_data.metadata.get("user_id", "default_user")
+                                ))
+                                
+                                # 2. Advanced Communication Intelligence (Intent + Responses)
+                                from core.communication_intelligence import CommunicationIntelligenceService
+                                intel_service = CommunicationIntelligenceService()
+                                loop.create_task(intel_service.analyze_and_route(
+                                    comm_data=asdict(comm_data),
+                                    user_id=comm_data.metadata.get("user_id", "default_user")
+                                ))
+                        except RuntimeError:
+                            # Not in an async context with a running loop
+                            pass
+                    except Exception as ex:
+                        logger.error(f"Error triggering knowledge extraction in ingestion pipeline: {ex}")
+                elif not settings.is_automations_enabled() or not settings.is_extraction_enabled():
+                    logger.info(f"Knowledge extraction skipped for {comm_data.id} (automations disabled in settings)")
+            
+            return success
             
         except Exception as e:
             logger.error(f"Error ingesting message from {app_type}: {str(e)}")
@@ -550,9 +608,25 @@ class CommunicationIngestionPipeline:
             logger.error(f"Error getting ingestion stats: {str(e)}")
             return {"error": str(e)}
 
-# Global instance
-memory_manager = LanceDBMemoryManager()
-ingestion_pipeline = CommunicationIngestionPipeline(memory_manager)
+# Handle multiple managers for physical isolation
+_workspace_memory_managers: Dict[str, 'LanceDBMemoryManager'] = {}
+
+def get_memory_manager(workspace_id: Optional[str] = None) -> LanceDBMemoryManager:
+    """Get workspace-isolated memory manager"""
+    ws_id = workspace_id or "default"
+    if ws_id not in _workspace_memory_managers:
+        _workspace_memory_managers[ws_id] = LanceDBMemoryManager(workspace_id=ws_id)
+    return _workspace_memory_managers[ws_id]
+
+# Legacy instance for backward compatibility
+memory_manager = get_memory_manager()
+
+def get_ingestion_pipeline(workspace_id: Optional[str] = None) -> CommunicationIngestionPipeline:
+    """Get workspace-aware ingestion pipeline"""
+    mgr = get_memory_manager(workspace_id)
+    return CommunicationIngestionPipeline(mgr)
+
+ingestion_pipeline = get_ingestion_pipeline()
 
 # Export for use
 __all__ = [

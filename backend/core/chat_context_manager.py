@@ -122,12 +122,12 @@ class ChatContextManager:
             logger.error(f"Error resolving reference: {e}")
             return None
 
-    async def get_recent_context(self, session_id: str, limit: int = 5) -> str:
+    async def get_recent_context(self, session_id: str, workspace_id: Optional[str] = None, limit: int = 5) -> str:
         """
         Get a text summary of recent context to feed into the LLM.
         """
         from core.lancedb_handler import get_chat_history_manager
-        chat_history = get_chat_history_manager()
+        chat_history = get_chat_history_manager(workspace_id)
         messages = chat_history.get_session_history(session_id, limit=limit)
         if not messages:
             return ""
@@ -144,12 +144,12 @@ class ChatContextManager:
 
         return "\n".join(formatted)
 
-    async def store_workflow_context(self, session_id: str, user_id: str, workflow_id: str, workflow_name: str, execution_id: str = None, status: str = "started") -> bool:
+    async def store_workflow_context(self, session_id: str, user_id: str, workspace_id: str, workflow_id: str, workflow_name: str, execution_id: str = None, status: str = "started") -> bool:
         """
         Store workflow execution context in chat memory.
         """
         from core.lancedb_handler import get_chat_history_manager
-        chat_history = get_chat_history_manager()
+        chat_history = get_chat_history_manager(workspace_id)
         content = f"Workflow '{workflow_name}' ({workflow_id}) {status}."
         if execution_id:
             content += f" Execution ID: {execution_id}"
@@ -168,8 +168,7 @@ class ChatContextManager:
             metadata=metadata
         )
 
-# Global instance - to be created in lancedb_handler.py after lancedb_handler is initialized
-chat_context_manager = None
-
-def get_chat_context_manager() -> ChatContextManager:
-    return chat_context_manager
+# Helper for backward compatibility or direct instantiation
+def get_chat_context_manager(workspace_id: Optional[str] = None) -> ChatContextManager:
+    from core.lancedb_handler import get_chat_context_manager as get_mgr
+    return get_mgr(workspace_id)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "../../../shared/components/AIProviders/AIProviderSettings.css";
+
 
 // Types shared across both frontends
 export interface AIProvider {

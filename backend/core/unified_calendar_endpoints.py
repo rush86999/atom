@@ -26,6 +26,7 @@ class CalendarEvent(BaseModel):
     status: str = "confirmed"
     platform: str = "local"
     color: Optional[str] = "#3182CE"
+    metadata: Optional[Dict[str, Any]] = {} # Cross-system context (deal_id, etc.)
 
 class CreateEventRequest(BaseModel):
     title: str
@@ -36,6 +37,7 @@ class CreateEventRequest(BaseModel):
     status: str = "confirmed"
     platform: str = "local"
     color: Optional[str] = "#3182CE"
+    metadata: Optional[Dict[str, Any]] = {}
 
 class UpdateEventRequest(BaseModel):
     title: Optional[str] = None
