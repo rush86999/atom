@@ -3,7 +3,7 @@ import React from 'react';
 import Sidebar from './Sidebar';
 import { cn } from '../../lib/utils';
 
-interface LayoutProps {
+export interface LayoutProps {
   children: React.ReactNode;
   className?: string;
 }

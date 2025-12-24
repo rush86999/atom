@@ -70,7 +70,7 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
                         <Play className="w-4 h-4 text-green-500" />
                         <CardTitle className="text-sm font-bold">{data.service || 'Action'}</CardTitle>
                     </div>
-                    {data.waitForInput && <PauseCircle className="w-4 h-4 text-amber-500" title="Waits for Input" />}
+                    {data.waitForInput && <PauseCircle className="w-4 h-4 text-amber-500" />}
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">

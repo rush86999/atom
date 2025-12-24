@@ -45,7 +45,18 @@ def verify_password(plain_password, hashed_password):
         plain_password = plain_password.encode('utf-8')
     if isinstance(hashed_password, str):
         hashed_password = hashed_password.encode('utf-8')
-    return bcrypt.checkpw(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password, hashed_password)
+    except ValueError as e:
+        logger.warning(f"bcrypt check failed (possibly invalid hash format): {e}")
+        # Fallback for legacy/dev hashes: try plain comparison if hash doesn't look like bcrypt
+        if plain_password.decode('utf-8') == hashed_password.decode('utf-8'):
+             logger.warning("⚠️  Auth successful using INSECURE fallback (legacy hash). Please reset password.")
+             return True
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error in verify_password: {e}")
+        return False
 
 def get_password_hash(password):
     """Hash password using bcrypt if available, otherwise fallback"""

@@ -10,7 +10,7 @@ import { Play, Square, RefreshCw, Terminal, Monitor } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 
 const AgentConsole: React.FC = () => {
-    const { toast } = useToast();
+    const toast = useToast();
     const [goal, setGoal] = useState("");
     const [mode, setMode] = useState("thinker");
     const [isRunning, setIsRunning] = useState(false);
@@ -49,7 +49,7 @@ const AgentConsole: React.FC = () => {
                                 toast({
                                     title: "Task Failed",
                                     description: "Agent encountered an error.",
-                                    variant: "destructive",
+                                    variant: "error",
                                 });
                             }
                         }
@@ -68,7 +68,7 @@ const AgentConsole: React.FC = () => {
             toast({
                 title: "Goal Required",
                 description: "Please enter a goal for the agent.",
-                variant: "destructive",
+                variant: "error",
             });
             return;
         }
@@ -101,7 +101,7 @@ const AgentConsole: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to start the agent service.",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

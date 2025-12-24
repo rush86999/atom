@@ -36,7 +36,7 @@ class RecordType(Enum):
     ORDER = "order"
     INVENTORY = "inventory"
     AD_PERFORMANCE = "ad_performance"
-    DOCUMENT = "document"
+
     SPREADSHEET = "spreadsheet"
     GENERIC = "generic"
 

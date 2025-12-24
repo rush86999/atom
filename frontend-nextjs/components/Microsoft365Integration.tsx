@@ -24,6 +24,8 @@ import {
     Video,
     FileText,
     Users,
+    Trash2,
+    Zap,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -306,6 +308,9 @@ const Microsoft365Integration: React.FC = () => {
         location: "",
         attendees: [] as string[],
     });
+
+    const [webhookUrl, setWebhookUrl] = useState("https://api.atom.com/webhook");
+    const [webhookResource, setWebhookResource] = useState("me/mailFolders('Inbox')/messages");
 
     const { toast } = useToast();
 
@@ -600,6 +605,54 @@ const Microsoft365Integration: React.FC = () => {
         }
     };
 
+    const createSubscription = async () => {
+        try {
+            const response = await fetch("/api/integrations/microsoft365/subscriptions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    resource: webhookResource,
+                    changeType: "created",
+                    notificationUrl: webhookUrl,
+                    expirationDateTime: new Date(Date.now() + 86400000).toISOString(), // +1 day
+                }),
+            });
+
+            if (response.ok) {
+                toast({ title: "Success", description: "Webhook subscription created!" });
+            } else {
+                throw new Error("Failed to create subscription");
+            }
+        } catch (error) {
+            console.error("Subscription failed:", error);
+            toast({ title: "Error", description: "Failed to create subscription", variant: "destructive" });
+        }
+    };
+
+    const deleteItem = async (type: "message" | "event" | "file", id: string) => {
+        if (!confirm("Are you sure you want to delete this item?")) return;
+
+        let url = "";
+        if (type === "message") url = `/api/integrations/microsoft365/outlook/messages/${id}`;
+        if (type === "event") url = `/api/integrations/microsoft365/calendar/events/${id}`;
+        if (type === "file") url = `/api/integrations/microsoft365/files/${id}`;
+
+        try {
+            const response = await fetch(url, { method: "DELETE" });
+            if (response.ok) {
+                toast({ title: "Success", description: "Item deleted successfully" });
+                if (type === "message") loadEmails();
+                if (type === "event") loadCalendars();
+                if (type === "file") loadFiles();
+            } else {
+                throw new Error("Failed to delete");
+            }
+        } catch (error) {
+            console.error("Delete failed:", error);
+            toast({ title: "Error", description: "Failed to delete item", variant: "destructive" });
+        }
+    };
+
     // Filter data based on search
     const filteredEmails = emails.filter(
         (email) =>
@@ -891,9 +944,22 @@ const Microsoft365Integration: React.FC = () => {
                                                                 From: {email.sender.emailAddress.name} (
                                                                 {email.sender.emailAddress.address})
                                                             </span>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {formatDate(email.receivedDateTime)}
-                                                            </span>
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {formatDate(email.receivedDateTime)}
+                                                                </span>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        deleteItem("message", email.id);
+                                                                    }}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
                                                             {email.hasAttachments && (
                                                                 <Badge variant="secondary" className="w-fit mt-1">
                                                                     <Paperclip className="w-3 h-3 mr-1" />
@@ -944,12 +1010,25 @@ const Microsoft365Integration: React.FC = () => {
                                                         <div className="flex flex-col space-y-2 flex-1">
                                                             <div className="flex justify-between w-full">
                                                                 <span className="font-bold">{event.subject}</span>
-                                                                {event.isOnlineMeeting && (
-                                                                    <Badge variant="secondary" className="flex items-center">
-                                                                        <Video className="w-3 h-3 mr-1" />
-                                                                        Online Meeting
-                                                                    </Badge>
-                                                                )}
+                                                                <div className="flex items-center space-x-2">
+                                                                    {event.isOnlineMeeting && (
+                                                                        <Badge variant="secondary" className="flex items-center">
+                                                                            <Video className="w-3 h-3 mr-1" />
+                                                                            Online Meeting
+                                                                        </Badge>
+                                                                    )}
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            deleteItem("event", event.id);
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                             {event.body && (
                                                                 <p className="text-sm text-muted-foreground">
@@ -1029,6 +1108,17 @@ const Microsoft365Integration: React.FC = () => {
                                                                     <span>• {formatDate(file.lastModifiedDateTime)}</span>
                                                                 </div>
                                                             </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    deleteItem("file", file.id);
+                                                                }}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
                                                         </div>
                                                     );
                                                 })
@@ -1165,6 +1255,45 @@ const Microsoft365Integration: React.FC = () => {
                                                 ))
                                             )}
                                         </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            {/* Webhooks Tab */}
+                            <TabsContent value="webhooks" className="space-y-4">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Webhook Triggers</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid w-full max-w-sm items-center gap-1.5">
+                                            <label htmlFor="webhook-url">Notification URL</label>
+                                            <Input
+                                                id="webhook-url"
+                                                value={webhookUrl}
+                                                onChange={(e) => setWebhookUrl(e.target.value)}
+                                                placeholder="https://api.atom.com/webhook"
+                                            />
+                                        </div>
+                                        <div className="grid w-full max-w-sm items-center gap-1.5">
+                                            <label htmlFor="webhook-resource">Resource</label>
+                                            <Select
+                                                value={webhookResource}
+                                                onValueChange={setWebhookResource}
+                                            >
+                                                <SelectTrigger id="webhook-resource">
+                                                    <SelectValue placeholder="Select resource" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="me/mailFolders('Inbox')/messages">Emails (Inbox)</SelectItem>
+                                                    <SelectItem value="me/events">Calendar Events</SelectItem>
+                                                    <SelectItem value="me/drive/root">OneDrive Files</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <Button onClick={createSubscription}>
+                                            Enable Notifications
+                                        </Button>
                                     </CardContent>
                                 </Card>
                             </TabsContent>

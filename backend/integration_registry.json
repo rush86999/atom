@@ -12,9 +12,34 @@
     "development": 9,
     "storage": 8,
     "email": 8,
-    "calendar": 3
+    "calendar": 3,
+    "productivity": 1
   },
   "services": {
+    "microsoft365_routes": {
+      "name": "microsoft365_routes",
+      "file": "backend\\integrations\\microsoft365_routes.py",
+      "classes": [
+        "Microsoft365SubscriptionRequest"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "productivity"
+    },
+    "microsoft365_service": {
+      "name": "microsoft365_service",
+      "file": "backend\\integrations\\microsoft365_service.py",
+      "classes": [
+        "Microsoft365Service"
+      ],
+      "auth_type": "oauth",
+      "has_connect": true,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "productivity"
+    },
     "airtable_routes": {
       "name": "airtable_routes",
       "file": "backend\\integrations\\airtable_routes.py",

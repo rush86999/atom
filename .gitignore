@@ -698,3 +698,9 @@ backend/test_engine_deep.py
 backend/verify_scheduler.py
 backend/test_chat_endpoint.py
 
+# Frontend build logs and debug scripts
+frontend-nextjs/*_log_*.txt
+frontend-nextjs/frontend_build_*.txt
+frontend-nextjs/read_log.py
+frontend-nextjs/npm_install_log.txt
+

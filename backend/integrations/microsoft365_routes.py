@@ -18,8 +18,15 @@ from .microsoft365_service import (
     Microsoft365User,
 )
 
+class Microsoft365SubscriptionRequest(BaseModel):
+    resource: str
+    changeType: str
+    notificationUrl: str
+    expirationDateTime: str
+
+
 # Initialize router
-microsoft365_router = APIRouter(prefix="/microsoft365", tags=["Microsoft 365"])
+microsoft365_router = APIRouter(tags=["Microsoft 365"])
 
 # Service instance
 microsoft365_service = Microsoft365Service()
@@ -141,3 +148,78 @@ async def microsoft365_capabilities():
             "compliance_standards",
         ],
     }
+
+
+@microsoft365_router.delete("/outlook/messages/{message_id}")
+async def delete_microsoft365_message(message_id: str, access_token: str):
+    """Delete an Outlook message."""
+    result = await microsoft365_service.delete_item(access_token, "message", message_id)
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+    return {"status": "success", "message": "Message deleted"}
+
+
+@microsoft365_router.delete("/calendar/events/{event_id}")
+async def delete_microsoft365_event(event_id: str, access_token: str):
+    """Delete a calendar event."""
+    result = await microsoft365_service.delete_item(access_token, "event", event_id)
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+    return {"status": "success", "message": "Event deleted"}
+
+
+@microsoft365_router.delete("/files/{item_id}")
+async def delete_microsoft365_file(item_id: str, access_token: str):
+    """Delete a file from OneDrive."""
+    result = await microsoft365_service.delete_item(access_token, "file", item_id)
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+    return {"status": "success", "message": "File deleted"}
+
+
+@microsoft365_router.delete("/teams/{team_id}/channels/{channel_id}/messages/{message_id}")
+async def delete_microsoft365_team_message(team_id: str, channel_id: str, message_id: str, access_token: str):
+    """Delete a Teams message."""
+    result = await microsoft365_service.delete_item(
+        access_token, 
+        "team_message", 
+        message_id, 
+        params={"team_id": team_id, "channel_id": channel_id}
+    )
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+    return {"status": "success", "message": "Message deleted"}
+
+
+@microsoft365_router.post("/subscriptions")
+async def create_microsoft365_subscription(
+    subscription: Microsoft365SubscriptionRequest, access_token: str
+):
+    """Create a webhook subscription."""
+    result = await microsoft365_service.create_subscription(
+        access_token,
+        subscription.resource,
+        subscription.changeType,
+        subscription.notificationUrl,
+        subscription.expirationDateTime,
+    )
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result["data"]
+
+
+@microsoft365_router.post("/webhook")
+async def handle_microsoft365_webhook(validationToken: Optional[str] = None):
+    """
+    Handle Microsoft Graph webhooks.
+    If validationToken is present, it's a verification request (return it back plain text).
+    Otherwise it's a notification payload.
+    """
+    if validationToken:
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(validationToken)
+    
+    # Process notification logic here
+    # Ideally queue this for background processing
+    return {"status": "received"}
+

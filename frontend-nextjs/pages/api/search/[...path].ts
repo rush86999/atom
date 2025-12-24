@@ -5,7 +5,7 @@ export default async function handler(
   res: NextApiResponse,
 ) {
   const { path } = req.query;
-  const backendUrl = process.env.BACKEND_URL || "http://localhost:5058";
+  const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5059";
 
   // Construct the full backend URL
   const apiPath = Array.isArray(path) ? path.join("/") : path || "";

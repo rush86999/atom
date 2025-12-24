@@ -1,9 +1,24 @@
 import logging
 from typing import Dict, Any, Optional, Type
-from operations.automations.crm_operator import CRMManualOperator
-from finance.automations.legacy_portals import BankPortalWorkflow
-
 logger = logging.getLogger(__name__)
+
+try:
+    from operations.automations.crm_operator import CRMManualOperator
+    CRM_AGENT_AVAILABLE = True
+except ImportError:
+    logger.warning("CRM Manual Operator not available (skipping fallback)")
+    CRMManualOperator = None
+    CRM_AGENT_AVAILABLE = False
+
+try:
+    from finance.automations.legacy_portals import BankPortalWorkflow
+    BANK_AGENT_AVAILABLE = True
+except ImportError:
+    logger.warning("Bank Portal Workflow not available (skipping fallback)")
+    BankPortalWorkflow = None
+    BANK_AGENT_AVAILABLE = False
+
+
 
 class MetaAutomationEngine:
     """
@@ -13,11 +28,14 @@ class MetaAutomationEngine:
     
     def __init__(self):
         # Map Integration Type -> Browser Agent Class
-        self.fallback_registry = {
-            "SALESFORCE": CRMManualOperator,
-            "HUBSPOT": CRMManualOperator, # Assuming we use same/similar for demo
-            "BANKING": BankPortalWorkflow
-        }
+        self.fallback_registry = {}
+        
+        if CRM_AGENT_AVAILABLE:
+            self.fallback_registry["SALESFORCE"] = CRMManualOperator
+            self.fallback_registry["HUBSPOT"] = CRMManualOperator
+            
+        if BANK_AGENT_AVAILABLE:
+            self.fallback_registry["BANKING"] = BankPortalWorkflow
 
     def should_fallback(self, error: Exception) -> bool:
         """
