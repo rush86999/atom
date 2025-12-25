@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
 from core.byok_endpoints import get_byok_manager
+from integrations.mcp_service import mcp_service
 
 # Try to import Lux SDK, handle missing dependency
 try:
@@ -34,6 +35,7 @@ class ComputerUseAgent:
         self.byok = get_byok_manager()
         self.default_mode = os.getenv("LUX_MODEL_MODE", "thinker")
         self._active_tasks: Dict[str, AgentTask] = {}
+        self.mcp = mcp_service  # MCP access for web search and web access
         
         if not HAS_LUX_SDK:
             logger.warning("Lux SDK (oagi) not installed. Agent service will run in MOCK mode.")

@@ -3,6 +3,7 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from core.lancedb_handler import get_lancedb_handler
 from core.knowledge_extractor import KnowledgeExtractor
+from core.automation_settings import get_automation_settings
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
 
 logger = logging.getLogger(__name__)

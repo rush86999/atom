@@ -13,10 +13,14 @@ class ZohoCRMService:
         self.access_token = os.getenv("ZOHO_CRM_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
 
-    async def get_leads(self, limit: int = 200) -> List[Dict[str, Any]]:
+    async def get_leads(self, limit: int = 200, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch leads from Zoho CRM"""
         try:
-            headers = {"Authorization": f"Zoho-oauthtoken {self.access_token}"}
+            active_token = token or self.access_token
+            if not active_token:
+                 raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
             response = await self.client.get(f"{self.base_url}/Leads", headers=headers)
             response.raise_for_status()
             return response.json().get("data", [])
@@ -24,10 +28,14 @@ class ZohoCRMService:
             logger.error(f"Failed to fetch Zoho CRM leads: {e}")
             return []
 
-    async def create_lead(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_lead(self, lead_data: Dict[str, Any], token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new lead in Zoho CRM"""
         try:
-            headers = {"Authorization": f"Zoho-oauthtoken {self.access_token}"}
+            active_token = token or self.access_token
+            if not active_token:
+                 raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
             payload = {"data": [lead_data]}
             response = await self.client.post(f"{self.base_url}/Leads", headers=headers, json=payload)
             response.raise_for_status()
@@ -36,10 +44,14 @@ class ZohoCRMService:
             logger.error(f"Failed to create Zoho CRM lead: {e}")
             raise HTTPException(status_code=500, detail="Zoho CRM Lead creation failed")
 
-    async def get_deals(self) -> List[Dict[str, Any]]:
+    async def get_deals(self, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch deals (Opportunities) from Zoho CRM"""
         try:
-            headers = {"Authorization": f"Zoho-oauthtoken {self.access_token}"}
+            active_token = token or self.access_token
+            if not active_token:
+                 raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
             response = await self.client.get(f"{self.base_url}/Deals", headers=headers)
             response.raise_for_status()
             return response.json().get("data", [])

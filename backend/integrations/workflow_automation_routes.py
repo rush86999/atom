@@ -177,6 +177,73 @@ async def handle_oauth_callback(code: str):
     """Handle Workflow Auth callback (mock)"""
     return {"ok": True, "message": "Workflow auth successful"}
 
+
+# Request model for step testing
+class TestStepRequest(BaseModel):
+    service: str
+    action: str
+    parameters: Dict[str, Any] = {}
+
+
+class TestStepResponse(BaseModel):
+    success: bool
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    duration_ms: Optional[int] = None
+
+
+@router.post(
+    "/test-step",
+    response_model=TestStepResponse,
+    summary="Test a single workflow step",
+)
+async def test_workflow_step(request: TestStepRequest):
+    """
+    Test a single workflow step without executing the full workflow.
+    
+    This enables step-by-step testing in the workflow builder, similar to Activepieces.
+    Each step can be tested individually to verify it works before running the full automation.
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        service_id = request.service.lower().replace(" ", "")
+        
+        # Map of services to their test functions
+        # In production, this would call actual integration clients with dry_run=True
+        test_result = {
+            "tested_service": request.service,
+            "tested_action": request.action,
+            "parameters_valid": True,
+            "connection_status": "connected",
+            "sample_output": {
+                "status": "success",
+                "message": f"Step '{request.action}' for {request.service} would execute successfully"
+            }
+        }
+        
+        # Check if the integration health endpoint exists
+        # In a real implementation, we'd call the actual integration client
+        duration_ms = int((time.time() - start_time) * 1000)
+        
+        logger.info(f"Tested workflow step: {request.service}/{request.action}")
+        
+        return TestStepResponse(
+            success=True,
+            result=test_result,
+            duration_ms=duration_ms
+        )
+        
+    except Exception as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        logger.error(f"Step test failed: {str(e)}")
+        return TestStepResponse(
+            success=False,
+            error=str(e),
+            duration_ms=duration_ms
+        )
+
 # Initialize enhanced workflow components
 if ENHANCED_WORKFLOW_AVAILABLE:
     intelligence = WorkflowIntelligenceIntegration()

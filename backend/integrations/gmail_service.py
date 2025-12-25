@@ -46,7 +46,10 @@ class GmailService:
             'https://www.googleapis.com/auth/gmail.modify'
         ]
         self.service = None
-        self._authenticate()
+        self.service = None
+        # Only auto-authenticate if credentials path exists or tokens are present
+        if os.path.exists(self.credentials_path) or os.path.exists(self.token_path):
+             self._authenticate()
     
     def _authenticate(self):
         """Authenticate with Gmail API"""
@@ -147,15 +150,40 @@ class GmailService:
                 "authenticated": False
             }
     
-    def get_messages(self, query: str = "", max_results: int = 50, include_spam_trash: bool = False) -> List[Dict[str, Any]]:
+
+    def _get_service_with_token(self, token: Optional[str] = None):
+        """Get a Gmail service instance, potentially with a dynamic token"""
+        if not token:
+            return self.service
+            
+        try:
+            # Create credentials from the access token
+            creds = Credentials(
+                token=token,
+                token_uri=GOOGLE_OAUTH_CONFIG.token_url,
+                client_id=GOOGLE_OAUTH_CONFIG.client_id,
+                client_secret=GOOGLE_OAUTH_CONFIG.client_secret,
+                scopes=self.scopes
+            )
+            return build('gmail', 'v1', credentials=creds)
+        except Exception as e:
+            logger.error(f"Failed to create service with dynamic token: {e}")
+            return None
+
+    def get_messages(self, query: str = "", max_results: int = 50, include_spam_trash: bool = False, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get messages from Gmail"""
         try:
+            service = self._get_service_with_token(token)
+            if not service:
+                logger.warning("Gmail service not available")
+                return []
+
             messages = []
             page_token = None
             
             while len(messages) < max_results:
                 try:
-                    result = self.service.users().messages().list(
+                    result = service.users().messages().list(
                         userId='me',
                         q=query,
                         maxResults=min(max_results - len(messages), 50),
@@ -176,7 +204,7 @@ class GmailService:
             # Fetch full message details for each message
             full_messages = []
             for msg in messages[:max_results]:
-                full_msg = self.get_message(msg['id'])
+                full_msg = self.get_message(msg['id'], token=token)
                 if full_msg:
                     full_messages.append(full_msg)
             
@@ -186,10 +214,14 @@ class GmailService:
             logger.error(f"Failed to get messages: {e}")
             return []
     
-    def get_message(self, message_id: str) -> Optional[Dict[str, Any]]:
+    def get_message(self, message_id: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get a specific message by ID"""
         try:
-            message = self.service.users().messages().get(
+            service = self._get_service_with_token(token)
+            if not service:
+                return None
+
+            message = service.users().messages().get(
                 userId='me',
                 id=message_id,
                 format='full'
@@ -261,9 +293,14 @@ class GmailService:
             logger.error(f"Error extracting body: {e}")
             return ""
     
-    def send_message(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "", thread_id: str = None) -> Optional[Dict[str, Any]]:
+    def send_message(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "", thread_id: str = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Send an email"""
         try:
+            service = self._get_service_with_token(token)
+            if not service:
+                logger.error("Cannot send email: No Gmail service available")
+                return None
+
             message = MIMEMultipart()
             message['to'] = to
             message['subject'] = subject
@@ -283,12 +320,12 @@ class GmailService:
             }
             
             if thread_id:
-                result = self.service.users().messages().send(
+                result = service.users().messages().send(
                     userId='me',
                     body=message_data
                 ).execute()
             else:
-                result = self.service.users().messages().send(
+                result = service.users().messages().send(
                     userId='me',
                     body={'raw': raw}
                 ).execute()
@@ -299,9 +336,13 @@ class GmailService:
             logger.error(f"Failed to send message: {e}")
             return None
     
-    def draft_message(self, to: str, subject: str, body: str, thread_id: str = None) -> Optional[Dict[str, Any]]:
+    def draft_message(self, to: str, subject: str, body: str, thread_id: str = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Create a draft email"""
         try:
+            service = self._get_service_with_token(token)
+            if not service:
+                return None
+
             message = MIMEMultipart()
             message['to'] = to
             message['subject'] = subject
@@ -316,7 +357,7 @@ class GmailService:
                 }
             }
             
-            result = self.service.users().drafts().create(
+            result = service.users().drafts().create(
                 userId='me',
                 body=message_data
             ).execute()

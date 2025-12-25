@@ -4,9 +4,14 @@ import logging
 from pathlib import Path
 import uvicorn
 from datetime import datetime
+import core.models
+import core.models_registration  # Fixes circular relationship issues
+from core.database import SessionLocal, get_db
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 
 # --- V2 IMPORTS (Architecture) ---
 from core.lazy_integration_registry import (
@@ -34,19 +39,32 @@ logger.info(f"Configuration loaded from {env_path}")
 deepseek_status = os.getenv("DEEPSEEK_API_KEY")
 logger.info(f"DEBUG: Startup DEEPSEEK_API_KEY present: {bool(deepseek_status)}")
 
+# Environment settings
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+DISABLE_DOCS = ENVIRONMENT == "production"
+
 # --- APP INITIALIZATION ---
 app = FastAPI(
     title="ATOM API",
     description="Advanced Task Orchestration & Management API - Hybrid V2",
     version="2.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if DISABLE_DOCS else "/docs",
+    redoc_url=None if DISABLE_DOCS else "/redoc",
+    openapi_url=None if DISABLE_DOCS else "/openapi.json",
+)
+
+# Trusted Host Middleware
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=ALLOWED_HOSTS
 )
 
 # CORS Middleware (Standard V1/V2)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -269,6 +287,28 @@ try:
         app.include_router(ws_router, tags=["WebSockets"])
     except ImportError:
         logger.warning("WebSocket routes not found, skipping.")
+
+    # 6. MCP Routes (Web Search & Web Access for Agents)
+    try:
+        from integrations.mcp_routes import router as mcp_router
+        app.include_router(mcp_router, tags=["MCP"])
+        logger.info("✓ MCP Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"MCP routes not found: {e}")
+
+    try:
+        from api.integrations_catalog_routes import router as catalog_router
+        app.include_router(catalog_router)
+        logger.info("✓ Integrations Catalog Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Integrations catalog routes not found: {e}")
+
+    try:
+        from api.dynamic_options_routes import router as dynamic_options_router
+        app.include_router(dynamic_options_router)
+        logger.info("✓ Dynamic Options Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Dynamic options routes not found: {e}")
 
     logger.info("✓ Core Routes Loaded Successfully")
 

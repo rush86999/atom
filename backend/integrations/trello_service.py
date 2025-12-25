@@ -36,6 +36,29 @@ class TrelloService:
             'Accept': 'application/json'
         })
     
+    def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None, 
+                     data: Optional[Dict] = None, token: Optional[str] = None) -> requests.Response:
+        """Make request with optional dynamic token"""
+        # Start with default auth params
+        request_params = self.auth_params.copy()
+        
+        # Override with dynamic token if provided
+        if token:
+            request_params['token'] = token
+            
+        # Merge with method-specific params
+        if params:
+            request_params.update(params)
+            
+        url = endpoint if endpoint.startswith('http') else f"{self.base_url}{endpoint}"
+        
+        return self.session.request(
+            method=method,
+            url=url,
+            params=request_params,
+            data=data
+        )
+
     def test_connection(self) -> Dict[str, Any]:
         """Test Trello API connection"""
         try:
@@ -64,24 +87,21 @@ class TrelloService:
                 "authenticated": False
             }
     
-    def get_boards(self, filter: str = "open") -> List[Dict[str, Any]]:
+    def get_boards(self, filter: str = "open", token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get boards for authenticated user"""
         try:
-            params = self.auth_params.copy()
-            params['filter'] = filter
-            
-            response = self.session.get(f"{self.base_url}/members/me/boards", params=params)
+            params = {'filter': filter}
+            response = self._make_request("GET", "/members/me/boards", params=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get boards: {e}")
             return []
     
-    def get_board(self, board_id: str) -> Optional[Dict[str, Any]]:
+    def get_board(self, board_id: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get specific board details"""
         try:
-            params = self.auth_params.copy()
-            response = self.session.get(f"{self.base_url}/boards/{board_id}", params=params)
+            response = self._make_request("GET", f"/boards/{board_id}", token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -89,42 +109,42 @@ class TrelloService:
             return None
     
     def create_board(self, name: str, description: str = "", 
-                   default_lists: bool = True) -> Optional[Dict[str, Any]]:
+                   default_lists: bool = True, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Create a new board"""
         try:
-            params = self.auth_params.copy()
-            params['name'] = name
-            params['desc'] = description
-            params['defaultLists'] = str(default_lists).lower()
+            params = {
+                'name': name,
+                'desc': description,
+                'defaultLists': str(default_lists).lower()
+            }
             
-            response = self.session.post(f"{self.base_url}/boards/", data=params)
+            response = self._make_request("POST", "/boards/", params=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to create board: {e}")
             return None
     
-    def get_lists(self, board_id: str, filter: str = "open") -> List[Dict[str, Any]]:
+    def get_lists(self, board_id: str, filter: str = "open", token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get lists on a board"""
         try:
-            params = self.auth_params.copy()
-            params['filter'] = filter
-            
-            response = self.session.get(f"{self.base_url}/boards/{board_id}/lists", params=params)
+            params = {'filter': filter}
+            response = self._make_request("GET", f"/boards/{board_id}/lists", params=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get lists for board {board_id}: {e}")
             return []
     
-    def create_list(self, board_id: str, name: str, pos: str = "bottom") -> Optional[Dict[str, Any]]:
+    def create_list(self, board_id: str, name: str, pos: str = "bottom", token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Create a new list on a board"""
         try:
-            params = self.auth_params.copy()
-            params['name'] = name
-            params['pos'] = pos
+            params = {
+                'name': name,
+                'pos': pos
+            }
             
-            response = self.session.post(f"{self.base_url}/boards/{board_id}/lists", data=params)
+            response = self._make_request("POST", f"/boards/{board_id}/lists", data=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -132,18 +152,17 @@ class TrelloService:
             return None
     
     def get_cards(self, list_id: str = None, board_id: str = None,
-                  filter: str = "open") -> List[Dict[str, Any]]:
+                  filter: str = "open", token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get cards from list or board"""
         try:
-            params = self.auth_params.copy()
-            params['filter'] = filter
+            params = {'filter': filter}
             
             if list_id:
-                response = self.session.get(f"{self.base_url}/lists/{list_id}/cards", params=params)
+                response = self._make_request("GET", f"/lists/{list_id}/cards", params=params, token=token)
             elif board_id:
-                response = self.session.get(f"{self.base_url}/boards/{board_id}/cards", params=params)
+                response = self._make_request("GET", f"/boards/{board_id}/cards", params=params, token=token)
             else:
-                response = self.session.get(f"{self.base_url}/members/me/cards", params=params)
+                response = self._make_request("GET", "/members/me/cards", params=params, token=token)
             
             response.raise_for_status()
             return response.json()
@@ -151,11 +170,10 @@ class TrelloService:
             logger.error(f"Failed to get cards: {e}")
             return []
     
-    def get_card(self, card_id: str) -> Optional[Dict[str, Any]]:
+    def get_card(self, card_id: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get specific card details"""
         try:
-            params = self.auth_params.copy()
-            response = self.session.get(f"{self.base_url}/cards/{card_id}", params=params)
+            response = self._make_request("GET", f"/cards/{card_id}", token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -164,14 +182,15 @@ class TrelloService:
     
     def create_card(self, name: str, list_id: str, description: str = "",
                    pos: str = "bottom", due: str = None, 
-                   labels: List[str] = None, members: List[str] = None) -> Optional[Dict[str, Any]]:
+                   labels: List[str] = None, members: List[str] = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Create a new card"""
         try:
-            params = self.auth_params.copy()
-            params['name'] = name
-            params['idList'] = list_id
-            params['desc'] = description
-            params['pos'] = pos
+            params = {
+                'name': name,
+                'idList': list_id,
+                'desc': description,
+                'pos': pos
+            }
             
             if due:
                 params['due'] = due
@@ -182,106 +201,81 @@ class TrelloService:
             if members:
                 params['idMembers'] = ','.join(members)
             
-            response = self.session.post(f"{self.base_url}/cards", data=params)
+            response = self._make_request("POST", "/cards", data=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to create card: {e}")
             return None
     
-    def update_card(self, card_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_card(self, card_id: str, update_data: Dict[str, Any], token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Update a card"""
         try:
-            params = self.auth_params.copy()
-            params.update(update_data)
-            
-            response = self.session.put(f"{self.base_url}/cards/{card_id}", data=params)
+            response = self._make_request("PUT", f"/cards/{card_id}", data=update_data, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to update card {card_id}: {e}")
             return None
     
-    def archive_card(self, card_id: str) -> bool:
+    def archive_card(self, card_id: str, token: Optional[str] = None) -> bool:
         """Archive a card"""
         try:
-            params = self.auth_params.copy()
-            params['closed'] = 'true'
-            
-            response = self.session.put(f"{self.base_url}/cards/{card_id}", data=params)
+            params = {'closed': 'true'}
+            response = self._make_request("PUT", f"/cards/{card_id}", data=params, token=token)
             response.raise_for_status()
             return True
         except Exception as e:
             logger.error(f"Failed to archive card {card_id}: {e}")
             return False
     
-    def delete_card(self, card_id: str) -> bool:
+    def delete_card(self, card_id: str, token: Optional[str] = None) -> bool:
         """Delete a card permanently"""
         try:
-            params = self.auth_params.copy()
-            response = self.session.delete(f"{self.base_url}/cards/{card_id}", params=params)
+            response = self._make_request("DELETE", f"/cards/{card_id}", token=token)
             response.raise_for_status()
             return True
         except Exception as e:
             logger.error(f"Failed to delete card {card_id}: {e}")
             return False
     
-    def add_comment(self, card_id: str, text: str) -> Optional[Dict[str, Any]]:
+    def add_comment(self, card_id: str, text: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Add comment to card"""
         try:
-            params = self.auth_params.copy()
-            params['text'] = text
-            
-            response = self.session.post(
-                f"{self.base_url}/cards/{card_id}/actions/comments",
-                data=params
-            )
+            params = {'text': text}
+            response = self._make_request("POST", f"/cards/{card_id}/actions/comments", data=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to add comment to card {card_id}: {e}")
             return None
     
-    def get_comments(self, card_id: str) -> List[Dict[str, Any]]:
+    def get_comments(self, card_id: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get comments for a card"""
         try:
-            params = self.auth_params.copy()
-            params['filter'] = 'commentCard'
-            
-            response = self.session.get(
-                f"{self.base_url}/cards/{card_id}/actions",
-                params=params
-            )
+            params = {'filter': 'commentCard'}
+            response = self._make_request("GET", f"/cards/{card_id}/actions", params=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get comments for card {card_id}: {e}")
             return []
     
-    def get_checklists(self, card_id: str) -> List[Dict[str, Any]]:
+    def get_checklists(self, card_id: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get checklists for a card"""
         try:
-            params = self.auth_params.copy()
-            response = self.session.get(
-                f"{self.base_url}/cards/{card_id}/checklists",
-                params=params
-            )
+            response = self._make_request("GET", f"/cards/{card_id}/checklists", token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get checklists for card {card_id}: {e}")
             return []
     
-    def create_checklist(self, card_id: str, name: str) -> Optional[Dict[str, Any]]:
+    def create_checklist(self, card_id: str, name: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Create checklist on card"""
         try:
-            params = self.auth_params.copy()
-            params['name'] = name
-            
-            response = self.session.post(
-                f"{self.base_url}/cards/{card_id}/checklists",
-                data=params
-            )
+            params = {'name': name}
+            response = self._make_request("POST", f"/cards/{card_id}/checklists", data=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -289,128 +283,96 @@ class TrelloService:
             return None
     
     def add_checklist_item(self, checklist_id: str, name: str, 
-                         checked: bool = False) -> Optional[Dict[str, Any]]:
+                         checked: bool = False, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Add item to checklist"""
         try:
-            params = self.auth_params.copy()
-            params['name'] = name
-            params['checked'] = str(checked).lower()
+            params = {
+                'name': name,
+                'checked': str(checked).lower()
+            }
             
-            response = self.session.post(
-                f"{self.base_url}/checklists/{checklist_id}/checkItems",
-                data=params
-            )
+            response = self._make_request("POST", f"/checklists/{checklist_id}/checkItems", data=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to add checklist item: {e}")
             return None
     
-    def move_card(self, card_id: str, list_id: str, pos: str = "bottom") -> Optional[Dict[str, Any]]:
+    def move_card(self, card_id: str, list_id: str, pos: str = "bottom", token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Move card to different list"""
-        return self.update_card(card_id, {'idList': list_id, 'pos': pos})
+        return self.update_card(card_id, {'idList': list_id, 'pos': pos}, token=token)
     
-    def get_members(self, board_id: str) -> List[Dict[str, Any]]:
+    def get_members(self, board_id: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get members of a board"""
         try:
-            params = self.auth_params.copy()
-            response = self.session.get(
-                f"{self.base_url}/boards/{board_id}/members",
-                params=params
-            )
+            response = self._make_request("GET", f"/boards/{board_id}/members", token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get members for board {board_id}: {e}")
             return []
     
-    def add_member_to_card(self, card_id: str, member_id: str) -> Optional[Dict[str, Any]]:
+    def add_member_to_card(self, card_id: str, member_id: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Add member to card"""
         try:
-            params = self.auth_params.copy()
-            params['value'] = member_id
-            
-            response = self.session.post(
-                f"{self.base_url}/cards/{card_id}/members",
-                data=params
-            )
+            params = {'value': member_id}
+            response = self._make_request("POST", f"/cards/{card_id}/members", data=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to add member to card {card_id}: {e}")
             return None
     
-    def remove_member_from_card(self, card_id: str, member_id: str) -> bool:
+    def remove_member_from_card(self, card_id: str, member_id: str, token: Optional[str] = None) -> bool:
         """Remove member from card"""
         try:
-            params = self.auth_params.copy()
-            response = self.session.delete(
-                f"{self.base_url}/cards/{card_id}/members/{member_id}",
-                params=params
-            )
+            response = self._make_request("DELETE", f"/cards/{card_id}/members/{member_id}", token=token)
             response.raise_for_status()
             return True
         except Exception as e:
             logger.error(f"Failed to remove member from card {card_id}: {e}")
             return False
     
-    def get_labels(self, board_id: str) -> List[Dict[str, Any]]:
+    def get_labels(self, board_id: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get labels for a board"""
         try:
-            params = self.auth_params.copy()
-            response = self.session.get(
-                f"{self.base_url}/boards/{board_id}/labels",
-                params=params
-            )
+            response = self._make_request("GET", f"/boards/{board_id}/labels", token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get labels for board {board_id}: {e}")
             return []
     
-    def create_label(self, board_id: str, name: str, color: str = None) -> Optional[Dict[str, Any]]:
+    def create_label(self, board_id: str, name: str, color: str = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Create a new label on board"""
         try:
-            params = self.auth_params.copy()
-            params['name'] = name
+            params = {'name': name}
             
             if color:
                 params['color'] = color
             
-            response = self.session.post(
-                f"{self.base_url}/boards/{board_id}/labels",
-                data=params
-            )
+            response = self._make_request("POST", f"/boards/{board_id}/labels", data=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to create label: {e}")
             return None
     
-    def add_label_to_card(self, card_id: str, label_id: str) -> Optional[Dict[str, Any]]:
+    def add_label_to_card(self, card_id: str, label_id: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Add label to card"""
         try:
-            params = self.auth_params.copy()
-            params['value'] = label_id
-            
-            response = self.session.post(
-                f"{self.base_url}/cards/{card_id}/labels",
-                data=params
-            )
+            params = {'value': label_id}
+            response = self._make_request("POST", f"/cards/{card_id}/labels", data=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to add label to card {card_id}: {e}")
             return None
     
-    def remove_label_from_card(self, card_id: str, label_id: str) -> bool:
+    def remove_label_from_card(self, card_id: str, label_id: str, token: Optional[str] = None) -> bool:
         """Remove label from card"""
         try:
-            params = self.auth_params.copy()
-            response = self.session.delete(
-                f"{self.base_url}/cards/{card_id}/labels/{label_id}",
-                params=params
-            )
+            response = self._make_request("DELETE", f"/cards/{card_id}/labels/{label_id}", token=token)
             response.raise_for_status()
             return True
         except Exception as e:

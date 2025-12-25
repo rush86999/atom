@@ -867,6 +867,23 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Integration catalog table
+CREATE TABLE IF NOT EXISTS integration_catalog (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL,
+    icon TEXT,
+    color TEXT DEFAULT '#6366F1',
+    auth_type TEXT DEFAULT 'none',
+    native_id TEXT,
+    triggers JSONB DEFAULT '[]',
+    actions JSONB DEFAULT '[]',
+    popular BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_workflows_user_id ON workflows(user_id);
 CREATE INDEX IF NOT EXISTS idx_workflows_template_id ON workflows(template_id);
@@ -879,6 +896,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
 CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_integration_catalog_category ON integration_catalog(category);
+CREATE INDEX IF NOT EXISTS idx_integration_catalog_popular ON integration_catalog(popular);
 
 EOF
 

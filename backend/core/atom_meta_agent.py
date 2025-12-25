@@ -14,6 +14,7 @@ from core.database import SessionLocal
 from core.agent_world_model import WorldModelService, AgentExperience
 from core.agent_governance_service import AgentGovernanceService
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
+from integrations.mcp_service import mcp_service
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ class AtomMetaAgent:
         self.world_model = WorldModelService(workspace_id)
         self.orchestrator = AdvancedWorkflowOrchestrator()
         self._spawned_agents: Dict[str, AgentRegistry] = {}
+        self.mcp = mcp_service  # MCP access for web search and web access
         
     async def execute(self, request: str, context: Dict[str, Any] = None, 
                      trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL) -> Dict[str, Any]:

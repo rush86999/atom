@@ -165,15 +165,19 @@ class OutlookService:
         endpoint: str,
         method: str = "GET",
         data: Optional[Dict[str, Any]] = None,
+        access_token: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated request to Microsoft Graph API"""
-        access_token = await self._get_access_token(user_id)
-        if not access_token:
+        token = access_token
+        if not token:
+            token = await self._get_access_token(user_id)
+        
+        if not token:
             logger.error(f"No access token available for user {user_id}")
             return None
 
         headers = {
-            "Authorization": f"Bearer {access_token}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         }
 
@@ -227,6 +231,7 @@ class OutlookService:
         query: Optional[str] = None,
         max_results: int = 50,
         skip: int = 0,
+        token: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get user emails with filtering and pagination"""
         try:
@@ -256,7 +261,7 @@ class OutlookService:
                 query_string = "&".join([f"{k}={v}" for k, v in params.items()])
                 endpoint = f"{endpoint}?{query_string}"
 
-            result = await self._make_graph_request(user_id, endpoint)
+            result = await self._make_graph_request(user_id, endpoint, access_token=token)
 
             if result and "value" in result:
                 emails = []
@@ -296,6 +301,7 @@ class OutlookService:
         body: str,
         cc_recipients: Optional[List[str]] = None,
         bcc_recipients: Optional[List[str]] = None,
+        token: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Send email via Outlook"""
         try:
@@ -322,7 +328,7 @@ class OutlookService:
             }
 
             result = await self._make_graph_request(
-                user_id, "/me/sendMail", "POST", email_data
+                user_id, "/me/sendMail", "POST", email_data, access_token=token
             )
             return result
         except Exception as e:
@@ -337,6 +343,7 @@ class OutlookService:
         body: str,
         cc_recipients: Optional[List[str]] = None,
         bcc_recipients: Optional[List[str]] = None,
+        token: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create draft email"""
         try:
@@ -360,7 +367,7 @@ class OutlookService:
             }
 
             result = await self._make_graph_request(
-                user_id, "/me/messages", "POST", email_data
+                user_id, "/me/messages", "POST", email_data, access_token=token
             )
             return result
         except Exception as e:
@@ -368,11 +375,11 @@ class OutlookService:
             return None
 
     async def get_email_by_id(
-        self, user_id: str, email_id: str
+        self, user_id: str, email_id: str, token: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """Get specific email by ID"""
         try:
-            result = await self._make_graph_request(user_id, f"/me/messages/{email_id}")
+            result = await self._make_graph_request(user_id, f"/me/messages/{email_id}", access_token=token)
             if result:
                 email = OutlookEmail(
                     id=result.get("id"),
@@ -399,11 +406,11 @@ class OutlookService:
             logger.error(f"Error getting email by ID: {e}")
             return None
 
-    async def delete_email(self, user_id: str, email_id: str) -> bool:
+    async def delete_email(self, user_id: str, email_id: str, token: Optional[str] = None) -> bool:
         """Delete email by ID"""
         try:
             result = await self._make_graph_request(
-                user_id, f"/me/messages/{email_id}", "DELETE"
+                user_id, f"/me/messages/{email_id}", "DELETE", access_token=token
             )
             return result is not None
         except Exception as e:
@@ -417,6 +424,7 @@ class OutlookService:
         time_min: Optional[str] = None,
         time_max: Optional[str] = None,
         max_results: int = 50,
+        token: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get calendar events with time range filtering"""
         try:
@@ -438,7 +446,7 @@ class OutlookService:
             else:
                 endpoint = "/me/events"
 
-            result = await self._make_graph_request(user_id, endpoint)
+            result = await self._make_graph_request(user_id, endpoint, access_token=token)
 
             if result and "value" in result:
                 events = []
@@ -475,6 +483,7 @@ class OutlookService:
         end: Optional[Dict[str, Any]] = None,
         location: Optional[Dict[str, Any]] = None,
         attendees: Optional[List[str]] = None,
+        token: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create calendar event"""
         try:
@@ -499,7 +508,7 @@ class OutlookService:
                 ]
 
             result = await self._make_graph_request(
-                user_id, "/me/events", "POST", event_data
+                user_id, "/me/events", "POST", event_data, access_token=token
             )
             return result
         except Exception as e:
@@ -508,7 +517,7 @@ class OutlookService:
 
     # Contact Operations
     async def get_user_contacts(
-        self, user_id: str, query: Optional[str] = None, max_results: int = 50
+        self, user_id: str, query: Optional[str] = None, max_results: int = 50, token: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get user contacts with optional search"""
         try:
@@ -526,7 +535,7 @@ class OutlookService:
             else:
                 endpoint = "/me/contacts"
 
-            result = await self._make_graph_request(user_id, endpoint)
+            result = await self._make_graph_request(user_id, endpoint, access_token=token)
 
             if result and "value" in result:
                 contacts = []
@@ -565,6 +574,7 @@ class OutlookService:
         email_addresses: Optional[List[Dict[str, Any]]] = None,
         business_phones: Optional[List[str]] = None,
         company_name: Optional[str] = None,
+        token: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create contact"""
         try:
@@ -582,7 +592,7 @@ class OutlookService:
                 contact_data["companyName"] = company_name
 
             result = await self._make_graph_request(
-                user_id, "/me/contacts", "POST", contact_data
+                user_id, "/me/contacts", "POST", contact_data, access_token=token
             )
             return result
         except Exception as e:
@@ -591,7 +601,7 @@ class OutlookService:
 
     # Task Operations
     async def get_user_tasks(
-        self, user_id: str, status: Optional[str] = None, max_results: int = 50
+        self, user_id: str, status: Optional[str] = None, max_results: int = 50, token: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get user tasks with optional status filtering"""
         try:
@@ -607,7 +617,7 @@ class OutlookService:
             else:
                 endpoint = "/me/todo/lists/tasks/tasks"
 
-            result = await self._make_graph_request(user_id, endpoint)
+            result = await self._make_graph_request(user_id, endpoint, access_token=token)
 
             if result and "value" in result:
                 tasks = []
@@ -640,6 +650,7 @@ class OutlookService:
         importance: str = "normal",
         due_date_time: Optional[Dict[str, Any]] = None,
         categories: Optional[List[str]] = None,
+        token: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create task"""
         try:
@@ -655,7 +666,7 @@ class OutlookService:
                 task_data["categories"] = categories
 
             result = await self._make_graph_request(
-                user_id, "/me/todo/lists/tasks/tasks", "POST", task_data
+                user_id, "/me/todo/lists/tasks/tasks", "POST", task_data, access_token=token
             )
             return result
         except Exception as e:
@@ -663,10 +674,10 @@ class OutlookService:
             return None
 
     # User Profile Operations
-    async def get_user_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
+    async def get_user_profile(self, user_id: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get user profile information"""
         try:
-            result = await self._make_graph_request(user_id, "/me")
+            result = await self._make_graph_request(user_id, "/me", access_token=token)
             if result:
                 user = OutlookUser(
                     id=result.get("id"),
@@ -685,7 +696,7 @@ class OutlookService:
             return None
 
     async def get_unread_emails(
-        self, user_id: str, max_results: int = 50
+        self, user_id: str, max_results: int = 50, token: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get unread emails"""
         try:
@@ -697,7 +708,7 @@ class OutlookService:
             query_string = "&".join([f"{k}={v}" for k, v in params.items()])
             endpoint = f"/me/messages?{query_string}"
 
-            result = await self._make_graph_request(user_id, endpoint)
+            result = await self._make_graph_request(user_id, endpoint, access_token=token)
 
             if result and "value" in result:
                 emails = []
@@ -730,7 +741,7 @@ class OutlookService:
             return []
 
     async def search_emails(
-        self, user_id: str, query: str, max_results: int = 50
+        self, user_id: str, query: str, max_results: int = 50, token: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Search emails across all folders"""
         try:
@@ -742,7 +753,7 @@ class OutlookService:
             query_string = "&".join([f"{k}={v}" for k, v in params.items()])
             endpoint = f"/me/messages?{query_string}"
 
-            result = await self._make_graph_request(user_id, endpoint)
+            result = await self._make_graph_request(user_id, endpoint, access_token=token)
 
             if result and "value" in result:
                 emails = []

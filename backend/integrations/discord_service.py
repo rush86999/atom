@@ -146,11 +146,12 @@ class DiscordService:
     async def get_guild_channels(
         self,
         guild_id: str,
-        use_bot_token: bool = True
+        use_bot_token: bool = True,
+        access_token: str = None
     ) -> List[Dict[str, Any]]:
         """Get channels in a guild"""
         try:
-            headers = self._get_headers(use_bot_token=use_bot_token)
+            headers = self._get_headers(access_token=access_token, use_bot_token=use_bot_token)
             
             response = await self.client.get(
                 f"{self.base_url}/guilds/{guild_id}/channels",
@@ -171,11 +172,12 @@ class DiscordService:
         channel_id: str,
         content: str,
         use_bot_token: bool = True,
-        embeds: List[Dict[str, Any]] = None
+        embeds: List[Dict[str, Any]] = None,
+        access_token: str = None
     ) -> Dict[str, Any]:
         """Send a message to a channel"""
         try:
-            headers = self._get_headers(use_bot_token=use_bot_token)
+            headers = self._get_headers(access_token=access_token, use_bot_token=use_bot_token)
             
             payload = {"content": content}
             if embeds:
@@ -200,11 +202,12 @@ class DiscordService:
         self,
         channel_id: str,
         limit: int = 50,
-        use_bot_token: bool = True
+        use_bot_token: bool = True,
+        access_token: str = None
     ) -> List[Dict[str, Any]]:
         """Get messages from a channel"""
         try:
-            headers = self._get_headers(use_bot_token=use_bot_token)
+            headers = self._get_headers(access_token=access_token, use_bot_token=use_bot_token)
             params = {"limit": limit}
             
             response = await self.client.get(

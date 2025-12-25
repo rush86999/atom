@@ -164,8 +164,8 @@ class WorkflowExecution(Base):
     __tablename__ = "workflow_executions"
 
     execution_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_id = Column(String, nullable=False)
-    status = Column(String, default=WorkflowExecutionStatus.PENDING.value)
+    workflow_id = Column(String, nullable=False, index=True)
+    status = Column(String, default=WorkflowExecutionStatus.PENDING.value, index=True)
     input_data = Column(Text, nullable=True)
     steps = Column(Text, nullable=True)
     outputs = Column(Text, nullable=True)
@@ -175,7 +175,7 @@ class WorkflowExecution(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     error = Column(Text, nullable=True)
     # Add user_id foreign key for user binding
-    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
 
     # Relationships
     user = relationship("User", backref="workflow_executions")
@@ -388,3 +388,26 @@ class AgentFeedback(Base):
     # Relationships
     agent = relationship("AgentRegistry", backref="feedback_history")
     user = relationship("User", backref="submitted_feedback")
+
+class IntegrationCatalog(Base):
+    """Native catalog of integration pieces available in the platform"""
+    __tablename__ = "integration_catalog"
+
+    id = Column(String, primary_key=True) # Usually the piece name/slug
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String, nullable=False)
+    icon = Column(String, nullable=True)
+    color = Column(String, default="#6366F1")
+    auth_type = Column(String, default="none")
+    
+    # Link to native implementation if exists (e.g., "slack", "gmail")
+    native_id = Column(String, nullable=True)
+    
+    # Store actions/triggers as JSON for flexibility
+    triggers = Column(JSON, default=list)
+    actions = Column(JSON, default=list)
+    
+    popular = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

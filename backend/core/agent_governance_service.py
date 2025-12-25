@@ -198,3 +198,199 @@ class AgentGovernanceService:
         if category:
             query = query.filter(AgentRegistry.category == category)
         return query.all()
+
+    # ==================== SKILL LEVEL ENFORCEMENT ====================
+    
+    # Action complexity levels - higher = more complex/risky
+    ACTION_COMPLEXITY = {
+        # Low risk - Student can do
+        "search": 1,
+        "read": 1,
+        "list": 1,
+        "get": 1,
+        "fetch": 1,
+        "summarize": 1,
+        
+        # Medium-low - Intern level
+        "analyze": 2,
+        "suggest": 2,
+        "draft": 2,
+        "generate": 2,
+        "recommend": 2,
+        
+        # Medium - Supervised level
+        "create": 3,
+        "update": 3,
+        "send_email": 3,
+        "post_message": 3,
+        "schedule": 3,
+        
+        # High - Autonomous level only
+        "delete": 4,
+        "execute": 4,
+        "deploy": 4,
+        "transfer": 4,
+        "payment": 4,
+        "approve": 4,
+    }
+    
+    # Minimum maturity level for each action complexity
+    MATURITY_REQUIREMENTS = {
+        1: AgentStatus.STUDENT,   # Anyone can do low-complexity
+        2: AgentStatus.INTERN,    # Requires Intern+
+        3: AgentStatus.SUPERVISED, # Requires Supervised+
+        4: AgentStatus.AUTONOMOUS, # Only Autonomous can do
+    }
+    
+    def can_perform_action(
+        self, 
+        agent_id: str, 
+        action_type: str, 
+        require_approval: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Check if an agent has sufficient maturity to perform an action.
+        
+        Returns:
+            {
+                "allowed": bool,
+                "reason": str,
+                "agent_status": str,
+                "action_complexity": int,
+                "required_status": str,
+                "requires_human_approval": bool
+            }
+        """
+        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            return {
+                "allowed": False,
+                "reason": "Agent not found",
+                "requires_human_approval": True
+            }
+        
+        # Determine action complexity (default to medium if unknown)
+        action_lower = action_type.lower()
+        complexity = 2  # Default medium-low
+        for action_key, level in self.ACTION_COMPLEXITY.items():
+            if action_key in action_lower:
+                complexity = level
+                break
+        
+        # Get required maturity level
+        required_status = self.MATURITY_REQUIREMENTS.get(complexity, AgentStatus.SUPERVISED)
+        
+        # Maturity hierarchy
+        maturity_order = [
+            AgentStatus.STUDENT.value,
+            AgentStatus.INTERN.value,
+            AgentStatus.SUPERVISED.value,
+            AgentStatus.AUTONOMOUS.value,
+        ]
+        
+        agent_index = maturity_order.index(agent.status) if agent.status in maturity_order else 0
+        required_index = maturity_order.index(required_status.value)
+        
+        is_allowed = agent_index >= required_index
+        requires_approval = not is_allowed or (agent.status == AgentStatus.SUPERVISED.value and complexity >= 3)
+        
+        if is_allowed:
+            reason = f"Agent {agent.name} ({agent.status}) can perform {action_type} (complexity {complexity})"
+        else:
+            reason = f"Agent {agent.name} ({agent.status}) lacks maturity for {action_type}. Required: {required_status.value}"
+        
+        logger.info(f"Governance check: {reason} - Approval required: {requires_approval}")
+        
+        return {
+            "allowed": is_allowed,
+            "reason": reason,
+            "agent_status": agent.status,
+            "action_complexity": complexity,
+            "required_status": required_status.value,
+            "requires_human_approval": requires_approval or require_approval,
+            "confidence_score": agent.confidence_score or 0.5
+        }
+    
+    def get_agent_capabilities(self, agent_id: str) -> Dict[str, Any]:
+        """
+        Get what actions an agent is allowed to perform based on maturity.
+        
+        Returns list of allowed action types and complexity levels.
+        """
+        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            return {"error": "Agent not found", "capabilities": []}
+        
+        maturity_order = [
+            AgentStatus.STUDENT.value,
+            AgentStatus.INTERN.value,
+            AgentStatus.SUPERVISED.value,
+            AgentStatus.AUTONOMOUS.value,
+        ]
+        
+        agent_index = maturity_order.index(agent.status) if agent.status in maturity_order else 0
+        max_complexity = agent_index + 1  # Student=1, Intern=2, etc.
+        
+        allowed_actions = [
+            action for action, complexity in self.ACTION_COMPLEXITY.items()
+            if complexity <= max_complexity
+        ]
+        
+        return {
+            "agent_id": agent_id,
+            "agent_name": agent.name,
+            "maturity_level": agent.status,
+            "confidence_score": agent.confidence_score or 0.5,
+            "max_complexity": max_complexity,
+            "allowed_actions": allowed_actions,
+            "restricted_actions": [
+                action for action, complexity in self.ACTION_COMPLEXITY.items()
+                if complexity > max_complexity
+            ]
+        }
+    
+    def enforce_action(
+        self, 
+        agent_id: str, 
+        action_type: str,
+        action_details: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Enforce governance before allowing an action.
+        
+        This is the main entry point for workflow execution.
+        Returns approval status and next steps.
+        """
+        check = self.can_perform_action(agent_id, action_type)
+        
+        if not check["allowed"]:
+            # Queue for human approval
+            return {
+                "proceed": False,
+                "status": "BLOCKED",
+                "reason": check["reason"],
+                "action_required": "HUMAN_APPROVAL",
+                "agent_status": check["agent_status"],
+                "required_status": check["required_status"]
+            }
+        
+        if check["requires_human_approval"]:
+            # Can do but needs oversight
+            return {
+                "proceed": True,
+                "status": "PENDING_APPROVAL",
+                "reason": f"Agent qualified but action requires approval",
+                "action_required": "WAIT_FOR_APPROVAL",
+                "agent_status": check["agent_status"],
+                "confidence": check["confidence_score"]
+            }
+        
+        # Full auto-proceed
+        return {
+            "proceed": True,
+            "status": "APPROVED",
+            "reason": check["reason"],
+            "action_required": None,
+            "agent_status": check["agent_status"],
+            "confidence": check["confidence_score"]
+        }

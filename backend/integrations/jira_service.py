@@ -41,6 +41,21 @@ class JiraService:
             'User-Agent': 'ATOM-Platform/1.0'
         })
     
+    def _make_request(self, method: str, endpoint: str, **kwargs) -> requests.Response:
+        """Make request with optional dynamic token"""
+        token = kwargs.pop('token', None)
+        headers = self.session.headers.copy()
+        
+        if token:
+            headers['Authorization'] = f"Bearer {token}"
+            
+        return self.session.request(
+            method=method,
+            url=urljoin(self.base_url, endpoint),
+            headers=headers,
+            **kwargs
+        )
+
     def test_connection(self) -> Dict[str, Any]:
         """Test Jira API connection"""
         try:
@@ -68,24 +83,24 @@ class JiraService:
                 "authenticated": False
             }
     
-    def get_projects(self, start_at: int = 0, max_results: int = 50) -> List[Dict[str, Any]]:
+    def get_projects(self, start_at: int = 0, max_results: int = 50, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get Jira projects"""
         try:
             params = {
                 'startAt': start_at,
                 'maxResults': max_results
             }
-            response = self.session.get(f"{self.base_url}/rest/api/3/project", params=params)
+            response = self._make_request("GET", "/rest/api/3/project", params=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get projects: {e}")
             return []
     
-    def get_project(self, project_key: str) -> Optional[Dict[str, Any]]:
+    def get_project(self, project_key: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get specific project details"""
         try:
-            response = self.session.get(f"{self.base_url}/rest/api/3/project/{project_key}")
+            response = self._make_request("GET", f"/rest/api/3/project/{project_key}", token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -93,7 +108,7 @@ class JiraService:
             return None
     
     def search_issues(self, jql: str, start_at: int = 0, max_results: int = 50,
-                   fields: List[str] = None) -> Dict[str, Any]:
+                   fields: List[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Search issues using JQL"""
         try:
             if fields is None:
@@ -107,7 +122,7 @@ class JiraService:
                 'fields': ','.join(fields)
             }
             
-            response = self.session.get(f"{self.base_url}/rest/api/3/search", params=params)
+            response = self._make_request("GET", "/rest/api/3/search", params=params, token=token)
             response.raise_for_status()
             return response.json()
             
@@ -115,10 +130,10 @@ class JiraService:
             logger.error(f"Failed to search issues: {e}")
             return {"issues": [], "total": 0, "startAt": 0, "maxResults": 0}
     
-    def get_issue(self, issue_key: str) -> Optional[Dict[str, Any]]:
+    def get_issue(self, issue_key: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get specific issue details"""
         try:
-            response = self.session.get(f"{self.base_url}/rest/api/3/issue/{issue_key}")
+            response = self._make_request("GET", f"/rest/api/3/issue/{issue_key}", token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -127,7 +142,7 @@ class JiraService:
     
     def create_issue(self, project_key: str, summary: str, issue_type: str,
                    description: str = "", priority: str = None,
-                   assignee: str = None) -> Optional[Dict[str, Any]]:
+                   assignee: str = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Create a new issue"""
         try:
             data = {
@@ -155,7 +170,7 @@ class JiraService:
             if assignee:
                 data["fields"]["assignee"] = {"name": assignee}
             
-            response = self.session.post(f"{self.base_url}/rest/api/3/issue", json=data)
+            response = self._make_request("POST", "/rest/api/3/issue", json=data, token=token)
             response.raise_for_status()
             return response.json()
             
@@ -163,12 +178,14 @@ class JiraService:
             logger.error(f"Failed to create issue: {e}")
             return None
     
-    def update_issue(self, issue_key: str, update_data: Dict[str, Any]) -> bool:
+    def update_issue(self, issue_key: str, update_data: Dict[str, Any], token: Optional[str] = None) -> bool:
         """Update an issue"""
         try:
-            response = self.session.put(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}",
-                json=update_data
+            response = self._make_request(
+                "PUT",
+                f"/rest/api/3/issue/{issue_key}",
+                json=update_data,
+                token=token
             )
             response.raise_for_status()
             return True
@@ -177,7 +194,7 @@ class JiraService:
             logger.error(f"Failed to update issue {issue_key}: {e}")
             return False
     
-    def add_comment(self, issue_key: str, body: str) -> Optional[Dict[str, Any]]:
+    def add_comment(self, issue_key: str, body: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Add comment to issue"""
         try:
             data = {
@@ -194,10 +211,7 @@ class JiraService:
                 }
             }
             
-            response = self.session.post(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}/comment",
-                json=data
-            )
+            response = self._make_request("POST", f"/rest/api/3/issue/{issue_key}/comment", json=data, token=token)
             response.raise_for_status()
             return response.json()
             
@@ -205,10 +219,10 @@ class JiraService:
             logger.error(f"Failed to add comment to {issue_key}: {e}")
             return None
     
-    def get_comments(self, issue_key: str) -> List[Dict[str, Any]]:
+    def get_comments(self, issue_key: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get comments for an issue"""
         try:
-            response = self.session.get(f"{self.base_url}/rest/api/3/issue/{issue_key}/comment")
+            response = self._make_request("GET", f"/rest/api/3/issue/{issue_key}/comment", token=token)
             response.raise_for_status()
             return response.json().get('comments', [])
         except Exception as e:
@@ -216,12 +230,14 @@ class JiraService:
             return []
     
     def transition_issue(self, issue_key: str, transition_name: str,
-                      comment: str = None) -> bool:
+                      comment: str = None, token: Optional[str] = None) -> bool:
         """Transition issue to new status"""
         try:
             # Get available transitions
-            transitions_response = self.session.get(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}/transitions"
+            transitions_response = self._make_request(
+                "GET",
+                f"/rest/api/3/issue/{issue_key}/transitions",
+                token=token
             )
             transitions_response.raise_for_status()
             transitions = transitions_response.json().get('transitions', [])
@@ -259,9 +275,11 @@ class JiraService:
                     }]
                 }
             
-            response = self.session.post(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}/transitions",
-                json=data
+            response = self._make_request(
+                "POST",
+                f"/rest/api/3/issue/{issue_key}/transitions",
+                json=data,
+                token=token
             )
             response.raise_for_status()
             return True
@@ -270,7 +288,7 @@ class JiraService:
             logger.error(f"Failed to transition issue {issue_key}: {e}")
             return False
     
-    def assign_issue(self, issue_key: str, assignee: str) -> bool:
+    def assign_issue(self, issue_key: str, assignee: str, token: Optional[str] = None) -> bool:
         """Assign issue to user"""
         try:
             data = {
@@ -279,9 +297,11 @@ class JiraService:
                 }
             }
             
-            response = self.session.put(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}",
-                json=data
+            response = self._make_request(
+                "PUT",
+                f"/rest/api/3/issue/{issue_key}",
+                json=data,
+                token=token
             )
             response.raise_for_status()
             return True
@@ -290,7 +310,7 @@ class JiraService:
             logger.error(f"Failed to assign issue {issue_key} to {assignee}: {e}")
             return False
     
-    def get_users(self, project_key: str = None, start_at: int = 0, max_results: int = 50) -> List[Dict[str, Any]]:
+    def get_users(self, project_key: str = None, start_at: int = 0, max_results: int = 50, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get users"""
         try:
             params = {
@@ -298,11 +318,11 @@ class JiraService:
                 'maxResults': max_results
             }
             
-            endpoint = f"{self.base_url}/rest/api/3/users/search"
+            endpoint = "/rest/api/3/users/search"
             if project_key:
                 params['project'] = project_key
             
-            response = self.session.get(endpoint, params=params)
+            response = self._make_request("GET", endpoint, params=params, token=token)
             response.raise_for_status()
             return response.json()
             
@@ -310,23 +330,23 @@ class JiraService:
             logger.error(f"Failed to get users: {e}")
             return []
     
-    def get_statuses(self, project_key: str) -> List[Dict[str, Any]]:
+    def get_statuses(self, project_key: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get statuses for project"""
         try:
-            response = self.session.get(f"{self.base_url}/rest/api/3/project/{project_key}/statuses")
+            response = self._make_request("GET", f"/rest/api/3/project/{project_key}/statuses", token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             logger.error(f"Failed to get statuses for project {project_key}: {e}")
             return []
     
-    def get_issue_types(self, project_key: str = None) -> List[Dict[str, Any]]:
+    def get_issue_types(self, project_key: str = None, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get issue types"""
         try:
             if project_key:
-                response = self.session.get(f"{self.base_url}/rest/api/3/project/{project_key}/issuetypes")
+                response = self._make_request("GET", f"/rest/api/3/project/{project_key}/issuetypes", token=token)
             else:
-                response = self.session.get(f"{self.base_url}/rest/api/3/issuetype")
+                response = self._make_request("GET", "/rest/api/3/issuetype", token=token)
             
             response.raise_for_status()
             return response.json()
@@ -335,10 +355,10 @@ class JiraService:
             logger.error(f"Failed to get issue types: {e}")
             return []
     
-    def get_worklogs(self, issue_key: str) -> List[Dict[str, Any]]:
+    def get_worklogs(self, issue_key: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get work logs for an issue"""
         try:
-            response = self.session.get(f"{self.base_url}/rest/api/3/issue/{issue_key}/worklog")
+            response = self._make_request("GET", f"/rest/api/3/issue/{issue_key}/worklog", token=token)
             response.raise_for_status()
             return response.json().get('worklogs', [])
         except Exception as e:
@@ -346,7 +366,7 @@ class JiraService:
             return []
     
     def add_worklog(self, issue_key: str, time_spent: str, comment: str = "",
-                   started: str = None) -> Optional[Dict[str, Any]]:
+                   started: str = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Add work log to issue"""
         try:
             data = {
@@ -357,9 +377,11 @@ class JiraService:
             if started:
                 data["started"] = started
             
-            response = self.session.post(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}/worklog",
-                json=data
+            response = self._make_request(
+                "POST",
+                f"/rest/api/3/issue/{issue_key}/worklog",
+                json=data,
+                token=token
             )
             response.raise_for_status()
             return response.json()
@@ -368,10 +390,10 @@ class JiraService:
             logger.error(f"Failed to add worklog to {issue_key}: {e}")
             return None
     
-    def get_project_components(self, project_key: str) -> List[Dict[str, Any]]:
+    def get_project_components(self, project_key: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get project components"""
         try:
-            response = self.session.get(f"{self.base_url}/rest/api/3/project/{project_key}/component")
+            response = self._make_request("GET", f"/rest/api/3/project/{project_key}/component", token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
