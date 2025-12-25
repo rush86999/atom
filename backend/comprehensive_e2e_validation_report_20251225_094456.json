@@ -1,0 +1,321 @@
+{
+  "session_id": "20251225_094456",
+  "timestamp": "2025-12-25T09:45:02.163876",
+  "target_validation_score": 0.98,
+  "actual_validation_score": 0.3582222222222222,
+  "target_achieved": false,
+  "total_tests": 11,
+  "passed_tests": 4,
+  "failed_tests": 7,
+  "skipped_tests": 0,
+  "overall_success_rate": 0.3582222222222222,
+  "confidence_level": 0.3181818181818182,
+  "test_results": [
+    {
+      "test_name": "DeepSeek API Integration",
+      "category": "ai_nlp_processing",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.9,
+      "execution_time": 5.986454010009766,
+      "evidence": [
+        {
+          "provider": "DeepSeek",
+          "request": {
+            "model": "deepseek-chat",
+            "messages": [
+              {
+                "role": "system",
+                "content": "You are an AI assistant helping with workflow automation."
+              },
+              {
+                "role": "user",
+                "content": "Generate a cost-effective analysis of this workflow requirement"
+              }
+            ],
+            "max_tokens": 150,
+            "temperature": 0.7
+          },
+          "response": {
+            "id": "8d72b075-4ea1-4a30-84b3-c7b3ef0e23e3",
+            "object": "chat.completion",
+            "created": 1766673896,
+            "model": "deepseek-chat",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "I'll help you generate a cost-effective analysis for your workflow requirement. To provide the most accurate analysis, I need some details about the workflow. Could you please provide:\n\n1. **Workflow Description**: What process are you trying to automate/improve?\n2. **Current State**: How is this currently being done (manual/automated)?\n3. **Key Components**: What are the main steps, tools, and people involved?\n4. **Volume/Frequency**: How often does this workflow run and at what scale?\n5. **Pain Points**: What are the current inefficiencies or costs?\n6. **Goals**: What are you trying to achieve (cost reduction, time savings, quality improvement)?\n\nOnce you provide these details, I'll"
+                },
+                "logprobs": null,
+                "finish_reason": "length"
+              }
+            ],
+            "usage": {
+              "prompt_tokens": 23,
+              "completion_tokens": 150,
+              "total_tokens": 173,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "prompt_cache_hit_tokens": 0,
+              "prompt_cache_miss_tokens": 23
+            },
+            "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache"
+          },
+          "status_code": 200,
+          "test_type": "ai_nlp_integration",
+          "timestamp": "2025-12-25T09:45:02.002694"
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-12-25T09:45:02.002746",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Workflow Engine Execution",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.003426074981689453,
+      "evidence": [],
+      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "timestamp": "2025-12-25T09:45:02.007456",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "BYOK Key Management",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0019559860229492188,
+      "evidence": [],
+      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "timestamp": "2025-12-25T09:45:02.009480",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Real-Time Monitoring System",
+      "category": "core_systems",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0016858577728271484,
+      "evidence": [],
+      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "timestamp": "2025-12-25T09:45:02.011214",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Slack Integration",
+      "category": "service_integration",
+      "status": "passed",
+      "success_rate": 1.0,
+      "confidence": 0.95,
+      "execution_time": 0.14272594451904297,
+      "evidence": [
+        {
+          "type": "auth_data",
+          "data": {
+            "ok": true,
+            "url": "https://atom-ai-group.slack.com/",
+            "team": "Atom AI",
+            "user": "atom_ai",
+            "team_id": "T09PFB2DT3P",
+            "user_id": "U09P3JQ3J2K",
+            "bot_id": "B09PNK4LK52",
+            "is_enterprise_install": false
+          }
+        }
+      ],
+      "error_message": null,
+      "timestamp": "2025-12-25T09:45:02.153995",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Analytics API",
+      "category": "analytics",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0022461414337158203,
+      "evidence": [],
+      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "timestamp": "2025-12-25T09:45:02.157181",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Project Management Workflow",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0025179386138916016,
+      "evidence": [],
+      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "timestamp": "2025-12-25T09:45:02.159771",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Content Creation Pipeline",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0016682147979736328,
+      "evidence": [],
+      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "timestamp": "2025-12-25T09:45:02.161503",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Customer Support Automation",
+      "category": "real_world_scenarios",
+      "status": "failed",
+      "success_rate": 0.0,
+      "confidence": 0.0,
+      "execution_time": 0.0015799999237060547,
+      "evidence": [],
+      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "timestamp": "2025-12-25T09:45:02.163119",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Concurrent Workflows",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.9,
+      "confidence": 0.85,
+      "execution_time": 8.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-12-25T09:45:02.163157",
+      "screenshot_path": null
+    },
+    {
+      "test_name": "Stress Scenarios",
+      "category": "performance_testing",
+      "status": "passed",
+      "success_rate": 0.88,
+      "confidence": 0.8,
+      "execution_time": 10.0,
+      "evidence": [],
+      "error_message": null,
+      "timestamp": "2025-12-25T09:45:02.163168",
+      "screenshot_path": null
+    }
+  ],
+  "category_breakdown": {
+    "ai_nlp_processing": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.9
+    },
+    "core_systems": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "service_integration": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 1.0,
+      "avg_confidence": 0.95
+    },
+    "analytics": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "real_world_scenarios": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "avg_success_rate": 0.0,
+      "avg_confidence": 0.0
+    },
+    "performance_testing": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "avg_success_rate": 0.89,
+      "avg_confidence": 0.825
+    }
+  },
+  "gap_analysis": {
+    "gaps": [
+      {
+        "test_name": "Stress Scenarios",
+        "category": "performance_testing",
+        "reason": "Low success rate: 88.0%",
+        "severity": "low"
+      }
+    ],
+    "bugs": [
+      {
+        "test_name": "Workflow Engine Execution",
+        "category": "core_systems",
+        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "severity": "high"
+      },
+      {
+        "test_name": "BYOK Key Management",
+        "category": "core_systems",
+        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "severity": "high"
+      },
+      {
+        "test_name": "Real-Time Monitoring System",
+        "category": "core_systems",
+        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "severity": "high"
+      },
+      {
+        "test_name": "Analytics API",
+        "category": "analytics",
+        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "severity": "high"
+      },
+      {
+        "test_name": "Project Management Workflow",
+        "category": "real_world_scenarios",
+        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "severity": "high"
+      },
+      {
+        "test_name": "Content Creation Pipeline",
+        "category": "real_world_scenarios",
+        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "severity": "high"
+      },
+      {
+        "test_name": "Customer Support Automation",
+        "category": "real_world_scenarios",
+        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "severity": "high"
+      }
+    ],
+    "gap_count": 1,
+    "bug_count": 7
+  },
+  "recommendations": [
+    "\ud83c\udfaf NEEDS IMPROVEMENT: Gap of 62.2% to reach 98% target",
+    "\ud83d\udd27 PRIORITY: Focus on fixing failed test cases first"
+  ]
+}

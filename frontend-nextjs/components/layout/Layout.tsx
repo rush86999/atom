@@ -25,4 +25,5 @@ const Layout: React.FC<LayoutProps> = ({ children, className = '' }) => {
 };
 
 export default Layout;
+export { Layout };
 // END LAYOUT COMPONENT

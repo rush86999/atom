@@ -22,17 +22,32 @@ async def get_marketing_summary(workspace_id: str = "default-workspace", db: Ses
     """
     Returns a unified marketing intelligence summary for the business owner.
     """
+    import os
+    
     try:
-        # 1. Fetch some raw data for the reporter
-        # (In a real app, this would come from MarketingIntelligenceService)
-        mock_metrics = {
-            "google_search": {"calls": 12, "cost": 120, "clicks": 85},
-            "facebook_ads": {"calls": 3, "cost": 90, "clicks": 140},
-            "referral": {"calls": 5, "cost": 0, "clicks": 0}
-        }
+        # 1. Fetch real metrics from MarketingIntelligenceService
+        from marketing.intelligence_service import MarketingIntelligenceService
+        marketing_service = MarketingIntelligenceService(db)
+        
+        # Get channel performance data
+        channel_data = marketing_service.get_channel_performance(workspace_id)
+        
+        # Convert to metrics format expected by reporter
+        metrics = {}
+        for channel in channel_data:
+            metrics[channel["channel_name"]] = {
+                "leads": channel.get("leads", 0),
+                "cost": channel.get("spend", 0),
+                "conversions": channel.get("conversions", 0),
+                "conversion_rate": channel.get("conversion_rate", 0)
+            }
+        
+        # If no channels configured, provide minimal structure
+        if not metrics:
+            metrics = {"no_data": {"leads": 0, "cost": 0, "conversions": 0}}
         
         # 2. Generate narrative report
-        narrative = await reporter.generate_narrative_report(mock_metrics)
+        narrative = await reporter.generate_narrative_report(metrics)
         
         # 3. Get high-intent leads
         high_intent_leads = db.query(Lead).filter(
@@ -40,9 +55,17 @@ async def get_marketing_summary(workspace_id: str = "default-workspace", db: Ses
             Lead.ai_score > 70
         ).order_by(Lead.ai_score.desc()).limit(5).all()
         
+        # 4. Check GMB integration status
+        gmb_configured = bool(os.getenv("GOOGLE_BUSINESS_API_KEY") or os.getenv("GMB_CREDENTIALS"))
+        gmb_status = "active" if gmb_configured else "not_configured"
+        
+        # 5. Pending reviews - requires GMB API integration
+        # When GMB is configured, this would fetch from Google Business Profile API
+        pending_reviews = 0 if not gmb_configured else None  # None indicates fetch from API needed
+        
         return {
             "narrative_report": narrative,
-            "performance_metrics": mock_metrics,
+            "performance_metrics": metrics,
             "high_intent_leads": [
                 {
                     "id": l.id,
@@ -51,8 +74,8 @@ async def get_marketing_summary(workspace_id: str = "default-workspace", db: Ses
                     "summary": l.ai_qualification_summary
                 } for l in high_intent_leads
             ],
-            "gmb_status": "active",
-            "pending_reviews": 0 # Logic to be added
+            "gmb_status": gmb_status,
+            "pending_reviews": pending_reviews
         }
     except Exception as e:
         logger.error(f"Error fetching marketing summary: {e}")

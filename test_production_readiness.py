@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Production Readiness Verification Script
 Tests that all critical security fixes are working correctly

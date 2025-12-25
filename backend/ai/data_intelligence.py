@@ -104,9 +104,51 @@ class DataIntelligenceEngine:
 
     def _initialize_platform_connectors(self) -> Dict[PlatformType, callable]:
         """Initialize platform data connectors"""
-        # In production, these would be actual API connectors
-        # For now, return mock connectors
-        return {platform: self._mock_platform_connector for platform in PlatformType}
+        # In production, return real connectors that fetch from actual integrations
+        # Falls back to empty data if integration not configured
+        return {platform: self._get_platform_data for platform in PlatformType}
+    
+    def _get_platform_data(self, platform: PlatformType) -> List[Dict[str, Any]]:
+        """Get data from real platform integration or return empty if not configured"""
+        import os
+        
+        # Check if mock mode is explicitly enabled for development
+        if os.getenv("MOCK_MODE_ENABLED", "false").lower() == "true":
+            return self._mock_platform_connector(platform)
+        
+        # Try to get real data from integration services
+        try:
+            from core.mock_mode import get_mock_mode_manager
+            
+            # Platform-specific data fetching
+            if platform == PlatformType.SALESFORCE:
+                from integrations.salesforce import get_salesforce_client
+                client = get_salesforce_client()
+                if client:
+                    # Fetch real Salesforce data
+                    return client.get_recent_records() if hasattr(client, 'get_recent_records') else []
+                    
+            elif platform == PlatformType.HUBSPOT:
+                from integrations.hubspot import get_hubspot_client
+                client = get_hubspot_client()
+                if client:
+                    return client.get_recent_records() if hasattr(client, 'get_recent_records') else []
+                    
+            elif platform == PlatformType.SLACK:
+                from integrations.slack import get_slack_client
+                client = get_slack_client()
+                if client:
+                    return client.get_recent_messages() if hasattr(client, 'get_recent_messages') else []
+            
+            # For unconfigured integrations, return empty list (no mock data)
+            return []
+            
+        except ImportError:
+            logger.debug(f"Integration not available for {platform.value}")
+            return []
+        except Exception as e:
+            logger.warning(f"Error fetching data from {platform.value}: {e}")
+            return []
 
     def _initialize_entity_resolvers(self) -> Dict[EntityType, callable]:
         """Initialize entity resolution functions"""

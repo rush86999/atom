@@ -1065,7 +1065,7 @@ class WorkflowTemplateManager:
             "template_id": "goal_driven_automation",
             "name": "Goal-Driven Automation",
             "description": "High-level goal decomposition and progress monitoring",
-            "category": "productivity",
+            "category": "business",
             "complexity": "advanced",
             "tags": ["goal", "planning", "automation", "tracking"],
             "author": "System",
@@ -1209,18 +1209,18 @@ class WorkflowTemplateManager:
             "template_id": "cost_optimization_workflow",
             "name": "Cost Optimization Workflow",
             "description": "Detect unused SaaS subscriptions, redundant tools, and generate savings report",
-            "category": "financial_ops",
+            "category": "business",
             "complexity": "intermediate",
             "tags": ["cost", "optimization", "saas", "savings"],
             "author": "System",
             "version": "1.0.0",
             "inputs": [
-                {"name": "threshold_days", "label": "Unused Threshold (Days)", "type": "number", "required": False, "default_value": 30}
+                {"name": "threshold_days", "label": "Unused Threshold (Days)", "description": "Number of days of inactivity to flag as unused", "type": "number", "required": False, "default_value": 30}
             ],
             "steps": [
-                {"step_id": "detect_leaks", "name": "Detect Cost Leaks", "step_type": "cost_leak_detection", "estimated_duration": 10},
-                {"step_id": "notify_finance", "name": "Notify Finance Team", "step_type": "slack_notification", "depends_on": ["detect_leaks"],
-                 "parameters": [{"name": "channel", "default_value": "#finance"}, {"name": "message", "default_value": "Cost Report: {{cost_report}}"}]}
+                {"step_id": "detect_leaks", "name": "Detect Cost Leaks", "description": "Scan for unused subscriptions and redundant tools", "step_type": "cost_leak_detection", "estimated_duration": 10},
+                {"step_id": "notify_finance", "name": "Notify Finance Team", "description": "Send cost report to finance Slack channel", "step_type": "slack_notification", "depends_on": ["detect_leaks"],
+                 "parameters": [{"name": "channel", "label": "Slack Channel", "description": "Channel to send report to", "default_value": "#finance"}, {"name": "message", "label": "Message", "description": "Notification content", "default_value": "Cost Report: {{cost_report}}"}]}
             ],
             "is_public": True
         }
@@ -1231,26 +1231,27 @@ class WorkflowTemplateManager:
             "template_id": "budget_approval_workflow",
             "name": "Budget Check & Approval",
             "description": "Check spending against budget limits tied to deal stages and milestones",
-            "category": "financial_ops",
-            "complexity": "simple",
+            "category": "business",
+            "complexity": "beginner",
             "tags": ["budget", "approval", "spending", "guardrails"],
             "author": "System",
             "version": "1.0.0",
             "inputs": [
-                {"name": "category", "label": "Budget Category", "type": "string", "required": True},
-                {"name": "amount", "label": "Spend Amount", "type": "number", "required": True},
-                {"name": "deal_stage", "label": "Deal Stage", "type": "string", "required": False}
+                {"name": "category", "label": "Budget Category", "description": "Category to check budget against", "type": "string", "required": True},
+                {"name": "amount", "label": "Spend Amount", "description": "Amount to be spent", "type": "number", "required": True},
+                {"name": "deal_stage", "label": "Deal Stage", "description": "Current deal stage for context", "type": "string", "required": False}
             ],
             "steps": [
-                {"step_id": "check_budget", "name": "Check Budget", "step_type": "budget_check", "estimated_duration": 5,
-                 "parameters": [{"name": "category", "default_value": "{{category}}"}, {"name": "amount", "default_value": "{{amount}}"}]},
-                {"step_id": "conditional_approval", "name": "Route Based on Result", "step_type": "conditional_logic", "depends_on": ["check_budget"],
-                 "parameters": [{"name": "conditions", "default_value": [{"if": "budget_check_result.status == 'approved'", "then": ["notify_approved"]}, {"if": "budget_check_result.status == 'paused'", "then": ["notify_paused"]}]}]},
-                {"step_id": "notify_approved", "name": "Notify Approved", "step_type": "slack_notification", "is_optional": True},
-                {"step_id": "notify_paused", "name": "Notify Paused", "step_type": "slack_notification", "is_optional": True}
+                {"step_id": "check_budget", "name": "Check Budget", "description": "Validate spend against budget limits", "step_type": "budget_check", "estimated_duration": 5,
+                 "parameters": [{"name": "category", "label": "Category", "description": "Budget category", "default_value": "{{category}}"}, {"name": "amount", "label": "Amount", "description": "Spend amount", "default_value": "{{amount}}"}]},
+                {"step_id": "conditional_approval", "name": "Route Based on Result", "description": "Route to appropriate notification based on approval status", "step_type": "conditional_logic", "depends_on": ["check_budget"],
+                 "parameters": [{"name": "conditions", "label": "Routing Conditions", "description": "Conditional routing rules", "default_value": [{"if": "budget_check_result.status == 'approved'", "then": ["notify_approved"]}, {"if": "budget_check_result.status == 'paused'", "then": ["notify_paused"]}]}]},
+                {"step_id": "notify_approved", "name": "Notify Approved", "description": "Send approval notification", "step_type": "slack_notification", "is_optional": True},
+                {"step_id": "notify_paused", "name": "Notify Paused", "description": "Send pause notification for review", "step_type": "slack_notification", "is_optional": True}
             ],
             "is_public": True
         }
+
 
     def _create_invoice_reconciliation_template(self) -> Dict[str, Any]:
         """Create invoice reconciliation pipeline template"""
@@ -1258,21 +1259,22 @@ class WorkflowTemplateManager:
             "template_id": "invoice_reconciliation_pipeline",
             "name": "Invoice Reconciliation Pipeline",
             "description": "Match invoices to contracts, flag discrepancies, and alert on mismatches",
-            "category": "financial_ops",
+            "category": "business",
             "complexity": "intermediate",
             "tags": ["invoice", "reconciliation", "contracts", "discrepancies"],
             "author": "System",
             "version": "1.0.0",
             "inputs": [],
             "steps": [
-                {"step_id": "reconcile", "name": "Reconcile Invoices", "step_type": "invoice_reconciliation", "estimated_duration": 15},
-                {"step_id": "check_discrepancies", "name": "Check for Discrepancies", "step_type": "conditional_logic", "depends_on": ["reconcile"],
-                 "parameters": [{"name": "conditions", "default_value": [{"if": "reconciliation_result.summary.discrepancy_count > 0", "then": ["alert_discrepancies"]}]}]},
-                {"step_id": "alert_discrepancies", "name": "Alert on Discrepancies", "step_type": "slack_notification", "is_optional": True,
-                 "parameters": [{"name": "channel", "default_value": "#finance-alerts"}, {"name": "message", "default_value": "⚠️ Invoice discrepancies detected: {{reconciliation_result.summary.discrepancy_count}}"}]}
+                {"step_id": "reconcile", "name": "Reconcile Invoices", "description": "Match invoices against contracts and identify discrepancies", "step_type": "invoice_reconciliation", "estimated_duration": 15},
+                {"step_id": "check_discrepancies", "name": "Check for Discrepancies", "description": "Evaluate reconciliation results for any discrepancies", "step_type": "conditional_logic", "depends_on": ["reconcile"],
+                 "parameters": [{"name": "conditions", "label": "Conditions", "description": "Conditional logic rules", "default_value": [{"if": "reconciliation_result.summary.discrepancy_count > 0", "then": ["alert_discrepancies"]}]}]},
+                {"step_id": "alert_discrepancies", "name": "Alert on Discrepancies", "description": "Send Slack notification when discrepancies are found", "step_type": "slack_notification", "is_optional": True,
+                 "parameters": [{"name": "channel", "label": "Slack Channel", "description": "Channel to send alerts to", "default_value": "#finance-alerts"}, {"name": "message", "label": "Alert Message", "description": "Message content", "default_value": "Invoice discrepancies detected: {{reconciliation_result.summary.discrepancy_count}}"}]}
             ],
             "is_public": True
         }
+
 
     def _create_periodic_portal_check_template(self) -> Dict[str, Any]:
         """Create periodic portal check background agent template"""
@@ -1281,19 +1283,20 @@ class WorkflowTemplateManager:
             "name": "Periodic Portal Check",
             "description": "Start a background agent for periodic portal monitoring with status updates",
             "category": "automation",
-            "complexity": "simple",
+            "complexity": "beginner",
             "tags": ["background", "periodic", "monitoring", "agent"],
             "author": "System",
             "version": "1.0.0",
             "inputs": [
-                {"name": "agent_id", "label": "Agent ID", "type": "string", "required": True},
-                {"name": "interval_seconds", "label": "Check Interval (seconds)", "type": "number", "required": False, "default_value": 3600}
+                {"name": "agent_id", "label": "Agent ID", "description": "ID of the agent to start", "type": "string", "required": True},
+                {"name": "interval_seconds", "label": "Check Interval (seconds)", "description": "How often the agent should run", "type": "number", "required": False, "default_value": 3600}
             ],
             "steps": [
-                {"step_id": "start_agent", "name": "Start Background Agent", "step_type": "background_agent_start", "estimated_duration": 5,
-                 "parameters": [{"name": "agent_id", "default_value": "{{agent_id}}"}, {"name": "interval_seconds", "default_value": "{{interval_seconds}}"}]},
-                {"step_id": "confirm_started", "name": "Confirm Started", "step_type": "slack_notification",
-                 "parameters": [{"name": "message", "default_value": "🤖 Background agent {{agent_id}} started with {{interval_seconds}}s interval"}]}
+                {"step_id": "start_agent", "name": "Start Background Agent", "description": "Initialize and start the background monitoring agent", "step_type": "background_agent_start", "estimated_duration": 5,
+                 "parameters": [{"name": "agent_id", "label": "Agent ID", "description": "Agent identifier", "default_value": "{{agent_id}}"}, {"name": "interval_seconds", "label": "Interval", "description": "Check interval in seconds", "default_value": "{{interval_seconds}}"}]},
+                {"step_id": "confirm_started", "name": "Confirm Started", "description": "Send notification confirming agent started", "step_type": "slack_notification",
+                 "parameters": [{"name": "message", "label": "Message", "description": "Confirmation message", "default_value": "Background agent {{agent_id}} started with {{interval_seconds}}s interval"}]}
             ],
             "is_public": True
         }
+

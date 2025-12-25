@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { SessionProvider } from "next-auth/react";
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import type { AppProps } from "next/app";
@@ -12,7 +12,15 @@ import { useRouter } from "next/router";
 
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   const router = useRouter();
-  const isAuthPage = router.pathname.startsWith("/auth");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Default to false during SSR/prerender to avoid router errors
+  const isAuthPage = mounted ? router.pathname.startsWith("/auth") : false;
+
 
   return (
     <SessionProvider session={session}>
@@ -25,7 +33,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
               <Component {...pageProps} />
             </Layout>
           )}
-          {!isAuthPage && <GlobalChatWidget />}
+          {mounted && !isAuthPage && <GlobalChatWidget />}
         </ToastProvider>
       </ChakraProvider>
     </SessionProvider>

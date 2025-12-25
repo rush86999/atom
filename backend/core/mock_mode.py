@@ -1,5 +1,6 @@
 import logging
 import random
+import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -11,7 +12,8 @@ class MockModeManager:
     """
     
     def __init__(self):
-        self.enabled = True # Globally enabled, but individual services check credentials first
+        # Disabled by default in production; set MOCK_MODE_ENABLED=true to enable
+        self.enabled = os.getenv("MOCK_MODE_ENABLED", "false").lower() == "true"
         
     def is_mock_mode(self, service_name: str, has_credentials: bool) -> bool:
         """
