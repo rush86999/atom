@@ -60,9 +60,18 @@ class ScreenElement:
 class LuxModel:
     """LUX Model for Computer Use and Desktop Automation"""
 
-    def __init__(self, api_key: Optional[str] = None):
-        """Initialize LUX model with API key"""
+    def __init__(self, api_key: Optional[str] = None, governance_callback: Optional[callable] = None):
+        """
+        Initialize LUX model with API key
+        
+        Args:
+            api_key: Anthropic API key
+            governance_callback: Async function(action_type: str, details: dict) -> bool
+                               Returns True if action is allowed, False otherwise.
+        """
         self.api_key = api_key or lux_config.get_anthropic_key()
+        self.governance_callback = governance_callback
+        
         if not self.api_key:
             # Fallback for testing if not set
             logger.warning("ANTHROPIC_API_KEY not found in config, checking env")
@@ -287,6 +296,16 @@ Return as JSON:
         """Execute a computer action"""
         try:
             logger.info(f"Executing action: {action.action_type} - {action.description}")
+            
+            # Governance Check
+            if self.governance_callback:
+                allowed = await self.governance_callback(
+                    action_type=action.action_type.value,
+                    details=action.parameters
+                )
+                if not allowed:
+                    logger.warning(f"Action blocked by governance: {action.action_type}")
+                    return False
             
             if action.action_type == ComputerActionType.CLICK:
                 params = action.parameters
