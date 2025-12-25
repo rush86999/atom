@@ -185,5 +185,5 @@ class Appointment(Base):
 
     # Relationships
     workspace = relationship("Workspace")
-    customer = relationship("accounting.models.Entity")
+    customer = relationship("Entity")
     service = relationship("core.models.BusinessProductService")

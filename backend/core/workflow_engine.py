@@ -20,6 +20,10 @@ from jsonschema import validate, ValidationError
 from core.execution_state_manager import get_state_manager, ExecutionStateManager
 from core.auto_healing import async_retry_with_backoff
 from core.websockets import get_connection_manager
+from core.token_storage import token_storage
+import httpx
+from core.models import IntegrationCatalog
+from core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +221,8 @@ class WorkflowEngine:
                         "input_schema": config.get("input_schema", {}),
                         "output_schema": config.get("output_schema", {}),
                         "workflow_id": workflow.get("id", "unknown"),
-                        "execution_id": execution_id
+                        "execution_id": execution_id,
+                        "connection_id": config.get("connectionId")
                     }
 
                     async with self.semaphore:
@@ -755,6 +760,20 @@ class WorkflowEngine:
             "asana": self._execute_asana_action,
             "github": self._execute_github_action,
             "email": self._execute_email_action,
+            "gmail": self._execute_gmail_action,
+            "outlook": self._execute_outlook_action,
+            "jira": self._execute_jira_action,
+            "trello": self._execute_trello_action,
+            "stripe": self._execute_stripe_action,
+            "shopify": self._execute_shopify_action,
+            "zoho_crm": self._execute_zoho_crm_action,
+            "zoho_books": self._execute_zoho_books_action,
+            "zoho_inventory": self._execute_zoho_inventory_action,
+            "hubspot": self._execute_hubspot_action,
+            "salesforce": self._execute_salesforce_action,
+            "discord": self._execute_discord_action,
+            "zoom": self._execute_zoom_action,
+            "notion": self._execute_notion_action,
             "calendar": self._execute_calendar_action,
             "database": self._execute_database_action,
             "ai": self._execute_ai_action,
@@ -774,8 +793,22 @@ class WorkflowEngine:
         # Try primary service first
         primary_error = None
         if service not in service_registry:
-            raise ValueError(f"Unknown service: {service}")
-
+            # Try generic executor for catalog integrations
+            try:
+                logger.info(f"Service {service} not in registry, attempting generic execution via catalog")
+                result = await self._execute_generic_action(service, action, params, step.get("connection_id"))
+                return {
+                    "status": "success",
+                    "service": service,
+                    "action": action,
+                    "result": result,
+                    "timestamp": datetime.now().isoformat(),
+                    "execution_method": "generic_catalog_executor"
+                } 
+            except Exception as e:
+                logger.warning(f"Generic execution failed or service not found in catalog: {e}")
+                raise ValueError(f"Unknown service: {service} (and generic execution failed: {e})")
+        
         executor = service_registry[service]
         try:
             # Pass automation context if executor supports it
@@ -786,7 +819,7 @@ class WorkflowEngine:
             
             if timeout is not None and timeout > 0:
                 try:
-                    result = await asyncio.wait_for(executor(action, params), timeout=timeout)
+                    result = await asyncio.wait_for(executor(action, params, step.get("connection_id")), timeout=timeout)
                 except asyncio.TimeoutError:
                     raise StepTimeoutError(
                         f"Step {step['id']} timed out after {timeout} seconds",
@@ -794,7 +827,7 @@ class WorkflowEngine:
                         timeout=timeout
                     )
             else:
-                result = await executor(action, params)
+                result = await executor(action, params, step.get("connection_id"))
             return {
                 "status": "success",
                 "service": service,
@@ -818,12 +851,10 @@ class WorkflowEngine:
                         result = await asyncio.wait_for(fallback_executor(action, params), timeout=timeout)
                     except asyncio.TimeoutError:
                         raise StepTimeoutError(
-                            f"Fallback step {step['id']} timed out after {timeout} seconds",
-                            step_id=step['id'],
-                            timeout=timeout
+                        timeout=timeout
                         )
                 else:
-                    result = await fallback_executor(action, params)
+                    result = await fallback_executor(action, params, step.get("connection_id"))
                 return {
                     "status": "success",
                     "service": fallback_service,
@@ -862,35 +893,286 @@ class WorkflowEngine:
         }
 
     # Service executor methods
-    async def _execute_slack_action(self, action: str, params: dict) -> dict:
+    async def _execute_slack_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Slack service actions"""
-        # For now, simulate execution with proper structure
-        await asyncio.sleep(0.1)
-        return {
-            "action": action,
-            "result": f"Slack {action} executed",
-            "status": "success"
-        }
+        from integrations.slack_service_unified import slack_unified_service
+        
+        # Try to get token if connection_id is present
+        token_data = None
+        if connection_id:
+            token_data = token_storage.get_token(connection_id)
+            if not token_data:
+                # Fallback: try looking up by service name
+                token_data = token_storage.get_token("slack")
+        
+        token = token_data.get("access_token") if token_data else None
+        
+        logger.info(f"Executing Slack action {action} with connection {connection_id} (Token found: {bool(token)})")
 
-    async def _execute_asana_action(self, action: str, params: dict) -> dict:
+        try:
+            result = None
+            if action == "files_get_upload_url_external":
+                 # This action is used to upload files
+                 # Mocks for now as it is complex
+                 await asyncio.sleep(0.1)
+                 result = {"upload_url": "https://slack.com/mock_upload", "file_id": "mock_file"}
+            elif action == "chat_postMessage":
+                channel = params.get("channel")
+                text = params.get("text")
+                if not token:
+                    raise Exception("Slack authentication required (no token found)")
+                result = await slack_unified_service.post_message(token=token, channel_id=channel, text=text)
+            else:
+                 # Generic fallback or other actions
+                 # Try to map 'action' to method on service if possible or just log
+                 await asyncio.sleep(0.1)
+                 result = {"message": f"Action {action} simulated (implementation pending for specific action)"}
+
+            return {
+                "action": action,
+                "result": result,
+                "status": "success",
+                "authenticated": bool(token)
+            }
+        except Exception as e:
+             logger.error(f"Slack execution failed: {e}")
+             raise e
+
+    async def _execute_asana_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Asana service actions"""
-        await asyncio.sleep(0.1)
-        return {
-            "action": action,
-            "result": f"Asana {action} executed",
-            "status": "success"
-        }
+        from integrations.asana_service import asana_service
+        
+        token = self._get_token(connection_id, "asana")
+        if not token:
+             # Try environment if no connection but that is fallback
+             token = os.getenv("ASANA_ACCESS_TOKEN")
 
-    async def _execute_github_action(self, action: str, params: dict) -> dict:
+        logger.info(f"Executing Asana action {action} with connection {connection_id}")
+        
+        try:
+            result = None
+            if not token:
+                 raise Exception("Asana authentication required")
+
+            if action == "create_task":
+                 task_data = {
+                     "name": params.get("name"),
+                     "workspace": params.get("workspace"),
+                     "projects": params.get("projects", [])
+                 }
+                 if params.get("notes"): task_data["notes"] = params.get("notes")
+                 if params.get("due_on"): task_data["due_on"] = params.get("due_on")
+                 
+                 result = await asana_service.create_task(token, task_data)
+            
+            elif action == "get_projects":
+                 workspace = params.get("workspace")
+                 result = await asana_service.get_projects(token, workspace_gid=workspace)
+            
+            else:
+                 await asyncio.sleep(0.1)
+                 result = f"Asana {action} simulated (implementation pending)"
+
+            return {
+                "action": action,
+                "result": result,
+                "status": "success",
+                "authenticated": bool(token)
+            }
+        except Exception as e:
+            logger.error(f"Asana execution failed: {e}")
+            raise e
+
+    async def _execute_discord_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Discord service actions"""
+        from integrations.discord_service import discord_service
+        
+        token = self._get_token(connection_id, "discord")
+        logger.info(f"Executing Discord action {action} with connection {connection_id}")
+        
+        try:
+            if not token and not discord_service.bot_token:
+                 raise Exception("Discord authentication required")
+
+            if action == "send_message":
+                 channel_id = params.get("channel_id")
+                 content = params.get("content")
+                 result = await discord_service.send_message(channel_id, content, access_token=token, use_bot_token=not bool(token))
+            else:
+                 await asyncio.sleep(0.1)
+                 result = f"Discord {action} simulated"
+
+            return {
+                "action": action,
+                "result": result,
+                "status": "success",
+                "authenticated": bool(token) or bool(discord_service.bot_token)
+            }
+        except Exception as e:
+             logger.error(f"Discord execution failed: {e}")
+             raise e
+
+    async def _execute_hubspot_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute HubSpot service actions"""
+        from integrations.hubspot_service import hubspot_service
+        
+        token = self._get_token(connection_id, "hubspot")
+        logger.info(f"Executing HubSpot action {action} with connection {connection_id}")
+        
+        try:
+            if not token and not hubspot_service.access_token:
+                 raise Exception("HubSpot authentication required")
+
+            if action == "create_contact":
+                 email = params.get("email")
+                 first_name = params.get("firstname")
+                 last_name = params.get("lastname")
+                 result = await hubspot_service.create_contact(email=email, first_name=first_name, last_name=last_name, token=token)
+            elif action == "create_deal":
+                 name = params.get("dealname")
+                 amount = params.get("amount", 0)
+                 result = await hubspot_service.create_deal(name=name, amount=float(amount), token=token)
+            else:
+                 await asyncio.sleep(0.1)
+                 result = f"HubSpot {action} simulated"
+
+            return {
+                "action": action,
+                "result": result,
+                "status": "success",
+                "authenticated": bool(token)
+            }
+        except Exception as e:
+             logger.error(f"HubSpot execution failed: {e}")
+             raise e
+
+    async def _execute_salesforce_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Salesforce service actions"""
+        from integrations.salesforce_service import SalesforceService
+        
+        token_data = None
+        if connection_id:
+             token_data = token_storage.get_token(connection_id)
+        
+        access_token = token_data.get("access_token") if token_data else None
+        instance_url = token_data.get("instance_url") if token_data else None
+
+        logger.info(f"Executing Salesforce action {action} with connection {connection_id}")
+        
+        try:
+            sf_service = SalesforceService()
+            # If we have dynamic tokens, create client
+            sf = None
+            if access_token and instance_url:
+                sf = sf_service.create_client(access_token, instance_url)
+            
+            # If no dynamic client, validation fails unless we have some other fallback (which SF service doesn't really have easily)
+            if not sf:
+                 raise Exception("Salesforce authentication required (token + instance_url)")
+
+            if action == "create_lead":
+                 last_name = params.get("lastname")
+                 company = params.get("company")
+                 email = params.get("email")
+                 result = await sf_service.create_lead(sf, last_name=last_name, company=company, email=email)
+            elif action == "create_contact":
+                 last_name = params.get("lastname")
+                 email = params.get("email")
+                 result = await sf_service.create_contact(sf, last_name=last_name, email=email)
+            elif action == "create_opportunity":
+                 name = params.get("name")
+                 stage = params.get("stagename")
+                 close_date = params.get("closedate")
+                 result = await sf_service.create_opportunity(sf, name=name, stage_name=stage, close_date=close_date)
+            else:
+                 await asyncio.sleep(0.1)
+                 result = f"Salesforce {action} simulated"
+
+            return {
+                "action": action,
+                "result": result,
+                "status": "success",
+                "authenticated": True
+            }
+        except Exception as e:
+             logger.error(f"Salesforce execution failed: {e}")
+             raise e
+
+    async def _execute_github_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute GitHub service actions"""
-        await asyncio.sleep(0.1)
-        return {
-            "action": action,
-            "result": f"GitHub {action} executed",
-            "status": "success"
-        }
+        from integrations.github_service import GitHubService
+        
+        token = self._get_token(connection_id, "github")
+        logger.info(f"Executing GitHub action {action} with connection {connection_id}")
+        
+        try:
+            # Instantiate service with token
+            github = GitHubService(access_token=token)
+            
+            if action == "create_issue":
+                 owner = params.get("owner")
+                 repo = params.get("repo")
+                 title = params.get("title")
+                 body = params.get("body")
+                 result = github.create_issue(owner, repo, title, body)
+            else:
+                 await asyncio.sleep(0.1)
+                 result = f"GitHub {action} simulated"
 
-    async def _execute_email_action(self, action: str, params: dict) -> dict:
+            return {
+                "action": action,
+                "result": result,
+                "status": "success"
+            }
+        except Exception as e:
+            logger.error(f"GitHub execution failed: {e}")
+            raise e
+            
+    async def _execute_zoom_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        from integrations.zoom_service import zoom_service
+        token = self._get_token(connection_id, "zoom")
+        try:
+            if action == "create_meeting":
+                topic = params.get("topic")
+                result = await zoom_service.create_meeting(topic=topic, access_token=token)
+            else:
+                await asyncio.sleep(0.1)
+                result = f"Zoom {action} simulated"
+            return {"action": action, "result": result, "status": "success"}
+        except Exception as e:
+            logger.error(f"Zoom execution failed: {e}")
+            raise e
+
+    async def _execute_notion_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        from integrations.notion_service import NotionService
+        token = self._get_token(connection_id, "notion")
+        try:
+            notion = NotionService(access_token=token)
+            if action == "create_page":
+                parent = params.get("parent") # e.g. {"database_id": "..."}
+                properties = params.get("properties")
+                result = notion.create_page(parent, properties)
+            else:
+                await asyncio.sleep(0.1)
+                result = f"Notion {action} simulated"
+            return {"action": action, "result": result, "status": "success"}
+        except Exception as e:
+            logger.error(f"Notion execution failed: {e}")
+            raise e
+
+    def _get_token(self, connection_id: Optional[str], service_name: str) -> Optional[str]:
+        """Helper to retrieve token from connection or fallback"""
+        token_data = None
+        if connection_id:
+            token_data = token_storage.get_token(connection_id)
+            if not token_data and service_name:
+                token_data = token_storage.get_token(service_name)
+        
+        if token_data:
+            return token_data.get("access_token")
+        return None
+
+    async def _execute_email_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Email service actions"""
         await asyncio.sleep(0.1)
         return {
@@ -898,6 +1180,58 @@ class WorkflowEngine:
             "result": f"Email {action} executed",
             "status": "success"
         }
+
+    async def _execute_gmail_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Gmail service actions"""
+        from integrations.gmail_service import gmail_service
+        
+        # Try to get token if connection_id is present
+        token_data = None
+        if connection_id:
+            token_data = token_storage.get_token(connection_id)
+            if not token_data:
+                token_data = token_storage.get_token("google")
+        
+        token = token_data.get("access_token") if token_data else None
+        logger.info(f"Executing Gmail action {action} with connection {connection_id} (Token found: {bool(token)})")
+        
+        try:
+            result = None
+            if action == "send_email":
+                to = params.get("to")
+                subject = params.get("subject")
+                body = params.get("body")
+                
+                if not token:
+                     raise Exception("Gmail authentication required (no token found)")
+                
+                # Use refactored send_message with token
+                result = gmail_service.send_message(to=to, subject=subject, body=body, token=token)
+                
+                if not result:
+                    raise Exception("Failed to send email")
+            
+            elif action == "create_draft":
+                 to = params.get("to")
+                 subject = params.get("subject")
+                 body = params.get("body")
+                 if not token:
+                     raise Exception("Gmail authentication required")
+                 result = gmail_service.draft_message(to=to, subject=subject, body=body, token=token)
+
+            else:
+                await asyncio.sleep(0.1)
+                result = f"Gmail {action} simulated"
+
+            return {
+                "action": action,
+                "result": result,
+                "status": "success",
+                "authenticated": bool(token)
+            }
+        except Exception as e:
+             logger.error(f"Gmail execution failed: {e}")
+             raise e
 
     async def _execute_calendar_action(self, action: str, params: dict) -> dict:
         """Execute Calendar service actions"""
@@ -1161,6 +1495,346 @@ class WorkflowEngine:
         except Exception as e:
             logger.error(f"Error loading workflow {workflow_id}: {e}")
             return None
+
+    async def _execute_outlook_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Outlook service actions"""
+        try:
+            from integrations.outlook_service import OutlookService
+            service = OutlookService()
+            
+            token_data = token_storage.get_token(connection_id) if connection_id else None
+            token = token_data.get("access_token") if token_data else None
+            user_id = params.get("user_id", "default") # Or derive from context
+            
+            # Helper to call service method
+            async def call_service(method_name, **kwargs):
+                method = getattr(service, method_name)
+                # Filter kwargs to match method signature to be safe, or rely on **kwargs in service
+                # Our service methods are explicit, so we should map params carefully or rely on compatible keys
+                # Simplified invocation:
+                if token:
+                    kwargs["token"] = token
+                result = await method(**kwargs)
+                return result
+
+            result = None
+            if action == "send_email":
+                result = await call_service("send_email", 
+                    user_id=user_id,
+                    to_recipients=params.get("to_recipients"),
+                    subject=params.get("subject"),
+                    body=params.get("body"),
+                    cc_recipients=params.get("cc_recipients"),
+                    bcc_recipients=params.get("bcc_recipients")
+                )
+            elif action == "create_event":
+                 result = await call_service("create_calendar_event",
+                    user_id=user_id,
+                    subject=params.get("subject"),
+                    body=params.get("body"),
+                    start=params.get("start"),
+                    end=params.get("end"),
+                    location=params.get("location"),
+                    attendees=params.get("attendees")
+                 )
+            elif action == "get_emails":
+                result = await call_service("get_user_emails",
+                    user_id=user_id,
+                    folder=params.get("folder", "inbox"),
+                    max_results=params.get("max_results", 10),
+                    query=params.get("query")
+                )
+            else:
+                # Generic fallback if action matches method name
+                if hasattr(service, action):
+                     # Add user_id if not in params
+                     if "user_id" not in params:
+                         params["user_id"] = user_id
+                     result = await call_service(action, **params)
+                else:
+                    raise ValueError(f"Unknown Outlook action: {action}")
+            
+            return {"status": "success", "result": result}
+        except Exception as e:
+            logger.error(f"Outlook execution failed: {e}")
+            raise e
+
+    async def _execute_jira_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Jira service actions"""
+        try:
+            from integrations.jira_service import JiraService
+            service = JiraService()
+            
+            token_data = token_storage.get_token(connection_id) if connection_id else None
+            token = token_data.get("access_token") if token_data else None
+            
+            if hasattr(service, action):
+                method = getattr(service, action)
+                if token:
+                    params["token"] = token
+                result = method(**params)
+                return {"status": "success", "result": result}
+            else:
+                 raise ValueError(f"Unknown Jira action: {action}")
+        except Exception as e:
+            logger.error(f"Jira execution failed: {e}")
+            raise e
+
+    async def _execute_trello_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Trello service actions"""
+        try:
+            from integrations.trello_service import TrelloService
+            service = TrelloService()
+            
+            token_data = token_storage.get_token(connection_id) if connection_id else None
+            token = token_data.get("access_token") if token_data else None # In Trello, this might be 'token'
+            
+            # TrelloService methods explicitly take 'token'
+            if hasattr(service, action):
+                method = getattr(service, action)
+                if token:
+                    params["token"] = token
+                result = method(**params)
+                return {"status": "success", "result": result}
+            else:
+                 raise ValueError(f"Unknown Trello action: {action}")
+        except Exception as e:
+            logger.error(f"Trello execution failed: {e}")
+            raise e
+
+    async def _execute_stripe_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Stripe service actions"""
+        try:
+            from integrations.stripe_service import StripeService
+            service = StripeService()
+            
+            token_data = token_storage.get_token(connection_id) if connection_id else None
+            access_token = token_data.get("access_token") if token_data else None
+            
+            if not access_token:
+                # Fallback to env if not found, but we prefer dynamic
+                # StripeService usually methods require access_token
+                # Pass a dummy or rely on service to handle default if allowed ??
+                # Actually StripeService methods have `access_token` as required arg usually
+                pass
+
+            if hasattr(service, action):
+                method = getattr(service, action)
+                if access_token:
+                    params["access_token"] = access_token
+                
+                # Strip connection_id from params if it leaked in? No, params is separate.
+                result = method(**params)
+                return {"status": "success", "result": result}
+            else:
+                 raise ValueError(f"Unknown Stripe action: {action}")
+        except Exception as e:
+            logger.error(f"Stripe execution failed: {e}")
+            raise e
+
+    async def _execute_shopify_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Shopify service actions"""
+        try:
+            from integrations.shopify_service import ShopifyService
+            service = ShopifyService()
+            
+            token_data = token_storage.get_token(connection_id) if connection_id else None
+            access_token = token_data.get("access_token") if token_data else None
+            shop = token_data.get("shop_url") or token_data.get("shop") if token_data else None
+            
+            if access_token:
+                params["access_token"] = access_token
+            if shop:
+                params["shop"] = shop
+
+            if hasattr(service, action):
+                method = getattr(service, action)
+                # Allow async methods
+                if asyncio.iscoroutinefunction(method):
+                    result = await method(**params)
+                else:
+                    result = method(**params)
+                return {"status": "success", "result": result}
+            else:
+                 raise ValueError(f"Unknown Shopify action: {action}")
+        except Exception as e:
+            logger.error(f"Shopify execution failed: {e}")
+            raise e
+
+    async def _execute_zoho_crm_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Zoho CRM service actions"""
+        try:
+            from integrations.zoho_crm_service import ZohoCRMService
+            service = ZohoCRMService()
+
+            token_data = token_storage.get_token(connection_id) if connection_id else None
+            token = token_data.get("access_token") if token_data else None
+
+            if hasattr(service, action):
+                method = getattr(service, action)
+                if token:
+                    params["token"] = token
+                if asyncio.iscoroutinefunction(method):
+                    result = await method(**params)
+                else:
+                    result = method(**params)
+                return {"status": "success", "result": result}
+            else:
+                 raise ValueError(f"Unknown Zoho CRM action: {action}")
+        except Exception as e:
+            logger.error(f"Zoho CRM execution failed: {e}")
+            raise e
+
+    async def _execute_zoho_books_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Zoho Books service actions"""
+        try:
+            from integrations.zoho_books_service import ZohoBooksService
+            service = ZohoBooksService()
+
+            token_data = token_storage.get_token(connection_id) if connection_id else None
+            token = token_data.get("access_token") if token_data else None
+            organization_id = token_data.get("organization_id") or token_data.get("org_id") if token_data else None
+
+            if hasattr(service, action):
+                method = getattr(service, action)
+                # Check method signature or just pass likely kwargs
+                kwargs = params.copy()
+                if token:
+                    kwargs["access_token"] = token # ZohoBooksService uses 'access_token' param name
+                if organization_id and "organization_id" not in kwargs:
+                    kwargs["organization_id"] = organization_id
+
+                if asyncio.iscoroutinefunction(method):
+                    result = await method(**kwargs)
+                else:
+                    result = method(**kwargs)
+                return {"status": "success", "result": result}
+            else:
+                 raise ValueError(f"Unknown Zoho Books action: {action}")
+        except Exception as e:
+            logger.error(f"Zoho Books execution failed: {e}")
+            raise e
+
+    async def _execute_zoho_inventory_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """Execute Zoho Inventory service actions"""
+        try:
+            from integrations.zoho_inventory_service import ZohoInventoryService
+            service = ZohoInventoryService()
+
+            token_data = token_storage.get_token(connection_id) if connection_id else None
+            token = token_data.get("access_token") if token_data else None
+            organization_id = token_data.get("organization_id") or token_data.get("org_id") if token_data else None
+
+            if hasattr(service, action):
+                method = getattr(service, action)
+                kwargs = params.copy()
+                if token:
+                    kwargs["token"] = token
+                if organization_id and "organization_id" not in kwargs:
+                    kwargs["organization_id"] = organization_id
+
+                if asyncio.iscoroutinefunction(method):
+                    result = await method(**kwargs)
+                else:
+                    result = method(**kwargs)
+                return {"status": "success", "result": result}
+            else:
+                 raise ValueError(f"Unknown Zoho Inventory action: {action}")
+        except Exception as e:
+            logger.error(f"Zoho Inventory execution failed: {e}")
+            raise e
+
+    async def _execute_generic_action(self, service_name: str, action_name: str, params: dict, connection_id: Optional[str] = None) -> dict:
+        """
+        Universal Generic Executor for Catalog Integrations.
+        Fetches metadata from IntegrationCatalog and executes HTTP request.
+        """
+        from core.cache import cache
+        
+        logger.info(f"Attempting generic execution for {service_name}.{action_name}")
+        
+        # 0. Try Cache
+        cache_key = f"catalog:{service_name}"
+        catalog_data = await cache.get(cache_key)
+        
+        if not catalog_data:
+            # 1. Fetch metadata from DB
+            db = SessionLocal()
+            try:
+                catalog_item = db.query(IntegrationCatalog).filter(IntegrationCatalog.id == service_name).first()
+                if not catalog_item:
+                    raise ValueError(f"Service '{service_name}' not found in Integration Catalog")
+                
+                # Serialize for cache
+                catalog_data = {
+                    "id": catalog_item.id,
+                    "actions": catalog_item.actions
+                }
+                # Cache for 1 hour
+                await cache.set(cache_key, catalog_data, expire=3600)
+                
+            finally:
+                db.close()
+            
+        # 2. Find specific action definition
+        actions = catalog_data.get("actions") or []
+        action_def = next((a for a in actions if a.get("name") == action_name), None)
+            
+        if not action_def:
+            raise ValueError(f"Action '{action_name}' not found in catalog for service '{service_name}'")
+            
+        # 3. Construct HTTP Request
+        url = action_def.get("url") or action_def.get("path")
+        method = action_def.get("method", "GET").upper()
+            
+        if not url:
+            raise ValueError(f"No URL/path defined for action '{action_name}'")
+            
+        # Parameter Substitution (Path variables)
+        # e.g. /users/{id}
+        path_params = re.findall(r'\{([^}]+)\}', url)
+        for param in path_params:
+            if param in params:
+                url = url.replace(f"{{{param}}}", str(params.pop(param)))
+            else:
+                raise ValueError(f"Missing path parameter: {param}")
+            
+        # Prepare Query & Body
+        # Simple heuristic: GET/DELETE uses query, POST/PUT/PATCH uses body
+        query_params = {}
+        json_body = {}
+            
+        if method in ["GET", "DELETE"]:
+            query_params = params
+        else:
+            json_body = params
+            
+        # 4. Authentication
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Atom-Workflow-Engine/1.0"
+        }
+            
+        if connection_id:
+            token_data = token_storage.get_token(connection_id)
+            if token_data:
+                # Generic Bearer Auth Support
+                if "access_token" in token_data:
+                    headers["Authorization"] = f"Bearer {token_data['access_token']}"
+            
+        # 5. Execute Request
+        async with httpx.AsyncClient() as client:
+            response = await client.request(
+                method=method,
+                url=url,
+                params=query_params,
+                json=json_body if method not in ["GET", "DELETE"] else None,
+                headers=headers,
+                timeout=30.0
+            )
+                
+            response.raise_for_status()
+            return response.json()
 
     async def _execute_goal_management_action(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute goal management actions"""

@@ -11,6 +11,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/atom_production
       - REDIS_URL=redis://redis:6379
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - BRAVE_SEARCH_API_KEY=${BRAVE_SEARCH_API_KEY}
     depends_on:
       - postgres
       - redis

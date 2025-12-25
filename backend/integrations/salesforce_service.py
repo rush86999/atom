@@ -97,6 +97,21 @@ async def get_salesforce_client(user_id: str, db_conn_pool) -> Optional[Salesfor
         return None
 
 
+def create_client_with_token(access_token: str, instance_url: str) -> Optional[Salesforce]:
+    """
+    Create authenticated Salesforce client using raw token and instance URL
+    """
+    try:
+        sf = Salesforce(
+            instance_url=instance_url,
+            session_id=access_token,
+            version="57.0",
+        )
+        return sf
+    except Exception as e:
+        logger.error(f"Failed to create Salesforce client with token: {e}")
+        return None
+
 async def list_contacts(sf: Salesforce) -> List[Dict[str, Any]]:
     """List all contacts from Salesforce"""
     try:
@@ -318,6 +333,9 @@ class SalesforceService:
 
     async def get_client(self, user_id: str, db_conn_pool) -> Optional[Salesforce]:
         return await get_salesforce_client(user_id, db_conn_pool)
+        
+    def create_client(self, access_token: str, instance_url: str) -> Optional[Salesforce]:
+        return create_client_with_token(access_token, instance_url)
 
     async def list_contacts(self, sf: Salesforce) -> List[Dict[str, Any]]:
         return await list_contacts(sf)
