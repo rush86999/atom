@@ -81,8 +81,45 @@ class ComputerUseAgent:
                 # Real Lux Execution via Local Model
                 task.logs.append("Initializing Lux Agent (Local Model)...")
                 
+                # --- Governance Setup ---
+                from core.database import SessionLocal
+                from core.agent_governance_service import AgentGovernanceService
+                
+                # Define callback for governance checks
+                async def check_governance(action_type: str, details: Dict) -> bool:
+                    try:
+                        db = SessionLocal()
+                        service = AgentGovernanceService(db)
+                        
+                        # Register Computer Use Agent if missing
+                        agent = service.register_or_update_agent(
+                            name="Computer Use Agent",
+                            category="Desktop Automation",
+                            module_path="backend.services.agent_service",
+                            class_name="ComputerUseAgent",
+                            description="AI Agent capable of controlling desktop mouse and keyboard."
+                        )
+                        
+                        # Check permission
+                        check = service.enforce_action(agent.id, action_type)
+                        
+                        if check["proceed"]:
+                            return True
+                        else:
+                            # Log detailed reason for blockage
+                            reason = check.get("reason", "Action blocked by governance policies.")
+                            task.logs.append(f"⛔ Governance Blocked Action '{action_type}': {reason}")
+                            return False
+                    except Exception as e:
+                        logger.error(f"Governance check failed: {e}")
+                        # Fail safe: Block if check fails
+                        return False
+                    finally:
+                        db.close()
+
                 try:
-                    agent = LuxModel(api_key=api_key)
+                    # Pass callback to LuxModel
+                    agent = LuxModel(api_key=api_key, governance_callback=check_governance)
                     task.logs.append("Lux Agent ready. Executing command...")
                     
                     # Execute
