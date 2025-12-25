@@ -20,8 +20,17 @@ SESSIONS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chat_s
 class ChatSessionManager:
     """Manages chat session metadata"""
     
-    def __init__(self, sessions_file: str = None):
-        self.sessions_file = sessions_file or SESSIONS_FILE
+    def __init__(self, sessions_file: str = None, workspace_id: str = None):
+        self.workspace_id = workspace_id or "default"
+        
+        if sessions_file:
+            self.sessions_file = sessions_file
+        else:
+            # Derive filename from workspace_id
+            base_dir = os.path.dirname(os.path.dirname(__file__))
+            filename = f"chat_sessions_{self.workspace_id}.json"
+            self.sessions_file = os.path.join(base_dir, filename)
+            
         self._ensure_file()
     
     def _ensure_file(self):
@@ -118,6 +127,6 @@ class ChatSessionManager:
 # Global instance
 chat_session_manager = ChatSessionManager()
 
-def get_chat_session_manager() -> ChatSessionManager:
-    """Get global chat session manager instance"""
-    return chat_session_manager
+def get_chat_session_manager(workspace_id: str = None) -> ChatSessionManager:
+    """Get workspace-aware chat session manager instance"""
+    return ChatSessionManager(workspace_id=workspace_id)

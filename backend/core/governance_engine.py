@@ -52,21 +52,25 @@ class ContactGovernance:
             workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
             if not workspace:
                 logger.warning(f"Workspace {workspace_id} not found for governance check.")
-                return True # Default to safety
+                return True 
 
-            # 1. Strict 'Learning Phase' check
-            if not workspace.learning_phase_completed:
-                logger.info(f"Action paused: Workspace {workspace_id} is in Learning Phase.")
-                return True
-
-            # 2. Confidence Score check (Graduation logic)
-            # If the user has approved enough of these patterns, confidence grows.
+            # Autonomy Condition: Handled 'OR' logic
+            # Autonomy if (Learning Phase is Over) OR (High User Confidence for this pattern)
+            
+            # 1. Check Confidence first (Pattern Graduation)
             confidence = self.get_confidence_score(workspace_id, action_type, platform)
-            if confidence < 0.9: # Threshold for autonomy
-                logger.info(f"Action paused: Low confidence score ({confidence}) for pattern.")
-                return True
+            if confidence >= 0.9:
+                logger.info(f"Action approved autonomously: High confidence ({confidence}) for pattern.")
+                return False
 
-            return False
+            # 2. Check override flag (Workspace graduation)
+            if workspace.learning_phase_completed:
+                logger.info(f"Action approved autonomously: Workspace {workspace_id} graduation flag set.")
+                return False
+
+            # Default to pause if not graduated nor confident
+            logger.info(f"Action paused: Learning phase in progress and low pattern confidence ({confidence}).")
+            return True
         finally:
             if not self.db:
                 db.close()

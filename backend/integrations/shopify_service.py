@@ -94,3 +94,36 @@ class ShopifyService:
         except Exception as e:
             logger.error(f"Failed to get shop info: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to fetch shop info: {str(e)}")
+
+    async def register_webhooks(self, access_token: str, shop: str, webhook_url: str) -> List[Dict[str, Any]]:
+        """Register required webhooks for Phase 13 automation"""
+        topics = ["orders/create", "orders/updated", "refunds/create"]
+        results = []
+        
+        for topic in topics:
+            try:
+                url = f"{self._get_base_url(shop)}/webhooks.json"
+                headers = self._get_headers(access_token)
+                
+                data = {
+                    "webhook": {
+                        "topic": topic,
+                        "address": f"{webhook_url}/{topic.replace('/', '-')}",
+                        "format": "json"
+                    }
+                }
+                
+                response = await self.client.post(url, headers=headers, json=data)
+                # Shopify returns 422 if webhook already exists
+                if response.status_code == 422:
+                    logger.info(f"Webhook for topic {topic} already exists for shop {shop}")
+                    results.append({"topic": topic, "status": "already_exists"})
+                else:
+                    response.raise_for_status()
+                    results.append({"topic": topic, "status": "registered", "data": response.json()})
+                    
+            except Exception as e:
+                logger.error(f"Failed to register webhook {topic}: {e}")
+                results.append({"topic": topic, "status": "failed", "error": str(e)})
+                
+        return results

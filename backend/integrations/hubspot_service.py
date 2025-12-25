@@ -246,6 +246,95 @@ class HubSpotService:
                 status_code=400, detail=f"Failed to create contact: {str(e)}"
             )
 
+    async def create_company(self, name: str, domain: Optional[str] = None) -> Dict[str, Any]:
+        """Create a new HubSpot company"""
+        try:
+            if not self.access_token:
+                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
+                if not self.access_token:
+                    raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+            }
+
+            properties = {
+                "name": name,
+                "domain": domain,
+            }
+
+            payload = {
+                "properties": {k: v for k, v in properties.items() if v is not None}
+            }
+
+            response = await self.client.post(
+                f"{self.base_url}/crm/v3/objects/companies",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to create HubSpot company: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to create company: {str(e)}"
+            )
+
+    async def create_deal(self, name: str, amount: float, company_id: Optional[str] = None) -> Dict[str, Any]:
+        """Create a new HubSpot deal"""
+        try:
+            if not self.access_token:
+                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
+                if not self.access_token:
+                    raise HTTPException(status_code=401, detail="Not authenticated")
+
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+            }
+
+            properties = {
+                "dealname": name,
+                "amount": str(amount),
+                "dealstage": "appointmentscheduled", # Default stage
+                "pipeline": "default"
+            }
+
+            payload = {
+                "properties": properties
+            }
+
+            if company_id:
+                payload["associations"] = [
+                    {
+                        "to": {"id": company_id},
+                        "types": [
+                            {
+                                "associationCategory": "HUBSPOT_DEFINED",
+                                "associationTypeId": 5 # deal_to_company
+                            }
+                        ]
+                    }
+                ]
+
+            response = await self.client.post(
+                f"{self.base_url}/crm/v3/objects/deals",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to create HubSpot deal: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to create deal: {str(e)}"
+            )
+
     async def health_check(self) -> dict:
         """Health check for HubSpot service"""
         try:

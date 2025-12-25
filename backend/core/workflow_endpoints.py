@@ -7,6 +7,9 @@ import json
 import os
 import logging
 import re
+from core.models import User
+from core.security_dependencies import require_permission
+from core.rbac_service import Permission
 
 # Import AI workflow editor for natural language processing
 logger = logging.getLogger(__name__)
@@ -76,11 +79,11 @@ def save_workflows(workflows: List[Dict]):
         json.dump(workflows, f, indent=2)
 
 @router.get("/workflows", response_model=List[WorkflowDefinition])
-async def get_workflows():
+async def get_workflows(user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))):
     return load_workflows()
 
 @router.get("/workflows/{workflow_id}", response_model=WorkflowDefinition)
-async def get_workflow(workflow_id: str):
+async def get_workflow(workflow_id: str, user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))):
     workflows = load_workflows()
     workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
     if not workflow:
@@ -88,7 +91,7 @@ async def get_workflow(workflow_id: str):
     return workflow
 
 @router.post("/workflows", response_model=WorkflowDefinition)
-async def create_workflow(workflow: WorkflowDefinition):
+async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE))):
     workflows = load_workflows()
 
     # Generate ID if new
@@ -112,7 +115,7 @@ async def create_workflow(workflow: WorkflowDefinition):
     return workflow_dict
 
 @router.delete("/workflows/{workflow_id}")
-async def delete_workflow(workflow_id: str):
+async def delete_workflow(workflow_id: str, user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE))):
     workflows = load_workflows()
     workflows = [w for w in workflows if w.get('id') != workflow_id and w.get('workflow_id') != workflow_id]
     save_workflows(workflows)
@@ -236,7 +239,8 @@ async def _legacy_rule_based_edit(
 @router.post("/workflows/{workflow_id}/edit", response_model=WorkflowEditResponse)
 async def edit_workflow_natural_language(
     workflow_id: str,
-    request: WorkflowEditRequest
+    request: WorkflowEditRequest,
+    user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE))
 ):
     """
     Edit a workflow using natural language commands with AI-powered parsing.
@@ -361,7 +365,8 @@ class ExecutionResult(BaseModel):
 async def execute_workflow(
     workflow_id: str, 
     background_tasks: BackgroundTasks,
-    input_data: Optional[Dict[str, Any]] = None
+    input_data: Optional[Dict[str, Any]] = None,
+    user: User = Depends(require_permission(Permission.WORKFLOW_RUN))
 ):
     """Execute a workflow by ID"""
     from core.workflow_engine import get_workflow_engine
@@ -406,7 +411,11 @@ async def execute_workflow(
         )
 
 @router.post("/workflows/{execution_id}/resume")
-async def resume_workflow(execution_id: str, input_data: Dict[str, Any] = Body(...)):
+async def resume_workflow(
+    execution_id: str, 
+    input_data: Dict[str, Any] = Body(...),
+    user: User = Depends(require_permission(Permission.WORKFLOW_RUN))
+):
     """Resume a paused workflow execution"""
     from core.workflow_engine import get_workflow_engine
     from core.execution_state_manager import get_state_manager
@@ -438,7 +447,10 @@ async def resume_workflow(execution_id: str, input_data: Dict[str, Any] = Body(.
 
 
 @router.get("/workflows/{workflow_id}/executions", response_model=List[Dict[str, Any]])
-async def get_workflow_executions(workflow_id: str):
+async def get_workflow_executions(
+    workflow_id: str,
+    user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))
+):
     """Get execution history for a workflow"""
     from ai.automation_engine import AutomationEngine
     engine = AutomationEngine()
@@ -446,7 +458,10 @@ async def get_workflow_executions(workflow_id: str):
     return [e.to_dict() for e in executions]
 
 @router.get("/workflows/executions/{execution_id}", response_model=Dict[str, Any])
-async def get_execution_details(execution_id: str):
+async def get_execution_details(
+    execution_id: str,
+    user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))
+):
     """Get details of a specific execution"""
     from ai.automation_engine import AutomationEngine
     engine = AutomationEngine()
@@ -457,7 +472,11 @@ async def get_execution_details(execution_id: str):
 # Scheduling Endpoints
 
 @router.post("/workflows/{workflow_id}/schedule")
-async def schedule_workflow(workflow_id: str, schedule_config: Dict[str, Any] = Body(...)):
+async def schedule_workflow(
+    workflow_id: str, 
+    schedule_config: Dict[str, Any] = Body(...),
+    user: User = Depends(require_permission(Permission.WORKFLOW_RUN))
+):
     """
     Schedule a workflow execution.
     
@@ -487,14 +506,18 @@ async def schedule_workflow(workflow_id: str, schedule_config: Dict[str, Any] = 
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/workflows/{workflow_id}/schedule/{job_id}")
-async def unschedule_workflow(workflow_id: str, job_id: str):
+async def unschedule_workflow(
+    workflow_id: str, 
+    job_id: str,
+    user: User = Depends(require_permission(Permission.WORKFLOW_RUN))
+):
     """Remove a scheduled workflow job"""
     from ai.workflow_scheduler import workflow_scheduler
     workflow_scheduler.remove_schedule(job_id)
     return {"success": True, "message": "Schedule removed"}
 
 @router.get("/scheduler/jobs")
-async def list_scheduled_jobs():
+async def list_scheduled_jobs(user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))):
     """List all scheduled jobs"""
     from ai.workflow_scheduler import workflow_scheduler
     return workflow_scheduler.list_jobs()
