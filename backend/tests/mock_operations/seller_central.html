@@ -2,30 +2,34 @@
 <html>
 
 <head>
-    <title>Mock Seller Central - Inventory</title>
+    <title>Seller Central - Manage Inventory</title>
 </head>
 
 <body>
     <h1>Manage Inventory</h1>
-
-    <div class="listing">
-        <h2>SKU-123: Premium Widget</h2>
-        <p>Current Price: $<span id="current-price">50.00</span></p>
-
-        <label>New Price:</label>
-        <input type="text" id="price-input" value="50.00">
-        <button id="save-btn" onclick="save()">Save</button>
-        <p class="success-message" style="display:none; color:green;">Price Updated Successfully</p>
-    </div>
-
-    <script>
-        function save() {
-            const val = document.getElementById('price-input').value;
-            document.getElementById('current-price').innerText = val;
-            document.querySelector('.success-message').style.display = 'block';
-            document.querySelector('.success-message').innerText = "Price Updated to " + val;
-        }
-    </script>
+    <table>
+        <tr>
+            <th>SKU</th>
+            <th>Product Name</th>
+            <th>Price</th>
+            <th>Action</th>
+        </tr>
+        <tr>
+            <td>SKU-123</td>
+            <td>Wireless Headphones</td>
+            <td><input type="text" id="price-sku-123" value="45.00"></td>
+            <td><button id="save-sku-123"
+                    onclick="document.getElementById('msg').innerText='Saved SKU-123'">Save</button></td>
+        </tr>
+        <tr>
+            <td>SKU-999</td>
+            <td>USB-C Cable</td>
+            <td><input type="text" id="price-sku-999" value="12.00"></td>
+            <td><button id="save-sku-999"
+                    onclick="document.getElementById('msg').innerText='Saved SKU-999'">Save</button></td>
+        </tr>
+    </table>
+    <div id="msg"></div>
 </body>
 
 </html>

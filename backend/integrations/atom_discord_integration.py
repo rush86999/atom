@@ -22,6 +22,8 @@ try:
     from discord_analytics_engine import discord_analytics_engine
 except ImportError as e:
     logging.warning(f"Discord integration services not available: {e}")
+    discord_enhanced_service = None
+    discord_analytics_engine = None
 
 logger = logging.getLogger(__name__)
 

@@ -156,7 +156,7 @@ class BYOKManager:
                 api_key_env_var="OPENAI_API_KEY",
                 supported_tasks=["general", "chat", "code", "analysis"],
                 cost_per_token=0.00003,
-                model="gpt-4-turbo",
+                model="gpt-4o",
                 reasoning_level=3
             ),
             AIProviderConfig(
@@ -166,7 +166,7 @@ class BYOKManager:
                 api_key_env_var="ANTHROPIC_API_KEY",
                 supported_tasks=["general", "chat", "code", "analysis", "writing"],
                 cost_per_token=0.000015,
-                model="claude-3-sonnet-20240229",
+                model="claude-3-5-sonnet-20240620",
                 reasoning_level=2
             ),
             AIProviderConfig(
@@ -232,6 +232,50 @@ class BYOKManager:
                 supported_tasks=["general", "chat", "analysis"],
                 cost_per_token=0.000005,
                 model="glm-4.6",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="groq",
+                name="Groq",
+                description="Groq Llama 3.1 and Mixtral models",
+                api_key_env_var="GROQ_API_KEY",
+                base_url="https://api.groq.com/openai/v1",
+                supported_tasks=["general", "chat", "code", "analysis"],
+                cost_per_token=0.000001,
+                model="llama-3.1-70b-versatile",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="mistral",
+                name="Mistral AI",
+                description="Mistral Large 2 and Mixtral models",
+                api_key_env_var="MISTRAL_API_KEY",
+                base_url="https://api.mistral.ai/v1",
+                supported_tasks=["general", "chat", "code", "analysis"],
+                cost_per_token=0.000004,
+                model="mistral-large-latest",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="perplexity",
+                name="Perplexity",
+                description="Perplexity Sonar online models",
+                api_key_env_var="PERPLEXITY_API_KEY",
+                base_url="https://api.perplexity.ai",
+                supported_tasks=["search", "chat", "analysis"],
+                cost_per_token=0.000005,
+                model="llama-3.1-sonar-large-128k-online",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="cohere",
+                name="Cohere",
+                description="Command R and Command R+ models",
+                api_key_env_var="COHERE_API_KEY",
+                base_url="https://api.cohere.ai/v1",
+                supported_tasks=["chat", "rag", "analysis"],
+                cost_per_token=0.000015,
+                model="command-r-plus",
                 reasoning_level=3
             )
         ]

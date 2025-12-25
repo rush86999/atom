@@ -18,14 +18,9 @@ import asyncio
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from core.automation_settings import get_automation_settings
-from accounting.assistant import AccountingAssistant
-from accounting.document_processor import AIDocumentProcessor
-from accounting.workflows import CollectionAgent
-from accounting.tax_service import TaxService
-from accounting.close_agent import CloseChecklistAgent
-from accounting.fpa_service import FPAService
-from accounting.multi_entity import IntercompanyManager
-from sales.assistant import SalesAssistant
+from api.agent_routes import AGENTS, execute_agent_task
+
+# ... (other imports)
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +43,8 @@ class FeatureType(Enum):
     SOCIAL_MEDIA = "social_media"
     HR = "hr"
     ECOMMERCE = "ecommerce"
-
+    BUSINESS_HEALTH = "business_health"
+    AGENT = "agent"  # Phase 30: Atom Meta-Agent
 
 class PlatformType(Enum):
     """Supported platform integrations"""
@@ -56,6 +52,7 @@ class PlatformType(Enum):
     SLACK = "slack"
     TEAMS = "teams"
     GMAIL = "gmail"
+    WHATSAPP = "whatsapp"
     OUTLOOK = "outlook"
     ZOOM = "zoom"
 
@@ -119,6 +116,9 @@ class ChatIntent(Enum):
     STATUS_CHECK = "status_check"
     HELP_REQUEST = "help_request"
     MULTI_STEP_PROCESS = "multi_step_process"
+    BUSINESS_HEALTH = "business_health"
+    CRM = "crm"
+    AGENT_REQUEST = "agent_request"  # Phase 30: Request that needs Atom Meta-Agent
 
 
 class ChatOrchestrator:
@@ -154,6 +154,8 @@ class ChatOrchestrator:
             FeatureType.SOCIAL_MEDIA: self._handle_social_media_request,
             FeatureType.HR: self._handle_hr_request,
             FeatureType.ECOMMERCE: self._handle_ecommerce_request,
+            FeatureType.BUSINESS_HEALTH: self._handle_business_health_request,
+            FeatureType.AGENT: self._handle_agent_request,  # Phase 30: Atom Meta-Agent
         }
 
     def _initialize_platform_connectors(self):
@@ -243,10 +245,10 @@ class ChatOrchestrator:
                 nlp_result = self.ai_engines["nlp"].parse_command(message)
                 return {
                     "primary_intent": self._classify_intent(nlp_result),
-                    "confidence": nlp_result.get("confidence", 0.5),
-                    "entities": nlp_result.get("entities", []),
-                    "platforms": nlp_result.get("platforms", []),
-                    "command_type": nlp_result.get("command_type"),
+                    "confidence": nlp_result.confidence,
+                    "entities": nlp_result.entities,
+                    "platforms": nlp_result.platforms,
+                    "command_type": nlp_result.command_type,
                     "raw_nlp": nlp_result
                 }
         except Exception as e:
@@ -255,18 +257,20 @@ class ChatOrchestrator:
         # Fallback intent classification
         return self._fallback_intent_analysis(message)
 
-    def _classify_intent(self, nlp_result: Dict) -> ChatIntent:
+    def _classify_intent(self, nlp_result) -> ChatIntent:
         """Classify intent from NLP results"""
-        command_type = nlp_result.get("command_type", "")
-        platforms = nlp_result.get("platforms", [])
-
+        from backend.ai.nlp_engine import CommandType
+        command_type = nlp_result.command_type
+        
         # Map command types to intents
         intent_mapping = {
-            "search": ChatIntent.SEARCH_REQUEST,
-            "create": ChatIntent.TASK_MANAGEMENT,
-            "update": ChatIntent.TASK_MANAGEMENT,
-            "schedule": ChatIntent.SCHEDULING,
-            "automate": ChatIntent.WORKFLOW_CREATION,
+            CommandType.SEARCH: ChatIntent.SEARCH_REQUEST,
+            CommandType.CREATE: ChatIntent.TASK_MANAGEMENT,
+            CommandType.UPDATE: ChatIntent.TASK_MANAGEMENT,
+            CommandType.SCHEDULE: ChatIntent.SCHEDULING,
+            CommandType.ANALYZE: ChatIntent.DATA_ANALYSIS,
+            CommandType.BUSINESS_HEALTH: ChatIntent.BUSINESS_HEALTH,
+            CommandType.TRIGGER: ChatIntent.AUTOMATION_TRIGGER,
         }
 
         return intent_mapping.get(command_type, ChatIntent.SEARCH_REQUEST)
@@ -286,6 +290,11 @@ class ChatOrchestrator:
             intent = ChatIntent.WORKFLOW_CREATION
         elif any(word in message_lower for word in ["schedule", "meeting", "calendar", "appointment"]):
             intent = ChatIntent.SCHEDULING
+        # Business Health Detection
+        elif any(word in message_lower for word in ["priority", "priorities", "what should i do", "what to do today"]):
+            intent = ChatIntent.BUSINESS_HEALTH
+        elif any(word in message_lower for word in ["simulate", "simulation", "what if i", "impact of"]):
+            intent = ChatIntent.BUSINESS_HEALTH
         # CRM & Sales Intelligence intents
         elif any(word in message_lower for word in ["deal", "lead", "pipeline", "sales", "prospect", "forecast"]):
             intent = ChatIntent.CRM
@@ -323,7 +332,9 @@ class ChatOrchestrator:
             ChatIntent.INTEGRATION_SETUP: [FeatureType.INTEGRATIONS],
             ChatIntent.STATUS_CHECK: [FeatureType.SEARCH, FeatureType.AI_ANALYTICS],
             ChatIntent.HELP_REQUEST: [FeatureType.SEARCH],
+            ChatIntent.BUSINESS_HEALTH: [FeatureType.BUSINESS_HEALTH],
             ChatIntent.CRM: [FeatureType.CRM], # Added CRM intent mapping
+            ChatIntent.AGENT_REQUEST: [FeatureType.AGENT],  # Phase 30: Route to Atom
             ChatIntent.MULTI_STEP_PROCESS: list(FeatureType),  # All features for complex requests
         }
 
@@ -431,6 +442,12 @@ class ChatOrchestrator:
             if crm_data.get("success"):
                 return crm_data.get("data", {}).get("answer", "I've processed your CRM request.")
             return "I'll help you with your CRM request."
+
+        elif intent == ChatIntent.BUSINESS_HEALTH:
+            health_data = feature_responses.get(FeatureType.BUSINESS_HEALTH, {})
+            if health_data.get("success"):
+                return health_data.get("message", "I've analyzed your business health.")
+            return "I'll help you with your business health query."
 
         return "I've processed your request across all connected platforms."
 
@@ -551,7 +568,53 @@ class ChatOrchestrator:
     async def _handle_automation_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
-        return {"success": True, "data": {"message": "Automation logic here"}}
+        """Handle requests to trigger automation agents"""
+        message_lower = message.lower()
+        
+        # Identify which agent to run based on keywords
+        target_agent_id = None
+        
+        if "competitor" in message_lower or "price" in message_lower:
+            target_agent_id = "competitive_intel"
+        elif "inventory" in message_lower or "stock" in message_lower:
+            target_agent_id = "inventory_reconcile"
+        elif "payroll" in message_lower:
+            target_agent_id = "payroll_guardian"
+            
+        if not target_agent_id:
+            return {
+                "success": False, 
+                "message": "I understood you want to run an automation, but I'm not sure which one. Try 'Run inventory check' or 'Check competitor prices'."
+            }
+            
+        if target_agent_id not in AGENTS:
+             return {
+                "success": False, 
+                "message": f"Agent configuration for '{target_agent_id}' not found."
+            }
+
+        # Trigger the agent
+        try:
+             # In a real app we might pass specific parameters extracted from NLP
+            await execute_agent_task(target_agent_id, {"trigger": "chat_user", "session_id": session.get("id")})
+            
+            agent_name = AGENTS[target_agent_id]["name"]
+            return {
+                "success": True,
+                "data": {
+                    "agent_id": target_agent_id,
+                    "status": "started"
+                },
+                "message": f"🚀 I've started the **{agent_name}** for you. You'll receive a notification when it completes.",
+                "suggested_actions": ["Check Agent Status", "View Live Logs"]
+            }
+        except Exception as e:
+            logger.error(f"Failed to trigger agent {target_agent_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": f"I tried to start the agent but encountered an error: {str(e)}"
+            }
 
     async def _handle_document_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
@@ -659,6 +722,62 @@ class ChatOrchestrator:
             logger.error(f"CRM handler failed: {e}")
             return {"success": False, "error": str(e)}
 
+    async def _handle_business_health_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        """Handle business health queries (priorities and simulations)"""
+        from core.business_health_service import business_health_service
+        
+        message_lower = message.lower()
+        workspace_id = context.get("workspace_id") if context else "default-workspace"
+        
+        try:
+            if any(word in message_lower for word in ["simulate", "simulation", "impact", "what if"]):
+                # Run Simulation
+                # Simple extraction for demo purposes, in production use AI extraction
+                decision_type = "GENERAL"
+                if "hire" in message_lower or "hiring" in message_lower:
+                    decision_type = "HIRING"
+                elif "spend" in message_lower or "spent" in message_lower or "buy" in message_lower:
+                    decision_type = "CAPEX"
+                
+                result = await business_health_service.simulate_decision(workspace_id, decision_type, {"query": message})
+                answer = result.get("prediction", "I've analyzed the potential impact of this decision.")
+                if "roi" in result:
+                    answer += f"\n\n**Predicted ROI:** {result['roi']}"
+                if "breakeven" in result:
+                    answer += f"\n**Breakeven:** {result['breakeven']}"
+                
+                return {
+                    "success": True,
+                    "data": result,
+                    "message": answer,
+                    "suggested_actions": ["Run another simulation", "View cash flow"]
+                }
+            else:
+                # Get Priorities
+                result = await business_health_service.get_daily_priorities(workspace_id)
+                priorities = result.get("priorities", [])
+                advice = result.get("owner_advice", "")
+                
+                answer = f"**Daily Strategy Insight:**\n{advice}\n\n"
+                if priorities:
+                    answer += "**Top Priorities:**\n"
+                    for p in priorities:
+                        answer += f"- [{p['priority']}] **{p['title']}**: {p['description']}\n"
+                else:
+                    answer += "Your business vitals look great! No urgent actions identified."
+                
+                return {
+                    "success": True,
+                    "data": result,
+                    "message": answer,
+                    "suggested_actions": ["Review Lead Pipeline", "Check Failed Tasks"]
+                }
+        except Exception as e:
+            logger.error(f"Business Health handler failed: {e}")
+            return {"success": False, "error": str(e)}
+
     async def _handle_social_media_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
@@ -699,3 +818,49 @@ class ChatOrchestrator:
             "session_id": session_id,
             "timestamp": datetime.now().isoformat()
         }
+
+    # ==================== PHASE 30: ATOM META-AGENT HANDLER ====================
+    
+    async def _handle_agent_request(
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
+    ) -> Dict[str, Any]:
+        """
+        Route request to Atom Meta-Agent for complex/agent-based processing.
+        Atom will analyze the request, spawn specialty agents if needed, and coordinate response.
+        """
+        try:
+            from core.atom_meta_agent import get_atom_agent, AgentTriggerMode
+            
+            # Get user from session if available
+            user_id = session.get("user_id", "default_user")
+            
+            # Get or create Atom instance
+            atom = get_atom_agent()
+            
+            # Execute through Atom
+            result = await atom.execute(
+                request=message,
+                context={
+                    "intent_analysis": intent_analysis,
+                    "session_id": session.get("session_id"),
+                    "user_id": user_id,
+                    **(context or {})
+                },
+                trigger_mode=AgentTriggerMode.MANUAL
+            )
+            
+            return {
+                "status": "success",
+                "agent_response": result.get("final_output"),
+                "actions_taken": result.get("actions_executed", []),
+                "spawned_agent": result.get("spawned_agent"),
+                "feature": "agent"
+            }
+            
+        except Exception as e:
+            logger.error(f"Agent request handler failed: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "feature": "agent"
+            }

@@ -49,5 +49,23 @@ class ConnectionManager:
         for dead_conn in to_remove:
             self.disconnect(dead_conn, workspace_id)
 
+    async def send_urgent_notification(self, message: str, workspace_id: str, channel: str = "slack"):
+        """
+        Sends a high-priority notification via external channels (e.g. Slack/Email).
+        For now, this is a simulation.
+        """
+        logger.info(f"URGENT NOTIFICATION [{channel.upper()}]: {message} (Workspace: {workspace_id})")
+        
+        # In a real implementation, we would use an integration client here.
+        # e.g. slack_client.post_message(channel="#urgent-alerts", text=message)
+        
+        # Also broadcast to UI for immediate visibility
+        await self.broadcast({
+            "type": "urgent_alert",
+            "message": message,
+            "timestamp": "now", # ISO format in real app
+            "channel": channel
+        }, workspace_id)
+
 # Singleton
 notification_manager = ConnectionManager()

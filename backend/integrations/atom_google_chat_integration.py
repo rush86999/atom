@@ -22,6 +22,8 @@ try:
     from google_chat_analytics_engine import google_chat_analytics_engine
 except ImportError as e:
     logging.warning(f"Google Chat integration services not available: {e}")
+    google_chat_enhanced_service = None
+    google_chat_analytics_engine = None
 
 logger = logging.getLogger(__name__)
 

@@ -23,16 +23,49 @@ import numpy as np
 # Import existing ATOM services
 try:
     from atom_memory_service import AtomMemoryService
+except ImportError as e:
+    logging.warning(f"AtomMemoryService not available: {e}")
+
+try:
     from atom_search_service import AtomSearchService
+except ImportError as e:
+    logging.warning(f"AtomSearchService not available: {e}")
+
+try:
     from atom_workflow_service import AtomWorkflowService
+except ImportError as e:
+    logging.warning(f"AtomWorkflowService not available: {e}")
+
+try:
     from atom_ingestion_pipeline import AtomIngestionPipeline
+except ImportError as e:
+    logging.warning(f"AtomIngestionPipeline not available: {e}")
+
+try:
     from atom_slack_integration import atom_slack_integration
+except ImportError as e:
+    logging.warning(f"atom_slack_integration not available: {e}")
+
+try:
     from atom_teams_integration import atom_teams_integration
+except ImportError as e:
+    logging.warning(f"atom_teams_integration not available: {e}")
+
+try:
     from atom_google_chat_integration import atom_google_chat_integration
+except ImportError as e:
+    logging.warning(f"atom_google_chat_integration not available: {e}")
+
+try:
     from atom_discord_integration import atom_discord_integration
+except ImportError as e:
+    logging.warning(f"atom_discord_integration not available: {e}")
+
+try:
     from core.byok_endpoints import get_byok_manager
 except ImportError as e:
-    logging.warning(f"AI integration services or core byok manager not available: {e}")
+    logging.warning(f"get_byok_manager not available: {e}")
+    def get_byok_manager(): return None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -45,6 +78,25 @@ class AIModelType(Enum):
     CLAUDE_2 = "claude-2"
     GEMINI_PRO = "gemini-pro"
     LLAMA_2 = "llama-2-70b"
+    DEEPSEEK_CHAT = "deepseek-chat"
+    DEEPSEEK_REASONER = "deepseek-reasoner"
+    GPT_4O = "gpt-4o"
+    GPT_4O_MINI = "gpt-4o-mini"
+    GPT_5_2 = "gpt-5.2"
+    O1_PREVIEW = "o1-preview"
+    O1_MINI = "o1-mini"
+    CLAUDE_3_5_SONNET = "claude-3.5-sonnet"
+    CLAUDE_3_5_HAIKU = "claude-3.5-haiku"
+    GEMINI_1_5_PRO = "gemini-1.5-pro"
+    GEMINI_1_5_FLASH = "gemini-1.5-flash"
+    KIMI_K2 = "kimi-k2"
+    GLM_4_6 = "glm-4.6"
+    LLAMA_3_1_70B = "llama-3.1-70b"
+    LLAMA_3_1_405B = "llama-3.1-405b"
+    MISTRAL_LARGE = "mistral-large"
+    COMMAND_R_PLUS = "command-r-plus"
+    SONAR_LARGE = "sonar-large"
+    LUX_COMPUTER_USE = "lux-1.0"
     CUSTOM = "custom"
 
 class AITaskType(Enum):
@@ -70,6 +122,13 @@ class AIServiceType(Enum):
     GOOGLE = "google"
     COHERE = "cohere"
     AZURE_OPENAI = "azure_openai"
+    DEEPSEEK = "deepseek"
+    GROQ = "groq"
+    MISTRAL = "mistral"
+    PERPLEXITY = "perplexity"
+    MOONSHOT = "moonshot"
+    GLM = "glm"
+    LUX = "lux"
     HUGGINGFACE = "huggingface"
     LOCAL = "local"
     CUSTOM = "custom"
@@ -163,6 +222,55 @@ class AIEnhancedService:
             'timeout': config.get('google_timeout', 30)
         }
         
+        self.deepseek_config = {
+            'api_key': config.get('deepseek_api_key') or os.getenv('DEEPSEEK_API_KEY'),
+            'base_url': config.get('deepseek_base_url') or 'https://api.deepseek.com/v1',
+            'max_retries': config.get('deepseek_max_retries', 3),
+            'timeout': config.get('deepseek_timeout', 60)
+        }
+
+        self.groq_config = {
+            'api_key': config.get('groq_api_key') or os.getenv('GROQ_API_KEY'),
+            'base_url': config.get('groq_base_url') or 'https://api.groq.com/openai/v1',
+            'timeout': config.get('groq_timeout', 30)
+        }
+
+        self.mistral_config = {
+            'api_key': config.get('mistral_api_key') or os.getenv('MISTRAL_API_KEY'),
+            'base_url': config.get('mistral_base_url') or 'https://api.mistral.ai/v1',
+            'timeout': config.get('mistral_timeout', 30)
+        }
+
+        self.perplexity_config = {
+            'api_key': config.get('perplexity_api_key') or os.getenv('PERPLEXITY_API_KEY'),
+            'base_url': config.get('perplexity_base_url') or 'https://api.perplexity.ai',
+            'timeout': config.get('perplexity_timeout', 30)
+        }
+
+        self.cohere_config = {
+            'api_key': config.get('cohere_api_key') or os.getenv('COHERE_API_KEY'),
+            'base_url': config.get('cohere_base_url') or 'https://api.cohere.ai/v1',
+            'timeout': config.get('cohere_timeout', 30)
+        }
+        
+        self.moonshot_config = {
+            'api_key': config.get('moonshot_api_key') or os.getenv('MOONSHOT_API_KEY'),
+            'base_url': config.get('moonshot_base_url') or 'https://api.moonshot.cn/v1',
+            'timeout': config.get('moonshot_timeout', 30)
+        }
+        
+        self.glm_config = {
+            'api_key': config.get('glm_api_key') or os.getenv('GLM_API_KEY'),
+            'base_url': config.get('glm_base_url') or 'https://open.bigmodel.cn/api/paas/v4',
+            'timeout': config.get('glm_timeout', 30)
+        }
+        
+        self.lux_config = {
+            'api_key': config.get('lux_api_key') or os.getenv('LUX_MODEL_API_KEY'),
+            'base_url': config.get('lux_base_url') or 'https://api.lux.ai/v1',
+            'timeout': config.get('lux_timeout', 60)
+        }
+        
         # Cache and rate limiting
         self.cache = config.get('cache')
         self.rate_limiter = config.get('rate_limiter')
@@ -195,7 +303,15 @@ class AIEnhancedService:
             'service_usage': {
                 'openai': 0,
                 'anthropic': 0,
-                'google': 0
+                'google': 0,
+                'deepseek': 0,
+                'groq': 0,
+                'mistral': 0,
+                'perplexity': 0,
+                'cohere': 0,
+                'moonshot': 0,
+                'glm': 0,
+                'lux': 0
             }
         }
         
@@ -224,6 +340,114 @@ class AIEnhancedService:
                 'max_tokens': 8192,
                 'temperature': 0.7,
                 'system_prompt': "You are an intelligent assistant for unified communication platforms."
+            },
+            AIModelType.DEEPSEEK_CHAT: {
+                'service': AIServiceType.DEEPSEEK,
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'system_prompt': "You are an intelligent assistant for unified communication platforms."
+            },
+            AIModelType.DEEPSEEK_REASONER: {
+                'service': AIServiceType.DEEPSEEK,
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'system_prompt': "You are an intelligent reasoning assistant for unified communication platforms."
+            },
+            AIModelType.GPT_4O: {
+                'service': AIServiceType.OPENAI,
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'system_prompt': "You are GPT-4o, an intelligent assistant for unified communication platforms."
+            },
+            AIModelType.GPT_4O_MINI: {
+                'service': AIServiceType.OPENAI,
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'system_prompt': "You are GPT-4o-mini, a fast and efficient assistant."
+            },
+            AIModelType.GPT_5_2: {
+                'service': AIServiceType.OPENAI,
+                'max_tokens': 16384,
+                'temperature': 0.7,
+                'system_prompt': "You are GPT-5.2, the latest flagship model from OpenAI with advanced multimodal and reasoning capabilities."
+            },
+            AIModelType.O1_PREVIEW: {
+                'service': AIServiceType.OPENAI,
+                'max_tokens': 32768,
+                'temperature': 1.0, # Recommended default for O1
+                'system_prompt': "You are OpenAI O1-preview, a reasoning-focused model. Think deeply before responding."
+            },
+            AIModelType.O1_MINI: {
+                'service': AIServiceType.OPENAI,
+                'max_tokens': 32768,
+                'temperature': 1.0,
+                'system_prompt': "You are OpenAI O1-mini, a fast reasoning-focused model."
+            },
+            AIModelType.CLAUDE_3_5_SONNET: {
+                'service': AIServiceType.ANTHROPIC,
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'system_prompt': "You are Claude 3.5 Sonnet, an intelligent assistant."
+            },
+            AIModelType.CLAUDE_3_5_HAIKU: {
+                'service': AIServiceType.ANTHROPIC,
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'system_prompt': "You are Claude 3.5 Haiku, a fast and intelligent assistant."
+            },
+            AIModelType.GEMINI_1_5_PRO: {
+                'service': AIServiceType.GOOGLE,
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'system_prompt': "You are Gemini 1.5 Pro, an intelligent assistant."
+            },
+            AIModelType.GEMINI_1_5_FLASH: {
+                'service': AIServiceType.GOOGLE,
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'system_prompt': "You are Gemini 1.5 Flash, a high-speed assistant."
+            },
+            AIModelType.LLAMA_3_1_70B: {
+                'service': AIServiceType.GROQ,
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'system_prompt': "You are Llama 3.1 70B, an intelligent assistant running on Groq."
+            },
+            AIModelType.MISTRAL_LARGE: {
+                'service': AIServiceType.MISTRAL,
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'system_prompt': "You are Mistral Large, an intelligent assistant."
+            },
+            AIModelType.COMMAND_R_PLUS: {
+                'service': AIServiceType.COHERE,
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'system_prompt': "You are Command R+, an intelligent assistant specialized in RAG."
+            },
+            AIModelType.SONAR_LARGE: {
+                'service': AIServiceType.PERPLEXITY,
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'system_prompt': "You are Perplexity Sonar, an intelligent search-enabled assistant."
+            },
+            AIModelType.LUX_COMPUTER_USE: {
+                'service': AIServiceType.LUX,
+                'max_tokens': 4096,
+                'temperature': 0.5,
+                'system_prompt': "You are Lux, an advanced AI specialized in computer use and agentic desktop automation."
+            },
+            AIModelType.KIMI_K2: {
+                'service': AIServiceType.MOONSHOT,
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'system_prompt': "You are Kimi (Moonshot AI), an intelligent assistant specialized in long-context reasoning."
+            },
+            AIModelType.GLM_4_6: {
+                'service': AIServiceType.GLM,
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'system_prompt': "You are GLM-4, an intelligent assistant by Zhipu AI."
             }
         }
         
@@ -242,6 +466,30 @@ class AIEnhancedService:
                 ),
                 'google': aiohttp.ClientSession(
                     timeout=aiohttp.ClientTimeout(total=self.google_config['timeout'])
+                ),
+                'deepseek': aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.deepseek_config['timeout'])
+                ),
+                'groq': aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.groq_config['timeout'])
+                ),
+                'mistral': aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.mistral_config['timeout'])
+                ),
+                'perplexity': aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.perplexity_config['timeout'])
+                ),
+                'cohere': aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.cohere_config['timeout'])
+                ),
+                'moonshot': aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.moonshot_config['timeout'])
+                ),
+                'glm': aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.glm_config['timeout'])
+                ),
+                'lux': aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.lux_config['timeout'])
                 )
             }
             
@@ -1182,6 +1430,22 @@ class AIEnhancedService:
                 response = await self._call_anthropic(model_type, system_prompt, user_prompt, max_tokens, temperature)
             elif service_type == AIServiceType.GOOGLE:
                 response = await self._call_google(model_type, system_prompt, user_prompt, max_tokens, temperature)
+            elif service_type == AIServiceType.DEEPSEEK:
+                response = await self._call_deepseek(model_type, system_prompt, user_prompt, max_tokens, temperature)
+            elif service_type == AIServiceType.GROQ:
+                response = await self._call_groq(model_type, system_prompt, user_prompt, max_tokens, temperature)
+            elif service_type == AIServiceType.MISTRAL:
+                response = await self._call_mistral(model_type, system_prompt, user_prompt, max_tokens, temperature)
+            elif service_type == AIServiceType.PERPLEXITY:
+                response = await self._call_perplexity(model_type, system_prompt, user_prompt, max_tokens, temperature)
+            elif service_type == AIServiceType.COHERE:
+                response = await self._call_cohere(model_type, system_prompt, user_prompt, max_tokens, temperature)
+            elif service_type == AIServiceType.MOONSHOT:
+                response = await self._call_moonshot(model_type, system_prompt, user_prompt, max_tokens, temperature)
+            elif service_type == AIServiceType.GLM:
+                response = await self._call_glm(model_type, system_prompt, user_prompt, max_tokens, temperature)
+            elif service_type == AIServiceType.LUX:
+                response = await self._call_lux(model_type, system_prompt, user_prompt, max_tokens, temperature)
             else:
                 raise ValueError(f"Unsupported service type: {service_type}")
             
@@ -1206,7 +1470,12 @@ class AIEnhancedService:
             # Map AI model type to OpenAI model name
             model_mapping = {
                 AIModelType.GPT_4: 'gpt-4',
-                AIModelType.GPT_3_5_TURBO: 'gpt-3.5-turbo'
+                AIModelType.GPT_3_5_TURBO: 'gpt-3.5-turbo',
+                AIModelType.GPT_4O: 'gpt-4o',
+                AIModelType.GPT_4O_MINI: 'gpt-4o-mini',
+                AIModelType.GPT_5_2: 'gpt-5.2',
+                AIModelType.O1_PREVIEW: 'o1-preview',
+                AIModelType.O1_MINI: 'o1-mini'
             }
             
             model_name = model_mapping.get(model_type)
@@ -1271,7 +1540,9 @@ class AIEnhancedService:
             # Map AI model type to Anthropic model name
             model_mapping = {
                 AIModelType.CLAUDE_3: 'claude-3-sonnet-20240229',
-                AIModelType.CLAUDE_2: 'claude-2'
+                AIModelType.CLAUDE_2: 'claude-2',
+                AIModelType.CLAUDE_3_5_SONNET: 'claude-3-5-sonnet-20240620',
+                AIModelType.CLAUDE_3_5_HAIKU: 'claude-3-5-haiku-20241022'
             }
             
             model_name = model_mapping.get(model_type)
@@ -1335,7 +1606,9 @@ class AIEnhancedService:
         try:
             # Map AI model type to Google model name
             model_mapping = {
-                AIModelType.GEMINI_PRO: 'gemini-pro'
+                AIModelType.GEMINI_PRO: 'gemini-pro',
+                AIModelType.GEMINI_1_5_PRO: 'gemini-1.5-pro',
+                AIModelType.GEMINI_1_5_FLASH: 'gemini-1.5-flash'
             }
             
             model_name = model_mapping.get(model_type)
@@ -1394,6 +1667,305 @@ class AIEnhancedService:
         except Exception as e:
             logger.error(f"Error calling Google AI: {e}")
             raise
+
+    async def _call_deepseek(self, model_type: AIModelType, system_prompt: str, user_prompt: str,
+                           max_tokens: int, temperature: float) -> Dict[str, Any]:
+        """Call DeepSeek API"""
+        try:
+            # Map AI model type to DeepSeek model name
+            model_mapping = {
+                AIModelType.DEEPSEEK_CHAT: 'deepseek-chat',
+                AIModelType.DEEPSEEK_REASONER: 'deepseek-reasoner'
+            }
+            
+            model_name = model_mapping.get(model_type)
+            if not model_name:
+                raise ValueError(f"Unsupported model type for DeepSeek: {model_type}")
+            
+            # Prepare request
+            request_data = {
+                'model': model_name,
+                'messages': [
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_prompt}
+                ],
+                'max_tokens': max_tokens,
+                'temperature': temperature if model_name != 'deepseek-reasoner' else 1.0
+            }
+            
+            # BYOK Key Retrieval
+            api_key = self.deepseek_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("deepseek")
+                if byok_key:
+                    api_key = byok_key
+            
+            # Make API call
+            async with self.http_sessions['deepseek'].post(
+                f"{self.deepseek_config['base_url']}/chat/completions",
+                headers={
+                    'Authorization': f"Bearer {api_key}",
+                    'Content-Type': 'application/json'
+                },
+                json=request_data
+            ) as response:
+                if response.status != 200:
+                    raise Exception(f"DeepSeek API error: {response.status} - {await response.text()}")
+                
+                result = await response.json()
+                
+                # Extract response
+                content = result['choices'][0]['message']['content']
+                token_usage = result.get('usage', {})
+                
+                return {
+                    'content': content,
+                    'confidence': 0.9,
+                    'token_usage': {
+                        'total': token_usage.get('total_tokens', 0),
+                        'input': token_usage.get('prompt_tokens', 0),
+                        'output': token_usage.get('completion_tokens', 0)
+                    }
+                }
+        
+        except Exception as e:
+            logger.error(f"Error calling DeepSeek: {e}")
+            raise
+
+    async def _call_groq(self, model_type: AIModelType, system_prompt: str, user_prompt: str,
+                        max_tokens: int, temperature: float) -> Dict[str, Any]:
+        """Call Groq API (OpenAI compatible)"""
+        try:
+            model_mapping = {
+                AIModelType.LLAMA_3_1_70B: 'llama-3.1-70b-versatile',
+                AIModelType.LLAMA_3_1_405B: 'llama-3.1-405b-reasoning'
+            }
+            model_name = model_mapping.get(model_type, 'llama-3.1-70b-versatile')
+            
+            api_key = self.groq_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("groq")
+                if byok_key: api_key = byok_key
+            
+            async with self.http_sessions['groq'].post(
+                f"{self.groq_config['base_url']}/chat/completions",
+                headers={'Authorization': f"Bearer {api_key}", 'Content-Type': 'application/json'},
+                json={
+                    'model': model_name,
+                    'messages': [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_prompt}],
+                    'max_tokens': max_tokens,
+                    'temperature': temperature
+                }
+            ) as response:
+                if response.status != 200:
+                    raise Exception(f"Groq error: {response.status} - {await response.text()}")
+                result = await response.json()
+                content = result['choices'][0]['message']['content']
+                token_usage = result.get('usage', {})
+                return {
+                    'content': content, 'confidence': 0.9,
+                    'token_usage': {'total': token_usage.get('total_tokens', 0), 'input': token_usage.get('prompt_tokens', 0), 'output': token_usage.get('completion_tokens', 0)}
+                }
+        except Exception as e:
+            logger.error(f"Error calling Groq: {e}"); raise
+
+    async def _call_mistral(self, model_type: AIModelType, system_prompt: str, user_prompt: str,
+                          max_tokens: int, temperature: float) -> Dict[str, Any]:
+        """Call Mistral API (OpenAI compatible)"""
+        try:
+            model_name = 'mistral-large-latest' if model_type == AIModelType.MISTRAL_LARGE else 'mistral-medium-latest'
+            
+            api_key = self.mistral_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("mistral")
+                if byok_key: api_key = byok_key
+            
+            async with self.http_sessions['mistral'].post(
+                f"{self.mistral_config['base_url']}/chat/completions",
+                headers={'Authorization': f"Bearer {api_key}", 'Content-Type': 'application/json'},
+                json={
+                    'model': model_name,
+                    'messages': [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_prompt}],
+                    'max_tokens': max_tokens,
+                    'temperature': temperature
+                }
+            ) as response:
+                if response.status != 200:
+                    raise Exception(f"Mistral error: {response.status} - {await response.text()}")
+                result = await response.json()
+                content = result['choices'][0]['message']['content']
+                token_usage = result.get('usage', {})
+                return {
+                    'content': content, 'confidence': 0.9,
+                    'token_usage': {'total': token_usage.get('total_tokens', 0), 'input': token_usage.get('prompt_tokens', 0), 'output': token_usage.get('completion_tokens', 0)}
+                }
+        except Exception as e:
+            logger.error(f"Error calling Mistral: {e}"); raise
+
+    async def _call_perplexity(self, model_type: AIModelType, system_prompt: str, user_prompt: str,
+                             max_tokens: int, temperature: float) -> Dict[str, Any]:
+        """Call Perplexity API"""
+        try:
+            model_name = 'llama-3.1-sonar-large-128k-online' # Default for Sonar Large
+            
+            api_key = self.perplexity_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("perplexity")
+                if byok_key: api_key = byok_key
+            
+            async with self.http_sessions['perplexity'].post(
+                f"{self.perplexity_config['base_url']}/chat/completions",
+                headers={'Authorization': f"Bearer {api_key}", 'Content-Type': 'application/json'},
+                json={
+                    'model': model_name,
+                    'messages': [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_prompt}],
+                    'max_tokens': max_tokens,
+                    'temperature': temperature
+                }
+            ) as response:
+                if response.status != 200:
+                    raise Exception(f"Perplexity error: {response.status} - {await response.text()}")
+                result = await response.json()
+                content = result['choices'][0]['message']['content']
+                token_usage = result.get('usage', {})
+                return {
+                    'content': content, 'confidence': 0.9,
+                    'token_usage': {'total': token_usage.get('total_tokens', 0), 'input': token_usage.get('prompt_tokens', 0), 'output': token_usage.get('completion_tokens', 0)}
+                }
+        except Exception as e:
+            logger.error(f"Error calling Perplexity: {e}"); raise
+
+    async def _call_cohere(self, model_type: AIModelType, system_prompt: str, user_prompt: str,
+                          max_tokens: int, temperature: float) -> Dict[str, Any]:
+        """Call Cohere API"""
+        try:
+            model_name = 'command-r-plus'
+            
+            api_key = self.cohere_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("cohere")
+                if byok_key: api_key = byok_key
+            
+            async with self.http_sessions['cohere'].post(
+                f"{self.cohere_config['base_url']}/chat",
+                headers={'Authorization': f"Bearer {api_key}", 'Content-Type': 'application/json'},
+                json={
+                    'model': model_name,
+                    'message': user_prompt,
+                    'preamble': system_prompt,
+                    'temperature': temperature
+                }
+            ) as response:
+                if response.status != 200:
+                    raise Exception(f"Cohere error: {response.status} - {await response.text()}")
+                result = await response.json()
+                content = result['text']
+                token_usage = result.get('token_count', {})
+                return {
+                    'content': content, 'confidence': 0.85,
+                    'token_usage': {'total': token_usage.get('total_tokens', 0), 'input': token_usage.get('prompt_tokens', 0), 'output': token_usage.get('response_tokens', 0)}
+                }
+        except Exception as e:
+            logger.error(f"Error calling Cohere: {e}"); raise
+
+    async def _call_moonshot(self, model_type: AIModelType, system_prompt: str, user_prompt: str,
+                           max_tokens: int, temperature: float) -> Dict[str, Any]:
+        """Call Moonshot AI (Kimi) API"""
+        try:
+            model_name = 'kimi-k2-thinking' if model_type == AIModelType.KIMI_K2 else 'moonshot-v1-8k'
+            
+            api_key = self.moonshot_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("moonshot")
+                if byok_key: api_key = byok_key
+            
+            async with self.http_sessions['moonshot'].post(
+                f"{self.moonshot_config['base_url']}/chat/completions",
+                headers={'Authorization': f"Bearer {api_key}", 'Content-Type': 'application/json'},
+                json={
+                    'model': model_name,
+                    'messages': [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_prompt}],
+                    'max_tokens': max_tokens,
+                    'temperature': temperature
+                }
+            ) as response:
+                if response.status != 200:
+                    raise Exception(f"Moonshot error: {response.status} - {await response.text()}")
+                result = await response.json()
+                content = result['choices'][0]['message']['content']
+                token_usage = result.get('usage', {})
+                return {
+                    'content': content, 'confidence': 0.9,
+                    'token_usage': {'total': token_usage.get('total_tokens', 0), 'input': token_usage.get('prompt_tokens', 0), 'output': token_usage.get('completion_tokens', 0)}
+                }
+        except Exception as e:
+            logger.error(f"Error calling Moonshot: {e}"); raise
+
+    async def _call_glm(self, model_type: AIModelType, system_prompt: str, user_prompt: str,
+                      max_tokens: int, temperature: float) -> Dict[str, Any]:
+        """Call Zhipu GLM API"""
+        try:
+            model_name = 'glm-4.6' if model_type == AIModelType.GLM_4_6 else 'glm-4'
+            
+            api_key = self.glm_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("glm")
+                if byok_key: api_key = byok_key
+            
+            async with self.http_sessions['glm'].post(
+                f"{self.glm_config['base_url']}/chat/completions",
+                headers={'Authorization': f"Bearer {api_key}", 'Content-Type': 'application/json'},
+                json={
+                    'model': model_name,
+                    'messages': [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_prompt}],
+                    'max_tokens': max_tokens,
+                    'temperature': temperature
+                }
+            ) as response:
+                if response.status != 200:
+                    raise Exception(f"GLM error: {response.status} - {await response.text()}")
+                result = await response.json()
+                content = result['choices'][0]['message']['content']
+                token_usage = result.get('usage', {})
+                return {
+                    'content': content, 'confidence': 0.9,
+                    'token_usage': {'total': token_usage.get('total_tokens', 0), 'input': token_usage.get('prompt_tokens', 0), 'output': token_usage.get('completion_tokens', 0)}
+                }
+        except Exception as e:
+            logger.error(f"Error calling GLM: {e}"); raise
+
+    async def _call_lux(self, model_type: AIModelType, system_prompt: str, user_prompt: str,
+                       max_tokens: int, temperature: float) -> Dict[str, Any]:
+        """Call Lux Computer Use API"""
+        try:
+            model_name = 'lux-1.0'
+            
+            api_key = self.lux_config['api_key']
+            if self.byok_manager:
+                byok_key = self.byok_manager.get_api_key("lux")
+                if byok_key: api_key = byok_key
+            
+            async with self.http_sessions['lux'].post(
+                f"{self.lux_config['base_url']}/chat/completions",
+                headers={'Authorization': f"Bearer {api_key}", 'Content-Type': 'application/json'},
+                json={
+                    'model': model_name,
+                    'messages': [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_prompt}],
+                    'max_tokens': max_tokens,
+                    'temperature': temperature
+                }
+            ) as response:
+                if response.status != 200:
+                    raise Exception(f"Lux error: {response.status} - {await response.text()}")
+                result = await response.json()
+                content = result['choices'][0]['message']['content']
+                token_usage = result.get('usage', {})
+                return {
+                    'content': content, 'confidence': 0.95,
+                    'token_usage': {'total': token_usage.get('total_tokens', 0), 'input': token_usage.get('prompt_tokens', 0), 'output': token_usage.get('completion_tokens', 0)}
+                }
+        except Exception as e:
+            logger.error(f"Error calling Lux: {e}"); raise
     
     # Helper methods
     def _parse_json_response(self, response: str) -> Optional[Dict[str, Any]]:

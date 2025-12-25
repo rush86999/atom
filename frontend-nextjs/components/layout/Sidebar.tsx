@@ -17,6 +17,8 @@ import {
     CreditCard,
     Layers,
     Mic,
+    Zap,
+    Heart,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -58,6 +60,8 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         { label: "Calendar", icon: Calendar, path: "/calendar" },
         { label: "Finance", icon: CreditCard, path: "/finance" },
         { label: "Sales", icon: Target, path: "/sales" },
+        { label: "Marketing", icon: Zap, path: "/marketing" },
+        { label: "Health", icon: Heart, path: "/health" },
         { label: "Integrations", icon: Layers, path: "/integrations" },
         { label: "Voice", icon: Mic, path: "/voice" },
         { label: "Dev Studio", icon: Terminal, path: "/dev-studio" },

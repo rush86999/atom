@@ -7,105 +7,44 @@ import logging
 import json
 
 # Import workflow management components
-print("DEBUG: Importing workflow components...", flush=True)
-try:
-    from core.workflow_endpoints import load_workflows, save_workflows
-    from ai.automation_engine import AutomationEngine
-    from ai.workflow_scheduler import workflow_scheduler
-except Exception as e:
-    print(f"DEBUG: Error importing workflow components: {e}", flush=True)
-    load_workflows = None
-    save_workflows = None
-    AutomationEngine = None
-    workflow_scheduler = None
+from core.workflow_endpoints import load_workflows, save_workflows
+from ai.automation_engine import AutomationEngine
+from ai.workflow_scheduler import workflow_scheduler
 
 # Import Calendar and Email services
-print("DEBUG: Importing Integration services...", flush=True)
-try:
-    from integrations.google_calendar_service import GoogleCalendarService
-    from integrations.gmail_service import GmailService
-except Exception as e:
-    print(f"DEBUG: Error importing Integration services: {e}", flush=True)
-    GoogleCalendarService = None
-    GmailService = None
+from integrations.google_calendar_service import GoogleCalendarService
+from integrations.gmail_service import GmailService
 
 # Import Task and Finance services
-print("DEBUG: Importing Task/Finance/System services...", flush=True)
-try:
-    from core.unified_task_endpoints import get_tasks, create_task, CreateTaskRequest
-    from integrations.quickbooks_routes import list_quickbooks_items
-    from core.system_status import SystemStatus
-    from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
-    from core.unified_search_endpoints import SearchRequest
-except Exception as e:
-    print(f"DEBUG: Error importing Task/Finance/System services: {e}", flush=True)
-    get_tasks = None
-    create_task = None
-    CreateTaskRequest = None
-    list_quickbooks_items = None
-    SystemStatus = None
-    unified_hybrid_search = None
-    SearchRequest = None
+from core.unified_task_endpoints import get_tasks, create_task, CreateTaskRequest
+from integrations.quickbooks_routes import list_quickbooks_items
+
+# Import System and Search services
+from core.system_status import SystemStatus
+from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
+from core.unified_search_endpoints import SearchRequest
 
 # Import AI service for intent classification
-print("DEBUG: Importing AI Service...", flush=True)
-try:
-    from enhanced_ai_workflow_endpoints import RealAIWorkflowService
-    from advanced_workflow_orchestrator import orchestrator
-    from dataclasses import asdict
-except Exception as e:
-    print(f"DEBUG: Error importing AI Service: {e}", flush=True)
-    RealAIWorkflowService = None
-    orchestrator = None
-    asdict = None
+from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+from advanced_workflow_orchestrator import orchestrator
+from dataclasses import asdict
 
 # Import chat history management
-# Import chat history management
-try:
-    from core.lancedb_handler import get_chat_history_manager
-    from core.chat_session_manager import get_chat_session_manager
-    from core.chat_context_manager import get_chat_context_manager
-    from core.knowledge_query_endpoints import get_knowledge_query_manager
-except (ImportError, BaseException):
-    get_chat_history_manager = None
-    get_chat_session_manager = None
-    get_chat_context_manager = None
-    get_knowledge_query_manager = None
+from core.lancedb_handler import get_chat_history_manager
+from core.chat_session_manager import get_chat_session_manager
+from core.chat_context_manager import get_chat_context_manager
+from core.knowledge_query_endpoints import get_knowledge_query_manager
+from operations.system_intelligence_service import SystemIntelligenceService
 
 # Initialize AI service
-try:
-    if RealAIWorkflowService:
-        ai_service = RealAIWorkflowService()
-    else:
-        ai_service = None # Will cause runtime errors if used
-except Exception as e:
-    print(f"DEBUG: Error initializing AI Service: {e}", flush=True)
-    ai_service = None
+ai_service = RealAIWorkflowService()
 
 # Initialize chat history components
 # Initialize chat history components
-try:
-    if get_chat_history_manager:
-        chat_history = get_chat_history_manager()
-        session_manager = get_chat_session_manager()
-        context_manager = get_chat_context_manager()
-    else:
-        raise Exception("Modules failed to import")
-except (Exception, BaseException) as e:
-    logger.error(f"Failed to initialize chat history components (Using Mock): {e}")
-    # Define Mock classes to prevent runtime errors
-    class MockManager:
-        def getattr(self, name): return lambda *args, **kwargs: None
-        def save_message(self, *args, **kwargs): return True
-        def get_session_history(self, *args, **kwargs): return []
-        def get_session(self, *args, **kwargs): return "mock_session"
-        def create_session(self, *args, **kwargs): return "mock_session"
-        def update_session_activity(self, *args, **kwargs): pass
-        def resolve_reference(self, *args, **kwargs): return None
-        
-    chat_history = MockManager()
-    session_manager = MockManager()
-    context_manager = MockManager()
+# DEPRECATED: Globals removed for Workspace Isolation (Phase 19)
+# chat_history = get_chat_history_manager()
+# session_manager = get_chat_session_manager()
+# context_manager = get_chat_context_manager()
 
 router = APIRouter(prefix="/api/atom-agent", tags=["atom_agent"])
 
@@ -135,13 +74,22 @@ def save_chat_interaction(
     assistant_message: str,
     intent: str = None,
     entities: Dict[str, Any] = None,
-    result_data: Dict[str, Any] = None
+    result_data: Dict[str, Any] = None,
+    chat_history_mgr = None,
+    session_mgr = None,
+    workspace_id: str = "default"
 ):
     """Helper to save both user and assistant messages"""
+    # Instantiate if not provided
+    if not chat_history_mgr:
+        chat_history_mgr = get_chat_history_manager(workspace_id)
+    if not session_mgr:
+        session_mgr = get_chat_session_manager(workspace_id)
+
     logger.info(f"save_chat_interaction called: session_id={session_id}, intent={intent}")
     try:
         # Save user message
-        chat_history.save_message(
+        chat_history_mgr.save_message(
             session_id=session_id,
             user_id=user_id,
             role="user",
@@ -163,7 +111,7 @@ def save_chat_interaction(
                 output_metadata["schedule_id"] = response_data["schedule_id"]
         
         # Save assistant response
-        chat_history.save_message(
+        chat_history_mgr.save_message(
             session_id=session_id,
             user_id=user_id,
             role="assistant",
@@ -172,14 +120,16 @@ def save_chat_interaction(
         )
         
         # Update session activity
-        session_manager.update_session_activity(session_id)
+        session_mgr.update_session_activity(session_id)
     except Exception as e:
         logger.error(f"Failed to save chat interaction: {e}")
 
 @router.get("/sessions")
-async def list_sessions(user_id: str = "default_user", limit: int = 50):
+async def list_sessions(user_id: str = "default_user", limit: int = 50, workspace_id: Optional[str] = None):
     """List all chat sessions for a user"""
     try:
+        ws_id = workspace_id or "default"
+        session_manager = get_chat_session_manager(ws_id)
         sessions = session_manager.list_user_sessions(user_id, limit=limit)
         return {
             "success": True,
@@ -198,9 +148,11 @@ async def list_sessions(user_id: str = "default_user", limit: int = 50):
         return {"success": False, "error": str(e)}
 
 @router.post("/sessions")
-async def create_new_session(user_id: str = Body(..., embed=True)):
+async def create_new_session(user_id: str = Body(..., embed=True), workspace_id: Optional[str] = Body(None, embed=True)):
     """Create a new chat session"""
     try:
+        ws_id = workspace_id or "default"
+        session_manager = get_chat_session_manager(ws_id)
         session_id = session_manager.create_session(user_id=user_id)
         return {"success": True, "session_id": session_id}
     except Exception as e:
@@ -208,12 +160,16 @@ async def create_new_session(user_id: str = Body(..., embed=True)):
         return {"success": False, "error": str(e)}
 
 @router.get("/sessions/{session_id}/history")
-async def get_session_history(session_id: str):
+async def get_session_history(session_id: str, workspace_id: Optional[str] = None):
     """
     Retrieve conversation history for a specific session.
     Returns all messages in chronological order.
     """
     try:
+        ws_id = workspace_id or "default"
+        session_manager = get_chat_session_manager(ws_id)
+        chat_history = get_chat_history_manager(ws_id)
+
         # Verify session exists
         session = session_manager.get_session(session_id)
         if not session:
@@ -269,6 +225,12 @@ async def chat_with_agent(request: ChatRequest):
     Uses LLM to interpret intent and interact with platform features.
     """
     try:
+        # Phase 19: Workspace Isolation - Instantiate managers per request
+        ws_id = request.workspace_id or "default"
+        chat_history = get_chat_history_manager(ws_id)
+        session_manager = get_chat_session_manager(ws_id)
+        context_manager = get_chat_context_manager(ws_id)
+
         # Session management: create or load session
         if not request.session_id:
             # Create new session
@@ -291,11 +253,28 @@ async def chat_with_agent(request: ChatRequest):
         # Initialize AI sessions if needed
         await ai_service.initialize_sessions()
         
+        # Phase 18: Inject System Intelligence Context
+        system_context_str = ""
+        try:
+             # Use the first available DB session or create a new one if possible. 
+             # Ideally get_db dependency should be used, but here we can try to reuse existing patterns.
+             # Since we are in an endpoint, we might not have direct DB session unless dependency injected.
+             # We will use the `get_db` generator manually or a dedicated session for this service.
+             from core.database import SessionLocal
+             with SessionLocal() as db_session:
+                 intel_service = SystemIntelligenceService(db_session)
+                 # Use workspace_id from request or default
+                 ws_id = request.workspace_id or "default_workspace"
+                 system_context_str = intel_service.get_aggregated_context(ws_id)
+        except Exception as ctx_error:
+            logger.warning(f"Failed to fetch system intelligence context: {ctx_error}")
+
         # Use LLM to classify intent
         intent_response = await classify_intent_with_llm(
             request.message, 
             conversation_history,
-            current_page=request.current_page
+            current_page=request.current_page,
+            system_context=system_context_str
         )
         
         intent = intent_response.get("intent")
@@ -442,7 +421,9 @@ async def chat_with_agent(request: ChatRequest):
                 assistant_message=assistant_msg,
                 intent=intent,
                 entities=entities,
-                result_data=result
+                result_data=result,
+                chat_history_mgr=chat_history,
+                session_mgr=session_manager
             )
         
         # Add proactive suggestions to the response
@@ -480,7 +461,8 @@ async def chat_with_agent(request: ChatRequest):
 async def classify_intent_with_llm(
     message: str, 
     history: List[ChatMessage],
-    current_page: Optional[str] = None
+    current_page: Optional[str] = None,
+    system_context: str = ""
 ) -> Dict[str, Any]:
     """Use LLM to classify user intent via BYOK system with Knowledge Graph context"""
     
@@ -499,6 +481,9 @@ async def classify_intent_with_llm(
     system_prompt = f"""You are ATOM, an intelligent personal assistant for task orchestration and management.
 Current User Context (Page): {current_page or 'Unknown'}
 """
+    if system_context:
+        system_prompt += f"\n**Current Business Context:**\n{system_context}\n"
+    
     if knowlege_context:
         system_prompt += knowlege_context + "\n\n"
         
@@ -525,7 +510,6 @@ Current User Context (Page): {current_page or 'Unknown'}
     - GET_AUTOMATION_INSIGHTS: User wants to see drift metrics or automation health
     - GET_SILENT_STAKEHOLDERS: User wants to know who has been quiet or who they should reach out to
     **Search:** SEARCH_PLATFORM
-    **Microsoft 365:** Now supports advanced Excel automation, Power BI reporting, and Planner task management.
     **Goal Management:** SET_GOAL, GOAL_STATUS
     **Knowledge Graph:** KNOWLEDGE_QUERY (Use for questions about relationships, decisions, or cross-entity facts like "Who worked on Project X?" or "What decisions were made with Vendor Y?")
     **General:** HELP, UNKNOWN

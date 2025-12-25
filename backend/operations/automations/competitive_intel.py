@@ -1,79 +1,81 @@
+
 import logging
-import json
-import datetime
+import asyncio
 from typing import Dict, Any, List
-from browser_engine.agent import BrowserAgent
-from core.lancedb_handler import get_lancedb_handler
+from datetime import datetime
+import re
 
 logger = logging.getLogger(__name__)
 
 class CompetitiveIntelWorkflow:
     """
-    Automates competitor price tracking and surveillance.
-    1. Scrapes target URL.
-    2. Extracts pricing data.
-    3. Stores snapshot in Memory (LanceDB).
-    4. Detects changes from previous snapshot.
+    Workflow for scraping competitor pricing and analyzing market position.
     """
-    
-    def __init__(self):
-        self.browser_agent = BrowserAgent(headless=True)
-        self.memory = get_lancedb_handler()
+    def __init__(self, base_url: str = None):
+        self.base_url = base_url
         
-    async def run_surveillance(self, competitor_name: str, target_url: str) -> Dict[str, Any]:
-        logger.info(f"Starting surveillance for {competitor_name} at {target_url}")
+    async def track_competitor_pricing(self, competitors: List[str], target_product: str) -> Dict[str, Any]:
+        """
+        Scrape multiple competitor sites for a product price.
+        """
+        results = {}
+        lowest_price = float('inf')
         
-        # 1. Scrape Data via Browser Agent
-        # Used "Find Pricing" goal to trigger knowledge extraction if implemented
-        result = await self.browser_agent.execute_task(target_url, "Find Product Pricing")
+        # In a real implementation, this would spawn BrowserAgents. 
+        # For this MVP/Test, we simulate the findings.
         
-        if result["status"] != "success":
-            return {"status": "failed", "error": result.get("error")}
-            
-        # Mock Extraction (In real world, VLM would return this from generate_dynamic_workflow instructions)
-        # For this specialized agent, we'll assume the browser agent returned structured data or we parse it here.
-        # Since BrowserAgent mock returns extracted_info for 'Find CEO', let's mock specific pricing here for MVP
+        timestamp = datetime.utcnow().isoformat()
         
-        current_data = {
-            "product": "Enterprise Plan",
-            "price": "$99/mo", # Simulated scrape result
-            "timestamp": datetime.datetime.now().isoformat()
-        }
-        
-        # 2. Store in Memory
-        doc_id = f"price_{competitor_name}_{datetime.datetime.now().timestamp()}"
-        self.memory.add_document(
-            table_name="competitive_intel",
-            text=f"Pricing for {competitor_name}: {json.dumps(current_data)}",
-            source=target_url,
-            metadata={"competitor": competitor_name, "type": "pricing", "timestamp": current_data["timestamp"]}
-        )
-        
-        # 3. Compare with previous
-        previous_docs = self.memory.search(
-            table_name="competitive_intel",
-            query=f"Pricing for {competitor_name}",
-            limit=2 
-        )
-        
-        change_detected = False
-        previous_price = None
-        
-        # Filter strictly for this competitor and sort by time if needed 
-        # (LanceDB search is semantic, so we trust top results are relevant)
-        for doc in previous_docs:
-            if doc["id"] != doc_id: # Don't compare with self
-                try:
-                    # simplistic parsing from text or metadata if we stored structured
-                    if "price" in doc["text"]:
-                        # This is a heuristic mock comparison
-                        pass
-                except:
-                    pass
+        for competitor in competitors:
+            # Simulate scraping logic
+            try:
+                # Mock logic: Derive price from competitor name length or hash for consistency
+                # or just use random for simulation if not strictly testing logic
+                # Let's make it deterministic-ish
+                base_price = 100.0
+                modifier = len(competitor) 
+                price = base_price - modifier
+                
+                results[competitor] = {
+                    "price": price,
+                    "url": f"https://{competitor}.com/products/{target_product}",
+                    "timestamp": timestamp,
+                    "available": True
+                }
+                
+                if price < lowest_price:
+                    lowest_price = price
                     
+            except Exception as e:
+                logger.error(f"Failed to scrape {competitor}: {e}")
+                results[competitor] = {"error": str(e)}
+
+        # Save to Knowledge Graph (LanceDB)
+        await self._save_intel(target_product, results)
+        
         return {
             "status": "success",
-            "competitor": competitor_name,
-            "current_price": current_data["price"],
-            "change_detected": change_detected
+            "product": target_product,
+            "competitor_data": results,
+            "lowest_price": lowest_price,
+            "recommendation": "lower_price" if lowest_price < 95.0 else "hold"
         }
+
+    async def _save_intel(self, product: str, data: Dict[str, Any]):
+        """
+        Save findings to LanceDB for historical tracking.
+        """
+        try:
+            from core.lancedb_handler import get_lancedb_handler
+            handler = get_lancedb_handler()
+            
+            text = f"Competitive Intel for {product}: {data}"
+            
+            handler.add_document(
+                table_name="market_intelligence",
+                text=text,
+                source="competitive_intel_bot",
+                metadata={"type": "pricing_scan", "product": product}
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save intel to memory: {e}")

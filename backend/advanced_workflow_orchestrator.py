@@ -16,10 +16,10 @@ from enum import Enum
 from fastapi import HTTPException
 import aiohttp
 import uuid
+import re
+import ast
 from core.byok_endpoints import get_byok_manager
 from core.meta_automation import get_meta_automation
-
-
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,6 @@ class WorkflowStepType(Enum):
     API_CALL = "api_call"
     DELAY = "delay"
     APPROVAL_REQUIRED = "approval_required"
-    MICROSOFT_365 = "microsoft_365"
     NOTION_INTEGRATION = "notion_integration"
     GMAIL_FETCH = "gmail_fetch"
     GMAIL_INTEGRATION = "gmail_integration"
@@ -77,6 +76,8 @@ class WorkflowStepType(Enum):
     AUTO_STAFFING = "auto_staffing"
     REVENUE_RECOGNITION = "revenue_recognition"
     RETENTION_PLAYBOOK = "retention_playbook"
+    BUSINESS_AGENT_EXECUTION = "business_agent_execution"
+    B2B_PO_DETECTION = "b2b_po_detection"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -129,7 +130,6 @@ class WorkflowStep:
 class WorkflowContext:
     """Context shared across workflow steps"""
     workflow_id: str
-    execution_id: str
     input_data: Dict[str, Any] = field(default_factory=dict)
     variables: Dict[str, Any] = field(default_factory=dict)
     results: Dict[str, Any] = field(default_factory=dict)
@@ -160,6 +160,14 @@ class AdvancedWorkflowOrchestrator:
         self.active_contexts: Dict[str, WorkflowContext] = {}
         self.ai_service = None
         self.http_sessions = {}
+        
+        # Initialize Template Manager
+        try:
+            from core.workflow_template_system import WorkflowTemplateManager
+            self.template_manager = WorkflowTemplateManager()
+        except ImportError:
+            self.template_manager = None
+            logger.warning("WorkflowTemplateManager not found, template features disabled")
 
         # Initialize AI service
         self._initialize_ai_service()
@@ -540,88 +548,10 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         
         return triggered_count
 
-        # Workflow 4: Financial Reporting Automation
-        financial_reporting_workflow = WorkflowDefinition(
-            workflow_id="financial_reporting_automation",
-            name="Financial Reporting Automation",
-            description="Automated financial data processing and reporting",
-            steps=[
-                WorkflowStep(
-                    step_id="ingest_data",
-                    step_type=WorkflowStepType.MICROSOFT_365,
-                    description="Ingest financial data from OneDrive",
-                    parameters={"service": "onedrive", "action": "list_files", "folder": "Finance/Incoming"},
-                    next_steps=["process_excel"]
-                ),
-                WorkflowStep(
-                    step_id="process_excel",
-                    step_type=WorkflowStepType.MICROSOFT_365,
-                    description="Process data in Excel",
-                    parameters={"service": "excel", "action": "update_range", "range": "A1:G100"},
-                    next_steps=["refresh_powerbi"]
-                ),
-                WorkflowStep(
-                    step_id="refresh_powerbi",
-                    step_type=WorkflowStepType.MICROSOFT_365,
-                    description="Refresh Power BI dashboard",
-                    parameters={"service": "powerbi", "action": "refresh_dataset"},
-                    next_steps=["notify_teams"]
-                ),
-                WorkflowStep(
-                    step_id="notify_teams",
-                    step_type=WorkflowStepType.MICROSOFT_365,
-                    description="Notify finance team on Teams",
-                    parameters={"service": "teams", "action": "send_message", "channel": "Finance Reports"},
-                    next_steps=[]
-                )
-            ],
-            start_step="ingest_data"
-        )
-        self.workflows[financial_reporting_workflow.workflow_id] = financial_reporting_workflow
-
-        # Workflow 5: Project Inception Workflow
-        project_inception_workflow = WorkflowDefinition(
-            workflow_id="project_inception_workflow",
-            name="Project Inception Workflow",
-            description="Automated project kickoff and tracking setup",
-            steps=[
-                WorkflowStep(
-                    step_id="analyze_lead",
-                    step_type=WorkflowStepType.NLU_ANALYSIS,
-                    description="Analyze sales lead",
-                    parameters={"extract_entities": True},
-                    next_steps=["update_tracker"]
-                ),
-                WorkflowStep(
-                    step_id="update_tracker",
-                    step_type=WorkflowStepType.MICROSOFT_365,
-                    description="Update project tracker in Excel",
-                    parameters={"service": "excel", "action": "append_row"},
-                    next_steps=["create_planner_tasks"]
-                ),
-                WorkflowStep(
-                    step_id="create_planner_tasks",
-                    step_type=WorkflowStepType.MICROSOFT_365,
-                    description="Create tasks in Planner",
-                    parameters={"service": "planner", "action": "create_task"},
-                    next_steps=["setup_teams"]
-                ),
-                WorkflowStep(
-                    step_id="setup_teams",
-                    step_type=WorkflowStepType.MICROSOFT_365,
-                    description="Setup Teams collaboration space",
-                    parameters={"service": "teams", "action": "create_channel"},
-                    next_steps=[]
-                )
-            ],
-            start_step="analyze_lead"
-        )
-        self.workflows[project_inception_workflow.workflow_id] = project_inception_workflow
-
-    async def generate_dynamic_workflow(self, user_query: str) -> WorkflowDefinition:
+    async def generate_dynamic_workflow(self, user_query: str) -> Dict[str, Any]:
         """
         Dynamically generate a workflow from a user query using high-reasoning AI.
-        Breaks down the task into steps and assigns appropriate models based on complexity.
+        Returns a standardized workflow definition dict with nodes and connections.
         """
         if not self.ai_service:
             raise ValueError("AI service not initialized")
@@ -629,14 +559,12 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         # 1. Get a high-reasoning provider for the planning phase
         byok_manager = get_byok_manager()
         try:
-            # Try to get a level 4 (reasoning) provider, fallback to level 3 (high)
             planner_provider_id = byok_manager.get_optimal_provider("reasoning", min_reasoning_level=4)
             if not planner_provider_id:
                 planner_provider_id = byok_manager.get_optimal_provider("analysis", min_reasoning_level=3)
             
-            # If still no provider, use default
             if not planner_provider_id:
-                planner_provider_id = "openai" # Default fallback
+                planner_provider_id = "openai"
                 
             planner_provider = byok_manager.providers.get(planner_provider_id)
             logger.info(f"Using {planner_provider.name if planner_provider else planner_provider_id} for task planning")
@@ -646,74 +574,161 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             planner_provider_id = "openai"
 
         # 2. Break down the task
-        steps_data = await self.ai_service.break_down_task(user_query, provider=planner_provider_id)
+        decomposition = await self.ai_service.break_down_task(user_query, provider=planner_provider_id)
+        steps_data = decomposition.get('steps', [])
+        trigger_data = decomposition.get('trigger')
         
-        # 3. Convert to WorkflowDefinition
+        # 3. Create standardized WorkflowDefinition structure
         workflow_id = f"dynamic_{uuid.uuid4().hex[:8]}"
-        workflow_steps = []
+        nodes = []
+        connections = []
         
+        # Add Trigger node if present
+        start_node_id = "step_1"
+        if trigger_data:
+            trigger_id = f"trigger_{uuid.uuid4().hex[:6]}"
+            nodes.append({
+                "id": trigger_id,
+                "type": "trigger",
+                "title": trigger_data.get("description", "Start Trigger"),
+                "description": trigger_data.get("description", ""),
+                "position": {"x": 100, "y": 100},
+                "config": {
+                    "service": trigger_data.get("service"),
+                    "event": trigger_data.get("event"),
+                    "trigger_type": trigger_data.get("type")
+                },
+                "connections": [start_node_id]
+            })
+            
+            connections.append({
+                "id": f"conn_trigger",
+                "source": trigger_id,
+                "target": start_node_id
+            })
+
         for i, step_data in enumerate(steps_data):
             step_id = step_data.get("step_id", f"step_{i+1}")
-            complexity = step_data.get("complexity", 2)
+            title = step_data.get("title", f"Step {i+1}")
             description = step_data.get("description", "Process step")
+            service = step_data.get("service", "task").lower()
             
-            # Map step type to WorkflowStepType (simplified)
-            step_type_str = step_data.get("step_type", "general").lower()
-            if "email" in step_type_str:
-                wf_step_type = WorkflowStepType.EMAIL_SEND
-            elif "slack" in step_type_str:
-                wf_step_type = WorkflowStepType.SLACK_NOTIFICATION
-            elif "api" in step_type_str:
-                wf_step_type = WorkflowStepType.API_CALL
-            else:
-                wf_step_type = WorkflowStepType.NLU_ANALYSIS
+            node_type = "action"
+            if service == "delay":
+                node_type = "delay"
+            elif any(s in service for s in ["condition", "logic", "if"]):
+                node_type = "condition"
+
+            config = {
+                "service": service,
+                "action": step_data.get("action", "execute"),
+                "parameters": step_data.get("parameters", {}),
+                "complexity": step_data.get("complexity", 2)
+            }
             
-            # Determine next steps
-            next_steps = []
+            node_connections = []
             if i < len(steps_data) - 1:
-                next_steps = [steps_data[i+1].get("step_id", f"step_{i+2}")]
-                
-            workflow_steps.append(WorkflowStep(
-                step_id=step_id,
-                step_type=wf_step_type,
-                description=description,
-                parameters={
-                    "complexity": complexity, # Store complexity for execution
-                    "original_instruction": description
-                },
-                next_steps=next_steps
-            ))
+                next_id = steps_data[i+1].get("step_id", f"step_{i+2}")
+                node_connections.append(next_id)
+                connections.append({
+                    "id": f"conn_{i}",
+                    "source": step_id,
+                    "target": next_id
+                })
+
+            nodes.append({
+                "id": step_id,
+                "type": node_type,
+                "title": title,
+                "description": description,
+                "position": {"x": 100 + (i+1)*250, "y": 100},
+                "config": config,
+                "connections": node_connections
+            })
+
+        # Final standardized workflow definition
+        standard_workflow = {
+            "id": workflow_id,
+            "workflow_id": workflow_id,
+            "name": f"Dynamic: {user_query[:30]}...",
+            "description": f"Generated from query: {user_query}",
+            "version": "1.0",
+            "nodes": nodes,
+            "connections": connections,
+            "triggers": [trigger_data.get("description")] if trigger_data else [],
+            "enabled": True,
+            "createdAt": datetime.datetime.now().isoformat(),
+            "updatedAt": datetime.datetime.now().isoformat()
+        }
+        
+        # Store internal dataclass version for orchestrator execution
+        internal_steps = []
+        for node in nodes:
+            if node["type"] == "trigger": continue
             
-        workflow = WorkflowDefinition(
+            svc = node["config"]["service"]
+            if svc == "gmail" or svc == "email":
+                step_type = WorkflowStepType.EMAIL_SEND
+            elif svc == "slack":
+                step_type = WorkflowStepType.SLACK_NOTIFICATION
+            elif svc == "hubspot":
+                step_type = WorkflowStepType.HUBSPOT_INTEGRATION
+            elif svc == "salesforce":
+                step_type = WorkflowStepType.SALESFORCE_INTEGRATION
+            elif svc == "delay":
+                step_type = WorkflowStepType.DELAY
+            elif svc == "asana":
+                step_type = WorkflowStepType.ASANA_INTEGRATION
+            elif svc == "notion":
+                step_type = WorkflowStepType.NOTION_INTEGRATION
+            else:
+                # Use universal integration as fallback for all other services
+                step_type = WorkflowStepType.UNIVERSAL_INTEGRATION
+
+            params = node["config"].get("parameters", {}).copy()
+            params["service"] = svc
+            params["action"] = node["config"].get("action", "execute")
+
+            internal_steps.append(WorkflowStep(
+                step_id=node["id"],
+                step_type=step_type,
+                description=node["description"],
+                parameters=params,
+                next_steps=node["connections"]
+            ))
+
+        internal_wf = WorkflowDefinition(
             workflow_id=workflow_id,
-            name=f"Dynamic Workflow: {user_query[:30]}...",
-            description=f"Generated from query: {user_query}",
-            steps=workflow_steps,
-            start_step=workflow_steps[0].step_id if workflow_steps else "end"
+            name=standard_workflow["name"],
+            description=standard_workflow["description"],
+            steps=internal_steps,
+            start_step=start_node_id,
+            triggers=standard_workflow["triggers"]
         )
+        self.workflows[workflow_id] = internal_wf
         
-        # Cache the workflow
-        self.workflows[workflow_id] = workflow
-        
-        return workflow
+        # 4. Handle Template registration if requested by AI
+        if decomposition.get("is_template"):
+            template_id = self._create_template_from_workflow(
+                internal_wf, 
+                category=decomposition.get("category", "automation")
+            )
+            standard_workflow["template_id"] = template_id
+            logger.info(f"Dynamically generated template: {template_id}")
+
+        return standard_workflow
+
 
     async def execute_workflow(self, workflow_id: str, input_data: Dict[str, Any],
-                             execution_context: Optional[Dict[str, Any]] = None,
-                             execution_id: Optional[str] = None) -> WorkflowContext:
+                             execution_context: Optional[Dict[str, Any]] = None) -> WorkflowContext:
         """Execute a complex workflow"""
 
         if workflow_id not in self.workflows:
             raise ValueError(f"Workflow {workflow_id} not found")
 
         workflow = self.workflows[workflow_id]
-        
-        # Use provided execution_id or generate new one
-        if execution_id is None:
-            execution_id = str(uuid.uuid4())
-            
         context = WorkflowContext(
-            workflow_id=workflow_id,
-            execution_id=execution_id,
+            workflow_id=str(uuid.uuid4()),
             user_id=execution_context.get("user_id", "default_user") if execution_context else "default_user",
             input_data=input_data,
             status=WorkflowStatus.RUNNING,
@@ -723,7 +738,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         if execution_context:
             context.variables.update(execution_context)
 
-        self.active_contexts[context.execution_id] = context
+        self.active_contexts[context.workflow_id] = context
 
         try:
             # Initialize AI service sessions
@@ -935,7 +950,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         
         for attempt in range(retry_policy.max_retries + 1):
             try:
-                step_result = await self._execute_step_by_type(step, context)
+                step_result = await self._execute_step_by_type(workflow, step, context)
                 break  # Success, exit retry loop
                 
             except Exception as e:
@@ -949,38 +964,33 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                     await asyncio.sleep(delay)
                     continue
                 
-                # Check for Meta-Automation Fallback as last resort
-                # Phase 33: Use agent_fallback_id or registered agents
-                desktop_available = os.getenv("DESKTOP_ENV_AVAILABLE", "false").lower() == "true"
+                # Check for Meta-Automation Fallback as last resort (Phase 23 Self-Healing)
+                meta_automation = get_meta_automation()
                 
-                if desktop_available and (step.agent_fallback_id or meta_automation.should_fallback(e)):
-                    logger.warning(f"API Error detected: {e}. Attempting Agent Fallback...")
+                if meta_automation.should_fallback(e):
+                    logger.warning(f"Meta-Automation: triggering fallback for error: {e}")
                     
-                    # Try explicit agent_fallback_id first
-                    if step.agent_fallback_id:
-                        try:
-                            from api.agent_routes import AGENTS, execute_agent_task
-                            if step.agent_fallback_id in AGENTS:
-                                agent_def = AGENTS[step.agent_fallback_id]
-                                logger.info(f"Using explicit fallback agent: {step.agent_fallback_id}")
-                                
-                                fallback_result = await execute_agent_task(
-                                    step.agent_fallback_id, 
-                                    agent_def, 
-                                    {**step.parameters, "fallback_error": str(e)}
-                                )
-                                
-                                if fallback_result:
-                                    step_result = {
-                                        "status": "completed",
-                                        "output": fallback_result,
-                                        "notes": f"Completed via Agent Fallback ({step.agent_fallback_id})"
-                                    }
-                                    break
-                        except Exception as agent_err:
-                            logger.error(f"Explicit agent fallback failed: {agent_err}")
+                    # Determine integration type from step parameters
+                    # Defaulting to 'salesforce' if not found for testing purposes, 
+                    # in real app we'd infer from step_type or config
+                    integration_type = step.parameters.get("service", "salesforce")
                     
-                    # Fall back to Meta-Automation service detection
+                    fallback_result = meta_automation.execute_fallback(
+                        integration_type, 
+                        step.description, # Use step description as the goal
+                        step.parameters
+                    )
+                    
+                    if fallback_result and fallback_result.get("status") != "failed":
+                        logger.info(f"Meta-Automation: Fallback successful via {fallback_result.get('agent')}")
+                        step_result = {
+                            "status": "completed",
+                            "output": fallback_result,
+                            "notes": "Completed via Self-Healing (Meta-Automation)"
+                        }
+                        break
+                    else:
+                         logger.error(f"Meta-Automation: Fallback failed: {fallback_result.get('error')}")
                     service = step.parameters.get("service", "").upper()
                     if not service:
                         if step.step_type == WorkflowStepType.SALESFORCE_INTEGRATION:
@@ -1041,12 +1051,16 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         context.execution_history.append({
             "step_id": step_id,
             "step_type": step.step_type.value,
+            "status": step_result.get("status", "completed"),
             "timestamp": datetime.datetime.now().isoformat(),
             "result": step_result,
             "execution_time_ms": step_result.get("execution_time_ms", 0)
         })
 
         # Determine next steps
+        # Prioritize dynamic next steps from step result (useful for conditional logic)
+        target_next_steps = step_result.get("next_steps", step.next_steps)
+
         if step.parallel_steps:
             # Execute parallel steps concurrently
             parallel_tasks = [
@@ -1056,11 +1070,11 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             await asyncio.gather(*parallel_tasks, return_exceptions=True)
 
             # After parallel execution, continue to sequential next steps
-            for next_step in step.next_steps:
+            for next_step in target_next_steps:
                 await self._execute_workflow_step(workflow, next_step, context)
         else:
             # Sequential execution
-            for next_step in step.next_steps:
+            for next_step in target_next_steps:
                 await self._execute_workflow_step(workflow, next_step, context)
 
     async def _check_conditions(self, conditions: Dict[str, Any], context: WorkflowContext) -> bool:
@@ -1083,35 +1097,101 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         return True
 
     async def _evaluate_condition(self, condition: str, context: WorkflowContext) -> bool:
-        """Evaluate a single condition"""
-        # Simple string-based evaluation (can be enhanced with proper expression parser)
+        """Evaluate a single condition with dynamic variable support (no hardcoding)"""
         try:
-            # Replace variables in condition
-            for key, value in context.variables.items():
-                condition = condition.replace(key, str(value))
+            # 1. Parse the condition using regex to support various operators
+            # Pattern: variable_name OPERATOR expected_value
+            # Operators supported: ==, !=, >=, <=, >, <
+            match = re.search(r'(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)', condition)
+            if not match:
+                logger.warning(f"Invalid condition format: {condition}. Must be 'var operator value'.")
+                return True # Proceed if format is invalid to avoid blocking workflow
 
-            # Add some basic evaluations
-            if "priority == 'urgent'" in condition:
-                return context.variables.get("priority") == "urgent"
-            elif "score >= 80" in condition:
-                return context.variables.get("score", 0) >= 80
-            elif "category == 'technical'" in condition:
-                return context.variables.get("category") == "technical"
+            var_name, operator, expected_val_raw = match.groups()
+            actual_val = context.variables.get(var_name)
 
-            return True
+            # 2. Parse expected value into its proper type
+            expected_val_raw = expected_val_raw.strip()
+            
+            # Handle quoted strings
+            if (expected_val_raw.startswith("'") and expected_val_raw.endswith("'")) or \
+               (expected_val_raw.startswith('"') and expected_val_raw.endswith('"')):
+                expected_val = expected_val_raw[1:-1]
+            # Handle Booleans
+            elif expected_val_raw.lower() == 'true':
+                expected_val = True
+            elif expected_val_raw.lower() == 'false':
+                expected_val = False
+            # Handle Numbers
+            else:
+                try:
+                    if '.' in expected_val_raw:
+                        expected_val = float(expected_val_raw)
+                    else:
+                        expected_val = int(expected_val_raw)
+                except ValueError:
+                    # Fallback to string if not a number
+                    expected_val = expected_val_raw
+
+            # 3. Perform the comparison based on operator
+            try:
+                if operator == '==':
+                    return actual_val == expected_val
+                elif operator == '!=':
+                    return actual_val != expected_val
+                elif operator == '>=':
+                    return actual_val >= expected_val
+                elif operator == '<=':
+                    return actual_val <= expected_val
+                elif operator == '>':
+                    return actual_val > expected_val
+                elif operator == '<':
+                    return actual_val < expected_val
+            except TypeError as te:
+                logger.error(f"Type mismatch in condition evaluation: {te} (Var: {var_name}, Type: {type(actual_val)})")
+                return False
+
+            return True # Default to True
         except Exception as e:
-            logger.warning(f"Condition evaluation failed: {e}")
+            logger.warning(f"Dynamic condition evaluation failed: {e}")
             return True  # Default to proceeding if condition evaluation fails
 
-    async def _execute_step_by_type(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+    def _resolve_variables(self, value: Any, context: WorkflowContext) -> Any:
+        """Resolve variables in a value (string, dict, or list)"""
+        if isinstance(value, str):
+            # Replace {{variable}} with value from context.variables
+            import re
+            matches = re.findall(r'\{\{([^}]+)\}\}', value)
+            for match in matches:
+                # Support nested access like {{step_id.key}}
+                if '.' in match:
+                    parts = match.split('.')
+                    step_id = parts[0]
+                    key = parts[1]
+                    if step_id in context.results:
+                        val = context.results[step_id].get(key, "")
+                        value = value.replace(f"{{{{{match}}}}}", str(val))
+                elif match in context.variables:
+                    value = value.replace(f"{{{{{match}}}}}", str(context.variables[match]))
+            return value
+        elif isinstance(value, dict):
+            return {k: self._resolve_variables(v, context) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [self._resolve_variables(v, context) for v in value]
+        return value
+
+    async def _execute_step_by_type(self, workflow: WorkflowDefinition, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute a step based on its type"""
         start_time = time.time()
+        
+        # Resolve variables in parameters before execution
+        step.parameters = self._resolve_variables(step.parameters, context)
 
         try:
             if step.step_type == WorkflowStepType.NLU_ANALYSIS:
                 result = await self._execute_nlu_analysis(step, context)
             elif step.step_type == WorkflowStepType.CONDITIONAL_LOGIC:
-                result = await self._execute_conditional_logic(step, context)
+                result = await self._execute_conditional_logic(workflow, step, context)
             elif step.step_type == WorkflowStepType.EMAIL_SEND:
                 result = await self._execute_email_send(step, context)
             elif step.step_type == WorkflowStepType.SLACK_NOTIFICATION:
@@ -1132,8 +1212,6 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 result = await self._execute_delay(step, context)
             elif step.step_type == WorkflowStepType.API_CALL:
                 result = await self._execute_api_call(step, context)
-            elif step.step_type == WorkflowStepType.MICROSOFT_365:
-                result = await self._execute_microsoft_365_integration(step, context)
             elif step.step_type == WorkflowStepType.UNIVERSAL_INTEGRATION:
                 result = await self._execute_universal_integration(step, context)
             elif step.step_type == WorkflowStepType.NOTION_INTEGRATION:
@@ -1158,6 +1236,8 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 result = await self._execute_ecommerce_sync(step, context)
             elif step.step_type == WorkflowStepType.AGENT_EXECUTION:
                 result = await self._execute_agent_step(step, context)
+            elif step.step_type == WorkflowStepType.BUSINESS_AGENT_EXECUTION:
+                result = await self._execute_business_agent_step(step, context)
             # Phase 37: Financial & Ops Automations
             elif step.step_type == WorkflowStepType.COST_LEAK_DETECTION:
                 result = await self._execute_cost_leak_detection(step, context)
@@ -1186,6 +1266,8 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 result = await self._execute_revenue_recognition(step, context)
             elif step.step_type == WorkflowStepType.RETENTION_PLAYBOOK:
                 result = await self._execute_retention_playbook(step, context)
+            elif step.step_type == WorkflowStepType.B2B_PO_DETECTION:
+                result = await self._execute_b2b_po_detection(step, context)
             else:
                 result = {"status": "completed", "message": f"Step type {step.step_type.value} executed"}
 
@@ -1235,6 +1317,53 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
 
         except Exception as e:
             logger.error(f"Ecommerce sync failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_b2b_po_detection(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute AI-driven B2B PO detection from email text"""
+        email_body = step.parameters.get("email_body") or context.input_data.get("email_body")
+        workspace_id = context.input_data.get("workspace_id", "default")
+        customer_email = context.input_data.get("from_email") or step.parameters.get("customer_email")
+
+        if not email_body:
+            return {"status": "failed", "error": "No email_body provided for PO detection"}
+
+        try:
+            from ecommerce.b2b_procurement_service import B2BProcurementService
+            from core.database import SessionLocal
+            
+            with SessionLocal() as db:
+                service = B2BProcurementService(db)
+                
+                # 1. Extraction
+                po_data = await service.extract_po_from_text(email_body)
+                
+                if "error" in po_data:
+                    return {"status": "failed", "error": po_data["error"]}
+                
+                if not po_data.get("items"):
+                    return {"status": "completed", "message": "No PO items detected in email"}
+
+                # 2. Create Draft Order
+                draft_order_id = await service.create_draft_order_from_po(
+                    workspace_id,
+                    customer_email or po_data.get("customer_email", "unknown@example.com"),
+                    po_data
+                )
+                
+                context.variables.update({
+                    "draft_order_id": draft_order_id,
+                    "po_data": po_data
+                })
+
+                return {
+                    "status": "success",
+                    "message": f"Successfully detected B2B PO and created draft order {draft_order_id}",
+                    "draft_order_id": draft_order_id
+                }
+
+        except Exception as e:
+            logger.error(f"B2B PO detection failed: {e}")
             return {"status": "failed", "error": str(e)}
 
     async def _format_content_for_output(self, content: Any, target_type: str = "markdown", title: str = "Content") -> Any:
@@ -1344,12 +1473,18 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 if clean_item:
                     text += f"- {clean_item}\n"
             return text
+
     async def _execute_nlu_analysis(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute NLU analysis step"""
         if not self.ai_service:
             return {"status": "skipped", "message": "AI service not available"}
 
-        input_text = context.input_data.get("text", str(context.input_data))
+        # Prioritize text_input from step parameters (dynamic resolution)
+        input_text = step.parameters.get("text_input")
+        if not input_text:
+            input_text = context.input_data.get("text", str(context.input_data))
+        
+        logger.info(f"NLU Analysis input length: {len(str(input_text))}")
         
         # Determine optimal provider based on complexity
         complexity = step.parameters.get("complexity", 2)
@@ -1463,7 +1598,10 @@ Return your response as a JSON object with this format:
                 "entities": nlu_result.get("entities", []),
                 "priority": nlu_result.get("priority", "medium"),
                 "confidence": nlu_result.get("confidence", 0.8),
-                "category": nlu_result.get("category", "general")
+                "category": nlu_result.get("category", "general"),
+                "tasks": nlu_result.get("tasks", []),
+                "relevance": nlu_result.get("relevance", "relevant"),
+                "is_relevant": nlu_result.get("is_relevant", True)
             })
 
             return {
@@ -1473,23 +1611,81 @@ Return your response as a JSON object with this format:
                 "complexity_level": complexity,
                 "intent": nlu_result.get("intent"),
                 "entities": nlu_result.get("entities", []),
-                "confidence": nlu_result.get("confidence", 0.8)
+                "confidence": nlu_result.get("confidence", 0.8),
+                "tasks": nlu_result.get("tasks", []),
+                "relevance": nlu_result.get("relevance", "relevant"),
+                "is_relevant": nlu_result.get("is_relevant", True)
             }
 
         except Exception as e:
             return {"status": "failed", "error": str(e)}
 
-    async def _execute_conditional_logic(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute conditional logic step"""
+    async def _execute_conditional_logic(self, workflow: WorkflowDefinition, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute conditional logic step with AI support"""
         conditions = step.parameters.get("conditions", [])
+        ai_option = step.parameters.get("ai_option", False)
+        ai_prompt = step.parameters.get("ai_prompt")
 
+        # 1. AI-Powered Evaluation
+        if ai_option and self.ai_service:
+            try:
+                # Build a reasoning prompt for the AI
+                full_prompt = f"Given the following workflow context and variables, evaluate which path to take.\n\n"
+                full_prompt += f"Context: {json.dumps(context.variables, indent=2)}\n\n"
+                full_prompt += f"Logic Prompt: {ai_prompt}\n\n"
+                full_prompt += "Respond with a JSON object containing:\n"
+                full_prompt += "1. 'path_id': the ID or index of the matching condition (from the 'then' list)\n"
+                full_prompt += "2. 'reasoning': a brief explanation of the decision.\n"
+                
+                # Call AI service (using a reasoning-capable model if available)
+                ai_response = await self.ai_service.analyze_text(full_prompt, complexity=3)
+                
+                # Parse response
+                try:
+                    # Look for JSON in the response
+                    json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
+                    if json_match:
+                        decision = json.loads(json_match.group(0))
+                        next_steps = decision.get("path_id")
+                        # If path_id is a single string but next_steps expects a list
+                        if isinstance(next_steps, str):
+                            # Handle 'false' or 'none' as signals to not proceed
+                            if next_steps.lower() in ["false", "none", "stop", "null"]:
+                                next_steps = []
+                            else:
+                                next_steps = [next_steps]
+                        
+                        # Validate next_steps exist in workflow
+                        valid_steps = []
+                        if next_steps:
+                            for ns in next_steps:
+                                if any(s.step_id == ns for s in workflow.steps):
+                                    valid_steps.append(ns)
+                                else:
+                                    logger.warning(f"AI suggested non-existent step: {ns}. Ignoring.")
+                        
+                        return {
+                            "status": "completed",
+                            "ai_evaluation": True,
+                            "reasoning": decision.get("reasoning"),
+                            "next_steps": valid_steps
+                        }
+                except Exception as parse_e:
+                    logger.warning(f"Failed to parse AI condition response: {parse_e}")
+                    # Fallback to simple first step if AI fails
+                    pass
+            except Exception as ai_e:
+                logger.error(f"AI condition evaluation failed: {ai_e}")
+                # Fallback to normal evaluation
+                pass
+
+        # 2. Standard Evaluation (Dynamic variable comparisons)
         for condition in conditions:
             if_condition = condition.get("if")
             then_steps = condition.get("then", [])
 
             if await self._evaluate_condition(if_condition, context):
                 # Set next steps based on condition
-                context.variables["conditional_next_steps"] = then_steps
                 return {
                     "status": "completed",
                     "condition_met": if_condition,
@@ -1502,6 +1698,11 @@ Return your response as a JSON object with this format:
         """Execute email send step"""
         template = step.parameters.get("template", "default")
         recipient = step.parameters.get("recipient", context.variables.get("email"))
+        subject = step.parameters.get("subject", "ATOM Notification")
+        content = step.parameters.get("content", context.input_data.get("text", ""))
+
+        # Advanced formatting
+        rich_content = await self._format_content_for_output(content, target_type="email", title=subject)
 
         # Simulate email sending (in real implementation, integrate with email service)
         await asyncio.sleep(0.1)  # Simulate API call
@@ -1510,13 +1711,19 @@ Return your response as a JSON object with this format:
             "status": "completed",
             "template": template,
             "recipient": recipient,
+            "subject": subject,
+            "rich_content": rich_content,
             "sent_at": datetime.datetime.now().isoformat()
         }
 
     async def _execute_slack_notification(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute Slack notification step"""
         channel = step.parameters.get("channel", "#general")
-        message = step.parameters.get("message", context.input_data.get("text", ""))
+        content = step.parameters.get("message", context.input_data.get("text", ""))
+        title = step.parameters.get("title", "New Notification")
+
+        # Advanced formatting
+        rich_message = await self._format_content_for_output(content, target_type="slack", title=title)
 
         # Simulate Slack notification (in real implementation, integrate with Slack API)
         await asyncio.sleep(0.1)  # Simulate API call
@@ -1524,7 +1731,7 @@ Return your response as a JSON object with this format:
         return {
             "status": "completed",
             "channel": channel,
-            "message": message,
+            "message": rich_message,
             "sent_at": datetime.datetime.now().isoformat()
         }
 
@@ -1593,17 +1800,64 @@ Return your response as a JSON object with this format:
 
     async def _execute_delay(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute delay step"""
-        delay_hours = step.parameters.get("delay_hours", 0)
-        delay_seconds = step.parameters.get("delay_seconds", delay_hours * 3600)
-
+        duration = step.parameters.get("duration", step.parameters.get("delay_seconds", 0))
+        unit = step.parameters.get("unit", "seconds").lower()
+        
+        # Convert to seconds
+        try:
+            duration_val = float(duration)
+        except:
+            duration_val = 0
+            
+        if unit == "days":
+            delay_seconds = duration_val * 86400
+        elif unit == "hours":
+            delay_seconds = duration_val * 3600
+        elif unit == "minutes":
+            delay_seconds = duration_val * 60
+        else:
+            delay_seconds = duration_val
+            
         if delay_seconds > 0:
-            await asyncio.sleep(min(delay_seconds, 5))  # Cap delay for demo purposes
+            # Cap for demo purposes, in real app we'd use a scheduler
+            await asyncio.sleep(min(delay_seconds, 1)) 
 
         return {
             "status": "completed",
             "delayed_seconds": delay_seconds,
-            "actual_delay": min(delay_seconds, 5)
+            "actual_delay": min(delay_seconds, 1),
+            "unit": unit
         }
+
+    async def _execute_hubspot_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute HubSpot integration step"""
+        try:
+            from core.mock_mode import get_mock_mode_manager
+            mock_manager = get_mock_mode_manager()
+            
+            if mock_manager.is_mock_mode("hubspot", False): # Assume no credentials for demo
+                logger.info(f"HubSpot Mock Mode: Executing {step.parameters.get('action')}")
+                return {"status": "completed", "result": {"id": "mock_hs_123", "status": "created"}, "mock": True}
+
+            return {"status": "completed", "message": "HubSpot action processed", "parameters": step.parameters}
+        except Exception as e:
+            logger.error(f"HubSpot integration error: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_salesforce_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Salesforce integration step"""
+        try:
+            from core.mock_mode import get_mock_mode_manager
+            mock_manager = get_mock_mode_manager()
+            
+            if mock_manager.is_mock_mode("salesforce", False):
+                logger.info(f"Salesforce Mock Mode: Executing {step.parameters.get('action')}")
+                return {"status": "completed", "result": {"id": "mock_sf_456", "status": "created"}, "mock": True}
+
+            return {"status": "completed", "message": "Salesforce action processed", "parameters": step.parameters}
+        except Exception as e:
+            logger.error(f"Salesforce integration error: {e}")
+            return {"status": "failed", "error": str(e)}
 
     async def _execute_api_call(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute external API call step"""
@@ -1620,107 +1874,140 @@ Return your response as a JSON object with this format:
             "call_time": datetime.datetime.now().isoformat()
         }
 
-    async def _execute_microsoft_365_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Microsoft 365 integration step"""
-        service = step.parameters.get("service")
-        action = step.parameters.get("action")
-        
-        # Get access token from context
-        # In a real scenario, this would likely be retrieved from a secure token store using the user_id
-        access_token = context.variables.get("microsoft365_token")
-        
-        if not access_token:
-            # Fallback for testing/demo without token
-            logger.warning("No Microsoft 365 token found in context, running in simulation mode")
-            await asyncio.sleep(0.5)
-            return {
-                "status": "completed", 
-                "service": service, 
-                "action": action, 
-                "message": "Executed in SIMULATION mode (no token provided)"
-            }
-
+    async def _execute_notion_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Notion integration step"""
         try:
-            from integrations.microsoft365_service import microsoft365_service
+            from integrations.notion_service import NotionService
+            notion = NotionService()
             
-            result = {"status": "error", "message": "Unknown service"}
+            action = step.parameters.get("action", "create_page")
+            database_id = step.parameters.get("database_id")
+            title = step.parameters.get("title", "New Task")
+            content = step.parameters.get("content", "")
             
-            if service == "onedrive":
-                result = await microsoft365_service.execute_onedrive_action(access_token, action, step.parameters)
-            elif service == "excel":
-                result = await microsoft365_service.execute_excel_action(access_token, action, step.parameters)
-            elif service == "powerbi":
-                result = await microsoft365_service.execute_powerbi_action(access_token, action, step.parameters)
-            elif service == "teams":
-                result = await microsoft365_service.execute_teams_action(access_token, action, step.parameters)
-            elif service == "outlook":
-                result = await microsoft365_service.execute_outlook_action(access_token, action, step.parameters)
-            elif service == "planner":
-                result = await microsoft365_service.execute_planner_action(access_token, action, step.parameters)
-            
-            if result.get("status") == "error":
-                raise Exception(result.get("message"))
+            if action == "create_page":
+                if database_id:
+                    properties = step.parameters.get("properties", {
+                        "Name": {"title": [{"text": {"content": title}}]}
+                    })
+                    
+                    # Use generalized rich formatting if content is provided
+                    content_blocks = None
+                    if content:
+                        content_blocks = await self._format_content_for_output(content, target_type="notion", title=title)
+                    
+                    result = notion.create_page_in_database(
+                        database_id=database_id,
+                        properties=properties,
+                        content_blocks=content_blocks
+                    )
+                else:
+                    parent = step.parameters.get("parent")
+                    properties = step.parameters.get("properties", {
+                        "title": [{"text": {"content": title}}]
+                    })
+                    result = notion.create_page(parent, properties)
                 
+            elif action == "page_get":
+                page_id = step.parameters.get("page_id")
+                result = notion.get_page(page_id)
+                
+            elif action == "page_update":
+                page_id = step.parameters.get("page_id")
+                properties = step.parameters.get("properties", {})
+                archived = step.parameters.get("archived", False)
+                result = notion.update_page(page_id, properties, archived=archived)
+                
+            elif action == "db_query":
+                database_id = step.parameters.get("database_id")
+                filter_obj = step.parameters.get("filter")
+                sorts = step.parameters.get("sorts")
+                max_pages = step.parameters.get("page_size", 100)
+                result = notion.query_database(database_id, filter=filter_obj, sorts=sorts, page_size=max_pages)
+                
+            elif action == "db_get":
+                database_id = step.parameters.get("database_id")
+                result = notion.get_database(database_id)
+                
+            elif action == "block_append":
+                block_id = step.parameters.get("block_id")
+                content = step.parameters.get("content", "")
+                blocks = await self._format_content_for_output(content, target_type="notion")
+                result = notion.append_block_children(block_id, blocks)
+            else:
+                return {"status": "failed", "error": f"Unsupported Notion action: {action}"}
+
             return {
                 "status": "completed",
-                "service": service,
-                "action": action,
-                "data": result.get("data"),
-                "timestamp": datetime.datetime.now().isoformat()
+                "result": result,
+                "notion_result": result, # Backward compatibility
+                "action": action
             }
-            
         except Exception as e:
-            logger.error(f"M365 integration failed: {e}")
-            return {
-                "status": "failed",
-                "service": service, 
-                "action": action,
-                "error": str(e)
-            }
+            logger.error(f"Notion integration error: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_gmail_fetch(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Gmail fetch step (Backward compatibility)"""
+        step.parameters["action"] = "list"
+        return await self._execute_gmail_integration(step, context)
+
     async def _execute_gmail_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Gmail integration step"""
-        service = step.parameters.get("service", "gmail")
-        action = step.parameters.get("action", "send_message")
-        
+        """Execute Gmail integration step with full CRUD support"""
         try:
             from integrations.gmail_service import GmailService
             gmail = GmailService()
             
-            result = None
+            action = step.parameters.get("action", "list")
             
-            if action == "send_message" or action == "send_email":
-                to = step.parameters.get("to") or step.parameters.get("recipient")
-                subject = step.parameters.get("subject", "No Subject")
-                body = step.parameters.get("body") or step.parameters.get("message", "")
-                cc = step.parameters.get("cc", "")
-                bcc = step.parameters.get("bcc", "")
-                result = gmail.send_message(to, subject, body, cc, bcc)
+            if action == "list":
+                query = step.parameters.get("query", "is:unread")
+                max_results = step.parameters.get("max_results", 5)
+                # get_messages already returns parsed messages
+                result = gmail.get_messages(query=query, max_results=max_results)
+                return {
+                    "status": "completed",
+                    "result": result, # For consistency
+                    "messages": result,
+                    "count": len(result),
+                    "action": action
+                }
                 
-            elif action == "draft_message":
-                to = step.parameters.get("to") or step.parameters.get("recipient")
-                subject = step.parameters.get("subject", "No Subject")
-                body = step.parameters.get("body") or step.parameters.get("message", "")
-                result = gmail.draft_message(to, subject, body)
+            elif action == "message_get":
+                message_id = step.parameters.get("message_id")
+                result = gmail.get_message(message_id)
                 
-            elif action == "modify_message":
-                msg_id = step.parameters.get("message_id")
+            elif action == "message_modify":
+                message_id = step.parameters.get("message_id")
                 add_labels = step.parameters.get("add_labels", [])
                 remove_labels = step.parameters.get("remove_labels", [])
-                success = gmail.modify_message(msg_id, add_labels, remove_labels)
-                result = {"success": success}
+                result = gmail.modify_message(message_id, add_labels=add_labels, remove_labels=remove_labels)
                 
-            elif action == "delete_message":
-                msg_id = step.parameters.get("message_id")
-                success = gmail.delete_message(msg_id)
-                result = {"success": success}
+            elif action == "message_delete":
+                message_id = step.parameters.get("message_id")
+                result = gmail.delete_message(message_id)
                 
+            elif action == "draft_create":
+                to = step.parameters.get("to")
+                subject = step.parameters.get("subject", "Automated Response")
+                body = step.parameters.get("body", "")
+                thread_id = step.parameters.get("thread_id")
+                result = gmail.draft_message(to=to, subject=subject, body=body, thread_id=thread_id)
+                
+            elif action == "send":
+                to = step.parameters.get("to")
+                subject = step.parameters.get("subject", "Automated Response")
+                body = step.parameters.get("body", "")
+                thread_id = step.parameters.get("thread_id")
+                result = gmail.send_message(to=to, subject=subject, body=body, thread_id=thread_id)
             else:
-                return {"status": "failed", "error": f"Unknown Gmail action: {action}"}
-            
+                return {"status": "failed", "error": f"Unsupported Gmail action: {action}"}
+
             return {
                 "status": "completed",
-                "action": action,
-                "result": result
+                "result": result,
+                "messages": result if action == "list" else None, # Compatibility
+                "action": action
             }
         except Exception as e:
             logger.error(f"Gmail integration error: {e}")
@@ -1872,7 +2159,6 @@ Return your response as a JSON object with this format:
         except Exception as e:
             logger.error(f"App search error: {e}")
             return {"status": "failed", "error": str(e)}
-
 
     def get_workflow_definitions(self) -> List[Dict[str, Any]]:
         """Get all workflow definitions"""
@@ -2130,21 +2416,110 @@ Return your response as a JSON object with this format:
             return {"status": "failed", "error": "No agent_id provided in step parameters"}
 
         try:
-            # Import agent registry
-            from api.agent_routes import AGENTS, execute_agent_task
+            # Phase 28/29: Use DB Registry and World Model
+            from core.models import AgentRegistry
+            from core.database import SessionLocal
+            from core.agent_world_model import WorldModelService, AgentExperience
+            from api.agent_routes import execute_agent_task
+            import uuid
 
-            if agent_id not in AGENTS:
-                return {"status": "failed", "error": f"Agent {agent_id} not found in registry"}
+            # 1. Fetch Agent Definition
+            with SessionLocal() as db:
+                agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+                if not agent:
+                   return {"status": "failed", "error": f"Agent {agent_id} not found in registry"}
+                
+                # Snapshot data needed outside session
+                agent_name = agent.name
+                agent_category = agent.category
+                agent_class = agent.class_name
 
-            agent_def = AGENTS[agent_id]
+            # 2. World Model Retrieval (Memory & Knowledge)
+            wm_service = WorldModelService()
+            task_context = f"Execute {agent_name} with params: {str(step.parameters)}"
+            
+            # Recall relevant past experiences and general knowledge
+            memory_context = await wm_service.recall_experiences(agent, task_context)
+            
+            # 3. Context Injection
+            # We merge context variables AND memory into agent parameters
+            agent_params = {
+                **step.parameters.get("agent_params", {}), 
+                **context.variables,
+                "_memory_context": memory_context # Inject retrieved memories
+            }
+            
+            if memory_context["experiences"]:
+                logger.info(f"Agent {agent_id} context augmented with {len(memory_context['experiences'])} past experiences")
 
-            # Merge context variables into agent parameters (Output piping)
-            agent_params = {**agent_def["default_params"], **step.parameters.get("agent_params", {}), **context.variables}
+            logger.info(f"Executing agent step: {agent_id} with context injection")
 
-            logger.info(f"Executing agent step: {agent_id} with params: {agent_params}")
+            # 4. Execute the agent
+            # Note: execute_agent_task is the background task wrapper, but here we await it directly
+            # We might need to call the logic directly if execute_agent_task expects background_tasks
+            # inspecting execute_agent_task signature... it is async def execute_agent_task(agent_id, params)
+            
+            # We call the logic wrapper. The wrapper in agent_routes ALSO does WM recording. 
+            # To avoid double recording, we should ideally have a lower-level 'run_agent_logic' function.
+            # However, for now, if execute_agent_task does recording, we can rely on that.
+            # BUT: execute_agent_task in agent_routes.py creates its own DB session and WorldModelService.
+            # So calling it here works perfectly fine and reuses that logic!
+            
+            # Wait, execute_agent_task return type? 
+            # In agent_routes.py it returns None (it handles logging/broadcasting). 
+            # We need the RESULT here for the workflow.
+            
+            # Refactor Plan: 
+            # We can't rely solely on execute_agent_task if it doesn't return the result.
+            # Let's check agent_routes.py again. It logs result but doesn't return it? 
+            # It finishes with: return {"status": "started", ...} in the route, but the background task function?
+            # The background task function (execute_agent_task) has no return statement that passes data back to caller.
+            # It broadcasts via notification_manager.
+            
+            # For Workflow Orchestrator, we need the return value!
+            # So we must implement the execution logic here directly OR refactor agent_routes to expose a shared runner.
+            # I will instantiate the agent class directly here to ensure I get the return value.
+            
+            # Dynamic Import logic similar to agent_routes
+            module_name = agent.module_path
+            class_name = agent.class_name
+            
+            mod = __import__(module_name, fromlist=[class_name])
+            AgentClass = getattr(mod, class_name)
+            agent_instance = AgentClass()
+            
+            # Heuristic execution (same as agent_routes)
+            result = None
+            if agent_id == "competitive_intel":
+                 result = await agent_instance.track_competitor_pricing(
+                    agent_params.get("competitors", ["competitor-a"]),
+                    agent_params.get("product", "widget-x")
+                )
+            elif agent_id == "inventory_reconcile":
+                result = await agent_instance.reconcile_inventory(
+                    agent_params.get("skus", ["SKU-123"])
+                )
+            elif agent_id == "payroll_guardian":
+                result = await agent_instance.reconcile_payroll(
+                    agent_params.get("period", "2023-12")
+                )
+            elif hasattr(agent_instance, 'run'):
+                 result = await agent_instance.run(agent_params)
+            else:
+                 result = "Executed generic agent logic."
 
-            # Execute the agent
-            result = await execute_agent_task(agent_id, agent_def, agent_params)
+            # 5. Record Experience (Since we bypassed execute_agent_task)
+            await wm_service.record_experience(AgentExperience(
+                id=str(uuid.uuid4()),
+                agent_id=agent.id,
+                task_type=agent_class,
+                input_summary=str(agent_params),
+                outcome="Success",
+                learnings=f"Workflow Step Success. Result: {str(result)[:100]}...",
+                agent_role=agent_category,
+                specialty=None,
+                timestamp=datetime.datetime.utcnow()
+            ))
 
             # Store agent output in context for next step
             if result:
@@ -2154,7 +2529,7 @@ Return your response as a JSON object with this format:
                 "status": "success",
                 "agent_id": agent_id,
                 "output": result,
-                "message": f"Agent {agent_id} executed successfully"
+                "message": f"Agent {agent_id} executed successfully via World Model"
             }
 
         except Exception as e:
@@ -2250,6 +2625,26 @@ Return your response as a JSON object with this format:
             }
         except Exception as e:
             return {"status": "failed", "error": str(e)}
+
+    async def _execute_business_agent_step(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Phase 67: Execute a specialized business agent (Accounting, Sales, etc.)"""
+        agent_type = step.parameters.get("agent_type")
+        workspace_id = context.variables.get("workspace_id", "default_workspace")
+        
+        logger.info(f"Orchestrator executing Business Agent: {agent_type} for workspace {workspace_id}")
+        
+        try:
+            from core.business_agents import get_specialized_agent
+            agent = get_specialized_agent(agent_type)
+            
+            if not agent:
+                return {"status": "error", "message": f"Specialized agent type '{agent_type}' not found."}
+                
+            result = await agent.run(workspace_id, step.parameters)
+            return result
+        except Exception as e:
+            logger.error(f"Business agent execution failed: {e}")
+            return {"status": "error", "message": str(e)}
 
     async def _execute_project_create(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """
@@ -2443,7 +2838,6 @@ Return your response as a JSON object with this format:
         except Exception as e:
             logger.error(f"Retention playbook execution failed: {e}")
             return {"status": "failed", "error": str(e)}
-
 
 # Global orchestrator instance
 orchestrator = AdvancedWorkflowOrchestrator()

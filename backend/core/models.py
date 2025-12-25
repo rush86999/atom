@@ -90,6 +90,10 @@ class User(Base):
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     role = Column(String, default=UserRole.MEMBER.value)
+    
+    # Domain Specialty (e.g. "Accountant", "Marketer", "Sales")
+    specialty = Column(String, nullable=True) 
+    
     status = Column(String, default=UserStatus.ACTIVE.value)
     
     # Resource Management
@@ -325,3 +329,62 @@ class HITLAction(Base):
     # Relationships
     workspace = relationship("Workspace", backref="hitl_actions")
     reviewer = relationship("User", backref="reviewed_hitl_actions")
+
+class AgentStatus(str, enum.Enum):
+    STUDENT = "student"       # Initial phase, high supervision
+    INTERN = "intern"         # Learning, needs approval
+    SUPERVISED = "supervised" # Operational but monitored
+    AUTONOMOUS = "autonomous" # Fully trusted
+    PAUSED = "paused"
+    DEPRECATED = "deprecated"
+
+class FeedbackStatus(str, enum.Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+class AgentRegistry(Base):
+    """Registry for AI Agents and their governance state"""
+    __tablename__ = "agent_registry"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String, nullable=False) # e.g., "Operations", "Finance"
+    
+    # Technical Config
+    module_path = Column(String, nullable=False) # e.g., "operations.automations.inventory"
+    class_name = Column(String, nullable=False)
+    
+    # Governance
+    status = Column(String, default=AgentStatus.STUDENT.value)
+    confidence_score = Column(Float, default=0.5) # 0.0 to 1.0
+    required_role_for_autonomy = Column(String, default=UserRole.TEAM_LEAD.value)
+    
+    version = Column(String, default="1.0.0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class AgentFeedback(Base):
+    """User feedback on agent actions for RLHF"""
+    __tablename__ = "agent_feedback"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    
+    # The Interaction
+    input_context = Column(Text, nullable=True) # What triggered the agent
+    original_output = Column(Text, nullable=False) # What the agent did/said
+    user_correction = Column(Text, nullable=False) # What the user said it should be
+    
+    # Adjudication
+    status = Column(String, default=FeedbackStatus.PENDING.value)
+    ai_reasoning = Column(Text, nullable=True) # AI judge's explanation
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    adjudicated_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="feedback_history")
+    user = relationship("User", backref="submitted_feedback")

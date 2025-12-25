@@ -15,11 +15,16 @@ import lancedb
 import pyarrow as pa
 import pandas as pd
 from pathlib import Path
-from sentence_transformers import SentenceTransformer
 import numpy as np
 from core.knowledge_ingestion import get_knowledge_ingestion
 
 logger = logging.getLogger(__name__)
+
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
+    logger.warning("sentence_transformers not available, embeddings will be disabled")
 
 class CommunicationAppType(Enum):
     """Supported communication apps for ingestion"""
@@ -100,12 +105,17 @@ class LanceDBMemoryManager:
             
             # Initialize embedding model
             try:
-                logger.info("Loading embedding model (all-mpnet-base-v2)...")
-                self.model = SentenceTransformer('all-mpnet-base-v2')
-                logger.info("Embedding model loaded successfully")
+                if SentenceTransformer:
+                    logger.info("Loading embedding model (all-mpnet-base-v2)...")
+                    self.model = SentenceTransformer('all-mpnet-base-v2')
+                    logger.info("Embedding model loaded successfully")
+                else:
+                    logger.warning("Embedding model skipped (library missing)")
+                    self.model = None
             except Exception as e:
                 logger.error(f"Error loading embedding model: {str(e)}")
-                return False
+                # Continue without embeddings
+                self.model = None
                 
             logger.info("LanceDB memory manager initialized successfully")
             return True

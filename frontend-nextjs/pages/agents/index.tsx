@@ -1,148 +1,151 @@
 
-import React, { useEffect, useState } from 'react';
-import Layout from '@/components/layout/Layout';
-import { AgentCard } from '@/components/Agents/AgentCard';
-import { AgentTerminal } from '@/components/Agents/AgentTerminal';
-import { AgentHistoryTable } from '@/components/Agents/AgentHistoryTable';
-import { useToast } from '@/components/ui/use-toast';
+import React, { useState, useEffect } from 'react';
+import Head from 'next/head';
+import { useToast } from "@/components/ui/use-toast";
+import AgentCard, { AgentInfo } from "@/components/agents/AgentCard";
+import AgentTerminal from "@/components/agents/AgentTerminal";
+import { Badge } from "@/components/ui/badge";
+import { LayoutDashboard } from "lucide-react";
 
-interface Agent {
-    id: string;
-    name: string;
-    description: string;
-    category: string;
-    status: 'idle' | 'running' | 'error';
-}
+const AgentsDashboard = () => {
+    const [agents, setAgents] = useState<AgentInfo[]>([]);
+    const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
+    const [logs, setLogs] = useState<string[]>([]);
+    const { toast } = useToast();
 
-export default function AgentsDashboard() {
-    const [agents, setAgents] = useState<Agent[]>([]);
-    const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-    const [runningAgentIds, setRunningAgentIds] = useState<Set<string>>(new Set());
-    const toast = useToast();
-
-    useEffect(() => {
-        fetchAgents();
-    }, []);
-
+    // Fetch Agents
     const fetchAgents = async () => {
         try {
-            const res = await fetch('http://localhost:8000/api/agents/');
+            const res = await fetch('/api/v1/agents');
             if (res.ok) {
                 const data = await res.json();
                 setAgents(data);
             }
-        } catch (error) {
-            console.error("Failed to fetch agents", error);
+        } catch (e) {
+            console.error("Failed to fetch agents", e);
         }
     };
 
-    const handleRunAgent = async (id: string) => {
-        try {
-            setRunningAgentIds(prev => new Set(prev).add(id));
-            setSelectedAgentId(id); // Auto-focus terminal
+    useEffect(() => {
+        fetchAgents();
+        const interval = setInterval(fetchAgents, 2000); // Poll status
+        return () => clearInterval(interval);
+    }, []);
 
-            const res = await fetch(`http://localhost:8000/api/agents/${id}/run`, {
+    const handleRunAgent = async (id: string) => {
+        setActiveAgentId(id);
+        setLogs([`Initializing agent: ${id}...`, "Connecting to reliable-messaging-service..."]);
+
+        try {
+            const res = await fetch(`/api/v1/agents/${id}/run`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ parameters: {} })
             });
 
             if (res.ok) {
-                toast({
-                    title: "Agent Started",
-                    description: `Agent ${id} is executing in the background.`,
-                });
+                toast({ title: "Agent Started", description: `Agent ${id} is now running.` });
 
-                // Revert running state after standard timeout (mock)
-                setTimeout(() => {
-                    setRunningAgentIds(prev => {
-                        const next = new Set(prev);
-                        next.delete(id);
-                        return next;
-                    });
-                    toast({ title: "Agent Completed", description: `Agent ${id} finished successfully.` });
-                }, 10000);
-
+                // Simulate streaming logs for demo
+                simulateLogs(id);
             } else {
-                throw new Error("API Failed");
+                const err = await res.json();
+                toast({ title: "Failed to start", description: err.detail, variant: "destructive" });
+                setLogs(prev => [...prev, `Error: ${err.detail}`]);
             }
-        } catch (error) {
-            toast({
-                title: "Execution Failed",
-                description: "Could not start agent.",
-                variant: "error"
-            });
-            setRunningAgentIds(prev => {
-                const next = new Set(prev);
-                next.delete(id);
-                return next;
-            });
+        } catch (e) {
+            toast({ title: "Error", description: "Network error", variant: "destructive" });
         }
     };
 
-    const handleScheduleAgent = async (id: string) => {
-        const cron = prompt("Enter Cron Expression (e.g. '*/5 * * * *' for every 5 mins):", "*/30 * * * *");
-        if (!cron) return;
+    // Simulation for MVP Visuals
+    const simulateLogs = (id: string) => {
+        let step = 0;
+        const mockLogs = [
+            "Loading configuration from LanceDB...",
+            "Analyzing latest market data...",
+            "Found 3 new competitor price references.",
+            "Verifying inventory counts for SKU-123...",
+            "Diffing wms_count (50) vs shopify_count (50)... MATCH",
+            "Diffing wms_count (8) vs shopify_count (10)... VARIANCE DETECTED",
+            "Generating alert payload...",
+            "Sending urgent notification to #operations...",
+            "Updating Business Intelligence Graph...",
+            "Task Completed Successfully."
+        ];
 
-        try {
-            const res = await fetch(`http://localhost:8000/api/agents/${id}/schedule`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cron_expression: cron })
-            });
-
-            if (res.ok) {
-                toast({ title: "Scheduled", description: `Agent ${id} scheduled: ${cron}` });
-            } else {
-                throw new Error("Schedule API Failed");
+        const interval = setInterval(() => {
+            if (step >= mockLogs.length) {
+                clearInterval(interval);
+                return;
             }
-        } catch (error) {
-            toast({ title: "Scheduling Failed", description: String(error), variant: "error" });
-        }
+            setLogs(prev => [...prev, mockLogs[step]]);
+            step++;
+        }, 800);
     };
+
+    const activeAgentName = agents.find(a => a.id === activeAgentId)?.name || "Terminal";
+    const activeAgentStatus = agents.find(a => a.id === activeAgentId)?.status || "idle";
 
     return (
-        <Layout>
-            <div className="flex h-[calc(100vh-100px)] gap-6 p-6">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 font-sans">
+            <Head>
+                <title>Atom AI | Agent Control Center</title>
+            </Head>
 
-                {/* Left Side: Agent Grid & History */}
-                <div className="w-2/3 space-y-6 overflow-y-auto pr-2">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Agent Control Center</h1>
-                        <p className="text-muted-foreground">Manage and trigger your specialized Computer Use agents.</p>
-                    </div>
+            <div className="max-w-6xl mx-auto space-y-8">
 
-                    {/* Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {agents.map(agent => (
-                            <AgentCard
-                                key={agent.id}
-                                agent={{
-                                    ...agent,
-                                    status: runningAgentIds.has(agent.id) ? 'running' : 'idle'
-                                }}
-                                onRun={handleRunAgent}
-                                onSchedule={handleScheduleAgent}
-                            />
-                        ))}
-                    </div>
-
-                    {/* History Table */}
-                    <div className="pt-4">
-                        <AgentHistoryTable />
-                    </div>
+                {/* Header */}
+                <div className="flex flex-col space-y-2">
+                    <h1 className="text-3xl font-bold flex items-center gap-2">
+                        <LayoutDashboard className="w-8 h-8 text-blue-600" />
+                        Agent Control Center
+                    </h1>
+                    <p className="text-gray-500">Monitor and orchestrate your autonomous workforce.</p>
                 </div>
 
-                {/* Right Side: Terminal */}
-                <div className="w-1/3">
-                    <AgentTerminal
-                        agentId={selectedAgentId}
-                        isRunning={selectedAgentId ? runningAgentIds.has(selectedAgentId) : false}
-                    />
-                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
+                    {/* Agent Grid */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <h2 className="text-xl font-semibold">Available Agents</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {agents.map(agent => (
+                                <AgentCard
+                                    key={agent.id}
+                                    agent={agent}
+                                    onRun={handleRunAgent}
+                                />
+                            ))}
+                            {agents.length === 0 && <p>Loading agents...</p>}
+                        </div>
+                    </div>
+
+                    {/* Terminal Panel */}
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-semibold">Live Logs</h2>
+                            <Badge variant={activeAgentId ? "default" : "outline"}>
+                                {activeAgentId ? "Live Connection" : "Offline"}
+                            </Badge>
+                        </div>
+                        <AgentTerminal
+                            agentName={activeAgentName}
+                            logs={logs}
+                            status={activeAgentStatus}
+                        />
+
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mt-4">
+                            <h3 className="font-semibold mb-2 text-sm text-gray-700 dark:text-gray-300">Urgent Alerts (Most Recent)</h3>
+                            <div className="text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100">
+                                [Slack Bot] Inventory variance detected for SKU-999 (-2 units).
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </Layout>
+        </div>
     );
-}
+};
 
+export default AgentsDashboard;

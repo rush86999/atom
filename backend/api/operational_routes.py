@@ -1,0 +1,112 @@
+from fastapi import APIRouter, HTTPException, Depends, Body
+from sqlalchemy.orm import Session
+from typing import Dict, Any, List
+import logging
+
+from core.database import get_db
+from core.business_health_service import business_health_service
+from core.cross_system_reasoning import CrossSystemReasoningEngine
+from core.active_intervention_service import active_intervention_service
+
+router = APIRouter(prefix="/api/business-health", tags=["operational-intelligence"])
+logger = logging.getLogger(__name__)
+
+@router.get("/priorities")
+async def get_daily_priorities(workspace_id: str = "default-workspace", db: Session = Depends(get_db)):
+    """
+    Returns a curated list of high-impact tasks for the owner.
+    """
+    try:
+        # Update service with current DB session if needed
+        business_health_service._db = db
+        return await business_health_service.get_daily_priorities(workspace_id)
+    except Exception as e:
+        logger.error(f"Error fetching daily priorities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/simulate")
+async def simulate_business_decision(
+    decision_type: str = Body(...),
+    data: Dict[str, Any] = Body(...),
+    workspace_id: str = "default-workspace"
+):
+    """
+    Simulates the impact of a business decision (Hiring, Spend, etc.)
+    """
+    try:
+        return await business_health_service.simulate_decision(workspace_id, decision_type, data)
+    except Exception as e:
+        logger.error(f"Error running simulation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/forensics/price-drift")
+async def get_price_drift(workspace_id: str = "default-workspace", db: Session = Depends(get_db)):
+    """
+    Detects vendor and ad-spend price drift.
+    """
+    try:
+        from core.financial_forensics import VendorIntelligence, MOCK_MODE
+        service = VendorIntelligence(db)
+        data = await service.detect_price_drift(workspace_id)
+        return {"data": data, "is_mock": MOCK_MODE}
+    except Exception as e:
+        logger.error(f"Error fetching price drift: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/forensics/pricing-advisor")
+async def get_pricing_advice(workspace_id: str = "default-workspace", db: Session = Depends(get_db)):
+    """
+    Provides margin protection and underpricing recommendations.
+    """
+    try:
+        from core.financial_forensics import PricingAdvisor, MOCK_MODE
+        service = PricingAdvisor(db)
+        data = await service.get_pricing_recommendations(workspace_id)
+        return {"data": data, "is_mock": MOCK_MODE}
+    except Exception as e:
+        logger.error(f"Error fetching pricing advice: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/forensics/waste")
+async def get_subscription_waste(workspace_id: str = "default-workspace", db: Session = Depends(get_db)):
+    """
+    Identifies SaaS waste and zombie subscriptions.
+    """
+    try:
+        from core.financial_forensics import SubscriptionWasteService, MOCK_MODE
+        service = SubscriptionWasteService(db)
+        data = await service.find_zombie_subscriptions(workspace_id)
+        return {"data": data, "is_mock": MOCK_MODE}
+    except Exception as e:
+        # Graceful fallback if checking is_mock fails
+        return {"data": [], "is_mock": False}
+
+# Phase 11: Active Interventions
+
+@router.post("/interventions/generate")
+async def generate_interventions(
+    workspace_id: str = "default-workspace", 
+    db: Session = Depends(get_db)
+):
+    """
+    Triggers the Cross-System Reasoning Engine to find active interventions.
+    """
+    engine = CrossSystemReasoningEngine(db)
+    interventions = await engine.generate_interventions(workspace_id)
+    return {"interventions": interventions}
+
+@router.post("/interventions/{id}/execute")
+async def execute_intervention(
+    id: str,
+    payload: Dict[str, Any] = Body(...),
+    action: str = Body(..., embed=True)
+):
+    """
+    Executes a specific intervention action.
+    """
+    try:
+        result = await active_intervention_service.execute_intervention(id, action, payload)
+        return result
+    except Exception as e:
+        logger.error(f"Execution failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

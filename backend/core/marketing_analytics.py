@@ -1,56 +1,76 @@
 import logging
 import json
-from typing import Dict, Any, List
-from core.database import SessionLocal
-from sales.models import Lead, Deal
-from accounting.models import Transaction
+from datetime import datetime
+from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
-class MarketingIntelligence:
+class PlainEnglishReporter:
     """
-    Provides plain-English marketing insights for small business owners.
+    Converts complex marketing metrics into simple narrative reports.
     """
-
-    def __init__(self, ai_service: Any = None, db_session: Any = None):
+    
+    def __init__(self, ai_service: Any = None):
         self.ai = ai_service
-        self.db = db_session
 
-    async def generate_narrative_report(self, workspace_id: str) -> str:
+    async def generate_narrative_report(self, metrics_data: Dict[str, Any]) -> str:
         """
-        Converts marketing metrics into a human-readable narrative.
+        Takes raw metrics (calls, clicks, spend) and produces a 3-4 sentence plain English report.
         """
-        # 1. Gather raw data (simulated for prototype)
-        # In a real system, we'd query Lead sources, Deal conversions, and Ad spend.
-        metrics = {
-            "google_calls": 12,
-            "facebook_calls": 1,
-            "top_source": "Google Business Profile",
-            "weekly_leads": 15,
-            "conversion_rate": "20%"
-        }
-        
-        # 2. Use AI to generate narrative if available
         prompt = f"""
-        Convert the following marketing metrics into a short, plain-English summary for a small business owner.
-        Metrics: {json.dumps(metrics)}
+        Convert these marketing metrics into a simple, non-technical report for a small business owner:
+        Metrics: {json.dumps(metrics_data)}
         
-        Instructions:
-        - Be direct and helpful.
-        - Recommend where to spend more or less.
-        - Avoid marketing jargon.
+        The report should answer:
+        1. Where did leads come from?
+        2. What was the most successful channel?
+        3. Simple advice for next week.
+        
+        Avoid technical jargon like "CTR", "CPC", or "ROAS". Use "Calls", "Clicks", and "Value".
         """
         
-        if self.ai and hasattr(self.ai, 'analyze_text'):
-            res = await self.ai.analyze_text(prompt)
-            return res.get("response", "Marketing summary not available.")
-            
-        # Fallback template
-        return f"Google brought {metrics['google_calls']} calls last week, while Facebook only brought {metrics['facebook_calls']}. Your top performing source is {metrics['top_source']}. We recommend shifting more focus toward Google."
+        if self.ai:
+            from integrations.ai_enhanced_service import AIRequest, AITaskType, AIModelType, AIServiceType
+            request = AIRequest(
+                request_id=f"report_{datetime.now().timestamp()}",
+                task_type=AITaskType.CONTENT_GENERATION,
+                model_type=AIModelType.GPT_4O,
+                service_type=AIServiceType.OPENAI,
+                input_data=prompt
+            )
+            response = await self.ai.process_ai_request(request)
+            output = response.output_data
+            if isinstance(output, dict):
+                return output.get('content') or str(output)
+            return str(output)
 
-    def calculate_cac_ltv(self, workspace_id: str) -> Dict[str, float]:
+        else:
+            return "Marketing is performing well. Google and Facebook are both bringing in new leads."
+
+    async def get_budget_advice(self, performance_by_channel: Dict[str, Dict[str, Any]]) -> str:
         """
-        Calculates basic Customer Acquisition Cost and Lifetime Value.
+        Suggests budget reallocations based on ROI signals.
         """
-        # Placeholder for complex financial math
-        return {"cac": 50.0, "ltv": 250.0, "roi": 5.0}
+        prompt = f"""
+        Analyze the performance of these marketing channels and suggest where to put more or less money:
+        Performance: {json.dumps(performance_by_channel)}
+        
+        Provide 1-2 practical recommendations.
+        """
+        
+        if self.ai:
+            from integrations.ai_enhanced_service import AIRequest, AITaskType, AIModelType, AIServiceType
+            request = AIRequest(
+                request_id=f"advice_{datetime.now().timestamp()}",
+                task_type=AITaskType.CONTENT_GENERATION,
+                model_type=AIModelType.GPT_4O,
+                service_type=AIServiceType.OPENAI,
+                input_data=prompt
+            )
+            response = await self.ai.process_ai_request(request)
+            output = response.output_data
+            if isinstance(output, dict):
+                return output.get('content') or str(output)
+            return str(output)
+        else:
+            return "Consider increasing Google Search budget based on current call volume."

@@ -1,60 +1,79 @@
+
 import logging
-import json
+import asyncio
 from typing import Dict, Any, List
-from browser_engine.agent import BrowserAgent
-# Logic mock for the accounting system
-from tests.mock_accounting_logic import get_accounting_ledger_total 
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 class PayrollReconciliationWorkflow:
     """
-    Reconciles Payroll Portal data with Accounting Ledger.
-    1. Login to Payroll Portal.
-    2. Download/Extract Report.
-    3. Compare Total with Accounting Ledger.
-    4. Generate Adjustment Entry if needed.
+    Workflow for reconciling external payroll reports (e.g. ADP/Gusto) with internal accounting ledgers.
     """
-    
-    def __init__(self):
-        self.browser_agent = BrowserAgent(headless=True)
+    def __init__(self, base_url: str = None):
+        self.base_url = base_url
         
-    async def reconcile_payroll(self, portal_url: str, period: str) -> Dict[str, Any]:
-        logger.info(f"Starting Payroll Reconciliation for {period}")
+    async def reconcile_payroll(self, period: str) -> Dict[str, Any]:
+        """
+        Download payroll report, parse, and match against Ledger DB.
+        """
+        # 1. Download Report (Simulated Browser Agent Action)
+        report_data = self._fetch_payroll_report(period)
         
-        # 1. Get Portal Data via Browser Agent
-        # Used "Download Report" goal to trigger download logic in BrowserAgent MVP
-        portal_result = await self.browser_agent.execute_task(portal_url, f"Download Payroll Report for {period}")
+        # 2. Query Internal Ledger (Simulated DB Query)
+        ledger_data = self._fetch_internal_ledger(period)
         
-        if portal_result["status"] != "success":
-            return {"status": "failed", "error": portal_result.get("error")}
-            
-        # Mock Parsing of the "Downloaded Report"
-        # In real system, we'd parse the PDF/CSV returned in portal_result['data']['file']
-        portal_total = 150000.00 # Simulated Total from Portal
+        # 3. Compare totals
+        external_total = report_data.get("total_gross", 0.0)
+        internal_total = ledger_data.get("total_gross", 0.0)
         
-        # 2. Get Accounting Ledger Total
-        # This function would query the ERP/QuickBooks API or DB
-        ledger_total = get_accounting_ledger_total(period)
-        
-        # 3. Compare
-        variance = portal_total - ledger_total
+        variance = round(external_total - internal_total, 2)
+        has_variance = abs(variance) > 0.01
         
         result = {
+            "status": "completed",
             "period": period,
-            "portal_total": portal_total,
-            "ledger_total": ledger_total,
+            "external_total": external_total,
+            "internal_total": internal_total,
             "variance": variance,
-            "status": "matched" if abs(variance) < 0.01 else "discrepancy"
+            "match": not has_variance
         }
         
-        if abs(variance) >= 0.01:
-            logger.warning(f"Payroll Variance Detected: {variance}")
-            result["adjustment_entry"] = {
-                "debit": "Payroll Expense",
-                "credit": "Accrued Liabilities",
-                "amount": abs(variance),
-                "memo": f"Adjustment for {period} variance"
-            }
-            
+        # 4. Ingest findings to LanceDB (BI)
+        await self._save_to_bi(result)
+        
         return result
+
+    def _fetch_payroll_report(self, period: str) -> Dict[str, Any]:
+        """Simulate downloading and parsing a CSV from a payroll provider"""
+        # Mock data
+        if period == "2023-12":
+            return {"total_gross": 50000.00, "employees": 10}
+        return {"total_gross": 0.0, "employees": 0}
+
+    def _fetch_internal_ledger(self, period: str) -> Dict[str, Any]:
+        """Simulate querying the internal accounting database"""
+        # Mock data
+        if period == "2023-12":
+            return {"total_gross": 50000.00} # Perfect match
+        elif period == "2023-11": # Variance test
+            return {"total_gross": 49000.00}
+        return {"total_gross": 0.0}
+
+    async def _save_to_bi(self, data: Dict[str, Any]):
+        """Save payroll reconciliation status to LanceDB"""
+        try:
+            from core.lancedb_handler import get_lancedb_handler
+            handler = get_lancedb_handler()
+            
+            status = "MATCH" if data["match"] else "VARIANCE"
+            text = f"Payroll Reconciliation {data['period']}: {status}. External: {data['external_total']}, Internal: {data['internal_total']}. Variance: {data['variance']}"
+            
+            handler.add_document(
+                table_name="business_intelligence",
+                text=text,
+                source="payroll_bot",
+                metadata={"type": "reconciliation", "domain": "payroll", "period": data["period"]}
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save to BI: {e}")

@@ -14,6 +14,7 @@ from integrations.marketing_unified_service import marketing_service, MarketingP
 from integrations.atom_whatsapp_integration import atom_whatsapp_integration
 from integrations.document_logic_service import document_logic_service
 from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
+from core.governance_engine import contact_governance
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,25 @@ class AgentIntegrationGateway:
         
         try:
             if action_type == ActionType.SEND_MESSAGE:
+                # Phase 70: External Stakeholder Governance Check
+                workspace_id = params.get("workspace_id", "default_workspace")
+                if contact_governance.is_external_contact(platform, params):
+                    should_pause = await contact_governance.should_require_approval(
+                        workspace_id, action_type.value, platform, params
+                    )
+                    if should_pause:
+                        hitl_id = await contact_governance.request_approval(
+                            workspace_id, action_type.value, platform, params,
+                            reason="Learning Phase: External Contact Protection"
+                        )
+                        return {
+                            "status": "waiting_approval",
+                            "hitl_id": hitl_id,
+                            "message": "Action paused for manual review (External Stakeholder Governance)"
+                        }
+
                 return await self._handle_send_message(platform, params)
+                
             elif action_type == ActionType.UPDATE_RECORD:
                 return await self._handle_update_record(platform, params)
             elif action_type == ActionType.FETCH_INSIGHTS:

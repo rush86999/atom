@@ -2,72 +2,22 @@
 <html>
 
 <head>
-    <title>Mock Supplier Portal - Order</title>
+    <title>Supplier Portal - Quick Order</title>
 </head>
 
 <body>
-    <h1>Supplier Order Portal</h1>
-
-    <div id="search-area">
-        <input type="text" id="sku-search" placeholder="Enter SKU">
-        <button id="search-btn" onclick="search()">Search</button>
-    </div>
-
-    <div id="results-area" style="display:none;">
-        <h3 class="sku-result">SKU-555: Raw Material X</h3>
-        <label>Qty:</label>
-        <input type="number" class="qty-input">
-        <button class="add-to-cart-btn" onclick="addToCart()">Add to Cart</button>
-    </div>
-
-    <div id="cart-area" style="display:none;">
-        <h3>Cart</h3>
-        <button id="checkout-btn" onclick="checkout()">Checkout</button>
-    </div>
-
-    <div id="confirmation-area" style="display:none;">
-        <h2 class="confirmation-message">Order Placed Successfully. PO #999</h2>
-        <button id="orders-link" onclick="viewOrders()">View Orders</button>
-    </div>
-
-    <div id="orders-list" style="display:none;">
-        <h3>Your Orders</h3>
-        <table>
-            <tr data-po-id="999">
-                <td>PO #999</td>
-                <td class="status-cell">Shipped</td>
-                <td class="eta-cell">2025-12-25</td>
-            </tr>
-        </table>
-    </div>
-
-    <script>
-        function search() {
-            const sku = document.getElementById('sku-search').value;
-            if (sku === 'SKU-555') {
-                document.getElementById('results-area').style.display = 'block';
-            }
-        }
-        function addToCart() {
-            document.getElementById('cart-area').style.display = 'block';
-        }
-        function checkout() {
-            // prompt or just allow confirm
-            const btn = document.createElement('button');
-            btn.id = 'confirm-order-btn';
-            btn.innerText = 'Confirm Order';
-            btn.onclick = confirmOrder;
-            document.getElementById('cart-area').appendChild(btn);
-        }
-        function confirmOrder() {
-            document.getElementById('confirmation-area').style.display = 'block';
-            document.getElementById('cart-area').style.display = 'none';
-        }
-        function viewOrders() {
-            document.getElementById('orders-list').style.display = 'block';
-            document.getElementById('confirmation-area').style.display = 'none';
-        }
-    </script>
+    <h1>Place Purchase Order</h1>
+    <form
+        onsubmit="event.preventDefault(); document.getElementById('status').innerText='Order Submitted for ' + document.getElementById('qty').value + ' units of ' + document.getElementById('sku').value;">
+        <label for="sku">SKU:</label>
+        <input type="text" id="sku" name="sku">
+        <br><br>
+        <label for="qty">Quantity:</label>
+        <input type="number" id="qty" name="qty">
+        <br><br>
+        <button type="submit" id="submit-order">Submit Order</button>
+    </form>
+    <div id="status">Waiting for input...</div>
 </body>
 
 </html>

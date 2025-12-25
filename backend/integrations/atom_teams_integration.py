@@ -22,6 +22,9 @@ try:
     from teams_analytics_engine import teams_analytics_engine
 except ImportError as e:
     logging.warning(f"Teams integration services not available: {e}")
+    teams_enhanced_service = None
+    teams_analytics_engine = None
+    teams_workflow_engine = None # Implicitly used later
 
 logger = logging.getLogger(__name__)
 

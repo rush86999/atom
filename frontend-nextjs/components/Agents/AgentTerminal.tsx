@@ -1,91 +1,58 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Terminal } from 'lucide-react';
 
-interface LogEntry {
-    timestamp: string;
-    message: string;
-    level: 'info' | 'warning' | 'error' | 'success';
-}
+import React, { useEffect, useRef } from 'react';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Terminal } from "lucide-react";
 
 interface AgentTerminalProps {
-    agentId: string | null;
-    isRunning: boolean;
+    agentName: string;
+    logs: string[];
+    status: string;
 }
 
-export const AgentTerminal: React.FC<AgentTerminalProps> = ({ agentId, isRunning }) => {
-    const [logs, setLogs] = useState<LogEntry[]>([]);
+const AgentTerminal: React.FC<AgentTerminalProps> = ({ agentName, logs, status }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom
     useEffect(() => {
         if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            scrollRef.current.scrollIntoView({ behavior: "smooth" });
         }
     }, [logs]);
 
-    // Simulate receiving logs via WebSocket (Mock for MVP)
-    useEffect(() => {
-        if (!isRunning || !agentId) return;
-
-        const interval = setInterval(() => {
-            const mockLogs = [
-                `[${agentId}] Navigating to target URL...`,
-                `[${agentId}] Found selector #price-table...`,
-                `[${agentId}] Extracting data...`,
-                `[${agentId}] Storing snapshot in LanceDB...`,
-                `[${agentId}] No variance detected.`
-            ];
-            const randomLog = mockLogs[Math.floor(Math.random() * mockLogs.length)];
-
-            setLogs(prev => [...prev, {
-                timestamp: new Date().toLocaleTimeString(),
-                message: randomLog,
-                level: 'info'
-            }]);
-
-        }, 2000);
-
-        return () => clearInterval(interval);
-    }, [isRunning, agentId]);
-
-    if (!agentId) {
-        return (
-            <Card className="h-full bg-black text-green-500 font-mono border-gray-800">
-                <CardContent className="flex items-center justify-center h-full">
-                    <p className="opacity-50">Select an agent to view logs...</p>
-                </CardContent>
-            </Card>
-        );
-    }
-
     return (
-        <Card className="h-full bg-black text-green-500 font-mono border-gray-800 flex flex-col">
-            <CardHeader className="py-2 border-b border-gray-800">
-                <div className="flex items-center gap-2">
-                    <Terminal className="w-4 h-4" />
-                    <CardTitle className="text-sm">Agent Terminal: {agentId}</CardTitle>
+        <div className="w-full h-96 bg-black rounded-lg border border-gray-800 flex flex-col font-mono text-sm shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-2 bg-gray-900 border-b border-gray-800">
+                <div className="flex items-center text-gray-400">
+                    <Terminal className="w-4 h-4 mr-2" />
+                    <span>{agentName}</span>
                 </div>
-            </CardHeader>
-            <CardContent className="flex-1 p-0 overflow-hidden">
-                <div ref={scrollRef} className="h-96 overflow-y-auto p-4 space-y-1">
-                    {logs.map((log, i) => (
-                        <div key={i} className="flex gap-2 text-xs">
-                            <span className="opacity-50">[{log.timestamp}]</span>
-                            <span className={
-                                log.level === 'error' ? 'text-red-500' :
-                                    log.level === 'warning' ? 'text-yellow-500' : 'text-green-500'
-                            }>
-                                {log.message}
-                            </span>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+            </div>
+
+            {/* Terminal Body */}
+            <ScrollArea className="flex-1 p-4">
+                <div className="flex flex-col gap-1">
+                    {logs.length === 0 && (
+                        <div className="text-gray-600 italic">Waiting for connection...</div>
+                    )}
+                    {logs.map((log, index) => (
+                        <div key={index} className="text-green-400 break-words">
+                            <span className="text-gray-500 mr-2">[{new Date().toLocaleTimeString()}]</span>
+                            <span className="mr-2 text-blue-500">$</span>
+                            {log}
                         </div>
                     ))}
-                    {isRunning && (
-                        <div className="animate-pulse">_</div>
-                    )}
+                    <div ref={scrollRef} />
                 </div>
-            </CardContent>
-        </Card>
+            </ScrollArea>
+        </div>
     );
 };
+
+export default AgentTerminal;

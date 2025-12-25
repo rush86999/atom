@@ -1,133 +1,115 @@
-
 import logging
+import uuid
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from core.unified_calendar_endpoints import MOCK_EVENTS
-from core.unified_task_endpoints import MOCK_TASKS
+from pydantic import BaseModel
+
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from accounting.models import Budget, Account, Transaction, JournalEntry, EntryType, AccountType
+from core.database import SessionLocal
+
+# Import domain services
+from core.risk_prevention import customer_protection, early_warning
+from core.financial_forensics import get_forensics_services
+from core.business_health_service import business_health_service
 
 logger = logging.getLogger(__name__)
 
+class Intervention(BaseModel):
+    id: str
+    type: str # URGENT, OPPORTUNITY, AUTOMATION
+    title: str
+    description: str
+    suggested_action: str # e.g., 'draft_email', 'create_task', 'pause_ads'
+    action_payload: Dict[str, Any] = {}
+    status: str = "PENDING"
+    created_at: str = datetime.now().isoformat()
+
 class CrossSystemReasoningEngine:
-    """Engine for performing cross-system semantic analysis and consistency enforcement"""
+    """
+    The 'Brain' that connects dots between Marketing, Finance, and Risk.
+    Generates Active Interventions.
+    """
     
-    def __init__(self):
-        pass
+    def __init__(self, db: Session = None):
+        self._db = db
 
-    async def enforce_consistency(self, user_id: str) -> List[Dict[str, Any]]:
-        """
-        Detect inconsistencies between CRM deal stages and Calendar events.
-        Example: A deal is 'Closed' but there are still active 'Sales Call' meetings.
-        """
-        inconsistencies = []
-        
-        # 1. Fetch CRM data (In a real system, this would call hubspot_service/salesforce_service)
-        # Mocking for demonstration: Assume a closed deal "Deal-123"
-        closed_deals = ["Deal-123"]
-        
-        # 2. Scan Calendar for meetings linked to closed deals
-        for event in MOCK_EVENTS:
-            if event.metadata and event.metadata.get("deal_id") in closed_deals:
-                # If meeting type implies active sales but deal is closed
-                if "sales" in event.title.lower() or "demo" in event.title.lower():
-                    inconsistencies.append({
-                        "type": "CRM_CALENDAR_MISMATCH",
-                        "severity": "medium",
-                        "resource_id": event.id,
-                        "title": event.title,
-                        "description": f"The deal '{event.metadata.get('deal_id')}' is marked as CLOSED, but this sales/demo meeting is still scheduled.",
-                        "suggested_action": "Cancel or re-categorize this meeting."
-                    })
-                    
-        return inconsistencies
+    @property
+    def db(self):
+        return self._db or SessionLocal()
 
-    async def deduplicate_tasks(self, user_id: str) -> List[Dict[str, Any]]:
+    async def generate_interventions(self, workspace_id: str) -> List[Intervention]:
         """
-        Semantic identification of duplicate tasks across platforms.
+        Analyzes cross-domain signals to propose interventions.
         """
-        duplicates = []
-        # Simple semantic check: overlap in titles and projects
-        seen_titles = {} # Title -> TaskId
+        db = self.db
+        interventions = []
         
-        for task in MOCK_TASKS:
-            title_norm = task.title.lower().strip()
-            if title_norm in seen_titles:
-                original_id = seen_titles[title_norm]
-                duplicates.append({
-                    "type": "SEMANTIC_DUPLICATION",
-                    "original_id": original_id,
-                    "duplicate_id": task.id,
-                    "title": task.title,
-                    "platform": task.platform,
-                    "description": f"Potential duplicate task found: '{task.title}' exists on both {task.platform} and local storage.",
-                    "suggested_action": "Merge these tasks."
-                })
-            else:
-                seen_titles[title_norm] = task.id
-                
-        return duplicates
-
-    async def check_financial_integrity(self, db: Session, workspace_id: str) -> List[Dict[str, Any]]:
-        """
-        Cross-reasoning between Tasks/Projects and Accounting.
-        Detects budget overruns and missing records.
-        """
-        alerts = []
-        
-        # 1. Detect Budget Overruns
-        budgets = db.query(Budget).filter(Budget.workspace_id == workspace_id).all()
-        for budget in budgets:
-            # Sum actual spend for this category/project
-            actual_spend = db.query(func.sum(JournalEntry.amount)).join(Account).filter(
-                Account.workspace_id == workspace_id,
-                Account.id == budget.category_id,
-                JournalEntry.type == EntryType.DEBIT
-            ).scalar() or 0.0
+        try:
+            # 1. Gather Signals
+            # Risk Signals
+            churn_risk = await customer_protection.get_churn_risk(db, workspace_id)
+            ar_alerts = await early_warning.get_ar_alerts(db, workspace_id)
             
-            if actual_spend > budget.amount:
-                alerts.append({
-                    "type": "FINANCIAL_BUDGET_OVERRUN",
-                    "severity": "high",
-                    "resource_id": budget.id,
-                    "description": f"Spend of ${actual_spend} exceeds budget of ${budget.amount} for category '{budget.category_id}'."
-                })
+            # Financial Signals
+            forensics = get_forensics_services(db)
+            waste = await forensics["waste"].find_zombie_subscriptions(workspace_id)
+            
+            # Growth Signals (from Business Health / Leads)
+            priorities_data = await business_health_service.get_daily_priorities(workspace_id)
+            priorities = priorities_data.get("priorities", [])
+            
+            logger.info(f"[DEBUG] Churn Risk: {churn_risk}")
+            logger.info(f"[DEBUG] AR Alerts: {ar_alerts}")
+            logger.info(f"[DEBUG] Waste: {waste}")
+            logger.info(f"[DEBUG] Priorities: {len(priorities)}")
+            
+            # 2. Correlate & Reason
+            
+            # Scenario A: High Churn Risk (Risk) + No Engagement (derived from risk data)
+            # If high value client is at risk, trigger urgent retention
+            for risk in churn_risk:
+                if risk.get("risk_level") == "HIGH":
+                    interventions.append(Intervention(
+                        id=str(uuid.uuid4()),
+                        type="URGENT",
+                        title=f"Retention Alert: {risk['client_name']}",
+                        description=f"High-value client (${risk['value']:,}) silent for {risk['days_silent']} days. Immediate outreach required.",
+                        suggested_action="draft_retention_email",
+                        action_payload={"client_name": risk['client_name'], "deal_id": risk['deal_id']}
+                    ))
 
-        # 2. Check for missing bills on completed project tasks
-        # Mocking completed tasks that should have associated bills
-        for task in MOCK_TASKS:
-            if task.status == "completed" and "service" in task.title.lower():
-                # Check if we have a transaction matching this task_id in metadata
-                has_bill = db.query(Transaction).filter(
-                    Transaction.workspace_id == workspace_id,
-                    Transaction.metadata_json["task_id"].as_string() == task.id
-                ).first()
+            # Scenario B: Financial Waste (Finance) -> Auto-Fix
+            # If zombie sub detected, offer to cancel
+            for item in waste:
+                interventions.append(Intervention(
+                    id=str(uuid.uuid4()),
+                    type="AUTOMATION",
+                    title=f"Cancel Unused SaaS: {item['service_name']}",
+                    description=f"Stop bleeding money. You are paying ${item['mrr']}/mo for a service marked as zombie.",
+                    suggested_action="cancel_subscription",
+                    action_payload={"subscription_id": item['subscription_id'], "service_name": item['service_name']}
+                ))
+
+            # Scenario C: Cash Flow Pressure (AR Alerts) + Growth Opportunities (Priorities)
+            # If AR is high (cash trapped) AND we have high-intent leads (need resources to close),
+            # priority is collecting cash to fuel sales.
+            total_overdue = sum(a['amount'] for a in ar_alerts)
+            high_value_leads = [p for p in priorities if p['type'] == 'GROWTH']
+            
+            if total_overdue > 5000 and len(high_value_leads) > 0:
+                interventions.append(Intervention(
+                    id=str(uuid.uuid4()),
+                    type="OPPORTUNITY",
+                    title="Unlock Cash for Growth",
+                    description=f"You have ${total_overdue:,} in overdue invoices. Collecting this will fund your pursuit of {len(high_value_leads)} hot leads.",
+                    suggested_action="bulk_remind_invoices",
+                    action_payload={"invoice_ids": [a['id'] for a in ar_alerts]}
+                ))
                 
-                if not has_bill:
-                    alerts.append({
-                        "type": "ACCOUNTING_MISSING_RECORD",
-                        "severity": "medium",
-                        "resource_id": task.id,
-                        "description": f"Task '{task.title}' is completed, but no associated bill or payment was found."
-                    })
-        
-        return alerts
-
-    async def check_dependencies(self, workflow_id: str, results: Dict[str, Any]) -> bool:
-        """
-        Block execution if semantic prerequisites are unmet.
-        """
-        # Logic: If a task marked as 'dependency' is not 'completed', return False
-        for task_id in results.get("dependencies", []):
-            task = next((t for t in MOCK_TASKS if t.id == task_id), None)
-            if task and task.status != "completed":
-                logger.warning(f"Dependency check failed: Task {task_id} is {task.status}")
-                return False
-        return True
-
-# Global instance
-reasoning_engine = CrossSystemReasoningEngine()
-
-def get_reasoning_engine():
-    return reasoning_engine
+        except Exception as e:
+            logger.error(f"Error generating interventions: {e}")
+        finally:
+            if not self._db:
+                db.close()
+                
+        return interventions

@@ -21,6 +21,8 @@ class CommandType(Enum):
     ANALYZE = "analyze"
     REPORT = "report"
     NOTIFY = "notify"
+    TRIGGER = "trigger"
+    BUSINESS_HEALTH = "business_health"
     UNKNOWN = "unknown"
 
 
@@ -157,6 +159,16 @@ class NaturalLanguageEngine:
     def _initialize_command_patterns(self) -> Dict[CommandType, List[str]]:
         """Initialize command recognition patterns"""
         return {
+            CommandType.BUSINESS_HEALTH: [
+                r"priority",
+                r"priorities",
+                r"what.*should.*i.*do",
+                r"what.*to.*do.*today",
+                r"simulate",
+                r"simulation",
+                r"impact.*of",
+                r"what.*if.*i",
+            ],
             CommandType.SEARCH: [
                 r"find.*",
                 r"search.*",
@@ -209,6 +221,8 @@ class NaturalLanguageEngine:
                 r"evaluate.*",
                 r"how.*are.*we.*doing",
                 r"what.*is.*the.*status",
+                r"impact.*of",
+                r"what.*if.*i",
             ],
             CommandType.REPORT: [
                 r"generate.*report",
@@ -224,6 +238,15 @@ class NaturalLanguageEngine:
                 r"inform.*",
                 r"send.*message.*to",
                 r"share.*with",
+            ],
+            CommandType.TRIGGER: [
+                r"run.*",
+                r"start.*",
+                r"trigger.*",
+                r"execute.*",
+                r"kick.*off",
+                r"launch.*",
+                r"begin.*",
             ],
         }
 
