@@ -5,11 +5,14 @@ from typing import Optional, Dict, Any
 import json
 import uuid
 
+
 from core.database import get_db
 from core.models import AgentFeedback, User, UserRole
 from core.security import get_current_user
+from core.agent_governance_service import AgentGovernanceService
 
 router = APIRouter(prefix="/api/reasoning", tags=["reasoning"])
+
 
 class ReasoningStepFeedback(BaseModel):
     agent_id: str
@@ -20,7 +23,7 @@ class ReasoningStepFeedback(BaseModel):
     comment: Optional[str] = None
 
 @router.post("/feedback")
-def submit_step_feedback(
+async def submit_step_feedback(
     feedback: ReasoningStepFeedback,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -37,22 +40,28 @@ def submit_step_feedback(
         "step_content": feedback.step_content
     }
 
-    # Determine status based on feedback type
-    feedback_status = "accepted" if feedback.feedback_type == "thumbs_up" else "rejected"
+    governance_service = AgentGovernanceService(db)
+    
+    # original_output is the thought being judged
+    original_output = json.dumps(feedback.step_content.get('thought', ''))
+    
+    # user_correction is the feedback type (thumbs_up/down) or comment
+    user_correction = feedback.comment or feedback.feedback_type
+    
+    # input_context is the full step details
+    input_context = json.dumps(context_payload)
 
-    # Create feedback entry
-    db_feedback = AgentFeedback(
-        id=str(uuid.uuid4()),
-        agent_id=feedback.agent_id,
-        user_id=current_user.id,
-        input_context=json.dumps(context_payload),
-        original_output=json.dumps(feedback.step_content.get('thought', '')), # Main thing being judged
-        user_correction=feedback.comment or feedback.feedback_type, # Comment or simple rating
-        status=feedback_status
-    )
-
-    db.add(db_feedback)
-    db.commit()
-    db.refresh(db_feedback)
-
-    return {"status": "success", "id": db_feedback.id}
+    try:
+        # Submit feedback (this will trigger async adjudication and confidence updates)
+        db_feedback = await governance_service.submit_feedback(
+            agent_id=feedback.agent_id,
+            user_id=current_user.id,
+            original_output=original_output,
+            user_correction=user_correction,
+            input_context=input_context
+        )
+        
+        return {"status": "success", "id": db_feedback.id, "message": "Feedback submitted and processed by governance engine"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
