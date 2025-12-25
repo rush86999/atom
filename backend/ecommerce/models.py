@@ -3,6 +3,21 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from core.database import Base
+from saas.models import SaaSTier
+
+class EcommerceStore(Base):
+    __tablename__ = "ecommerce_stores"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    platform = Column(String, default="shopify") # shopify, amazon, etc.
+    shop_domain = Column(String, nullable=False, unique=True, index=True)
+    access_token = Column(String, nullable=True) # Encrypted in production
+    
+    is_active = Column(Boolean, default=True)
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 class EcommerceCustomer(Base):
     __tablename__ = "ecommerce_customers"
@@ -24,6 +39,11 @@ class EcommerceCustomer(Base):
     risk_level = Column(String, default="low") # low, medium, high
     
     metadata_json = Column(JSON, nullable=True)
+    
+    # B2B Extensions
+    is_b2b = Column(Boolean, default=False)
+    pricing_config = Column(JSON, nullable=True) # e.g. {"global_discount": 0.1, "sku_overrides": {"SKU1": 99.0}}
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -41,8 +61,9 @@ class EcommerceOrder(Base):
     subscription_id = Column(String, ForeignKey("ecommerce_subscriptions.id"), nullable=True)
     order_number = Column(String, nullable=True)
     
-    status = Column(String, default="pending") # pending, paid, fulfilled, cancelled, refunded
+    status = Column(String, default="pending") # pending, paid, fulfilled, cancelled, refunded, awaiting_review
     currency = Column(String, default="USD")
+    confidence_score = Column(Float, default=1.0) # 0.0 to 1.0
     
     # Financial Breakdown
     total_price = Column(Float, default=0.0)
@@ -50,6 +71,7 @@ class EcommerceOrder(Base):
     total_tax = Column(Float, default=0.0)
     total_shipping = Column(Float, default=0.0)
     total_discounts = Column(Float, default=0.0)
+    total_refunded = Column(Float, default=0.0)
     
     # Ledger Sync Status
     ledger_transaction_id = Column(String, nullable=True) # ID in accounting_transactions
@@ -76,6 +98,7 @@ class EcommerceOrderItem(Base):
     sku = Column(String, nullable=True)
     quantity = Column(Integer, default=1)
     price = Column(Float, default=0.0)
+    price_list_id = Column(String, nullable=True) # To track B2B personalized pricing source
     tax_amount = Column(Float, default=0.0)
     
     metadata_json = Column(JSON, nullable=True)

@@ -38,6 +38,17 @@ try:
     from atom_zoom_integration import atom_zoom_integration
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
+    atom_enterprise_security_service = None
+    atom_workflow_automation_service = None
+    ai_enhanced_service = None
+    atom_ai_integration = None
+    atom_slack_integration = None
+    atom_teams_integration = None
+    atom_google_chat_integration = None
+    atom_discord_integration = None
+    atom_telegram_integration = None
+    atom_whatsapp_integration = None
+    atom_zoom_integration = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -561,12 +572,14 @@ class AtomQuickBooksIntegrationService:
                         }
                     }],
                     'PrivateNote': expense_data.get('notes', ''),
-                    'ReceiptRef': {
-                        'value': receipt['id']
-                    } for receipt in expense_data.get('receipt_attachments', [])
-                } if expense_data.get('receipt_attachments') else {},
                 }
             }
+            
+            # Add ReceiptRef if attachments exist
+            if expense_data.get('receipt_attachments'):
+                expense_payload['Purchase']['ReceiptRef'] = [
+                    {'value': receipt['id']} for receipt in expense_data.get('receipt_attachments', [])
+                ]
             
             # Create expense via QuickBooks API
             headers = await self._get_auth_headers()
@@ -614,7 +627,38 @@ class AtomQuickBooksIntegrationService:
         except Exception as e:
             logger.error(f"Error creating expense: {e}")
             return {'success': False, 'error': str(e)}
-    
+
+    async def create_customer(self, display_name: str, email: str) -> Dict[str, Any]:
+        """Create a new customer in QuickBooks"""
+        try:
+            headers = await self._get_auth_headers()
+            
+            payload = {
+                "DisplayName": display_name,
+                "PrimaryEmailAddr": {
+                    "Address": email
+                }
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.quickbooks_config['base_url']}{self.api_endpoints['customers']}?minorversion=65",
+                    headers=headers,
+                    json=payload,
+                    timeout=30.0
+                )
+                
+                if response.status_code == 200:
+                    customer = response.json().get('Customer', {})
+                    logger.info(f"QuickBooks customer created: {customer.get('Id')}")
+                    return {'success': True, 'customer': customer, 'customer_id': customer.get('Id')}
+                else:
+                    logger.error(f"Failed to create QuickBooks customer: {response.status_code} - {response.text}")
+                    return {'success': False, 'error': response.text}
+        except Exception as e:
+            logger.error(f"Error creating QuickBooks customer: {e}")
+            return {'success': False, 'error': str(e)}
+
     async def generate_financial_report(self, report_type: FinancialReportType, 
                                      start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Generate financial report"""
