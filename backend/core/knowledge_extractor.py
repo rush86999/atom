@@ -11,11 +11,19 @@ class KnowledgeExtractor:
     """
     Extracts structured entities and relationships from text using LLMs.
     Targets Persons, Projects, Tasks, Files, and Decisions.
+    SECURITY: Redacts secrets before processing to prevent leakage.
     """
     
     def __init__(self, ai_service: Any = None):
         self.ai_service = ai_service
         self.byok = get_byok_manager()
+        # Initialize secrets redactor
+        try:
+            from core.secrets_redactor import get_secrets_redactor
+            self.redactor = get_secrets_redactor()
+        except ImportError:
+            self.redactor = None
+            logger.warning("Secrets redactor not available in KnowledgeExtractor")
 
     async def extract_knowledge(self, text: str, source: str = "unknown") -> Dict[str, Any]:
         """
@@ -65,12 +73,21 @@ class KnowledgeExtractor:
         """
         
         try:
+            # SECURITY: Redact secrets before sending to LLM
+            # This prevents API keys, passwords, and PII from being sent to external AI services
+            safe_text = text
+            if self.redactor:
+                redaction_result = self.redactor.redact(text)
+                if redaction_result.has_secrets:
+                    logger.warning(f"Redacted {len(redaction_result.redactions)} secrets before LLM extraction")
+                    safe_text = redaction_result.redacted_text
+            
             # Use optimal AI provider
             provider_id = self.byok.get_optimal_provider("chat")
             
             # If our internal ai_service is a wrapper that supports multiple backends
             if self.ai_service and hasattr(self.ai_service, 'analyze_text'):
-                result = await self.ai_service.analyze_text(text, system_prompt=system_prompt)
+                result = await self.ai_service.analyze_text(safe_text, system_prompt=system_prompt)
             else:
                 # Fallback to a direct call if we have to, but better to use the centralized service
                 logger.warning("No robust AI service provided to KnowledgeExtractor, extraction may be limited.")

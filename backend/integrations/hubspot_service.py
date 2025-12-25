@@ -50,16 +50,16 @@ class HubSpotService:
             logger.error(f"Unexpected error during HubSpot authentication: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def get_contacts(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    async def get_contacts(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot contacts"""
         try:
-            if not self.access_token:
-                # Try to get from env if not set during auth
-                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
-                if not self.access_token:
-                    raise HTTPException(status_code=401, detail="Not authenticated")
+            # Use provided token or fall back to instance token or env
+            active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
+            
+            if not active_token:
+                 raise HTTPException(status_code=401, detail="Not authenticated")
 
-            headers = {"Authorization": f"Bearer {self.access_token}"}
+            headers = {"Authorization": f"Bearer {active_token}"}
             params = {
                 "limit": limit,
                 "properties": "email,firstname,lastname,company,phone,createdate,lastmodifieddate,lifecyclestage,hs_lead_status",
@@ -84,15 +84,14 @@ class HubSpotService:
                 status_code=400, detail=f"Failed to get contacts: {str(e)}"
             )
 
-    async def get_companies(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    async def get_companies(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot companies"""
         try:
-            if not self.access_token:
-                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
-                if not self.access_token:
-                    raise HTTPException(status_code=401, detail="Not authenticated")
+            active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
+            if not active_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
 
-            headers = {"Authorization": f"Bearer {self.access_token}"}
+            headers = {"Authorization": f"Bearer {active_token}"}
             params = {
                 "limit": limit,
                 "properties": "name,domain,industry,city,state,country,createdate,lastmodifieddate",
@@ -117,15 +116,14 @@ class HubSpotService:
                 status_code=400, detail=f"Failed to get companies: {str(e)}"
             )
 
-    async def get_deals(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    async def get_deals(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot deals"""
         try:
-            if not self.access_token:
-                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
-                if not self.access_token:
-                    raise HTTPException(status_code=401, detail="Not authenticated")
+            active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
+            if not active_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
 
-            headers = {"Authorization": f"Bearer {self.access_token}"}
+            headers = {"Authorization": f"Bearer {active_token}"}
             params = {
                 "limit": limit,
                 "properties": "dealname,amount,dealstage,pipeline,closedate,createdate,lastmodifieddate,hubspot_owner_id",
@@ -148,15 +146,14 @@ class HubSpotService:
                 status_code=400, detail=f"Failed to get deals: {str(e)}"
             )
 
-    async def get_campaigns(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    async def get_campaigns(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot campaigns"""
         try:
-            if not self.access_token:
-                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
-                if not self.access_token:
-                    raise HTTPException(status_code=401, detail="Not authenticated")
+            active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
+            if not active_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
 
-            headers = {"Authorization": f"Bearer {self.access_token}"}
+            headers = {"Authorization": f"Bearer {active_token}"}
             params = {"limit": limit}
 
             if offset > 0:
@@ -206,16 +203,15 @@ class HubSpotService:
             logger.error(f"HubSpot search failed: {e}")
             raise HTTPException(status_code=400, detail=f"Search failed: {str(e)}")
 
-    async def create_contact(self, email: str, first_name: Optional[str] = None, last_name: Optional[str] = None, company: Optional[str] = None, phone: Optional[str] = None) -> Dict[str, Any]:
+    async def create_contact(self, email: str, first_name: Optional[str] = None, last_name: Optional[str] = None, company: Optional[str] = None, phone: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot contact"""
         try:
-            if not self.access_token:
-                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
-                if not self.access_token:
-                    raise HTTPException(status_code=401, detail="Not authenticated")
+            active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
+            if not active_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
 
             headers = {
-                "Authorization": f"Bearer {self.access_token}",
+                "Authorization": f"Bearer {active_token}",
                 "Content-Type": "application/json",
             }
 
@@ -246,16 +242,15 @@ class HubSpotService:
                 status_code=400, detail=f"Failed to create contact: {str(e)}"
             )
 
-    async def create_company(self, name: str, domain: Optional[str] = None) -> Dict[str, Any]:
+    async def create_company(self, name: str, domain: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot company"""
         try:
-            if not self.access_token:
-                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
-                if not self.access_token:
-                    raise HTTPException(status_code=401, detail="Not authenticated")
+            active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
+            if not active_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
 
             headers = {
-                "Authorization": f"Bearer {self.access_token}",
+                "Authorization": f"Bearer {active_token}",
                 "Content-Type": "application/json",
             }
 
@@ -283,16 +278,15 @@ class HubSpotService:
                 status_code=400, detail=f"Failed to create company: {str(e)}"
             )
 
-    async def create_deal(self, name: str, amount: float, company_id: Optional[str] = None) -> Dict[str, Any]:
+    async def create_deal(self, name: str, amount: float, company_id: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot deal"""
         try:
-            if not self.access_token:
-                self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
-                if not self.access_token:
-                    raise HTTPException(status_code=401, detail="Not authenticated")
+            active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
+            if not active_token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
 
             headers = {
-                "Authorization": f"Bearer {self.access_token}",
+                "Authorization": f"Bearer {active_token}",
                 "Content-Type": "application/json",
             }
 

@@ -359,6 +359,27 @@ class LanceDBHandler:
                 if not table:
                     return False
             
+            # SECURITY: Redact secrets before storage
+            # This ensures API keys, passwords, and PII are NEVER stored in Atom Memory
+            try:
+                from core.secrets_redactor import get_secrets_redactor
+                redactor = get_secrets_redactor()
+                redaction_result = redactor.redact(text)
+                
+                if redaction_result.has_secrets:
+                    logger.warning(f"Redacted {len(redaction_result.redactions)} secrets/PII before storage")
+                    text = redaction_result.redacted_text
+                    
+                    # Add redaction metadata for audit
+                    if metadata is None:
+                        metadata = {}
+                    metadata["_redacted_types"] = [r["type"] for r in redaction_result.redactions]
+                    metadata["_redaction_count"] = len(redaction_result.redactions)
+            except ImportError:
+                logger.warning("Secrets redactor not available, storing text as-is")
+            except Exception as redact_err:
+                logger.error(f"Secrets redaction failed: {redact_err}, proceeding with caution")
+            
             # Generate embedding
             embedding = self.embed_text(text)
             if embedding is None:

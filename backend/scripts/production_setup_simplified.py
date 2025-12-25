@@ -553,6 +553,25 @@ CREATE TABLE IF NOT EXISTS users (
 )
 ''')
 
+# Create integration_catalog table
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS integration_catalog (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL,
+    icon TEXT,
+    color TEXT DEFAULT '#6366F1',
+    auth_type TEXT DEFAULT 'none',
+    native_id TEXT,
+    triggers JSONB DEFAULT '[]',
+    actions JSONB DEFAULT '[]',
+    popular BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+)
+''')
+
 conn.commit()
 cursor.close()
 conn.close()

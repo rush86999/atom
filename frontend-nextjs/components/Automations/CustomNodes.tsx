@@ -36,6 +36,50 @@ export const TriggerNode = memo(({ data, isConnectable }: any) => {
 });
 
 export const ActionNode = memo(({ data, isConnectable }: any) => {
+    const [testStatus, setTestStatus] = React.useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+    const [isConnected, setIsConnected] = React.useState<boolean | null>(null);
+    const [showRetryConfig, setShowRetryConfig] = React.useState(false);
+
+    // Auto-retry configuration
+    const retryConfig = data.retryConfig || {
+        enabled: false,
+        maxRetries: 3,
+        retryDelayMs: 1000,
+        exponentialBackoff: true,
+    };
+
+    // Check connection status on mount
+    React.useEffect(() => {
+        if (data.serviceId || data.service) {
+            const serviceId = (data.serviceId || data.service || '').toLowerCase().replace(/\s+/g, '');
+            fetch(`/api/integrations/${serviceId}/health`)
+                .then(res => setIsConnected(res.ok))
+                .catch(() => setIsConnected(false));
+        }
+    }, [data.serviceId, data.service]);
+
+    // Test this step
+    const handleTestStep = async () => {
+        setTestStatus('testing');
+        try {
+            const res = await fetch('/api/workflows/test-step', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    service: data.serviceId || data.service,
+                    action: data.action,
+                    parameters: data.parameters || {},
+                }),
+            });
+            setTestStatus(res.ok ? 'success' : 'error');
+            // Reset after 3 seconds
+            setTimeout(() => setTestStatus('idle'), 3000);
+        } catch {
+            setTestStatus('error');
+            setTimeout(() => setTestStatus('idle'), 3000);
+        }
+    };
+
     // Service branding map
     const serviceBranding: Record<string, { color: string; bgColor: string; icon?: React.ReactNode }> = {
         'Slack': { color: 'border-l-[#4A154B]', bgColor: 'bg-purple-50' },
@@ -53,11 +97,13 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
         'Zendesk': { color: 'border-l-green-800', bgColor: 'bg-green-50' },
         'Figma': { color: 'border-l-purple-500', bgColor: 'bg-purple-50' },
         'Twilio': { color: 'border-l-red-600', bgColor: 'bg-red-50' },
+        'OpenAI': { color: 'border-l-[#412991]', bgColor: 'bg-purple-50' },
+        'Google Gemini': { color: 'border-l-[#8E75B2]', bgColor: 'bg-purple-50' },
     };
     const branding = serviceBranding[data.service] || { color: 'border-l-green-500', bgColor: '' };
 
     return (
-        <Card className={`min-w-[200px] border-l-4 ${branding.color} ${branding.bgColor} shadow-sm`}>
+        <Card className={`min-w-[220px] border-l-4 ${branding.color} ${branding.bgColor} shadow-sm`}>
             <Handle
                 type="target"
                 position={Position.Top}
@@ -70,15 +116,111 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
                         <Play className="w-4 h-4 text-green-500" />
                         <CardTitle className="text-sm font-bold">{data.service || 'Action'}</CardTitle>
                     </div>
+                    {/* Connection Status Indicator */}
+                    {isConnected !== null && (
+                        isConnected ? (
+                            <div className="flex items-center space-x-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => window.open(`/integrations/${(data.serviceId || data.service || '').toLowerCase().replace(/\s+/g, '')}`, '_blank')}
+                                className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded hover:bg-blue-200 flex items-center gap-0.5"
+                            >
+                                Connect
+                            </button>
+                        )
+                    )}
                     {data.waitForInput && <PauseCircle className="w-4 h-4 text-amber-500" />}
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
-                <p>{data.action || 'Execute'}</p>
+                <p className="font-medium text-gray-700">{data.action || data.label || 'Execute'}</p>
+                {data.description && (
+                    <p className="text-[10px] text-gray-500 mt-1 truncate">{data.description}</p>
+                )}
+
                 {/* Show Required Inputs if Paused */}
                 {data.waitForInput && data.requiredInputs && (
                     <div className="mt-2 text-[10px] bg-amber-50 text-amber-800 p-1 rounded border border-amber-200">
                         <strong>Waiting for:</strong> {data.requiredInputs.join(', ')}
+                    </div>
+                )}
+
+                {/* Test Step Button */}
+                <div className="mt-2 flex items-center justify-between">
+                    <button
+                        onClick={handleTestStep}
+                        disabled={testStatus === 'testing'}
+                        className={`
+                            flex items-center gap-1 text-[10px] px-2 py-1 rounded transition-colors
+                            ${testStatus === 'success'
+                                ? 'bg-green-100 text-green-700'
+                                : testStatus === 'error'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}
+                        `}
+                    >
+                        {testStatus === 'testing' ? (
+                            <>
+                                <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                Testing...
+                            </>
+                        ) : testStatus === 'success' ? (
+                            <>
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                Success
+                            </>
+                        ) : testStatus === 'error' ? (
+                            <>
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                Failed
+                            </>
+                        ) : (
+                            <>
+                                <Play className="w-3 h-3" />
+                                Test Step
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                {/* Auto-Retry Configuration */}
+                {retryConfig.enabled && (
+                    <div className="mt-2 text-[10px] bg-blue-50 text-blue-800 p-1 rounded border border-blue-200">
+                        <div className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.582m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Auto-retry: {retryConfig.maxRetries}x</span>
+                            {retryConfig.exponentialBackoff && <span>(exponential)</span>}
+                        </div>
+                    </div>
+                )}
+
+                {/* Retry Config Toggle */}
+                <button
+                    onClick={() => setShowRetryConfig(!showRetryConfig)}
+                    className="mt-1 text-[9px] text-gray-400 hover:text-gray-600 flex items-center gap-1"
+                >
+                    <Settings className="w-2 h-2" />
+                    {showRetryConfig ? 'Hide retry config' : 'Configure retries'}
+                </button>
+
+                {showRetryConfig && (
+                    <div className="mt-1 p-2 bg-gray-50 rounded text-[10px] space-y-1">
+                        <div className="flex items-center justify-between">
+                            <span>Max retries:</span>
+                            <span className="font-medium">{retryConfig.maxRetries}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span>Delay:</span>
+                            <span className="font-medium">{retryConfig.retryDelayMs}ms</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span>Exponential:</span>
+                            <span className="font-medium">{retryConfig.exponentialBackoff ? 'Yes' : 'No'}</span>
+                        </div>
                     </div>
                 )}
             </CardContent>
@@ -350,6 +492,452 @@ export const TimerNode = memo(({ data, isConnectable }: any) => {
     );
 });
 
+// Loop Node - for iterating over arrays (Activepieces-style)
+export const LoopNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[220px] border-l-4 border-l-teal-500 shadow-md bg-teal-50">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-teal-100 p-1 rounded-full">
+                        <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Loop</CardTitle>
+                    <Badge variant="secondary" className="text-[9px]">For Each</Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="bg-white p-2 rounded border border-teal-200">
+                    <p className="text-gray-600">
+                        <span className="font-semibold text-teal-700">Iterate over:</span>{' '}
+                        <span className="font-mono text-[10px] bg-gray-100 px-1 rounded">
+                            {data.iterateOver || '{{previousStep.items}}'}
+                        </span>
+                    </p>
+                    {data.maxIterations && (
+                        <p className="text-[10px] text-gray-500 mt-1">
+                            Max: {data.maxIterations} iterations
+                        </p>
+                    )}
+                </div>
+            </CardContent>
+            {/* Two outputs: Loop Body and After Loop */}
+            <div className="flex justify-between px-3 pb-1">
+                <div className="text-[9px] text-teal-600 font-semibold">Body</div>
+                <div className="text-[9px] text-gray-500 font-semibold">Done</div>
+            </div>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                id="loop_body"
+                style={{ left: '25%' }}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-teal-500"
+            />
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                id="loop_done"
+                style={{ left: '75%' }}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+        </Card>
+    );
+});
+
+// Approval Node - Human-in-the-loop (Activepieces-style)
+export const ApprovalNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[220px] border-l-4 border-l-amber-500 shadow-md bg-amber-50">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-amber-100 p-1 rounded-full">
+                        <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Wait for Approval</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="bg-white p-2 rounded border border-amber-200 space-y-1">
+                    <p className="text-gray-700 font-medium">
+                        {data.message || 'Waiting for human approval'}
+                    </p>
+                    {data.timeout && (
+                        <p className="text-[10px] text-gray-500">
+                            Timeout: {data.timeout}
+                        </p>
+                    )}
+                    {data.approvers && (
+                        <p className="text-[10px] text-gray-500">
+                            Approvers: {data.approvers}
+                        </p>
+                    )}
+                </div>
+                <div className="mt-2 flex items-center gap-1 text-[10px] text-amber-700">
+                    <PauseCircle className="w-3 h-3" />
+                    <span>Workflow pauses until approved</span>
+                </div>
+            </CardContent>
+            {/* Two outputs: Approved and Rejected */}
+            <div className="flex justify-between px-3 pb-1">
+                <div className="text-[9px] text-green-600 font-semibold">Approved</div>
+                <div className="text-[9px] text-red-600 font-semibold">Rejected</div>
+            </div>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                id="approved"
+                style={{ left: '25%' }}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-green-500"
+            />
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                id="rejected"
+                style={{ left: '75%' }}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-red-500"
+            />
+        </Card>
+    );
+});
+
+// Code Node - Custom JavaScript/TypeScript (Activepieces-style)
+export const CodeNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[240px] border-l-4 border-l-slate-700 shadow-md bg-slate-50">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                        <div className="bg-slate-700 p-1 rounded">
+                            <Code className="w-4 h-4 text-white" />
+                        </div>
+                        <CardTitle className="text-sm font-bold text-gray-800">Code</CardTitle>
+                    </div>
+                    <Badge variant="secondary" className="text-[9px] bg-blue-100 text-blue-700">
+                        {data.language || 'TypeScript'}
+                    </Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="bg-slate-900 text-slate-50 p-2 rounded text-[10px] font-mono overflow-x-auto min-h-[60px] max-h-[80px]">
+                    <pre className="whitespace-pre-wrap">
+                        {data.code || `// Write your code here
+export const code = async (inputs) => {
+  return { result: inputs.data };
+};`}
+                    </pre>
+                </div>
+                {data.npmPackages && data.npmPackages.length > 0 && (
+                    <div className="mt-2 text-[9px] text-gray-500">
+                        <span className="font-semibold">npm:</span> {data.npmPackages.join(', ')}
+                    </div>
+                )}
+                {/* ASK AI button */}
+                <button className="mt-2 w-full flex items-center justify-center gap-1 text-[10px] bg-purple-100 text-purple-700 py-1 rounded hover:bg-purple-200 transition-colors">
+                    <Zap className="w-3 h-3" />
+                    Ask AI to write code
+                </button>
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-slate-700"
+            />
+        </Card>
+    );
+});
+
+// Table Node - for database operations (Activepieces-style)
+export const TableNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[220px] border-l-4 border-l-teal-600 shadow-md bg-teal-50">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-teal-600 p-1 rounded">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                        </svg>
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Tables</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="bg-white p-2 rounded border border-teal-200">
+                    <p className="font-semibold text-teal-700">{data.action || 'Insert Row'}</p>
+                    <p className="text-gray-600 text-[10px] mt-1">
+                        Table: <span className="font-mono bg-gray-100 px-1 rounded">{data.tableName || 'Select table'}</span>
+                    </p>
+                </div>
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-teal-600"
+            />
+        </Card>
+    );
+});
+
+// SubFlow Node - for calling other flows (Activepieces-style)
+export const SubFlowNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[220px] border-l-4 border-l-violet-600 shadow-md bg-violet-50">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-violet-600 p-1 rounded">
+                        <Zap className="w-4 h-4 text-white" />
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Sub Flow</CardTitle>
+                    <Badge variant="secondary" className="text-[9px]">{data.async ? 'Async' : 'Sync'}</Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <div className="bg-white p-2 rounded border border-violet-200">
+                    <p className="font-semibold text-violet-700">{data.flowName || 'Select flow'}</p>
+                    {data.description && (
+                        <p className="text-gray-600 text-[10px] mt-1">{data.description}</p>
+                    )}
+                </div>
+                {data.async && (
+                    <p className="text-violet-600 text-[10px] mt-2 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Fire and forget
+                    </p>
+                )}
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-violet-600"
+            />
+        </Card>
+    );
+});
+
+
+// Human-in-the-Loop Form Input Node
+export const FormInputNode = memo(({ data, isConnectable }: any) => {
+    const fields = data.fields || [
+        { name: 'input1', type: 'text', label: 'Input 1' }
+    ];
+
+    return (
+        <Card className="min-w-[240px] border-l-4 border-l-pink-500 shadow-md bg-pink-50">
+            <Handle
+                type="target"
+                position={Position.Top}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-gray-400"
+            />
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-pink-500 p-1 rounded">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Form Input</CardTitle>
+                    <Badge variant="secondary" className="text-[9px] bg-pink-100">HITL</Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                <p className="text-gray-600 mb-2">{data.description || 'Collect user input via form'}</p>
+
+                {/* Form Fields Preview */}
+                <div className="space-y-1 bg-white p-2 rounded border border-pink-200">
+                    {fields.slice(0, 3).map((field: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2 text-[10px]">
+                            <span className="text-gray-500">{field.type}:</span>
+                            <span className="font-medium">{field.label || field.name}</span>
+                            {field.required && <span className="text-red-500">*</span>}
+                        </div>
+                    ))}
+                    {fields.length > 3 && (
+                        <p className="text-[9px] text-gray-400">+{fields.length - 3} more fields</p>
+                    )}
+                </div>
+
+                {/* Assignee */}
+                {data.assignTo && (
+                    <div className="mt-2 text-[10px] text-pink-700 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        Assigned to: {data.assignTo}
+                    </div>
+                )}
+
+                {/* Timeout */}
+                {data.timeoutHours && (
+                    <div className="mt-1 text-[10px] text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Timeout: {data.timeoutHours}h
+                    </div>
+                )}
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-pink-500"
+            />
+        </Card>
+    );
+});
+
+// Table Trigger Node - triggers workflow on table row changes
+export const TableTriggerNode = memo(({ data, isConnectable }: any) => {
+    const eventType = data.eventType || 'row_created'; // row_created, row_updated, row_deleted
+
+    const eventConfig: Record<string, { label: string; color: string }> = {
+        row_created: { label: 'Row Created', color: 'bg-green-500' },
+        row_updated: { label: 'Row Updated', color: 'bg-blue-500' },
+        row_deleted: { label: 'Row Deleted', color: 'bg-red-500' },
+        any_change: { label: 'Any Change', color: 'bg-purple-500' },
+    };
+
+    const config = eventConfig[eventType] || eventConfig.row_created;
+
+    return (
+        <Card className="min-w-[220px] border-l-4 border-l-teal-500 shadow-md">
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-teal-500 p-1 rounded">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <CardTitle className="text-sm font-bold">Table Trigger</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                {/* Table Name */}
+                <div className="bg-teal-50 p-2 rounded border border-teal-200 mb-2">
+                    <p className="font-semibold text-teal-700">{data.tableName || 'Select table'}</p>
+                </div>
+
+                {/* Event Type */}
+                <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${config.color}`}></span>
+                    <span className="font-medium">{config.label}</span>
+                </div>
+
+                {/* Filters */}
+                {data.filters && data.filters.length > 0 && (
+                    <div className="mt-2 text-[10px] text-gray-600">
+                        <span className="font-medium">Filters:</span> {data.filters.length} condition(s)
+                    </div>
+                )}
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-teal-500"
+            />
+        </Card>
+    );
+});
+
+// Chat Interface Trigger Node - starts workflows from chat messages
+export const ChatTriggerNode = memo(({ data, isConnectable }: any) => {
+    return (
+        <Card className="min-w-[220px] border-l-4 border-l-indigo-500 shadow-md bg-indigo-50">
+            <CardHeader className="p-3 pb-0">
+                <div className="flex items-center space-x-2">
+                    <div className="bg-indigo-500 p-1 rounded">
+                        <MessageSquare className="w-4 h-4 text-white" />
+                    </div>
+                    <CardTitle className="text-sm font-bold text-gray-800">Chat Trigger</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs">
+                {/* Trigger Keywords */}
+                <div className="bg-white p-2 rounded border border-indigo-200 mb-2">
+                    <p className="font-semibold text-indigo-700 mb-1">Trigger on:</p>
+                    {data.keywords && data.keywords.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                            {data.keywords.slice(0, 3).map((kw: string, idx: number) => (
+                                <Badge key={idx} variant="secondary" className="text-[9px]">{kw}</Badge>
+                            ))}
+                            {data.keywords.length > 3 && (
+                                <span className="text-[9px] text-gray-400">+{data.keywords.length - 3}</span>
+                            )}
+                        </div>
+                    ) : (
+                        <p className="text-gray-400 italic">Any message</p>
+                    )}
+                </div>
+
+                {/* Channel */}
+                {data.channel && (
+                    <div className="text-[10px] text-indigo-700 flex items-center gap-1 mb-1">
+                        <span className="font-medium">Channel:</span> {data.channel}
+                    </div>
+                )}
+
+                {/* User Filter */}
+                {data.userFilter && (
+                    <div className="text-[10px] text-gray-600 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        {data.userFilter}
+                    </div>
+                )}
+            </CardContent>
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                isConnectable={isConnectable}
+                className="w-3 h-3 bg-indigo-500"
+            />
+        </Card>
+    );
+});
+
+// Export nodeTypes object - must be after all component definitions
 export const nodeTypes = {
     trigger: TriggerNode,
     action: ActionNode,
@@ -359,4 +947,13 @@ export const nodeTypes = {
     email: EmailNode,
     http: HttpNode,
     timer: TimerNode,
+    loop: LoopNode,
+    approval: ApprovalNode,
+    code: CodeNode,
+    table: TableNode,
+    subflow: SubFlowNode,
+    form_input: FormInputNode,
+    table_trigger: TableTriggerNode,
+    chat_trigger: ChatTriggerNode,
 };
+

@@ -12,11 +12,19 @@ class ZohoInventoryService:
         self.organization_id = os.getenv("ZOHO_ORG_ID")
         self.client = httpx.AsyncClient(timeout=30.0)
 
-    async def get_items(self) -> List[Dict[str, Any]]:
+    async def get_items(self, token: Optional[str] = None, organization_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch items list for pricing and availability checks"""
         try:
-            params = {"organization_id": self.organization_id}
-            headers = {"Authorization": f"Zoho-oauthtoken {self.access_token}"}
+            active_token = token or self.access_token
+            active_org = organization_id or self.organization_id
+            
+            if not active_token:
+                 raise HTTPException(status_code=401, detail="Not authenticated")
+            if not active_org:
+                 raise HTTPException(status_code=400, detail="Organization ID required")
+
+            params = {"organization_id": active_org}
+            headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
             response = await self.client.get(f"{self.base_url}/items", headers=headers, params=params)
             response.raise_for_status()
             return response.json().get("items", [])
@@ -24,11 +32,19 @@ class ZohoInventoryService:
             logger.error(f"Failed to fetch Zoho Inventory items: {e}")
             return []
 
-    async def check_stock(self, item_id: str) -> Dict[str, Any]:
+    async def check_stock(self, item_id: str, token: Optional[str] = None, organization_id: Optional[str] = None) -> Dict[str, Any]:
         """Check current stock levels for an item"""
         try:
-            params = {"organization_id": self.organization_id}
-            headers = {"Authorization": f"Zoho-oauthtoken {self.access_token}"}
+            active_token = token or self.access_token
+            active_org = organization_id or self.organization_id
+
+            if not active_token:
+                 raise HTTPException(status_code=401, detail="Not authenticated")
+            if not active_org:
+                 raise HTTPException(status_code=400, detail="Organization ID required")
+
+            params = {"organization_id": active_org}
+            headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
             response = await self.client.get(f"{self.base_url}/items/{item_id}", headers=headers, params=params)
             response.raise_for_status()
             item = response.json().get("item", {})

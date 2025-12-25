@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 from playwright.async_api import Page
 
 from browser_engine.driver import BrowserManager
+from integrations.mcp_service import mcp_service
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class BrowserAgent:
     """
     def __init__(self, headless: bool = True):
         self.manager = BrowserManager.get_instance(headless=headless)
+        self.mcp = mcp_service  # MCP access for web search and web access
 
     async def execute_task(self, url: str, goal: str, safe_mode: bool = True) -> Dict[str, Any]:
         """
