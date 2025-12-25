@@ -1,4 +1,9 @@
 {
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "11b98b36500c4b5a9231c3f1144fe7e8.l9iMgbzi0O3ZpZml",
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "API_TIMEOUT_MS": "3000000"
+  },
   "permissions": {
     "allow": [
       "Bash(cat:*)",
@@ -42,9 +47,8 @@
     "deny": [],
     "ask": []
   },
-  "env": {
-    "ANTHROPIC_AUTH_TOKEN": "11b98b36500c4b5a9231c3f1144fe7e8.l9iMgbzi0O3ZpZml",
-    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-    "API_TIMEOUT_MS": "3000000"
-  }
+  "enabledMcpjsonServers": [
+    "chrome-devtools",
+    "brave-search"
+  ]
 }

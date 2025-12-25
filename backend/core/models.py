@@ -98,6 +98,10 @@ class User(Base):
     
     # Resource Management
     skills = Column(Text, nullable=True) # JSON string of skills
+    
+    # Onboarding
+    onboarding_completed = Column(Boolean, default=False)
+    onboarding_step = Column(String, default="welcome")
     capacity_hours = Column(Float, default=40.0) # Weekly capacity
     hourly_cost_rate = Column(Float, default=0.0) # Internal labor cost
     metadata_json = Column(JSON, nullable=True)
