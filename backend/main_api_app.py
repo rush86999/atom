@@ -267,6 +267,20 @@ try:
     except ImportError:
         logger.warning("Auth endpoints not found, skipping.")
 
+    # 4b. Onboarding Routes
+    try:
+        from api.onboarding_routes import router as onboarding_router
+        app.include_router(onboarding_router, prefix="/api/onboarding", tags=["Onboarding"])
+    except ImportError as e:
+        logger.warning(f"Onboarding routes not found: {e}")
+
+    # 4c. Reasoning & Feedback Routes
+    try:
+        from api.reasoning_routes import router as reasoning_router
+        app.include_router(reasoning_router)
+    except ImportError as e:
+        logger.warning(f"Reasoning routes not found: {e}")
+
     # 4. Microsoft 365 Integration
     try:
         from integrations.microsoft365_routes import microsoft365_router

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import {
   Search,
@@ -18,20 +18,42 @@ import {
   CardTitle,
   CardContent,
 } from "../components/ui/card";
+import { OnboardingWizard } from "../components/Onboarding/OnboardingWizard";
 
 const Home = () => {
   const router = useRouter();
+  const [showWizard, setShowWizard] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
-  // Commented out auth check for development
-  // useEffect(() => {
-  //   const checkSession = async () => {
-  //     const session = await getSession();
-  //     if (!session) {
-  //       router.push("/auth/signin");
-  //     }
-  //   };
-  //   checkSession();
-  // }, [router]);
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        // Only check if we have a token (logged in)
+        if (token) {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5059'}/api/onboarding/status`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (!data.onboarding_completed) {
+              setShowWizard(true);
+              // Fetch full user details for wizard personalized greeting
+              const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5059'}/api/users/me`, {
+                headers: { "Authorization": `Bearer ${token}` }
+              });
+              if (userRes.ok) {
+                setUser(await userRes.json());
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check onboarding status", err);
+      }
+    };
+    checkOnboarding();
+  }, []);
 
   const features = [
     {
@@ -123,6 +145,17 @@ const Home = () => {
 
   return (
     <div className="container mx-auto py-8 max-w-6xl">
+      <OnboardingWizard
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
+        user={user}
+        onUpdate={(data) => {
+          // Optimistically update local state if needed
+          if (data.onboarding_completed) {
+            setShowWizard(false);
+          }
+        }}
+      />
       <div className="flex flex-col space-y-8">
         <div className="text-center">
           <h1 className="text-4xl font-bold mb-4">Welcome to ATOM</h1>

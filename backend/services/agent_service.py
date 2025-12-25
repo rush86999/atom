@@ -7,12 +7,14 @@ from pydantic import BaseModel
 from core.byok_endpoints import get_byok_manager
 from integrations.mcp_service import mcp_service
 
-# Try to import Lux SDK, handle missing dependency
+# Try to import Lux SDK, fallback to local model if available
 try:
     from oagi import LuxAgent
-    HAS_LUX_SDK = True
+    HAS_SDK = True
 except ImportError:
-    HAS_LUX_SDK = False
+    HAS_SDK = False
+
+from ai.lux_model import LuxModel
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +39,8 @@ class ComputerUseAgent:
         self._active_tasks: Dict[str, AgentTask] = {}
         self.mcp = mcp_service  # MCP access for web search and web access
         
-        if not HAS_LUX_SDK:
-            logger.warning("Lux SDK (oagi) not installed. Agent service will run in MOCK mode.")
+        # We now rely on local LuxModel if SDK is missing
+        logger.info("ComputerUseAgent initialized with local LuxModel support")
             
     async def execute_task(self, goal: str, mode: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -72,30 +74,37 @@ class ComputerUseAgent:
 
         try:
             # key retrieval logic moved here to ensure freshness and BYOK integration
-            api_key = self.byok.get_api_key("lux")
+            # Note: BYOK key retrieval is critical as per user request
+            api_key = self.byok.get_api_key("lux") or self.byok.get_api_key("anthropic")
             
-            if HAS_LUX_SDK and api_key:
-                # Real Lux SDK Execution
-                task.logs.append("Initializing Lux Agent...")
+            if api_key:
+                # Real Lux Execution via Local Model
+                task.logs.append("Initializing Lux Agent (Local Model)...")
                 
-                # --- SDK INTEGRATION POINT ---
-                # This is where we would instantiate and run the real agent
-                # agent = LuxAgent(api_key=self.api_key, mode=task.mode)
-                # result = await agent.run(task.goal)
-                # -----------------------------
-                
-                # For now, we simulate the 'real' call until we have the full SDK signature confirmed
-                await asyncio.sleep(2) 
-                task.logs.append("Lux Agent analyzing screen...")
-                await asyncio.sleep(2)
-                task.logs.append("Action: Clicked 'Submit' button")
-                
-                task.status = "completed"
-                task.result = "Task executed successfully via Lux SDK (Simulated)"
+                try:
+                    agent = LuxModel(api_key=api_key)
+                    task.logs.append("Lux Agent ready. Executing command...")
+                    
+                    # Execute
+                    result_data = await agent.execute_command(task.goal)
+                    
+                    if result_data.get("success"):
+                        task.status = "completed"
+                        task.result = f"Task completed: {json.dumps(result_data.get('actions', []), indent=2)}"
+                        task.logs.append(f"Success. Actions taken: {len(result_data.get('actions', []))}")
+                    else:
+                        task.status = "failed"
+                        task.result = f"Task failed: {result_data.get('error')}"
+                        task.logs.append(f"Failure: {result_data.get('error')}")
+                        
+                except Exception as model_err:
+                     task.status = "failed"
+                     task.result = str(model_err)
+                     task.logs.append(f"Model Execution Error: {model_err}")
                 
             else:
-                # Mock Mode
-                task.logs.append("Running in MOCK mode (No API Key or SDK found)")
+                # Mock Mode (No Key Found)
+                task.logs.append("Running in MOCK mode (No API Key found in BYOK)")
                 await asyncio.sleep(1)
                 task.logs.append("Analyzing goal...")
                 await asyncio.sleep(1)
@@ -103,7 +112,7 @@ class ComputerUseAgent:
                 await asyncio.sleep(1)
                 
                 task.status = "completed"
-                task.result = f"Mock execution of '{task.goal}' complete."
+                task.result = f"Mock execution of '{task.goal}' complete. (Add 'lux' or 'anthropic' key to BYOK to enable real mode)"
                 
         except Exception as e:
             logger.error(f"Agent task failed: {e}")

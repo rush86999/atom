@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { ReasoningChain, ReasoningStep } from '../Agents/ReasoningChain';
+import { VoiceInput } from '@/components/Voice/VoiceInput';
+import { useToast } from "@/components/ui/use-toast";
 
 // Agent governance status - matches backend AgentStatus enum
 export type AgentMaturityLevel = 'student' | 'intern' | 'supervised' | 'autonomous';
@@ -290,6 +293,9 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({
     const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'agent'; content: string }[]>([]);
     const [agentGovernanceData, setAgentGovernanceData] = useState<Record<string, any>>({});
     const [loadingGovernance, setLoadingGovernance] = useState(false);
+    const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
+    const [showReasoning, setShowReasoning] = useState(false);
+    const toast = useToast();
 
     // Fetch agent governance data from API on mount
     useEffect(() => {
@@ -338,10 +344,44 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({
         if (!prompt.trim() || !selectedAgent) return;
 
         setIsGenerating(true);
+        setShowReasoning(true);
+        setReasoningSteps([]);
         setChatHistory(prev => [...prev, { role: 'user', content: prompt }]);
 
-        // Simulate AI generation delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Simulate reasoning steps
+        const mockSteps: ReasoningStep[] = [
+            {
+                id: 'r1', index: 0, timestamp: new Date().toISOString(),
+                thought: `Parsing request: "${prompt}"`,
+                action: 'NLU Analysis', action_input: { text: prompt },
+                observation: 'Intent identified: Create Automation',
+                status: 'completed'
+            },
+            {
+                id: 'r2', index: 1, timestamp: new Date().toISOString(),
+                thought: 'Identifying required services based on agent capabilities',
+                action: 'Service Lookup', action_input: { capabilities: selectedAgent.capabilities },
+                observation: `Selected services: ${selectedAgent.capabilities.slice(0, 2).join(', ')}`,
+                status: 'completed'
+            },
+            {
+                id: 'r3', index: 2, timestamp: new Date().toISOString(),
+                thought: 'Structuring workflow steps and configuration',
+                action: 'Workflow Generation', action_input: { template: 'custom' },
+                observation: 'Draft workflow created with 3 steps',
+                status: 'completed'
+            }
+        ];
+
+        // Simulate step-by-step appearance
+        for (const step of mockSteps) {
+            await new Promise(resolve => setTimeout(resolve, 800));
+            setReasoningSteps(prev => {
+                const newSteps = [...prev, step];
+                // Mark previous as completed if needed
+                return newSteps;
+            });
+        }
 
         const workflow = generateSampleWorkflow(prompt, selectedAgent);
         setGeneratedWorkflow(workflow);
@@ -354,6 +394,34 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({
         onWorkflowGenerated?.(workflow);
         setIsGenerating(false);
         setPrompt('');
+        onWorkflowGenerated?.(workflow);
+        setIsGenerating(false);
+        setPrompt('');
+    };
+
+    const handleReasoningFeedback = async (stepIndex: number, type: 'thumbs_up' | 'thumbs_down') => {
+        try {
+            // Optimistic update (could add visual feedback state here)
+            toast({
+                title: type === 'thumbs_up' ? "Helpful" : "Flagged",
+                description: "Thanks for your feedback! I'm learning.",
+            });
+
+            // Send to backend
+            await fetch('/api/reasoning/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    agent_id: selectedAgent?.id,
+                    run_id: 'simulated-run-' + Date.now(),
+                    step_index: stepIndex,
+                    step_content: reasoningSteps[stepIndex],
+                    feedback_type: type
+                })
+            });
+        } catch (e) {
+            console.error("Feedback failed", e);
+        }
     };
 
     const handleDeploy = async () => {
@@ -588,98 +656,117 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({
                                                 </div>
                                             )}
                                         </div>
-                                    ))}
-
-                                    {/* Generated Workflow Preview */}
-                                    {generatedWorkflow && (
-                                        <Card className="mt-4 border-2 border-violet-200">
-                                            <CardHeader className="pb-2">
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <CardTitle className="text-base">{generatedWorkflow.name}</CardTitle>
-                                                        <p className="text-xs text-gray-500 mt-1">{generatedWorkflow.description}</p>
-                                                    </div>
-                                                    <Badge className="bg-green-100 text-green-700">
-                                                        {Math.round(generatedWorkflow.confidence * 100)}% match
-                                                    </Badge>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <Badge variant="outline" className="text-xs">
-                                                        Trigger: {generatedWorkflow.trigger.service}
-                                                    </Badge>
-                                                    <ArrowRight className="w-4 h-4 text-gray-400" />
-                                                    <Badge variant="outline" className="text-xs">
-                                                        {generatedWorkflow.steps.length} steps
-                                                    </Badge>
-                                                </div>
-
-                                                <div className="flex gap-2">
-                                                    {generatedWorkflow.requiresApproval ? (
-                                                        <Button onClick={handleDeploy} className="flex-1 bg-orange-500 hover:bg-orange-600">
-                                                            <Clock className="w-4 h-4 mr-2" />
-                                                            Submit for Approval
-                                                        </Button>
-                                                    ) : (
-                                                        <Button onClick={handleDeploy} className="flex-1">
-                                                            <Play className="w-4 h-4 mr-2" />
-                                                            Deploy Workflow
-                                                        </Button>
-                                                    )}
-                                                    <Button variant="outline">
-                                                        <Edit2 className="w-4 h-4 mr-2" />
-                                                        Edit
-                                                    </Button>
-                                                </div>
-                                                {generatedWorkflow.requiresApproval && (
-                                                    <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
-                                                        <AlertTriangle className="w-3 h-3" />
-                                                        This agent is still learning. A team lead or admin must approve this workflow.
-                                                    </p>
-                                                )}
-                                            </CardContent>
-                                        </Card>
                                     )}
                                 </div>
-                            )}
-                        </ScrollArea>
+                            ))}
 
-                        {/* Input Area */}
-                        <div className="p-4 border-t bg-white">
-                            <div className="flex gap-2 max-w-2xl mx-auto">
-                                <Input
-                                    value={prompt}
-                                    onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder="Describe the automation you want to create..."
-                                    className="flex-1"
-                                    onKeyDown={(e) => e.key === 'Enter' && handleGenerateWorkflow()}
-                                    disabled={isGenerating}
-                                />
-                                <Button
-                                    onClick={handleGenerateWorkflow}
-                                    disabled={!prompt.trim() || isGenerating}
-                                >
-                                    {isGenerating ? (
-                                        <RefreshCw className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Sparkles className="w-4 h-4" />
-                                    )}
-                                </Button>
-                            </div>
+                            {/* Reasoning Display */}
+                            {showReasoning && reasoningSteps.length > 0 && (
+                                <div className="max-w-2xl mx-auto my-4">
+                                    <div className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                        <Bot className="w-3 h-3" /> Agent Reasoning Process
+                                    </div>
+                                    <ReasoningChain
+                                        steps={reasoningSteps}
+                                        isReasoning={isGenerating}
+                                        onFeedback={handleReasoningFeedback}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Generated Workflow Preview */}
+                            {generatedWorkflow && (
+                                <Card className="mt-4 border-2 border-violet-200">
+                                    <CardHeader className="pb-2">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <CardTitle className="text-base">{generatedWorkflow.name}</CardTitle>
+                                                <p className="text-xs text-gray-500 mt-1">{generatedWorkflow.description}</p>
+                                            </div>
+                                            <Badge className="bg-green-100 text-green-700">
+                                                {Math.round(generatedWorkflow.confidence * 100)}% match
+                                            </Badge>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Badge variant="outline" className="text-xs">
+                                                Trigger: {generatedWorkflow.trigger.service}
+                                            </Badge>
+                                            <ArrowRight className="w-4 h-4 text-gray-400" />
+                                            <Badge variant="outline" className="text-xs">
+                                                {generatedWorkflow.steps.length} steps
+                                            </Badge>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            {generatedWorkflow.requiresApproval ? (
+                                                <Button onClick={handleDeploy} className="flex-1 bg-orange-500 hover:bg-orange-600">
+                                                    <Clock className="w-4 h-4 mr-2" />
+                                                    Submit for Approval
+                                                </Button>
+                                            ) : (
+                                                <Button onClick={handleDeploy} className="flex-1">
+                                                    <Play className="w-4 h-4 mr-2" />
+                                                    Deploy Workflow
+                                                </Button>
+                                            )}
+                                            <Button variant="outline">
+                                                <Edit2 className="w-4 h-4 mr-2" />
+                                                Edit
+                                            </Button>
+                                        </div>
+                                        {generatedWorkflow.requiresApproval && (
+                                            <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
+                                                <AlertTriangle className="w-3 h-3" />
+                                                This agent is still learning. A team lead or admin must approve this workflow.
+                                            </p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
-                    </>
-                ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-500">
-                        <div className="text-center">
-                            <Bot className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                            <h3 className="font-semibold text-lg mb-1">Select an Agent</h3>
-                            <p className="text-sm">Choose a specialty agent to generate workflows</p>
-                        </div>
+                            )}
+                    </ScrollArea>
+
+                {/* Input Area */}
+                <div className="p-4 border-t bg-white">
+                    <div className="flex gap-2 max-w-2xl mx-auto">
+                        <Input
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            placeholder="Describe the automation you want to create..."
+                            className="flex-1"
+                            onKeyDown={(e) => e.key === 'Enter' && handleGenerateWorkflow()}
+                            disabled={isGenerating}
+                        />
+                        <Button
+                            onClick={handleGenerateWorkflow}
+                            disabled={!prompt.trim() || isGenerating}
+                        >
+                            {isGenerating ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <Sparkles className="w-4 h-4" />
+                            )}
+                        </Button>
+                        <VoiceInput
+                            onTranscriptChange={(text) => setPrompt(text)}
+                        />
                     </div>
-                )}
+                </div>
+            </>
+            ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                    <Bot className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <h3 className="font-semibold text-lg mb-1">Select an Agent</h3>
+                    <p className="text-sm">Choose a specialty agent to generate workflows</p>
+                </div>
             </div>
+                )}
         </div>
+        </div >
     );
 };
 
