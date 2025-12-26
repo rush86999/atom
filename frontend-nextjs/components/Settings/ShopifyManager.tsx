@@ -1,22 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import Box from '@components/common/Box';
-import Text from '@components/common/Text';
-import Button from '@components/Button';
-import TextField from '@components/TextField';
-import { useToast } from '@components/ui/use-toast';
-
-// Placeholders for imports that might be missing in some environments
-// or recovered with different paths
-const PYTHON_API_SERVICE_BASE_URL = process.env.NEXT_PUBLIC_PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5000';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 // Mocking or importing these from where they might be
-// Given the previous session, these might need to be resolved
 import {
     getShopifyConnectionStatus,
     disconnectShopify,
     ShopifyConnectionStatusInfo
-} from '../../../../src/skills/shopifySkills';
+} from '../../../src/skills/shopifySkills';
+
+const PYTHON_API_SERVICE_BASE_URL = process.env.NEXT_PUBLIC_PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5000';
 
 const ShopifyManager: React.FC = () => {
     const { data: session } = useSession();
@@ -33,7 +31,7 @@ const ShopifyManager: React.FC = () => {
         setIsLoadingStatus(true);
         setErrorMessages(prev => ({ ...prev, status: undefined }));
         try {
-            const response = await getShopifyConnectionStatus(userId);
+            const response = await getShopifyConnectionStatus(userId) as any;
             if (response.ok && response.data) {
                 setConnectionStatus(response.data);
             } else {
@@ -57,7 +55,7 @@ const ShopifyManager: React.FC = () => {
             toast({
                 title: 'Shop Name Required',
                 description: 'Please enter your Shopify shop name (e.g., my-great-store).',
-                variant: 'destructive',
+                variant: 'error',
             });
             return;
         }
@@ -84,34 +82,50 @@ const ShopifyManager: React.FC = () => {
     }, [userId, fetchConnectionStatus]);
 
     return (
-        <Box marginTop="m" padding="m" borderWidth={1} borderColor="hairline" borderRadius="m">
-            <Text variant="subHeader" marginBottom="s">Shopify Management</Text>
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle>Shopify Management</CardTitle>
+                    <Badge variant={connectionStatus?.isConnected ? 'default' : 'secondary'}>
+                        {connectionStatus?.isConnected ? 'Connected' : 'Disconnected'}
+                    </Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {errorMessages.general && <div className="text-destructive text-sm font-medium">Error: {errorMessages.general}</div>}
 
-            {errorMessages.general && <Text color="red.500" marginBottom="s">Error: {errorMessages.general}</Text>}
-
-            <Box>
-                <Text marginBottom="s">Connection Status</Text>
-                {isLoadingStatus ? <Text>Loading status...</Text> : connectionStatus?.isConnected ? (
-                    <Box>
-                        <Text color="green.500" marginBottom="s">Connected to: {connectionStatus.shopUrl || 'N/A'}</Text>
-                        <Button onPress={handleDisconnectShopify} title="Disconnect Shopify" variant="danger" />
-                    </Box>
-                ) : (
-                    <Box>
-                        <Text color="orange.500" marginBottom="s">Not Connected.</Text>
-                        {errorMessages.status && <Text color="red.500" marginBottom="s">{errorMessages.status}</Text>}
-                        <TextField
-                            label="Shop Name"
-                            placeholder="your-store-name"
-                            value={shopName}
-                            onChange={(e) => setShopName(e.target.value)}
-                            marginBottom="s"
-                        />
-                        <Button onPress={handleConnectShopify} title="Connect Shopify" />
-                    </Box>
-                )}
-            </Box>
-        </Box>
+                <div className="space-y-4">
+                    <h4 className="font-medium">Connection Status</h4>
+                    {isLoadingStatus ? (
+                        <div className="flex items-center gap-2 text-muted-foreground italic">
+                            <span>Loading status...</span>
+                        </div>
+                    ) : connectionStatus?.isConnected ? (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-green-50 text-green-700 rounded-md border border-green-200">
+                                Connected to: <span className="font-bold">{connectionStatus.shopUrl || 'N/A'}</span>
+                            </div>
+                            <Button onClick={handleDisconnectShopify} variant="destructive">Disconnect Shopify</Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="text-muted-foreground italic">Not Connected.</div>
+                            {errorMessages.status && <div className="text-destructive text-sm">{errorMessages.status}</div>}
+                            <div className="grid gap-2">
+                                <Label htmlFor="shopName">Shop Name</Label>
+                                <Input
+                                    id="shopName"
+                                    placeholder="your-store-name"
+                                    value={shopName}
+                                    onChange={(e) => setShopName(e.target.value)}
+                                />
+                            </div>
+                            <Button onClick={handleConnectShopify}>Connect Shopify</Button>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 };
 

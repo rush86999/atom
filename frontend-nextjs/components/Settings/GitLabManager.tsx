@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
-import Box from '@components/common/Box';
-import Text from '@components/common/Text';
-import Button from '@components/Button';
-import { useToast } from '@components/ui/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
 
-// Placeholders for imports that might be missing in some environments
 interface GitLabUser {
     id: string;
     name: string;
@@ -22,13 +21,6 @@ interface GitLabStatus {
     repositories: any[];
     issues: any[];
     mergeRequests: any[];
-}
-
-interface ActivityLogItem {
-    type: 'success' | 'error' | 'info';
-    message: string;
-    timestamp: string;
-    workflowId?: string;
 }
 
 const GitLabManager: React.FC = () => {
@@ -47,8 +39,6 @@ const GitLabManager: React.FC = () => {
         mergeRequests: []
     });
 
-    const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
-
     const fetchConnectionStatus = useCallback(async () => {
         if (!userId) return;
         setGitlabStatus(prev => ({ ...prev, loading: true, error: null }));
@@ -65,7 +55,6 @@ const GitLabManager: React.FC = () => {
                     user: serviceInfo.user,
                     loading: false
                 }));
-                // You could load more data here if needed
             } else {
                 setGitlabStatus(prev => ({ ...prev, connected: false, loading: false }));
             }
@@ -105,102 +94,88 @@ const GitLabManager: React.FC = () => {
                     issues: [],
                     mergeRequests: []
                 });
-                toast({ title: 'GitLab disconnected', variant: 'default' });
+                toast({ title: 'GitLab disconnected', variant: 'success' });
             } else {
                 throw new Error('Failed to disconnect');
             }
         } catch (error: any) {
             setGitlabStatus(prev => ({ ...prev, loading: false, error: error.message }));
-            toast({ title: 'Error disconnecting GitLab', variant: 'destructive' });
+            toast({ title: 'Error disconnecting GitLab', variant: 'error' });
         }
     };
 
     return (
-        <Box marginTop="m" padding="m" borderWidth={1} borderColor="hairline" borderRadius="m">
-            <Box flexDirection="row" justifyContent="space-between" alignItems="center" marginBottom="m">
-                <Text variant="subHeader">🦊 GitLab Integration</Text>
-                <Box
-                    paddingHorizontal="s"
-                    paddingVertical="xs"
-                    borderRadius="s"
-                    backgroundColor={gitlabStatus.connected ? 'green.100' : 'gray.200'}
-                >
-                    <Text variant="small" color={gitlabStatus.connected ? 'green.800' : 'gray.600'}>
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle>🦊 GitLab Integration</CardTitle>
+                    <Badge variant={gitlabStatus.connected ? 'default' : 'secondary'}>
                         {gitlabStatus.connected ? 'Connected' : 'Disconnected'}
-                    </Text>
-                </Box>
-            </Box>
-
-            {!gitlabStatus.connected ? (
-                <Box alignItems="center" paddingVertical="l">
-                    <Text marginBottom="m">Connect your GitLab account to manage repositories, issues, and merge requests</Text>
-                    <Button
-                        onPress={connectGitLab}
-                        disabled={gitlabStatus.loading}
-                        title={gitlabStatus.loading ? 'Connecting...' : 'Connect GitLab'}
-                    />
-                </Box>
-            ) : (
-                <Box>
-                    {gitlabStatus.user && (
-                        <Box flexDirection="row" alignItems="center" marginBottom="m" padding="s" backgroundColor="gray.50" borderRadius="s">
-                            <img
-                                src={gitlabStatus.user.avatar_url}
-                                alt="GitLab Avatar"
-                                style={{ width: 40, height: 40, borderRadius: '50%', marginRight: 12 }}
-                            />
-                            <Box>
-                                <Text fontWeight="bold">{gitlabStatus.user.name}</Text>
-                                <Text variant="small" color="secondaryText">@{gitlabStatus.user.username}</Text>
-                            </Box>
-                        </Box>
-                    )}
-
-                    <Box flexDirection="row" gap="s" marginBottom="m">
-                        <Box flex={1} padding="m" borderWidth={1} borderColor="hairline" borderRadius="s" alignItems="center">
-                            <Text variant="subHeader">{gitlabStatus.repositories.length}</Text>
-                            <Text variant="small">Repositories</Text>
-                        </Box>
-                        <Box flex={1} padding="m" borderWidth={1} borderColor="hairline" borderRadius="s" alignItems="center">
-                            <Text variant="subHeader">{gitlabStatus.issues.length}</Text>
-                            <Text variant="small">Issues</Text>
-                        </Box>
-                        <Box flex={1} padding="m" borderWidth={1} borderColor="hairline" borderRadius="s" alignItems="center">
-                            <Text variant="subHeader">{gitlabStatus.mergeRequests.length}</Text>
-                            <Text variant="small">MRs</Text>
-                        </Box>
-                    </Box>
-
-                    <Box>
+                    </Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {!gitlabStatus.connected ? (
+                    <div className="flex flex-col items-center py-6 text-center space-y-4">
+                        <p className="text-muted-foreground italic">Connect your GitLab account to manage repositories, issues, and merge requests</p>
                         <Button
-                            onPress={disconnectGitLab}
+                            onClick={connectGitLab}
                             disabled={gitlabStatus.loading}
-                            title="Disconnect GitLab"
-                            variant="danger"
-                        />
-                    </Box>
-                </Box>
-            )}
+                        >
+                            {gitlabStatus.loading ? 'Connecting...' : 'Connect GitLab'}
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {gitlabStatus.user && (
+                            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+                                <img
+                                    src={gitlabStatus.user.avatar_url}
+                                    alt="GitLab Avatar"
+                                    className="w-12 h-12 rounded-full border-2 border-primary/20"
+                                />
+                                <div>
+                                    <div className="font-bold text-lg">{gitlabStatus.user.name}</div>
+                                    <div className="text-sm text-muted-foreground">@{gitlabStatus.user.username}</div>
+                                </div>
+                            </div>
+                        )}
 
-            {gitlabStatus.error && (
-                <Box marginTop="m" padding="s" backgroundColor="red.50" borderRadius="s">
-                    <Text color="red.700" variant="small">{gitlabStatus.error}</Text>
-                </Box>
-            )}
-        </Box>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="p-4 border rounded-lg text-center flex flex-col gap-1">
+                                <div className="text-2xl font-bold">{gitlabStatus.repositories.length}</div>
+                                <div className="text-xs text-muted-foreground uppercase tracking-widest">Repositories</div>
+                            </div>
+                            <div className="p-4 border rounded-lg text-center flex flex-col gap-1">
+                                <div className="text-2xl font-bold">{gitlabStatus.issues.length}</div>
+                                <div className="text-xs text-muted-foreground uppercase tracking-widest">Issues</div>
+                            </div>
+                            <div className="p-4 border rounded-lg text-center flex flex-col gap-1">
+                                <div className="text-2xl font-bold">{gitlabStatus.mergeRequests.length}</div>
+                                <div className="text-xs text-muted-foreground uppercase tracking-widest">MRs</div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <Button
+                                onClick={disconnectGitLab}
+                                disabled={gitlabStatus.loading}
+                                variant="destructive"
+                            >
+                                Disconnect GitLab
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {gitlabStatus.error && (
+                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm font-medium">
+                        {gitlabStatus.error}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
-};
-
-export const GitLabChatIntegration = {
-    handleCommand: async (command: string, userId: string) => {
-        return { success: true, message: 'GitLab command processed' };
-    },
-    searchInGitLab: async (query: string, userId: string) => {
-        return [];
-    },
-    getGitLabStatus: async (userId: string) => {
-        return { connected: false };
-    }
 };
 
 export default GitLabManager;
