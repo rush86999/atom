@@ -43,12 +43,52 @@ class FormulaExtractor:
         self.workspace_id = workspace_id
         self._formula_manager = None
 
+    # Supported file extensions for formula extraction
+    SUPPORTED_EXTENSIONS = [".xlsx", ".xls", ".csv", ".ods", ".gsheet", ".numbers"]
+
     def _get_formula_manager(self):
         """Lazy load formula manager."""
         if self._formula_manager is None:
             from core.formula_memory import get_formula_manager
             self._formula_manager = get_formula_manager(self.workspace_id)
         return self._formula_manager
+
+    def extract_from_file(
+        self,
+        file_path: str,
+        user_id: str = "default_user",
+        auto_store: bool = True
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract formulas from any Excel-like file.
+        Supported formats: .xlsx, .xls, .csv, .ods, .gsheet, .numbers
+
+        Args:
+            file_path: Path to the file
+            user_id: Owner of the extracted formulas
+            auto_store: If True, automatically store in Atom's memory
+
+        Returns:
+            List of extracted formula definitions
+        """
+        ext = Path(file_path).suffix.lower()
+        logger.info(f"Extracting formulas from {file_path} (type: {ext})")
+
+        if ext in [".xlsx"]:
+            return self.extract_from_excel(file_path, user_id, auto_store)
+        elif ext in [".xls"]:
+            return self.extract_from_xls(file_path, user_id, auto_store)
+        elif ext in [".csv"]:
+            return self.extract_from_csv(file_path, user_id, auto_store)
+        elif ext in [".ods"]:
+            return self.extract_from_ods(file_path, user_id, auto_store)
+        elif ext in [".gsheet", ".numbers"]:
+            # Google Sheets and Numbers export as xlsx/csv, handle if possible
+            logger.info(f"{ext} file detected, attempting xlsx extraction")
+            return self.extract_from_excel(file_path, user_id, auto_store)
+        else:
+            logger.warning(f"Unsupported file type for formula extraction: {ext}")
+            return []
 
     def extract_from_excel(
         self,
@@ -94,6 +134,357 @@ class FormulaExtractor:
         except Exception as e:
             logger.error(f"Failed to extract formulas from {file_path}: {e}")
             return []
+
+    def extract_from_xls(
+        self,
+        file_path: str,
+        user_id: str = "default_user",
+        auto_store: bool = True
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract formulas from legacy .xls Excel files.
+        Uses xlrd for older Excel format support.
+        """
+        try:
+            import xlrd
+        except ImportError:
+            logger.warning("xlrd not installed. Run: pip install xlrd")
+            # Fallback: try openpyxl with conversion
+            return self.extract_from_excel(file_path, user_id, auto_store)
+
+        extracted = []
+
+        try:
+            workbook = xlrd.open_workbook(file_path, formatting_info=False)
+
+            for sheet in workbook.sheets():
+                headers = self._get_xls_headers(sheet)
+                for row_idx in range(1, sheet.nrows):
+                    for col_idx in range(sheet.ncols):
+                        cell = sheet.cell(row_idx, col_idx)
+                        # XLS stores formula text differently
+                        if cell.ctype == xlrd.XL_CELL_TEXT:
+                            cell_value = str(cell.value)
+                            if cell_value.startswith("="):
+                                formula_def = self._parse_xls_formula(
+                                    formula_str=cell_value,
+                                    row=row_idx,
+                                    col=col_idx,
+                                    headers=headers,
+                                    sheet_name=sheet.name
+                                )
+                                if formula_def:
+                                    extracted.append(formula_def)
+
+            if auto_store and extracted:
+                self._store_formulas(extracted, user_id, file_path)
+
+            logger.info(f"Extracted {len(extracted)} formulas from XLS {file_path}")
+            return extracted
+
+        except Exception as e:
+            logger.error(f"Failed to extract from XLS {file_path}: {e}")
+            return []
+
+    def _get_xls_headers(self, sheet) -> Dict[int, str]:
+        """Get column headers from XLS sheet."""
+        headers = {}
+        if sheet.nrows > 0:
+            for col_idx in range(sheet.ncols):
+                cell = sheet.cell(0, col_idx)
+                if cell.value:
+                    headers[col_idx + 1] = str(cell.value).strip()
+        return headers
+
+    def _parse_xls_formula(
+        self,
+        formula_str: str,
+        row: int,
+        col: int,
+        headers: Dict[int, str],
+        sheet_name: str
+    ) -> Optional[Dict[str, Any]]:
+        """Parse a formula from XLS file."""
+        result_name = headers.get(col + 1, f"Column_{col + 1}")
+        formula_type = self._detect_formula_type(formula_str)
+        referenced_cols = self._extract_cell_references(formula_str)
+        parameters = []
+        semantic_parts = []
+
+        for col_letter, col_num in referenced_cols:
+            param_name = headers.get(col_num, col_letter)
+            parameters.append({"name": param_name, "type": "number"})
+            semantic_parts.append(param_name)
+
+        semantic_expression = self._create_semantic_expression(
+            formula_str=formula_str,
+            formula_type=formula_type,
+            parameters=parameters
+        )
+
+        domain = self._detect_domain(result_name, semantic_parts)
+        use_case = self._generate_use_case(result_name, formula_type, parameters)
+
+        return {
+            "expression": semantic_expression,
+            "original_formula": formula_str,
+            "name": result_name,
+            "domain": domain,
+            "use_case": use_case,
+            "parameters": parameters,
+            "source_sheet": sheet_name,
+            "source_cell": f"R{row+1}C{col+1}"
+        }
+
+    def extract_from_csv(
+        self,
+        file_path: str,
+        user_id: str = "default_user",
+        auto_store: bool = True
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract formulas from CSV files.
+        CSV typically doesn't store formulas, but some tools export formula text.
+        Also detects column relationships for implicit formulas.
+        """
+        import csv
+
+        extracted = []
+
+        try:
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                reader = csv.reader(f)
+                rows = list(reader)
+
+            if not rows:
+                return []
+
+            headers = {i + 1: h.strip() for i, h in enumerate(rows[0]) if h.strip()}
+
+            # Look for formula-like content in cells
+            for row_idx, row in enumerate(rows[1:], start=2):
+                for col_idx, cell in enumerate(row):
+                    if cell.strip().startswith("="):
+                        formula_def = self._parse_csv_formula(
+                            formula_str=cell.strip(),
+                            row=row_idx,
+                            col=col_idx,
+                            headers=headers
+                        )
+                        if formula_def:
+                            extracted.append(formula_def)
+
+            # Also detect implicit formulas from column patterns
+            implicit = self._detect_implicit_formulas(rows, headers)
+            extracted.extend(implicit)
+
+            if auto_store and extracted:
+                self._store_formulas(extracted, user_id, file_path)
+
+            logger.info(f"Extracted {len(extracted)} formulas from CSV {file_path}")
+            return extracted
+
+        except Exception as e:
+            logger.error(f"Failed to extract from CSV {file_path}: {e}")
+            return []
+
+    def _parse_csv_formula(
+        self,
+        formula_str: str,
+        row: int,
+        col: int,
+        headers: Dict[int, str]
+    ) -> Optional[Dict[str, Any]]:
+        """Parse a formula from CSV cell."""
+        result_name = headers.get(col + 1, f"Column_{col + 1}")
+        formula_type = self._detect_formula_type(formula_str)
+        referenced_cols = self._extract_cell_references(formula_str)
+        parameters = []
+
+        for col_letter, col_num in referenced_cols:
+            param_name = headers.get(col_num, col_letter)
+            parameters.append({"name": param_name, "type": "number"})
+
+        semantic_expression = self._create_semantic_expression(
+            formula_str=formula_str,
+            formula_type=formula_type,
+            parameters=parameters
+        )
+
+        domain = self._detect_domain(result_name, [p["name"] for p in parameters])
+        use_case = self._generate_use_case(result_name, formula_type, parameters)
+
+        return {
+            "expression": semantic_expression,
+            "original_formula": formula_str,
+            "name": result_name,
+            "domain": domain,
+            "use_case": use_case,
+            "parameters": parameters,
+            "source_sheet": "CSV",
+            "source_cell": f"R{row}C{col+1}"
+        }
+
+    def _detect_implicit_formulas(
+        self,
+        rows: List[List[str]],
+        headers: Dict[int, str]
+    ) -> List[Dict[str, Any]]:
+        """
+        Detect implicit formulas in CSV by analyzing column relationships.
+        E.g., if 'Total' = 'Price' * 'Quantity' in most rows.
+        """
+        implicit = []
+
+        if len(rows) < 3 or not headers:
+            return implicit
+
+        # Look for columns that might be calculated from others
+        # This is a heuristic approach
+        numeric_cols = []
+        for col_idx in range(len(rows[0])):
+            try:
+                # Check if column is numeric
+                values = [float(rows[i][col_idx]) for i in range(1, min(10, len(rows)))
+                          if col_idx < len(rows[i]) and rows[i][col_idx].strip()]
+                if len(values) >= 3:
+                    numeric_cols.append(col_idx)
+            except (ValueError, IndexError):
+                continue
+
+        # Try to detect multiplication/sum patterns
+        # (Simplified - in production, use more sophisticated analysis)
+        for result_col in numeric_cols:
+            result_name = headers.get(result_col + 1, f"Column_{result_col + 1}")
+            result_lower = result_name.lower()
+
+            # Check for common calculated column names
+            if any(kw in result_lower for kw in ["total", "sum", "amount", "subtotal"]):
+                # Find potential input columns
+                input_cols = [c for c in numeric_cols if c != result_col]
+                if len(input_cols) >= 2:
+                    param_names = [headers.get(c + 1, f"Column_{c + 1}") for c in input_cols[:2]]
+                    implicit.append({
+                        "expression": f"{param_names[0]} * {param_names[1]}",
+                        "original_formula": "(implicit)",
+                        "name": result_name,
+                        "domain": self._detect_domain(result_name, param_names),
+                        "use_case": f"Calculate {result_name} from {' and '.join(param_names)}",
+                        "parameters": [{"name": p, "type": "number"} for p in param_names],
+                        "source_sheet": "CSV",
+                        "source_cell": "implicit"
+                    })
+                    break  # Only add one implicit formula per file
+
+        return implicit
+
+    def extract_from_ods(
+        self,
+        file_path: str,
+        user_id: str = "default_user",
+        auto_store: bool = True
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract formulas from LibreOffice Calc (.ods) files.
+        Uses odfpy or pyexcel-ods for ODS support.
+        """
+        try:
+            from odf import text, table
+            from odf.opendocument import load
+        except ImportError:
+            logger.warning("odfpy not installed. Run: pip install odfpy")
+            return []
+
+        extracted = []
+
+        try:
+            doc = load(file_path)
+            spreadsheet = doc.spreadsheet
+
+            for sheet in spreadsheet.getElementsByType(table.Table):
+                sheet_name = sheet.getAttribute("name")
+                rows = sheet.getElementsByType(table.TableRow)
+
+                # Get headers from first row
+                headers = {}
+                if rows:
+                    first_row = rows[0]
+                    cells = first_row.getElementsByType(table.TableCell)
+                    for idx, cell in enumerate(cells):
+                        p = cell.getElementsByType(text.P)
+                        if p:
+                            headers[idx + 1] = str(p[0]).strip()
+
+                # Look for formulas in subsequent rows
+                for row_idx, row in enumerate(rows[1:], start=2):
+                    cells = row.getElementsByType(table.TableCell)
+                    for col_idx, cell in enumerate(cells):
+                        formula = cell.getAttribute("formula")
+                        if formula:
+                            formula_def = self._parse_ods_formula(
+                                formula_str=formula,
+                                row=row_idx,
+                                col=col_idx,
+                                headers=headers,
+                                sheet_name=sheet_name
+                            )
+                            if formula_def:
+                                extracted.append(formula_def)
+
+            if auto_store and extracted:
+                self._store_formulas(extracted, user_id, file_path)
+
+            logger.info(f"Extracted {len(extracted)} formulas from ODS {file_path}")
+            return extracted
+
+        except Exception as e:
+            logger.error(f"Failed to extract from ODS {file_path}: {e}")
+            return []
+
+    def _parse_ods_formula(
+        self,
+        formula_str: str,
+        row: int,
+        col: int,
+        headers: Dict[int, str],
+        sheet_name: str
+    ) -> Optional[Dict[str, Any]]:
+        """Parse a formula from ODS file."""
+        # ODS formulas often have 'of:' prefix, normalize to Excel-like
+        if formula_str.startswith("of:"):
+            formula_str = formula_str[3:]
+        if not formula_str.startswith("="):
+            formula_str = "=" + formula_str
+
+        result_name = headers.get(col + 1, f"Column_{col + 1}")
+        formula_type = self._detect_formula_type(formula_str)
+        referenced_cols = self._extract_cell_references(formula_str)
+        parameters = []
+
+        for col_letter, col_num in referenced_cols:
+            param_name = headers.get(col_num, col_letter)
+            parameters.append({"name": param_name, "type": "number"})
+
+        semantic_expression = self._create_semantic_expression(
+            formula_str=formula_str,
+            formula_type=formula_type,
+            parameters=parameters
+        )
+
+        domain = self._detect_domain(result_name, [p["name"] for p in parameters])
+        use_case = self._generate_use_case(result_name, formula_type, parameters)
+
+        return {
+            "expression": semantic_expression,
+            "original_formula": formula_str,
+            "name": result_name,
+            "domain": domain,
+            "use_case": use_case,
+            "parameters": parameters,
+            "source_sheet": sheet_name,
+            "source_cell": f"R{row}C{col+1}"
+        }
+
 
     def _extract_from_sheet(
         self,
