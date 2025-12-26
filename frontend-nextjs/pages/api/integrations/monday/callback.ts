@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     });
 
-    const tokenData = tokenResponse.data;
+    const tokenData = tokenResponse.data as any;
 
     // Store tokens securely (in production, use database)
     // For now, we'll redirect with tokens in URL (not recommended for production)
@@ -60,8 +60,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('Monday.com OAuth callback error:', error);
 
     let errorMessage = 'authentication_failed';
-    if (axios.isAxiosError(error) && error.response) {
-      errorMessage = error.response.data?.error || 'api_error';
+    const errorAny = error as any;
+    if (errorAny?.response) {
+      errorMessage = errorAny.response.data?.error || 'api_error';
     }
 
     return res.redirect(`/integrations/monday?error=${encodeURIComponent(errorMessage)}`);

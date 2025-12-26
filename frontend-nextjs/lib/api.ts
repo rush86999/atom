@@ -1,5 +1,5 @@
 // API client for ATOM platform frontend-backend integration
-import axios, { AxiosResponse, AxiosError } from "axios";
+import axios from "axios";
 
 // Base API configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -38,7 +38,7 @@ apiClient.interceptors.request.use(
 // Response interceptor with retry logic
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error: AxiosError) => {
+  async (error: any) => {
     const config = error.config as any;
 
     if (!config || !config.retryCount) {

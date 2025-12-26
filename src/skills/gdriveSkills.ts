@@ -1,9 +1,25 @@
-import axios, { AxiosError } from 'axios';
-import {
-  SkillResponse,
-} from '../../atomic-docker/project/functions/atom-agent/types';
-import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
-import { logger } from '../../atomic-docker/project/functions/_utils/logger';
+import axios from 'axios';
+// Type definitions
+export interface SkillResponse<T> {
+  ok: boolean;
+  data?: T;
+  message?: string;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+// Configuration
+const PYTHON_API_SERVICE_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Simple logger
+const logger = {
+  warn: (message: string, error?: any) => console.warn(message, error),
+  error: (message: string, error?: any) => console.error(message, error),
+  info: (message: string, data?: any) => console.log(message, data),
+};
 
 const GDRIVE_API_TIMEOUT = 20000; // Default for most GDrive ops
 const GDRIVE_STATUS_TIMEOUT = 5000; // Shorter for status checks
@@ -43,7 +59,8 @@ export interface GoogleDriveFile {
 }
 
 // Helper to construct SkillResponse from axios errors
-function handleAxiosError(error: AxiosError, operationName: string): SkillResponse<null> {
+// Helper to construct SkillResponse from axios errors
+function handleAxiosError<T>(error: any, operationName: string): SkillResponse<T> {
   if (error.response) {
     logger.error(`[gdriveSkills:${operationName}] Error: ${error.response.status}`, error.response.data);
     const errData = error.response.data as any;
@@ -54,13 +71,13 @@ function handleAxiosError(error: AxiosError, operationName: string): SkillRespon
         message: errData?.error?.message || `Failed to ${operationName}. Status: ${error.response.status}`,
         details: errData?.error?.details || errData,
       },
-    };
+    } as SkillResponse<T>;
   } else if (error.request) {
     logger.error(`[gdriveSkills:${operationName}] Error: No response received for ${operationName}`, error.request);
-    return { ok: false, error: { code: 'NETWORK_ERROR', message: `No response received for ${operationName}.` } };
+    return { ok: false, error: { code: 'NETWORK_ERROR', message: `No response received for ${operationName}.` } } as SkillResponse<T>;
   } else {
     logger.error(`[gdriveSkills:${operationName}] Error setting up request: ${error.message}`);
-    return { ok: false, error: { code: 'REQUEST_SETUP_ERROR', message: `Error setting up request for ${operationName}: ${error.message}` } };
+    return { ok: false, error: { code: 'REQUEST_SETUP_ERROR', message: `Error setting up request for ${operationName}: ${error.message}` } } as SkillResponse<T>;
   }
 }
 
@@ -72,10 +89,10 @@ export async function listGoogleDriveFiles(
   pageToken?: string
 ): Promise<SkillResponse<{ files: GoogleDriveFile[]; nextPageToken?: string }>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' }};
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' } };
   }
   if (!userId) {
-    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required to list Google Drive files.' }};
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required to list Google Drive files.' } };
   }
 
   // No longer directly fetching access_token here; backend will handle it.
@@ -102,10 +119,10 @@ export async function listGoogleDriveFiles(
     } else {
       // Fallback for unexpected response structure
       logger.warn(`[listGoogleDriveFiles] Failed for user ${userId}. Unexpected response structure.`, response.data);
-      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive list files API.' }};
+      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive list files API.' } };
     }
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'listGoogleDriveFiles');
+    return handleAxiosError<{ files: GoogleDriveFile[]; nextPageToken?: string }>(error, 'listGoogleDriveFiles');
   }
 }
 
@@ -115,10 +132,10 @@ export async function getGoogleDriveFileMetadata(
   fields?: string // Optional fields string for the API
 ): Promise<SkillResponse<GoogleDriveFile>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' }};
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' } };
   }
-  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.' }};
-  if (!fileId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'fileId is required.' }};
+  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.' } };
+  if (!fileId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'fileId is required.' } };
 
   // No longer directly fetching access_token here.
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/gdrive/get-file-metadata`;
@@ -139,10 +156,10 @@ export async function getGoogleDriveFileMetadata(
       return { ok: false, error: response.data.error };
     } else {
       logger.warn(`[getGoogleDriveFileMetadata] Failed for file ID ${fileId}. Unexpected response.`, response.data);
-      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive get metadata API.' }};
+      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive get metadata API.' } };
     }
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'getGoogleDriveFileMetadata');
+    return handleAxiosError<GoogleDriveFile>(error, 'getGoogleDriveFileMetadata');
   }
 }
 
@@ -154,14 +171,14 @@ export async function triggerGoogleDriveFileIngestion(
     mimeType: string;
     webViewLink?: string;
   }
-): Promise<SkillResponse<{ doc_id: string; num_chunks_stored: number } | null >> {
+): Promise<SkillResponse<{ doc_id: string; num_chunks_stored: number } | null>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' }};
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' } };
   }
-  if (!userId) return { ok: false, error: {code: 'VALIDATION_ERROR', message: 'userId is required.'}};
-  if (!gdriveFileId) return { ok: false, error: {code: 'VALIDATION_ERROR', message: 'gdriveFileId is required.'}};
+  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.' } };
+  if (!gdriveFileId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'gdriveFileId is required.' } };
   if (!originalFileMetadata || !originalFileMetadata.name || !originalFileMetadata.mimeType) {
-    return { ok: false, error: {code: 'VALIDATION_ERROR', message: 'originalFileMetadata (with name and mimeType) is required.'}};
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'originalFileMetadata (with name and mimeType) is required.' } };
   }
 
   // No longer directly fetching access_token here.
@@ -174,7 +191,7 @@ export async function triggerGoogleDriveFileIngestion(
 
   logger.info(`[triggerGoogleDriveFileIngestion] Triggering ingestion for GDrive file ID ${gdriveFileId} for user ${userId}`);
   try {
-    const response = await axios.post<SkillResponse<{ doc_id: string; num_chunks_stored: number } | null >>(endpoint, payload, { timeout: GDRIVE_API_TIMEOUT * 2 });
+    const response = await axios.post<SkillResponse<{ doc_id: string; num_chunks_stored: number } | null>>(endpoint, payload, { timeout: GDRIVE_API_TIMEOUT * 2 });
     if (response.data && response.data.ok && response.data.data) {
       logger.info(`[triggerGoogleDriveFileIngestion] Successfully triggered ingestion for GDrive file ${gdriveFileId}. Doc ID: ${response.data.data.doc_id}`);
       return { ok: true, data: response.data.data };
@@ -183,10 +200,10 @@ export async function triggerGoogleDriveFileIngestion(
       return { ok: false, error: response.data.error };
     } else {
       logger.warn(`[triggerGoogleDriveFileIngestion] Failed. Unexpected response.`, response.data);
-      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive trigger ingestion API.' }};
+      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive trigger ingestion API.' } };
     }
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'triggerGoogleDriveFileIngestion');
+    return handleAxiosError<{ doc_id: string; num_chunks_stored: number } | null>(error, 'triggerGoogleDriveFileIngestion');
   }
 }
 
@@ -194,9 +211,9 @@ export async function triggerGoogleDriveFileIngestion(
 
 export async function getGDriveConnectionStatus(userId: string): Promise<SkillResponse<GDriveConnectionStatusInfo>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' }};
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' } };
   }
-  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.' }};
+  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.' } };
 
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/gdrive/connection-status?user_id=${userId}`;
   logger.info(`[getGDriveConnectionStatus] Checking GDrive connection status for user ${userId}`);
@@ -211,18 +228,18 @@ export async function getGDriveConnectionStatus(userId: string): Promise<SkillRe
       return { ok: false, error: response.data.error };
     } else {
       logger.warn(`[getGDriveConnectionStatus] Failed. Unexpected response.`, response.data);
-      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive connection status API.' }};
+      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive connection status API.' } };
     }
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'getGDriveConnectionStatus');
+    return handleAxiosError<GDriveConnectionStatusInfo>(error, 'getGDriveConnectionStatus');
   }
 }
 
 export async function disconnectGDrive(userId: string): Promise<SkillResponse<{ message: string }>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' }};
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' } };
   }
-  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.' }};
+  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.' } };
 
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/auth/gdrive/disconnect`;
   const payload = { user_id: userId };
@@ -238,9 +255,9 @@ export async function disconnectGDrive(userId: string): Promise<SkillResponse<{ 
       return { ok: false, error: response.data.error };
     } else {
       logger.warn(`[disconnectGDrive] Failed. Unexpected response.`, response.data);
-      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive disconnect API.' }};
+      return { ok: false, error: { code: 'UNEXPECTED_RESPONSE', message: 'Unexpected response from GDrive disconnect API.' } };
     }
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'disconnectGDrive');
+    return handleAxiosError<{ message: string }>(error, 'disconnectGDrive');
   }
 }

@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import Box from '@components/common/Box';
-import Text from '@components/common/Text';
-import Button from '@components/Button';
-import TextField from '@components/TextField';
-import { useToast } from '@components/ui/use-toast';
+import { useSession } from 'next-auth/react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 const GitHubManager = () => {
+    const { data: session } = useSession();
+    const userId = session?.user?.id;
     const [apiKey, setApiKey] = useState('');
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -26,58 +30,58 @@ const GitHubManager = () => {
                 setIsLoading(false);
             }
         };
-        checkConnection();
-    }, []);
+        if (userId) checkConnection();
+    }, [userId]);
 
     const handleSaveApiKey = async () => {
+        if (!apiKey.trim()) return;
         try {
             const response = await fetch('/api/integrations/credentials', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ service: 'github', secret: apiKey }),
             });
             if (response.ok) {
                 setIsConnected(true);
-                toast({
-                    title: 'GitHub API key saved.',
-                    variant: 'default',
-                });
+                setApiKey('********');
+                toast({ title: 'GitHub API Key saved successfully.', variant: 'success' });
             } else {
-                throw new Error('Failed to save');
+                toast({ title: 'Failed to save GitHub API Key.', variant: 'error' });
             }
         } catch (error) {
-            console.error('Error saving GitHub API key:', error);
-            toast({
-                title: 'Error saving GitHub API key.',
-                variant: 'destructive',
-            });
+            toast({ title: 'Error connecting to the server.', variant: 'error' });
         }
     };
 
-    if (isLoading) {
-        return <Text>Loading...</Text>;
-    }
-
     return (
-        <Box marginTop="m">
-            <Text variant="subHeader" marginBottom="s">GitHub Integration</Text>
-            {isConnected ? (
-                <Text>You are connected to GitHub.</Text>
-            ) : (
-                <Box>
-                    <TextField
-                        label="GitHub API Key"
-                        placeholder="Enter your GitHub API Key"
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle>GitHub Integration</CardTitle>
+                    <Badge variant={isConnected ? 'default' : 'secondary'}>
+                        {isConnected ? 'Connected' : 'Not Connected'}
+                    </Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="githubApiKey">Personal Access Token</Label>
+                    <Input
+                        id="githubApiKey"
+                        type="password"
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
-                        marginBottom="s"
+                        placeholder="Enter GitHub Personal Access Token"
                     />
-                    <Button onPress={handleSaveApiKey} title="Save API Key" />
-                </Box>
-            )}
-        </Box>
+                    <p className="text-xs text-muted-foreground">
+                        Your token is used to access repositories and manage issues on your behalf.
+                    </p>
+                </div>
+                <Button onClick={handleSaveApiKey} disabled={isLoading}>
+                    {isConnected ? 'Update Token' : 'Save Token'}
+                </Button>
+            </CardContent>
+        </Card>
     );
 };
 
