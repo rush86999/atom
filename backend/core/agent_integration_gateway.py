@@ -199,6 +199,7 @@ class AgentIntegrationGateway:
         """
         Execute a formula and record the result as a learning experience.
         Phase 30: Formula execution with agent learning integration.
+        Uses existing AgentGovernanceService for confidence score updates.
         """
         formula_id = params.get("formula_id")
         inputs = params.get("inputs", {})
@@ -222,9 +223,12 @@ class AgentIntegrationGateway:
             formula = manager.get_formula(formula_id)
             formula_name = formula.get("name", "Unknown") if formula else "Unknown"
             
-            # Record as learning experience if agent_id provided
-            if agent_id and result.get("success"):
+            # Record as learning experience AND update agent confidence
+            if agent_id:
                 world_model = WorldModelService(workspace_id)
+                success = result.get("success", False)
+                
+                # Record the experience
                 await world_model.record_formula_usage(
                     agent_id=agent_id,
                     agent_role=agent_role,
@@ -232,23 +236,26 @@ class AgentIntegrationGateway:
                     formula_name=formula_name,
                     task_description=task_description,
                     inputs=inputs,
-                    result=result.get("result"),
-                    success=True,
-                    learnings=f"Successfully applied {formula_name} for {task_description}"
+                    result=result.get("result") if success else None,
+                    success=success,
+                    learnings=f"{'Successfully applied' if success else 'Failed:'} {formula_name} for {task_description}"
                 )
-            elif agent_id and not result.get("success"):
-                world_model = WorldModelService(workspace_id)
-                await world_model.record_formula_usage(
-                    agent_id=agent_id,
-                    agent_role=agent_role,
-                    formula_id=formula_id,
-                    formula_name=formula_name,
-                    task_description=task_description,
-                    inputs=inputs,
-                    result=None,
-                    success=False,
-                    learnings=f"Failed: {result.get('error', 'Unknown error')}"
-                )
+                
+                # Update agent confidence via existing governance system
+                try:
+                    from core.database import get_db_session
+                    from core.agent_governance_service import AgentGovernanceService
+                    
+                    db = next(get_db_session())
+                    governance = AgentGovernanceService(db)
+                    governance._update_confidence_score(
+                        agent_id=agent_id,
+                        positive=success,
+                        impact_level="low"  # Formula usage is low-impact learning
+                    )
+                    logger.info(f"Updated confidence for agent {agent_id} after formula {'success' if success else 'failure'}")
+                except Exception as gov_err:
+                    logger.warning(f"Could not update agent confidence: {gov_err}")
             
             return result
             
@@ -258,6 +265,7 @@ class AgentIntegrationGateway:
                 "status": "error",
                 "message": f"Formula execution failed: {str(e)}"
             }
+
 
 # Global singleton
 agent_integration_gateway = AgentIntegrationGateway()
