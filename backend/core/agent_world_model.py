@@ -75,6 +75,69 @@ class WorldModelService:
             extract_knowledge=False # Don't re-ingest as generic knowledge
         )
 
+    async def record_formula_usage(
+        self,
+        agent_id: str,
+        agent_role: str,
+        formula_id: str,
+        formula_name: str,
+        task_description: str,
+        inputs: Dict[str, Any],
+        result: Any,
+        success: bool,
+        learnings: str = ""
+    ) -> bool:
+        """
+        Record a formula usage as part of agent learning.
+        
+        This allows agents to learn which formulas work best for specific tasks!
+        Over time, successful formula applications improve recall ranking.
+        
+        Args:
+            agent_id: The agent that used the formula
+            agent_role: The agent's category (e.g., "Finance")
+            formula_id: ID of the formula used
+            formula_name: Human-readable formula name
+            task_description: What task the agent was performing
+            inputs: The input values used
+            result: The calculated result
+            success: Whether the calculation met expectations
+            learnings: Optional notes about what was learned
+        """
+        text_representation = (
+            f"Task: formula_application\n"
+            f"Input: Applied '{formula_name}' for {task_description}\n"
+            f"Outcome: {'Success' if success else 'Failure'}\n"
+            f"Learnings: {learnings or f'Formula {formula_name} used with inputs {inputs}'}"
+        )
+        
+        metadata = {
+            "agent_id": agent_id,
+            "task_type": "formula_application",
+            "outcome": "Success" if success else "Failure",
+            "agent_role": agent_role,
+            "specialty": "formulas",
+            "artifacts": [formula_id],
+            "type": "experience",
+            # Formula-specific metadata
+            "formula_id": formula_id,
+            "formula_name": formula_name,
+            "formula_inputs": json.dumps(inputs) if inputs else "{}",
+            "formula_result": str(result)
+        }
+        
+        logger.info(f"Recording formula usage: {formula_name} by agent {agent_id} - {'Success' if success else 'Failure'}")
+        
+        return self.db.add_document(
+            table_name=self.table_name,
+            text=text_representation,
+            source=f"agent_{agent_id}",
+            metadata=metadata,
+            user_id="agent_system",
+            extract_knowledge=False
+        )
+
+
     async def recall_experiences(
         self, 
         agent: AgentRegistry, 
@@ -137,7 +200,40 @@ class WorldModelService:
         # Also query Knowledge Graph if relationships are relevant
         # (Simplified: just search docs context for now)
 
+        # 3. Search Formulas (Phase 30: Intelligent Formula Storage)
+        # Include relevant formulas from Atom's formula memory
+        formula_results = []
+        try:
+            from core.formula_memory import get_formula_manager
+            formula_manager = get_formula_manager(self.db.workspace_id if hasattr(self.db, 'workspace_id') else "default")
+            
+            # Search for formulas relevant to the current task
+            formulas = formula_manager.search_formulas(
+                query=current_task_description,
+                domain=agent_category if agent_category != "general" else None,
+                limit=limit
+            )
+            
+            formula_results = [
+                {
+                    "id": f.get("id"),
+                    "name": f.get("name"),
+                    "expression": f.get("expression"),
+                    "domain": f.get("domain"),
+                    "use_case": f.get("use_case"),
+                    "parameters": f.get("parameters", []),
+                    "type": "formula"
+                }
+                for f in formulas
+            ]
+            
+            logger.info(f"Found {len(formula_results)} relevant formulas for agent task")
+        except Exception as fe:
+            logger.warning(f"Formula recall failed: {fe}")
+
         return {
             "experiences": valid_experiences,
-            "knowledge": knowledge_results
+            "knowledge": knowledge_results,
+            "formulas": formula_results  # Phase 30: Include formulas in agent memory
         }
+
