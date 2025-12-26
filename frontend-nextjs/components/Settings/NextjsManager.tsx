@@ -4,47 +4,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Button,
-  Heading,
-  Alert,
-  AlertIcon,
-  Card,
-  CardBody,
-  CardHeader,
-  Badge,
-  Icon,
-  useToast,
-  Divider,
-  Switch,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  useColorModeValue,
-} from '@chakra-ui/react';
-import {
-  CodeIcon,
-  CheckCircleIcon,
-  WarningTwoIcon,
-  ArrowForwardIcon,
-  SettingsIcon,
-  RepeatIcon,
-} from '@chakra-ui/icons';
-import dynamic from 'next/dynamic';
-
-// Dynamically import the NextjsManager component from shared components
-const NextjsManager = dynamic(
-  () => import('../../../../../src/ui-shared/integrations/nextjs/components/NextjsManager'),
-  { 
-    ssr: false,
-    loading: () => <Text>Loading Next.js integration...</Text>
-  }
-);
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from '@/components/ui/use-toast';
+import { Code, CheckCircle, AlertTriangle, ArrowRight, Settings, RefreshCw, Loader2 } from 'lucide-react';
 
 interface NextjsSettingsProps {
   atomIngestionPipeline?: any;
@@ -62,8 +27,7 @@ export const NextjsSettings: React.FC<NextjsSettingsProps> = ({
   const [health, setHealth] = useState<{ connected: boolean; errors: string[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [showIntegration, setShowIntegration] = useState(false);
-  const toast = useToast();
-  const bgColor = useColorModeValue('white', 'gray.800');
+  const { toast } = useToast();
 
   // Check Next.js integration health
   const checkHealth = async () => {
@@ -71,7 +35,7 @@ export const NextjsSettings: React.FC<NextjsSettingsProps> = ({
       setLoading(true);
       const response = await fetch('/api/nextjs/health');
       const data = await response.json();
-      
+
       if (data.services?.nextjs) {
         setHealth({
           connected: data.services.nextjs.status === 'healthy',
@@ -95,107 +59,109 @@ export const NextjsSettings: React.FC<NextjsSettingsProps> = ({
   return (
     <Card>
       <CardHeader>
-        <HStack justify="space-between">
-          <HStack>
-            <Icon as={CodeIcon} w={6} h={6} color="blue.500" />
-            <Heading size="md">Next.js Integration</Heading>
-            <Badge colorScheme="blue">Vercel</Badge>
-          </HStack>
-          <HStack>
-            <Badge
-              colorScheme={health?.connected ? 'green' : 'red'}
-              display="flex"
-              alignItems="center"
-            >
-              <Icon as={health?.connected ? CheckCircleIcon : WarningTwoIcon} mr={1} />
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Code className="w-6 h-6 text-blue-500" />
+            <CardTitle>Next.js Integration</CardTitle>
+            <Badge variant="secondary">Vercel</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={health?.connected ? 'default' : 'destructive'} className="flex items-center gap-1">
+              {health?.connected ? (
+                <CheckCircle className="w-3 h-3" />
+              ) : (
+                <AlertTriangle className="w-3 h-3" />
+              )}
               {health?.connected ? 'Connected' : 'Disconnected'}
             </Badge>
             <Button
               size="sm"
               variant="outline"
-              leftIcon={<RepeatIcon />}
               onClick={checkHealth}
-              isLoading={loading}
+              disabled={loading}
             >
+              {loading ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-1" />
+              )}
               Refresh
             </Button>
-          </HStack>
-        </HStack>
+          </div>
+        </div>
       </CardHeader>
 
-      <CardBody>
-        <VStack spacing={6} align="stretch">
-          {/* Integration Overview */}
-          <VStack align="start" spacing={3}>
-            <Text>
-              Connect your Vercel account to manage Next.js projects, deployments, and analytics directly from ATOM.
-              This integration provides real-time monitoring of your applications and automated data ingestion.
-            </Text>
-            
-            <HStack>
-              <Button
-                leftIcon={<ArrowForwardIcon />}
-                variant="outline"
-                onClick={() => window.open('https://vercel.com', '_blank')}
-              >
-                Visit Vercel
-              </Button>
-              <Button
-                leftIcon={<SettingsIcon />}
-                colorScheme="blue"
-                onClick={() => setShowIntegration(!showIntegration)}
-              >
-                {showIntegration ? 'Hide Integration' : 'Configure Integration'}
-              </Button>
-            </HStack>
-          </VStack>
+      <CardContent className="space-y-6">
+        {/* Integration Overview */}
+        <div className="space-y-3">
+          <p className="text-muted-foreground">
+            Connect your Vercel account to manage Next.js projects, deployments, and analytics directly from ATOM.
+            This integration provides real-time monitoring of your applications and automated data ingestion.
+          </p>
 
-          <Divider />
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => window.open('https://vercel.com', '_blank')}
+            >
+              <ArrowRight className="w-4 h-4 mr-2" />
+              Visit Vercel
+            </Button>
+            <Button
+              onClick={() => setShowIntegration(!showIntegration)}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              {showIntegration ? 'Hide Integration' : 'Configure Integration'}
+            </Button>
+          </div>
+        </div>
 
-          {/* Health Status */}
-          {health && (
-            <Alert status={health.connected ? 'success' : 'warning'}>
-              <AlertIcon />
-              <Box>
-                <Text fontWeight="bold">
-                  Next.js service {health.connected ? 'healthy' : 'unhealthy'}
-                </Text>
-                {health.errors.length > 0 && (
-                  <Text fontSize="sm" color="red.500">
-                    {health.errors.join(', ')}
-                  </Text>
-                )}
-              </Box>
-            </Alert>
-          )}
+        <hr />
 
-          {/* Features Overview */}
-          <VStack align="start" spacing={3}>
-            <Text fontWeight="bold">Features Available:</Text>
-            <VStack align="start" spacing={2} pl={4}>
-              <Text>• 📊 Real-time project analytics and monitoring</Text>
-              <Text>• 🚀 Deployment tracking and status updates</Text>
-              <Text>• 🔧 Build history and log access</Text>
-              <Text>• 🌐 Environment variable management</Text>
-              <Text>• 📈 Performance metrics and insights</Text>
-              <Text>• 🔔 Automated alerts and notifications</Text>
-            </VStack>
-          </VStack>
+        {/* Health Status */}
+        {health && (
+          <Alert variant={health.connected ? 'default' : 'destructive'}>
+            {health.connected ? (
+              <CheckCircle className="h-4 w-4" />
+            ) : (
+              <AlertTriangle className="h-4 w-4" />
+            )}
+            <AlertTitle>
+              Next.js service {health.connected ? 'healthy' : 'unhealthy'}
+            </AlertTitle>
+            {health.errors.length > 0 && (
+              <AlertDescription className="text-red-500">
+                {health.errors.join(', ')}
+              </AlertDescription>
+            )}
+          </Alert>
+        )}
 
-          {/* Integration Component */}
-          {showIntegration && (
-            <>
-              <Divider />
-              <NextjsManager
-                atomIngestionPipeline={atomIngestionPipeline}
-                onConfigurationChange={onConfigurationChange}
-                onIngestionComplete={onIngestionComplete}
-                onError={onError}
-              />
-            </>
-          )}
-        </VStack>
-      </CardBody>
+        {/* Features Overview */}
+        <div className="space-y-3">
+          <p className="font-bold">Features Available:</p>
+          <ul className="space-y-2 pl-4 text-sm text-muted-foreground">
+            <li>📊 Real-time project analytics and monitoring</li>
+            <li>🚀 Deployment tracking and status updates</li>
+            <li>🔧 Build history and log access</li>
+            <li>🌐 Environment variable management</li>
+            <li>📈 Performance metrics and insights</li>
+            <li>🔔 Automated alerts and notifications</li>
+          </ul>
+        </div>
+
+        {/* Integration Component */}
+        {showIntegration && (
+          <>
+            <hr />
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-center text-muted-foreground">
+                Next.js integration configuration panel will be loaded here.
+              </p>
+            </div>
+          </>
+        )}
+      </CardContent>
     </Card>
   );
 };

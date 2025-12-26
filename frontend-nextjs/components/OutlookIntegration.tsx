@@ -230,7 +230,7 @@ const OutlookIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load emails from Outlook",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, emails: false }));
@@ -339,7 +339,7 @@ const OutlookIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to send email",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

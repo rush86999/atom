@@ -245,7 +245,7 @@ const FreshdeskIntegration: React.FC = () => {
             toast({
                 title: "Missing Credentials",
                 description: "Please enter both API Key and Domain",
-                variant: "destructive",
+                variant: "error",
             });
             return;
         }
@@ -279,7 +279,7 @@ const FreshdeskIntegration: React.FC = () => {
             toast({
                 title: "Connection Failed",
                 description: "Failed to connect to Freshdesk",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

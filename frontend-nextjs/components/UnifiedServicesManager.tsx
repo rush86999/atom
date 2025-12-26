@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { UnifiedServicesStatus, ServiceHealth, ImplementationConfig } from './types/communication';
+import { UnifiedServicesStatus, ServiceHealth, ServiceImplementation } from './types/communication';
 
 interface ServicesManagerProps {
   onImplementationChange?: (service: string, impl: string) => void;
@@ -63,7 +63,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
       }
 
       const data = await response.json();
-      
+
       // Add health status to each service
       const servicesWithHealth = { ...data };
       for (const serviceName in servicesWithHealth.services) {
@@ -73,7 +73,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
       }
 
       setServicesStatus(servicesWithHealth);
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
@@ -93,7 +93,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
 
       const healthData = await response.json();
       const serviceHealth = healthData.services?.[serviceName.toLowerCase()] || {};
-      
+
       return {
         status: serviceHealth.status || 'unknown',
         api_healthy: serviceHealth.api_healthy,
@@ -102,7 +102,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
         last_check: serviceHealth.checked_at,
         error: serviceHealth.error
       };
-      
+
     } catch (err) {
       return { status: 'error', error: err instanceof Error ? err.message : 'Health check failed' };
     }
@@ -132,15 +132,15 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
       }
 
       const result = await response.json();
-      
+
       if (result.ok) {
         // Refresh status
         await fetchImplementationStatus();
-        
+
         if (onImplementationChange) {
           onImplementationChange(serviceName, implementationType);
         }
-        
+
         // Also update health
         setTimeout(() => {
           fetchServiceHealth(serviceName).then(health => {
@@ -149,11 +149,11 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
             }
           });
         }, 1000);
-        
+
       } else {
         throw new Error(result.error || 'Switch failed');
       }
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Switch failed';
       setError(errorMessage);
@@ -168,7 +168,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
     await Promise.all([
       fetchImplementationStatus(),
       // Refresh health for each service
-      ...Object.keys(servicesStatus.services).map(service => 
+      ...Object.keys(servicesStatus.services).map(service =>
         fetchServiceHealth(service).then(health => {
           if (onServiceHealthChange) {
             onServiceHealthChange({ service, ...health });
@@ -212,7 +212,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
   const renderServiceStatus = (serviceName: string, serviceConfig: any) => {
     const isExpanded = expandedService === serviceName;
     const health = serviceConfig.health || { status: 'unknown' };
-    
+
     return (
       <div key={serviceName} className="border border-gray-200 rounded-lg p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -221,7 +221,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
             <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
               {serviceName === 'Slack' ? '💬' : '👥'}
             </div>
-            
+
             <div>
               <h3 className="font-semibold text-gray-800">{serviceName}</h3>
               <div className="flex items-center space-x-2">
@@ -229,7 +229,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                 <span className={`px-2 py-1 text-xs rounded-full ${getImplementationColor(serviceConfig.current)}`}>
                   {serviceConfig.current}
                 </span>
-                
+
                 {/* Health Status */}
                 <span className={`text-sm ${getStatusColor(health.status)}`}>
                   {health.status}
@@ -237,7 +237,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
               </div>
             </div>
           </div>
-          
+
           {/* Action Buttons */}
           <div className="flex items-center space-x-2">
             <button
@@ -251,7 +251,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
             >
               🔄
             </button>
-            
+
             <button
               onClick={() => setExpandedService(isExpanded ? null : serviceName)}
               className="p-2 text-gray-500 hover:text-gray-700 rounded"
@@ -276,7 +276,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                   </div>
                   <div className="text-xs text-gray-600">Mock data service available</div>
                 </div>
-                
+
                 <div className={`p-3 rounded-lg border ${serviceConfig.real_available ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium">Real Implementation</span>
@@ -294,27 +294,25 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                 <button
                   onClick={() => switchImplementation(serviceName, 'mock')}
                   disabled={serviceConfig.current === 'mock' || !serviceConfig.mock_available || loading}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    serviceConfig.current === 'mock'
-                      ? 'bg-purple-600 text-white'
-                      : serviceConfig.mock_available
+                  className={`px-4 py-2 rounded-lg transition-colors ${serviceConfig.current === 'mock'
+                    ? 'bg-purple-600 text-white'
+                    : serviceConfig.mock_available
                       ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                       : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  } disabled:opacity-50`}
+                    } disabled:opacity-50`}
                 >
                   🎭 Switch to Mock
                 </button>
-                
+
                 <button
                   onClick={() => switchImplementation(serviceName, 'real')}
                   disabled={serviceConfig.current === 'real' || !serviceConfig.real_available || loading}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    serviceConfig.current === 'real'
-                      ? 'bg-blue-600 text-white'
-                      : serviceConfig.real_available
+                  className={`px-4 py-2 rounded-lg transition-colors ${serviceConfig.current === 'real'
+                    ? 'bg-blue-600 text-white'
+                    : serviceConfig.real_available
                       ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                       : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  } disabled:opacity-50`}
+                    } disabled:opacity-50`}
                 >
                   🌐 Switch to Real
                 </button>
@@ -332,14 +330,14 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                       {health.api_healthy ? '✅ Healthy' : '❌ Unhealthy'}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Configuration:</span>
                     <span className={health.config_healthy ? 'text-green-600' : 'text-red-600'}>
                       {health.config_healthy ? '✅ Valid' : '❌ Invalid'}
                     </span>
                   </div>
-                  
+
                   {health.token_valid !== undefined && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Token Status:</span>
@@ -348,7 +346,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                       </span>
                     </div>
                   )}
-                  
+
                   {health.last_check && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Last Check:</span>
@@ -357,7 +355,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                       </span>
                     </div>
                   )}
-                  
+
                   {health.error && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Error:</span>
@@ -383,7 +381,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                 >
                   📊 View Dashboard
                 </button>
-                
+
                 <button
                   onClick={() => {
                     // Navigate to service-specific logs
@@ -416,7 +414,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
               <div className="px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700">
                 Environment: {servicesStatus.environment}
               </div>
-              
+
               {/* Refresh Button */}
               <button
                 onClick={refreshData}
@@ -455,7 +453,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
 
           {/* Services List */}
           <div className="space-y-4">
-            {Object.entries(servicesStatus.services).map(([serviceName, serviceConfig]) => 
+            {Object.entries(servicesStatus.services).map(([serviceName, serviceConfig]) =>
               renderServiceStatus(serviceName, serviceConfig)
             )}
           </div>
@@ -475,10 +473,10 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
               >
                 🎭 All to Mock
               </button>
-              
+
               <button
                 onClick={() => {
-                  Object.keys(servicesStatus.services).forEach(service => {
+                  (Object.keys(servicesStatus.services) as Array<keyof typeof servicesStatus.services>).forEach(service => {
                     if (servicesStatus.services[service].real_available) {
                       switchImplementation(service, 'real');
                     }
@@ -489,7 +487,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
               >
                 🌐 All to Real
               </button>
-              
+
               <button
                 onClick={refreshData}
                 disabled={loading}
@@ -497,7 +495,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
               >
                 🔄 Refresh All
               </button>
-              
+
               <button
                 onClick={() => {
                   window.location.href = '/dashboard/communication/settings';
@@ -517,21 +515,21 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
               </div>
               <div className="text-sm text-green-700">Healthy Services</div>
             </div>
-            
+
             <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="text-2xl font-bold text-purple-600">
                 {Object.values(servicesStatus.services).filter(s => s.current === 'mock').length}
               </div>
               <div className="text-sm text-purple-700">Mock Implementations</div>
             </div>
-            
+
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
                 {Object.values(servicesStatus.services).filter(s => s.current === 'real').length}
               </div>
               <div className="text-sm text-blue-700">Real Implementations</div>
             </div>
-            
+
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="text-2xl font-bold text-yellow-600">
                 {Object.values(servicesStatus.services).filter(s => s.health?.status === 'error').length}

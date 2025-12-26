@@ -107,3 +107,19 @@ export function DialogFooter({ children, className }: DialogFooterProps) {
         </div>
     );
 }
+
+// DialogTrigger - for controlled dialogs, this is a passthrough wrapper
+export function DialogTrigger({
+    children,
+    asChild = false,
+    ...props
+}: {
+    children: React.ReactNode;
+    asChild?: boolean;
+    onClick?: () => void;
+}) {
+    if (asChild && React.isValidElement(children)) {
+        return React.cloneElement(children as React.ReactElement<any>, props);
+    }
+    return <span {...props}>{children}</span>;
+}

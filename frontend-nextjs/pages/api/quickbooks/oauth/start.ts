@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { OAuthClient } from 'intuit-oauth';
+import OAuthClient from 'intuit-oauth';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const oauthClient = new OAuthClient({

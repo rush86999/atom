@@ -19,7 +19,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string>("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const toast = useToast();
+    const { toast } = useToast();
     const router = useRouter();
 
     // Initialize session

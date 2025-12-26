@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useToast } from "@/components/ui/use-toast";
-import AgentCard, { AgentInfo } from "@/components/agents/AgentCard";
-import AgentTerminal from "@/components/agents/AgentTerminal";
+import AgentCard, { AgentInfo } from "@/components/Agents/AgentCard";
+import AgentTerminal from "@/components/Agents/AgentTerminal";
 import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard } from "lucide-react";
 
@@ -50,11 +50,11 @@ const AgentsDashboard = () => {
                 simulateLogs(id);
             } else {
                 const err = await res.json();
-                toast({ title: "Failed to start", description: err.detail, variant: "destructive" });
+                toast({ title: "Failed to start", description: err.detail, variant: "error" });
                 setLogs(prev => [...prev, `Error: ${err.detail}`]);
             }
         } catch (e) {
-            toast({ title: "Error", description: "Network error", variant: "destructive" });
+            toast({ title: "Error", description: "Network error", variant: "error" });
         }
     };
 

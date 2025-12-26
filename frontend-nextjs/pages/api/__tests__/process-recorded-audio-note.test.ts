@@ -44,7 +44,7 @@ describe("/api/process-recorded-audio-note API Endpoint", () => {
     mockedLogger.error.mockClear();
     mockedLogger.debug.mockClear();
     mockedResilientFetch.mockReset();
-    (fs.unlink as jest.Mock).mockClear();
+    (fs.unlink as unknown as jest.Mock).mockClear();
 
     // Setup formidable mock for each test
     mockParse = jest.fn((req, callback) => {

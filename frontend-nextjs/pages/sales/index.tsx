@@ -10,7 +10,7 @@ import { useToast } from "../../components/ui/use-toast";
 import { useEffect } from "react";
 
 const SalesIntelligencePage = () => {
-    const toast = useToast();
+    const { toast } = useToast();
     const { lastMessage, subscribe } = useWebSocket();
     const workspaceId = "sales-test-ws"; // This would be dynamic in a real app
 

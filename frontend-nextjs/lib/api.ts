@@ -59,6 +59,7 @@ apiClient.interceptors.response.use(
 export const systemAPI = {
   getHealth: () => apiClient.get("/api/health"),
   getStatus: () => apiClient.get("/api/status"),
+  getSystemStatus: () => apiClient.get("/api/status"),
 };
 
 // Service Registry API

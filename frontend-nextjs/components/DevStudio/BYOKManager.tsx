@@ -41,7 +41,7 @@ const BYOKManager = () => {
     const [providers, setProviders] = useState<ProviderStatus[]>([]);
     const [loading, setLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
-    const toast = useToast();
+    const { toast } = useToast();
 
     const [selectedProvider, setSelectedProvider] = useState('');
     const [apiKey, setApiKey] = useState('');

@@ -107,7 +107,7 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
       toast({
         title: 'Error',
         description: 'Failed to load Monday.com data',
-        variant: 'destructive',
+        variant: 'error',
       });
     } finally {
       setIsLoading(false);
@@ -142,7 +142,7 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
       toast({
         title: 'Error',
         description: 'Failed to load board items',
-        variant: 'destructive',
+        variant: 'error',
       });
     } finally {
       setIsLoading(false);
@@ -160,7 +160,7 @@ const MondayIntegration: React.FC<MondayIntegrationProps> = ({
       toast({
         title: 'Error',
         description: 'Failed to connect to Monday.com',
-        variant: 'destructive',
+        variant: 'error',
       });
     }
   };

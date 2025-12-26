@@ -99,7 +99,7 @@ export default async function handler(
   } catch (error) {
     logger.error(
       "[MSTeamsAuthInitiate] Error generating MS Teams auth URL:",
-      error,
+      error instanceof Error ? error.message : String(error),
     );
     res
       .status(500)

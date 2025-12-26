@@ -97,7 +97,7 @@ async function saveMSTeamsUserTokens(
     user_id: userId,
     service_name: MSTEAMS_TOKEN_SERVICE_NAME,
     access_token: tokens.accessToken,
-    refresh_token: tokens.refreshToken, // This should be present if offline_access scope was granted
+    refresh_token: (tokens as any).refreshToken || null, // This should be present if offline_access scope was granted
     expiry_date: tokens.expiresOn ? tokens.expiresOn.toISOString() : null,
     scope: tokens.scopes.join(" "),
     token_type: "Bearer", // Typically Bearer for MS Graph

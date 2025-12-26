@@ -66,7 +66,7 @@ const BusinessHealthDashboard: React.FC = () => {
     });
     const [interventions, setInterventions] = useState<any[]>([]);
     const [executing, setExecuting] = useState<string | null>(null);
-    const toast = useToast();
+    const { toast } = useToast();
 
     const fetchData = async () => {
         try {
@@ -156,7 +156,6 @@ const BusinessHealthDashboard: React.FC = () => {
                 toast({
                     title: "Intervention Executed",
                     description: result.message || "Action completed successfully.",
-                    className: "bg-green-600 text-white border-none",
                 });
                 // Remove from list or mark as done
                 setInterventions(prev => prev.map(i => i.id === id ? { ...i, status: "COMPLETED" } : i));
@@ -241,8 +240,8 @@ const BusinessHealthDashboard: React.FC = () => {
                                         <div
                                             key={intervention.id}
                                             className={`relative p-4 rounded-xl border transition-all ${intervention.status === 'COMPLETED'
-                                                    ? 'bg-green-50 border-green-200 opacity-70 dark:bg-green-900/20 dark:border-green-900'
-                                                    : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md'
+                                                ? 'bg-green-50 border-green-200 opacity-70 dark:bg-green-900/20 dark:border-green-900'
+                                                : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md'
                                                 }`}
                                         >
                                             <div className="flex justify-between items-start mb-3">

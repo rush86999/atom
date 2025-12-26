@@ -480,6 +480,19 @@ class HubSpotApiService {
       return []
     }
   }
+
+  async getAIPredictions(): Promise<any> {
+    try {
+      const data = await this.fetchWithErrorHandling(`${API_BASE}/ai/predictions`)
+      return data
+    } catch (error) {
+      return {
+        models: [],
+        predictions: [],
+        forecast: [],
+      }
+    }
+  }
 }
 
 export const hubspotApi = new HubSpotApiService()

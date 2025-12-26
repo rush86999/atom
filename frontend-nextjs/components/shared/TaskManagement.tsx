@@ -441,7 +441,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
             <Select
               value={formData.priority}
               onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, priority: value }))
+                setFormData((prev) => ({ ...prev, priority: value as "high" | "medium" | "low" }))
               }
             >
               <SelectTrigger>
@@ -460,7 +460,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
             <Select
               value={formData.status}
               onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, status: value }))
+                setFormData((prev) => ({ ...prev, status: value as "todo" | "in-progress" | "completed" | "blocked" }))
               }
             >
               <SelectTrigger>
@@ -504,7 +504,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
             <Select
               value={formData.platform}
               onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, platform: value }))
+                setFormData((prev) => ({ ...prev, platform: value as "local" | "notion" | "trello" | "asana" | "jira" }))
               }
               data-testid="task-platform"
             >

@@ -330,7 +330,7 @@ const AzureIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create virtual machine",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -372,7 +372,7 @@ const AzureIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to deploy app service",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -412,7 +412,7 @@ const AzureIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create storage account",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

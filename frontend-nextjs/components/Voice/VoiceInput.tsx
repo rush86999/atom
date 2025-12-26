@@ -3,7 +3,6 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface VoiceInputProps {
     onTranscriptChange: (transcript: string) => void;
@@ -17,7 +16,9 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
         startListening,
         stopListening,
         browserSupportsSpeechRecognition,
-        resetTranscript
+        resetTranscript,
+        wakeWordEnabled,
+        setWakeWordMode
     } = useSpeechRecognition();
 
     // Sync transcript to parent
@@ -26,6 +27,22 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
             onTranscriptChange(transcript);
         }
     }, [transcript, onTranscriptChange]);
+
+    // Listen for global wake word event
+    useEffect(() => {
+        const handleWakeWord = (event: CustomEvent) => {
+            console.log("Global Wake Word Triggered!", event.detail);
+            if (!isListening) {
+                resetTranscript();
+                startListening();
+            }
+        };
+
+        window.addEventListener('wake-word-activated' as any, handleWakeWord as any);
+        return () => {
+            window.removeEventListener('wake-word-activated' as any, handleWakeWord as any);
+        };
+    }, [isListening, startListening, resetTranscript]);
 
     const toggleListening = () => {
         if (isListening) {
@@ -38,18 +55,9 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
 
     if (!browserSupportsSpeechRecognition) {
         return (
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" disabled className="opacity-50">
-                            <MicOff className="w-4 h-4 text-gray-400" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Voice input is not supported in this browser.</p>
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+            <Button variant="ghost" size="icon" disabled className="opacity-50" title="Voice input is not supported in this browser.">
+                <MicOff className="w-4 h-4 text-gray-400" />
+            </Button>
         );
     }
 
@@ -66,6 +74,28 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
                 title={isListening ? "Stop Listening" : "Start Voice Input"}
             >
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
+
+            {/* Wake Word Toggle */}
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                    if (wakeWordEnabled) {
+                        setWakeWordMode(false);
+                        stopListening();
+                    } else {
+                        setWakeWordMode(true);
+                        startListening();
+                    }
+                }}
+                className={cn(
+                    "ml-1 transition-all",
+                    wakeWordEnabled ? "text-blue-500 bg-blue-50 ring-1 ring-blue-200" : "text-gray-400 hover:text-gray-600"
+                )}
+                title={wakeWordEnabled ? "Click to Disable Wake Word ('Hey Atom')" : "Click to Enable Wake Word ('Hey Atom')"}
+            >
+                <span className="text-[10px] font-bold">ATOM</span>
             </Button>
 
             {isListening && (

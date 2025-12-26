@@ -208,7 +208,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                     toast({
                         title: "Speech recognition error",
                         description: event.error,
-                        variant: "destructive",
+                        variant: "error",
                     });
                     setIsListening(false);
                 };
@@ -218,7 +218,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                 toast({
                     title: "Speech recognition not supported",
                     description: "Your browser does not support speech recognition.",
-                    variant: "destructive",
+                    variant: "error",
                 });
             }
         }
@@ -275,7 +275,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
             toast({
                 title: "No matching command found",
                 description: `"${transcript}" (${Math.round(confidence * 100)}% confidence)`,
-                variant: "destructive", // Using destructive for warning-like visual
+                variant: "error", // Using destructive for warning-like visual
             });
         }
 
@@ -291,7 +291,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                 console.error("Error starting speech recognition:", error);
                 toast({
                     title: "Error starting voice recognition",
-                    variant: "destructive",
+                    variant: "error",
                 });
             }
         }
@@ -396,7 +396,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                 toast({
                     title: "Invalid parameters",
                     description: "Please check the parameters JSON format",
-                    variant: "destructive",
+                    variant: "error",
                 });
             }
         };

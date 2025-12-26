@@ -32,8 +32,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const useBridgeSystem = process.env.USE_BRIDGE_SYSTEM === 'true';
 
   try {
-    let apiHealth, authHealth, webhookHealth;
-    
+    let apiHealth: ServiceHealth | undefined;
+    let authHealth: ServiceHealth | undefined;
+    let webhookHealth: ServiceHealth | undefined;
+
     // Use bridge system if available
     if (useBridgeSystem) {
       // Try bridge system first
@@ -45,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
           signal: AbortSignal.timeout(5000),
         });
-        
+
         if (bridgeResponse.ok) {
           // Get bridge status which includes all integrations
           const bridgeStatusResponse = await fetch(`${backendUrl}/api/bridge/status`, {
@@ -55,13 +57,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             },
             signal: AbortSignal.timeout(10000),
           });
-          
+
           if (bridgeStatusResponse.ok) {
             const bridgeStatus = await bridgeStatusResponse.json();
-            
+
             // Extract HubSpot-specific information
             const hubspotInfo = bridgeStatus.integrations?.hubspot;
-            
+
             if (hubspotInfo) {
               apiHealth = {
                 status: hubspotInfo.status === 'active' ? 'healthy' : 'unhealthy',
@@ -69,9 +71,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 response_time: startTime ? Date.now() - startTime : undefined,
                 last_check: hubspotInfo.last_check || new Date().toISOString(),
                 error: hubspotInfo.error_message,
-                metadata: hubspotInfo.metadata,
               };
-              
+
               // Map bridge services to our structure
               authHealth = {
                 status: hubspotInfo.status === 'active' ? 'healthy' : 'unhealthy',
@@ -79,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 response_time: startTime ? Date.now() - startTime : undefined,
                 last_check: hubspotInfo.last_check || new Date().toISOString(),
               };
-              
+
               webhookHealth = {
                 status: hubspotInfo.available_endpoints?.includes('webhooks') ? 'healthy' : 'degraded',
                 connected: hubspotInfo.available_endpoints?.includes('webhooks') || false,
@@ -94,7 +95,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.warn('Bridge system not available, falling back to direct endpoints:', bridgeError);
       }
     }
-    
+
     // Fallback to direct endpoint checks
     if (!apiHealth || !authHealth || !webhookHealth) {
       const healthChecks = await Promise.allSettled([
@@ -123,42 +124,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           signal: AbortSignal.timeout(5000),
         }),
       ]);
-      
+
       const [apiResult, authResult, webhookResult] = healthChecks;
-      
+
       // Only override if bridge didn't provide data
       apiHealth = apiHealth || {
         status: apiResult.status === 'fulfilled' && apiResult.value.ok ? 'healthy' : 'unhealthy',
         connected: apiResult.status === 'fulfilled' && apiResult.value.ok,
         response_time: apiResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
         last_check: new Date().toISOString(),
-        error: apiResult.status === 'rejected' ? apiResult.reason?.message : 
-                apiResult.value?.ok ? undefined : await getErrorText(apiResult.value),
+        error: apiResult.status === 'rejected' ? apiResult.reason?.message :
+          apiResult.value?.ok ? undefined : await getErrorText(apiResult.value),
       };
-      
+
       authHealth = authHealth || {
         status: authResult.status === 'fulfilled' && authResult.value.ok ? 'healthy' : 'unhealthy',
         connected: authResult.status === 'fulfilled' && authResult.value.ok,
         response_time: authResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
         last_check: new Date().toISOString(),
-        error: authResult.status === 'rejected' ? authResult.reason?.message : 
-                authResult.value?.ok ? undefined : await getErrorText(authResult.value),
+        error: authResult.status === 'rejected' ? authResult.reason?.message :
+          authResult.value?.ok ? undefined : await getErrorText(authResult.value),
       };
-      
+
       webhookHealth = webhookHealth || {
         status: webhookResult.status === 'fulfilled' && webhookResult.value.ok ? 'healthy' : 'degraded',
         connected: webhookResult.status === 'fulfilled' && webhookResult.value.ok,
         response_time: webhookResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
         last_check: new Date().toISOString(),
-        error: webhookResult.status === 'rejected' ? webhookResult.reason?.message : 
-                webhookResult.value?.ok ? undefined : await getErrorText(webhookResult),
+        error: webhookResult.status === 'rejected' ? webhookResult.reason?.message :
+          webhookResult.value?.ok ? undefined : await getErrorText(webhookResult.value),
       };
     }
-    
+
     const services = { api: apiHealth, auth: authHealth, webhooks: webhookHealth };
     const connectedCount = Object.values(services).filter(s => s.connected).length;
     const overallStatus = connectedCount === Object.keys(services).length ? 'healthy' :
-                         connectedCount > 0 ? 'degraded' : 'unhealthy';
+      connectedCount > 0 ? 'degraded' : 'unhealthy';
 
     const response: HealthResponse = {
       status: overallStatus,
@@ -168,7 +169,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       total_services: Object.keys(services).length,
       timestamp: new Date().toISOString(),
       version: '2.0.0',
-      bridge_system_used: useBridgeSystem,
     };
 
     return res.status(connectedCount > 0 ? 200 : 503).json(response);
@@ -179,7 +179,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       backend: 'disconnected',
       error: 'HubSpot services unavailable',
       timestamp: new Date().toISOString(),
-      bridge_system_attempted: useBridgeSystem,
     });
   }
 }

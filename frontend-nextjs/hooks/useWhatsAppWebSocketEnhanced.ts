@@ -4,7 +4,7 @@
 //
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useToast } from "@chakra-ui/react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface WebSocketState {
   isConnected: boolean;
@@ -48,7 +48,7 @@ export const useWhatsAppWebSocketEnhanced = (
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const toast = useToast();
+  const { toast } = useToast();
 
   // Debug logging
   const debugLog = useCallback(
@@ -72,10 +72,16 @@ export const useWhatsAppWebSocketEnhanced = (
     }
   }, []);
 
-  // Set WebSocket state
-  const setWebSocketState = useCallback((updates: Partial<WebSocketState>) => {
-    setState((prev) => ({ ...prev, ...updates }));
-  }, []);
+  // Set WebSocket state - accepts both partial object and function updater
+  const setWebSocketState = useCallback(
+    (updates: Partial<WebSocketState> | ((prev: WebSocketState) => Partial<WebSocketState>)) => {
+      setState((prev) => {
+        const newUpdates = typeof updates === 'function' ? updates(prev) : updates;
+        return { ...prev, ...newUpdates };
+      });
+    },
+    [],
+  );
 
   // Send ping message
   const sendPing = useCallback(() => {
@@ -111,9 +117,8 @@ export const useWhatsAppWebSocketEnhanced = (
     toast({
       title: "Connected to WhatsApp",
       description: "Real-time updates are now active",
-      status: "success",
+      variant: "success",
       duration: 3000,
-      isClosable: true,
     });
   }, [
     clearTimeouts,
@@ -153,9 +158,8 @@ export const useWhatsAppWebSocketEnhanced = (
             toast({
               title: "WebSocket Error",
               description: message.error || "Unknown error occurred",
-              status: "error",
+              variant: "error",
               duration: 5000,
-              isClosable: true,
             });
             break;
           default:
@@ -183,9 +187,8 @@ export const useWhatsAppWebSocketEnhanced = (
       toast({
         title: "Connection Error",
         description: "Failed to connect to WhatsApp WebSocket",
-        status: "error",
+        variant: "error",
         duration: 5000,
-        isClosable: true,
       });
     },
     [clearTimeouts, debugLog, setWebSocketState, toast],
@@ -221,9 +224,8 @@ export const useWhatsAppWebSocketEnhanced = (
         toast({
           title: "Connection Lost",
           description: "WhatsApp WebSocket connection lost",
-          status: "warning",
+          variant: "warning",
           duration: 5000,
-          isClosable: true,
         });
       }
     },
