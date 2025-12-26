@@ -24,7 +24,9 @@ class ActionType(Enum):
     FETCH_INSIGHTS = "fetch_insights"
     FETCH_LOGIC = "fetch_logic"
     FETCH_FORMULAS = "fetch_formulas"  # Phase 30: Formula Memory Access
+    APPLY_FORMULA = "apply_formula"     # Phase 30: Execute formula with learning
     SYNC_DATA = "sync_data"
+
 
 class AgentIntegrationGateway:
     """
@@ -75,8 +77,11 @@ class AgentIntegrationGateway:
                 return await self._handle_fetch_logic(platform, params)
             elif action_type == ActionType.FETCH_FORMULAS:
                 return await self._handle_fetch_formulas(params)
+            elif action_type == ActionType.APPLY_FORMULA:
+                return await self._handle_apply_formula(params)
             
             return {"status": "error", "message": "Unsupported action type"}
+
         except Exception as e:
             logger.error(f"Gateway execution failed: {e}")
             return {"status": "error", "message": str(e)}
@@ -188,6 +193,70 @@ class AgentIntegrationGateway:
             return {
                 "status": "error",
                 "message": f"Formula retrieval failed: {str(e)}"
+            }
+
+    async def _handle_apply_formula(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute a formula and record the result as a learning experience.
+        Phase 30: Formula execution with agent learning integration.
+        """
+        formula_id = params.get("formula_id")
+        inputs = params.get("inputs", {})
+        workspace_id = params.get("workspace_id", "default")
+        agent_id = params.get("agent_id")
+        agent_role = params.get("agent_role", "general")
+        task_description = params.get("task_description", "formula calculation")
+        
+        if not formula_id:
+            return {"status": "error", "message": "formula_id is required"}
+        
+        try:
+            from core.formula_memory import get_formula_manager
+            from core.agent_world_model import WorldModelService
+            
+            manager = get_formula_manager(workspace_id)
+            
+            # Execute the formula
+            result = manager.apply_formula(formula_id, inputs)
+            
+            formula = manager.get_formula(formula_id)
+            formula_name = formula.get("name", "Unknown") if formula else "Unknown"
+            
+            # Record as learning experience if agent_id provided
+            if agent_id and result.get("success"):
+                world_model = WorldModelService(workspace_id)
+                await world_model.record_formula_usage(
+                    agent_id=agent_id,
+                    agent_role=agent_role,
+                    formula_id=formula_id,
+                    formula_name=formula_name,
+                    task_description=task_description,
+                    inputs=inputs,
+                    result=result.get("result"),
+                    success=True,
+                    learnings=f"Successfully applied {formula_name} for {task_description}"
+                )
+            elif agent_id and not result.get("success"):
+                world_model = WorldModelService(workspace_id)
+                await world_model.record_formula_usage(
+                    agent_id=agent_id,
+                    agent_role=agent_role,
+                    formula_id=formula_id,
+                    formula_name=formula_name,
+                    task_description=task_description,
+                    inputs=inputs,
+                    result=None,
+                    success=False,
+                    learnings=f"Failed: {result.get('error', 'Unknown error')}"
+                )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Formula apply failed: {e}")
+            return {
+                "status": "error",
+                "message": f"Formula execution failed: {str(e)}"
             }
 
 # Global singleton
