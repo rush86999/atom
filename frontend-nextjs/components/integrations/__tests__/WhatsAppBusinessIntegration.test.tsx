@@ -92,18 +92,18 @@ const mockAnalytics = {
 // Helper function to render component with providers
 const renderComponent = () => {
   return render(
-    <ChakraProvider>
-      <ThemeProvider theme={{}}>
+    <div data-testid="chakra-provider">
+      <div data-testid="theme-provider">
         <WhatsAppBusinessIntegration />
-      </ThemeProvider>
-    </ChakraProvider>
+      </div>
+    </div>
   );
 };
 
 describe('WhatsAppBusinessIntegration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock successful health check
     (fetch as jest.Mock).mockImplementation((url) => {
       if (url === '/api/whatsapp/health') {
@@ -116,7 +116,7 @@ describe('WhatsAppBusinessIntegration', () => {
           })
         });
       }
-      
+
       if (url === '/api/whatsapp/conversations') {
         return Promise.resolve({
           ok: true,
@@ -126,7 +126,7 @@ describe('WhatsAppBusinessIntegration', () => {
           })
         });
       }
-      
+
       if (url.startsWith('/api/whatsapp/messages/')) {
         return Promise.resolve({
           ok: true,
@@ -136,7 +136,7 @@ describe('WhatsAppBusinessIntegration', () => {
           })
         });
       }
-      
+
       if (url === '/api/whatsapp/analytics') {
         return Promise.resolve({
           ok: true,
@@ -146,7 +146,7 @@ describe('WhatsAppBusinessIntegration', () => {
           })
         });
       }
-      
+
       if (url === '/api/whatsapp/send') {
         return Promise.resolve({
           ok: true,
@@ -157,7 +157,7 @@ describe('WhatsAppBusinessIntegration', () => {
           })
         });
       }
-      
+
       return Promise.resolve({
         ok: false,
         status: 404,
@@ -168,7 +168,7 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('renders WhatsApp Business integration component', async () => {
     renderComponent();
-    
+
     await waitFor(() => {
       expect(screen.getByText('WhatsApp Business Integration')).toBeInTheDocument();
       expect(screen.getByText('Manage customer communications through WhatsApp Business API')).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('displays connection status correctly', async () => {
     renderComponent();
-    
+
     await waitFor(() => {
       const statusBadge = screen.getByText('Connected');
       expect(statusBadge).toBeInTheDocument();
@@ -187,7 +187,7 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('displays analytics overview when connected', async () => {
     renderComponent();
-    
+
     await waitFor(() => {
       expect(screen.getByText('Analytics Overview')).toBeInTheDocument();
       expect(screen.getByText('50')).toBeInTheDocument(); // Total conversations
@@ -197,11 +197,11 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('displays conversations in conversations tab', async () => {
     renderComponent();
-    
+
     await waitFor(() => {
       expect(screen.getByText('Recent Conversations')).toBeInTheDocument();
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
       expect(screen.getByText('Jane Smith')).toBeInTheDocument();
@@ -212,14 +212,14 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('opens compose message modal', async () => {
     renderComponent();
-    
+
     await waitFor(() => {
       expect(screen.getByText('New Message')).toBeInTheDocument();
     });
-    
+
     const composeButton = screen.getByText('New Message');
     fireEvent.click(composeButton);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Compose New Message')).toBeInTheDocument();
       expect(screen.getByText('Recipient Phone Number')).toBeInTheDocument();
@@ -230,14 +230,14 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('opens configuration modal', async () => {
     renderComponent();
-    
+
     await waitFor(() => {
       expect(screen.getByText('Configure')).toBeInTheDocument();
     });
-    
+
     const configButton = screen.getByText('Configure');
     fireEvent.click(configButton);
-    
+
     await waitFor(() => {
       expect(screen.getByText('WhatsApp Business Configuration')).toBeInTheDocument();
       expect(screen.getByText('Access Token')).toBeInTheDocument();
@@ -248,28 +248,28 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('sends a message successfully', async () => {
     renderComponent();
-    
+
     // Open compose modal
     await waitFor(() => {
       const composeButton = screen.getByText('New Message');
       fireEvent.click(composeButton);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('Recipient Phone Number')).toBeInTheDocument();
     });
-    
+
     // Fill form
     const recipientInput = screen.getByPlaceholderText('+1234567890');
     const messageInput = screen.getByPlaceholderText('Type your message here...');
-    
+
     fireEvent.change(recipientInput, { target: { value: '+1234567890' } });
     fireEvent.change(messageInput, { target: { value: 'Test message' } });
-    
+
     // Send message
     const sendButton = screen.getByText('Send Message');
     fireEvent.click(sendButton);
-    
+
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith('/api/whatsapp/send', {
         method: 'POST',
@@ -287,16 +287,16 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('displays messages when conversation is selected', async () => {
     renderComponent();
-    
+
     // Wait for conversations to load
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
-    
+
     // Click on conversation
     const conversationCard = screen.getByText('John Doe').closest('.chakra-card');
     fireEvent.click(conversationCard);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Messages with John Doe')).toBeInTheDocument();
       expect(screen.getByText('Hello, I need help with my order')).toBeInTheDocument();
@@ -316,21 +316,21 @@ describe('WhatsAppBusinessIntegration', () => {
           })
         });
       }
-      
+
       return Promise.resolve({
         ok: false,
         status: 404,
         json: () => Promise.resolve({ error: 'Not found' })
       });
     });
-    
+
     renderComponent();
-    
+
     await waitFor(() => {
       const statusBadge = screen.getByText('Disconnected');
       expect(statusBadge).toBeInTheDocument();
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('WhatsApp Not Connected')).toBeInTheDocument();
       expect(screen.getByText('Please configure your WhatsApp Business API settings to start managing conversations.')).toBeInTheDocument();
@@ -339,14 +339,14 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('displays templates tab content', async () => {
     renderComponent();
-    
+
     await waitFor(() => {
       expect(screen.getByText('Templates')).toBeInTheDocument();
     });
-    
+
     const templatesTab = screen.getByText('Templates');
     fireEvent.click(templatesTab);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Message Templates')).toBeInTheDocument();
       expect(screen.getByText('Create Template')).toBeInTheDocument();
@@ -355,14 +355,14 @@ describe('WhatsAppBusinessIntegration', () => {
 
   test('displays analytics tab content', async () => {
     renderComponent();
-    
+
     await waitFor(() => {
       expect(screen.getByText('Analytics')).toBeInTheDocument();
     });
-    
+
     const analyticsTab = screen.getByText('Analytics');
     fireEvent.click(analyticsTab);
-    
+
     await waitFor(() => {
       expect(screen.getByText('WhatsApp Analytics')).toBeInTheDocument();
       expect(screen.getByText('Message Statistics')).toBeInTheDocument();
@@ -382,7 +382,7 @@ describe('WhatsAppBusinessIntegration', () => {
           })
         });
       }
-      
+
       // Default successful responses
       if (url === '/api/whatsapp/health') {
         return Promise.resolve({
@@ -394,32 +394,32 @@ describe('WhatsAppBusinessIntegration', () => {
           })
         });
       }
-      
+
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ success: true, data: [] })
       });
     });
-    
+
     renderComponent();
-    
+
     // Try to send a message
     await waitFor(() => {
       const composeButton = screen.getByText('New Message');
       fireEvent.click(composeButton);
     });
-    
+
     await waitFor(() => {
       const recipientInput = screen.getByPlaceholderText('+1234567890');
       const messageInput = screen.getByPlaceholderText('Type your message here...');
-      
+
       fireEvent.change(recipientInput, { target: { value: '+1234567890' } });
       fireEvent.change(messageInput, { target: { value: 'Test message' } });
-      
+
       const sendButton = screen.getByText('Send Message');
       fireEvent.click(sendButton);
     });
-    
+
     // Error toast should appear
     await waitFor(() => {
       expect(screen.getByText('Send Failed')).toBeInTheDocument();
@@ -427,4 +427,4 @@ describe('WhatsAppBusinessIntegration', () => {
   });
 });
 
-export {};
+export { };

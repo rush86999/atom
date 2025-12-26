@@ -227,7 +227,7 @@ const GitHubIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load repositories from GitHub",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, repositories: false }));
@@ -291,7 +291,7 @@ const GitHubIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create issue",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

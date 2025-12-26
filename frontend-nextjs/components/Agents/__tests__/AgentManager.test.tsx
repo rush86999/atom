@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ChakraProvider } from '@chakra-ui/react';
+
 import '@testing-library/jest-dom';
 import AgentManager from '../AgentManager';
 
@@ -16,11 +16,7 @@ jest.mock('@chakra-ui/react', () => ({
 }));
 
 const renderWithProviders = (component: React.ReactElement) => {
-  return render(
-    <ChakraProvider>
-      {component}
-    </ChakraProvider>
-  );
+  return render(component);
 };
 
 const mockAgent = {
@@ -59,7 +55,7 @@ describe('AgentManager', () => {
     renderWithProviders(
       <AgentManager
         initialAgents={[]}
-        showNavigation={true}
+
       />
     );
 
@@ -72,7 +68,7 @@ describe('AgentManager', () => {
     renderWithProviders(
       <AgentManager
         initialAgents={agents}
-        showNavigation={true}
+
       />
     );
 
@@ -86,7 +82,7 @@ describe('AgentManager', () => {
     renderWithProviders(
       <AgentManager
         initialAgents={[mockAgent]}
-        showNavigation={true}
+
       />
     );
 
@@ -100,7 +96,7 @@ describe('AgentManager', () => {
       <AgentManager
         onAgentCreate={mockOnAgentCreate}
         initialAgents={[]}
-        showNavigation={true}
+
       />
     );
 
@@ -117,7 +113,7 @@ describe('AgentManager', () => {
         onAgentStart={mockOnAgentStart}
         onAgentStop={mockOnAgentStop}
         initialAgents={[mockAgent]}
-        showNavigation={true}
+
       />
     );
 
@@ -132,7 +128,7 @@ describe('AgentManager', () => {
       <AgentManager
         onAgentDelete={mockOnAgentDelete}
         initialAgents={[mockAgent]}
-        showNavigation={true}
+
       />
     );
 
@@ -146,7 +142,7 @@ describe('AgentManager', () => {
     renderWithProviders(
       <AgentManager
         initialAgents={[mockAgent]}
-        showNavigation={true}
+
       />
     );
 
@@ -163,7 +159,7 @@ describe('AgentManager', () => {
     renderWithProviders(
       <AgentManager
         initialAgents={[mockAgent]}
-        showNavigation={true}
+
       />
     );
 
@@ -175,7 +171,7 @@ describe('AgentManager', () => {
     renderWithProviders(
       <AgentManager
         initialAgents={[]}
-        showNavigation={true}
+
       />
     );
 
@@ -193,7 +189,7 @@ describe('AgentManager', () => {
     renderWithProviders(
       <AgentManager
         initialAgents={agents}
-        showNavigation={true}
+
       />
     );
 
@@ -205,7 +201,7 @@ describe('AgentManager', () => {
     const { rerender } = renderWithProviders(
       <AgentManager
         initialAgents={[mockAgent]}
-        showNavigation={true}
+
       />
     );
 
@@ -213,12 +209,10 @@ describe('AgentManager', () => {
 
     const updatedAgents = [mockAgent, { ...mockAgent, id: '2' }];
     rerender(
-      <ChakraProvider>
-        <AgentManager
-          initialAgents={updatedAgents}
-          showNavigation={true}
-        />
-      </ChakraProvider>
+      <AgentManager
+        initialAgents={updatedAgents}
+
+      />
     );
 
     expect(screen.getByText('2')).toBeInTheDocument(); // Updated count

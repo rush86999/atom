@@ -102,7 +102,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
             toast({
                 title: 'Error',
                 description: 'Workflow must be saved first',
-                variant: 'destructive',
+                variant: 'error',
             });
             return;
         }
@@ -202,7 +202,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
             toast({
                 title: 'Scheduling Failed',
                 description: error instanceof Error ? error.message : 'Unknown error',
-                variant: 'destructive',
+                variant: 'error',
             });
         } finally {
             setLoading(false);
@@ -225,7 +225,7 @@ const WorkflowScheduler: React.FC<WorkflowSchedulerProps> = ({
             toast({
                 title: 'Error',
                 description: error instanceof Error ? error.message : 'Failed to delete schedule',
-                variant: 'destructive',
+                variant: 'error',
             });
         }
     };

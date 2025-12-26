@@ -4,6 +4,12 @@ import { authOptions } from "../auth/[...nextauth]";
 // TODO: Learning plan API temporarily disabled due to missing dependencies
 // import { createLearningPlan } from '../../../../project/functions/atom-agent/skills/learningAssistantSkills';
 
+// Placeholder function to fix type error
+const generateLearningPlan = async (userId: string, notionDatabaseId: string) => {
+  console.log(`Generating learning plan for user ${userId} in Notion DB ${notionDatabaseId}`);
+  return { success: true };
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,

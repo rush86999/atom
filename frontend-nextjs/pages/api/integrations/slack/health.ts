@@ -72,15 +72,15 @@ export default async function handler(
     ]);
 
     const [authResult, messagingResult, eventsResult, webhooksResult] = healthChecks;
-    
+
     // Process results
     const authHealth: ServiceHealth = {
       status: authResult.status === 'fulfilled' && authResult.value.ok ? 'healthy' : 'unhealthy',
       connected: authResult.status === 'fulfilled' && authResult.value.ok,
       response_time: authResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: authResult.status === 'rejected' ? authResult.reason?.message : 
-              authResult.value?.ok ? undefined : await getErrorText(authResult.value),
+      error: authResult.status === 'rejected' ? authResult.reason?.message :
+        authResult.value?.ok ? undefined : await getErrorText(authResult.value),
     };
 
     const messagingHealth: ServiceHealth = {
@@ -88,8 +88,8 @@ export default async function handler(
       connected: messagingResult.status === 'fulfilled' && messagingResult.value.ok,
       response_time: messagingResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: messagingResult.status === 'rejected' ? messagingResult.reason?.message : 
-              messagingResult.value?.ok ? undefined : await getErrorText(messagingResult.value),
+      error: messagingResult.status === 'rejected' ? messagingResult.reason?.message :
+        messagingResult.value?.ok ? undefined : await getErrorText(messagingResult.value),
     };
 
     const eventsHealth: ServiceHealth = {
@@ -97,8 +97,8 @@ export default async function handler(
       connected: eventsResult.status === 'fulfilled' && eventsResult.value.ok,
       response_time: eventsResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: eventsResult.status === 'rejected' ? eventsResult.reason?.message : 
-              eventsResult.value?.ok ? undefined : await getErrorText(eventsResult),
+      error: eventsResult.status === 'rejected' ? eventsResult.reason?.message :
+        eventsResult.value?.ok ? undefined : await getErrorText(eventsResult.value),
     };
 
     const webhooksHealth: ServiceHealth = {
@@ -106,14 +106,14 @@ export default async function handler(
       connected: webhooksResult.status === 'fulfilled' && webhooksResult.value.ok,
       response_time: webhooksResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: webhooksResult.status === 'rejected' ? webhooksResult.reason?.message : 
-              webhooksResult.value?.ok ? undefined : await getErrorText(webhooksResult),
+      error: webhooksResult.status === 'rejected' ? webhooksResult.reason?.message :
+        webhooksResult.value?.ok ? undefined : await getErrorText(webhooksResult.value),
     };
 
     const services = { auth: authHealth, messaging: messagingHealth, events: eventsHealth, webhooks: webhooksHealth };
     const connectedCount = Object.values(services).filter(s => s.connected).length;
     const overallStatus = connectedCount === Object.keys(services).length ? 'healthy' :
-                         connectedCount > 0 ? 'degraded' : 'unhealthy';
+      connectedCount > 0 ? 'degraded' : 'unhealthy';
 
     const response: HealthResponse = {
       status: overallStatus,

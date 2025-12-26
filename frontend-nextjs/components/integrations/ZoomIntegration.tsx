@@ -236,7 +236,7 @@ const ZoomIntegration: React.FC = () => {
         title: "Connection failed",
         description:
           err instanceof Error ? err.message : "Failed to connect to Zoom",
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -266,7 +266,7 @@ const ZoomIntegration: React.FC = () => {
         title: "Disconnect failed",
         description:
           err instanceof Error ? err.message : "Failed to disconnect from Zoom",
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -303,7 +303,7 @@ const ZoomIntegration: React.FC = () => {
         title: "Failed to create meeting",
         description:
           err instanceof Error ? err.message : "Unknown error occurred",
-        variant: "destructive",
+        variant: "error",
       });
     }
   };

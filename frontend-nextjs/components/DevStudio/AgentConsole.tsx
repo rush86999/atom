@@ -10,7 +10,7 @@ import { Play, Square, RefreshCw, Terminal, Monitor } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 
 const AgentConsole: React.FC = () => {
-    const toast = useToast();
+    const { toast } = useToast();
     const [goal, setGoal] = useState("");
     const [mode, setMode] = useState("thinker");
     const [isRunning, setIsRunning] = useState(false);

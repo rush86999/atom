@@ -103,10 +103,14 @@ export const authOptions: NextAuthOptions = {
             if (!token) return null;
             try {
               const iv = crypto.randomBytes(16);
-              const cipher = crypto.createCipher(algorithm, secretKey);
-              cipher.setAAD(Buffer.from(account.provider, 'utf8'));
+              const key = typeof secretKey === 'string'
+                ? Buffer.from(secretKey.slice(0, 32).padEnd(32, '0'))
+                : secretKey;
+              // @ts-ignore - Node crypto types compatibility
+              const cipher = crypto.createCipheriv(algorithm, key, iv);
               let encrypted = cipher.update(token, 'utf8', 'hex');
               encrypted += cipher.final('hex');
+              // @ts-ignore - getAuthTag exists on GCM ciphers
               const authTag = cipher.getAuthTag();
               return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
             } catch (error) {

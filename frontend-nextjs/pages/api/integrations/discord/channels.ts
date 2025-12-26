@@ -11,7 +11,7 @@ export default async function handler(
       const response = await fetch(`${backendUrl}/api/integrations/discord/channels`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
-        body: req.method === 'GET' ? undefined : JSON.stringify(req.body)
+        body: JSON.stringify(req.body)
       });
       
       const data = await response.json();

@@ -23,7 +23,7 @@ export default async function handler(
     }
     try {
       // const result = await runSocialMediaAutoPost(userId, text);
-      const result = {
+      const result: { success: boolean; message: string; errors?: any[] } = {
         success: false,
         message: "Social media posting temporarily disabled",
       };
@@ -32,7 +32,7 @@ export default async function handler(
       } else {
         return res
           .status(500)
-          .json({ message: result.message, errors: result.errors });
+          .json({ message: result.message, errors: result.errors || [] });
       }
     } catch (error: any) {
       console.error("Error in social media auto post:", error);

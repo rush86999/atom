@@ -212,7 +212,7 @@ const TableauIntegration: React.FC = () => {
             toast({
                 title: "Connection Failed",
                 description: "Failed to connect to Tableau",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

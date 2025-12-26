@@ -10,7 +10,7 @@ const AccountantPortal = () => {
     const [accounts, setAccounts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState<string | null>(null);
-    const toast = useToast();
+    const { toast } = useToast();
 
     // Mock workspace ID - in real app would come from context/url
     const workspaceId = "default-workspace";

@@ -95,7 +95,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
     const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
     const animationRef = useRef<number>();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const toast = useToast();
+    const { toast } = useToast();
 
     // Default models if none provided
     const defaultModels: WakeWordModel[] = [
@@ -187,7 +187,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                 title: "Microphone access denied",
                 description:
                     "Please allow microphone access to use wake word detection.",
-                variant: "destructive",
+                variant: "error",
             });
             setIsLoading(false);
             return false;
@@ -304,7 +304,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
             toast({
                 title: "Invalid file type",
                 description: "Please upload a valid model file (.model or .bin)",
-                variant: "destructive",
+                variant: "error",
             });
             return;
         }

@@ -4,6 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { VoiceInput } from "@/components/Voice/VoiceInput";
+
 interface ChatInputProps {
     onSendMessage: (message: string) => void;
     isLoading: boolean;
@@ -48,24 +50,31 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask ATOM to schedule meetings, send emails..."
-                    className="min-h-[44px] max-h-[120px] resize-none pr-12 py-3"
+                    className="min-h-[44px] max-h-[120px] resize-none pr-24 py-3"
                     disabled={isLoading}
                 />
-                <Button
-                    size="icon"
-                    onClick={handleSend}
-                    disabled={!input.trim() || isLoading}
-                    className="absolute right-2 bottom-2 h-8 w-8"
-                >
-                    {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                        <Send className="h-4 w-4" />
-                    )}
-                </Button>
+
+                <div className="absolute right-2 bottom-2 flex gap-1">
+                    <VoiceInput
+                        onTranscriptChange={(transcript) => setInput(transcript)}
+                        className="h-8 w-8"
+                    />
+                    <Button
+                        size="icon"
+                        onClick={handleSend}
+                        disabled={!input.trim() || isLoading}
+                        className="h-8 w-8"
+                    >
+                        {isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Send className="h-4 w-4" />
+                        )}
+                    </Button>
+                </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2 text-center">
-                Try: "Schedule standup tomorrow at 10am"
+                Try: "Schedule standup tomorrow at 10am" or say "Atom" to activate
             </p>
         </div>
     );

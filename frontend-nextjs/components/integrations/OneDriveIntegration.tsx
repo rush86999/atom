@@ -183,7 +183,7 @@ const OneDriveIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to disconnect OneDrive",
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -217,7 +217,7 @@ const OneDriveIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to ingest file",
-        variant: "destructive",
+        variant: "error",
       });
     }
   };

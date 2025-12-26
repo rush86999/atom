@@ -1,48 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  VStack,
-  HStack,
-  Heading,
-  Text,
   Card,
+  CardContent,
   CardHeader,
-  CardBody,
-  Badge,
-  Button,
-  IconButton,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  Textarea,
-  Switch,
+  CardTitle,
+} from '@/components/ui/card';
+import {
   Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Alert,
-  AlertIcon,
-  SimpleGrid,
-  Flex,
-  Spinner,
-  useToast,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   Accordion,
+  AccordionContent,
   AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon
-} from '@chakra-ui/react';
-import { AddIcon, EditIcon, DeleteIcon, CopyIcon } from '@chakra-ui/icons';
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
+import { Spinner } from '@/components/ui/spinner';
+import { Plus, Edit, Trash2, Copy } from 'lucide-react';
 
 interface AgentRole {
   id: string;
@@ -92,9 +91,9 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({
 }) => {
   const [roles, setRoles] = useState<AgentRole[]>(initialRoles);
   const [selectedRole, setSelectedRole] = useState<AgentRole | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const toast = useToast();
+  const { toast } = useToast();
 
   // Default roles
   const defaultRoles: AgentRole[] = [
@@ -178,13 +177,13 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({
     }
   ];
 
-  // Initialize with default roles if no initial roles provided
   useEffect(() => {
-    if (initialRoles.length === 0) {
+    if (initialRoles.length === 0 && roles.length === 0) {
       setRoles(defaultRoles);
-    } else {
+    } else if (initialRoles.length > 0) {
       setRoles(initialRoles);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialRoles]);
 
   const handleCreateRole = (roleData: Omit<AgentRole, 'id' | 'createdAt' | 'updatedAt' | 'isDefault'>) => {
@@ -199,23 +198,25 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({
     onRoleCreate?.(newRole);
     toast({
       title: 'Role created',
-      status: 'success',
-      duration: 2000,
-      isClosable: true,
+      variant: 'success',
     });
+    setIsDialogOpen(false);
   };
 
-  const handleUpdateRole = (roleId: string, updates: Partial<AgentRole>) => {
+  const handleUpdateRole = (roleData: Omit<AgentRole, 'id' | 'createdAt' | 'updatedAt' | 'isDefault'>) => {
+    if (!selectedRole) return;
+
+    const updates = roleData;
     setRoles(prev => prev.map(role =>
-      role.id === roleId ? { ...role, ...updates, updatedAt: new Date() } : role
+      role.id === selectedRole.id ? { ...role, ...updates, updatedAt: new Date() } : role
     ));
-    onRoleUpdate?.(roleId, updates);
+    onRoleUpdate?.(selectedRole.id, updates);
     toast({
       title: 'Role updated',
-      status: 'success',
-      duration: 2000,
-      isClosable: true,
+      variant: 'success',
     });
+    setIsDialogOpen(false);
+    setSelectedRole(null);
   };
 
   const handleDeleteRole = (roleId: string) => {
@@ -223,9 +224,7 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({
     if (role?.isDefault) {
       toast({
         title: 'Cannot delete default role',
-        status: 'error',
-        duration: 2000,
-        isClosable: true,
+        variant: 'error',
       });
       return;
     }
@@ -233,9 +232,7 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({
     onRoleDelete?.(roleId);
     toast({
       title: 'Role deleted',
-      status: 'success',
-      duration: 2000,
-      isClosable: true,
+      variant: 'success',
     });
   };
 
@@ -252,17 +249,22 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({
     onRoleDuplicate?.(duplicatedRole);
     toast({
       title: 'Role duplicated',
-      status: 'success',
-      duration: 2000,
-      isClosable: true,
+      variant: 'success',
     });
   };
 
-  const RoleForm: React.FC<{
-    role?: AgentRole;
-    onSubmit: (data: Omit<AgentRole, 'id' | 'createdAt' | 'updatedAt' | 'isDefault'>) => void;
-    onCancel: () => void;
-  }> = ({ role, onSubmit, onCancel }) => {
+  const openCreateDialog = () => {
+    setSelectedRole(null);
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (role: AgentRole) => {
+    setSelectedRole(role);
+    setIsDialogOpen(true);
+  };
+
+  // Form Component
+  const RoleForm = ({ role, onSubmit, onCancel }: { role?: AgentRole | null, onSubmit: (data: any) => void, onCancel: () => void }) => {
     const [formData, setFormData] = useState({
       name: role?.name || '',
       description: role?.description || '',
@@ -296,354 +298,236 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({
         systemPrompt: formData.systemPrompt,
         modelConfig: formData.modelConfig
       });
-      onCancel();
     };
 
     return (
-      <form onSubmit={handleSubmit}>
-        <VStack spacing={4}>
-          <FormControl isRequired>
-            <FormLabel>Role Name</FormLabel>
-            <Input
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter role name"
-            />
-          </FormControl>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Role Name</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="Enter role name"
+            required
+          />
+        </div>
 
-          <FormControl isRequired>
-            <FormLabel>Description</FormLabel>
-            <Textarea
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Describe the role's purpose and responsibilities"
-              rows={2}
-            />
-          </FormControl>
+        <div className="space-y-2">
+          <Label htmlFor="description">Description</Label>
+          <Textarea
+            id="description"
+            value={formData.description}
+            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="Describe the role's purpose"
+            rows={2}
+            required
+          />
+        </div>
 
-          <FormControl>
-            <FormLabel>Capabilities</FormLabel>
-            <Input
-              value={formData.capabilities}
-              onChange={(e) => setFormData(prev => ({ ...prev, capabilities: e.target.value }))}
-              placeholder="web_search, data_analysis, code_generation, etc."
-            />
-            <Text fontSize="sm" color="gray.600" mt={1}>
-              Separate capabilities with commas
-            </Text>
-          </FormControl>
+        <div className="space-y-2">
+          <Label htmlFor="capabilities">Capabilities</Label>
+          <Input
+            id="capabilities"
+            value={formData.capabilities}
+            onChange={(e) => setFormData(prev => ({ ...prev, capabilities: e.target.value }))}
+            placeholder="web_search, data_analysis, code_generation"
+          />
+          <p className="text-sm text-gray-500">Separate capabilities with commas</p>
+        </div>
 
-          <Accordion allowToggle width="100%">
-            <AccordionItem>
-              <AccordionButton>
-                <Box flex="1" textAlign="left">
-                  <Heading size="sm">Permissions</Heading>
-                </Box>
-                <AccordionIcon />
-              </AccordionButton>
-              <AccordionPanel pb={4}>
-                <VStack spacing={3} align="stretch">
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0" flex="1">
-                      Access Files
-                    </FormLabel>
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="permissions">
+            <AccordionTrigger>Permissions</AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4 pt-2">
+                {Object.entries(formData.permissions).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <Label htmlFor={key} className="flex-1 capitalize">
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </Label>
                     <Switch
-                      isChecked={formData.permissions.canAccessFiles}
-                      onChange={(e) => setFormData(prev => ({
+                      id={key}
+                      checked={value}
+                      onCheckedChange={(checked) => setFormData(prev => ({
                         ...prev,
-                        permissions: { ...prev.permissions, canAccessFiles: e.target.checked }
+                        permissions: { ...prev.permissions, [key]: checked }
                       }))}
                     />
-                  </FormControl>
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0" flex="1">
-                      Access Web
-                    </FormLabel>
-                    <Switch
-                      isChecked={formData.permissions.canAccessWeb}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        permissions: { ...prev.permissions, canAccessWeb: e.target.checked }
-                      }))}
-                    />
-                  </FormControl>
+          <AccordionItem value="model-config">
+            <AccordionTrigger>Model Configuration</AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="model">Model</Label>
+                  <Select
+                    value={formData.modelConfig.model}
+                    onValueChange={(value) => setFormData(prev => ({
+                      ...prev,
+                      modelConfig: { ...prev.modelConfig, model: value }
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-4">GPT-4</SelectItem>
+                      <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                      <SelectItem value="claude-3">Claude 3</SelectItem>
+                      <SelectItem value="llama-2">Llama 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0" flex="1">
-                      Execute Code
-                    </FormLabel>
-                    <Switch
-                      isChecked={formData.permissions.canExecuteCode}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        permissions: { ...prev.permissions, canExecuteCode: e.target.checked }
-                      }))}
-                    />
-                  </FormControl>
-
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0" flex="1">
-                      Access Database
-                    </FormLabel>
-                    <Switch
-                      isChecked={formData.permissions.canAccessDatabase}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        permissions: { ...prev.permissions, canAccessDatabase: e.target.checked }
-                      }))}
-                    />
-                  </FormControl>
-
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0" flex="1">
-                      Send Emails
-                    </FormLabel>
-                    <Switch
-                      isChecked={formData.permissions.canSendEmails}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        permissions: { ...prev.permissions, canSendEmails: e.target.checked }
-                      }))}
-                    />
-                  </FormControl>
-
-                  <FormControl display="flex" alignItems="center">
-                    <FormLabel mb="0" flex="1">
-                      Make API Calls
-                    </FormLabel>
-                    <Switch
-                      isChecked={formData.permissions.canMakeAPICalls}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        permissions: { ...prev.permissions, canMakeAPICalls: e.target.checked }
-                      }))}
-                    />
-                  </FormControl>
-                </VStack>
-              </AccordionPanel>
-            </AccordionItem>
-
-            <AccordionItem>
-              <AccordionButton>
-                <Box flex="1" textAlign="left">
-                  <Heading size="sm">Model Configuration</Heading>
-                </Box>
-                <AccordionIcon />
-              </AccordionButton>
-              <AccordionPanel pb={4}>
-                <VStack spacing={4}>
-                  <FormControl>
-                    <FormLabel>Model</FormLabel>
-                    <Select
-                      value={formData.modelConfig.model}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        modelConfig: { ...prev.modelConfig, model: e.target.value }
-                      }))}
-                    >
-                      <option value="gpt-4">GPT-4</option>
-                      <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                      <option value="claude-3">Claude 3</option>
-                      <option value="llama-2">Llama 2</option>
-                    </Select>
-                  </FormControl>
-
-                  <SimpleGrid columns={2} spacing={4}>
-                    <FormControl>
-                      <FormLabel>Temperature</FormLabel>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="2"
-                        value={formData.modelConfig.temperature}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          modelConfig: { ...prev.modelConfig, temperature: parseFloat(e.target.value) }
-                        }))}
-                      />
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel>Max Tokens</FormLabel>
-                      <Input
-                        type="number"
-                        value={formData.modelConfig.maxTokens}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          modelConfig: { ...prev.modelConfig, maxTokens: parseInt(e.target.value) }
-                        }))}
-                      />
-                    </FormControl>
-                  </SimpleGrid>
-
-                  <SimpleGrid columns={2} spacing={4}>
-                    <FormControl>
-                      <FormLabel>Top P</FormLabel>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="1"
-                        value={formData.modelConfig.topP}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          modelConfig: { ...prev.modelConfig, topP: parseFloat(e.target.value) }
-                        }))}
-                      />
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel>Frequency Penalty</FormLabel>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="2"
-                        value={formData.modelConfig.frequencyPenalty}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          modelConfig: { ...prev.modelConfig, frequencyPenalty: parseFloat(e.target.value) }
-                        }))}
-                      />
-                    </FormControl>
-                  </SimpleGrid>
-
-                  <FormControl>
-                    <FormLabel>Presence Penalty</FormLabel>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="temperature">Temperature</Label>
                     <Input
                       type="number"
                       step="0.1"
                       min="0"
                       max="2"
-                      value={formData.modelConfig.presencePenalty}
+                      value={formData.modelConfig.temperature}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        modelConfig: { ...prev.modelConfig, presencePenalty: parseFloat(e.target.value) }
+                        modelConfig: { ...prev.modelConfig, temperature: parseFloat(e.target.value) }
                       }))}
                     />
-                  </FormControl>
-                </VStack>
-              </AccordionPanel>
-            </AccordionItem>
-          </Accordion>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="maxTokens">Max Tokens</Label>
+                    <Input
+                      type="number"
+                      value={formData.modelConfig.maxTokens}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        modelConfig: { ...prev.modelConfig, maxTokens: parseInt(e.target.value) }
+                      }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
-          <FormControl isRequired>
-            <FormLabel>System Prompt</FormLabel>
-            <Textarea
-              value={formData.systemPrompt}
-              onChange={(e) => setFormData(prev => ({ ...prev, systemPrompt: e.target.value }))}
-              placeholder="Define the agent's behavior, personality, and instructions..."
-              rows={6}
-            />
-          </FormControl>
+        <div className="space-y-2">
+          <Label htmlFor="systemPrompt">System Prompt</Label>
+          <Textarea
+            id="systemPrompt"
+            value={formData.systemPrompt}
+            onChange={(e) => setFormData(prev => ({ ...prev, systemPrompt: e.target.value }))}
+            placeholder="Define the agent's behavior..."
+            rows={6}
+            required
+          />
+        </div>
 
-          <HStack width="100%" justifyContent="flex-end" spacing={3}>
-            <Button variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button type="submit" colorScheme="blue">
-              {role ? 'Update Role' : 'Create Role'}
-            </Button>
-          </HStack>
-        </VStack>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">
+            {role ? 'Update Role' : 'Create Role'}
+          </Button>
+        </DialogFooter>
       </form>
     );
   };
 
   if (loading) {
     return (
-      <Box textAlign="center" py={8}>
+      <div className="p-8 flex flex-col items-center gap-4">
         <Spinner />
-        <Text mt={2}>Loading...</Text>
-      </Box>
+        <p>Loading...</p>
+      </div>
     );
   }
 
   return (
-    <Box>
-      <VStack spacing={6} align="stretch">
-        <Card>
-          <CardHeader>
-            <HStack justifyContent="space-between" alignItems="center">
-              <Heading size="lg">Role Settings</Heading>
-              <Button 
-                leftIcon={<AddIcon />} 
-                onClick={onCreateNew}
-                colorScheme="blue"
-              >
-                Create Role
-              </Button>
-            </HStack>
-          </CardHeader>
-          <CardBody>
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Name</Th>
-                  <Th>Description</Th>
-                  <Th>Capabilities</Th>
-                  <Th>Status</Th>
-                  <Th>Actions</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {roles.map((role) => (
-                  <Tr key={role.id}>
-                    <Td>{role.name}</Td>
-                    <Td>{role.description}</Td>
-                    <Td>
-                      <HStack spacing={1} flexWrap="wrap">
-                        {role.capabilities.map((cap) => (
-                          <Badge key={cap} size="sm" colorScheme="blue">
-                            {cap}
-                          </Badge>
-                        ))}
-                      </HStack>
-                    </Td>
-                    <Td>
-                      <Badge colorScheme={role.isActive ? 'green' : 'gray'}>
-                        {role.isActive ? 'Active' : 'Inactive'}
+    <Card className="w-full">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Role Settings</CardTitle>
+        <Button onClick={openCreateDialog}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Role
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Capabilities</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {roles.map((role) => (
+              <TableRow key={role.id}>
+                <TableCell className="font-medium">{role.name}</TableCell>
+                <TableCell>{role.description}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {role.capabilities.map((cap) => (
+                      <Badge key={cap} variant="secondary">
+                        {cap}
                       </Badge>
-                    </Td>
-                    <Td>
-                      <HStack spacing={2}>
-                        <IconButton 
-                          icon={<EditIcon />} 
-                          size="sm" 
-                          onClick={() => onEdit(role)}
-                          aria-label="Edit role"
-                        />
-                        <IconButton 
-                          icon={<DeleteIcon />} 
-                          size="sm" 
-                          onClick={() => onDelete(role.id)}
-                          colorScheme="red"
-                          aria-label="Delete role"
-                        />
-                      </HStack>
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </CardBody>
-        </Card>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(role)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDuplicateRole(role)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-red-500 hover:text-red-600"
+                      onClick={() => handleDeleteRole(role.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
 
-        {/* Role Form Modal */}
-        <Modal isOpen={isModalOpen} onClose={handleCloseModal} size="lg">
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>{role ? 'Edit Role' : 'Create Role'}</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              {renderRoleForm()}
-            </ModalBody>
-          </ModalContent>
-        </Modal>
-      </VStack>
-    </Box>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedRole ? 'Edit Role' : 'Create Role'}</DialogTitle>
+          </DialogHeader>
+          <RoleForm
+            role={selectedRole}
+            onSubmit={selectedRole ? handleUpdateRole : handleCreateRole}
+            onCancel={() => setIsDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 };
 

@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-    GitBranch, Clock, User, ChevronRight, RotateCcw, Eye,
-    CheckCircle, XCircle, GitCommit, History, Compare, Download
+    History, GitBranch, Save, RefreshCw, GitCompare, ChevronRight, Check, X, AlertCircle,
+    GitCommit, CheckCircle, Clock, User, Eye, RotateCcw
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -197,7 +197,7 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
                 {compareMode && (
                     <div className="p-3 bg-blue-50 border-b border-blue-100">
                         <p className="text-sm text-blue-700">
-                            <Compare className="w-4 h-4 inline mr-1" />
+                            <GitCompare className="w-4 h-4 inline mr-1" />
                             Select another version to compare with v{compareWith?.version}
                         </p>
                         <Button
@@ -316,7 +316,7 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
                                         variant="outline"
                                         onClick={() => handleCompare(selectedVersion)}
                                     >
-                                        <Compare className="w-4 h-4 mr-1" />
+                                        <GitCompare className="w-4 h-4 mr-1" />
                                         Compare
                                     </Button>
                                     <Button

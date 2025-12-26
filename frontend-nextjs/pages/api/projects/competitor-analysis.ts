@@ -4,6 +4,12 @@ import { authOptions } from "../auth/[...nextauth]";
 // TODO: Competitor analysis API temporarily disabled due to missing dependencies
 // import { analyzeCompetitors } from "../../../../project/functions/atom-agent/skills/competitorAnalysisSkills";
 
+// Placeholder function to fix type error
+const runCompetitorAnalysis = async (userId: string, competitors: string[], notionDatabaseId: string) => {
+  console.log(`Analyzing competitors for user ${userId} in Notion DB ${notionDatabaseId}`);
+  return { success: true };
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,

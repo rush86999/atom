@@ -1,10 +1,74 @@
 /**
+ * Atom Agent Handler
+ * Handles message processing and user authentication
+ */
+
+// Response type for message handling
+export interface HandleMessageResponse {
+  text: string;
+  error?: string;
+  intent?: string;
+  entities?: Record<string, any>;
+  metadata?: Record<string, any>;
+}
+
+// Handle incoming messages and route to appropriate handlers
+export async function handleMessage(
+  interfaceType: string,
+  message: string,
+  userId: string,
+  options?: {
+    conversationId?: string;
+    intentName?: string;
+    entities?: Record<string, any>;
+  }
+): Promise<HandleMessageResponse> {
+  try {
+    // Basic message processing - this would connect to AI/NLU in production
+    console.log(`[handleMessage] Processing message for user ${userId}`, {
+      interfaceType,
+      messageLength: message.length,
+      options,
+    });
+
+    // Placeholder response - in production this would route to AI services
+    return {
+      text: `Message received: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`,
+      intent: options?.intentName || 'general',
+      entities: options?.entities || {},
+      metadata: {
+        userId,
+        interfaceType,
+        conversationId: options?.conversationId,
+        processedAt: new Date().toISOString(),
+      },
+    };
+  } catch (error: any) {
+    console.error('[handleMessage] Error processing message:', error);
+    return {
+      text: '',
+      error: error.message || 'Failed to process message',
+    };
+  }
+}
+
+// Global type declarations for PostGraphile context
+declare global {
+  // eslint-disable-next-line no-var
+  var __postgraphileContext: { jwtClaims?: { sub?: string } } | undefined;
+  // eslint-disable-next-line no-var
+  var __postgraphile: { userId?: string } | undefined;
+  // eslint-disable-next-line no-var
+  var postgres: { authenticatedUserId?: string } | undefined;
+}
+
+/**
  * Get authenticated user using PostGraphile JWT/session system
  * Completely replaces environment variable USER_ID approach
  * @param request Optional request object for HTTP context extraction
  * @returns Authenticated user ID from PostGraphile context
  */
-function getCurrentUserId(request?: any): string {
+export function getCurrentUserId(request?: any): string {
   try {
     // Production: Use PostGraphile JWT claims system
     if (request && typeof request === "object") {
@@ -60,7 +124,7 @@ function getCurrentUserId(request?: any): string {
 /**
  * Extract user from PostGraphile JWT token
  */
-function extractUserFromPostGraphileJwt(token: string): string {
+export function extractUserFromPostGraphileJwt(token: string): string {
   try {
     // PostGraphile JWT format: `Bearer <jwt>` or direct jwt
     const jwtPayload = Buffer.from(token.split(".")[1], "base64").toString();
@@ -80,7 +144,7 @@ function extractUserFromPostGraphileJwt(token: string): string {
 /**
  * Extract user from PostGraphile session
  */
-function extractUserFromSession(sessionToken: string): string {
+export function extractUserFromSession(sessionToken: string): string {
   try {
     // This would connect to PostGraphile session store
     // For now, use authenticated user resolution
@@ -96,7 +160,7 @@ function extractUserFromSession(sessionToken: string): string {
 /**
  * Get test user with PostGraphile context
  */
-function getTestUserFromPostGraphile(): string {
+export function getTestUserFromPostGraphile(): string {
   // Use PostGraphile test user instead of environment variables
   return "test_user_from_postgraphile_db";
 }
@@ -104,7 +168,7 @@ function getTestUserFromPostGraphile(): string {
 /**
  * Ensure development user exists and is authenticated
  */
-function ensureDevelopmentUser(): string {
+export function ensureDevelopmentUser(): string {
   const devUserId = "dev_postgraphile_user_001";
   console.warn(
     `Using development authenticated user: ${devUserId} - this should not happen in production`,
@@ -115,7 +179,7 @@ function ensureDevelopmentUser(): string {
 /**
  * Resolve authenticated user via PostGraphile RLS context
  */
-function resolveAuthenticatedUser(): string | null {
+export function resolveAuthenticatedUser(): string | null {
   try {
     // Check if we have context from PostGraphile
     if (global.__postgraphile?.userId) {
@@ -134,7 +198,7 @@ function resolveAuthenticatedUser(): string | null {
   }
 }
 
-class AuthenticationError extends Error {
+export class AuthenticationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AuthenticationError";

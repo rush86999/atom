@@ -271,7 +271,7 @@ const JiraIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load projects from Jira",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, projects: false }));
@@ -394,7 +394,7 @@ const JiraIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create issue",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -682,7 +682,7 @@ const JiraIntegration: React.FC = () => {
                                                     {project.lead && (
                                                         <div className="flex items-center space-x-2">
                                                             <Avatar className="w-6 h-6">
-                                                                <AvatarImage src={project.lead.avatarUrls?.["24x24"]} />
+                                                                <AvatarImage src={(project.lead.avatarUrls as any)?.["24x24"]} />
                                                                 <AvatarFallback>{project.lead.displayName.slice(0, 2)}</AvatarFallback>
                                                             </Avatar>
                                                             <p className="text-sm">
@@ -811,7 +811,7 @@ const JiraIntegration: React.FC = () => {
                                                                 <div className="flex items-center space-x-4">
                                                                     <Avatar className="w-6 h-6">
                                                                         <AvatarImage
-                                                                            src={issue.fields.reporter.avatarUrls?.["24x24"]}
+                                                                            src={(issue.fields.reporter.avatarUrls as any)?.["24x24"]}
                                                                         />
                                                                         <AvatarFallback>
                                                                             {issue.fields.reporter.displayName.slice(0, 2)}
@@ -922,7 +922,7 @@ const JiraIntegration: React.FC = () => {
                                                                     {issue.fields.assignee && (
                                                                         <Avatar className="w-5 h-5 ml-auto">
                                                                             <AvatarImage
-                                                                                src={issue.fields.assignee.avatarUrls?.["24x24"]}
+                                                                                src={(issue.fields.assignee.avatarUrls as any)?.["24x24"]}
                                                                             />
                                                                             <AvatarFallback>
                                                                                 {issue.fields.assignee.displayName.slice(0, 2)}

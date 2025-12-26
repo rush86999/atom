@@ -397,7 +397,7 @@ const TrelloIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load boards from Trello",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, boards: false }));
@@ -521,7 +521,7 @@ const TrelloIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create card",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -565,7 +565,7 @@ const TrelloIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create board",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

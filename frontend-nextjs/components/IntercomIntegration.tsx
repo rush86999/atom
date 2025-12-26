@@ -220,7 +220,7 @@ const IntercomIntegration: React.FC = () => {
             toast({
                 title: "Connection Failed",
                 description: "Failed to connect to Intercom",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -282,7 +282,7 @@ const IntercomIntegration: React.FC = () => {
             toast({
                 title: "Message Failed",
                 description: "Failed to send message",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

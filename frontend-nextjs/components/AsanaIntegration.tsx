@@ -247,7 +247,7 @@ const AsanaIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load tasks from Asana",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, tasks: false }));
@@ -327,7 +327,7 @@ const AsanaIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create task",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

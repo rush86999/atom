@@ -5,47 +5,55 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Heading,
   Card,
-  CardBody,
+  CardContent,
   CardHeader,
-  SimpleGrid,
-  Progress,
-  Badge,
-  useToast,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
+  CardTitle,
+} from '@/components/ui/card';
+import {
   Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Button,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
   Select,
-  Alert,
-  AlertIcon,
-  Spinner,
-  Icon,
-} from '@chakra-ui/react';
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/components/ui/use-toast';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
+  Clock,
+  HardDrive,
+  Cpu,
+  Network,
+  Activity,
+  Server,
+  Users
+} from 'lucide-react';
 import {
   LineChart,
   Line,
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -56,15 +64,6 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { 
-  CheckCircleIcon, 
-  WarningIcon, 
-  XCircleIcon,
-  TimeIcon,
-  MemoryIcon,
-  CpuIcon,
-  NetworkIcon,
-} from '@chakra-ui/icons';
 
 interface HealthData {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -102,17 +101,16 @@ const PerformanceDashboard: React.FC = () => {
   const [healthData, setHealthData] = useState<HealthData | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [timeRange, setTimeRange] = useState('24h');
-  const [selectedMetric, setSelectedMetric] = useState('responseTime');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  
-  const toast = useToast();
+
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchHealthData();
     fetchAnalyticsData();
-    
+
     let interval: NodeJS.Timeout;
     if (autoRefresh) {
       interval = setInterval(() => {
@@ -120,10 +118,11 @@ const PerformanceDashboard: React.FC = () => {
         fetchAnalyticsData();
       }, 30000); // Refresh every 30 seconds
     }
-    
+
     return () => {
       if (interval) clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh, timeRange]);
 
   const fetchHealthData = async () => {
@@ -132,12 +131,17 @@ const PerformanceDashboard: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setHealthData(data);
+        // Only set loading false if we successfully got data or at least tried
+        setLoading(false);
       } else {
         throw new Error('Health check failed');
       }
     } catch (err) {
       console.error('Failed to fetch health data:', err);
+      // Don't show error toast on every poll if it fails silently in background, 
+      // but do set error state to show in UI
       setError('Failed to fetch health data');
+      setLoading(false);
     }
   };
 
@@ -155,19 +159,19 @@ const PerformanceDashboard: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy': return 'green';
-      case 'degraded': return 'yellow';
-      case 'unhealthy': return 'red';
-      default: return 'gray';
+      case 'healthy': return 'default'; // often maps to primary or black/white. Shadcn badge: 'default', 'secondary', 'destructive', 'outline'
+      case 'degraded': return 'secondary';
+      case 'unhealthy': return 'destructive';
+      default: return 'outline';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'healthy': return <CheckCircleIcon />;
-      case 'degraded': return <WarningIcon />;
-      case 'unhealthy': return <XCircleIcon />;
-      default: return <TimeIcon />;
+      case 'healthy': return <CheckCircle className="text-green-500 w-5 h-5" />;
+      case 'degraded': return <AlertTriangle className="text-yellow-500 w-5 h-5" />;
+      case 'unhealthy': return <XCircle className="text-red-500 w-5 h-5" />;
+      default: return <Clock className="text-gray-500 w-5 h-5" />;
     }
   };
 
@@ -196,367 +200,349 @@ const PerformanceDashboard: React.FC = () => {
 
   if (loading && !healthData) {
     return (
-      <Box p={8}>
-        <VStack spacing={4}>
-          <Spinner size="xl" />
-          <Text>Loading performance data...</Text>
-        </VStack>
-      </Box>
+      <div className="p-8 flex flex-col items-center gap-4">
+        <Spinner size="lg" />
+        <p>Loading performance data...</p>
+      </div>
     );
   }
 
   return (
-    <Box minH="100vh" bg="gray.50" p={6}>
-      <VStack spacing={6} align="stretch">
-        {/* Header */}
-        <HStack justify="space-between" align="center">
-          <VStack align="start" spacing={1}>
-            <Heading size="2xl">Performance Monitor</Heading>
-            <Text color="gray.600">
-              Real-time system health and performance metrics
-            </Text>
-          </VStack>
-          
-          <HStack spacing={4}>
-            <Select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              width="120px"
-            >
-              <option value="1h">1 Hour</option>
-              <option value="24h">24 Hours</option>
-              <option value="7d">7 Days</option>
-              <option value="30d">30 Days</option>
-            </Select>
-            
-            <Button
-              size="sm"
-              colorScheme={autoRefresh ? "green" : "gray"}
-              onClick={() => setAutoRefresh(!autoRefresh)}
-            >
-              {autoRefresh ? 'Auto-refresh On' : 'Auto-refresh Off'}
-            </Button>
-          </HStack>
-        </HStack>
+    <div className="min-h-screen bg-gray-50 p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Performance Monitor</h1>
+          <p className="text-gray-600">
+            Real-time system health and performance metrics
+          </p>
+        </div>
 
-        {error && (
-          <Alert status="error">
-            <AlertIcon />
-            {error}
-          </Alert>
-        )}
+        <div className="flex items-center space-x-4">
+          <Select
+            value={timeRange}
+            onValueChange={setTimeRange}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Time Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1h">1 Hour</SelectItem>
+              <SelectItem value="24h">24 Hours</SelectItem>
+              <SelectItem value="7d">7 Days</SelectItem>
+              <SelectItem value="30d">30 Days</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {/* Health Status Overview */}
-        {healthData && (
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>System Status</StatLabel>
-                  <HStack>
-                    <StatNumber>
-                      <Badge colorScheme={getStatusColor(healthData.status)}>
-                        {healthData.status.toUpperCase()}
-                      </Badge>
-                    </StatNumber>
-                    <Icon color={getStatusColor(healthData.status)} as={getStatusIcon(healthData.status)} />
-                  </HStack>
-                  <StatHelpText>
-                    Last updated: {new Date(healthData.timestamp).toLocaleTimeString()}
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
+          <Button
+            size="sm"
+            variant={autoRefresh ? "default" : "secondary"}
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            {autoRefresh ? 'Auto-refresh On' : 'Auto-refresh Off'}
+          </Button>
+        </div>
+      </div>
 
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Uptime</StatLabel>
-                  <StatNumber>{formatUptime(healthData.uptime)}</StatNumber>
-                  <StatHelpText>
-                    Version: {healthData.version}
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Response Time</StatLabel>
-                  <StatNumber>{healthData.performance.responseTime}ms</StatNumber>
-                  <StatHelpText>
-                    Error Rate: {healthData.performance.errorRate.toFixed(2)}%
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
+      {/* Health Status Overview */}
+      {healthData && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm font-medium text-gray-500">System Status</p>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant={healthData.status === 'healthy' ? 'default' : 'destructive'}>
+                  {healthData.status.toUpperCase()}
+                </Badge>
+                {getStatusIcon(healthData.status)}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Last updated: {new Date(healthData.timestamp).toLocaleTimeString()}
+              </p>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardBody>
-                <Stat>
-                  <StatLabel>Healthy Integrations</StatLabel>
-                  <StatNumber>
-                    {healthData.checks.integrations.healthy}/{healthData.checks.integrations.total}
-                  </StatNumber>
-                  <StatHelpText>
-                    {healthData.checks.integrations.unhealthy} unhealthy
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-          </SimpleGrid>
-        )}
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm font-medium text-gray-500">Uptime</p>
+              <div className="text-2xl font-bold mt-1">{formatUptime(healthData.uptime)}</div>
+              <p className="text-xs text-gray-400 mt-2">
+                Version: {healthData.version}
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Resource Usage */}
-        {healthData && (
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
-            <Card>
-              <CardHeader>
-                <HStack>
-                  <MemoryIcon />
-                  <Heading size="md">Memory</Heading>
-                </HStack>
-              </CardHeader>
-              <CardBody>
-                <VStack spacing={3}>
-                  <HStack justify="space-between" width="100%">
-                    <Text>Used</Text>
-                    <Text fontWeight="bold">
-                      {(healthData.checks.memory.used / 1024 / 1024).toFixed(1)} MB
-                    </Text>
-                  </HStack>
-                  <Progress
-                    value={healthData.checks.memory.percentage}
-                    colorScheme={healthData.checks.memory.percentage > 80 ? 'red' : 
-                                healthData.checks.memory.percentage > 60 ? 'yellow' : 'green'}
-                    width="100%"
-                  />
-                  <Text fontSize="sm" color="gray.600">
-                    {healthData.checks.memory.percentage.toFixed(1)}% utilized
-                  </Text>
-                </VStack>
-              </CardBody>
-            </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm font-medium text-gray-500">Response Time</p>
+              <div className="text-2xl font-bold mt-1">{healthData.performance.responseTime}ms</div>
+              <p className="text-xs text-gray-400 mt-2">
+                Error Rate: {healthData.performance.errorRate.toFixed(2)}%
+              </p>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader>
-                <HStack>
-                  <CpuIcon />
-                  <Heading size="md">CPU</Heading>
-                </HStack>
-              </CardHeader>
-              <CardBody>
-                <VStack spacing={3}>
-                  <HStack justify="space-between" width="100%">
-                    <Text>Usage</Text>
-                    <Text fontWeight="bold">{healthData.checks.cpu.usage.toFixed(1)}%</Text>
-                  </HStack>
-                  <Progress
-                    value={healthData.checks.cpu.usage}
-                    colorScheme={healthData.checks.cpu.usage > 80 ? 'red' : 
-                                healthData.checks.cpu.usage > 60 ? 'yellow' : 'green'}
-                    width="100%"
-                  />
-                  <Text fontSize="sm" color="gray.600">
-                    Load average
-                  </Text>
-                </VStack>
-              </CardBody>
-            </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm font-medium text-gray-500">Healthy Integrations</p>
+              <div className="text-2xl font-bold mt-1">
+                {healthData.checks.integrations.healthy}/{healthData.checks.integrations.total}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                {healthData.checks.integrations.unhealthy} unhealthy
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-            <Card>
-              <CardHeader>
-                <HStack>
-                  <NetworkIcon />
-                  <Heading size="md">Redis</Heading>
-                </HStack>
-              </CardHeader>
-              <CardBody>
-                <VStack spacing={3}>
-                  <HStack justify="space-between" width="100%">
-                    <Text>Status</Text>
-                    <Badge colorScheme={healthData.checks.redis.connected ? 'green' : 'red'}>
-                      {healthData.checks.redis.connected ? 'Connected' : 'Disconnected'}
-                    </Badge>
-                  </HStack>
-                  <Text fontSize="sm" color="gray.600">
-                    Response Time: {healthData.checks.redis.responseTime}ms
-                  </Text>
-                </VStack>
-              </CardBody>
-            </Card>
-          </SimpleGrid>
-        )}
-
-        {/* Performance Charts */}
-        <Tabs variant="enclosed">
-          <TabList>
-            <Tab>Response Time</Tab>
-            <Tab>Integration Health</Tab>
-            <Tab>User Activity</Tab>
-            <Tab>Error Rate</Tab>
-          </TabList>
-
-          <TabPanels>
-            <TabPanel>
-              <Card>
-                <CardBody>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={performanceData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="time" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="responseTime"
-                        stroke="#3b82f6"
-                        strokeWidth={2}
-                        name="Response Time (ms)"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardBody>
-              </Card>
-            </TabPanel>
-
-            <TabPanel>
-              <Card>
-                <CardBody>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={integrationHealthData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}`}
-                      >
-                        {integrationHealthData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardBody>
-              </Card>
-            </TabPanel>
-
-            <TabPanel>
-              {analyticsData && (
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <Card>
-                    <CardBody>
-                      <Stat>
-                        <StatLabel>Active Users</StatLabel>
-                        <StatNumber>{analyticsData.metrics.users.active}</StatNumber>
-                        <StatHelpText>
-                          +{analyticsData.metrics.users.new} new users
-                        </StatHelpText>
-                      </Stat>
-                    </CardBody>
-                  </Card>
-                  
-                  <Card>
-                    <CardBody>
-                      <Stat>
-                        <StatLabel>Feature Usage</StatLabel>
-                        <StatNumber>{analyticsData.metrics.features.searchQueries}</StatNumber>
-                        <StatHelpText>
-                          Search queries in {timeRange}
-                        </StatHelpText>
-                      </Stat>
-                    </CardBody>
-                  </Card>
-                </SimpleGrid>
-              )}
-            </TabPanel>
-
-            <TabPanel>
-              <Card>
-                <CardBody>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={performanceData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="time" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Area
-                        type="monotone"
-                        dataKey="responseTime"
-                        stroke="#ef4444"
-                        fill="#ef4444"
-                        fillOpacity={0.3}
-                        name="Error Rate"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardBody>
-              </Card>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-
-        {/* Detailed System Information */}
-        {healthData && (
+      {/* Resource Usage */}
+      {healthData && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader>
-              <Heading size="md">System Details</Heading>
+              <div className="flex items-center gap-2">
+                <HardDrive className="h-5 w-5" />
+                <CardTitle>Memory</CardTitle>
+              </div>
             </CardHeader>
-            <CardBody>
-              <Table size="sm">
-                <Thead>
-                  <Tr>
-                    <Th>Component</Th>
-                    <Th>Status</Th>
-                    <Th>Response Time</Th>
-                    <Th>Last Check</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  <Tr>
-                    <Td>Database</Td>
-                    <Td>
-                      <Badge colorScheme={getStatusColor(healthData.checks.database.status)}>
-                        {healthData.checks.database.status}
-                      </Badge>
-                    </Td>
-                    <Td>{healthData.checks.database.responseTime}ms</Td>
-                    <Td>{new Date(healthData.timestamp).toLocaleTimeString()}</Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Redis</Td>
-                    <Td>
-                      <Badge colorScheme={getStatusColor(healthData.checks.redis.status)}>
-                        {healthData.checks.redis.status}
-                      </Badge>
-                    </Td>
-                    <Td>{healthData.checks.redis.responseTime}ms</Td>
-                    <Td>{new Date(healthData.timestamp).toLocaleTimeString()}</Td>
-                  </Tr>
-                  <Tr>
-                    <Td>Auth Service</Td>
-                    <Td>
-                      <Badge colorScheme={getStatusColor(healthData.checks.auth.status)}>
-                        {healthData.checks.auth.status}
-                      </Badge>
-                    </Td>
-                    <Td>-</Td>
-                    <Td>{new Date(healthData.timestamp).toLocaleTimeString()}</Td>
-                  </Tr>
-                </Tbody>
-              </Table>
-            </CardBody>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between w-full">
+                  <span>Used</span>
+                  <span className="font-bold">
+                    {(healthData.checks.memory.used / 1024 / 1024).toFixed(1)} MB
+                  </span>
+                </div>
+                <Progress
+                  value={healthData.checks.memory.percentage}
+                  className="w-full"
+                // Note: standard Shadcn Progress doesn't support colorScheme prop easily without custom CSS classes
+                />
+                <p className="text-sm text-gray-600">
+                  {healthData.checks.memory.percentage.toFixed(1)}% utilized
+                </p>
+              </div>
+            </CardContent>
           </Card>
-        )}
-      </VStack>
-    </Box>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Cpu className="h-5 w-5" />
+                <CardTitle>CPU</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between w-full">
+                  <span>Usage</span>
+                  <span className="font-bold">{healthData.checks.cpu.usage.toFixed(1)}%</span>
+                </div>
+                <Progress
+                  value={healthData.checks.cpu.usage}
+                  className="w-full"
+                />
+                <p className="text-sm text-gray-600">
+                  Load average
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Network className="h-5 w-5" />
+                <CardTitle>Redis</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between w-full">
+                  <span>Status</span>
+                  <Badge variant={healthData.checks.redis.connected ? 'default' : 'destructive'}>
+                    {healthData.checks.redis.connected ? 'Connected' : 'Disconnected'}
+                  </Badge>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Response Time: {healthData.checks.redis.responseTime}ms
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Performance Charts */}
+      <Tabs defaultValue="response-time">
+        <TabsList>
+          <TabsTrigger value="response-time">Response Time</TabsTrigger>
+          <TabsTrigger value="integration-health">Integration Health</TabsTrigger>
+          <TabsTrigger value="user-activity">User Activity</TabsTrigger>
+          <TabsTrigger value="error-rate">Error Rate</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="response-time">
+          <Card>
+            <CardContent className="pt-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={performanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="time" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="responseTime"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="Response Time (ms)"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="integration-health">
+          <Card>
+            <CardContent className="pt-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={integrationHealthData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {integrationHealthData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="user-activity">
+          {analyticsData && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm font-medium text-gray-500">Active Users</p>
+                  <div className="text-2xl font-bold mt-1">{analyticsData.metrics.users.active}</div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    +{analyticsData.metrics.users.new} new users
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm font-medium text-gray-500">Feature Usage</p>
+                  <div className="text-2xl font-bold mt-1">{analyticsData.metrics.features.searchQueries}</div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Search queries in {timeRange}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="error-rate">
+          <Card>
+            <CardContent className="pt-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={performanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="time" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Area
+                    type="monotone"
+                    dataKey="responseTime"
+                    stroke="#ef4444"
+                    fill="#ef4444"
+                    fillOpacity={0.3}
+                    name="Error Rate"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Detailed System Information */}
+      {healthData && (
+        <Card>
+          <CardHeader>
+            <CardTitle>System Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Component</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Response Time</TableHead>
+                  <TableHead>Last Check</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>Database</TableCell>
+                  <TableCell>
+                    <Badge variant={healthData.checks.database.status === 'healthy' ? 'default' : 'destructive'}>
+                      {healthData.checks.database.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{healthData.checks.database.responseTime}ms</TableCell>
+                  <TableCell>{new Date(healthData.timestamp).toLocaleTimeString()}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Redis</TableCell>
+                  <TableCell>
+                    <Badge variant={healthData.checks.redis.status === 'healthy' ? 'default' : 'destructive'}>
+                      {healthData.checks.redis.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{healthData.checks.redis.responseTime}ms</TableCell>
+                  <TableCell>{new Date(healthData.timestamp).toLocaleTimeString()}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Auth Service</TableCell>
+                  <TableCell>
+                    <Badge variant={healthData.checks.auth.status === 'healthy' ? 'default' : 'destructive'}>
+                      {healthData.checks.auth.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>-</TableCell>
+                  <TableCell>{new Date(healthData.timestamp).toLocaleTimeString()}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };
 

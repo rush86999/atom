@@ -51,7 +51,7 @@ const DevStudio = () => {
             toast({
                 title: "Desktop Only",
                 description: "This feature is only available in the desktop app",
-                variant: "warning",
+                variant: "error",
             });
             return;
         }
@@ -64,7 +64,7 @@ const DevStudio = () => {
             toast({
                 title: "Error",
                 description: "Failed to load system information",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -192,7 +192,7 @@ const DevStudio = () => {
             toast({
                 title: "Save Failed",
                 description: `Failed to save file: ${error}`,
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -238,7 +238,7 @@ const DevStudio = () => {
                 </div>
 
                 {!invoke && (
-                    <Alert variant="warning" className="bg-yellow-50 border-yellow-200 text-yellow-800">
+                    <Alert className="bg-yellow-50 border-yellow-200 text-yellow-800">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertTitle>Desktop App Required</AlertTitle>
                         <AlertDescription>

@@ -9,7 +9,7 @@ import { useToast } from "../ui/use-toast";
 const CategorizationReview = () => {
     const [proposals, setProposals] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const toast = useToast();
+    const { toast } = useToast();
     const workspaceId = "default-workspace";
 
     useEffect(() => {

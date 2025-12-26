@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]";
-import { OAuthClient } from 'intuit-oauth';
+import OAuthClient from 'intuit-oauth';
 
 export default async function handler(
   req: NextApiRequest,

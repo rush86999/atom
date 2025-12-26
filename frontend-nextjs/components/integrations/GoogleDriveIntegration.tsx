@@ -186,7 +186,7 @@ const GoogleDriveIntegration: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to disconnect Google Drive',
-        variant: 'destructive',
+        variant: 'error',
       });
     }
   };
@@ -221,7 +221,7 @@ const GoogleDriveIntegration: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to ingest file',
-        variant: 'destructive',
+        variant: 'error',
       });
     }
   };

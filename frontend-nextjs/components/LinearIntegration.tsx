@@ -142,7 +142,7 @@ const LinearIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load issues from Linear",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, issues: false }));
@@ -249,7 +249,7 @@ const LinearIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create issue",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

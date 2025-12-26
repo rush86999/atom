@@ -67,9 +67,10 @@ export const exchangeCodeForTokens = async (code: string): Promise<any> => {
   );
 };
 
-export const generateGoogleAuthUrl = (): string => {
+export const generateGoogleAuthUrl = (state?: string): string => {
   const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  return `${backendUrl}/api/auth/google/authorize`;
+  const url = `${backendUrl}/api/auth/google/authorize`;
+  return state ? `${url}?state=${encodeURIComponent(state)}` : url;
 };
 
 // Calendar integration helpers

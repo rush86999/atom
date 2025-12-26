@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
  */
 export default function TemplatesPage() {
     const router = useRouter();
-    const toast = useToast();
+    const { toast } = useToast();
 
     const handleUseTemplate = (template: any) => {
         // Navigate to workflow builder with template data

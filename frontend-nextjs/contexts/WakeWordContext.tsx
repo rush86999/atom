@@ -53,6 +53,35 @@ export const WakeWordProvider: React.FC<{ children: ReactNode }> = ({
     process.env.NEXT_PUBLIC_MOCK_WAKE_WORD_DETECTION === "true";
   const router = useRouter();
 
+  const stopListening = useCallback(() => {
+    setIsListening(false);
+
+    if (mockTimeoutRef.current) {
+      clearTimeout(mockTimeoutRef.current);
+      mockTimeoutRef.current = null;
+    }
+
+    if (webSocketRef.current) {
+      webSocketRef.current.close();
+      webSocketRef.current = null;
+    }
+
+    if (processorNodeRef.current) {
+      processorNodeRef.current.disconnect();
+      processorNodeRef.current = null;
+    }
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+
+    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+  }, []);
+
   const handleWakeWordDetected = useCallback(
     (transcript: string) => {
       console.log("Wake word detected:", transcript);
@@ -108,57 +137,79 @@ export const WakeWordProvider: React.FC<{ children: ReactNode }> = ({
         if (isWakeWordEnabled) startAudioProcessing();
       }, 3000);
     },
-    [router, stopListening, startAudioProcessing, isWakeWordEnabled],
+    [router, stopListening, isWakeWordEnabled], // Removed startAudioProcessing from dependency for now to avoid circular dependency before def
   );
 
-  const connectWebSocket = useCallback(() => {
-    if (!AUDIO_PROCESSOR_URL) {
-      setWakeWordError("Audio processor URL not configured");
-      return null;
-    }
+  const initializeWebSocket = useCallback(() => {
+    if (webSocketRef.current?.readyState === WebSocket.OPEN) return;
 
-    const ws = new WebSocket(AUDIO_PROCESSOR_URL);
+    const ws = new WebSocket(AUDIO_PROCESSOR_URL + "/ws/audio");
 
     ws.onopen = () => {
+      console.log("Connected to Wake Word Service");
       setWakeWordError(null);
     };
 
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        if (
-          message.type === "WAKE_WORD_DETECTED" ||
-          (message.transcript &&
-            message.transcript.toLowerCase().includes("atom"))
-        ) {
-          handleWakeWordDetected(message.transcript || "atom");
-        } else if (message.type === "ERROR") {
-          setWakeWordError(message.error || "Audio processor error");
+        if (message.type === "WAKE_WORD_DETECTED") {
+          handleWakeWordDetected(message.transcript);
         }
-      } catch (error) {
-        console.error("Failed to parse message:", error);
+      } catch (e) {
+        console.error(e);
       }
     };
 
-    ws.onerror = () => {
-      setWakeWordError("Failed to connect audio processor");
+    ws.onerror = (e) => {
+      console.error("WebSocket error", e);
+      setWakeWordError("Wake word service connection failed");
+    };
+
+    ws.onclose = () => {
+      // Reconnection logic is handled manually or by retryConnection
+    };
+
+    webSocketRef.current = ws;
+  }, [AUDIO_PROCESSOR_URL, handleWakeWordDetected]);
+
+  const startAudioProcessing = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      audioContextRef.current = audioContext;
+
+      const source = audioContext.createMediaStreamSource(stream);
+      // ScriptProcessor is deprecated but easiest for simple inline PCM processing without separate worklet file
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      processorNodeRef.current = processor;
+
+      source.connect(processor);
+      processor.connect(audioContext.destination);
+
+      processor.onaudioprocess = (e: any) => {
+        if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) return;
+
+        const inputData = e.inputBuffer.getChannelData(0);
+        // Downsample/Convert Float32 to Int16
+        // We forced ctx to 16000, so just convert format
+        const buffer = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          let s = Math.max(-1, Math.min(1, inputData[i]));
+          buffer[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        webSocketRef.current.send(buffer.buffer);
+      };
+    } catch (err) {
+      console.error("Error accessing microphone", err);
+      setWakeWordError("Microphone access denied");
       setIsListening(false);
-    };
+    }
+  }, []);
 
-    ws.onclose = (event) => {
-      console.log("WebSocket closed:", event.reason);
-      if (isWakeWordEnabled && !event.wasClean) {
-        setWakeWordError("Connection closed unexpectedly");
-        retryConnection();
-      }
-    };
-
-    return () => {
-      if (ws) {
-        ws.close();
-      }
-    };
-  }, [isWakeWordEnabled, retryConnection]);
+  // connectWebSocket removed in favor of initializeWebSocket
 
   const toggleWakeWord = useCallback(
     (forceEnable?: boolean) => {
@@ -195,6 +246,7 @@ export const WakeWordProvider: React.FC<{ children: ReactNode }> = ({
     } else {
       // Real WebSocket connection
       initializeWebSocket();
+      startAudioProcessing();
     }
   }, [
     isWakeWordEnabled,
@@ -202,36 +254,10 @@ export const WakeWordProvider: React.FC<{ children: ReactNode }> = ({
     MOCK_WAKE_WORD_DETECTION,
     handleWakeWordDetected,
     initializeWebSocket,
+    startAudioProcessing
   ]);
 
-  const stopListening = useCallback(() => {
-    setIsListening(false);
-
-    if (mockTimeoutRef.current) {
-      clearTimeout(mockTimeoutRef.current);
-      mockTimeoutRef.current = null;
-    }
-
-    if (webSocketRef.current) {
-      webSocketRef.current.close();
-      webSocketRef.current = null;
-    }
-
-    if (processorNodeRef.current) {
-      processorNodeRef.current.disconnect();
-      processorNodeRef.current = null;
-    }
-
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
-    }
-
-    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-  }, []);
+  // Removed stopListening from here
 
   const refreshConnection = useCallback(() => {
     stopListening();

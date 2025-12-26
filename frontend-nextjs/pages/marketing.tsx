@@ -31,7 +31,7 @@ const MarketingDashboard: React.FC = () => {
     const [researchQuery, setResearchQuery] = useState("");
     const [researchResult, setResearchResult] = useState<any>(null);
     const [researching, setResearching] = useState(false);
-    const toast = useToast();
+    const { toast } = useToast();
     const router = useRouter();
 
     const fetchMarketingData = async () => {

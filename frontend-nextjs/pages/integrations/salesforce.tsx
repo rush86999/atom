@@ -44,7 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
+
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -370,7 +370,7 @@ const SalesforceIntegration: React.FC = () => {
     onClose: onAccountClose,
   } = useDisclosure();
 
-  const toast = useToast();
+  const { toast } = useToast();
 
   // Check connection status
   const checkConnection = async () => {
@@ -442,7 +442,7 @@ const SalesforceIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to load leads from Salesforce",
-        status: "error",
+        variant: "error",
         duration: 3000,
       });
     } finally {

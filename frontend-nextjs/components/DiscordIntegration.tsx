@@ -96,7 +96,7 @@ const DiscordIntegration = () => {
             console.error("Failed to load integration data:", error);
             toast({
                 title: "Failed to load data",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading(prev => ({ ...prev, data: false }));
@@ -122,7 +122,7 @@ const DiscordIntegration = () => {
                 toast({
                     title: "Connection failed",
                     description: data.error,
-                    variant: "destructive",
+                    variant: "error",
                 });
             }
         } catch (error) {
@@ -130,7 +130,7 @@ const DiscordIntegration = () => {
             toast({
                 title: "Connection failed",
                 description: "An error occurred while connecting",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading(prev => ({ ...prev, connect: false }));
@@ -166,7 +166,7 @@ const DiscordIntegration = () => {
             toast({
                 title: "Disconnection failed",
                 description: "An error occurred while disconnecting",
-                variant: "destructive",
+                variant: "error",
             });
         }
     }, [toast]);

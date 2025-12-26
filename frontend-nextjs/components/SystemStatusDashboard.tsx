@@ -75,7 +75,7 @@ const SystemStatusDashboard: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to fetch system status',
-        variant: 'destructive',
+        variant: 'error',
       });
     } finally {
       setLoading(false);

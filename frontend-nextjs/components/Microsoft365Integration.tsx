@@ -433,7 +433,7 @@ const Microsoft365Integration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load emails from Microsoft 365",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, emails: false }));
@@ -536,7 +536,7 @@ const Microsoft365Integration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to send email",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -600,7 +600,7 @@ const Microsoft365Integration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create calendar event",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -625,7 +625,7 @@ const Microsoft365Integration: React.FC = () => {
             }
         } catch (error) {
             console.error("Subscription failed:", error);
-            toast({ title: "Error", description: "Failed to create subscription", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to create subscription", variant: "error" });
         }
     };
 
@@ -649,7 +649,7 @@ const Microsoft365Integration: React.FC = () => {
             }
         } catch (error) {
             console.error("Delete failed:", error);
-            toast({ title: "Error", description: "Failed to delete item", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to delete item", variant: "error" });
         }
     };
 

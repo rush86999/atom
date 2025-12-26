@@ -213,7 +213,7 @@ const SlackIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load channels from Slack",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, channels: false }));
@@ -311,7 +311,7 @@ const SlackIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to send message",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -345,7 +345,7 @@ const SlackIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create channel",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

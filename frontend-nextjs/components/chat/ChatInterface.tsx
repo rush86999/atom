@@ -5,6 +5,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Send, StopCircle, Paperclip, Mic } from "lucide-react";
 import { ChatMessage } from "../GlobalChat/ChatMessage"; // Reuse existing message component
 import { ChatMessageData } from "../GlobalChat/ChatMessage";
+import { VoiceInput } from "../Voice/VoiceInput";
 
 interface ChatInterfaceProps {
     sessionId: string | null;
@@ -175,6 +176,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
                     <Button variant="ghost" size="icon" className="shrink-0">
                         <Paperclip className="h-5 w-5 text-muted-foreground" />
                     </Button>
+                    <VoiceInput
+                        onTranscriptChange={(transcript) => setInput(transcript)}
+                        className="shrink-0"
+                    />
                     <Input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}

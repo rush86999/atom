@@ -302,7 +302,7 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
             <Select
               value={formData.status}
               onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, status: value }))
+                setFormData((prev) => ({ ...prev, status: value as "confirmed" | "tentative" | "cancelled" }))
               }
             >
               <SelectTrigger>
@@ -321,7 +321,7 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
             <Select
               value={formData.platform}
               onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, platform: value }))
+                setFormData((prev) => ({ ...prev, platform: value as "local" | "outlook" | "google" }))
               }
             >
               <SelectTrigger>

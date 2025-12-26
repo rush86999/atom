@@ -501,7 +501,7 @@ const BoxIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load files from Box",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, folders: false, files: false }));
@@ -636,7 +636,7 @@ const BoxIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create folder",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -685,7 +685,7 @@ const BoxIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create shared link",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -736,7 +736,7 @@ const BoxIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create collaboration",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

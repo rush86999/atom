@@ -128,7 +128,7 @@ const WhatsAppBusinessIntegration: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to load WhatsApp integration data',
-        variant: 'destructive',
+        variant: 'error',
       });
     } finally {
       setIsLoading(false);
@@ -198,7 +198,7 @@ const WhatsAppBusinessIntegration: React.FC = () => {
       toast({
         title: 'Send Failed',
         description: 'An error occurred while sending the message',
-        variant: 'destructive',
+        variant: 'error',
       });
     }
   };

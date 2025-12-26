@@ -69,15 +69,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ]);
 
     const [apiResult, authResult, sobjectsResult, soqlResult] = healthChecks;
-    
+
     // Process results
     const apiHealth: ServiceHealth = {
       status: apiResult.status === 'fulfilled' && apiResult.value.ok ? 'healthy' : 'unhealthy',
       connected: apiResult.status === 'fulfilled' && apiResult.value.ok,
       response_time: apiResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: apiResult.status === 'rejected' ? apiResult.reason?.message : 
-              apiResult.value?.ok ? undefined : await getErrorText(apiResult.value),
+      error: apiResult.status === 'rejected' ? apiResult.reason?.message :
+        apiResult.value?.ok ? undefined : await getErrorText(apiResult.value),
     };
 
     const authHealth: ServiceHealth = {
@@ -85,8 +85,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       connected: authResult.status === 'fulfilled' && authResult.value.ok,
       response_time: authResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: authResult.status === 'rejected' ? authResult.reason?.message : 
-              authResult.value?.ok ? undefined : await getErrorText(authResult.value),
+      error: authResult.status === 'rejected' ? authResult.reason?.message :
+        authResult.value?.ok ? undefined : await getErrorText(authResult.value),
     };
 
     const sobjectsHealth: ServiceHealth = {
@@ -94,8 +94,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       connected: sobjectsResult.status === 'fulfilled' && sobjectsResult.value.ok,
       response_time: sobjectsResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: sobjectsResult.status === 'rejected' ? sobjectsResult.reason?.message : 
-              sobjectsResult.value?.ok ? undefined : await getErrorText(sobjectsResult),
+      error: sobjectsResult.status === 'rejected' ? sobjectsResult.reason?.message :
+        sobjectsResult.value?.ok ? undefined : await getErrorText(sobjectsResult.value),
     };
 
     const soqlHealth: ServiceHealth = {
@@ -103,14 +103,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       connected: soqlResult.status === 'fulfilled' && soqlResult.value.ok,
       response_time: soqlResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: soqlResult.status === 'rejected' ? soqlResult.reason?.message : 
-              soqlResult.value?.ok ? undefined : await getErrorText(soqlResult),
+      error: soqlResult.status === 'rejected' ? soqlResult.reason?.message :
+        soqlResult.value?.ok ? undefined : await getErrorText(soqlResult.value),
     };
 
     const services = { api: apiHealth, auth: authHealth, sobjects: sobjectsHealth, soql: soqlHealth };
     const connectedCount = Object.values(services).filter(s => s.connected).length;
     const overallStatus = connectedCount === Object.keys(services).length ? 'healthy' :
-                         connectedCount > 0 ? 'degraded' : 'unhealthy';
+      connectedCount > 0 ? 'degraded' : 'unhealthy';
 
     const response: HealthResponse = {
       status: overallStatus,

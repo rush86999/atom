@@ -1,4 +1,4 @@
-atom / frontend - nextjs / src / components / Audio / AudioRecorder.tsx;
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAudioControl } from "../../contexts/AudioControlContext";
 

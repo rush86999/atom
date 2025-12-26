@@ -59,7 +59,7 @@ interface Integration {
   icon: any;
   color: string;
   lastSync?: string;
-  health?: "healthy" | "warning" | "error";
+  health?: "healthy" | "warning" | "error" | "unknown";
   documentation?: string;
 }
 
@@ -507,7 +507,7 @@ const IntegrationsPage: React.FC = () => {
         return {
           ...integration,
           connected: isHealthy,
-          health: isHealthy ? "healthy" : "error",
+          health: (isHealthy ? "healthy" : "error") as "healthy" | "error",
         };
       });
 

@@ -142,7 +142,7 @@ const WorkflowAutomation: React.FC = () => {
   const [builderInitialData, setBuilderInitialData] = useState<any>(null); // For AI generated workflows
   const [genPrompt, setGenPrompt] = useState("");
 
-  const toast = useToast();
+  const { toast } = useToast();
 
   // Fetch initial data
   useEffect(() => {

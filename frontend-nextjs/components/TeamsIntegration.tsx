@@ -371,7 +371,7 @@ const TeamsIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load teams from Microsoft Teams",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, teams: false }));
@@ -519,7 +519,7 @@ const TeamsIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create team",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -560,7 +560,7 @@ const TeamsIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create channel",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -611,7 +611,7 @@ const TeamsIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to send message",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -679,7 +679,7 @@ const TeamsIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create meeting",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

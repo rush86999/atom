@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from './[...nextauth]';
 import { query } from '../../../lib/db';
-import UAParser from 'ua-parser-js';
+import { UAParser } from 'ua-parser-js';
 
 export default async function handler(
     req: NextApiRequest,
@@ -88,7 +88,7 @@ export default async function handler(
     // POST: Record new session (called from client or sign-in callback)
     if (req.method === 'POST') {
         try {
-            const ua = UAParser(req.headers['user-agent'] || '');
+            const ua = new UAParser(req.headers['user-agent'] || '').getResult();
             const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
 
             // In a real implementation, we'd extract this from the JWT token's JTI

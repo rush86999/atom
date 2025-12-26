@@ -69,15 +69,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ]);
 
     const [apiResult, authResult, accountingResult, payrollResult] = healthChecks;
-    
+
     // Process results
     const apiHealth: ServiceHealth = {
       status: apiResult.status === 'fulfilled' && apiResult.value.ok ? 'healthy' : 'unhealthy',
       connected: apiResult.status === 'fulfilled' && apiResult.value.ok,
       response_time: apiResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: apiResult.status === 'rejected' ? apiResult.reason?.message : 
-              apiResult.value?.ok ? undefined : await getErrorText(apiResult.value),
+      error: apiResult.status === 'rejected' ? apiResult.reason?.message :
+        apiResult.value?.ok ? undefined : await getErrorText(apiResult.value),
     };
 
     const authHealth: ServiceHealth = {
@@ -85,8 +85,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       connected: authResult.status === 'fulfilled' && authResult.value.ok,
       response_time: authResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: authResult.status === 'rejected' ? authResult.reason?.message : 
-              authResult.value?.ok ? undefined : await getErrorText(authResult.value),
+      error: authResult.status === 'rejected' ? authResult.reason?.message :
+        authResult.value?.ok ? undefined : await getErrorText(authResult.value),
     };
 
     const accountingHealth: ServiceHealth = {
@@ -94,8 +94,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       connected: accountingResult.status === 'fulfilled' && accountingResult.value.ok,
       response_time: accountingResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: accountingResult.status === 'rejected' ? accountingResult.reason?.message : 
-              accountingResult.value?.ok ? undefined : await getErrorText(accountingResult),
+      error: accountingResult.status === 'rejected' ? accountingResult.reason?.message :
+        accountingResult.value?.ok ? undefined : await getErrorText(accountingResult.value),
     };
 
     const payrollHealth: ServiceHealth = {
@@ -103,14 +103,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       connected: payrollResult.status === 'fulfilled' && payrollResult.value.ok,
       response_time: payrollResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: payrollResult.status === 'rejected' ? payrollResult.reason?.message : 
-              payrollResult.value?.ok ? undefined : await getErrorText(payrollResult),
+      error: payrollResult.status === 'rejected' ? payrollResult.reason?.message :
+        payrollResult.value?.ok ? undefined : await getErrorText(payrollResult.value),
     };
 
     const services = { api: apiHealth, auth: authHealth, accounting: accountingHealth, payroll: payrollHealth };
     const connectedCount = Object.values(services).filter(s => s.connected).length;
     const overallStatus = connectedCount === Object.keys(services).length ? 'healthy' :
-                         connectedCount > 0 ? 'degraded' : 'unhealthy';
+      connectedCount > 0 ? 'degraded' : 'unhealthy';
 
     const response: HealthResponse = {
       status: overallStatus,

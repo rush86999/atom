@@ -208,7 +208,7 @@ const SearchPage: React.FC = () => {
               }}
               onFocus={() => setShowSuggestions(true)}
               className="text-lg shadow-md"
-              data-testid="search-input"
+
             />
             <select
               className="w-52 h-12 rounded-md border border-input bg-background px-3 py-2 text-sm"

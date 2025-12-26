@@ -11,7 +11,7 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  const toast = useToast();
+  const { toast } = useToast();
 
   useEffect(() => {
     const checkSession = async () => {

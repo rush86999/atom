@@ -6,7 +6,7 @@ const TaskManagementWrapper: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const fetchData = async () => {
     try {

@@ -216,7 +216,7 @@ const NotionIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load pages from Notion",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, pages: false }));
@@ -351,7 +351,7 @@ const NotionIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create page",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -404,7 +404,7 @@ const NotionIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create database",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

@@ -13,7 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 export default function VersionHistoryPage() {
     const router = useRouter();
     const { flowId } = router.query;
-    const toast = useToast();
+    const { toast } = useToast();
 
     const handleRestoreVersion = (version: any) => {
         toast({
