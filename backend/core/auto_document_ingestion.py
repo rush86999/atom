@@ -110,8 +110,29 @@ class DocumentParser:
             return ""
     
     @staticmethod
-    def _parse_csv(content: bytes) -> str:
-        """Parse CSV to text - reuses DataIngestionService logic"""
+    def _parse_csv(content: bytes, file_path: str = None, workspace_id: str = "default") -> str:
+        """Parse CSV to text - reuses DataIngestionService logic.
+        Also extracts implicit formulas from column patterns.
+        """
+        # Extract formulas from CSV if file_path provided
+        if file_path:
+            try:
+                from core.formula_extractor import get_formula_extractor
+                extractor = get_formula_extractor(workspace_id)
+                # Need to save content to temp file
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode='wb') as tmp:
+                    tmp.write(content)
+                    tmp_path = tmp.name
+                try:
+                    extracted = extractor.extract_from_csv(tmp_path, auto_store=True)
+                    if extracted:
+                        logger.info(f"Extracted {len(extracted)} formulas from CSV")
+                finally:
+                    os.unlink(tmp_path)
+            except Exception as fe:
+                logger.warning(f"CSV formula extraction failed: {fe}")
+        
         try:
             import csv
             text = content.decode("utf-8", errors="ignore")
@@ -126,6 +147,7 @@ class DocumentParser:
         except Exception as e:
             logger.error(f"CSV parse error: {e}")
             return content.decode("utf-8", errors="ignore")
+
     
     @staticmethod
     async def _parse_pdf(content: bytes) -> str:
