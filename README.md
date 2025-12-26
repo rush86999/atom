@@ -37,9 +37,16 @@ Why rely on generic AI when you can hire experts?
 - **Engineering Agent**: Handles PR notifications, deployments, and incident response.
 - **Governance**: Agents start as "Students" and earn "Autonomy" as they gain your trust.
 
+### 🛡️ **Agent Governance System**
+- **Maturity Levels**: Agents progress from 'Student' to 'Autonomous' based on performance.
+- **Approval Workflows**: Sensitive actions (like deployments) require human approval until confidence is high.
+- **Safety First**: "Computer Use" agents are strictly sandboxed and monitored.
+
 ### 🧠 **Universal Memory & Context**
 Atom remembers everything so you don't have to repeat yourself.
 - **Unified Index**: Emails, Notion docs, Jira tickets, and Slack threads are indexed for instant retrieval.
+- **Knowledge Graph**: Atom builds a graph of your people, projects, and tasks to understand *relationships*, not just keywords.
+- **Contextual Learning**: Atom absorbs your team's history (last 30 days of Slack, Jira, Email) so it hits the ground running with full context.
 - **Cross-App Search**: Ask complex questions like *"What features did we promise Client X in last week's email?"*
 - **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted.
 
