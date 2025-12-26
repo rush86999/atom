@@ -56,19 +56,19 @@ const SystemStatusDashboard: React.FC = () => {
 
       // Fetch system status
       const statusResponse = await systemAPI.getSystemStatus();
-      setSystemStatus(statusResponse.data);
+      setSystemStatus((statusResponse.data as any));
 
       // Fetch services
       const servicesResponse = await serviceRegistryAPI.getServices();
-      setServices(servicesResponse.data.services || []);
+      setServices((servicesResponse.data as any).services || []);
 
       // Fetch AI providers
       const providersResponse = await byokAPI.getProviders();
-      setProviders(providersResponse.data.providers || []);
+      setProviders((providersResponse.data as any).providers || []);
 
       // Fetch workflow templates
       const workflowsResponse = await workflowAPI.getTemplates();
-      setWorkflows(workflowsResponse.data.templates || []);
+      setWorkflows((workflowsResponse.data as any).templates || []);
 
     } catch (error) {
       console.error('Error fetching system data:', error);

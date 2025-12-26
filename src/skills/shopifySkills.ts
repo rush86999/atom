@@ -1,13 +1,59 @@
-import axios, { AxiosError } from "axios";
-import {
-  SkillResponse,
-  ShopifyProduct,
-  ShopifyOrder,
-  ShopifyTopSellingProduct,
-  PythonApiResponse,
-} from "../../atomic-docker/project/functions/atom-agent/types";
-import { PYTHON_API_SERVICE_BASE_URL } from "../../atomic-docker/project/functions/atom-agent/_libs/constants";
-import { logger } from "../../atomic-docker/project/functions/_utils/logger";
+import axios from "axios";
+// Type definitions
+export interface SkillResponse<T> {
+  ok: boolean;
+  data?: T;
+  message?: string;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+export interface PythonApiResponse<T> {
+  ok: boolean;
+  data?: T;
+  message?: string;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+export interface ShopifyProduct {
+  id: string;
+  title: string;
+  handle: string;
+}
+
+export interface ShopifyOrder {
+  id: string;
+  order_number: string;
+}
+
+export interface ShopifyTopSellingProduct {
+  id: string;
+  title: string;
+  vancant_units: number;
+}
+
+export interface ShopifyConnectionStatusInfo {
+  isConnected: boolean;
+  shopUrl?: string;
+  reason?: string;
+}
+
+// Configuration
+const PYTHON_API_SERVICE_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Simple logger
+const logger = {
+  warn: (message: string, error?: any) => console.warn(message, error),
+  error: (message: string, error?: any) => console.error(message, error),
+  info: (message: string, data?: any) => console.log(message, data),
+};
 
 // Helper to handle Python API responses, can be centralized later
 function handlePythonApiResponse<T>(
@@ -32,10 +78,11 @@ function handlePythonApiResponse<T>(
 }
 
 // Helper to handle network/axios errors
-function handleAxiosError(
-  error: AxiosError,
+// Helper to handle network/axios errors
+function handleAxiosError<T>(
+  error: any,
   operationName: string,
-): SkillResponse<null> {
+): SkillResponse<T> {
   if (error.response) {
     logger.error(
       `[${operationName}] Error: ${error.response.status}`,
@@ -48,7 +95,7 @@ function handleAxiosError(
         code: `HTTP_${error.response.status}`,
         message: errData?.error?.message || `Failed to ${operationName}.`,
       },
-    };
+    } as SkillResponse<T>;
   } else if (error.request) {
     logger.error(
       `[${operationName}] Error: No response received`,
@@ -60,7 +107,7 @@ function handleAxiosError(
         code: "NETWORK_ERROR",
         message: `No response received for ${operationName}.`,
       },
-    };
+    } as SkillResponse<T>;
   }
   logger.error(`[${operationName}] Error: ${error.message}`);
   return {
@@ -69,7 +116,7 @@ function handleAxiosError(
       code: "REQUEST_SETUP_ERROR",
       message: `Error setting up request for ${operationName}: ${error.message}`,
     },
-  };
+  } as SkillResponse<T>;
 }
 
 export async function listShopifyProducts(
@@ -93,7 +140,7 @@ export async function listShopifyProducts(
       );
     return handlePythonApiResponse(response.data, "listShopifyProducts");
   } catch (error) {
-    return handleAxiosError(error as AxiosError, "listShopifyProducts");
+    return handleAxiosError<any>(error, "listShopifyProducts");
   }
 }
 
@@ -116,7 +163,7 @@ export async function getShopifyOrder(
     const response = await axios.get<PythonApiResponse<ShopifyOrder>>(endpoint);
     return handlePythonApiResponse(response.data, "getShopifyOrder");
   } catch (error) {
-    return handleAxiosError(error as AxiosError, "getShopifyOrder");
+    return handleAxiosError<any>(error, "getShopifyOrder");
   }
 }
 
@@ -141,7 +188,7 @@ export async function getTopSellingProducts(
       >(endpoint);
     return handlePythonApiResponse(response.data, "getTopSellingProducts");
   } catch (error) {
-    return handleAxiosError(error as AxiosError, "getTopSellingProducts");
+    return handleAxiosError<any>(error, "getTopSellingProducts");
   }
 }
 
@@ -166,7 +213,7 @@ export async function getShopifyConnectionStatus(
       >(endpoint);
     return handlePythonApiResponse(response.data, "getShopifyConnectionStatus");
   } catch (error) {
-    return handleAxiosError(error as AxiosError, "getShopifyConnectionStatus");
+    return handleAxiosError<any>(error, "getShopifyConnectionStatus");
   }
 }
 
@@ -190,7 +237,7 @@ export async function disconnectShopify(
     });
     return handlePythonApiResponse(response.data, "disconnectShopify");
   } catch (error) {
-    return handleAxiosError(error as AxiosError, "disconnectShopify");
+    return handleAxiosError<any>(error, "disconnectShopify");
   }
 }
 
@@ -226,6 +273,6 @@ export async function updateInventory(
     });
     return handlePythonApiResponse(response.data, "updateInventory");
   } catch (error) {
-    return handleAxiosError(error as AxiosError, "updateInventory");
+    return handleAxiosError<any>(error, "updateInventory");
   }
 }

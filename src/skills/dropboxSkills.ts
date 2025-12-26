@@ -1,12 +1,48 @@
-import axios, { AxiosError } from 'axios';
-import {
-  SkillResponse,
-  DropboxConnectionStatusInfo,
-  DropboxFile,
-  PythonApiResponse,
-} from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
-import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
-import { logger } from '../../atomic-docker/project/functions/_utils/logger';
+import axios from 'axios';
+// Type definitions
+export interface SkillResponse<T> {
+  ok: boolean;
+  data?: T;
+  message?: string;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+export interface PythonApiResponse<T> {
+  ok: boolean;
+  data?: T;
+  message?: string;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+export interface DropboxConnectionStatusInfo {
+  isConnected: boolean;
+  reason?: string;
+}
+
+export interface DropboxFile {
+  ".tag": string;
+  name: string;
+  path_display: string;
+  id: string;
+}
+
+// Configuration
+const PYTHON_API_SERVICE_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Simple logger
+const logger = {
+  warn: (message: string, error?: any) => console.warn(message, error),
+  error: (message: string, error?: any) => console.error(message, error),
+  info: (message: string, data?: any) => console.log(message, data),
+};
 
 // Helper to handle Python API responses, can be centralized later
 function handlePythonApiResponse<T>(
@@ -31,10 +67,11 @@ function handlePythonApiResponse<T>(
 }
 
 // Helper to handle network/axios errors
-function handleAxiosError(
-  error: AxiosError,
+// Helper to handle network/axios errors
+function handleAxiosError<T>(
+  error: any,
   operationName: string
-): SkillResponse<null> {
+): SkillResponse<T> {
   if (error.response) {
     logger.error(
       `[${operationName}] Error: ${error.response.status}`,
@@ -47,7 +84,7 @@ function handleAxiosError(
         code: `HTTP_${error.response.status}`,
         message: errData?.error?.message || `Failed to ${operationName}.`,
       },
-    };
+    } as SkillResponse<T>;
   } else if (error.request) {
     logger.error(
       `[${operationName}] Error: No response received`,
@@ -59,7 +96,7 @@ function handleAxiosError(
         code: 'NETWORK_ERROR',
         message: `No response received for ${operationName}.`,
       },
-    };
+    } as SkillResponse<T>;
   }
   logger.error(`[${operationName}] Error: ${error.message}`);
   return {
@@ -68,7 +105,7 @@ function handleAxiosError(
       code: 'REQUEST_SETUP_ERROR',
       message: `Error setting up request for ${operationName}: ${error.message}`,
     },
-  };
+  } as SkillResponse<T>;
 }
 
 export async function getDropboxConnectionStatus(
@@ -90,7 +127,7 @@ export async function getDropboxConnectionStatus(
       await axios.get<PythonApiResponse<DropboxConnectionStatusInfo>>(endpoint);
     return handlePythonApiResponse(response.data, 'getDropboxConnectionStatus');
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'getDropboxConnectionStatus');
+    return handleAxiosError<DropboxConnectionStatusInfo>(error, 'getDropboxConnectionStatus');
   }
 }
 
@@ -115,7 +152,7 @@ export async function disconnectDropbox(
     );
     return handlePythonApiResponse(response.data, 'disconnectDropbox');
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'disconnectDropbox');
+    return handleAxiosError<{ message: string }>(error, 'disconnectDropbox');
   }
 }
 
@@ -143,6 +180,6 @@ export async function listDropboxFiles(
     });
     return handlePythonApiResponse(response.data, 'listDropboxFiles');
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'listDropboxFiles');
+    return handleAxiosError<{ entries: DropboxFile[] }>(error, 'listDropboxFiles');
   }
 }
