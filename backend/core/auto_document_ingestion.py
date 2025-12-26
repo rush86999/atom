@@ -181,8 +181,29 @@ class DocumentParser:
             return ""
     
     @staticmethod
-    async def _parse_excel(content: bytes) -> str:
-        """Parse Excel to text - compatible with DocumentLifecycleLearner"""
+    async def _parse_excel(content: bytes, file_path: str = None, workspace_id: str = "default") -> str:
+        """Parse Excel to text - compatible with DocumentLifecycleLearner.
+        Also extracts formulas and stores them in Atom's formula memory.
+        """
+        # Extract formulas if file_path is provided
+        if file_path:
+            try:
+                from core.formula_extractor import get_formula_extractor
+                extractor = get_formula_extractor(workspace_id)
+                # Need to save content to temp file for openpyxl
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+                    tmp.write(content)
+                    tmp_path = tmp.name
+                try:
+                    extracted = extractor.extract_from_excel(tmp_path, auto_store=True)
+                    if extracted:
+                        logger.info(f"Extracted {len(extracted)} formulas from Excel")
+                finally:
+                    os.unlink(tmp_path)
+            except Exception as fe:
+                logger.warning(f"Formula extraction failed: {fe}")
+        
         try:
             import pandas as pd
             # Read all sheets

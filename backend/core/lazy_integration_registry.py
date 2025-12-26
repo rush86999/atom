@@ -120,6 +120,9 @@ INTEGRATION_REGISTRY = {
     
     # Team Messaging
     "team_messaging": "core.team_messaging:router",
+    
+    # Formula Storage
+    "formulas": "api.formula_routes:router",
 }
 
 # Essential integrations to load at startup
