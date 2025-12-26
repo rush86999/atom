@@ -7,8 +7,8 @@ import pino from "pino";
 import { trace, context as otelContext } from "@opentelemetry/api";
 
 // Custom metrics (instrumentation.node file not found - metrics disabled)
-const apiRequestCounter = { add: () => {} };
-const apiRequestLatencyHistogram = { record: () => {} };
+const apiRequestCounter = { add: (_value: number, _attributes?: Record<string, any>) => { } };
+const apiRequestLatencyHistogram = { record: (_value: number, _attributes?: Record<string, any>) => { } };
 
 const serviceName = process.env.OTEL_SERVICE_NAME || "app-service";
 const serviceVersion = process.env.OTEL_SERVICE_VERSION || "1.0.0";

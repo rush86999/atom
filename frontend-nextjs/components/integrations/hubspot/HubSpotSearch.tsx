@@ -811,7 +811,7 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
                     {"name" in item ? item.name : "firstName" in item ? `${item.firstName} ${item.lastName}` : item.subject}
                   </div>
                   <div className="text-xs text-gray-500">
-                    {"company" in item ? item.company : "engagementType" in item ? item.engagementType : ""}
+                    {"company" in item ? (item.company as React.ReactNode) : "engagementType" in item ? (item.engagementType as React.ReactNode) : ""}
                   </div>
                 </div>
               ))}

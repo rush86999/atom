@@ -84,7 +84,7 @@ const CalendarView = () => {
             console.error("Failed to fetch events:", error);
             toast({
                 title: "Error fetching events",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading(false);
@@ -130,7 +130,7 @@ const CalendarView = () => {
         } catch (error) {
             toast({
                 title: "Error creating event",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

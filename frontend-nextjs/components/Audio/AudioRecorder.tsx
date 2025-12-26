@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAgentAudioControl, AgentAudioCommand } from '../../contexts/AgentAudioControlContext'; // Adjusted path
 
 // Placeholder Icons (replace with your actual icon components)
-const MicIcon = () => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#000000"><path d="M0 0h24v24H0z" fill="none"/><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>;
-const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#000000"><path d="M0 0h24v24H0z" fill="none"/><path d="M6 6h12v12H6z"/></svg>;
-const CancelIcon = () => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#000000"><path d="M0 0h24v24H0z" fill="none"/><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>;
+const MicIcon = () => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#000000"><path d="M0 0h24v24H0z" fill="none" /><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" /></svg>;
+const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#000000"><path d="M0 0h24v24H0z" fill="none" /><path d="M6 6h12v12H6z" /></svg>;
+const CancelIcon = () => <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#000000"><path d="M0 0h24v24H0z" fill="none" /><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>;
 
 interface AudioRecorderProps {
   userId: string;
@@ -66,17 +66,17 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       streamRef.current = null;
     }
     if (mediaRecorderRef.current) {
-        mediaRecorderRef.current.ondataavailable = null;
-        mediaRecorderRef.current.onstop = null;
-        mediaRecorderRef.current.onerror = null;
-        if (mediaRecorderRef.current.state === 'recording') {
-            try { mediaRecorderRef.current.stop(); } catch (e) { console.warn("Error stopping MediaRecorder during cleanup:", e); }
-        }
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.onerror = null;
+      if (mediaRecorderRef.current.state === 'recording') {
+        try { mediaRecorderRef.current.stop(); } catch (e) { console.warn("Error stopping MediaRecorder during cleanup:", e); }
+      }
     }
     mediaRecorderRef.current = null;
     audioChunksRef.current = [];
     if (!preserveTitleOnError) { // Only reset title if not preserving on error
-        setNoteTitle(initialSuggestedTitle || ''); // Reset to initial or empty
+      setNoteTitle(initialSuggestedTitle || ''); // Reset to initial or empty
     }
   }, [initialSuggestedTitle]);
 
@@ -90,8 +90,8 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   // Abstracted start recording logic to be callable by user action or agent command
   const startRecordingSession = useCallback(async (titleFromCommand?: string, eventIdFromCommand?: string) => {
     if (status !== 'idle' && status !== 'error') {
-        console.warn("Recording session cannot start, current status:", status);
-        return; // Don't start if already busy, unless it's an error state we want to override
+      console.warn("Recording session cannot start, current status:", status);
+      return; // Don't start if already busy, unless it's an error state we want to override
     }
     setStatus('permissionPending');
     setErrorMessage(undefined);
@@ -175,7 +175,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       setStatus('error');
       onRecordingError(errorMsg);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, onRecordingError]); // Removed cleanupRecordingResources from deps as it's stable
 
   // Abstracted stop recording logic
@@ -183,7 +183,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop(); // onstop handler will create blob and set status to 'stopped'
     } else {
-        console.warn("Stop called but not in recording state or no mediaRecorder.");
+      console.warn("Stop called but not in recording state or no mediaRecorder.");
     }
     // Timer is cleared in onstop or cancel
   }, []);
@@ -222,7 +222,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
           if (status === 'recording') {
             stopRecordingSession();
           } else {
-             console.warn(`Agent commanded STOP_RECORDING_SESSION but current status is ${status}. Ignoring.`);
+            console.warn(`Agent commanded STOP_RECORDING_SESSION but current status is ${status}. Ignoring.`);
           }
           break;
         case 'CANCEL_RECORDING_SESSION':
@@ -237,7 +237,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       }
       clearLastCommand(); // Consume the command
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestCommand, clearLastCommand, startRecordingSession, stopRecordingSession, cancelRecordingSession, status, initialSuggestedTitle, initialLinkedEventId]);
 
 
@@ -295,7 +295,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       setStatus('error');
       onRecordingError(errorMsg);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioBlob, noteTitle, userId, currentLinkedEventId, onRecordingComplete, onRecordingError, initialSuggestedTitle, initialLinkedEventId]);
 
   useEffect(() => {
@@ -347,17 +347,17 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
           value={noteTitle}
           onChange={(e) => setNoteTitle(e.target.value)}
           placeholder="Optional title for your audio note"
-          disabled={status === 'recording' || status === 'uploading' || status === 'permissionPending'}
+          disabled={status === 'recording'}
         />
       )}
 
       {status === 'permissionPending' && <p style={styles.statusMessage}>Requesting microphone permission...</p>}
       {status === 'uploading' && <p style={styles.statusMessage}>Processing and saving your note...</p>}
-      {errorMessage && status === 'error' && <p style={{...styles.statusMessage, ...styles.errorMessage}}>{errorMessage}</p>}
+      {errorMessage && status === 'error' && <p style={{ ...styles.statusMessage, ...styles.errorMessage }}>{errorMessage}</p>}
 
       {(status === 'recording') && (
         <div style={styles.recordingIndicator}>
-          <span style={{...styles.dot, ...styles.recordingDot, animation: 'pulse 1.5s infinite'}}></span>
+          <span style={{ ...styles.dot, ...styles.recordingDot, animation: 'pulse 1.5s infinite' }}></span>
           <span>Recording</span>
           <span style={styles.timer}>{formatTime(elapsedTime)}</span>
         </div>
@@ -365,17 +365,17 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
       <div style={styles.buttonsContainer}>
         {(status === 'idle' || status === 'error') && ( // User can manually start if idle or after an error
-          <button style={{...styles.button, ...styles.recordButton}} onClick={handleManualStart} disabled={status === 'permissionPending'}>
+          <button style={{ ...styles.button, ...styles.recordButton }} onClick={handleManualStart} disabled={false}>
             <MicIcon /> Record
           </button>
         )}
 
         {status === 'recording' && ( // User can manually stop/cancel if they started it or if agent started it
           <>
-            <button style={{...styles.button, ...styles.stopButton}} onClick={handleManualStopAndSave}>
+            <button style={{ ...styles.button, ...styles.stopButton }} onClick={handleManualStopAndSave}>
               <CloseIcon /> Stop & Save
             </button>
-            <button style={{...styles.button, ...styles.cancelButton}} onClick={handleManualCancel}>
+            <button style={{ ...styles.button, ...styles.cancelButton }} onClick={handleManualCancel}>
               <CancelIcon /> Cancel
             </button>
           </>

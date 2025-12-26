@@ -328,5 +328,5 @@ export function useChatMemory(config: UseChatMemoryConfig): UseChatMemoryReturn 
   } as UseChatMemoryReturn & { autoStoreMessage: typeof autoStoreMessage };
 }
 
-// Export the auto-store function separately for explicit control
-export { useChatMemory };
+// Default export for convenience
+export default useChatMemory;

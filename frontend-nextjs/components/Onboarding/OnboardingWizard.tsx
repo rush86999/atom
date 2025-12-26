@@ -36,7 +36,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     onUpdate,
 }) => {
     const router = useRouter();
-    const toast = useToast();
+    const { toast } = useToast();
     const [activeStep, setActiveStep] = useState(0);
 
     const [profileData, setProfileData] = useState({

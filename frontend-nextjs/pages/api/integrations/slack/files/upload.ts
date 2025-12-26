@@ -8,7 +8,7 @@ export default async function handler(
 
   if (req.method === 'POST') {
     try {
-      const file = req.files?.file;
+      const file = (req as any).files?.file;
       const { channels = [], title, initialComment } = req.body;
 
       if (!file) {
@@ -21,15 +21,15 @@ export default async function handler(
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('file', file);
-      
+
       if (channels.length > 0) {
         formData.append('channels', channels.join(','));
       }
-      
+
       if (title) {
         formData.append('title', title);
       }
-      
+
       if (initialComment) {
         formData.append('initial_comment', initialComment);
       }
@@ -40,7 +40,7 @@ export default async function handler(
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
         return res.status(200).json(data);
       } else {

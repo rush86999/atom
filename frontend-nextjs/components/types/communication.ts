@@ -5,6 +5,7 @@
 
 // Base Service Types
 export interface ServiceHealth {
+  service?: string;
   status: 'healthy' | 'error' | 'warning' | 'unknown';
   api_healthy?: boolean;
   config_healthy?: boolean;
@@ -376,57 +377,3 @@ export interface OAuthError {
   timestamp: string;
   service: 'slack' | 'teams';
 }
-
-// Export all types for convenience
-export type {
-  // Base types
-  ServiceHealth,
-  ServiceImplementation,
-  UnifiedServicesStatus,
-  
-  // Message types
-  UnifiedMessage,
-  SlackMessage,
-  TeamsMessage,
-  UnifiedAttachment,
-  UnifiedMention,
-  UnifiedReactions,
-  
-  // Workspace types
-  UnifiedWorkspace,
-  SlackWorkspace,
-  TeamsWorkspace,
-  
-  // Channel types
-  UnifiedChannel,
-  SlackChannel,
-  TeamsChannel,
-  
-  // API types
-  ServiceSwitchRequest,
-  ServiceSwitchResponse,
-  WorkspacesResponse,
-  ChannelsResponse,
-  MessagesResponse,
-  SendMessageRequest,
-  SendMessageResponse,
-  InstallRequest,
-  InstallResponse,
-  
-  // Real-time types
-  RealTimeEvent,
-  MessageEvent,
-  ChannelEvent,
-  PresenceEvent,
-  
-  // Configuration types
-  ServiceConfiguration,
-  
-  // Statistics types
-  ServiceStatistics,
-  UnifiedStatistics,
-  
-  // Error types
-  ServiceError,
-  OAuthError
-};

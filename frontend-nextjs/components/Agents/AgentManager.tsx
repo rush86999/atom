@@ -110,7 +110,7 @@ const AgentManager: React.FC<AgentManagerProps> = ({
       toast({
         title: "Validation Error",
         description: "Name and role are required",
-        variant: "destructive",
+        variant: "error",
       });
       return;
     }
@@ -158,7 +158,7 @@ const AgentManager: React.FC<AgentManagerProps> = ({
       toast({
         title: "Error",
         description: "Failed to create agent",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setIsLoading(false);
@@ -465,13 +465,13 @@ const AgentManager: React.FC<AgentManagerProps> = ({
                     min={0}
                     max={1}
                     step={0.1}
-                    value={[newAgent.config.temperature]}
+                    value={newAgent.config.temperature}
                     onValueChange={(value) =>
                       setNewAgent((prev) => ({
                         ...prev,
                         config: {
                           ...prev.config,
-                          temperature: value[0],
+                          temperature: value,
                         },
                       }))
                     }
@@ -487,13 +487,13 @@ const AgentManager: React.FC<AgentManagerProps> = ({
                     min={100}
                     max={4000}
                     step={100}
-                    value={[newAgent.config.maxTokens]}
+                    value={newAgent.config.maxTokens}
                     onValueChange={(value) =>
                       setNewAgent((prev) => ({
                         ...prev,
                         config: {
                           ...prev.config,
-                          maxTokens: value[0],
+                          maxTokens: value,
                         },
                       }))
                     }

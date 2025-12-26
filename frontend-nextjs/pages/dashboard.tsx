@@ -52,7 +52,7 @@ const DashboardPage: React.FC = () => {
   });
   const [financials, setFinancials] = useState<any>(null);
   const [sales, setSales] = useState<any>(null);
-  const toast = useToast();
+  const { toast } = useToast();
   const router = useRouter();
   const workspaceId = "default-workspace"; // Consistent with other components
 

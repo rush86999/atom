@@ -51,7 +51,7 @@ interface BuildStatus {
 }
 
 const DevStatus = () => {
-  const toast = useToast();
+  const { toast } = useToast();
   const [systemStatus, setSystemStatus] = useState<any>(null);
   const [servicesStatus, setServicesStatus] = useState<Record<string, ServiceStatus>>({});
   const [buildStatus, setBuildStatus] = useState<BuildStatus>({

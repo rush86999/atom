@@ -463,7 +463,7 @@ const ZendeskIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load tickets from Zendesk",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, tickets: false }));
@@ -612,7 +612,7 @@ const ZendeskIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create ticket",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -662,7 +662,7 @@ const ZendeskIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create user",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -708,7 +708,7 @@ const ZendeskIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create organization",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

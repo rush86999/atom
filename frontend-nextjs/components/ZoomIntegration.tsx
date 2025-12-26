@@ -445,7 +445,7 @@ const ZoomIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load meetings from Zoom",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, meetings: false }));
@@ -546,7 +546,7 @@ const ZoomIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create meeting",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -587,7 +587,7 @@ const ZoomIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create user",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

@@ -1,9 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]";
-// TODO: Pocket OAuth implementation pending dependencies
-// import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
-// import PocketAPI from 'pocket-api';
+import { executeGraphQLQuery } from '@/lib/graphqlClient';
 
 export default async function handler(
   req: NextApiRequest,
@@ -25,12 +23,25 @@ export default async function handler(
       .json({ message: "Pocket consumer key not configured." });
   }
 
-  const pocket = new PocketAPI({ consumer_key: consumerKey });
-
   try {
-    const { access_token } = await pocket.getAccessToken({
-      request_token: code as string,
+    const response = await fetch("https://getpocket.com/v3/oauth/authorize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Accept": "application/json",
+      },
+      body: JSON.stringify({
+        consumer_key: consumerKey,
+        code: code as string,
+      }),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Pocket access token failed: ${response.status} ${errorText}`);
+    }
+
+    const { access_token } = await response.json();
 
     // Save the token to the user_tokens table
     const mutation = `

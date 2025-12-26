@@ -435,7 +435,7 @@ const QuickBooksIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load customers from QuickBooks",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, customers: false }));
@@ -601,7 +601,7 @@ const QuickBooksIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create customer",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -641,7 +641,7 @@ const QuickBooksIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create invoice",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -681,7 +681,7 @@ const QuickBooksIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create bill",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

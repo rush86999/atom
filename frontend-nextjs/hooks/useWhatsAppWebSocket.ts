@@ -63,10 +63,16 @@ export const useWhatsAppWebSocket = (
     }
   }, []);
 
-  // Set WebSocket state
-  const setWebSocketState = useCallback((updates: Partial<WebSocketState>) => {
-    setState((prev) => ({ ...prev, ...updates }));
-  }, []);
+  // Set WebSocket state - accepts both partial object and function updater
+  const setWebSocketState = useCallback(
+    (updates: Partial<WebSocketState> | ((prev: WebSocketState) => Partial<WebSocketState>)) => {
+      setState((prev) => {
+        const newUpdates = typeof updates === 'function' ? updates(prev) : updates;
+        return { ...prev, ...newUpdates };
+      });
+    },
+    [],
+  );
 
   // Send ping message to keep connection alive
   const sendPing = useCallback(() => {

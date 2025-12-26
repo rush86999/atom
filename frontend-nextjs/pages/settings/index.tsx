@@ -3,7 +3,7 @@ import React from 'react';
 import Head from 'next/head';
 import { Layout } from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PreferencesTab } from "@/components/settings/PreferencesTab";
+import { PreferencesTab } from "@/components/Settings/PreferencesTab";
 
 export default function SettingsPage() {
     return (

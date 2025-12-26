@@ -47,8 +47,8 @@ describe('/api/meeting_attendance_status/[taskId] API Endpoint', () => {
     meeting_identifier: 'zoom-meeting-id',
     status_timestamp: new Date().toISOString(),
     current_status_message: 'In Progress',
-    final_notion_page_url: null,
-    error_details: null,
+    final_notion_page_url: null as any,
+    error_details: null as any,
     created_at: new Date().toISOString(),
   };
 
@@ -57,7 +57,11 @@ describe('/api/meeting_attendance_status/[taskId] API Endpoint', () => {
     mockRelease.mockReset();
     mockConnect.mockClear(); // Clear connect mock calls too
     mockedGetServerSession.mockReset();
-    Object.values(mockedLogger).forEach((mockFn) => mockFn.mockReset());
+    Object.values(mockedLogger).forEach((mockFn) => {
+      if (typeof (mockFn as any).mockReset === 'function') {
+        (mockFn as any).mockReset();
+      }
+    });
 
     // Default successful session
     mockedGetServerSession.mockResolvedValue({

@@ -11,7 +11,7 @@ const ForecastingSandbox = () => {
     const [scenarioResult, setScenarioResult] = useState<any>(null);
     const [scenarioText, setScenarioText] = useState("");
     const [loading, setLoading] = useState(true);
-    const toast = useToast();
+    const { toast } = useToast();
     const workspaceId = "default-workspace";
 
     useEffect(() => {

@@ -248,7 +248,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to load documents from Google Workspace",
-                variant: "destructive",
+                variant: "error",
             });
         } finally {
             setLoading((prev) => ({ ...prev, docs: false }));
@@ -358,7 +358,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create document",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };
@@ -402,7 +402,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
             toast({
                 title: "Error",
                 description: "Failed to create event",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

@@ -10,7 +10,7 @@ import {
   ServiceHealth,
   ServiceConfiguration,
   UnifiedStatistics,
-} from "../components/types/communication";
+} from "../../../components/types/communication";
 
 export default function UnifiedCommunicationDashboard() {
   const [activeTab, setActiveTab] = useState<
@@ -112,8 +112,8 @@ export default function UnifiedCommunicationDashboard() {
               <p className="text-2xl font-bold text-green-600">
                 {servicesStatus?.services
                   ? Object.values(servicesStatus.services).filter(
-                      (s) => s.health?.status === "healthy",
-                    ).length
+                    (s) => s.health?.status === "healthy",
+                  ).length
                   : 0}
               </p>
             </div>
@@ -130,8 +130,8 @@ export default function UnifiedCommunicationDashboard() {
               <p className="text-2xl font-bold text-blue-600">
                 {servicesStatus?.services
                   ? Object.values(servicesStatus.services).filter(
-                      (s) => s.current === "real",
-                    ).length
+                    (s) => s.current === "real",
+                  ).length
                   : 0}
               </p>
             </div>
@@ -148,8 +148,8 @@ export default function UnifiedCommunicationDashboard() {
               <p className="text-2xl font-bold text-purple-600">
                 {servicesStatus?.services
                   ? Object.values(servicesStatus.services).filter(
-                      (s) => s.current === "mock",
-                    ).length
+                    (s) => s.current === "mock",
+                  ).length
                   : 0}
               </p>
             </div>
@@ -178,22 +178,20 @@ export default function UnifiedCommunicationDashboard() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        config.current === "real"
+                      className={`px-2 py-1 text-xs rounded-full ${config.current === "real"
                           ? "bg-blue-100 text-blue-800"
                           : "bg-purple-100 text-purple-800"
-                      }`}
+                        }`}
                     >
                       {config.current}
                     </span>
                     <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        config.health?.status === "healthy"
+                      className={`px-2 py-1 text-xs rounded-full ${config.health?.status === "healthy"
                           ? "bg-green-100 text-green-800"
                           : config.health?.status === "error"
                             ? "bg-red-100 text-red-800"
                             : "bg-yellow-100 text-yellow-800"
-                      }`}
+                        }`}
                     >
                       {config.health?.status || "unknown"}
                     </span>
@@ -289,11 +287,10 @@ export default function UnifiedCommunicationDashboard() {
                     {serviceName === "slack" ? "Slack" : "Microsoft Teams"}
                   </span>
                   <span
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      stats.implementation === "real"
+                    className={`px-2 py-1 text-xs rounded-full ${stats.implementation === "real"
                         ? "bg-blue-100 text-blue-800"
                         : "bg-purple-100 text-purple-800"
-                    }`}
+                      }`}
                   >
                     {stats.implementation}
                   </span>
@@ -337,13 +334,12 @@ export default function UnifiedCommunicationDashboard() {
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Uptime</span>
                     <span
-                      className={`text-sm font-medium ${
-                        stats.metrics.uptime_percentage >= 99
+                      className={`text-sm font-medium ${stats.metrics.uptime_percentage >= 99
                           ? "text-green-600"
                           : stats.metrics.uptime_percentage >= 95
                             ? "text-yellow-600"
                             : "text-red-600"
-                      }`}
+                        }`}
                     >
                       {stats.metrics.uptime_percentage.toFixed(1)}%
                     </span>
@@ -491,11 +487,10 @@ export default function UnifiedCommunicationDashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
+                className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
                     ? "border-blue-500 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+                  }`}
               >
                 <span>{tab.icon}</span>
                 <span>{tab.label}</span>

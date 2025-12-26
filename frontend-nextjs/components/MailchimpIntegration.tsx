@@ -26,6 +26,7 @@ import {
     DollarSign,
     UserPlus,
     UserMinus,
+    Eye,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -237,7 +238,7 @@ const MailchimpIntegration: React.FC = () => {
             toast({
                 title: "Missing Credentials",
                 description: "Please enter both API Key and Server Prefix",
-                variant: "destructive",
+                variant: "error",
             });
             return;
         }
@@ -271,7 +272,7 @@ const MailchimpIntegration: React.FC = () => {
             toast({
                 title: "Connection Failed",
                 description: "Failed to connect to Mailchimp",
-                variant: "destructive",
+                variant: "error",
             });
         }
     };

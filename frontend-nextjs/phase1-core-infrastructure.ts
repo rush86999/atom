@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 console.log('🚀 Atom Project - Phase 1: Core Infrastructure Implementation');
-console.log('=' .repeat(80));
+console.log('='.repeat(80));
 
 interface InfrastructureImplementation {
   backend: BackendStabilization;
@@ -89,31 +89,31 @@ class Phase1CoreInfrastructure {
     console.log('   Timeline: Week 1-4 (November 10 - December 8, 2025)');
     console.log('   Priority: CRITICAL - Foundation for all subsequent phases');
     console.log('   Objective: Stabilize backend and build foundation');
-    
+
     try {
       // Step 1: Backend API Stabilization
       await this.implementBackendStabilization();
-      
+
       // Step 2: OAuth 2.0 Infrastructure
       await this.implementOAuthInfrastructure();
-      
+
       // Step 3: WebSocket Communication System
       await this.implementWebSocketSystem();
-      
+
       // Step 4: Database Optimization
       await this.implementDatabaseOptimization();
-      
+
       // Step 5: Security Hardening
       await this.implementSecurityHardening();
-      
+
       // Step 6: Generate Implementation
       await this.generateImplementation();
-      
+
       console.log('\n🎉 Phase 1 Core Infrastructure - IMPLEMENTATION COMPLETE!');
       await this.saveImplementation();
-      
+
     } catch (error) {
-      console.error(`❌ Phase 1 Implementation Failed: ${error.message}`);
+      console.error(`❌ Phase 1 Implementation Failed: ${(error as any).message}`);
       throw error;
     }
   }
@@ -121,7 +121,7 @@ class Phase1CoreInfrastructure {
   private async implementBackendStabilization(): Promise<void> {
     console.log('\n📡 Step 1: Backend API Stabilization');
     console.log('-'.repeat(80));
-    
+
     const backend: BackendStabilization = {
       status: 'IN_PROGRESS',
       tasks: [
@@ -235,7 +235,7 @@ class Phase1CoreInfrastructure {
         'Graceful shutdown capabilities'
       ]
     };
-    
+
     console.log('Backend Stabilization Tasks:');
     backend.tasks.forEach((task, i) => {
       const priority = task.priority === 'HIGH' ? '🔴' : task.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -243,7 +243,7 @@ class Phase1CoreInfrastructure {
       console.log(`      ${task.description}`);
       console.log(`      Dependencies: ${task.dependencies.join(', ') || 'None'}`);
     });
-    
+
     console.log('\nBackend Stabilization Files:');
     backend.files.forEach((file, i) => {
       const priority = file.priority === 'HIGH' ? '🔴' : file.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -251,12 +251,12 @@ class Phase1CoreInfrastructure {
       console.log(`      ${file.description}`);
       console.log(`      Type: ${file.type}`);
     });
-    
+
     console.log('\nBackend Stabilization Deliverables:');
     backend.deliverables.forEach((deliverable, i) => {
       console.log(`   ${i + 1}. ✅ ${deliverable}`);
     });
-    
+
     this.implementation.backend = backend;
     console.log('\n✅ Backend Stabilization Implementation Plan Complete');
   }
@@ -264,7 +264,7 @@ class Phase1CoreInfrastructure {
   private async implementOAuthInfrastructure(): Promise<void> {
     console.log('\n🔐 Step 2: OAuth 2.0 Infrastructure');
     console.log('-'.repeat(80));
-    
+
     const oauth: OAuthInfrastructure = {
       status: 'PLANNING',
       tasks: [
@@ -378,7 +378,7 @@ class Phase1CoreInfrastructure {
         'Frontend OAuth integration service'
       ]
     };
-    
+
     console.log('OAuth Infrastructure Tasks:');
     oauth.tasks.forEach((task, i) => {
       const priority = task.priority === 'HIGH' ? '🔴' : task.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -386,7 +386,7 @@ class Phase1CoreInfrastructure {
       console.log(`      ${task.description}`);
       console.log(`      Dependencies: ${task.dependencies.join(', ') || 'None'}`);
     });
-    
+
     console.log('\nOAuth Infrastructure Files:');
     oauth.files.forEach((file, i) => {
       const priority = file.priority === 'HIGH' ? '🔴' : file.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -394,12 +394,12 @@ class Phase1CoreInfrastructure {
       console.log(`      ${file.description}`);
       console.log(`      Type: ${file.type}`);
     });
-    
+
     console.log('\nOAuth Infrastructure Deliverables:');
     oauth.deliverables.forEach((deliverable, i) => {
       console.log(`   ${i + 1}. ✅ ${deliverable}`);
     });
-    
+
     this.implementation.oauth = oauth;
     console.log('\n✅ OAuth Infrastructure Implementation Plan Complete');
   }
@@ -407,7 +407,7 @@ class Phase1CoreInfrastructure {
   private async implementWebSocketSystem(): Promise<void> {
     console.log('\n🔄 Step 3: WebSocket Communication System');
     console.log('-'.repeat(80));
-    
+
     const websockets: WebSocketSystem = {
       status: 'PLANNING',
       tasks: [
@@ -521,7 +521,7 @@ class Phase1CoreInfrastructure {
         'Frontend WebSocket client integration'
       ]
     };
-    
+
     console.log('WebSocket System Tasks:');
     websockets.tasks.forEach((task, i) => {
       const priority = task.priority === 'HIGH' ? '🔴' : task.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -529,7 +529,7 @@ class Phase1CoreInfrastructure {
       console.log(`      ${task.description}`);
       console.log(`      Dependencies: ${task.dependencies.join(', ') || 'None'}`);
     });
-    
+
     console.log('\nWebSocket System Files:');
     websockets.files.forEach((file, i) => {
       const priority = file.priority === 'HIGH' ? '🔴' : file.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -537,12 +537,12 @@ class Phase1CoreInfrastructure {
       console.log(`      ${file.description}`);
       console.log(`      Type: ${file.type}`);
     });
-    
+
     console.log('\nWebSocket System Deliverables:');
     websockets.deliverables.forEach((deliverable, i) => {
       console.log(`   ${i + 1}. ✅ ${deliverable}`);
     });
-    
+
     this.implementation.websockets = websockets;
     console.log('\n✅ WebSocket System Implementation Plan Complete');
   }
@@ -550,7 +550,7 @@ class Phase1CoreInfrastructure {
   private async implementDatabaseOptimization(): Promise<void> {
     console.log('\n🗄️ Step 4: Database Optimization');
     console.log('-'.repeat(80));
-    
+
     const database: DatabaseOptimization = {
       status: 'PLANNING',
       tasks: [
@@ -656,7 +656,7 @@ class Phase1CoreInfrastructure {
         'Database performance monitoring and alerting'
       ]
     };
-    
+
     console.log('Database Optimization Tasks:');
     database.tasks.forEach((task, i) => {
       const priority = task.priority === 'HIGH' ? '🔴' : task.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -664,7 +664,7 @@ class Phase1CoreInfrastructure {
       console.log(`      ${task.description}`);
       console.log(`      Dependencies: ${task.dependencies.join(', ') || 'None'}`);
     });
-    
+
     console.log('\nDatabase Optimization Files:');
     database.files.forEach((file, i) => {
       const priority = file.priority === 'HIGH' ? '🔴' : file.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -672,12 +672,12 @@ class Phase1CoreInfrastructure {
       console.log(`      ${file.description}`);
       console.log(`      Type: ${file.type}`);
     });
-    
+
     console.log('\nDatabase Optimization Deliverables:');
     database.deliverables.forEach((deliverable, i) => {
       console.log(`   ${i + 1}. ✅ ${deliverable}`);
     });
-    
+
     this.implementation.database = database;
     console.log('\n✅ Database Optimization Implementation Plan Complete');
   }
@@ -685,7 +685,7 @@ class Phase1CoreInfrastructure {
   private async implementSecurityHardening(): Promise<void> {
     console.log('\n🔒 Step 5: Security Hardening');
     console.log('-'.repeat(80));
-    
+
     const security: SecurityHardening = {
       status: 'PLANNING',
       tasks: [
@@ -791,7 +791,7 @@ class Phase1CoreInfrastructure {
         'Security audit logging and monitoring'
       ]
     };
-    
+
     console.log('Security Hardening Tasks:');
     security.tasks.forEach((task, i) => {
       const priority = task.priority === 'HIGH' ? '🔴' : task.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -799,7 +799,7 @@ class Phase1CoreInfrastructure {
       console.log(`      ${task.description}`);
       console.log(`      Dependencies: ${task.dependencies.join(', ') || 'None'}`);
     });
-    
+
     console.log('\nSecurity Hardening Files:');
     security.files.forEach((file, i) => {
       const priority = file.priority === 'HIGH' ? '🔴' : file.priority === 'MEDIUM' ? '🟡' : '🟢';
@@ -807,12 +807,12 @@ class Phase1CoreInfrastructure {
       console.log(`      ${file.description}`);
       console.log(`      Type: ${file.type}`);
     });
-    
+
     console.log('\nSecurity Hardening Deliverables:');
     security.deliverables.forEach((deliverable, i) => {
       console.log(`   ${i + 1}. ✅ ${deliverable}`);
     });
-    
+
     this.implementation.security = security;
     console.log('\n✅ Security Hardening Implementation Plan Complete');
   }
@@ -820,7 +820,7 @@ class Phase1CoreInfrastructure {
   private async generateImplementation(): Promise<void> {
     console.log('\n📦 Step 6: Generate Implementation Plan');
     console.log('-'.repeat(80));
-    
+
     const implementation = {
       phase: 'Phase 1: Core Infrastructure',
       duration: '4 weeks',
@@ -843,7 +843,7 @@ class Phase1CoreInfrastructure {
       teamSize: 'Backend Team (5 developers)',
       riskLevel: 'MEDIUM'
     };
-    
+
     console.log(`Phase: ${implementation.phase}`);
     console.log(`Duration: ${implementation.duration} (${implementation.startDate} - ${implementation.endDate})`);
     console.log(`Priority: ${implementation.priority}`);
@@ -852,19 +852,19 @@ class Phase1CoreInfrastructure {
     console.log(`Estimated Hours: ${implementation.estimatedHours}`);
     console.log(`Team Size: ${implementation.teamSize}`);
     console.log(`Risk Level: ${implementation.riskLevel}`);
-    
+
     console.log('\nDependencies:');
     implementation.dependencies.forEach((dep, i) => {
       console.log(`   ${i + 1}. ${dep}`);
     });
-    
+
     console.log('\nSuccess Criteria:');
     implementation.successCriteria.forEach((criteria, i) => {
       console.log(`   ${i + 1}. ✅ ${criteria}`);
     });
-    
+
     console.log(`\nNext Phase: ${implementation.nextPhase}`);
-    
+
     console.log('\n✅ Implementation Plan Generation Complete');
   }
 
@@ -882,13 +882,13 @@ class Phase1CoreInfrastructure {
 
   private getTotalEstimatedHours(): number {
     return Object.values(this.implementation).reduce((total, component) => {
-      return total + (component.tasks ? component.tasks.reduce((sum, task) => sum + (task.estimatedHours || 0), 0) : 0);
+      return total + (component.tasks ? component.tasks.reduce((sum: number, task: any) => sum + (task.estimatedHours || 0), 0) : 0);
     }, 0);
   }
 
   private async saveImplementation(): Promise<void> {
     console.log('\n💾 Saving Phase 1 Implementation...');
-    
+
     const implementation = {
       phase: 'Phase 1: Core Infrastructure',
       timestamp: new Date(),
@@ -904,10 +904,10 @@ class Phase1CoreInfrastructure {
         estimatedHours: this.getTotalEstimatedHours()
       }
     };
-    
+
     fs.writeFileSync('implementations/phase1-core-infrastructure.json', JSON.stringify(implementation, null, 2));
     fs.writeFileSync('implementations/PHASE1_CORE_INFRASTRUCTURE.md', this.generateMarkdownImplementation(implementation));
-    
+
     console.log('📋 Phase 1 Implementation Saved:');
     console.log('   📄 JSON: implementations/phase1-core-infrastructure.json');
     console.log('   📝 Markdown: implementations/PHASE1_CORE_INFRASTRUCTURE.md');
@@ -1245,7 +1245,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log('   3. 🔴 SETUP WEBSOCKET SERVER - Configure Socket.io (Week 1)');
     console.log('   4. 🔴 OPTIMIZE DATABASE CONNECTIONS - Connection pooling (Week 1)');
     console.log('   5. 🔴 ADD AUTHENTICATION - JWT middleware (Week 1)');
-    
+
     console.log('\n📊 PHASE 1 IMPLEMENTATION SUMMARY:');
     console.log('   🎯 Goal: Stabilize backend and build foundation');
     console.log('   ⏱️ Duration: 4 weeks (Nov 10 - Dec 8, 2025)');
@@ -1254,14 +1254,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log('   ⏱️ Total Hours: 960 hours of development');
     console.log('   👥 Team Size: Backend Team (5 developers)');
     console.log('   🚀 Next Phase: Phase 2 - Chat Interface & NLU');
-    
+
     console.log('\n🔴 CRITICAL - START DEVELOPMENT IMMEDIATELY!');
     console.log('   Phase 1 is the foundation for all subsequent phases');
     console.log('   All conversational AI features depend on this infrastructure');
     console.log('   Backend stability is critical for user experience');
-    
+
     console.log('\n🌟 CORE INFRASTRUCTURE - READY FOR DEVELOPMENT!');
-    
+
     process.exit(0);
   }).catch(error => {
     console.error('\n❌ Phase 1 Implementation Failed:', error.message);

@@ -9,6 +9,7 @@ import "../styles/globals.css";
 
 import Layout from "../components/layout/Layout";
 import { useRouter } from "next/router";
+import { WakeWordProvider } from "../contexts/WakeWordContext";
 
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   const router = useRouter();
@@ -26,14 +27,16 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
     <SessionProvider session={session}>
       <ChakraProvider value={defaultSystem}>
         <ToastProvider>
-          {isAuthPage ? (
-            <Component {...pageProps} />
-          ) : (
-            <Layout>
+          <WakeWordProvider>
+            {isAuthPage ? (
               <Component {...pageProps} />
-            </Layout>
-          )}
-          {mounted && !isAuthPage && <GlobalChatWidget />}
+            ) : (
+              <Layout>
+                <Component {...pageProps} />
+              </Layout>
+            )}
+            {mounted && !isAuthPage && <GlobalChatWidget />}
+          </WakeWordProvider>
         </ToastProvider>
       </ChakraProvider>
     </SessionProvider>

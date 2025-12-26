@@ -1,39 +1,30 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Grid,
-  GridItem,
   Card,
+  CardContent,
   CardHeader,
-  CardBody,
+  CardTitle,
   CardFooter,
-  Button,
-  IconButton,
-  Badge,
-  Spinner,
-  useToast,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-} from "@chakra-ui/react";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
+import { Spinner } from "@/components/ui/spinner";
 import {
-  AddIcon,
-  TimeIcon,
-  ChatIcon,
-  CheckCircleIcon,
-  ViewIcon,
-  SettingsIcon,
-  RepeatIcon,
-} from "@chakra-ui/icons";
+  Clock,
+  MessageSquare,
+  CheckCircle,
+  Settings,
+  Eye,
+  RotateCcw,
+  Plus,
+  Mail,
+  Slack,
+  MessageCircle, // For Discord/Teams generic
+  Briefcase
+} from "lucide-react";
 import WorkflowAutomation from "./WorkflowAutomation";
-import ServiceIntegrationDashboard from "./ServiceIntegrationDashboard";
-import ServiceManagement from "./ServiceManagement";
 
 interface CalendarEvent {
   id: string;
@@ -84,8 +75,7 @@ const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const fetchDashboardData = async () => {
     try {
@@ -99,9 +89,7 @@ const Dashboard: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to load dashboard data",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
+        variant: "error",
       });
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -112,11 +100,12 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    fetchDashboardData();
+    await fetchDashboardData();
   };
 
   const handleCompleteTask = async (taskId: string) => {
@@ -131,9 +120,7 @@ const Dashboard: React.FC = () => {
       if (response.ok) {
         toast({
           title: "Task completed",
-          status: "success",
-          duration: 2000,
-          isClosable: true,
+          variant: "success",
         });
         fetchDashboardData(); // Refresh data
       }
@@ -141,9 +128,7 @@ const Dashboard: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to complete task",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
+        variant: "error",
       });
     }
   };
@@ -167,26 +152,22 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <Box p={8}>
-        <VStack spacing={4} align="center">
-          <Spinner size="xl" />
-          <Text>Loading your dashboard...</Text>
-        </VStack>
-      </Box>
+      <div className="p-8 flex flex-col items-center gap-4">
+        <Spinner size="lg" />
+        <p>Loading your dashboard...</p>
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <Box p={8}>
-        <VStack spacing={4} align="center">
-          <Heading size="lg">Unable to load dashboard</Heading>
-          <Text>Please try refreshing the page</Text>
-          <Button onClick={handleRefresh} isLoading={refreshing}>
-            Refresh
-          </Button>
-        </VStack>
-      </Box>
+      <div className="p-8 flex flex-col items-center gap-4">
+        <h2 className="text-2xl font-bold">Unable to load dashboard</h2>
+        <p>Please try refreshing the page</p>
+        <Button onClick={handleRefresh} disabled={refreshing}>
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </Button>
+      </div>
     );
   }
 
@@ -209,389 +190,286 @@ const Dashboard: React.FC = () => {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "red";
+        return "destructive";
       case "medium":
-        return "orange";
+        return "secondary"; // orange equivalent? or 'warning' if available, defaulting to secondary
       case "low":
-        return "green";
+        return "outline";
       default:
-        return "gray";
+        return "secondary";
     }
   };
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
       case "email":
-        return "📧";
+        return <Mail className="w-5 h-5" />;
       case "slack":
-        return "💬";
+        return <Slack className="w-5 h-5" />;
       case "teams":
-        return "💼";
+        return <Briefcase className="w-5 h-5" />;
       case "discord":
-        return "🎮";
+        return <MessageCircle className="w-5 h-5" />;
       default:
-        return "💬";
+        return <MessageSquare className="w-5 h-5" />;
     }
   };
 
   return (
-    <Box p={8}>
+    <div className="p-8 space-y-8">
       {/* Header */}
-      <HStack justify="space-between" mb={8}>
-        <VStack align="start" spacing={1}>
-          <Heading size="xl">Atom Agent Dashboard</Heading>
-          <Text color="gray.600">
+      <div className="flex justify-between items-center">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold">Atom Agent Dashboard</h1>
+          <p className="text-gray-500">
             Welcome back! Manage your workflows and connected services.
-          </Text>
-        </VStack>
-        <Button
-          leftIcon={<RepeatIcon />}
-          colorScheme="blue"
-          onClick={handleRefresh}
-          isLoading={refreshing}
-        >
-          Refresh
+          </p>
+        </div>
+        <Button onClick={handleRefresh} disabled={refreshing} variant="default">
+          <RotateCcw className="mr-2 h-4 w-4" />
+          {refreshing ? "Refreshing" : "Refresh"}
         </Button>
-      </HStack>
+      </div>
 
       {/* Main Dashboard Tabs */}
-      <Tabs variant="enclosed" onChange={setActiveTab}>
-        <TabList>
-          <Tab>Overview</Tab>
-          <Tab>Workflow Automation</Tab>
-          <Tab>Service Integrations</Tab>
-          <Tab>Service Management</Tab>
-        </TabList>
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="workflow">Workflow Automation</TabsTrigger>
+        </TabsList>
 
-        <TabPanels>
-          {/* Overview Tab */}
-          <TabPanel>
-            <VStack spacing={6} align="stretch">
-              {/* Stats Overview */}
-              <Grid templateColumns="repeat(5, 1fr)" gap={6}>
-                <Card>
-                  <CardBody>
-                    <VStack align="center">
-                      <TimeIcon boxSize={6} color="blue.500" />
-                      <Text fontSize="2xl" fontWeight="bold">
-                        {data.stats.upcomingEvents}
-                      </Text>
-                      <Text color="gray.600">Upcoming Events</Text>
-                    </VStack>
-                  </CardBody>
-                </Card>
-                <Card>
-                  <CardBody>
-                    <VStack align="center">
-                      <TimeIcon boxSize={6} color="red.500" />
-                      <Text fontSize="2xl" fontWeight="bold">
-                        {data.stats.overdueTasks}
-                      </Text>
-                      <Text color="gray.600">Overdue Tasks</Text>
-                    </VStack>
-                  </CardBody>
-                </Card>
-                <Card>
-                  <CardBody>
-                    <VStack align="center">
-                      <ChatIcon boxSize={6} color="green.500" />
-                      <Text fontSize="2xl" fontWeight="bold">
-                        {data.stats.unreadMessages}
-                      </Text>
-                      <Text color="gray.600">Unread Messages</Text>
-                    </VStack>
-                  </CardBody>
-                </Card>
-                <Card>
-                  <CardBody>
-                    <VStack align="center">
-                      <CheckCircleIcon boxSize={6} color="purple.500" />
-                      <Text fontSize="2xl" fontWeight="bold">
-                        {data.stats.completedTasks}
-                      </Text>
-                      <Text color="gray.600">Completed Today</Text>
-                    </VStack>
-                  </CardBody>
-                </Card>
-                <Card>
-                  <CardBody>
-                    <VStack align="center">
-                      <SettingsIcon boxSize={6} color="orange.500" />
-                      <Text fontSize="2xl" fontWeight="bold">
-                        8
-                      </Text>
-                      <Text color="gray.600">Connected Services</Text>
-                    </VStack>
-                  </CardBody>
-                </Card>
-              </Grid>
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-5 gap-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center">
+                  <Clock className="w-8 h-8 text-blue-500 mb-2" />
+                  <span className="text-2xl font-bold">{data.stats.upcomingEvents}</span>
+                  <span className="text-gray-500">Upcoming Events</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center">
+                  <Clock className="w-8 h-8 text-red-500 mb-2" />
+                  <span className="text-2xl font-bold">{data.stats.overdueTasks}</span>
+                  <span className="text-gray-500">Overdue Tasks</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center">
+                  <MessageSquare className="w-8 h-8 text-green-500 mb-2" />
+                  <span className="text-2xl font-bold">{data.stats.unreadMessages}</span>
+                  <span className="text-gray-500">Unread Messages</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center">
+                  <CheckCircle className="w-8 h-8 text-purple-500 mb-2" />
+                  <span className="text-2xl font-bold">{data.stats.completedTasks}</span>
+                  <span className="text-gray-500">Completed Today</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center">
+                  <Settings className="w-8 h-8 text-orange-500 mb-2" />
+                  <span className="text-2xl font-bold">8</span>
+                  <span className="text-gray-500">Connected Services</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              {/* Main Content Grid */}
-              <Grid templateColumns="repeat(3, 1fr)" gap={8}>
-                {/* Calendar Events */}
-                <GridItem colSpan={1}>
-                  <Card>
-                    <CardHeader>
-                      <HStack justify="space-between">
-                        <Heading size="md">Today&apos;s Calendar</Heading>
-                        <Badge colorScheme="blue">
-                          {data.calendar.length} events
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Calendar Events */}
+            <div className="col-span-1">
+              <Card className="h-full">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-lg font-bold">Today&apos;s Calendar</CardTitle>
+                  <Badge variant="secondary">
+                    {data.calendar.length} events
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col space-y-4">
+                    {data.calendar.slice(0, 5).map((event) => (
+                      <div
+                        key={event.id}
+                        className="p-3 border rounded-md flex justify-between items-start"
+                      >
+                        <div className="space-y-1">
+                          <p className="font-bold">{event.title}</p>
+                          <p className="text-sm text-gray-500">
+                            {formatTime(event.start)} - {formatTime(event.end)}
+                          </p>
+                          {event.location && (
+                            <p className="text-sm text-gray-400">
+                              {event.location}
+                            </p>
+                          )}
+                        </div>
+                        <Badge variant={event.status === "confirmed" ? "default" : "secondary"}>
+                          {event.status}
                         </Badge>
-                      </HStack>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack spacing={4} align="stretch">
-                        {data.calendar.slice(0, 5).map((event) => (
-                          <Box
-                            key={event.id}
-                            p={3}
-                            borderWidth="1px"
-                            borderRadius="md"
-                          >
-                            <HStack justify="space-between">
-                              <VStack align="start" spacing={1}>
-                                <Text fontWeight="bold">{event.title}</Text>
-                                <Text fontSize="sm" color="gray.600">
-                                  {formatTime(event.start)} -{" "}
-                                  {formatTime(event.end)}
-                                </Text>
-                                {event.location && (
-                                  <Text fontSize="sm" color="gray.500">
-                                    {event.location}
-                                  </Text>
-                                )}
-                              </VStack>
-                              <Badge
-                                colorScheme={
-                                  event.status === "confirmed"
-                                    ? "green"
-                                    : "yellow"
-                                }
+                      </div>
+                    ))}
+                    {data.calendar.length === 0 && (
+                      <p className="text-gray-500 text-center">
+                        No events scheduled for today
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button variant="outline" className="w-full">
+                    <Clock className="mr-2 h-4 w-4" />
+                    View Full Calendar
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
+
+            {/* Tasks */}
+            <div className="col-span-1">
+              <Card className="h-full">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-lg font-bold">Tasks</CardTitle>
+                  <Badge variant="secondary">
+                    {data.tasks.length} tasks
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col space-y-3">
+                    {data.tasks.slice(0, 6).map((task) => (
+                      <div
+                        key={task.id}
+                        className={`p-3 border rounded-md ${task.status === "completed" ? "bg-green-50" : "bg-white"
+                          }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`font-bold ${task.status === "completed" ? "line-through text-gray-500" : ""
+                                  }`}
                               >
-                                {event.status}
+                                {task.title}
+                              </span>
+                              <Badge variant={task.priority === 'high' ? 'destructive' : 'outline'}>
+                                {task.priority}
                               </Badge>
-                            </HStack>
-                          </Box>
-                        ))}
-                        {data.calendar.length === 0 && (
-                          <Text color="gray.500" textAlign="center">
-                            No events scheduled for today
-                          </Text>
-                        )}
-                      </VStack>
-                    </CardBody>
-                    <CardFooter>
-                      <Button
-                        leftIcon={<TimeIcon />}
-                        variant="outline"
-                        size="sm"
-                        w="full"
+                            </div>
+                            {task.description && (
+                              <p className="text-sm text-gray-500 truncate">
+                                {task.description}
+                              </p>
+                            )}
+                            <p className="text-sm text-gray-400">
+                              Due: {isToday(task.dueDate) ? "Today" : formatDate(task.dueDate)}
+                            </p>
+                          </div>
+                          {task.status !== "completed" && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleCompleteTask(task.id)}
+                            >
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {data.tasks.length === 0 && (
+                      <p className="text-gray-500 text-center">
+                        No tasks assigned
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button variant="outline" className="w-full">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add New Task
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
+
+            {/* Messages */}
+            <div className="col-span-1">
+              <Card className="h-full">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-lg font-bold">Messages</CardTitle>
+                  <Badge variant="secondary">
+                    {data.messages.length} messages
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col space-y-3">
+                    {data.messages.slice(0, 5).map((message) => (
+                      <div
+                        key={message.id}
+                        className={`p-3 border rounded-md cursor-pointer ${message.unread ? "bg-blue-50 border-blue-200" : "bg-white"
+                          }`}
+                        onClick={() => handleMarkAsRead(message.id)}
                       >
-                        View Full Calendar
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </GridItem>
+                        <div className="flex gap-3 items-start">
+                          <div className="pt-1">
+                            {getPlatformIcon(message.platform)}
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <div className="flex justify-between w-full">
+                              <span className="font-bold truncate">{message.from}</span>
+                              <span className="text-xs text-gray-500">
+                                {formatTime(message.timestamp)}
+                              </span>
+                            </div>
+                            <p className="font-medium truncate">{message.subject}</p>
+                            <p className="text-sm text-gray-500 line-clamp-2">
+                              {message.preview}
+                            </p>
+                          </div>
+                          {message.unread && (
+                            <Badge variant="default" className="bg-blue-500">New</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {data.messages.length === 0 && (
+                      <p className="text-gray-500 text-center">
+                        No messages
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button variant="outline" className="w-full">
+                    <Eye className="mr-2 h-4 w-4" />
+                    View All Messages
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
 
-                {/* Tasks */}
-                <GridItem colSpan={1}>
-                  <Card>
-                    <CardHeader>
-                      <HStack justify="space-between">
-                        <Heading size="md">Tasks</Heading>
-                        <Badge colorScheme="orange">
-                          {data.tasks.length} tasks
-                        </Badge>
-                      </HStack>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack spacing={3} align="stretch">
-                        {data.tasks.slice(0, 6).map((task) => (
-                          <Box
-                            key={task.id}
-                            p={3}
-                            borderWidth="1px"
-                            borderRadius="md"
-                            borderColor={
-                              task.priority === "high" ? "red.200" : "gray.200"
-                            }
-                            bg={
-                              task.status === "completed" ? "green.50" : "white"
-                            }
-                          >
-                            <HStack justify="space-between">
-                              <VStack align="start" spacing={1} flex={1}>
-                                <HStack>
-                                  <Text
-                                    fontWeight="bold"
-                                    textDecoration={
-                                      task.status === "completed"
-                                        ? "line-through"
-                                        : "none"
-                                    }
-                                    color={
-                                      task.status === "completed"
-                                        ? "gray.600"
-                                        : "inherit"
-                                    }
-                                  >
-                                    {task.title}
-                                  </Text>
-                                  <Badge
-                                    colorScheme={getPriorityColor(
-                                      task.priority,
-                                    )}
-                                    size="sm"
-                                  >
-                                    {task.priority}
-                                  </Badge>
-                                </HStack>
-                                {task.description && (
-                                  <Text
-                                    fontSize="sm"
-                                    color="gray.600"
-                                    noOfLines={1}
-                                  >
-                                    {task.description}
-                                  </Text>
-                                )}
-                                <Text fontSize="sm" color="gray.500">
-                                  Due:{" "}
-                                  {isToday(task.dueDate)
-                                    ? "Today"
-                                    : formatDate(task.dueDate)}
-                                </Text>
-                              </VStack>
-                              {task.status !== "completed" && (
-                                <IconButton
-                                  aria-label="Complete task"
-                                  icon={<CheckCircleIcon />}
-                                  size="sm"
-                                  colorScheme="green"
-                                  onClick={() => handleCompleteTask(task.id)}
-                                />
-                              )}
-                            </HStack>
-                          </Box>
-                        ))}
-                        {data.tasks.length === 0 && (
-                          <Text color="gray.500" textAlign="center">
-                            No tasks assigned
-                          </Text>
-                        )}
-                      </VStack>
-                    </CardBody>
-                    <CardFooter>
-                      <Button
-                        leftIcon={<AddIcon />}
-                        variant="outline"
-                        size="sm"
-                        w="full"
-                      >
-                        Add New Task
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </GridItem>
-
-                {/* Messages */}
-                <GridItem colSpan={1}>
-                  <Card>
-                    <CardHeader>
-                      <HStack justify="space-between">
-                        <Heading size="md">Messages</Heading>
-                        <Badge colorScheme="green">
-                          {data.messages.length} messages
-                        </Badge>
-                      </HStack>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack spacing={3} align="stretch">
-                        {data.messages.slice(0, 5).map((message) => (
-                          <Box
-                            key={message.id}
-                            p={3}
-                            borderWidth="1px"
-                            borderRadius="md"
-                            bg={message.unread ? "blue.50" : "white"}
-                            borderColor={
-                              message.unread ? "blue.200" : "gray.200"
-                            }
-                            cursor="pointer"
-                            onClick={() => handleMarkAsRead(message.id)}
-                          >
-                            <HStack spacing={3} align="start">
-                              <Text fontSize="lg">
-                                {getPlatformIcon(message.platform)}
-                              </Text>
-                              <VStack align="start" spacing={1} flex={1}>
-                                <HStack justify="space-between" w="full">
-                                  <Text fontWeight="bold" noOfLines={1}>
-                                    {message.from}
-                                  </Text>
-                                  <Text fontSize="sm" color="gray.500">
-                                    {formatTime(message.timestamp)}
-                                  </Text>
-                                </HStack>
-                                <Text fontWeight="medium" noOfLines={1}>
-                                  {message.subject}
-                                </Text>
-                                <Text
-                                  fontSize="sm"
-                                  color="gray.600"
-                                  noOfLines={2}
-                                >
-                                  {message.preview}
-                                </Text>
-                              </VStack>
-                              {message.unread && (
-                                <Badge colorScheme="blue" ml={2}>
-                                  New
-                                </Badge>
-                              )}
-                            </HStack>
-                          </Box>
-                        ))}
-                        {data.messages.length === 0 && (
-                          <Text color="gray.500" textAlign="center">
-                            No messages
-                          </Text>
-                        )}
-                      </VStack>
-                    </CardBody>
-                    <CardFooter>
-                      <Button
-                        leftIcon={<ViewIcon />}
-                        variant="outline"
-                        size="sm"
-                        w="full"
-                      >
-                        View All Messages
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </GridItem>
-              </Grid>
-            </VStack>
-          </TabPanel>
-
-          {/* Workflow Automation Tab */}
-          <TabPanel>
-            <WorkflowAutomation />
-          </TabPanel>
-
-          {/* Service Integrations Tab */}
-          <TabPanel>
-            <ServiceIntegrationDashboard />
-          </TabPanel>
-
-          {/* Service Management Tab */}
-          <TabPanel>
-            <ServiceManagement />
-          </TabPanel>
-        </TabPanels>
+        {/* Workflow Automation Tab */}
+        <TabsContent value="workflow">
+          <WorkflowAutomation />
+        </TabsContent>
       </Tabs>
-    </Box>
+    </div>
   );
 };
 

@@ -241,7 +241,14 @@ const HubSpotWorkflowAutomation: React.FC<HubSpotWorkflowAutomationProps> = ({
                             <option value="less_than">Less Than</option>
                             <option value="contains">Contains</option>
                           </select>
-                          <Input size="sm" value={trigger.value} onChange={() => { }} placeholder="Value" className="flex-1" />
+                          <Input
+                            value={String(trigger.value || "")}
+                            onChange={(e) => {
+                              // Update trigger value logic would go here
+                            }}
+                            placeholder="Value"
+                            className="flex-1 h-8"
+                          />
                         </div>
                       </div>
                     </CardContent>

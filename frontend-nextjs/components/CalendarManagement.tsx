@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/use-toast";
 const CalendarManagement: React.FC = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const fetchEvents = async () => {
     try {

@@ -9,7 +9,8 @@ export async function executeGraphQLQuery<T = any>(
   query: string,
   variables?: Record<string, any>,
   operationName?: string,
-): Promise<GraphQLResponse<T>> {
+  _userId?: string, // Optional userId for logging/context
+): Promise<T> {
   try {
     const response = await fetch(HASURA_GRAPHQL_URL, {
       method: "POST",
@@ -30,10 +31,16 @@ export async function executeGraphQLQuery<T = any>(
       );
     }
 
-    return await response.json();
+    const result: GraphQLResponse<T> = await response.json();
+
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors.map(e => e.message).join(', '));
+    }
+
+    return result.data as T;
   } catch (error) {
     console.error("GraphQL query error:", error);
-    return { errors: [{ message: "Failed to execute GraphQL query" }] };
+    throw error;
   }
 }
 
@@ -41,8 +48,9 @@ export async function executeGraphQLMutation<T = any>(
   mutation: string,
   variables?: Record<string, any>,
   operationName?: string,
-): Promise<GraphQLResponse<T>> {
-  return executeGraphQLQuery(mutation, variables, operationName);
+  userId?: string,
+): Promise<T> {
+  return executeGraphQLQuery<T>(mutation, variables, operationName, userId);
 }
 
 export async function executeGraphQLSubscription<T = any>(
@@ -50,8 +58,6 @@ export async function executeGraphQLSubscription<T = any>(
   variables?: Record<string, any>,
   operationName?: string,
 ): Promise<AsyncIterable<T>> {
-  // This is a placeholder for subscription implementation
-  // In a real implementation, you would use WebSocket or SSE
   throw new Error("GraphQL subscriptions not implemented");
 }
 
@@ -73,7 +79,7 @@ export function createGraphQLClient(options?: {
       query: string,
       variables?: Record<string, any>,
       operationName?: string,
-    ): Promise<GraphQLResponse<T>> => {
+    ): Promise<T> => {
       const response = await fetch(HASURA_GRAPHQL_URL, {
         method: "POST",
         headers,
@@ -86,15 +92,21 @@ export function createGraphQLClient(options?: {
         );
       }
 
-      return response.json();
+      const result: GraphQLResponse<T> = await response.json();
+
+      if (result.errors && result.errors.length > 0) {
+        throw new Error(result.errors.map(e => e.message).join(', '));
+      }
+
+      return result.data as T;
     },
 
     mutate: async <T = any>(
       mutation: string,
       variables?: Record<string, any>,
       operationName?: string,
-    ): Promise<GraphQLResponse<T>> => {
-      return executeGraphQLMutation(mutation, variables, operationName);
+    ): Promise<T> => {
+      return executeGraphQLMutation<T>(mutation, variables, operationName);
     },
   };
 }

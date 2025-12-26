@@ -153,13 +153,13 @@ export default function WorkflowBuilder() {
                 throw new Error('Save failed');
             }
         } catch (error) {
-            toast({ title: 'Error', description: 'Failed to save template.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to save template.', variant: 'error' });
         }
     };
 
     const handleRun = async () => {
         if (!currentTemplateId) {
-            toast({ title: 'Save First', description: 'Please save the workflow before running.', variant: 'destructive' });
+            toast({ title: 'Save First', description: 'Please save the workflow before running.', variant: 'error' });
             return;
         }
 
@@ -180,7 +180,7 @@ export default function WorkflowBuilder() {
                 throw new Error('Execution failed');
             }
         } catch (error) {
-            toast({ title: 'Execution Failed', description: String(error), variant: 'destructive' });
+            toast({ title: 'Execution Failed', description: String(error), variant: 'error' });
         } finally {
             setIsRunning(false);
         }
@@ -229,7 +229,7 @@ export default function WorkflowBuilder() {
             toast({ title: 'Loaded', description: `Template "${template.name}" loaded.` });
 
         } catch (error) {
-            toast({ title: 'Error', description: 'Failed to load template.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to load template.', variant: 'error' });
         }
     };
 

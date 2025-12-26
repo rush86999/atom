@@ -9,10 +9,10 @@ const mockSpeechRecognition = {
   continuous: false,
   interimResults: false,
   lang: 'en-US',
-  onstart: null,
-  onend: null,
-  onresult: null,
-  onerror: null,
+  onstart: null as any,
+  onend: null as any,
+  onresult: null as any,
+  onerror: null as any,
   start: jest.fn(),
   stop: jest.fn(),
 };
@@ -40,9 +40,9 @@ jest.mock('@chakra-ui/react', () => ({
 
 const renderWithProviders = (component: React.ReactElement) => {
   return render(
-    <ChakraProvider>
+    <div data-testid="chakra-provider">
       {component}
-    </ChakraProvider>
+    </div>
   );
 };
 

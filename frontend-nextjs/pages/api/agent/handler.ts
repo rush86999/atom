@@ -1,10 +1,17 @@
+export interface HandleMessageResponse {
+  text: string;
+  audioUrl?: string;
+  error?: string;
+  structuredData?: any;
+}
+
 /**
  * Get authenticated user using PostGraphile JWT/session system
  * Completely replaces environment variable USER_ID approach
  * @param request Optional request object for HTTP context extraction
  * @returns Authenticated user ID from PostGraphile context
  */
-function getCurrentUserId(request?: any): string {
+export function getCurrentUserId(request?: any): string {
   try {
     // Production: Use PostGraphile JWT claims system
     if (request && typeof request === "object") {
@@ -56,6 +63,18 @@ function getCurrentUserId(request?: any): string {
     );
   }
 }
+
+/**
+ * Handle message from desktop proxy or other sources
+ */
+export async function handleMessage(message: string, settings: any): Promise<HandleMessageResponse> {
+  console.log(`Handling message: ${message} with settings:`, settings);
+  // Placeholder implementation
+  return {
+    text: `Echo: ${message}`,
+  };
+}
+
 
 /**
  * Extract user from PostGraphile JWT token
