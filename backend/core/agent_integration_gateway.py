@@ -23,6 +23,7 @@ class ActionType(Enum):
     UPDATE_RECORD = "update_record"
     FETCH_INSIGHTS = "fetch_insights"
     FETCH_LOGIC = "fetch_logic"
+    FETCH_FORMULAS = "fetch_formulas"  # Phase 30: Formula Memory Access
     SYNC_DATA = "sync_data"
 
 class AgentIntegrationGateway:
@@ -72,6 +73,8 @@ class AgentIntegrationGateway:
                 return await self._handle_fetch_insights(platform, params)
             elif action_type == ActionType.FETCH_LOGIC:
                 return await self._handle_fetch_logic(platform, params)
+            elif action_type == ActionType.FETCH_FORMULAS:
+                return await self._handle_fetch_formulas(params)
             
             return {"status": "error", "message": "Unsupported action type"}
         except Exception as e:
@@ -135,6 +138,57 @@ class AgentIntegrationGateway:
             "status": "success", 
             "logic": [f"Rule found for '{query}': Standard operating procedure allows for 10% discount on bulk orders."]
         }
+
+    async def _handle_fetch_formulas(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Retrieves formulas from Atom's formula memory.
+        Phase 30: Intelligent Formula Storage access for specialty agents.
+        """
+        query = params.get("query", "")
+        domain = params.get("domain")  # e.g., "finance", "sales"
+        workspace_id = params.get("workspace_id", "default")
+        limit = params.get("limit", 5)
+        
+        try:
+            from core.formula_memory import get_formula_manager
+            manager = get_formula_manager(workspace_id)
+            
+            formulas = manager.search_formulas(
+                query=query,
+                domain=domain,
+                limit=limit
+            )
+            
+            if formulas:
+                return {
+                    "status": "success",
+                    "formulas": [
+                        {
+                            "id": f.get("id"),
+                            "name": f.get("name"),
+                            "expression": f.get("expression"),
+                            "domain": f.get("domain"),
+                            "use_case": f.get("use_case"),
+                            "parameters": f.get("parameters", [])
+                        }
+                        for f in formulas
+                    ],
+                    "count": len(formulas)
+                }
+            else:
+                return {
+                    "status": "success",
+                    "formulas": [],
+                    "count": 0,
+                    "message": f"No formulas found matching '{query}'"
+                }
+                
+        except Exception as e:
+            logger.error(f"Formula fetch failed: {e}")
+            return {
+                "status": "error",
+                "message": f"Formula retrieval failed: {str(e)}"
+            }
 
 # Global singleton
 agent_integration_gateway = AgentIntegrationGateway()
