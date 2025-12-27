@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { MessageSquare, X, Minimize2, Maximize2, Trash2 } from "lucide-react";
+import { MessageSquare, X, Minimize2, Maximize2, Trash2, AlertCircle } from "lucide-react";
 import { ChatInput } from "./GlobalChat/ChatInput";
-import { ChatMessage, ChatMessageData, ChatAction } from "./GlobalChat/ChatMessage";
+import { ChatMessage, ChatMessageData, ChatAction, ReasoningStep } from "./GlobalChat/ChatMessage";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { useWebSocket } from "../hooks/useWebSocket";
+import { Badge } from "@/components/ui/badge";
 
 import { useRouter } from 'next/router';
 
@@ -18,9 +20,11 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const [messages, setMessages] = useState<ChatMessageData[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string>("");
+    const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
     const router = useRouter();
+    const { isConnected, lastMessage, subscribe } = useWebSocket();
 
     // Initialize session
     useEffect(() => {
@@ -50,6 +54,56 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }
     }, [messages, isOpen]);
+
+    // WebSocket subscription
+    useEffect(() => {
+        if (isConnected) {
+            subscribe("workspace:default");
+        }
+    }, [isConnected, subscribe]);
+
+    // Handle WebSocket messages
+    useEffect(() => {
+        if (!lastMessage) return;
+        const msg = lastMessage as any;
+
+        // Agent step update - append to last assistant message's reasoningTrace
+        if (msg.type === "agent_step_update") {
+            const step: ReasoningStep = {
+                step: msg.step?.step || 1,
+                thought: msg.step?.thought,
+                action: msg.step?.action,
+                observation: msg.step?.output,
+                final_answer: msg.step?.final_answer,
+            };
+
+            setMessages(prev => {
+                const lastMsg = prev[prev.length - 1];
+                if (lastMsg && lastMsg.type === "assistant") {
+                    return [...prev.slice(0, -1), {
+                        ...lastMsg,
+                        reasoningTrace: [...(lastMsg.reasoningTrace || []), step]
+                    }];
+                }
+                return prev;
+            });
+        }
+
+        // HITL paused
+        if (msg.type === "hitl_paused") {
+            setPendingApproval({
+                action_id: msg.action_id,
+                tool: msg.tool,
+                reason: msg.reason
+            });
+            toast({ title: "Approval Required", description: `Action '${msg.tool}' needs your approval.`, variant: "default" });
+        }
+
+        // HITL decision made
+        if (msg.type === "hitl_decision") {
+            setPendingApproval(null);
+        }
+    }, [lastMessage, toast]);
 
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
         try {
@@ -219,6 +273,25 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         toast({ title: "New Chat", description: "Started a fresh conversation." });
     };
 
+    const handleHITLDecision = async (actionId: string, decision: 'approved' | 'rejected') => {
+        try {
+            const response = await fetch(`/api/agents/approvals/${actionId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ decision }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast({ title: `Action ${decision}`, description: `Decision recorded.`, variant: "default" });
+                setPendingApproval(null);
+            } else {
+                throw new Error(data.error || "Failed to submit decision");
+            }
+        } catch (e) {
+            toast({ title: "Error", description: String(e), variant: "error" });
+        }
+    };
+
     return (
         <div className="fixed bottom-6 right-6 z-50">
             <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -271,6 +344,28 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                             )}
                             <div ref={messagesEndRef} />
                         </div>
+
+                        {/* HITL Approval Banner */}
+                        {pendingApproval && (
+                            <div className="mx-4 mb-2 p-3 border-2 border-yellow-200 rounded-lg bg-yellow-50">
+                                <div className="flex items-center gap-2 text-yellow-800 font-medium text-sm mb-2">
+                                    <AlertCircle className="h-4 w-4" />
+                                    Approval Required
+                                </div>
+                                <p className="text-xs text-yellow-700 mb-2">
+                                    <strong>Action:</strong> {pendingApproval.tool}<br />
+                                    <strong>Reason:</strong> {pendingApproval.reason}
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button size="sm" onClick={() => handleHITLDecision(pendingApproval.action_id, 'approved')}>
+                                        Approve
+                                    </Button>
+                                    <Button size="sm" variant="destructive" onClick={() => handleHITLDecision(pendingApproval.action_id, 'rejected')}>
+                                        Reject
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Input */}
                         <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />

@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { ScrollArea } from "../ui/scroll-area";
-import { Send, StopCircle, Paperclip, Mic } from "lucide-react";
-import { ChatMessage } from "../GlobalChat/ChatMessage"; // Reuse existing message component
-import { ChatMessageData } from "../GlobalChat/ChatMessage";
+import { Send, StopCircle, Paperclip, Mic, AlertCircle } from "lucide-react";
+import { ChatMessage } from "../GlobalChat/ChatMessage";
+import { ChatMessageData, ReasoningStep } from "../GlobalChat/ChatMessage";
 import { VoiceInput } from "../Voice/VoiceInput";
+import { useWebSocket } from "../../hooks/useWebSocket";
+import { useToast } from "../ui/use-toast";
 
 interface ChatInterfaceProps {
     sessionId: string | null;
@@ -15,7 +17,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     const [input, setInput] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
     const [messages, setMessages] = useState<ChatMessageData[]>([]);
+    const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { isConnected, lastMessage, subscribe } = useWebSocket();
+    const { toast } = useToast();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,6 +44,47 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // WebSocket subscription
+    useEffect(() => {
+        if (isConnected) {
+            subscribe("workspace:default");
+        }
+    }, [isConnected, subscribe]);
+
+    // Handle WebSocket messages
+    useEffect(() => {
+        if (!lastMessage) return;
+        const msg = lastMessage as any;
+
+        if (msg.type === "agent_step_update") {
+            const step: ReasoningStep = {
+                step: msg.step?.step || 1,
+                thought: msg.step?.thought,
+                action: msg.step?.action,
+                observation: msg.step?.output,
+                final_answer: msg.step?.final_answer,
+            };
+            setMessages(prev => {
+                const lastMsg = prev[prev.length - 1];
+                if (lastMsg && lastMsg.type === "assistant") {
+                    return [...prev.slice(0, -1), {
+                        ...lastMsg,
+                        reasoningTrace: [...(lastMsg.reasoningTrace || []), step]
+                    }];
+                }
+                return prev;
+            });
+        }
+
+        if (msg.type === "hitl_paused") {
+            setPendingApproval({ action_id: msg.action_id, tool: msg.tool, reason: msg.reason });
+        }
+
+        if (msg.type === "hitl_decision") {
+            setPendingApproval(null);
+        }
+    }, [lastMessage]);
 
     const loadSessionHistory = async (sid: string) => {
         try {
@@ -138,6 +184,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         setMessages(prev => [...prev, stopMsg]);
     };
 
+    const handleHITLDecision = async (actionId: string, decision: 'approved' | 'rejected') => {
+        try {
+            const response = await fetch(`/api/agents/approvals/${actionId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ decision }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast({ title: `Action ${decision}`, variant: "default" });
+                setPendingApproval(null);
+            }
+        } catch (e) {
+            toast({ title: "Error", description: String(e), variant: "error" });
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-background">
             {/* Chat Header */}
@@ -169,6 +232,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
                     <div ref={messagesEndRef} />
                 </div>
             </ScrollArea>
+
+            {/* HITL Approval Banner */}
+            {pendingApproval && (
+                <div className="mx-4 mb-2 p-3 border-2 border-yellow-200 rounded-lg bg-yellow-50">
+                    <div className="flex items-center gap-2 text-yellow-800 font-medium text-sm mb-2">
+                        <AlertCircle className="h-4 w-4" />
+                        Approval Required
+                    </div>
+                    <p className="text-xs text-yellow-700 mb-2">
+                        <strong>Action:</strong> {pendingApproval.tool}<br />
+                        <strong>Reason:</strong> {pendingApproval.reason}
+                    </p>
+                    <div className="flex gap-2">
+                        <Button size="sm" onClick={() => handleHITLDecision(pendingApproval.action_id, 'approved')}>
+                            Approve
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleHITLDecision(pendingApproval.action_id, 'rejected')}>
+                            Reject
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Input Area */}
             <div className="p-4 border-t border-border bg-background">
