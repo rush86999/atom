@@ -56,12 +56,17 @@ async def get_marketing_summary(workspace_id: str = "default-workspace", db: Ses
         ).order_by(Lead.ai_score.desc()).limit(5).all()
         
         # 4. Check GMB integration status
+        mock_mode = os.getenv("MOCK_MODE_ENABLED", "false").lower() == "true"
         gmb_configured = bool(os.getenv("GOOGLE_BUSINESS_API_KEY") or os.getenv("GMB_CREDENTIALS"))
-        gmb_status = "active" if gmb_configured else "not_configured"
+        gmb_status = "active" if gmb_configured else ("mock" if mock_mode else "not_configured")
         
-        # 5. Pending reviews - requires GMB API integration
-        # When GMB is configured, this would fetch from Google Business Profile API
-        pending_reviews = 0 if not gmb_configured else None  # None indicates fetch from API needed
+        # 5. Pending reviews
+        if gmb_configured:
+            pending_reviews = None # Fetch needed
+        elif mock_mode:
+            pending_reviews = 12 # Mock data
+        else:
+            pending_reviews = "integration_required"
         
         return {
             "narrative_report": narrative,
@@ -75,7 +80,8 @@ async def get_marketing_summary(workspace_id: str = "default-workspace", db: Ses
                 } for l in high_intent_leads
             ],
             "gmb_status": gmb_status,
-            "pending_reviews": pending_reviews
+            "pending_reviews": pending_reviews,
+            "data_source": "mock" if mock_mode else "live"
         }
     except Exception as e:
         logger.error(f"Error fetching marketing summary: {e}")

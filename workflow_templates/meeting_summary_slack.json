@@ -1,0 +1,97 @@
+{
+  "template_id": "meeting_summary_slack",
+  "name": "Cross-Platform Meeting Summary",
+  "description": "Summarize Zoom/Meet calls and post to Slack/Discord.",
+  "category": "automation",
+  "complexity": "beginner",
+  "tags": [
+    "meeting",
+    "ai",
+    "summary",
+    "slack",
+    "zoom"
+  ],
+  "version": "1.0.0",
+  "author": "System",
+  "created_at": "2025-12-27 14:15:29.632570",
+  "updated_at": "2025-12-27 14:15:29.632571",
+  "inputs": [
+    {
+      "name": "platform",
+      "label": "Meeting Platform",
+      "description": "Zoom or Google Meet",
+      "type": "string",
+      "required": true,
+      "default_value": null,
+      "options": [],
+      "validation_rules": {},
+      "help_text": null,
+      "example_value": null
+    },
+    {
+      "name": "channel",
+      "label": "Post to Channel",
+      "description": "Slack/Discord channel name",
+      "type": "string",
+      "required": true,
+      "default_value": null,
+      "options": [],
+      "validation_rules": {},
+      "help_text": null,
+      "example_value": null
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "transcript",
+      "name": "Get Transcript",
+      "description": "Fetch call transcript",
+      "step_type": "extraction",
+      "parameters": [],
+      "condition": null,
+      "depends_on": [],
+      "estimated_duration": 60,
+      "is_optional": false,
+      "retry_config": {}
+    },
+    {
+      "step_id": "summarize",
+      "name": "AI Summarize",
+      "description": "Generate key takeaways",
+      "step_type": "ai_transformation",
+      "parameters": [],
+      "condition": null,
+      "depends_on": [
+        "transcript"
+      ],
+      "estimated_duration": 60,
+      "is_optional": false,
+      "retry_config": {}
+    },
+    {
+      "step_id": "post",
+      "name": "Post to Chat",
+      "description": "Share summary in channel",
+      "step_type": "notification",
+      "parameters": [],
+      "condition": null,
+      "depends_on": [
+        "summarize"
+      ],
+      "estimated_duration": 60,
+      "is_optional": false,
+      "retry_config": {}
+    }
+  ],
+  "output_schema": {},
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 180,
+  "prerequisites": [],
+  "dependencies": [],
+  "permissions": [],
+  "is_public": true,
+  "is_featured": true,
+  "license": "MIT"
+}
