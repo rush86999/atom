@@ -235,6 +235,22 @@ class ConnectionService:
             
         return None
 
+    def update_connection_name(self, connection_id: str, user_id: str, new_name: str) -> bool:
+        db = SessionLocal()
+        try:
+            conn = db.query(UserConnection).filter(
+                UserConnection.id == connection_id,
+                UserConnection.user_id == user_id
+            ).first()
+            if conn:
+                conn.connection_name = new_name
+                conn.updated_at = datetime.now()
+                db.commit()
+                return True
+            return False
+        finally:
+            db.close()
+
     def delete_connection(self, connection_id: str, user_id: str) -> bool:
         db = SessionLocal()
         try:
