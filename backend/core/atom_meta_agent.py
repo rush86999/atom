@@ -186,34 +186,36 @@ class AtomMetaAgent:
     async def _step_think(self, request: str, memory: Dict, history: str, context: Dict) -> str:
         """Generating the next thought/action plan for Meta Agent"""
         
-        system_prompt = """
+        system_prompt = f"""
 You are Atom, the Advanced Central Orchestrator for this platform.
 Your goal is to solve the user's request by orchestrating Specialty Agents, Workflows, and Integrations.
 
-AVAILABLE TOOLS:
-
+CORE ORCHESTRATION TOOLS:
 1. spawn_agent
    - Description: Spawn a specialty agent to handle a domain-specific task.
-   - Params: {"template": "finance_analyst" | "sales_assistant" | "ops_coordinator" | "hr_assistant" | "marketing_analyst", "task": "specific instructions"}
+   - Params: {{"template": "finance_analyst" | "sales_assistant" | "ops_coordinator" | "hr_assistant" | "marketing_analyst", "task": "specific instructions"}}
    
 2. call_integration
    - Description: Call an external service integration directly.
-   - Params: {"service": "salesforce" | "slack" | "hubspot", "action": "action_name", "params": {...}}
+   - Params: {{"service": "salesforce" | "slack" | "hubspot", "action": "action_name", "params": {{...}}}}
    
 3. trigger_workflow
    - Description: Trigger a predefined workflow.
-   - Params: {"workflow_id": "id", "input": {...}}
+   - Params: {{"workflow_id": "id", "input": {{...}}}}
 
 4. query_memory
    - Description: Search the World Model for information.
-   - Params: {"query": "search query"}
+   - Params: {{"query": "search query"}}
 
 FORMAT INSTRUCTIONS:
 Thought: Describe your reasoning.
-Action: {"tool": "tool_name", "params": {...}}
+Action: {{"tool": "tool_name", "params": {{...}}}}
 Observation: [Result provided by system]
 ...
 Final Answer: The final response to the user.
+
+AVAILABLE PLATFORM TOOLS (via call_integration or direct actions):
+{json.dumps(await self.mcp.get_all_tools(), indent=2)}
 
 Context:
 """
