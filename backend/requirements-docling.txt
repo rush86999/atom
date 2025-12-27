@@ -1,0 +1,8 @@
+# Optional dependencies for advanced features
+# These are not required for basic functionality and can be installed separately
+
+# Advanced OCR and Document Processing (adds ~2GB for models)
+docling>=2.0.0  # Multi-format document parsing with OCR support
+
+# Optional ASR for audio processing
+# openai-whisper>=20230314  # Speech recognition (requires ffmpeg)
