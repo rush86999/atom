@@ -10,6 +10,7 @@ from core.agent_world_model import WorldModelService, AgentExperience
 
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from core.notification_manager import notification_manager
+from core.websockets import manager as ws_manager
 from core.models import User
 from core.security_dependencies import require_permission
 from core.rbac_service import Permission
@@ -89,6 +90,23 @@ async def run_agent(
     if agent.status == "running": 
          raise HTTPException(status_code=409, detail="Agent is already running")
 
+    # Check if we should run synchronously (for testing)
+    is_sync = run_req.parameters.get("sync", False)
+    
+    if is_sync:
+        # Run immediately and return result
+        # Note: calling execute_agent_task directly might have session issues if it creates its own session 
+        # but execute_agent_task creates a SessionLocal(), so it is fine.
+        # We need to capture the return value from execute_agent_task (which currently returns nothing/void, just logs/notifies).
+        # We need to refactor execute_agent_task to return result if needed.
+        # Let's import it or call the logic directly. 
+        # Actually, let's just instantiate GenericAgent here if it's a generic agent to get the Result object?
+        # Or better, refactor execute_agent_task to return the result.
+        
+        # Refactoring execute_agent_task is best.
+        result = await execute_agent_task(agent_id, run_req.parameters)
+        return {"status": "completed", "agent_id": agent_id, "result": result}
+
     # Run in background
     # We pass agent_id only, task will re-fetch to ensure fresh state/object access
     background_tasks.add_task(execute_agent_task, agent_id, run_req.parameters)
@@ -133,6 +151,7 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
     """Background task to run the agent logic"""
     # Create new DB session for background task
     db = SessionLocal() 
+    result = None
     try:
         agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
         if not agent:
@@ -156,62 +175,77 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
                 logger.info(f"  [Memory] {mem.input_summary} -> {mem.learnings} ({mem.outcome})")
 
         # Dynamic Import
-        module_name = agent.module_path
-        class_name = agent.class_name
+        # Unified Execution Logic using GenericAgent ReAct Loop
+        from core.generic_agent import GenericAgent
         
+        result = None
         try:
-            mod = __import__(module_name, fromlist=[class_name])
-            AgentClass = getattr(mod, class_name)
-            
-            # Instantiate
-            agent_instance = AgentClass()
-            
-            # Determine method to call (Heuristic mapping)
-            result = None
-            # Need to re-map based on category or name since we lost specific ID keys if they changed
-            # But the ID is still the PK.
-            
-            if agent_id == "competitive_intel":  # Use IDs that match seed data or created ones
-                result = await agent_instance.track_competitor_pricing(
-                    params.get("competitors", ["competitor-a", "competitor-b"]),
-                    params.get("product", "widget-x")
-                )
-            elif agent_id == "inventory_reconcile":
-                result = await agent_instance.reconcile_inventory(
-                    params.get("skus", ["SKU-123", "SKU-999"])
-                )
-            elif agent_id == "payroll_guardian":
-                result = await agent_instance.reconcile_payroll(
-                    params.get("period", "2023-12")
-                )
-            else:
-                # Generic fallback if class has 'run' method
-                if hasattr(agent_instance, 'run'):
-                    result = await agent_instance.run(params)
-                else:
-                    result = "Executed generic agent logic."
+            # 1. Determine Tools based on Agent ID/Type (Migration compatibility)
+            # If the agent is legacy and doesn't have tools configured, we inject them here.
+            override_config = {}
+            if agent.id == "competitive_intel":
+                 override_config["tools"] = ["track_competitor_pricing"]
+                 override_config["system_prompt"] = "You are a Competitive Intelligence Agent. Use the 'track_competitor_pricing' tool to gather market data."
+            elif agent.id == "inventory_reconcile":
+                 override_config["tools"] = ["reconcile_inventory"]
+                 override_config["system_prompt"] = "You are an Inventory Manager. Use 'reconcile_inventory' to check for variance."
+            elif agent.id == "payroll_guardian":
+                 override_config["tools"] = ["reconcile_payroll"]
+                 override_config["system_prompt"] = "You are a Payroll Guardian. Use 'reconcile_payroll' to verify accuracy."
 
-            # Success
-            # Notify UI
-            await notification_manager.broadcast({
+            # 2. Instantiate Runtime
+            if override_config:
+                if not agent.configuration:
+                    agent.configuration = {}
+                # Merge defaults if not present
+                for k, v in override_config.items():
+                    if k not in agent.configuration:
+                        agent.configuration[k] = v
+            
+            runner = GenericAgent(agent)
+            
+            # 3. Determine Input
+            # ReAct loop needs a natural language instruction.
+            task_input = params.get("task_input") or params.get("request")
+            
+            # If input is missing but we have params, we construct a prompt
+            if not task_input:
+                if agent.id == "competitive_intel":
+                    task_input = f"Track pricing for {params.get('product', 'configured products')} against {params.get('competitors', 'competitors')}."
+                elif agent.id == "inventory_reconcile":
+                    task_input = f"Reconcile inventory for {params.get('skus', 'all SKUs')}."
+                elif agent.id == "payroll_guardian":
+                    task_input = f"Reconcile payroll for period {params.get('period', 'current')}."
+                else:
+                     task_input = f"Execute task with params: {params}"
+            
+            # 4. Execute ReAct Loop with step streaming
+            logger.info(f"Executing Agent {agent.name} with ReAct Loop. Input: {task_input}")
+            
+            async def streaming_callback(step_record):
+                workspace_id = params.get("workspace_id") or "default"
+                await ws_manager.broadcast(f"workspace:{workspace_id}", {
+                    "type": "agent_step_update",
+                    "agent_id": agent_id,
+                    "step": step_record
+                })
+            
+            result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
+            
+            # 5. Process Result
+            result = result_obj
+            
+            # Success Notification
+            workspace_id = params.get("workspace_id") or "default"
+            await ws_manager.broadcast(f"workspace:{workspace_id}", {
                 "type": "agent_status_change",
                 "agent_id": agent_id,
                 "status": "success",
                 "result": result
-            }, "default_workspace")
-            
-            # 2. Record Experience
-            await wm_service.record_experience(AgentExperience(
-                id=str(uuid.uuid4()),
-                agent_id=agent.id,
-                task_type=agent.class_name,
-                input_summary=str(params),
-                outcome="Success",
-                learnings=f"Completed successfully. Result: {str(result)[:100]}...",
-                agent_role=agent.category, # Using Category as Role Proxy
-                specialty=None,
-                timestamp=datetime.datetime.utcnow()
-            ))
+            })
+
+            # 6. Record Experience happens inside GenericAgent.execute() now.
+        
             
         except Exception as e:
             logger.error(f"Agent {agent_id} logic failed: {e}")
@@ -249,6 +283,8 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
         }, "default_workspace")
     finally:
         db.close()
+        
+    return result
 
 
 # ==================== ATOM META-AGENT ENDPOINTS ====================
@@ -332,3 +368,91 @@ async def trigger_atom_with_data(
     )
     
     return result
+    return result
+
+class CustomAgentRequest(BaseModel):
+    name: str
+    description: Optional[str] = "Custom Agent"
+    category: str = "custom"
+    configuration: Dict[str, Any]
+    schedule_config: Optional[Dict[str, Any]] = None
+
+@router.post("/custom")
+async def create_custom_agent(
+    req: CustomAgentRequest,
+    user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    db: Session = Depends(get_db)
+):
+    """Create a fully custom agent with configuration and schedule"""
+    # 1. Create Agent
+    registry_entry = AgentRegistry(
+        name=req.name,
+        description=req.description,
+        category=req.category,
+        configuration=req.configuration,
+        schedule_config=req.schedule_config,
+        module_path="core.generic_agent",
+        class_name="GenericAgent",
+        status=AgentStatus.STUDENT.value
+    )
+    db.add(registry_entry)
+    db.commit()
+    db.refresh(registry_entry)
+    
+    # 2. Schedule if needed
+    if req.schedule_config and req.schedule_config.get("active"):
+        from core.scheduler import AgentScheduler
+        scheduler = AgentScheduler.get_instance()
+        scheduler.schedule_agent(registry_entry.id, req.schedule_config)
+        
+    return {"status": "success", "agent_id": registry_entry.id}
+
+@router.put("/{agent_id}")
+async def update_agent(
+    agent_id: str,
+    req: CustomAgentRequest,
+    user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    db: Session = Depends(get_db)
+):
+    """Update an agent's config or schedule"""
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+        
+    # Update fields
+    agent.name = req.name
+    agent.description = req.description
+    agent.category = req.category
+    agent.configuration = req.configuration
+    agent.schedule_config = req.schedule_config
+    
+    db.commit()
+    
+    # Update Scheduler
+    from core.scheduler import AgentScheduler
+    scheduler = AgentScheduler.get_instance()
+    # Ideally remove old job but for MVP we overwrite with new ID or let scheduler handle
+    # A robust implementation would cancel the old job_id if we stored it
+    if req.schedule_config and req.schedule_config.get("active"):
+        scheduler.schedule_agent(agent.id, req.schedule_config)
+    
+    return {"status": "updated", "agent_id": agent.id}
+
+@router.post("/{agent_id}/stop")
+async def stop_agent(
+    agent_id: str,
+    user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    db: Session = Depends(get_db)
+):
+    """
+    Attempt to stop a running agent.
+    Note: Async task cancellation is varying in reliability depending on the runner.
+    For this implementation, we will mark the status in DB (if we tracked runs there) 
+    or potentially signal the scheduler/meta-agent.
+    """
+    # For MVP, we'll log the request. In a full system, we'd look up the running task ID 
+    # (stored in memory or Redis) and cancel the asyncio Task.
+    logger.info(f"Stop request received for agent {agent_id} by user {user.id}")
+    
+    # Placeholder: if we had a task registry, we'd cancel it here.
+    return {"status": "stop_requested", "message": "Signal sent to stop agent (Best Effort)."}

@@ -68,6 +68,11 @@ class SpecialtyAgentTemplate:
     }
 
 
+
+from core.llm.byok_handler import BYOKHandler
+from core.agent_utils import parse_react_response
+import json
+
 class AtomMetaAgent:
     """
     The central Atom agent that orchestrates all platform capabilities.
@@ -81,18 +86,17 @@ class AtomMetaAgent:
         self.orchestrator = AdvancedWorkflowOrchestrator()
         self._spawned_agents: Dict[str, AgentRegistry] = {}
         self.mcp = mcp_service  # MCP access for web search and web access
+        self.llm = BYOKHandler(workspace_id=workspace_id)
         
     async def execute(self, request: str, context: Dict[str, Any] = None, 
                      trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL) -> Dict[str, Any]:
         """
-        Main entry point for Atom. Analyzes request and decides best course of action.
-        
-        Args:
-            request: Natural language request from user or event description
-            context: Additional context (data payload, event metadata, etc.)
-            trigger_mode: How this execution was triggered
+        Main entry point for Atom. Uses ReAct loop to solve the request.
         """
         context = context or {}
+        if "original_request" not in context:
+            context["original_request"] = request
+            
         logger.info(f"Atom executing request: {request[:50]}... (mode: {trigger_mode.value})")
         
         # 1. Access Memory for relevant context
@@ -101,16 +105,190 @@ class AtomMetaAgent:
             current_task_description=request
         )
         
-        # 2. Analyze request and determine action
-        action_plan = await self._analyze_and_plan(request, context, memory_context)
+        # 2. ReAct Loop
+        max_steps = 10 # Meta agent is complex, give it more steps
+        steps = []
+        final_answer = None
+        status = "success"
         
-        # 3. Execute the plan
-        result = await self._execute_plan(action_plan, context, trigger_mode)
+        current_step = 0
+        execution_history = ""
         
-        # 4. Record experience
-        await self._record_execution(request, result, trigger_mode)
+        try:
+            while current_step < max_steps:
+                current_step += 1
+                
+                # Plan/Think
+                llm_response = await self._step_think(request, memory_context, execution_history, context)
+                
+                # Parse
+                thought, action, answer = parse_react_response(llm_response)
+                
+                step_record = {
+                    "step": current_step,
+                    "thought": thought,
+                    "action": action,
+                    "output": None,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                
+                if thought:
+                    execution_history += f"Thought: {thought}\n"
+                
+                if answer:
+                    step_record["final_answer"] = answer
+                    final_answer = answer
+                    steps.append(step_record)
+                    execution_history += f"Final Answer: {answer}\n"
+                    
+                    # Update status for record_outcome
+                    status = "success"
+                    break
+                
+                if action:
+                    execution_history += f"Action: {json.dumps(action)}\n"
+                    
+                    tool_name = action.get("tool")
+                    tool_args = action.get("params", {})
+                    
+                    observation = await self._step_act(tool_name, tool_args, context)
+                    
+                    step_record["output"] = observation
+                    execution_history += f"Observation: {str(observation)}\n"
+                    
+                else:
+                    if current_step == max_steps:
+                        final_answer = llm_response # Forced answer
+                        status = "timeout_forced_answer"
+                        
+                steps.append(step_record)
+                
+            if not final_answer:
+                final_answer = "Maximum steps reached without final answer."
+                status = "max_steps_exceeded"
+                
+        except Exception as e:
+            logger.error(f"Atom execution failed: {e}")
+            final_answer = f"Error during execution: {str(e)}"
+            status = "failed"
+            
+        # 3. Record Execution
+        result_payload = {
+            "final_output": final_answer,
+            "actions_executed": steps,
+            "trigger_mode": trigger_mode.value
+        }
         
-        return result
+        await self._record_execution(request, result_payload, trigger_mode)
+        
+        return result_payload
+
+    async def _step_think(self, request: str, memory: Dict, history: str, context: Dict) -> str:
+        """Generating the next thought/action plan for Meta Agent"""
+        
+        system_prompt = """
+You are Atom, the Advanced Central Orchestrator for this platform.
+Your goal is to solve the user's request by orchestrating Specialty Agents, Workflows, and Integrations.
+
+AVAILABLE TOOLS:
+
+1. spawn_agent
+   - Description: Spawn a specialty agent to handle a domain-specific task.
+   - Params: {"template": "finance_analyst" | "sales_assistant" | "ops_coordinator" | "hr_assistant" | "marketing_analyst", "task": "specific instructions"}
+   
+2. call_integration
+   - Description: Call an external service integration directly.
+   - Params: {"service": "salesforce" | "slack" | "hubspot", "action": "action_name", "params": {...}}
+   
+3. trigger_workflow
+   - Description: Trigger a predefined workflow.
+   - Params: {"workflow_id": "id", "input": {...}}
+
+4. query_memory
+   - Description: Search the World Model for information.
+   - Params: {"query": "search query"}
+
+FORMAT INSTRUCTIONS:
+Thought: Describe your reasoning.
+Action: {"tool": "tool_name", "params": {...}}
+Observation: [Result provided by system]
+...
+Final Answer: The final response to the user.
+
+Context:
+"""
+        context_str = f"User Context: {context.get('user_id', 'unknown')}\n"
+        
+        # Enriched Hybrid Memory Display
+        memory_display = f"""
+- Past Experiences: {json.dumps(memory.get('experiences', [])[:2], indent=2)}
+- Knowledge Graph: {memory.get('knowledge_graph', 'N/A')}
+- Documents: {json.dumps([k.get('text', '')[:200] for k in memory.get('knowledge', [])], indent=2)}
+- Formulas: {json.dumps(memory.get('formulas', []), indent=2)}
+"""
+
+        user_prompt = f"""
+{context_str}
+Memory Context:
+{memory_display}
+
+Current Request: {request}
+
+History:
+{history}
+
+Next Step:
+"""
+        return await self.llm.generate_response(
+            prompt=user_prompt,
+            system_instruction=system_prompt,
+            model_type="fast",
+            temperature=0.2
+        )
+
+    async def _step_act(self, tool_name: str, args: Dict, context: Dict) -> Any:
+        """Execute Meta Tools with Governance Check"""
+        try:
+            # 1. Governance Maturity Check
+            db = SessionLocal()
+            try:
+                gov = AgentGovernanceService(db)
+                # Atom Agent check
+                auth_check = gov.can_perform_action("atom_main", tool_name)
+                if not auth_check["allowed"]:
+                    return f"Governance Error: {auth_check['reason']}"
+            finally:
+                db.close()
+
+            # 2. Tool Execution
+            if tool_name == "spawn_agent":
+                template = args.get("template")
+                task = args.get("task", context.get("original_request"))
+                
+                agent = await self.spawn_agent(template, persist=False)
+                
+                # Execute the spawned agent immediately on the sub-task
+                from core.generic_agent import GenericAgent
+                runner = GenericAgent(agent, self.workspace_id)
+                result = await runner.execute(task, context)
+                
+                return f"Agent {agent.name} Result: {result.get('output')}"
+                
+            elif tool_name == "call_integration":
+                return await self.call_integration(args.get("service"), args.get("action"), args.get("params", {}))
+                
+            elif tool_name == "trigger_workflow":
+                return await self.trigger_workflow(args.get("workflow_id"), args.get("input", {}))
+                
+            elif tool_name == "query_memory":
+                return await self.query_memory(args.get("query"))
+                
+            else:
+                return f"Error: Tool '{tool_name}' not found."
+                
+        except Exception as e:
+            return f"Tool Execution Error: {str(e)}"
+
     
     async def spawn_agent(self, template_name: str, custom_params: Dict[str, Any] = None,
                          persist: bool = False) -> AgentRegistry:
@@ -140,7 +318,8 @@ class AtomMetaAgent:
             status=AgentStatus.STUDENT.value,  # New agents start as STUDENT
             confidence_score=0.5,  # Default starting confidence
             module_path="core.generic_agent",
-            class_name="GenericAgent"
+            class_name="GenericAgent",
+            configuration=custom_params or template.get("default_params", {})
         )
         
         if persist:
@@ -223,116 +402,32 @@ class AtomMetaAgent:
             confidence_score=1.0
         )
     
-    async def _analyze_and_plan(self, request: str, context: Dict, 
-                                memory_context: Dict) -> Dict[str, Any]:
-        """
-        Analyze the request and create an action plan.
-        Uses AI reasoning to determine best approach.
-        """
-        # Simple heuristic planning for now
-        # In production, this would use AI to reason about the best approach
-        
-        plan = {
-            "actions": [],
-            "requires_agent": False,
-            "agent_template": None,
-            "workflow_id": None
-        }
-        
-        request_lower = request.lower()
-        
-        # Detect if we need a specialty agent
-        if any(kw in request_lower for kw in ["finance", "expense", "budget", "reconcile", "payroll"]):
-            plan["requires_agent"] = True
-            plan["agent_template"] = "finance_analyst"
-            plan["actions"].append({"type": "spawn_agent", "template": "finance_analyst"})
-            
-        elif any(kw in request_lower for kw in ["sales", "lead", "crm", "opportunity", "pipeline"]):
-            plan["requires_agent"] = True
-            plan["agent_template"] = "sales_assistant"
-            plan["actions"].append({"type": "spawn_agent", "template": "sales_assistant"})
-            
-        elif any(kw in request_lower for kw in ["inventory", "order", "shipping", "vendor"]):
-            plan["requires_agent"] = True
-            plan["agent_template"] = "ops_coordinator"
-            plan["actions"].append({"type": "spawn_agent", "template": "ops_coordinator"})
-            
-        elif any(kw in request_lower for kw in ["hr", "onboarding", "leave", "policy"]):
-            plan["requires_agent"] = True
-            plan["agent_template"] = "hr_assistant"
-            plan["actions"].append({"type": "spawn_agent", "template": "hr_assistant"})
-            
-        elif any(kw in request_lower for kw in ["campaign", "marketing", "audience", "content"]):
-            plan["requires_agent"] = True
-            plan["agent_template"] = "marketing_analyst"
-            plan["actions"].append({"type": "spawn_agent", "template": "marketing_analyst"})
-        
-        # Check for workflow triggers
-        if "workflow" in request_lower or "automation" in request_lower:
-            plan["actions"].append({"type": "check_workflows"})
-        
-        # Always add memory context injection
-        if memory_context.get("experiences") or memory_context.get("knowledge"):
-            plan["memory_augmented"] = True
-        
-        return plan
-    
-    async def _execute_plan(self, plan: Dict[str, Any], context: Dict, 
-                           trigger_mode: AgentTriggerMode) -> Dict[str, Any]:
-        """Execute the action plan"""
-        results = {
-            "trigger_mode": trigger_mode.value,
-            "actions_executed": [],
-            "final_output": None
-        }
-        
-        for action in plan.get("actions", []):
-            action_type = action.get("type")
-            
-            if action_type == "spawn_agent":
-                template = action.get("template")
-                agent = await self.spawn_agent(template, persist=False)
-                results["actions_executed"].append({
-                    "action": "spawn_agent",
-                    "agent_id": agent.id,
-                    "agent_name": agent.name
-                })
-                results["spawned_agent"] = agent.id
-                
-            elif action_type == "trigger_workflow":
-                wf_id = action.get("workflow_id")
-                wf_result = await self.trigger_workflow(wf_id, context)
-                results["actions_executed"].append({
-                    "action": "trigger_workflow",
-                    "workflow_id": wf_id,
-                    "result": wf_result
-                })
-        
-        # If we spawned an agent, execute it
-        if results.get("spawned_agent"):
-            agent_id = results["spawned_agent"]
-            # Execute the agent's logic
-            results["final_output"] = f"Agent {agent_id} executed task. (Simulated output)"
-        else:
-            results["final_output"] = "Atom processed request directly."
-        
-        return results
-    
     async def _record_execution(self, request: str, result: Dict, 
-                               trigger_mode: AgentTriggerMode):
+                                trigger_mode: AgentTriggerMode):
         """Record execution to World Model for future learning"""
         experience = AgentExperience(
             id=str(uuid.uuid4()),
             agent_id="atom_main",
             task_type="meta_orchestration",
             input_summary=request[:200],
-            outcome="Success" if result.get("final_output") else "Partial",
-            learnings=f"Trigger: {trigger_mode.value}. Actions: {len(result.get('actions_executed', []))}",
+            outcome=result.get("status", "Success") if result.get("final_output") else "Partial",
+            learnings=f"Trigger: {trigger_mode.value}. Steps: {len(result.get('actions_executed', []))}",
             agent_role="Meta",
             specialty=None,
             timestamp=datetime.utcnow()
         )
         await self.world_model.record_experience(experience)
+
+        # 2. Update Governance Outcome
+        success = result.get("status") == "success" or (result.get("final_output") is not None and "error" not in result.get("final_output").lower())
+        db = SessionLocal()
+        try:
+            gov = AgentGovernanceService(db)
+            await gov.record_outcome("atom_main", success=success)
+        except Exception as ge:
+            logger.error(f"Failed to record Atom governance outcome: {ge}")
+        finally:
+            db.close()
 
 
 # ==================== TRIGGER HANDLERS ====================

@@ -117,15 +117,46 @@ class AgentGovernanceService:
             feedback.adjudicated_at = datetime.now()
             
             # Significant impact on confidence
-            self._update_confidence_score(feedback.agent_id, positive=False, impact_level="high") 
+            self._update_confidence_score(feedback.agent_id, positive=False, impact_level="high")
+            
+            # EXPLICIT LEARNING: Record this correction in World Model
+            from core.agent_world_model import WorldModelService, AgentExperience
+            wm = WorldModelService()
+            
+            # Create a corrective experience
+            # We treat the original input + incorrect output as the context, and correction as the "Learning"
+            correction_exp = AgentExperience(
+                id=str(uuid.uuid4()),
+                agent_id=feedback.agent_id,
+                task_type="correction",
+                input_summary=f"Context: {feedback.input_context or 'N/A'}\nIncorrect Action: {feedback.original_output}",
+                outcome="Failure", # It was a failure since it needed correction
+                learnings=f"User Correction: {feedback.user_correction}",
+                agent_role=agent.category,
+                specialty=None,
+                timestamp=datetime.utcnow()
+            )
+            # We use asyncio.create_task if we are in async context, but this method is async _adjudicate_feedback
+            # So we can await it if we change signature? 
+            # Wait, _adjudicate_feedback is defined as async on line 88. 
+            await wm.record_experience(correction_exp)
+             
         else:
             # Lower confidence users
             feedback.status = FeedbackStatus.PENDING.value
             feedback.ai_reasoning = "Correction queued for specialty review."
             feedback.adjudicated_at = datetime.now()
             self._update_confidence_score(feedback.agent_id, positive=False, impact_level="low")
-
+ 
         self.db.commit()
+
+    async def record_outcome(self, agent_id: str, success: bool):
+        """
+        Record a successful or failed task outcome and update confidence.
+        """
+        impact = "low" # Standard executions have low impact compared to direct corrections
+        self._update_confidence_score(agent_id, positive=success, impact_level=impact)
+        logger.info(f"Recorded outcome for agent {agent_id}: success={success}")
 
     def _update_confidence_score(self, agent_id: str, positive: bool, impact_level: str = "high"):
         """
