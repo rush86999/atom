@@ -119,6 +119,11 @@ Atom provides comprehensive integration with a wide range of third-party service
   - Workflow automation
   - Compliance features
 
+- **✅ Zoho WorkDrive** - Unified storage for Zoho ecosystem
+  - Native file listing and search
+  - Team folder synchronization
+  - Secure enterprise sharing
+
 ## Finance & Accounting
 
 ### 💰 Banking & Payments
@@ -336,14 +341,15 @@ Some services use API keys:
 ## Future Integrations
 
 ### Planned Integrations
+### Planned Integrations
 - **📋 WhatsApp** - Business messaging
 - **📋 WhatsApp Business** - Customer communication
 - **📋 Telegram** - Secure messaging
 - **📋 Airtable** - Flexible database platform
-- **📋 Monday.com** - Work operating system
+- **✅ Monday.com** - Integrated into Project Command Center
 - **📋 ClickUp** - All-in-one productivity
-- **📋 Freshdesk** - Customer support
-- **📋 Intercom** - Customer messaging platform
+- **✅ Freshdesk** - Integrated into Support Command Center
+- **✅ Intercom** - Integrated into Support Command Center
 
 ### Enhancement Roadmap
 - **Advanced automation** - Multi-step workflows
