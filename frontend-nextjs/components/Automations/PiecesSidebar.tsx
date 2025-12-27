@@ -29,16 +29,6 @@ import {
 
 // Piece definition - each integration/service
 // These are UI-specific pieces that merge local and catalog data
-export interface Piece {
-    id: string;
-    name: string;
-    icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-    color: string;
-    category: string;
-    actions: PieceAction[];
-    triggers: PieceTrigger[];
-    connected?: boolean;
-}
 
 export interface PieceAction {
     id: string;
@@ -562,19 +552,56 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
     const [allPieces, setAllPieces] = useState<Piece[]>(PIECES);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Fetched catalog logic removed
+    // Fetched catalog logic restored - Source from Node.js Bridge
     useEffect(() => {
-        setAllPieces(PIECES);
-        setIsLoading(false);
+        const fetchExternalPieces = async () => {
+            try {
+                const response = await fetch('/api/v1/external-integrations/');
+                if (!response.ok) throw new Error("Failed to fetch");
+
+                const externalPiecesRaw = await response.json();
+
+                // Map external pieces to UI format
+                const externalPieces: Piece[] = externalPiecesRaw.map((p: any) => ({
+                    id: p.name, // e.g., @activepieces/piece-slack
+                    name: p.displayName,
+                    icon: () => p.logoUrl ? <img src={p.logoUrl} className="w-5 h-5 object-contain" alt={p.displayName} /> : <Globe className="w-5 h-5" />,
+                    color: '#64748b', // Default color
+                    category: 'other', // Default category or map from p.tags
+                    actions: Object.values(p.actions).map((a: any) => ({
+                        id: a.name,
+                        name: a.displayName,
+                        description: a.description
+                    })),
+                    triggers: Object.values(p.triggers).map((t: any) => ({
+                        id: t.name,
+                        name: t.displayName,
+                        description: t.description
+                    })),
+                    connected: false
+                }));
+
+                setAllPieces([...PIECES, ...externalPieces]);
+            } catch (err) {
+                console.error("Failed to load external pieces:", err);
+                // Fallback to just local pieces
+                setAllPieces(PIECES);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchExternalPieces();
     }, []);
 
     // Check connection status for popular pieces only
     useEffect(() => {
         const checkConnections = async () => {
             const connected = new Set<string>();
-            const popularPieces = allPieces.slice(0, 30); // Only check first 30
+            // Only check local hardcoded pieces for health status for now
+            const piecesToCheck = PIECES.slice(0, 30);
             await Promise.all(
-                popularPieces.map(async (piece) => {
+                piecesToCheck.map(async (piece) => {
                     try {
                         const res = await fetch(`/api/integrations/${piece.id}/health`);
                         if (res.ok) connected.add(piece.id);
