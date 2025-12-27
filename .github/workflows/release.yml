@@ -58,14 +58,14 @@ jobs:
 
       - name: install frontend dependencies
         working-directory: frontend-nextjs
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: build nextjs static
         working-directory: frontend-nextjs
         shell: bash
         run: |
           # Temporary config swap for static export
-          mv next.config.js next.config.js.bak
+          if [ -f next.config.js ]; then mv next.config.js next.config.js.bak; fi
           cat > next.config.js << EOF
           /** @type {import('next').NextConfig} */
           const nextConfig = {
@@ -79,18 +79,32 @@ jobs:
           
           npm run build
           
-          # Restore config (optional on CI)
+          # Restore config
           rm next.config.js
-          mv next.config.js.bak next.config.js
+          if [ -f next.config.js.bak ]; then mv next.config.js.bak next.config.js; fi
 
       - name: Build Tauri App
-        uses: tauri-apps/tauri-action@v0
+        working-directory: frontend-nextjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run tauri build -- ${{ matrix.args }}
+
+      - name: Get App Version
+        id: version
+        working-directory: frontend-nextjs
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Upload Artifacts
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          projectPath: frontend-nextjs
-          args: ${{ matrix.args }}
+          files: |
+            frontend-nextjs/src-tauri/target/release/bundle/dmg/*.dmg
+            frontend-nextjs/src-tauri/target/release/bundle/msi/*.msi
+            frontend-nextjs/src-tauri/target/release/bundle/deb/*.deb
+            frontend-nextjs/src-tauri/target/release/bundle/appimage/*.AppImage
+            frontend-nextjs/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
 
   build-docker-backend:
     needs: create-release
