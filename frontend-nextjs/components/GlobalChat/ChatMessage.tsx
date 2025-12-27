@@ -14,7 +14,11 @@ import {
     CheckCircle,
     XCircle,
     Edit,
-    Settings
+    Settings,
+    Brain,
+    Wrench,
+    MessageCircle,
+    ThumbsDown
 } from "lucide-react";
 
 export interface ChatAction {
@@ -41,6 +45,15 @@ export interface ChatMessageData {
         requiresConfirmation?: boolean;
     };
     actions?: ChatAction[];
+    reasoningTrace?: ReasoningStep[];
+}
+
+export interface ReasoningStep {
+    step: number;
+    thought?: string;
+    action?: { tool: string; params?: any };
+    observation?: string;
+    final_answer?: string;
 }
 
 interface ChatMessageProps {
@@ -101,6 +114,47 @@ export function ChatMessage({ message, onActionClick }: ChatMessageProps) {
                                     )}
                                 </div>
                                 <div className="font-medium">{message.workflowData.workflowName}</div>
+                            </div>
+                        )}
+
+                        {/* Reasoning Trace */}
+                        {message.reasoningTrace && message.reasoningTrace.length > 0 && (
+                            <div className="mt-3 space-y-2 border-t pt-2">
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                                    <Brain className="h-3 w-3" />
+                                    Agent Reasoning
+                                </div>
+                                {message.reasoningTrace.map((step) => (
+                                    <div key={step.step} className="p-2 rounded bg-background/50 text-xs space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-[9px] h-4">
+                                                Step {step.step}
+                                            </Badge>
+                                        </div>
+                                        {step.thought && (
+                                            <div className="text-muted-foreground flex items-start gap-1">
+                                                <MessageCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                                                <span>{step.thought}</span>
+                                            </div>
+                                        )}
+                                        {step.action && (
+                                            <div className="font-mono text-blue-600 bg-blue-50 p-1 rounded flex items-start gap-1">
+                                                <Wrench className="h-3 w-3 mt-0.5 shrink-0" />
+                                                <span>{step.action.tool}({JSON.stringify(step.action.params || {})})</span>
+                                            </div>
+                                        )}
+                                        {step.observation && (
+                                            <div className="text-green-600 bg-green-50 p-1 rounded">
+                                                → {step.observation}
+                                            </div>
+                                        )}
+                                        {step.final_answer && (
+                                            <div className="font-medium text-primary bg-primary/10 p-1.5 rounded">
+                                                ✓ {step.final_answer}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </CardContent>
