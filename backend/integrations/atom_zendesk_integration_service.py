@@ -538,7 +538,38 @@ class AtomZendeskIntegrationService:
         except Exception as e:
             logger.error(f"Error fetching tickets: {e}")
             return []
-    
+
+    async def get_ticket_info(self, ticket_id: str) -> Optional[Dict[str, Any]]:
+        """Public method to fetch ticket details"""
+        return await self._get_ticket(ticket_id)
+
+    async def create_ticket_comment(self, ticket_id: str, comment_body: str, public: bool = True) -> Dict[str, Any]:
+        """Add a comment to an existing ticket"""
+        try:
+            headers = self._get_auth_headers()
+            payload = {
+                "ticket": {
+                    "comment": {
+                        "body": comment_body,
+                        "public": public
+                    }
+                }
+            }
+            async with httpx.AsyncClient() as client:
+                response = await client.put(
+                    f"{self.zendesk_config['base_url']}{self.api_endpoints['tickets']}/{ticket_id}",
+                    headers=headers,
+                    json=payload,
+                    timeout=30.0
+                )
+                if response.status_code == 200:
+                    return {"success": True, "ticket": response.json().get("ticket")}
+                else:
+                    return {"success": False, "error": response.text}
+        except Exception as e:
+            logger.error(f"Error creating ticket comment: {e}")
+            return {"success": False, "error": str(e)}
+
     async def generate_support_analytics(self, analytics_type: SupportAnalyticsType, 
                                      time_period: str = '7d') -> Dict[str, Any]:
         """Generate support analytics"""
