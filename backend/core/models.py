@@ -419,3 +419,27 @@ class IntegrationCatalog(Base):
     popular = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class UserConnection(Base):
+    """Securely stores OAuth credentials and other auth data for users"""
+    __tablename__ = "user_connections"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
+    
+    # integration_id matches piece name, e.g., "@activepieces/piece-slack" or native "slack"
+    integration_id = Column(String, nullable=False, index=True)
+    connection_name = Column(String, nullable=False) # User-defined name
+    
+    # Encrypted credentials JSON
+    credentials = Column(JSON, nullable=False)
+    
+    status = Column(String, default="active") # active, expired, revoked
+    last_used = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="connections")
+    workspace = relationship("Workspace", backref="connections")

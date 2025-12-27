@@ -338,6 +338,14 @@ try:
     except ImportError as e:
         logger.warning(f"External integration bridge routes not found: {e}")
 
+    # Register Connection routes
+    try:
+        from backend.api.connection_routes import router as conn_router
+        app.include_router(conn_router)
+        logger.info("✓ Connection Management Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Connection routes not found: {e}")
+
     logger.info("✓ Core Routes Loaded Successfully")
 
 except ImportError as e:

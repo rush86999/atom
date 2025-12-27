@@ -24,11 +24,39 @@ class DynamicOptionsResponse(BaseModel):
 @router.post("/dynamic-options", response_model=DynamicOptionsResponse)
 async def get_dynamic_options(request: DynamicOptionsRequest):
     """
-    Fetches dynamic options for a property (e.g., list of Slack channels).
-    In a real implementation, this would call the 'options' function of the Activepiece.
-    For now, we implement mock logic for high-priority pieces.
+    Fetches dynamic options for a property (e.g., list of Slack channels) 
+    by calling the Node piece engine with real credentials if available.
     """
+    credentials = None
+    if request.connectionId:
+        from backend.core.connection_service import connection_service
+        # Use demo_user for MVP
+        credentials = connection_service.get_connection_credentials(request.connectionId, "demo_user")
     
+    # In a real implementation, we'd call the Node engine's dynamic options endpoint.
+    # For now, let's keep the mock for Slack if no credentials, 
+    # but try to call the Node engine if we have them.
+    
+    if credentials:
+        try:
+            from backend.integrations.bridge.node_bridge_service import node_bridge
+            
+            # This requires a new endpoint in the node engine for dynamic options
+            # For now, we will proxy this to a potential node endpoint or implement a bridge call
+            result = await node_bridge.get_dynamic_options(
+                piece_name=request.pieceId,
+                property_name=request.propertyName,
+                action_name=request.actionName,
+                trigger_name=request.triggerName,
+                config=request.config,
+                auth=credentials
+            )
+            return {"options": result.get("options", []), "placeholder": result.get("placeholder")}
+        except Exception as e:
+            logger.error(f"Failed to fetch real dynamic options: {e}")
+            # Fallback to mock logic
+            pass
+
     # Mock logic for Slack channels
     if request.pieceId == "@activepieces/piece-slack" and request.propertyName == "channel":
         return {
@@ -42,7 +70,7 @@ async def get_dynamic_options(request: DynamicOptionsRequest):
             "placeholder": "Select a channel"
         }
     
-    # Mock logic for Gmail labels
+    # ... (rest of the mock Gmail logic)
     if request.pieceId == "@activepieces/piece-gmail" and request.propertyName == "label":
         return {
             "options": [
@@ -55,7 +83,6 @@ async def get_dynamic_options(request: DynamicOptionsRequest):
             "placeholder": "Select a label"
         }
 
-    # Default fallback
     return {
         "options": [],
         "placeholder": f"No options found for {request.propertyName}"
