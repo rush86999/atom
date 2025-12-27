@@ -106,17 +106,18 @@ def seed_marketplace():
             "is_public": True
         },
         {
-            "template_id": "shopify_restock_notify",
-            "name": "E-commerce Restocking Automation",
-            "description": "Monitor Shopify inventory and notify suppliers if stock is low.",
+            "template_id": "unified_inventory_restock",
+            "name": "Multi-Platform Restocking Automation",
+            "description": "Monitor Shopify or Zoho inventory and notify suppliers if stock is low.",
             "category": TemplateCategory.BUSINESS,
             "complexity": TemplateComplexity.INTERMEDIATE,
-            "tags": ["shopify", "e-commerce", "inventory", "sales"],
+            "tags": ["shopify", "zoho", "e-commerce", "inventory", "sales"],
             "inputs": [
+                {"name": "platform", "label": "Inventory Platform", "description": "shopify or zoho", "type": "string", "required": False},
                 {"name": "threshold", "label": "Low Stock Level", "description": "Items remaining to trigger", "type": "number", "required": True, "default_value": 5}
             ],
             "steps": [
-                {"step_id": "check", "name": "Monitor Shopify", "description": "Fetch product stock levels", "step_type": "extraction", "parameters": []},
+                {"step_id": "check", "name": "Monitor Inventory", "description": "Fetch stock levels from connected platforms", "step_type": "extraction", "parameters": []},
                 {"step_id": "filter", "name": "Filter Low Items", "description": "Find items meeting threshold", "step_type": "transformation", "depends_on": ["check"], "parameters": []},
                 {"step_id": "notify", "name": "Email Supplier", "description": "Send P.O. request", "step_type": "notification", "depends_on": ["filter"], "parameters": []}
             ],

@@ -2,6 +2,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 import httpx
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -57,3 +58,23 @@ class ZohoInventoryService:
         except Exception as e:
             logger.error(f"Failed to check stock for {item_id}: {e}")
             return {"error": str(e)}
+
+    async def get_inventory_levels(self, token: Optional[str] = None, organization_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetch inventory levels for all active items"""
+        try:
+            items = await self.get_items(token, organization_id)
+            inventory = []
+            for item in items:
+                inventory.append({
+                    "sku": item.get("sku"),
+                    "name": item.get("name"),
+                    "available": item.get("stock_on_hand", 0),
+                    "platform": "zoho"
+                })
+            return inventory
+        except Exception as e:
+            logger.error(f"Failed to get Zoho inventory levels: {e}")
+            return []
+
+# Singleton instance
+zoho_inventory_service = ZohoInventoryService()

@@ -109,9 +109,9 @@ class MCPService:
                     "parameters": {"period": "string", "metrics": "list[str]"}
                 },
                 {
-                    "name": "get_shopify_inventory",
-                    "description": "Fetch current stock levels from Shopify",
-                    "parameters": {"threshold": "number (optional)"}
+                    "name": "get_inventory_levels",
+                    "description": "Fetch current stock levels from integrated platforms (shopify, zoho)",
+                    "parameters": {"platform": "string (optional)", "threshold": "number (optional)"}
                 }
             ]
         return self.active_servers.get(server_id, {}).get("tools", [])
@@ -351,48 +351,66 @@ class MCPService:
                     logger.error(f"Financial query failed: {e}")
                     return {"error": f"Financial query failed: {str(e)}"}
 
-            elif tool_name == "get_shopify_inventory":
-                from integrations.shopify_service import ShopifyService
+            elif tool_name == "get_inventory_levels":
                 from core.database import SessionLocal
+                from core.external_integration_service import ConnectionService
                 
                 threshold = arguments.get("threshold", 0)
-                workspace_id = context.get("workspace_id", "default")
+                platform = arguments.get("platform", "").lower()
+                user_id = context.get("user_id", "default_user")
                 
-                # We need credentials - in a real MCP call, these would come from the user's connection
-                # For this tool, we assume we can fetch them or the service handles it.
-                try:
-                    # This is a bit complex as we need access_token/shop
-                    # In a truly integrated MCP, this would be injected by the ConnectionService
-                    from core.external_integration_service import ConnectionService
-                    conn_service = ConnectionService()
-                    
-                    # Find a Shopify connection for this user/workspace
-                    user_id = context.get("user_id", "default_user")
-                    connections = await conn_service.list_connections(user_id=user_id)
+                # Fetch available inventory connections
+                conn_service = ConnectionService()
+                connections = await conn_service.list_connections(user_id=user_id)
+                
+                inventory_results = []
+                
+                # Helper to fetch Shopify inventory
+                async def fetch_shopify():
                     shopify_conn = next((c for c in connections if c.piece_name == "shopify"), None)
-                    
-                    if not shopify_conn:
-                        return {"error": "Shopify is not connected. Please connect it in the Integrations tab.", "status": "not_configured"}
-                    
-                    # Use ShopifyService
-                    from integrations.shopify_service import shopify_service
-                    # Assuming we store shop domain in metadata or use a default
-                    shop = shopify_conn.metadata.get("shop_url")
-                    
-                    # Fetch real inventory
-                    inventory = await shopify_service.get_inventory_levels(
-                        access_token=shopify_conn.credentials.get("access_token"),
-                        shop=shop
-                    )
-                    
-                    # Filter by threshold if needed
-                    if threshold > 0:
-                        inventory = [item for item in inventory if item.get("available", 0) <= threshold]
-                        
-                    return inventory
-                except Exception as e:
-                    logger.error(f"Shopify inventory fetch failed: {e}")
-                    return {"error": f"Failed to fetch Shopify inventory: {str(e)}"}
+                    if shopify_conn:
+                        from integrations.shopify_service import shopify_service
+                        shop = shopify_conn.metadata.get("shop_url")
+                        data = await shopify_service.get_inventory_levels(
+                            access_token=shopify_conn.credentials.get("access_token"),
+                            shop=shop
+                        )
+                        return data
+                    return []
+
+                # Helper to fetch Zoho inventory
+                async def fetch_zoho():
+                    zoho_conn = next((c for c in connections if c.piece_name == "zoho_inventory"), None)
+                    if zoho_conn:
+                        from integrations.zoho_inventory_service import zoho_inventory_service
+                        # Zoho often needs org ID which might be in metadata
+                        org_id = zoho_conn.metadata.get("organization_id")
+                        data = await zoho_inventory_service.get_inventory_levels(
+                            token=zoho_conn.credentials.get("access_token"),
+                            organization_id=org_id
+                        )
+                        return data
+                    return []
+
+                # Route based on platform or fetch all if not specified
+                if platform == "shopify":
+                    inventory_results.extend(await fetch_shopify())
+                elif platform == "zoho":
+                    inventory_results.extend(await fetch_zoho())
+                else:
+                    # Fetch all available
+                    shopify_data, zoho_data = await asyncio.gather(fetch_shopify(), fetch_zoho())
+                    inventory_results.extend(shopify_data)
+                    inventory_results.extend(zoho_data)
+
+                # Filter by threshold if requested
+                if threshold > 0:
+                    inventory_results = [item for item in inventory_results if item.get("available", 0) <= threshold]
+                
+                if not inventory_results and not platform:
+                    return {"error": "No inventory platforms connected (Shopify/Zoho).", "status": "not_configured"}
+                
+                return inventory_results
 
         # Unknown MCP server - fail explicitly
         return {"error": f"Tool '{tool_name}' on server '{server_id}' is not implemented.", "status": "not_implemented"}
