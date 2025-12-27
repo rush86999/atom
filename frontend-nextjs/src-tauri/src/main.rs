@@ -373,6 +373,10 @@ async fn atom_invoke_command(
                 || message.to_lowercase().contains("run")
             {
                 "🤖 I can execute development commands! Use the command execution feature to run build tools, package managers, or any system command."
+            } else if message.to_lowercase().contains("ocr")
+                || message.to_lowercase().contains("scan")
+            {
+                "🤖 I can process documents with OCR! Use the local OCR feature to extract text from PDFs and images offline."
             } else {
                 &format!("🤖 I received your message: '{}'. This is an enhanced response from the ATOM desktop app with file system access, command execution, and system information capabilities.", message)
             };
@@ -381,7 +385,157 @@ async fn atom_invoke_command(
                 "success": true,
                 "response": response,
                 "timestamp": chrono::Utc::now().to_rfc3339(),
-                "capabilities_mentioned": message.to_lowercase().contains("file") || message.to_lowercase().contains("system") || message.to_lowercase().contains("build") || message.to_lowercase().contains("run")
+                "capabilities_mentioned": message.to_lowercase().contains("file") || message.to_lowercase().contains("system") || message.to_lowercase().contains("build") || message.to_lowercase().contains("run") || message.to_lowercase().contains("ocr")
+            }))
+        }
+
+        // OCR and Local Data Ingestion commands
+        "check_ocr_availability" => {
+            // Check for Python and OCR engines
+            let python_check = Command::new("python3")
+                .args(&["-c", "import sys; print(sys.version)"])
+                .output();
+            
+            let python_available = python_check.map(|o| o.status.success()).unwrap_or(false);
+            
+            // Check tesseract
+            let tesseract_check = Command::new("tesseract")
+                .args(&["--version"])
+                .output();
+            let tesseract_available = tesseract_check.map(|o| o.status.success()).unwrap_or(false);
+            
+            // Check surya via Python
+            let surya_check = Command::new("python3")
+                .args(&["-c", "import surya; print('ok')"])
+                .output();
+            let surya_available = surya_check.map(|o| o.status.success()).unwrap_or(false);
+            
+            let recommended = if surya_available {
+                "surya"
+            } else if tesseract_available {
+                "tesseract"
+            } else {
+                "none"
+            };
+            
+            Ok(json!({
+                "python_available": python_available,
+                "tesseract_available": tesseract_available,
+                "surya_available": surya_available,
+                "recommended": recommended,
+                "any_available": tesseract_available || surya_available
+            }))
+        }
+
+        "process_local_ocr" => {
+            let file_path = match &params {
+                Some(p) => p.get("file_path").and_then(|v| v.as_str()).unwrap_or(""),
+                None => "",
+            };
+            
+            if file_path.is_empty() {
+                return Ok(json!({"success": false, "error": "No file path provided"}));
+            }
+            
+            let engine = match &params {
+                Some(p) => p.get("engine").and_then(|v| v.as_str()).unwrap_or(""),
+                None => "",
+            };
+            
+            // Run the local OCR service
+            let mut cmd = Command::new("python3");
+            cmd.args(&["backend/core/local_ocr_service.py", "ocr", file_path]);
+            if !engine.is_empty() {
+                cmd.args(&["--engine", engine]);
+            }
+            
+            match cmd.output() {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    // Try to parse as JSON
+                    match serde_json::from_str::<serde_json::Value>(&stdout) {
+                        Ok(result) => Ok(result),
+                        Err(_) => Ok(json!({
+                            "success": output.status.success(),
+                            "text": stdout.to_string(),
+                            "raw": true
+                        }))
+                    }
+                }
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": format!("Failed to run OCR: {}", e)
+                }))
+            }
+        }
+
+        "ingest_local_file" => {
+            // Ingest a local file into Atom memory
+            let file_path = match &params {
+                Some(p) => p.get("file_path").and_then(|v| v.as_str()).unwrap_or(""),
+                None => "",
+            };
+            
+            if file_path.is_empty() {
+                return Ok(json!({"success": false, "error": "No file path provided"}));
+            }
+            
+            let path = Path::new(file_path);
+            if !path.exists() {
+                return Ok(json!({"success": false, "error": "File not found"}));
+            }
+            
+            let extension = path.extension()
+                .map(|e| e.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
+            
+            let file_name = path.file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            
+            let file_size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+            
+            // Read content based on type
+            let content = match extension.as_str() {
+                "txt" | "md" | "json" | "csv" => {
+                    fs::read_to_string(path).ok()
+                }
+                "pdf" | "png" | "jpg" | "jpeg" | "tiff" => {
+                    // Use OCR for these
+                    None // Will be processed via OCR
+                }
+                _ => None
+            };
+            
+            Ok(json!({
+                "success": true,
+                "file_path": file_path,
+                "file_name": file_name,
+                "extension": extension,
+                "file_size": file_size,
+                "content": content,
+                "needs_ocr": content.is_none() && ["pdf", "png", "jpg", "jpeg", "tiff"].contains(&extension.as_str()),
+                "ingested_at": chrono::Utc::now().to_rfc3339()
+            }))
+        }
+
+        "get_ocr_installation_guide" => {
+            Ok(json!({
+                "tesseract": {
+                    "description": "Fast, lightweight OCR (~50MB)",
+                    "install": {
+                        "macos": "brew install tesseract && pip install pytesseract",
+                        "windows": "Download from https://github.com/UB-Mannheim/tesseract/wiki",
+                        "linux": "sudo apt install tesseract-ocr && pip install pytesseract"
+                    }
+                },
+                "surya": {
+                    "description": "High accuracy OCR with 90+ languages (~1-2GB models)",
+                    "install": {
+                        "all": "pip install surya-ocr"
+                    },
+                    "note": "Requires Python 3.9+ and PyTorch"
+                }
             }))
         }
 
