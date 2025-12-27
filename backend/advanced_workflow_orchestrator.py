@@ -2229,8 +2229,11 @@ Return your response as a JSON object with this format:
             from core.mock_mode import get_mock_mode_manager
             mock_manager = get_mock_mode_manager()
             
-            # For most integrations, we'll use mock mode unless credentials are provided
-            if mock_manager.is_mock_mode(service, False):
+            # Check for credentials in context or step parameters
+            credentials = step.parameters.get("credentials") or context.variables.get(f"{service}_credentials")
+            
+            # Use Mock Mode if no credentials and mock mode is enabled (default behavior)
+            if not credentials and mock_manager.is_mock_mode(service, False):
                 logger.info(f"Universal Integration (Mock): {service} -> {action}")
                 return {
                     "status": "completed", 
@@ -2240,12 +2243,27 @@ Return your response as a JSON object with this format:
                     "mock": True
                 }
 
+            # Real Execution via External Integration Service (Node.js Bridge)
             logger.info(f"Universal Integration (Real): {service} -> {action}")
+            
+            from backend.core.external_integration_service import external_integration_service
+            
+            # Prepare parameters - merge step params with input data
+            # Filter out system params like 'service', 'action', 'credentials'
+            action_params = {k: v for k, v in step.parameters.items() if k not in ["service", "action", "credentials"]}
+            
+            result = await external_integration_service.execute_integration_action(
+                integration_id=service,
+                action_id=action,
+                params=action_params,
+                credentials=credentials
+            )
+
             return {
                 "status": "completed",
                 "service": service,
                 "action": action,
-                "message": f"Action {action} on {service} processed successfully"
+                "result": result
             }
         except Exception as e:
             logger.error(f"Universal integration error for {service}: {e}")

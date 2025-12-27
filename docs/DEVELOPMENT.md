@@ -14,6 +14,7 @@
 - **PostgreSQL** with robust data persistence
 - **LanceDB** vector database for AI memory
 - **OAuth 2.0** security across all integrations
+- **Node.js Piece Engine** for executing 500+ ActivePieces integrations
 
 ### AI & Orchestration
 - **Advanced NLU System** - Understands complex requests
@@ -59,6 +60,7 @@ cd ../backend && pip install -r requirements.txt
 # 4. Start services
 python3 backend/main_api_app.py  # Terminal 1
 npm run dev --prefix frontend-nextjs  # Terminal 2
+npm start --prefix backend/piece-engine # Terminal 3 (New: Integration Engine)
 ```
 
 **Access the application:** http://localhost:3000
