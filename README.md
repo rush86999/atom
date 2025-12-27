@@ -44,18 +44,17 @@ Why rely on generic AI when you can hire experts?
 
 ### 🧠 **Universal Memory & Context**
 Atom remembers everything so you don't have to repeat yourself.
+- **Capability Recall**: Agents use long-term memory to remember which services you've connected, allowing them to proactively suggest actions.
 - **Unified Index**: Emails, Notion docs, Jira tickets, and Slack threads are indexed for instant retrieval.
 - **Knowledge Graph**: Atom builds a graph of your people, projects, and tasks to understand *relationships*, not just keywords.
-- **Contextual Learning**: Atom absorbs your team's history (last 30 days of Slack, Jira, Email) so it hits the ground running with full context.
-- **Cross-App Search**: Ask complex questions like *"What features did we promise Client X in last week's email?"*
-- **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted.
+- **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted (Fernet at-rest).
 
 ### 🔌 **Deep Integrations (Hybrid Runtime)**
-Connect your entire business ecosystem with over 500+ apps.
-- **Hybrid Engine**: Combines Python's orchestration power with a Node.js Piece Engine to support the full ActivePieces catalog.
-- **Apps**: Slack, Gmail, HubSpot, Salesforce, Linear, Asana, Notion, and 500+ others via the Piece Engine.
-- **Visual Builder**: Drag-and-drop steps, loops, and branches for precise control.
-- **Computer Use**: Atom can even control your desktop capabilities to interact with legacy software.
+Connect your entire business ecosystem with over **500+ apps**.
+- **Hybrid Engine**: Python orchestration + Node.js Piece Engine for the full **ActivePieces** catalog.
+- **Swarm Discovery**: Every specialty agent now inherently "knows" how to list workflows, trigger automations, and call integrations.
+- **Node-on-Demand**: Integrations are installed dynamically on-the-fly to ensure the catalog is always up-to-date.
+- **Full Lifecycle CRUD**: Manage your connections via a premium modal with rename, delete, and health tracking.
 
 ---
 

@@ -26,6 +26,16 @@ async def delete_connection(connection_id: str, current_user: User = Depends(get
         raise HTTPException(status_code=404, detail="Connection not found")
     return {"status": "success"}
 
+class RenameConnectionRequest(BaseModel):
+    name: str
+
+@router.patch("/{connection_id}")
+async def rename_connection(connection_id: str, req: RenameConnectionRequest, current_user: User = Depends(get_current_user)):
+    success = connection_service.update_connection_name(connection_id, current_user.id, req.name)
+    if not success:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    return {"status": "success"}
+
 @router.get("/{connection_id}/credentials")
 async def get_credentials(connection_id: str, current_user: User = Depends(get_current_user)):
     """

@@ -12,7 +12,8 @@ import {
     Loader2,
     AlertCircle,
     Link2,
-    PlusCircle
+    PlusCircle,
+    Settings
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 import { Node } from 'reactflow';
 import VariablePicker from './VariablePicker';
+import ManageConnectionsModal from './ManageConnectionsModal';
 
 interface NodeConfigSidebarProps {
     selectedNode: any;
@@ -54,6 +56,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
     const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isAuthLoading, setIsAuthLoading] = useState(false);
+    const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -510,6 +513,15 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                                 >
                                     {isAuthLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4 text-gray-500" />}
                                 </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-9 w-9 border-gray-200 shrink-0"
+                                    onClick={() => setIsManageModalOpen(true)}
+                                    title="Manage Connections"
+                                >
+                                    <Settings className="w-4 h-4 text-gray-500" />
+                                </Button>
                             </div>
                             <p className="text-[10px] text-gray-500 flex items-center gap-1">
                                 <Link2 className="h-3 w-3" />
@@ -573,6 +585,17 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                     </Button>
                 </div>
             </div>
+
+            {/* Manage Connections Modal */}
+            {metadata && (
+                <ManageConnectionsModal
+                    isOpen={isManageModalOpen}
+                    onClose={() => setIsManageModalOpen(false)}
+                    integrationId={metadata.serviceId}
+                    integrationName={metadata.name}
+                    onConnectionsUpdated={fetchConnections}
+                />
+            )}
         </div>
     );
 };
