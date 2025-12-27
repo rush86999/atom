@@ -369,6 +369,10 @@ class AgentRegistry(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Flexible Configuration
+    configuration = Column(JSON, default={}) # System prompts, tools, constraints
+    schedule_config = Column(JSON, default={}) # Cron expression, active status
+
 class AgentFeedback(Base):
     """User feedback on agent actions for RLHF"""
     __tablename__ = "agent_feedback"

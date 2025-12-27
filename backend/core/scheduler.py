@@ -8,7 +8,7 @@ import datetime
 import json
 
 from core.database import SessionLocal, engine
-from core.models import AgentJob, AgentJobStatus
+from core.models import AgentJob, AgentJobStatus, AgentRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -122,4 +122,50 @@ class AgentScheduler:
             
         finally:
             db.commit()
+            db.close()
+
+    def schedule_agent(self, agent_id: str, schedule_config: dict):
+        """
+        Schedule a generic agent based on its config.
+        """
+        # 1. Define the execution wrapper
+        async def run_agent_wrapper():
+            from core.database import SessionLocal
+            from core.models import AgentRegistry
+            from core.generic_agent import GenericAgent
+            
+            db = SessionLocal()
+            try:
+                agent_model = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+                if agent_model:
+                    runner = GenericAgent(agent_model)
+                    # For scheduled tasks, we might need a default prompt or check config
+                    task_input = agent_model.configuration.get("scheduled_task", "Perform scheduled check.")
+                    await runner.execute(task_input, context={"trigger": "schedule"})
+            finally:
+                db.close()
+
+        # 2. Extract Cron details
+        cron_expr = schedule_config.get("cron_expression")
+        if not cron_expr:
+            logger.warning(f"No cron expression for agent {agent_id}")
+            return
+            
+        # 3. Schedule it
+        return self.schedule_job(agent_id, cron_expr, run_agent_wrapper)
+
+    def load_scheduled_agents(self):
+        """
+        Load all agents with active schedules from DB.
+        """
+        db = SessionLocal()
+        try:
+            agents = db.query(AgentRegistry).all() # In prod, filter by active schedule
+            count = 0
+            for agent in agents:
+                if agent.schedule_config and agent.schedule_config.get("active"):
+                    self.schedule_agent(agent.id, agent.schedule_config)
+                    count += 1
+            logger.info(f"Loaded {count} agents into scheduler.")
+        finally:
             db.close()

@@ -46,15 +46,179 @@ class MCPService:
                 {"name": "web_search", "description": "Search the web for real-time information"},
                 {"name": "fetch_page", "description": "Fetch the content of a specific URL"}
             ]
+        elif server_id == "local-tools":
+            return [
+                {
+                    "name": "finance_close_check", 
+                    "description": "Run a financial close readiness check for a period",
+                    "parameters": {"workspace_id": "string", "period": "YYYY-MM"}
+                },
+                {
+                    "name": "marketing_review_request", 
+                    "description": "Trigger a review request for a customer based on sentiment",
+                    "parameters": {"workspace_id": "string", "customer_id": "string"}
+                },
+                {
+                    "name": "track_competitor_pricing",
+                    "description": "Scrape competitor sites for product pricing",
+                    "parameters": {"competitors": "list[str]", "product": "string"}
+                },
+                {
+                    "name": "reconcile_inventory",
+                    "description": "Reconcile inventory between Shopify and WMS",
+                    "parameters": {"skus": "list[str]"}
+                },
+                {
+                    "name": "reconcile_payroll",
+                    "description": "Reconcile external payroll reports (ADP/Gusto) with internal ledger",
+                    "parameters": {"period": "YYYY-MM"}
+                },
+                {
+                    "name": "list_workflows",
+                    "description": "List all available automated workflows",
+                    "parameters": {}
+                },
+                {
+                    "name": "trigger_workflow",
+                    "description": "Trigger a specific workflow automation",
+                    "parameters": {
+                        "workflow_id": "string",
+                        "input_data": "dict (optional)"
+                    }
+                },
+                {
+                    "name": "call_integration",
+                    "description": "Call an external integration (Salesforce, HubSpot, etc.)",
+                    "parameters": {
+                        "service": "string (salesforce, hubspot)",
+                        "action": "string (create, read, list, update, query)",
+                        "params": "dict"
+                    }
+                },
+                {
+                    "name": "search_integration",
+                    "description": "Search for entities in an integration",
+                    "parameters": {
+                        "service": "string",
+                        "query": "string",
+                        "entity_type": "string (optional)"
+                    }
+                }
+            ]
         return self.active_servers.get(server_id, {}).get("tools", [])
 
-    async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any]) -> Any:
+    async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool on a specific MCP server."""
         logger.info(f"Executing MCP tool {tool_name} on server {server_id} with args: {arguments}")
+        context = context or {}
         
         if server_id == "google-search" or tool_name == "web_search":
             return await self.web_search(arguments.get("query", ""))
             
+        # Local Internal Tools
+        if server_id == "local-tools":
+            if tool_name == "finance_close_check":
+                from accounting.close_agent import CloseChecklistAgent
+                from core.database import SessionLocal
+                
+                with SessionLocal() as db:
+                    agent = CloseChecklistAgent(db)
+                    # Use a default workspace or passed one
+                    workspace_id = arguments.get("workspace_id", "default")
+                    period = arguments.get("period", datetime.now().strftime("%Y-%m"))
+                    return await agent.run_close_check(workspace_id, period)
+                    
+
+            elif tool_name == "list_workflows":
+                from advanced_workflow_orchestrator import get_orchestrator
+                orchestrator = get_orchestrator()
+                
+                workflows = []
+                for wf_id, wf in orchestrator.workflows.items():
+                    workflows.append({
+                        "id": wf_id,
+                        "name": wf.name,
+                        "description": wf.description,
+                        "required_inputs": [
+                             {"name": s.name, "type": s.type} # simplified
+                             for s in getattr(wf, 'inputs', []) # Only for dynamic/template workflows if present
+                        ] 
+                    })
+                return workflows
+
+            elif tool_name == "trigger_workflow":
+                from advanced_workflow_orchestrator import get_orchestrator
+                orchestrator = get_orchestrator()
+                
+                wf_id = arguments.get("workflow_id")
+                input_data = arguments.get("input_data", {})
+                
+                if not wf_id:
+                     return {"error": "workflow_id is required"}
+                     
+                # Trigger via execute_workflow (async)
+                # Since execute_tool is async, we can await it
+                context = await orchestrator.execute_workflow(wf_id, input_data)
+                
+                return {
+                    "status": context.status.value,
+                    "execution_id": context.workflow_id,
+                    "result": context.results,
+                    "error": context.error_message
+                }
+
+            elif tool_name == "marketing_review_request":
+                from core.marketing_agent import MarketingAgent
+                from core.database import SessionLocal
+                
+                with SessionLocal() as db:
+                     agent = MarketingAgent(db_session=db)
+                     # Assuming customer_id is passed
+                     return await agent.trigger_review_request(
+                         arguments.get("customer_id"), 
+                         arguments.get("workspace_id", "default")
+                     )
+
+            elif tool_name == "track_competitor_pricing":
+                from operations.automations.competitive_intel import CompetitiveIntelWorkflow
+                agent = CompetitiveIntelWorkflow()
+                return await agent.track_competitor_pricing(
+                    competitors=arguments.get("competitors", []),
+                    target_product=arguments.get("product", "")
+                )
+            elif tool_name == "reconcile_inventory":
+                from operations.automations.inventory_reconcile import InventoryReconciliationWorkflow
+                agent = InventoryReconciliationWorkflow()
+                return await agent.reconcile_inventory(
+                    sku_list=arguments.get("skus", [])
+                )
+            elif tool_name == "reconcile_payroll":
+                from finance.automations.payroll_guardian import PayrollReconciliationWorkflow
+                agent = PayrollReconciliationWorkflow()
+                return await agent.reconcile_payroll(
+                    period=arguments.get("period", "")
+                )
+            
+            elif tool_name == "call_integration":
+                from integrations.universal_integration_service import UniversalIntegrationService
+                service = UniversalIntegrationService()
+                return await service.execute(
+                    service=arguments.get("service"),
+                    action=arguments.get("action"),
+                    params=arguments.get("params", {}),
+                    context=context 
+                )
+                
+            elif tool_name == "search_integration":
+                from integrations.universal_integration_service import UniversalIntegrationService
+                service = UniversalIntegrationService()
+                return await service.search(
+                     service=arguments.get("service"),
+                     query=arguments.get("query"),
+                     entity_type=arguments.get("entity_type"),
+                     context=context
+                )
+
         # Placeholder for real MCP execution logic
         await asyncio.sleep(0.5)
         return {"result": f"Mock result from {server_id}:{tool_name}"}

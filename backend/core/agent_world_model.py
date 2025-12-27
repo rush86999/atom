@@ -198,7 +198,12 @@ class WorldModelService:
         )
         
         # Also query Knowledge Graph if relationships are relevant
-        # (Simplified: just search docs context for now)
+        graph_context = ""
+        try:
+            from core.graphrag_engine import graphrag_engine
+            graph_context = graphrag_engine.get_context_for_ai(self.db.workspace_id, current_task_description)
+        except Exception as ge:
+            logger.warning(f"GraphRAG recall failed: {ge}")
 
         # 3. Search Formulas (Phase 30: Intelligent Formula Storage)
         # Include relevant formulas from Atom's formula memory
@@ -234,6 +239,7 @@ class WorldModelService:
         return {
             "experiences": valid_experiences,
             "knowledge": knowledge_results,
+            "knowledge_graph": graph_context, # Phase 31: Include KG context
             "formulas": formula_results  # Phase 30: Include formulas in agent memory
         }
 
