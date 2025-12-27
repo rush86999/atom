@@ -1,5 +1,5 @@
 import httpx
-from fastapi import APIRouter, HTTPException, Request, Query, Response
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from fastapi.responses import HTMLResponse
 from typing import Optional, Dict
 import logging
@@ -7,6 +7,8 @@ import logging
 from backend.integrations.universal.auth_handler import universal_auth, OAuthState
 from backend.integrations.universal.config import get_oauth_config
 from backend.core.connection_service import connection_service
+from backend.core.auth import get_current_user
+from backend.core.models import User
 
 router = APIRouter(prefix="/api/v1/integrations/universal", tags=["Universal Integrations"])
 logger = logging.getLogger(__name__)
@@ -15,7 +17,7 @@ logger = logging.getLogger(__name__)
 async def authorize_service(
     service_id: str,
     integration_type: str = "activepieces",
-    user_id: str = "demo_user", # In prod, get from request state
+    current_user: User = Depends(get_current_user),
     redirect_path: Optional[str] = None
 ):
     """
@@ -28,7 +30,7 @@ async def authorize_service(
     state = OAuthState(
         integration_type=integration_type,
         service_id=service_id,
-        user_id=user_id,
+        user_id=current_user.id,
         redirect_path=redirect_path
     )
     

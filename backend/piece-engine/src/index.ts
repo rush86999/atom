@@ -22,9 +22,16 @@ const loadPiece = async (pieceName: string): Promise<Piece | null> => {
     try {
         console.log(`Attempting to load piece: ${pieceName}`);
 
-        // ActivePieces packages usually export as `piece`
-        // We use dynamic import for ESM/TS compatibility
-        const module = await import(pieceName);
+        // Try to import directly
+        let module;
+        try {
+            module = await import(pieceName);
+        } catch (importErr) {
+            console.log(`Module ${pieceName} not found. Attempting dynamic install...`);
+            await execAsync(`npm install ${pieceName} --save`);
+            module = await import(pieceName);
+        }
+
         const piece = module.piece || module.default?.piece || module.default;
 
         if (piece && typeof piece === 'object' && piece.displayName) {
@@ -34,7 +41,7 @@ const loadPiece = async (pieceName: string): Promise<Piece | null> => {
         console.warn(`Module ${pieceName} loaded but no Piece export found.`);
         return null;
     } catch (e: any) {
-        console.error(`Failed to load piece ${pieceName}:`, e.message);
+        console.error(`Failed to load/install piece ${pieceName}:`, e.message);
         return null;
     }
 };

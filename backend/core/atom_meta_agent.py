@@ -200,22 +200,10 @@ class AtomMetaAgent:
 You are Atom, the Advanced Central Orchestrator for this platform.
 Your goal is to solve the user's request by orchestrating Specialty Agents, Workflows, and Integrations.
 
-CORE ORCHESTRATION TOOLS:
-1. spawn_agent
-   - Description: Spawn a specialty agent to handle a domain-specific task.
-   - Params: {{"template": "finance_analyst" | "sales_assistant" | "ops_coordinator" | "hr_assistant" | "marketing_analyst", "task": "specific instructions"}}
    
-2. call_integration
-   - Description: Call an external service integration directly.
-   - Params: {{"service": "salesforce" | "slack" | "hubspot", "action": "action_name", "params": {{...}}}}
    
-3. trigger_workflow
-   - Description: Trigger a predefined workflow.
-   - Params: {{"workflow_id": "id", "input": {{...}}}}
 
-4. query_memory
-   - Description: Search the World Model for information.
-   - Params: {{"query": "search query"}}
+
 
 FORMAT INSTRUCTIONS:
 Thought: Describe your reasoning.
@@ -301,6 +289,7 @@ Next Step:
                 db.close()
 
             # 2. Tool Execution
+            # Specialty logic for Meta Agent
             if tool_name == "spawn_agent":
                 template = args.get("template")
                 task = args.get("task", context.get("original_request"))
@@ -310,21 +299,10 @@ Next Step:
                 # Execute the spawned agent immediately on the sub-task
                 from core.generic_agent import GenericAgent
                 runner = GenericAgent(agent, self.workspace_id)
-                result = await runner.execute(task, context)
+                return await runner.execute(task, context)
                 
-                return f"Agent {agent.name} Result: {result.get('output')}"
-                
-            elif tool_name == "call_integration":
-                return await self.call_integration(args.get("service"), args.get("action"), args.get("params", {}))
-                
-            elif tool_name == "trigger_workflow":
-                return await self.trigger_workflow(args.get("workflow_id"), args.get("input", {}))
-                
-            elif tool_name == "query_memory":
-                return await self.query_memory(args.get("query"))
-                
-            else:
-                return f"Error: Tool '{tool_name}' not found."
+            # Fallback to MCP for all other discovery/execution (Workflows, Integrations, Search)
+            return await self.mcp.call_tool(tool_name, args, context=context)
                 
         except Exception as e:
             return f"Tool Execution Error: {str(e)}"
@@ -380,35 +358,6 @@ Next Step:
             logger.info(f"Created ephemeral agent: {agent_id}")
         
         return agent
-    
-    async def trigger_workflow(self, workflow_id: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Trigger a workflow through the orchestrator"""
-        context = await self.orchestrator.execute_workflow(
-            workflow_id, 
-            input_data,
-            execution_context={"user_id": self.user.id if self.user else "atom_system"}
-        )
-        return {
-            "workflow_id": workflow_id,
-            "execution_id": context.workflow_id,
-            "status": context.status.value,
-            "results": context.results
-        }
-    
-    async def call_integration(self, service: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Call any integration service through Atom.
-        Leverages the UniversalIntegrationService.
-        """
-        try:
-            from integrations.universal_integration_service import UniversalIntegrationService
-            
-            integration = UniversalIntegrationService(self.workspace_id)
-            result = await integration.execute(service, action, params)
-            return {"status": "success", "service": service, "result": result}
-        except Exception as e:
-            logger.error(f"Integration call failed: {e}")
-            return {"status": "failed", "service": service, "error": str(e)}
     
     async def query_memory(self, query: str, scope: str = "all") -> Dict[str, Any]:
         """

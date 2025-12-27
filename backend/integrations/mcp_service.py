@@ -95,15 +95,9 @@ class MCPService:
                         "params": "dict"
                     }
                 },
-                {
-                    "name": "search_integration",
-                    "description": "Search for entities in an integration",
-                    "parameters": {
-                        "service": "string",
-                        "query": "string",
-                        "entity_type": "string (optional)"
-                    }
-                }
+                {"name": "search_integration", "description": "Search for entities in an integration", "parameters": {"service": "string", "query": "string", "entity_type": "string (optional)"}},
+                {"name": "list_agents", "description": "List all available specialty agent templates", "parameters": {}},
+                {"name": "spawn_agent", "description": "Spawn a specialty agent to handle a sub-task", "parameters": {"template": "string", "task": "string"}}
             ]
         return self.active_servers.get(server_id, {}).get("tools", [])
 
@@ -159,21 +153,32 @@ class MCPService:
                     
 
             elif tool_name == "list_workflows":
-                from advanced_workflow_orchestrator import get_orchestrator
-                orchestrator = get_orchestrator()
-                
-                workflows = []
-                for wf_id, wf in orchestrator.workflows.items():
-                    workflows.append({
-                        "id": wf_id,
-                        "name": wf.name,
-                        "description": wf.description,
-                        "required_inputs": [
-                             {"name": s.name, "type": s.type} # simplified
-                             for s in getattr(wf, 'inputs', []) # Only for dynamic/template workflows if present
-                        ] 
-                    })
-                return workflows
+                try:
+                    import os
+                    import json
+                    workflows = []
+                    storage_dir = "workflow_states"
+                    
+                    if not os.path.exists(storage_dir):
+                        return []
+                        
+                    for filename in os.listdir(storage_dir):
+                        if filename.endswith(".json"):
+                            try:
+                                with open(os.path.join(storage_dir, filename), 'r') as f:
+                                    data = json.load(f)
+                                    workflows.append({
+                                        "id": data.get("workflow_id"),
+                                        "name": data.get("name"),
+                                        "description": data.get("description"),
+                                        "category": data.get("category"),
+                                        "status": data.get("state")
+                                    })
+                            except: continue
+                    return workflows
+                except Exception as e:
+                    logger.error(f"MCP list_workflows failed: {e}")
+                    return []
 
             elif tool_name == "trigger_workflow":
                 from advanced_workflow_orchestrator import get_orchestrator
@@ -230,12 +235,18 @@ class MCPService:
             
             elif tool_name == "call_integration":
                 from integrations.universal_integration_service import UniversalIntegrationService
-                service = UniversalIntegrationService()
+                workspace_id = context.get("workspace_id") or "default"
+                service = UniversalIntegrationService(workspace_id=workspace_id)
+                
+                # Extract context-aware bits
+                user_id = context.get("user_id") or "default_user"
+                workspace_id = context.get("workspace_id") or "default"
+                
                 return await service.execute(
                     service=arguments.get("service"),
                     action=arguments.get("action"),
                     params=arguments.get("params", {}),
-                    context=context 
+                    context={"user_id": user_id, "workspace_id": workspace_id}
                 )
                 
             elif tool_name == "search_integration":
@@ -246,6 +257,18 @@ class MCPService:
                      query=arguments.get("query"),
                      entity_type=arguments.get("entity_type"),
                      context=context
+                )
+
+            elif tool_name == "list_agents":
+                from core.atom_meta_agent import SpecialtyAgentTemplate
+                return SpecialtyAgentTemplate.TEMPLATES
+
+            elif tool_name == "spawn_agent":
+                from core.atom_meta_agent import get_atom_agent
+                atom = get_atom_agent(context.get("workspace_id", "default"))
+                return await atom.spawn_agent(
+                    template_name=arguments.get("template"),
+                    persist=arguments.get("persist", False)
                 )
 
         # Unknown MCP server - fail explicitly

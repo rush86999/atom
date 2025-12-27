@@ -36,7 +36,25 @@ class UniversalIntegrationService:
             elif service == "hubspot":
                 return await self._execute_hubspot(action, params)
             else:
-                raise ValueError(f"Service '{service}' not supported.")
+                # Try discovery via ExternalIntegrationService (ActivePieces pieces)
+                try:
+                    from core.external_integration_service import external_integration_service
+                    logger.info(f"Attempting to proxy {service}.{action} to ExternalIntegrationService")
+                    
+                    # We need the connectionId if provided in context or params
+                    connection_id = context.get("connectionId") or params.get("connectionId")
+                    
+                    result = await external_integration_service.execute_action(
+                        piece_name=service,
+                        action_name=action,
+                        params=params,
+                        user_id=user_id,
+                        connection_id=connection_id
+                    )
+                    return {"status": "success", "result": result}
+                except Exception as ex:
+                    logger.error(f"External discovery failed for {service}: {ex}")
+                    raise ValueError(f"Service '{service}' not supported (Discovery fallback failed).")
                 
         except Exception as e:
             logger.error(f"Universal Integration Execution Failed ({service}.{action}): {e}")
