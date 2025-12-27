@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/components/ui/use-toast";
+import { Node } from 'reactflow';
 import VariablePicker from './VariablePicker';
 
 interface NodeConfigSidebarProps {
@@ -49,68 +51,105 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
     const [activeTab, setActiveTab] = useState<'config' | 'test'>('config');
     const [dynamicOptions, setDynamicOptions] = useState<Record<string, { options: any[], loading: boolean }>>({});
     const [connections, setConnections] = useState<any[]>([]);
-    const [selectedConnection, setSelectedConnection] = useState<string | null>(selectedNode?.data?.config?.connectionId || null);
+    const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isAuthLoading, setIsAuthLoading] = useState(false);
+    const { toast } = useToast();
 
     useEffect(() => {
         if (selectedNode?.data?.serviceId) {
             fetchMetadata(selectedNode.data.serviceId);
-            fetchConnections(selectedNode.data.serviceId);
         }
         setConfig(selectedNode?.data?.config || {});
         setSelectedConnection(selectedNode?.data?.config?.connectionId || null);
     }, [selectedNode]);
 
+    useEffect(() => {
+        if (metadata?.auth) {
+            fetchConnections();
+        }
+    }, [metadata]); // Re-fetch connections when metadata (and thus serviceId) is available
+
     // Fetch user connections for this piece
-    const fetchConnections = async (pieceId: string) => {
+    const fetchConnections = async () => {
+        if (!metadata?.auth) return;
+        setIsRefreshing(true);
         try {
-            const response = await fetch(`/api/v1/connections/?integration_id=${encodeURIComponent(pieceId)}`);
+            const response = await fetch(`/api/v1/connections?integration_id=${encodeURIComponent(metadata.serviceId)}`);
             if (response.ok) {
                 const data = await response.json();
                 setConnections(data);
 
-                // Auto-select first connection if none selected
-                if (data.length > 0 && !selectedConnection) {
+                // If we have a stored connectionId in config, select it
+                if (config.connectionId && data.some((conn: any) => conn.id === config.connectionId)) {
+                    setSelectedConnection(config.connectionId);
+                } else if (data.length > 0) {
+                    // Auto-select first connection if none selected
                     handleConnectionChange(data[0].id);
+                } else {
+                    setSelectedConnection(null); // No connections available
                 }
+            } else {
+                console.error("Failed to fetch connections:", response.statusText);
+                setConnections([]);
+                setSelectedConnection(null);
             }
         } catch (error) {
-            console.error("Error fetching connections:", error);
+            console.error("Failed to fetch connections:", error);
+            setConnections([]);
+            setSelectedConnection(null);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    const handleMessage = (event: MessageEvent) => {
+        if (event.data.type === 'AUTH_SUCCESS') {
+            console.log("Auth successful!");
+            fetchConnections(); // Re-fetch connections after successful auth
+            setIsAuthLoading(false); // Stop loading state
+            window.removeEventListener('message', handleMessage);
+        } else if (event.data.type === 'AUTH_ERROR' || event.data.type === 'AUTH_CANCEL') {
+            console.log("Auth failed or cancelled.");
+            setIsAuthLoading(false); // Stop loading state
+            window.removeEventListener('message', handleMessage);
         }
     };
 
     const handleStartAuth = async () => {
-        if (!selectedNode?.data?.serviceId) return;
-
+        if (!metadata) return;
+        setIsAuthLoading(true);
         try {
-            const response = await fetch(`/api/v1/integrations/universal/authorize?service_id=${encodeURIComponent(selectedNode.data.serviceId)}`);
+            const response = await fetch(`/api/v1/integrations/universal/authorize?service_id=${encodeURIComponent(metadata.serviceId)}`);
             if (response.ok) {
-                const { url } = await response.json();
+                const data = await response.json();
 
-                // Open OAuth in a popup
-                const width = 600;
-                const height = 700;
-                const left = window.screenX + (window.outerWidth - width) / 2;
-                const top = window.screenY + (window.outerHeight - height) / 2;
+                if (data.url) {
+                    const width = 600;
+                    const height = 700;
+                    const left = window.screenX + (window.outerWidth - width) / 2;
+                    const top = window.screenY + (window.outerHeight - height) / 2;
 
-                const popup = window.open(
-                    url,
-                    'Atom OAuth',
-                    `width=${width},height=${height},left=${left},top=${top}`
-                );
-
-                // Listen for success message from popup
-                const handleMessage = (event: MessageEvent) => {
-                    if (event.data.type === 'AUTH_SUCCESS') {
-                        console.log("Auth successful!");
-                        fetchConnections(selectedNode.data.serviceId);
-                        window.removeEventListener('message', handleMessage);
-                    }
-                };
-
-                window.addEventListener('message', handleMessage);
+                    window.open(
+                        data.url,
+                        'Connect Integration',
+                        `width=${width},height=${height},left=${left},top=${top}`
+                    );
+                    window.addEventListener('message', handleMessage); // Listen for success message from popup
+                } else {
+                    throw new Error("No authorization URL received.");
+                }
+            } else {
+                throw new Error(`API error: ${response.status} ${response.statusText}`);
             }
         } catch (error) {
-            console.error("Error starting auth:", error);
+            console.error("Failed to start auth:", error);
+            setIsAuthLoading(false);
+            toast({
+                title: "Authentication Failed",
+                description: "Could not initiate the authentication flow. Please try again.",
+                variant: "error"
+            });
         }
     };
 
@@ -431,28 +470,45 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                                 </Badge>
                             </div>
                             <div className="flex gap-2">
-                                <Select value={selectedConnection || ""} onValueChange={handleConnectionChange}>
+                                <Select value={selectedConnection || ""} onValueChange={handleConnectionChange} disabled={isRefreshing}>
                                     <SelectTrigger className="h-9 text-sm bg-white border-gray-200">
-                                        <SelectValue placeholder="Select a connection" />
+                                        <SelectValue placeholder={isRefreshing ? "Refreshing..." : "Select a connection"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {connections.map(conn => (
-                                            <SelectItem key={conn.id} value={conn.id}>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                                                    {conn.name}
-                                                </div>
-                                            </SelectItem>
-                                        ))}
+                                        {connections.length === 0 && !isRefreshing ? (
+                                            <div className="p-2 text-xs text-gray-500">No connections found. Add one below.</div>
+                                        ) : (
+                                            connections.map(conn => {
+                                                const statusColor =
+                                                    conn.status === 'active' ? 'bg-green-500' :
+                                                        conn.status === 'error' ? 'bg-red-500' :
+                                                            conn.status === 'expired' ? 'bg-amber-500' :
+                                                                'bg-gray-400';
+
+                                                return (
+                                                    <SelectItem key={conn.id} value={conn.id}>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-2 h-2 rounded-full ${statusColor}`} />
+                                                            <span>{conn.name}</span>
+                                                            {conn.status !== 'active' && (
+                                                                <span className="text-[9px] uppercase font-bold opacity-40 ml-1">({conn.status})</span>
+                                                            )}
+                                                        </div>
+                                                    </SelectItem>
+                                                );
+                                            })
+                                        )}
                                     </SelectContent>
                                 </Select>
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="h-9 w-9 shrink-0 bg-white border-gray-200 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200"
+                                    className="h-9 w-9 border-gray-200 shrink-0"
                                     onClick={handleStartAuth}
+                                    title="Add New Connection"
+                                    disabled={isAuthLoading}
                                 >
-                                    <PlusCircle className="h-4 w-4" />
+                                    {isAuthLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4 text-gray-500" />}
                                 </Button>
                             </div>
                             <p className="text-[10px] text-gray-500 flex items-center gap-1">
