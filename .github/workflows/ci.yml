@@ -27,12 +27,16 @@ jobs:
     steps:
       - name: Free Disk Space (Ubuntu)
         run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/.ghcup
+          sudo docker image prune -a -f
 
       - uses: actions/checkout@v4
+
+
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -100,6 +104,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend-test, frontend-build]
     steps:
+      - name: Free Disk Space (Ubuntu)
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/.ghcup
+          sudo docker image prune -a -f
+
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -112,7 +125,7 @@ jobs:
           push: false
           tags: atom-backend:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
 
       - name: Build frontend Docker image
         uses: docker/build-push-action@v5
@@ -122,6 +135,6 @@ jobs:
           push: false
           tags: atom-frontend:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
           build-args: |
              SKIP_ENV_VALIDATION=true
