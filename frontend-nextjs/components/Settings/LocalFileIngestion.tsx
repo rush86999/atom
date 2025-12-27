@@ -15,14 +15,52 @@ interface IngestedFile {
 
 export default function LocalFileIngestion() {
     const [files, setFiles] = useState<IngestedFile[]>([]);
+    const [watchedFolders, setWatchedFolders] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [isTauri, setIsTauri] = useState(false);
     const [processingOCR, setProcessingOCR] = useState<string | null>(null);
 
     React.useEffect(() => {
         // @ts-ignore
-        setIsTauri(typeof window !== 'undefined' && window.__TAURI__);
+        const hasTauri = typeof window !== 'undefined' && window.__TAURI__;
+        setIsTauri(hasTauri);
+
+        if (hasTauri) {
+            loadWatchedFolders();
+
+            // Listen for folder events from Rust
+            // @ts-ignore
+            const unlisten = window.__TAURI__.event.listen('folder-event', (event: any) => {
+                const { path, operation } = event.payload;
+                console.log(`Folder event: ${operation} on ${path}`);
+
+                if (operation === 'create' || operation === 'modify') {
+                    // Check if file type is supported
+                    const supportedExts = ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'png', 'jpg', 'jpeg'];
+                    const ext = path.split('.').pop()?.toLowerCase();
+                    if (ext && supportedExts.includes(ext)) {
+                        ingestFile(path);
+                    }
+                }
+            });
+
+            return () => {
+                unlisten.then((f: any) => f());
+            };
+        }
     }, []);
+
+    const loadWatchedFolders = async () => {
+        try {
+            const result = await invoke<{ folders: string[] }>('atom_invoke_command', {
+                command: 'get_watched_folders',
+                params: {},
+            });
+            setWatchedFolders(result.folders);
+        } catch (error) {
+            console.error('Failed to load watched folders:', error);
+        }
+    };
 
     const handleSelectFiles = async () => {
         if (!isTauri) return;
@@ -161,9 +199,55 @@ export default function LocalFileIngestion() {
                     disabled={loading}
                     className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
                 >
-                    <span>📂</span> Select Folder
+                    <span>📂</span> Import Folder
+                </button>
+                <button
+                    onClick={async () => {
+                        const result = await invoke<{ success: boolean; path?: string }>('open_folder_dialog', {});
+                        if (result.success && result.path) {
+                            try {
+                                await invoke('atom_invoke_command', {
+                                    command: 'start_watching_folder',
+                                    params: { path: result.path },
+                                });
+                                loadWatchedFolders();
+                            } catch (e) {
+                                console.error('Failed to watch folder:', e);
+                            }
+                        }
+                    }}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+                >
+                    <span>👀</span> Watch Folder
                 </button>
             </div>
+
+            {watchedFolders.length > 0 && (
+                <div className="mb-6">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Watched Folders ({watchedFolders.length})
+                    </h4>
+                    <div className="space-y-2">
+                        {watchedFolders.map(folder => (
+                            <div key={folder} className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
+                                <span className="text-xs truncate max-w-[400px]">{folder}</span>
+                                <button
+                                    onClick={async () => {
+                                        await invoke('atom_invoke_command', {
+                                            command: 'stop_watching_folder',
+                                            params: { path: folder },
+                                        });
+                                        loadWatchedFolders();
+                                    }}
+                                    className="text-xs text-red-600 hover:text-red-700"
+                                >
+                                    Stop
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {loading && (
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-4">
