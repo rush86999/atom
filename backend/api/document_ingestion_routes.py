@@ -282,17 +282,85 @@ async def list_supported_integrations():
 async def list_supported_file_types():
     """
     List all supported file types for document ingestion.
+    Shows docling availability for enhanced OCR.
     """
+    # Check docling availability
+    try:
+        from core.docling_processor import is_docling_available, get_docling_processor
+        docling_available = is_docling_available()
+        if docling_available:
+            processor = get_docling_processor()
+            docling_formats = processor.get_supported_formats()
+        else:
+            docling_formats = []
+    except ImportError:
+        docling_available = False
+        docling_formats = []
+    
+    base_parser = "docling (OCR)" if docling_available else "PyPDF2"
+    
     return {
         "file_types": [
-            {"ext": "pdf", "name": "PDF Documents", "parser": "PyPDF2"},
-            {"ext": "docx", "name": "Word Documents", "parser": "python-docx"},
+            {"ext": "pdf", "name": "PDF Documents", "parser": base_parser, "ocr_available": docling_available},
+            {"ext": "docx", "name": "Word Documents", "parser": "docling" if docling_available else "python-docx"},
             {"ext": "doc", "name": "Legacy Word Documents", "parser": "python-docx"},
-            {"ext": "xlsx", "name": "Excel Spreadsheets", "parser": "pandas/openpyxl"},
+            {"ext": "pptx", "name": "PowerPoint", "parser": "docling" if docling_available else "not supported", "requires_docling": True},
+            {"ext": "xlsx", "name": "Excel Spreadsheets", "parser": "docling" if docling_available else "pandas/openpyxl"},
             {"ext": "xls", "name": "Legacy Excel", "parser": "pandas"},
+            {"ext": "html", "name": "HTML Documents", "parser": "docling" if docling_available else "beautifulsoup"},
             {"ext": "csv", "name": "CSV Files", "parser": "csv"},
             {"ext": "txt", "name": "Text Files", "parser": "native"},
             {"ext": "md", "name": "Markdown Files", "parser": "native"},
-            {"ext": "json", "name": "JSON Files", "parser": "json"}
-        ]
+            {"ext": "json", "name": "JSON Files", "parser": "json"},
+            {"ext": "png", "name": "Images (OCR)", "parser": "docling" if docling_available else "not supported", "requires_docling": True},
+            {"ext": "jpg", "name": "Images (OCR)", "parser": "docling" if docling_available else "not supported", "requires_docling": True},
+        ],
+        "docling_available": docling_available,
+        "docling_formats": docling_formats
     }
+
+
+@router.get("/ocr-status")
+async def get_ocr_status():
+    """
+    Get OCR engine status and capabilities.
+    Shows which OCR engines are available (docling, tesseract, easyocr, etc.)
+    """
+    status = {
+        "ocr_engines": [],
+        "recommended_engine": None,
+        "docling": {"available": False, "reason": "Not installed"},
+    }
+    
+    # Check docling
+    try:
+        from core.docling_processor import is_docling_available, get_docling_processor
+        if is_docling_available():
+            processor = get_docling_processor()
+            proc_status = processor.get_status()
+            status["docling"] = {
+                "available": True,
+                "formats": proc_status.get("supported_formats", []),
+                "byok_integrated": proc_status.get("byok_integrated", False),
+            }
+            status["ocr_engines"].append("docling")
+            status["recommended_engine"] = "docling"
+    except ImportError:
+        pass
+    
+    # Check other OCR engines
+    try:
+        from integrations.pdf_processing.pdf_ocr_service import (
+            TESSERACT_AVAILABLE, EASYOCR_AVAILABLE, DOCLING_AVAILABLE
+        )
+        if TESSERACT_AVAILABLE:
+            status["ocr_engines"].append("tesseract")
+        if EASYOCR_AVAILABLE:
+            status["ocr_engines"].append("easyocr")
+        if not status["recommended_engine"] and status["ocr_engines"]:
+            status["recommended_engine"] = status["ocr_engines"][0]
+    except ImportError:
+        pass
+    
+    return status
+
