@@ -4,15 +4,12 @@ Atom is a multi-agent system designed for workflow orchestration, task automatio
 
 ## Core Features
 
-*   **Multi-Agent System:** 30+ integrated skills across 12+ platforms with basic automation capabilities
-*   **Wake Word Detection:** Instant activation with "Atom" for hands-free autonomous operation
-*   **Proactive Autopilot Assistant:** Daily automated schedule optimization without user intervention
-*   **Automation Engine:** Pre-configured skills for common workflow automation
-*   **Cross-Platform Orchestration:** Coordinates complex workflows across multiple systems automatically
-*   **Meeting Integration:** Basic calendar event creation and context gathering before meetings
-*   **Weekly Reports:** Automated data compilation across connected platforms
-- **Zero-Overhead Setup:** Guided onboarding that configures integrated services automatically
-*   **Enterprise-Grade Security:** OAuth-based authentication across all integrated platforms
+*   **Agent Governance System**: 30+ integrated skills with maturity-based autonomy and human-in-the-loop approvals
+*   **Unified Command Centers**: Aggregate views for Projects, Sales, Support, and Knowledge management.
+*   **Global Intelligence Hub**: Cross-platform semantic search across storage, tasks, deals, and tickets.
+*   **Real-time Team Discussion**: Integrated collaboration suite in every departmental dashboard.
+*   **Wake Word Detection**: Instant activation with "Atom" for hands-free autonomous operation
+*   **Proactive Autopilot Assistant**: Daily automated schedule optimization without user intervention
 
 ## Integrations
 

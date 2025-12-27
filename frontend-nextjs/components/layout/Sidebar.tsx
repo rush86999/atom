@@ -15,6 +15,7 @@ import {
     Target,
     CreditCard,
     Layers,
+    Layout,
     Mic,
     Zap,
     Heart,
@@ -64,6 +65,15 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Automations", icon: Play, path: "/automations" },
                 { label: "Agents", icon: Bot, path: "/agents" },
                 { label: "Marketplace", icon: Store, path: "/marketplace" },
+            ]
+        },
+        {
+            name: "COMMAND CENTERS",
+            items: [
+                { label: "Projects", icon: Target, path: "/dashboards/projects" },
+                { label: "Sales & CRM", icon: Zap, path: "/dashboards/sales" },
+                { label: "Support", icon: Heart, path: "/dashboards/support" },
+                { label: "Knowledge", icon: Layout, path: "/dashboards/knowledge" },
             ]
         },
         {

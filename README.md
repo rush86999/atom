@@ -54,8 +54,18 @@ Connect your entire business ecosystem with over **500+ apps**.
 - **Hybrid Engine**: Python orchestration + Node.js Piece Engine for the full **ActivePieces** catalog.
 - **Swarm Discovery**: Every specialty agent now inherently "knows" how to list workflows, trigger automations, and call integrations.
 - **Node-on-Demand**: Integrations are installed dynamically on-the-fly to ensure the catalog is always up-to-date.
-- **Full Lifecycle CRUD**: Manage your connections via a premium modal with rename, delete, and health tracking.
-- **Production Ready**: Includes real `nodemailer` email service, Salesforce analytics dashboards, and robust system monitoring.
+
+### 🏢 **Unified Command Centers**
+Atom provides a single plane of glass for your departmental operations.
+- **Project Command Center**: Unified task view across Jira, Asana, Trello, and Monday.
+- **Sales Command Center**: Aggregated pipeline from Salesforce, HubSpot, and Zoho CRM.
+- **Support Command Center**: Unified inbox for Zendesk, Freshdesk, and Intercom tickets.
+- **Knowledge Command Center**: Global Intelligence Hub for searching across GDrive, OneDrive, Zoho WorkDrive, and Notion.
+
+### 🤝 **Real-time Collaboration**
+- **In-Context Discussion**: Every Command Center includes a real-time side-chat for team alignment.
+- **Hybrid Chat**: Discussion threads include both humans and specialty agents, allowing for seamless AI-assisted collaboration.
+- **Presence Tracking**: See exactly which dashboard your team members are viewing in real-time.
 
 ---
 

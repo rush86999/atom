@@ -232,10 +232,10 @@ try:
         logger.warning(f"Failed to load GraphRAG routes: {e}")
 
     try:
-        from api.pm_routes import router as pm_router
-        app.include_router(pm_router, prefix="/api/v1", tags=["Project Management"])
+        from api.project_routes import router as projects_router
+        app.include_router(projects_router)
     except ImportError as e:
-        logger.warning(f"Failed to load PM routes: {e}")
+        logger.warning(f"Failed to load Project routes: {e}")
 
     try:
         from core.workflow_endpoints import router as workflow_router
