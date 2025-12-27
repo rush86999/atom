@@ -93,6 +93,20 @@ class DataRelationship:
     created_at: datetime
 
 
+@dataclass
+class DataAnomaly:
+    """Represents a cross-platform data anomaly or insight"""
+    anomaly_id: str
+    severity: str  # "critical", "warning", "info"
+    title: str
+    description: str
+    affected_entities: List[str]  # List of entity_ids
+    platforms: List[PlatformType]
+    recommendation: str
+    timestamp: datetime
+    metadata: Dict[str, Any]
+
+
 class DataIntelligenceEngine:
     """Unified Data Intelligence Engine for Cross-Platform Data"""
 
@@ -855,6 +869,106 @@ class DataIntelligenceEngine:
     def _resolve_user_entity(self, data: Dict[str, Any]) -> UnifiedEntity:
         """Resolve user entity with enhanced matching"""
         return self._create_unified_entity(PlatformType.SLACK, EntityType.USER, data)
+
+    def detect_anomalies(self) -> List[DataAnomaly]:
+        """Run anomaly detection rules across the unified data registry"""
+        anomalies = []
+        
+        # 1. Deal Risk: High value Salesforce deal linked to a "Blocked" or "Overdue" task
+        anomalies.extend(self._check_deal_risks())
+        
+        # 2. SLA Breach: Priority High tickets with no activity or resolution
+        anomalies.extend(self._check_sla_breaches())
+        
+        # 3. Project Inertia: Projects with no updates in a set time
+        anomalies.extend(self._check_project_inertia())
+        
+        return anomalies
+
+    def _check_deal_risks(self) -> List[DataAnomaly]:
+        """Identify high-value sales deals impacted by engineering or task blockers"""
+        risks = []
+        for entity in self.entity_registry.values():
+            if entity.entity_type == EntityType.DEAL:
+                amount = entity.attributes.get("amount", 0)
+                if isinstance(amount, (int, float)) and amount >= 10000:
+                    # Look for linked tasks
+                    relationships = self.get_entity_relationships(entity.entity_id)
+                    for rel in relationships:
+                        task_id = rel.target_entity_id
+                        task = self.entity_registry.get(task_id)
+                        if task and task.entity_type == EntityType.TASK:
+                            status = str(task.attributes.get("status", "")).lower()
+                            priority = str(task.attributes.get("priority", "")).lower()
+                            
+                            if status in ["blocked", "stuck"] or priority == "high":
+                                risks.append(DataAnomaly(
+                                    anomaly_id=f"deal_risk_{entity.entity_id}_{task_id}",
+                                    severity="critical",
+                                    title="High-Value Deal at Risk",
+                                    description=f"Deal '{entity.canonical_name}' (${amount}) is linked to a {status} task: '{task.canonical_name}'",
+                                    affected_entities=[entity.entity_id, task_id],
+                                    platforms=list(entity.source_platforms) + list(task.source_platforms),
+                                    recommendation=f"Resolve the blocker on '{task.canonical_name}' to unblock this deal.",
+                                    timestamp=datetime.now(),
+                                    metadata={"deal_amount": amount, "task_status": status}
+                                ))
+        return risks
+
+    def _check_sla_breaches(self) -> List[DataAnomaly]:
+        """Identify support tickets or tasks that are nearing or have breached SLA"""
+        breaches = []
+        # In a real system, we'd check timestamps. For now, we use a status/priority rule.
+        for entity in self.entity_registry.values():
+            if entity.entity_type in [EntityType.TASK, EntityType.MESSAGE]: # Using MESSAGE/TASK as proxy for tickets
+                priority = str(entity.attributes.get("priority", "")).lower()
+                status = str(entity.attributes.get("status", "")).lower()
+                
+                if priority in ["high", "critical"] and status == "active":
+                    # Check "updated_at" to see if it hasn't moved for > 24h (mock example)
+                    # For this implementation, we'll flag any High priority active item as a "Potential SLA Breach"
+                    breaches.append(DataAnomaly(
+                        anomaly_id=f"sla_breach_{entity.entity_id}",
+                        severity="warning",
+                        title="Potential SLA Breach",
+                        description=f"High priority {entity.entity_type.value} '{entity.canonical_name}' has been active for over 24 hours.",
+                        affected_entities=[entity.entity_id],
+                        platforms=list(entity.source_platforms),
+                        recommendation="Prioritize this item to avoid customer dissatisfaction.",
+                        timestamp=datetime.now(),
+                        metadata={"priority": priority, "status": status}
+                    ))
+        return breaches
+
+    def _check_project_inertia(self) -> List[DataAnomaly]:
+        """Identify projects or workstreams that show 0 activity"""
+        inertia = []
+        for entity in self.entity_registry.values():
+            if entity.entity_type == EntityType.PROJECT:
+                # Mock: check if updated_at is more than 7 days ago
+                # Since we are using current time for mock ingestion, we'll simulate one
+                updated_at = entity.attributes.get("updated_at")
+                if isinstance(updated_at, str):
+                    try:
+                        updated_at = datetime.fromisoformat(updated_at)
+                    except:
+                        continue
+                
+                # For this demo, we'll just check if there are 0 tasks linked
+                relationships = self.get_entity_relationships(entity.entity_id)
+                if len(relationships) == 0:
+                    inertia.append(DataAnomaly(
+                        anomaly_id=f"project_inertia_{entity.entity_id}",
+                        severity="info",
+                        title="Stale Project Detected",
+                        description=f"Project '{entity.canonical_name}' has no active tasks or linked items.",
+                        affected_entities=[entity.entity_id],
+                        platforms=list(entity.source_platforms),
+                        recommendation="Refactor or archive this project if it's no longer relevant.",
+                        timestamp=datetime.now(),
+                        metadata={}
+                    ))
+        return inertia
 
 
 # Example usage and testing

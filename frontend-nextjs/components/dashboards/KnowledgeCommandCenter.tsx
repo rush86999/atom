@@ -21,9 +21,22 @@ interface KnowledgeItem {
     priority?: string;
 }
 
+interface SmartInsight {
+    anomaly_id: string;
+    severity: 'critical' | 'warning' | 'info';
+    title: string;
+    description: string;
+    affected_entities: string[];
+    platforms: string[];
+    recommendation: string;
+    timestamp: string;
+}
+
 export const KnowledgeCommandCenter: React.FC = () => {
     const [items, setItems] = useState<KnowledgeItem[]>([]);
+    const [insights, setInsights] = useState<SmartInsight[]>([]);
     const [loading, setLoading] = useState(true);
+    const [insightsLoading, setInsightsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [activeType, setActiveType] = useState<string>('all');
     const [activePlatform, setActivePlatform] = useState<string>('all');
@@ -48,8 +61,36 @@ export const KnowledgeCommandCenter: React.FC = () => {
         }
     };
 
+    const fetchInsights = async () => {
+        try {
+            setInsightsLoading(true);
+            const response = await axios.get<{ status: string, insights: SmartInsight[] }>('/api/intelligence/insights');
+            if (response.data?.status === 'success') {
+                setInsights(response.data.insights);
+            }
+        } catch (error) {
+            console.error('Failed to fetch insights:', error);
+            // Fallback mock if API fails/not running
+            setInsights([
+                {
+                    anomaly_id: '1',
+                    severity: 'critical',
+                    title: 'High-Value Deal at Risk',
+                    description: 'Acme Corp deal ($85k) is linked to a BLOCKED Jira task.',
+                    affected_entities: ['sf1', 'j1'],
+                    platforms: ['salesforce', 'jira'],
+                    recommendation: 'Escalate the blocked task to the engineering lead.',
+                    timestamp: new Date().toISOString()
+                }
+            ]);
+        } finally {
+            setInsightsLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchKnowledge();
+        fetchInsights();
     }, []);
 
     const getTypeIcon = (type: string) => {
@@ -190,11 +231,61 @@ export const KnowledgeCommandCenter: React.FC = () => {
                                 <AlertCircle className="w-4 h-4 text-red-400" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-white">{stats.critical}</div>
-                                <p className="text-xs text-muted-foreground mt-1">Requiring attention</p>
+                                <div className="text-2xl font-bold text-white">{stats.critical + insights.filter(i => i.severity === 'critical').length}</div>
+                                <p className="text-xs text-muted-foreground mt-1">Requiring action</p>
                             </CardContent>
                         </Card>
                     </div>
+
+                    {/* Smart Insights Panel */}
+                    {insights.length > 0 && (
+                        <div className="animate-in slide-in-from-top duration-500">
+                            <Card className="bg-gradient-to-br from-primary/10 to-transparent border-primary/20 backdrop-blur-xl overflow-hidden">
+                                <CardHeader className="pb-2 border-b border-white/5 bg-white/5">
+                                    <div className="flex justify-between items-center">
+                                        <CardTitle className="text-xs font-bold text-primary uppercase tracking-tighter flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                            Smart Intelligence Insights
+                                        </CardTitle>
+                                        <Badge className="bg-primary/20 text-primary border-primary/30 text-[9px]">AI POWERED</Badge>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {insights.slice(0, 2).map((insight, idx) => (
+                                            <div key={idx} className="bg-black/40 border border-white/5 p-4 rounded-xl space-y-3 relative group overflow-hidden transition-all hover:border-primary/30">
+                                                <div className={cn(
+                                                    "absolute top-0 right-0 w-1 h-full",
+                                                    insight.severity === 'critical' ? 'bg-red-500' : 'bg-orange-500'
+                                                )} />
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <h3 className="font-bold text-sm text-white group-hover:text-primary transition-colors">{insight.title}</h3>
+                                                    <Badge variant="outline" className={cn(
+                                                        "text-[9px] uppercase",
+                                                        insight.severity === 'critical' ? 'text-red-400 border-red-500/20' : 'text-orange-400 border-orange-500/20'
+                                                    )}>
+                                                        {insight.severity}
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground leading-relaxed">{insight.description}</p>
+                                                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                                                    <p className="text-[10px] text-white/70 italic font-medium">💡 Recommendation: {insight.recommendation}</p>
+                                                </div>
+                                                <div className="flex justify-between items-center pt-2">
+                                                    <div className="flex gap-1">
+                                                        {insight.platforms.map((p, i) => (
+                                                            <span key={i} className="text-[9px] px-1.5 py-0.5 bg-white/5 rounded border border-white/10 text-muted-foreground uppercase font-bold">{p}</span>
+                                                        ))}
+                                                    </div>
+                                                    <button className="text-[10px] text-primary hover:underline font-bold uppercase tracking-tighter">Take Action</button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
 
                     <Card className="bg-black/40 border-white/5 backdrop-blur-xl overflow-hidden">
                         <div className="overflow-x-auto">

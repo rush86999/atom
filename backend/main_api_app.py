@@ -238,6 +238,12 @@ try:
         logger.warning(f"Failed to load Project routes: {e}")
 
     try:
+        from api.intelligence_routes import router as intelligence_router
+        app.include_router(intelligence_router)
+    except ImportError as e:
+        logger.warning(f"Failed to load Intelligence routes: {e}")
+
+    try:
         from core.workflow_endpoints import router as workflow_router
         app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
     except ImportError as e:
