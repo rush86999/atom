@@ -9,7 +9,14 @@ import logging
 from typing import Dict, Optional, Any
 from datetime import datetime
 
+import warnings
+from datetime import datetime
+
 logger = logging.getLogger(__name__)
+
+# [DEPRECATED] Use backend.core.connection_service.ConnectionService instead.
+# This module will be removed in a future version.
+warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
 
 # File path for persistent JSON storage (MVP)
 # Always store in backend directory regardless of where script is run from
@@ -23,6 +30,7 @@ class TokenStorage:
     """
     
     def __init__(self, storage_file: str = TOKEN_STORAGE_FILE):
+        logger.warning("Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.")
         self.storage_file = storage_file
         self._tokens: Dict[str, Any] = {}
         self._load_tokens()

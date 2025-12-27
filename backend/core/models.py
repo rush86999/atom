@@ -437,6 +437,7 @@ class UserConnection(Base):
     
     status = Column(String, default="active") # active, expired, revoked
     last_used = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

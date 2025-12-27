@@ -2236,11 +2236,10 @@ Return your response as a JSON object with this format:
             # If we have a connection_id, fetch real credentials
             if connection_id and not credentials:
                 from backend.core.connection_service import connection_service
-                # Use a dummy user_id for now, in prod this comes from context
-                user_id = context.variables.get("user_id", "demo_user")
-                credentials = connection_service.get_connection_credentials(connection_id, user_id)
+                user_id = context.user_id
+                credentials = await connection_service.get_connection_credentials(connection_id, user_id)
                 if credentials:
-                    logger.info(f"Retrieved real credentials for connection {connection_id}")
+                    logger.info(f"Retrieved real credentials for connection {connection_id} for user {user_id}")
 
             # Use Mock Mode if no credentials and mock mode is enabled (default behavior)
             if not credentials and mock_manager.is_mock_mode(service, False):

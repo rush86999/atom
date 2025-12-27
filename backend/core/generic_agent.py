@@ -32,7 +32,7 @@ class GenericAgent:
         
         # Extract Agent Config
         self.system_prompt = self.config.get("system_prompt", f"You are {self.name}, a helpful assistant.")
-        self.allowed_tools = self.config.get("tools", []) # List of tool names or "*"
+        self.allowed_tools = self.config.get("tools", "*") # Default to all tools for maximum capability
         
     async def execute(self, task_input: str, context: Dict[str, Any] = None, step_callback: Optional[callable] = None) -> Dict[str, Any]:
         """
@@ -167,6 +167,11 @@ Action: the action to take, should be a valid JSON blob like {{"tool": "tool_nam
 Observation: the result of the action (provided by system)
 ... (this Thought/Action/Observation can repeat N times)
 Final Answer: the final answer to the original input question
+
+ORCHESTRATION POWERS:
+- You can discover and call external integrations (Salesforce, Slack, HubSpot, etc.) via 'call_integration'.
+- You can list and trigger automated workflows via 'list_workflows' and 'trigger_workflow'.
+- You can even spawn sub-specialty agents to help you via 'spawn_agent'.
 
 Context from Memory:
 - Past Experiences: {json.dumps(memory.get('experiences', [])[:2], indent=2)}

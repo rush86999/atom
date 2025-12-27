@@ -1,28 +1,28 @@
 from fastapi import APIRouter, HTTPException, Depends
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
-from typing import Any, Dict, List, Optional
-import json
+import logging
 
-router = APIRouter(prefix="/api/v1/integrations", tags=["integrations"])
+from backend.core.auth import get_current_user
+from backend.core.models import User
+
+router = APIRouter(prefix="/api/v1/integrations", tags=["Integrations"])
+logger = logging.getLogger(__name__)
 
 class DynamicOptionsRequest(BaseModel):
     pieceId: str
+    propertyName: str
     actionName: Optional[str] = None
     triggerName: Optional[str] = None
-    propertyName: str
+    config: Optional[Dict[str, Any]] = {}
     connectionId: Optional[str] = None
-    config: Dict[str, Any] = {}
-
-class DynamicOption(BaseModel):
-    label: str
-    value: Any
 
 class DynamicOptionsResponse(BaseModel):
-    options: List[DynamicOption]
+    options: List[Dict[str, Any]]
     placeholder: Optional[str] = None
 
 @router.post("/dynamic-options", response_model=DynamicOptionsResponse)
-async def get_dynamic_options(request: DynamicOptionsRequest):
+async def get_dynamic_options(request: DynamicOptionsRequest, current_user: User = Depends(get_current_user)):
     """
     Fetches dynamic options for a property (e.g., list of Slack channels) 
     by calling the Node piece engine with real credentials if available.
@@ -30,8 +30,7 @@ async def get_dynamic_options(request: DynamicOptionsRequest):
     credentials = None
     if request.connectionId:
         from backend.core.connection_service import connection_service
-        # Use demo_user for MVP
-        credentials = connection_service.get_connection_credentials(request.connectionId, "demo_user")
+        credentials = await connection_service.get_connection_credentials(request.connectionId, current_user.id)
     
     # In a real implementation, we'd call the Node engine's dynamic options endpoint.
     # For now, let's keep the mock for Slack if no credentials, 
