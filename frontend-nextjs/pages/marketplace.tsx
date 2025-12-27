@@ -56,16 +56,28 @@ export default function MarketplacePage() {
             setTemplates(data)
         } catch (error) {
             console.error('Error fetching templates:', error)
-            // toast.error('Failed to load marketplace templates') 
-            // Commenting out toast.error as import might be wrong or sonner not installed
         } finally {
             setLoading(false)
         }
     }
 
-    const handleImport = (id: string) => {
-        console.log("Importing", id);
-        // Implement import logic
+    const handleImport = async (id: string) => {
+        try {
+            const response = await fetch(`/api/marketplace/templates/${id}/import`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+
+            if (response.ok) {
+                toast.success('Workflow imported successfully!')
+            } else {
+                const error = await response.json()
+                toast.error(`Import failed: ${error.detail || 'Unknown error'}`)
+            }
+        } catch (error) {
+            console.error('Import error:', error)
+            toast.error('Failed to connect to server')
+        }
     }
 
     const filteredTemplates = templates.filter(t =>

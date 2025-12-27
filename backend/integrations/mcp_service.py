@@ -97,7 +97,22 @@ class MCPService:
                 },
                 {"name": "search_integration", "description": "Search for entities in an integration", "parameters": {"service": "string", "query": "string", "entity_type": "string (optional)"}},
                 {"name": "list_agents", "description": "List all available specialty agent templates", "parameters": {}},
-                {"name": "spawn_agent", "description": "Spawn a specialty agent to handle a sub-task", "parameters": {"template": "string", "task": "string"}}
+                {"name": "spawn_agent", "description": "Spawn a specialty agent to handle a sub-task", "parameters": {"template": "string", "task": "string"}},
+                {
+                    "name": "generate_pdf_report",
+                    "description": "Generate a PDF report from data or HTML content",
+                    "parameters": {"content": "string", "filename": "string"}
+                },
+                {
+                    "name": "query_financial_metrics",
+                    "description": "Extract aggregated revenue and expense metrics from Stripe/Quickbooks",
+                    "parameters": {"period": "string", "metrics": "list[str]"}
+                },
+                {
+                    "name": "get_shopify_inventory",
+                    "description": "Fetch current stock levels from Shopify",
+                    "parameters": {"threshold": "number (optional)"}
+                }
             ]
         return self.active_servers.get(server_id, {}).get("tools", [])
 
@@ -270,6 +285,114 @@ class MCPService:
                     template_name=arguments.get("template"),
                     persist=arguments.get("persist", False)
                 )
+
+            elif tool_name == "generate_pdf_report":
+                try:
+                    from fpdf import FPDF
+                    import tempfile
+                    
+                    content = arguments.get("content", "No content provided")
+                    filename = arguments.get("filename", f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
+                    
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Arial", size=12)
+                    
+                    # Split content by lines and add to PDF
+                    for line in content.split('\n'):
+                        pdf.multi_cell(0, 10, txt=line)
+                    
+                    # Save to a temporary location or /tmp
+                    target_path = os.path.join("/tmp", filename)
+                    pdf.output(target_path)
+                    
+                    logger.info(f"PDF generated successfully: {target_path}")
+                    return {
+                        "status": "success", 
+                        "file_path": target_path, 
+                        "filename": filename,
+                        "message": f"PDF generated successfully with {len(content)} characters."
+                    }
+                except ImportError:
+                    logger.error("fpdf2 not installed")
+                    return {"error": "PDF generation failed: fpdf2 library not installed"}
+                except Exception as e:
+                    logger.error(f"PDF generation failed: {e}")
+                    return {"error": f"PDF generation failed: {str(e)}"}
+
+            elif tool_name == "query_financial_metrics":
+                from integrations.universal_integration_service import UniversalIntegrationService
+                period = arguments.get("period", "last_30_days")
+                metrics = arguments.get("metrics", ["revenue", "expenses"])
+                
+                service = UniversalIntegrationService(workspace_id=context.get("workspace_id", "default"))
+                
+                # Attempt to get real data from Stripe via Universal Service
+                try:
+                    # In a real scenario, this would call a specific 'analytics' or 'metrics' action
+                    # For now, we'll try to use the query action if supported, or a specialized one
+                    res = await service.execute(
+                        service="stripe",
+                        action="get_metrics",
+                        params={"period": period, "metrics": metrics},
+                        context=context
+                    )
+                    
+                    if res.get("status") == "success":
+                        return res.get("result")
+                    
+                    # Fallback if specific metrics action fails/not implemented, indicate real failure or unconfigured
+                    return {
+                        "error": "Could not fetch real financial metrics. Please ensure Stripe/Quickbooks is connected.",
+                        "status": "not_configured",
+                        "period": period
+                    }
+                except Exception as e:
+                    logger.error(f"Financial query failed: {e}")
+                    return {"error": f"Financial query failed: {str(e)}"}
+
+            elif tool_name == "get_shopify_inventory":
+                from integrations.shopify_service import ShopifyService
+                from core.database import SessionLocal
+                
+                threshold = arguments.get("threshold", 0)
+                workspace_id = context.get("workspace_id", "default")
+                
+                # We need credentials - in a real MCP call, these would come from the user's connection
+                # For this tool, we assume we can fetch them or the service handles it.
+                try:
+                    # This is a bit complex as we need access_token/shop
+                    # In a truly integrated MCP, this would be injected by the ConnectionService
+                    from core.external_integration_service import ConnectionService
+                    conn_service = ConnectionService()
+                    
+                    # Find a Shopify connection for this user/workspace
+                    user_id = context.get("user_id", "default_user")
+                    connections = await conn_service.list_connections(user_id=user_id)
+                    shopify_conn = next((c for c in connections if c.piece_name == "shopify"), None)
+                    
+                    if not shopify_conn:
+                        return {"error": "Shopify is not connected. Please connect it in the Integrations tab.", "status": "not_configured"}
+                    
+                    # Use ShopifyService
+                    from integrations.shopify_service import shopify_service
+                    # Assuming we store shop domain in metadata or use a default
+                    shop = shopify_conn.metadata.get("shop_url")
+                    
+                    # Fetch real inventory
+                    inventory = await shopify_service.get_inventory_levels(
+                        access_token=shopify_conn.credentials.get("access_token"),
+                        shop=shop
+                    )
+                    
+                    # Filter by threshold if needed
+                    if threshold > 0:
+                        inventory = [item for item in inventory if item.get("available", 0) <= threshold]
+                        
+                    return inventory
+                except Exception as e:
+                    logger.error(f"Shopify inventory fetch failed: {e}")
+                    return {"error": f"Failed to fetch Shopify inventory: {str(e)}"}
 
         # Unknown MCP server - fail explicitly
         return {"error": f"Tool '{tool_name}' on server '{server_id}' is not implemented.", "status": "not_implemented"}

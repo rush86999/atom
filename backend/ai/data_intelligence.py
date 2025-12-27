@@ -112,43 +112,47 @@ class DataIntelligenceEngine:
         """Get data from real platform integration or return empty if not configured"""
         import os
         
+        mock_mode = os.getenv("MOCK_MODE_ENABLED", "false").lower() == "true"
+        
         # Check if mock mode is explicitly enabled for development
-        if os.getenv("MOCK_MODE_ENABLED", "false").lower() == "true":
+        if mock_mode:
             return self._mock_platform_connector(platform)
         
         # Try to get real data from integration services
         try:
-            from core.mock_mode import get_mock_mode_manager
+            # We use UniversalIntegrationService for a unified access pattern
+            from integrations.universal_integration_service import UniversalIntegrationService
+            service = UniversalIntegrationService()
             
-            # Platform-specific data fetching
-            if platform == PlatformType.SALESFORCE:
-                from integrations.salesforce import get_salesforce_client
-                client = get_salesforce_client()
-                if client:
-                    # Fetch real Salesforce data
-                    return client.get_recent_records() if hasattr(client, 'get_recent_records') else []
-                    
-            elif platform == PlatformType.HUBSPOT:
-                from integrations.hubspot import get_hubspot_client
-                client = get_hubspot_client()
-                if client:
-                    return client.get_recent_records() if hasattr(client, 'get_recent_records') else []
-                    
-            elif platform == PlatformType.SLACK:
-                from integrations.slack import get_slack_client
-                client = get_slack_client()
-                if client:
-                    return client.get_recent_messages() if hasattr(client, 'get_recent_messages') else []
+            # Platform-specific data fetching via execute("list")
+            # This ensures we use the same robust logic as agents
+            res = asyncio.run(service.execute(
+                service=platform.value,
+                action="list",
+                params={"entity": self._get_default_entity(platform)}
+            ))
             
-            # For unconfigured integrations, return empty list (no mock data)
+            if isinstance(res, list):
+                return res
+            elif isinstance(res, dict) and res.get("status") == "success":
+                return res.get("result", [])
+            
             return []
             
-        except ImportError:
-            logger.debug(f"Integration not available for {platform.value}")
-            return []
         except Exception as e:
             logger.warning(f"Error fetching data from {platform.value}: {e}")
             return []
+
+    def _get_default_entity(self, platform: PlatformType) -> str:
+        """Get default entity type to list for a platform"""
+        defaults = {
+            PlatformType.SALESFORCE: "contact",
+            PlatformType.HUBSPOT: "contact",
+            PlatformType.SLACK: "message",
+            PlatformType.ASANA: "task",
+            PlatformType.SHOPIFY: "product"
+        }
+        return defaults.get(platform, "contact")
 
     def _initialize_entity_resolvers(self) -> Dict[EntityType, callable]:
         """Initialize entity resolution functions"""

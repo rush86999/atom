@@ -814,6 +814,20 @@ async def get_template_details(template_id: str):
         raise HTTPException(status_code=404, detail="Template not found")
     return template
 
+@router.post("/templates/{template_id}/import")
+async def import_template_by_id(template_id: str):
+    """Import a specific template from the marketplace into the user's workspace"""
+    try:
+        template = marketplace.get_template(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        # Call the engine's import logic (simulated for now)
+        return marketplace.import_workflow(template.workflow_data)
+    except Exception as e:
+        logger.error(f"Import failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Advanced Template Endpoints
 @router.post("/templates/advanced", response_model=AdvancedWorkflowTemplate)
 async def create_advanced_template(template_data: Dict[str, Any]):

@@ -127,3 +127,34 @@ class ShopifyService:
                 results.append({"topic": topic, "status": "failed", "error": str(e)})
                 
         return results
+
+    async def get_inventory_levels(self, access_token: str, shop: str, location_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get inventory levels for shop"""
+        try:
+            url = f"{self._get_base_url(shop)}/inventory_levels.json"
+            headers = self._get_headers(access_token)
+            params = {}
+            if location_id:
+                params["location_ids"] = location_id
+                
+            response = await self.client.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            return response.json().get("inventory_levels", [])
+        except Exception as e:
+            logger.error(f"Failed to get inventory levels: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch inventory: {str(e)}")
+
+    async def get_locations(self, access_token: str, shop: str) -> List[Dict[str, Any]]:
+        """Get shop locations"""
+        try:
+            url = f"{self._get_base_url(shop)}/locations.json"
+            headers = self._get_headers(access_token)
+            
+            response = await self.client.get(url, headers=headers)
+            response.raise_for_status()
+            
+            return response.json().get("locations", [])
+        except Exception as e:
+            logger.error(f"Failed to get locations: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch locations: {str(e)}")

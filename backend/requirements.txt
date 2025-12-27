@@ -49,6 +49,7 @@ tqdm>=4.64.0,<5.0.0
 # File Processing
 # docling>=2.0.0  # OPTIONAL: Advanced OCR/document parsing (install separately or via: pip install docling)
 PyPDF2>=3.0.0,<4.0.0
+fpdf2>=2.7.0
 python-docx>=0.8.11,<1.0.0
 beautifulsoup4>=4.12.0,<5.0.0
 lxml>=4.9.0,<6.0.0

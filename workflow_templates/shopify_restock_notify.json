@@ -1,0 +1,84 @@
+{
+  "template_id": "shopify_restock_notify",
+  "name": "E-commerce Restocking Automation",
+  "description": "Monitor Shopify inventory and notify suppliers if stock is low.",
+  "category": "business",
+  "complexity": "intermediate",
+  "tags": [
+    "shopify",
+    "e-commerce",
+    "inventory",
+    "sales"
+  ],
+  "version": "1.0.0",
+  "author": "System",
+  "created_at": "2025-12-27 14:15:29.633547",
+  "updated_at": "2025-12-27 14:15:29.633548",
+  "inputs": [
+    {
+      "name": "threshold",
+      "label": "Low Stock Level",
+      "description": "Items remaining to trigger",
+      "type": "number",
+      "required": true,
+      "default_value": 5,
+      "options": [],
+      "validation_rules": {},
+      "help_text": null,
+      "example_value": null
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "check",
+      "name": "Monitor Shopify",
+      "description": "Fetch product stock levels",
+      "step_type": "extraction",
+      "parameters": [],
+      "condition": null,
+      "depends_on": [],
+      "estimated_duration": 60,
+      "is_optional": false,
+      "retry_config": {}
+    },
+    {
+      "step_id": "filter",
+      "name": "Filter Low Items",
+      "description": "Find items meeting threshold",
+      "step_type": "transformation",
+      "parameters": [],
+      "condition": null,
+      "depends_on": [
+        "check"
+      ],
+      "estimated_duration": 60,
+      "is_optional": false,
+      "retry_config": {}
+    },
+    {
+      "step_id": "notify",
+      "name": "Email Supplier",
+      "description": "Send P.O. request",
+      "step_type": "notification",
+      "parameters": [],
+      "condition": null,
+      "depends_on": [
+        "filter"
+      ],
+      "estimated_duration": 60,
+      "is_optional": false,
+      "retry_config": {}
+    }
+  ],
+  "output_schema": {},
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 180,
+  "prerequisites": [],
+  "dependencies": [],
+  "permissions": [],
+  "is_public": true,
+  "is_featured": false,
+  "license": "MIT"
+}
