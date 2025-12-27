@@ -14,6 +14,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 import json
 
+# Import for lazy loading to avoid circular imports
+# from core.atom_meta_agent import handle_data_event_trigger
+
 logger = logging.getLogger(__name__)
 
 
@@ -364,7 +367,8 @@ class AutoDocumentIngestionService:
             "files_found": 0,
             "files_ingested": 0,
             "files_skipped": 0,
-            "errors": []
+            "errors": [],
+            "newly_ingested_files": []
         }
         
         try:
@@ -445,6 +449,7 @@ class AutoDocumentIngestionService:
                                 external_modified_at=file_info.get("modified_at")
                             )
                             results["files_ingested"] += 1
+                            results["newly_ingested_files"].append(file_info.get("name"))
                 
                 except Exception as file_err:
                     results["errors"].append(f"{file_info.get('name')}: {str(file_err)}")
@@ -452,6 +457,27 @@ class AutoDocumentIngestionService:
             settings.last_sync = datetime.utcnow()
             results["completed_at"] = datetime.utcnow().isoformat()
             results["success"] = True
+            
+            # TRIGGER AGENT IF FILES WERE INGESTED
+            if results["files_ingested"] > 0:
+                try:
+                    from core.atom_meta_agent import handle_data_event_trigger
+                    logger.info(f"Triggering Atom Agent for {results['files_ingested']} new documents in {integration_id}")
+                    
+                    # Fire-and-forget (or await? sync_integration is async, so we can await)
+                    # We pass the summary of ingestion to Atom
+                    await handle_data_event_trigger(
+                        event_type="document_ingestion",
+                        data={
+                            "integration_id": integration_id,
+                            "count": results["files_ingested"],
+                            "files": results["newly_ingested_files"] 
+                        },
+                        workspace_id=self.workspace_id
+                    )
+                except Exception as trigger_err:
+                    logger.warning(f"Failed to trigger agent after ingestion: {trigger_err}")
+            
             
         except Exception as e:
             results["error"] = str(e)

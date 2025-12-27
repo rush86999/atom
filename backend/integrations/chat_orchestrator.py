@@ -18,7 +18,27 @@ import asyncio
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from core.automation_settings import get_automation_settings
-from api.agent_routes import AGENTS, execute_agent_task
+from core.automation_settings import get_automation_settings
+from api.agent_routes import execute_agent_task
+
+# Legacy Agent Definitions for Chat Mapping
+AGENTS = {
+    "competitive_intel": {
+        "name": "Competitive Intelligence Agent",
+        "description": "Tracks competitor pricing and product changes",
+        "category": "Market Intelligence"
+    },
+    "inventory_reconcile": {
+        "name": "Inventory Reconciliation Agent",
+        "description": "Reconciles inventory counts across systems",
+        "category": "Operations"
+    },
+    "payroll_guardian": {
+        "name": "Payroll Guardian Agent",
+        "description": "Verifies payroll accuracy and compliance",
+        "category": "Finance"
+    }
+}
 
 # ... (other imports)
 
@@ -593,10 +613,14 @@ class ChatOrchestrator:
                 "message": f"Agent configuration for '{target_agent_id}' not found."
             }
 
-        # Trigger the agent
+        # Trigger the agent using unified execution
         try:
              # In a real app we might pass specific parameters extracted from NLP
-            await execute_agent_task(target_agent_id, {"trigger": "chat_user", "session_id": session.get("id")})
+            run_params = {"trigger": "chat_user", "session_id": session.get("id"), "request": message}
+            
+            # Use execute_agent_task from api.agent_routes
+            # Note: execute_agent_task is async
+            await execute_agent_task(target_agent_id, run_params)
             
             agent_name = AGENTS[target_agent_id]["name"]
             return {
@@ -842,7 +866,7 @@ class ChatOrchestrator:
                 request=message,
                 context={
                     "intent_analysis": intent_analysis,
-                    "session_id": session.get("session_id"),
+                    "session_id": session.get("id"),
                     "user_id": user_id,
                     **(context or {})
                 },

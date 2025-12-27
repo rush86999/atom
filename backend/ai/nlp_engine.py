@@ -11,9 +11,13 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 logger = logging.getLogger(__name__)
 
 # ==================== IMPORTS FOR LLM ENHANCEMENT ====================
@@ -116,17 +120,27 @@ class NaturalLanguageEngine:
         
         try:
             # Get API key from BYOK manager
+            api_key = None
+            base_url = None
             if BYOK_AVAILABLE and get_byok_manager:
                 self._byok_manager = get_byok_manager()
                 api_key = self._byok_manager.get_api_key(NLU_LLM_PROVIDER)
-            else:
+                provider_config = self._byok_manager.providers.get(NLU_LLM_PROVIDER)
+                if provider_config:
+                    base_url = provider_config.base_url
+            
+            if not api_key:
                 api_key = os.getenv("OPENAI_API_KEY")
             
             if api_key:
-                self._llm_client = OpenAI(api_key=api_key)
-                logger.info(f"NLU LLM client initialized with BYOK ({NLU_LLM_PROVIDER})")
+                client_kwargs = {"api_key": api_key}
+                if base_url:
+                    client_kwargs["base_url"] = base_url
+                
+                self._llm_client = OpenAI(**client_kwargs)
+                logger.info(f"NLU LLM client initialized with BYOK ({NLU_LLM_PROVIDER}) at {base_url or 'default'}")
             else:
-                logger.warning("No API key available for NLU LLM parsing")
+                logger.warning(f"No API key available for NLU LLM parsing (Provider: {NLU_LLM_PROVIDER})")
         except Exception as e:
             logger.error(f"Failed to initialize NLU LLM client: {e}")
 

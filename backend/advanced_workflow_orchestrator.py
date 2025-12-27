@@ -2841,3 +2841,13 @@ Return your response as a JSON object with this format:
 
 # Global orchestrator instance
 orchestrator = AdvancedWorkflowOrchestrator()
+
+# Singleton instance
+_orchestrator_instance = None
+
+def get_orchestrator() -> AdvancedWorkflowOrchestrator:
+    """Get or create singleton instance of the orchestrator"""
+    global _orchestrator_instance
+    if _orchestrator_instance is None:
+        _orchestrator_instance = AdvancedWorkflowOrchestrator()
+    return _orchestrator_instance
