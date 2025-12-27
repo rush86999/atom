@@ -353,4 +353,29 @@ Even after fixing the Next.js API routes, some frontend components (`SlackIntegr
 2.  **ActionNode Branding**: Dynamic color/background based on service (Slack, Gmail, GitHub, etc.).
 3.  **WorkflowBuilder**: Updated toolbar and AI chat to support desktop node creation.
 
+### Phase 8: Agentic Discovery & Hybrid Integration Runtime (Dec 27, 2025)
+
+**Goal:** Bridge the gap between visual automations and autonomous agents, enabling the swarm to discover and use any of the 500+ integrations.
+
+**Implementation:**
+1.  **Unified MCP Service**:
+    -   Implemented `MCPService` in Python as a central tool coordinator.
+    -   Exposes `call_integration` and `list_workflows` as native tools to all agents.
+    -   Supports dynamic translation between agent-requested actions and ActivePieces piece schemas.
+2.  **Specialty Agent Discovery**:
+    -   Upgraded `GenericAgent` with internal orchestration prompts.
+    -   Every spawned agent (Sales, Finance, etc.) now inherits the power to search and execute any platform capability.
+3.  **Hybrid Piece Engine (Node.js)**:
+    -   Created a scalable Node.js execution server (`backend/piece-engine`).
+    -   Implements **On-Demand Installation**: If an agent requests a niche integration (e.g., "Bullhorn CRM"), the engine dynamically installs it via NPM and executes the action.
+4.  **Secure Connection Lifecycle (CRUD)**:
+    -   **Encryption**: All user credentials for these 500+ apps are encrypted at-rest using `Fernet`.
+    -   **Management UI**: Built a premium `ManageConnectionsModal` for renaming, deleting, and auditing connection health.
+    -   **Memory Loop**: Every new connection is recorded in the **World Model** (LanceDB). Agents "remember" who you are connected to and use that to plan future tasks.
+
+**Verification:**
+-   **Verification Tool**: `backend/tests/test_connection_management.py` (CRUD & Memory sync).
+-   **Agent E2E**: Verified `AtomMetaAgent` tool discovery via logs.
+-   **Multi-tenancy**: Confirmed `user_id` and `workspace_id` isolation across all integration calls.
+
 *ATOM: Empowering your data with intelligent automation.*

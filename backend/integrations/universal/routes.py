@@ -84,12 +84,34 @@ async def universal_callback(
             token_data = exchange_resp.json()
             
         # 4. Save connection
-        connection_service.save_connection(
+        connection = connection_service.save_connection(
             user_id=oauth_state.user_id,
             integration_id=oauth_state.service_id,
             name=f"{oauth_state.service_id.split('/')[-1]} Connection",
             credentials=token_data
         )
+
+        # 5. Record experience in World Model for Agent Memory
+        try:
+            from backend.core.agent_world_model import WorldModelService, AgentExperience
+            from datetime import datetime
+            import uuid
+            
+            world_model = WorldModelService(workspace_id="default")
+            experience = AgentExperience(
+                id=str(uuid.uuid4()),
+                agent_id="atom_system",
+                task_type="service_connection",
+                input_summary=f"Connected to {oauth_state.service_id}",
+                outcome="Success",
+                learnings=f"The agent now has authenticated access to {oauth_state.service_id} via connection '{connection.connection_name}'.",
+                agent_role="Orchestrator",
+                timestamp=datetime.now()
+            )
+            await world_model.record_experience(experience)
+            logger.info(f"Recorded connection experience for {oauth_state.service_id}")
+        except Exception as me:
+            logger.warning(f"Failed to record connection experience: {me}")
         
         # 5. Return success HTML to close popup
         html_content = """

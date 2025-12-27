@@ -10,11 +10,12 @@
 - **Real-time collaboration** across all services
 
 ### Backend  
-- **Python FastAPI/Flask** APIs
-- **PostgreSQL** with robust data persistence
-- **LanceDB** vector database for AI memory
-- **OAuth 2.0** security across all integrations
-- **Node.js Piece Engine** for executing 500+ ActivePieces integrations
+- **Python FastAPI/Flask** APIs (Py 3.11+)
+- **PostgreSQL / SQLite** with robust data persistence
+- **LanceDB** vector database for agent "World Model" and memory
+- **Secure Multi-tenancy**: OAuth 2.0 with per-user credential encryption (Fernet)
+- **Hybrid Piece Engine**: Node.js runtime executing the full ActivePieces ecosystem
+- **Swarm Discovery**: Centralized MCP toolset for all specialty agents
 
 ### AI & Orchestration
 - **Advanced NLU System** - Understands complex requests
