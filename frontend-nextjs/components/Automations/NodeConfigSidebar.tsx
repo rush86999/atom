@@ -63,16 +63,54 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
     // Fetch user connections for this piece
     const fetchConnections = async (pieceId: string) => {
         try {
-            // In real app, this would fetch from /api/v1/connections?pieceId=...
-            // For now, mocking some connections
-            const mockConnections = [
-                { id: 'conn_1', name: 'My Slack Workspace', pieceId: '@activepieces/piece-slack' },
-                { id: 'conn_2', name: 'Dev Workspace', pieceId: '@activepieces/piece-slack' },
-                { id: 'conn_3', name: 'Personal Gmail', pieceId: '@activepieces/piece-gmail' }
-            ].filter(c => c.pieceId === pieceId);
-            setConnections(mockConnections);
+            const response = await fetch(`/api/v1/connections/?integration_id=${encodeURIComponent(pieceId)}`);
+            if (response.ok) {
+                const data = await response.json();
+                setConnections(data);
+
+                // Auto-select first connection if none selected
+                if (data.length > 0 && !selectedConnection) {
+                    handleConnectionChange(data[0].id);
+                }
+            }
         } catch (error) {
             console.error("Error fetching connections:", error);
+        }
+    };
+
+    const handleStartAuth = async () => {
+        if (!selectedNode?.data?.serviceId) return;
+
+        try {
+            const response = await fetch(`/api/v1/integrations/universal/authorize?service_id=${encodeURIComponent(selectedNode.data.serviceId)}`);
+            if (response.ok) {
+                const { url } = await response.json();
+
+                // Open OAuth in a popup
+                const width = 600;
+                const height = 700;
+                const left = window.screenX + (window.outerWidth - width) / 2;
+                const top = window.screenY + (window.outerHeight - height) / 2;
+
+                const popup = window.open(
+                    url,
+                    'Atom OAuth',
+                    `width=${width},height=${height},left=${left},top=${top}`
+                );
+
+                // Listen for success message from popup
+                const handleMessage = (event: MessageEvent) => {
+                    if (event.data.type === 'AUTH_SUCCESS') {
+                        console.log("Auth successful!");
+                        fetchConnections(selectedNode.data.serviceId);
+                        window.removeEventListener('message', handleMessage);
+                    }
+                };
+
+                window.addEventListener('message', handleMessage);
+            }
+        } catch (error) {
+            console.error("Error starting auth:", error);
         }
     };
 
@@ -408,7 +446,12 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 bg-white border-gray-200 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-9 w-9 shrink-0 bg-white border-gray-200 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200"
+                                    onClick={handleStartAuth}
+                                >
                                     <PlusCircle className="h-4 w-4" />
                                 </Button>
                             </div>
