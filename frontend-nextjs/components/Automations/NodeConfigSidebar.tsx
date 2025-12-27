@@ -79,7 +79,8 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
     const fetchMetadata = async (pieceId: string) => {
         setLoading(true);
         try {
-            const response = await fetch(`/api/v1/integrations/catalog/${encodeURIComponent(pieceId)}`);
+            // Updated to use the new External Integrations API
+            const response = await fetch(`/api/v1/external-integrations/${encodeURIComponent(pieceId)}`);
             if (response.ok) {
                 const data = await response.json();
                 setMetadata(data);
@@ -91,6 +92,9 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
         }
     };
 
+    // ... (keep fetchMetadata as is, from previous step)
+
+    // RESTORED HANDLERS:
     const handleInputChange = (key: string, value: any) => {
         const newConfig = { ...config, [key]: value };
         setConfig(newConfig);
@@ -174,6 +178,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
 
         switch (prop.type) {
             case 'SHORT_TEXT':
+            case 'TEXT': // Alias
                 return (
                     <div className="space-y-1.5">
                         <div className="flex justify-between items-center">
@@ -219,7 +224,26 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                         {prop.description && <p className="text-[10px] text-gray-500">{prop.description}</p>}
                     </div>
                 );
+            case 'NUMBER':
+                return (
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold flex items-center gap-1">
+                            {prop.displayName}
+                            {prop.required && <span className="text-red-500">*</span>}
+                        </Label>
+                        <Input
+                            type="number"
+                            value={value}
+                            onChange={(e) => handleInputChange(key, parseFloat(e.target.value))}
+                            placeholder={prop.description}
+                            className="text-sm h-8"
+                        />
+                        {prop.description && <p className="text-[10px] text-gray-500">{prop.description}</p>}
+                    </div>
+                );
             case 'DROPDOWN':
+            case 'STATIC_DROPDOWN': // ActivePieces type
+            case 'DYNAMIC': // Dynamic dropdowns
                 const dynamic = dynamicOptions[key];
                 const options = prop.options?.options || dynamic?.options || [];
                 const fieldLoading = dynamic?.loading || false;
@@ -231,16 +255,19 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                             {prop.required && <span className="text-red-500">*</span>}
                             {fieldLoading && <Loader2 className="h-3 w-3 animate-spin text-purple-600 ml-1" />}
                         </Label>
-                        <Select value={value} onValueChange={(v: string) => handleInputChange(key, v)}>
+                        <Select value={value?.toString()} onValueChange={(v: string) => handleInputChange(key, v)}>
                             <SelectTrigger className="h-8 text-sm">
                                 <SelectValue placeholder={prop.placeholder || (fieldLoading ? "Loading..." : "Select an option")} />
                             </SelectTrigger>
                             <SelectContent>
-                                {options.map((opt: any) => (
-                                    <SelectItem key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                    </SelectItem>
-                                ))}
+                                {options.map((opt: any, idx: number) => {
+                                    const val = opt.value?.toString() ?? "";
+                                    return (
+                                        <SelectItem key={`${val}-${idx}`} value={val}>
+                                            {opt.label}
+                                        </SelectItem>
+                                    );
+                                })}
                             </SelectContent>
                         </Select>
                         {prop.description && <p className="text-[10px] text-gray-500">{prop.description}</p>}
@@ -265,10 +292,62 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                         />
                     </div>
                 );
-            default:
+            case 'ARRAY':
+                // Simple array implementation (comma separated for now, could be better)
                 return (
-                    <div className="p-2 bg-gray-50 rounded border text-[10px] text-gray-500">
-                        Unsupported field type: {prop.type}
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold flex items-center gap-1">
+                            {prop.displayName} (List)
+                            {prop.required && <span className="text-red-500">*</span>}
+                        </Label>
+                        <Textarea
+                            value={Array.isArray(value) ? value.join(', ') : value}
+                            onChange={(e) => handleInputChange(key, e.target.value.split(',').map((s: string) => s.trim()))}
+                            placeholder="Item 1, Item 2..."
+                            className="text-sm min-h-[60px]"
+                        />
+                        <p className="text-[10px] text-gray-500">Comma-separated values</p>
+                    </div>
+                );
+            case 'OBJECT':
+            case 'JSON_OBJECT':
+                return (
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold flex items-center gap-1">
+                            {prop.displayName} (JSON)
+                            {prop.required && <span className="text-red-500">*</span>}
+                        </Label>
+                        <Textarea
+                            value={typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
+                            onChange={(e) => {
+                                try {
+                                    handleInputChange(key, JSON.parse(e.target.value));
+                                } catch (err) {
+                                    // Handle invalid JSON gracefully or just store string until valid
+                                    // For now, updating metadata only on valid JSON might be safer or storing string
+                                }
+                            }}
+                            placeholder='{ "key": "value" }'
+                            className="text-sm min-h-[100px] font-mono"
+                        />
+                    </div>
+                );
+            default:
+                // Fallback for unknown types - treat as short text
+                return (
+                    <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                            <Label className="text-xs font-semibold flex items-center gap-1">
+                                {prop.displayName} <span className="text-gray-400 font-normal">({prop.type})</span>
+                                {prop.required && <span className="text-red-500">*</span>}
+                            </Label>
+                        </div>
+                        <Input
+                            value={value}
+                            onChange={(e) => handleInputChange(key, e.target.value)}
+                            placeholder={prop.description}
+                            className="text-sm h-8"
+                        />
                     </div>
                 );
         }
