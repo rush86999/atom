@@ -248,9 +248,8 @@ class MCPService:
                      context=context
                 )
 
-        # Placeholder for real MCP execution logic
-        await asyncio.sleep(0.5)
-        return {"result": f"Mock result from {server_id}:{tool_name}"}
+        # Unknown MCP server - fail explicitly
+        return {"error": f"Tool '{tool_name}' on server '{server_id}' is not implemented.", "status": "not_implemented"}
 
     async def web_search(self, query: str) -> Dict[str, Any]:
         """
@@ -276,17 +275,13 @@ class MCPService:
             except Exception as e:
                 logger.error(f"Tavily search failed: {e}")
 
-        # Default mock response for demonstration
+        # No search API key configured - return empty results with error
+        logger.warning("No search API key (TAVILY_API_KEY) configured. Search unavailable.")
         return {
             "query": query,
-            "results": [
-                {
-                    "title": f"Recent trends in {query}",
-                    "url": "https://example.com/trends",
-                    "content": f"Real-time information about {query} shows increasing interest in AI automation for small businesses."
-                }
-            ],
-            "answer": f"Current data suggests that {query} is a major focal point for growth in 2024-2025."
+            "results": [],
+            "answer": None,
+            "error": "Web search is not configured. Please set TAVILY_API_KEY."
         }
 
 # Singleton instance

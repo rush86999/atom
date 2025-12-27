@@ -18,7 +18,7 @@ from core.enterprise_security import enterprise_security, AuditEvent, EventType,
 from core.database import get_db
 from sqlalchemy.orm import Session
 from core.agent_governance_service import AgentGovernanceService
-from core.models import AgentRegistry, AgentStatus, AgentFeedback
+from core.models import AgentRegistry, AgentStatus, AgentFeedback, HITLAction, HITLActionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,10 @@ class AgentFeedbackRequest(BaseModel):
     user_correction: str
     input_context: Optional[str] = None
     original_output: str
+
+class HITLApprovalRequest(BaseModel):
+    decision: str # approved | rejected
+    feedback: Optional[str] = None
 
 # --- Endpoints ---
 
@@ -146,6 +150,54 @@ async def promote_agent(
     service = AgentGovernanceService(db)
     agent = service.promote_to_autonomous(agent_id, user)
     return {"status": "success", "agent_status": agent.status}
+
+@router.get("/approvals/pending", response_model=List[Dict[str, Any]])
+async def list_pending_approvals(
+    user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    db: Session = Depends(get_db)
+):
+    """List all actions waiting for human approval"""
+    actions = db.query(HITLAction).filter(HITLAction.status == HITLActionStatus.PENDING.value).all()
+    return [{
+        "id": a.id,
+        "agent_id": a.agent_id,
+        "action_type": a.action_type,
+        "params": a.params,
+        "reason": a.reason,
+        "created_at": a.created_at.isoformat() if a.created_at else None
+    } for a in actions]
+
+@router.post("/approvals/{action_id}")
+async def decide_hitl_action(
+    action_id: str,
+    req: HITLApprovalRequest,
+    user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    db: Session = Depends(get_db)
+):
+    """Approve or Reject a paused agent action"""
+    action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    
+    if req.decision.lower() == "approved":
+        action.status = HITLActionStatus.APPROVED.value
+    else:
+        action.status = HITLActionStatus.REJECTED.value
+        
+    action.user_feedback = req.feedback
+    action.reviewed_at = datetime.datetime.now()
+    action.reviewed_by = user.id
+    
+    db.commit()
+    
+    # Broadcast update to UI via WebSocket
+    await ws_manager.broadcast("workspace:default", {
+        "type": "hitl_decision",
+        "action_id": action_id,
+        "decision": action.status
+    })
+    
+    return {"status": "success", "decision": action.status}
 
 async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
     """Background task to run the agent logic"""

@@ -5,9 +5,8 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 import asyncio
-from core.models import AgentRegistry, AgentStatus
-from core.agent_world_model import WorldModelService, AgentExperience
 from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentRegistry, AgentStatus, HITLActionStatus
 from core.database import SessionLocal
 from integrations.mcp_service import mcp_service
 from core.llm.byok_handler import BYOKHandler
@@ -107,7 +106,7 @@ class GenericAgent:
                         if self.allowed_tools != "*" and tool_name not in self.allowed_tools:
                             observation = f"Error: Tool '{tool_name}' is not allowed."
                         else:
-                            observation = await self._step_act(tool_name, tool_args, context)
+                            observation = await self._step_act(tool_name, tool_args, context, step_callback)
                         
                         step_record["output"] = observation
                         execution_history += f"Observation: {str(observation)}\n"
@@ -187,7 +186,7 @@ Previous Steps:
             temperature=0.3 # Lower temp for logic
         )
         
-    async def _step_act(self, tool_name: str, args: Dict, context: Dict = None) -> Any:
+    async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None) -> Any:
         """Execute a tool via MCP with Governance Check"""
         try:
             # 1. Governance Maturity Check
@@ -195,7 +194,35 @@ Previous Steps:
             try:
                 gov = AgentGovernanceService(db)
                 auth_check = gov.can_perform_action(self.id, tool_name)
-                if not auth_check["allowed"]:
+                
+                if auth_check.get("requires_human_approval"):
+                    # Create HITL Action
+                    action_id = gov.request_approval(
+                        agent_id=self.id,
+                        action_type=tool_name,
+                        params=args,
+                        reason=auth_check["reason"],
+                        workspace_id=self.workspace_id
+                    )
+                    
+                    logger.info(f"Action {tool_name} requires approval. Pausing agent...")
+                    
+                    if step_callback:
+                        await step_callback({
+                            "type": "hitl_paused",
+                            "action_id": action_id,
+                            "tool": tool_name,
+                            "reason": auth_check["reason"]
+                        })
+                    
+                    # Wait for approval
+                    approved = await self._wait_for_approval(action_id)
+                    if not approved:
+                        return f"Governance Error: Action {tool_name} was REJECTED by user or timed out."
+                    
+                    logger.info(f"Action {tool_name} APPROVED. Proceeding...")
+                    
+                elif not auth_check["allowed"]:
                     return f"Governance Error: {auth_check['reason']}"
             finally:
                 db.close()
@@ -240,6 +267,30 @@ Previous Steps:
             logger.error(f"Failed to record governance outcome: {e}")
         finally:
             db.close()
+
+    async def _wait_for_approval(self, action_id: str) -> bool:
+        """Poll for HITL decision"""
+        max_wait = self.config.get("hitl_timeout", 600) # Default 10 mins
+        interval = 5
+        elapsed = 0
+        
+        while elapsed < max_wait:
+            db = SessionLocal()
+            try:
+                gov = AgentGovernanceService(db)
+                status_info = gov.get_approval_status(action_id)
+                
+                if status_info["status"] == HITLActionStatus.APPROVED.value:
+                    return True
+                if status_info["status"] == HITLActionStatus.REJECTED.value:
+                    return False
+            finally:
+                db.close()
+                
+            await asyncio.sleep(interval)
+            elapsed += interval
+            
+        return False # Timeout
 
     def _get_registry_model(self) -> AgentRegistry:
         """Helper to reconstruct the model for passing to services"""
