@@ -26,15 +26,11 @@ jobs:
 
     steps:
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space-action@v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
       - uses: actions/checkout@v4
 
