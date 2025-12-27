@@ -548,38 +548,7 @@ const CATEGORY_LABELS: Record<string, string> = {
     other: 'Other',
 };
 
-// Adapter: Convert catalog Integration to Piece format
-const catalogToPiece = (integration: Integration): Piece => {
-    // Check if this catalog piece has a native equivalent
-    const id = integration.native_id || integration.id;
 
-    return {
-        id: id,
-        name: integration.name,
-        icon: CATEGORY_ICONS[integration.category] || Cog,
-        color: integration.color,
-        category: integration.category as Piece['category'],
-        triggers: integration.triggers.map(t => ({
-            id: t,
-            name: t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-            description: `Trigger: ${t}`
-        })),
-        actions: integration.actions.map(a => ({
-            id: a,
-            name: a.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-            description: `Action: ${a}`
-        })),
-        connected: false,
-    };
-};
-
-// Helper to get all pieces (local + catalog, deduplicated)
-const mergePieces = (localPieces: Piece[], catalogPieces: Piece[]): Piece[] => {
-    const localIds = new Set(localPieces.map(p => p.id));
-    // Filter out catalog pieces that map to a local ID via native_id or direct ID
-    const catalogExtras = catalogPieces.filter(p => !localIds.has(p.id));
-    return [...localPieces, ...catalogExtras];
-};
 
 interface PiecesSidebarProps {
     onSelectPiece: (piece: Piece, type: 'trigger' | 'action', item: PieceAction | PieceTrigger) => void;
@@ -593,29 +562,10 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
     const [allPieces, setAllPieces] = useState<Piece[]>(PIECES);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Fetch catalog from backend
+    // Fetched catalog logic removed
     useEffect(() => {
-        const fetchCatalog = async () => {
-            try {
-                setIsLoading(true);
-                const response = await fetch('/api/v1/integrations/catalog');
-                if (!response.ok) throw new Error('Failed to fetch catalog');
-
-                const catalogData: Integration[] = await response.json();
-                const mappedCatalog = catalogData.map(catalogToPiece);
-
-                // Merge with high-quality local pieces
-                const merged = mergePieces(PIECES, mappedCatalog);
-                setAllPieces(merged);
-            } catch (error) {
-                console.error('Error fetching integrations catalog:', error);
-                // Fallback to local PIECES if backend fails
-                setAllPieces(PIECES);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchCatalog();
+        setAllPieces(PIECES);
+        setIsLoading(false);
     }, []);
 
     // Check connection status for popular pieces only
