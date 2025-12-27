@@ -11,7 +11,12 @@ COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 
 # Copy source code
+# Copy source code
 COPY . .
+
+# Bypass strict environment validation during build
+ARG SKIP_ENV_VALIDATION=true
+ENV SKIP_ENV_VALIDATION=$SKIP_ENV_VALIDATION
 
 # Build the application
 RUN npm run build

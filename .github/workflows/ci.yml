@@ -116,3 +116,5 @@ jobs:
           tags: atom-frontend:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+             SKIP_ENV_VALIDATION=true
