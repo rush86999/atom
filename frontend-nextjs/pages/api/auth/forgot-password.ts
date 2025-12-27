@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '../../../lib/db';
+import { sendEmail } from '../../../lib/email';
 import crypto from 'crypto';
 
 export default async function handler(
@@ -45,10 +46,36 @@ export default async function handler(
             [user.id, token, expiresAt]
         );
 
-        // TODO: Send email with reset link
-        // For now, log the token (REMOVE THIS IN PRODUCTION)
-        console.log(`Password reset token for ${email}: ${token}`);
-        console.log(`Reset link: ${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}`);
+        // Send email with reset link
+        try {
+            const resetLink = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}`;
+            const emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333;">Password Reset Request</h2>
+                <p>Hello,</p>
+                <p>We received a request to reset your password for Atom Platform. Click the button below to proceed:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${resetLink}" style="background-color: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+                </div>
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="color: #666; font-size: 13px; word-break: break-all;">${resetLink}</p>
+                <p>This link will expire in 1 hour.</p>
+                <hr style="border: 1px solid #eee; margin-top: 30px;" />
+                <p style="color: #888; font-size: 12px;">If you didn't request a password reset, you can safely ignore this email.</p>
+            </div>
+            `;
+
+            await sendEmail({
+                to: email,
+                subject: 'Reset your Atom Platform password',
+                html: emailHtml
+            });
+
+            console.log(`Password reset email sent to ${email}`);
+        } catch (emailError) {
+            console.error('Failed to send password reset email:', emailError);
+            // We still return 200 to not leak that the email exists, but we log the error
+        }
 
         return res.status(200).json({
             message: 'If an account exists with that email, a password reset link has been sent.',

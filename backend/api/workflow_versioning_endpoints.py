@@ -18,6 +18,9 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import logging
 
+from core.models import User
+from core.auth import get_current_user
+
 from backend.core.workflow_versioning_system import (
     WorkflowVersioningSystem,
     WorkflowVersionManager,
@@ -40,7 +43,7 @@ version_manager = WorkflowVersionManager()
 # Pydantic models for API requests/responses
 class VersionCreateRequest(BaseModel):
     """Request model for creating a new version"""
-    version_type: str = Field(..., description="Type of version change", regex="^(major|minor|patch|hotfix|auto)$")
+    version_type: str = Field(..., description="Type of version change", pattern="^(major|minor|patch|hotfix|auto)$")
     commit_message: str = Field(..., description="Commit message for the version")
     tags: Optional[List[str]] = Field(None, description="Optional tags for the version")
     branch_name: str = Field("main", description="Branch name (default: main)")
@@ -103,10 +106,8 @@ class MergeRequest(BaseModel):
     merge_message: str = Field(..., description="Message for the merge commit")
 
 # Utility functions
-def get_current_user():
-    """Get current user (placeholder - integrate with auth system)"""
-    # TODO: Integrate with actual authentication system
-    return "system_user"
+# get_current_user is now imported from core.security_dependencies as get_current_active_user
+
 
 async def get_workflow_data(workflow_id: str) -> Dict[str, Any]:
     """Get current workflow data (placeholder - integrate with workflow system)"""
@@ -124,7 +125,7 @@ async def get_workflow_data(workflow_id: str) -> Dict[str, Any]:
 async def create_workflow_version(
     workflow_id: str = Path(..., description="ID of the workflow"),
     request: VersionCreateRequest = ...,
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """
     Create a new version of a workflow
@@ -140,7 +141,7 @@ async def create_workflow_version(
         version_result = await version_manager.create_workflow_version(
             workflow_id=workflow_id,
             workflow_data=workflow_data,
-            user_id=user_id,
+            user_id=user.id,
             change_description=request.commit_message,
             version_type=request.version_type
         )
@@ -174,7 +175,7 @@ async def get_workflow_versions(
     workflow_id: str = Path(..., description="ID of the workflow"),
     branch_name: str = Query("main", description="Branch name"),
     limit: int = Query(50, ge=1, le=200, description="Maximum number of versions to return"),
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """
     Get version history for a workflow
@@ -215,7 +216,7 @@ async def get_workflow_versions(
 async def get_workflow_version(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version number"),
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """Get a specific version of a workflow"""
     try:
@@ -248,7 +249,7 @@ async def get_workflow_version(
 async def get_workflow_version_data(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version number"),
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """Get the workflow data for a specific version"""
     try:
@@ -274,7 +275,7 @@ async def get_workflow_version_data(
 async def rollback_workflow(
     workflow_id: str = Path(..., description="ID of the workflow"),
     request: RollbackRequest = ...,
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """
     Rollback a workflow to a previous version
@@ -292,7 +293,7 @@ async def rollback_workflow(
         rollback_result = await version_manager.rollback_workflow(
             workflow_id=workflow_id,
             target_version=request.target_version,
-            user_id=user_id,
+            user_id=user.id,
             reason=request.rollback_reason
         )
 
@@ -315,7 +316,7 @@ async def compare_workflow_versions(
     workflow_id: str = Path(..., description="ID of the workflow"),
     from_version: str = Query(..., description="Source version"),
     to_version: str = Query(..., description="Target version"),
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """
     Compare two versions of a workflow
@@ -365,7 +366,7 @@ async def delete_workflow_version(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version to delete"),
     delete_reason: str = Query(..., description="Reason for deletion"),
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """
     Delete a workflow version (soft delete)
@@ -377,7 +378,7 @@ async def delete_workflow_version(
         success = await versioning_system.delete_version(
             workflow_id=workflow_id,
             version=version,
-            deleted_by=user_id,
+            deleted_by=user.id,
             delete_reason=delete_reason
         )
 
@@ -402,7 +403,7 @@ async def delete_workflow_version(
 async def create_workflow_branch(
     workflow_id: str = Path(..., description="ID of the workflow"),
     request: BranchCreateRequest = ...,
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """Create a new branch for a workflow"""
     try:
@@ -410,7 +411,7 @@ async def create_workflow_branch(
             workflow_id=workflow_id,
             branch_name=request.branch_name,
             base_version=request.base_version,
-            created_by=user_id,
+            created_by=user.id,
             merge_strategy=request.merge_strategy
         )
 
@@ -432,7 +433,7 @@ async def create_workflow_branch(
 @router.get("/{workflow_id}/branches", response_model=List[BranchResponse])
 async def get_workflow_branches(
     workflow_id: str = Path(..., description="ID of the workflow"),
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """Get all branches for a workflow"""
     try:
@@ -460,7 +461,7 @@ async def get_workflow_branches(
 async def merge_workflow_branch(
     workflow_id: str = Path(..., description="ID of the workflow"),
     request: MergeRequest = ...,
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """
     Merge a branch into another branch
@@ -473,7 +474,7 @@ async def merge_workflow_branch(
             workflow_id=workflow_id,
             source_branch=request.source_branch,
             target_branch=request.target_branch,
-            merge_by=user_id,
+            merge_by=user.id,
             merge_message=request.merge_message
         )
 
@@ -494,7 +495,7 @@ async def merge_workflow_branch(
 async def get_version_metrics(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version number"),
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """Get performance metrics for a specific version"""
     try:
@@ -522,7 +523,7 @@ async def update_version_metrics(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version number"),
     execution_result: Dict[str, Any] = ...,
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """
     Update performance metrics for a version
@@ -552,7 +553,7 @@ async def update_version_metrics(
 async def get_latest_version(
     workflow_id: str = Path(..., description="ID of the workflow"),
     branch_name: str = Query("main", description="Branch name"),
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """Get the latest version of a workflow"""
     try:
@@ -592,7 +593,7 @@ async def get_latest_version(
 async def get_version_summary(
     workflow_id: str = Path(..., description="ID of the workflow"),
     branch_name: str = Query("main", description="Branch name"),
-    user_id: str = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """Get a summary of all versions for a workflow"""
     try:
