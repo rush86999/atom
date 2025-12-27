@@ -98,13 +98,27 @@ VALUES (
 - **Database**: Use SSL in production (`DATABASE_URL` with `?sslmode=require`)
 - **Email Validation**: Add email verification for production use
 
+## Completed Features
+- [x] **Email Verification**: Email sending logic implemented with `nodemailer`.
+- [x] **Password Reset**: Forgot password flow acts on real users and sends emails.
+
 ## Next Steps
 
-1. **Email Verification**: Add email confirmation flow
-2. **Password Reset**: Implement forgot password feature
-3. **OAuth Providers**: Add Google/GitHub login (optional)
-4. **Rate Limiting**: Add login attempt limits
-5. **Session Management**: Implement logout functionality
+1. **OAuth Providers**: Add Google/GitHub login (optional)
+2. **Rate Limiting**: Add login attempt limits
+3. **Session Management**: Implement logout functionality
+
+## Email Configuration (Required)
+
+To enable password resets and verification emails, set the following in `.env`:
+```bash
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your_user
+SMTP_PASS=your_password
+SMTP_SECURE=false # or true for 465
+EMAIL_FROM=noreply@example.com
+```
 
 ## Migration from Mock Users
 
