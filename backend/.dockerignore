@@ -1,0 +1,37 @@
+# Exclude virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Exclude Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Exclude data and logs
+*.log
+data/
+lancedb/
+lancedb+file:/
+*.sqlite
+*.db
+
+# Exclude IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+.git/
+.github/
+
+# Exclude massive test reports
+comprehensive_e2e_validation_report_*.json
+complex_workflow_bugs_*.json
+service_health_report_*.json
+independent_ai_validation_report_*.md
+*.json.bak
+*.log.bak
