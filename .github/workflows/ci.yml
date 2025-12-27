@@ -68,13 +68,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: frontend-nextjs/package-lock.json
 
       - name: Install dependencies
         working-directory: ./frontend-nextjs
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Type check
         working-directory: ./frontend-nextjs
@@ -84,6 +84,9 @@ jobs:
         working-directory: ./frontend-nextjs
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8001
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ci-test-secret-key
+          SKIP_ENV_VALIDATION: true
         run: npm run build
 
   docker-build:
