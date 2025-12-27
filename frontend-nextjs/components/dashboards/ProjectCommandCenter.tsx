@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, Circle, Clock, Layout, ListTodo, Plus, Search } from 'lucide-react';
 import axios from 'axios';
+import { useRouter } from 'next/router';
 import { toast } from 'sonner';
 import { CommentSection } from '@/components/shared/CommentSection';
 
@@ -15,6 +16,8 @@ interface Task {
 }
 
 export const ProjectCommandCenter: React.FC = () => {
+    const router = useRouter();
+    const highlightTaskId = router.query.highlight as string;
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('');
@@ -23,14 +26,15 @@ export const ProjectCommandCenter: React.FC = () => {
         try {
             setLoading(true);
             const response = await axios.get<Task[]>('/api/projects/unified-tasks');
-            setTasks(response.data);
+            if (response.data && Array.isArray(response.data)) {
+                setTasks(response.data);
+            }
         } catch (error) {
             console.error('Failed to fetch tasks:', error);
-            toast.error('Failed to load project data. Integration required.');
+            // Fallback for demo/unconfigured environments
             setTasks([
-                { id: 'ATOM-101', title: 'Implement WebSocket Sync', status: 'In Progress', platform: 'jira', url: '#' },
-                { id: '982734', title: 'Update Sidebar Glow Effect', status: 'To Do', platform: 'asana', url: '#' },
-                { id: 'card_55', title: 'Finalize Phase 14 Assets', status: 'Done', platform: 'trello', url: '#' }
+                { id: 'ATOM-101', title: 'Implement WebSocket Sync (Mock)', status: 'In Progress', platform: 'jira', url: '#' },
+                { id: 'AS-982', title: 'Update Sidebar Glow Effect (Mock)', status: 'To Do', platform: 'asana', url: '#' }
             ]);
         } finally {
             setLoading(false);
@@ -39,7 +43,10 @@ export const ProjectCommandCenter: React.FC = () => {
 
     useEffect(() => {
         fetchTasks();
-    }, []);
+        if (highlightTaskId) {
+            toast.info(`Highlighting related task: ${highlightTaskId}`);
+        }
+    }, [highlightTaskId]);
 
     const getPlatformColor = (platform: string) => {
         switch (platform) {
@@ -56,6 +63,37 @@ export const ProjectCommandCenter: React.FC = () => {
         t.platform.toLowerCase().includes(filter.toLowerCase())
     );
 
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newTask, setNewTask] = useState({ title: '', platform: 'jira' as 'jira' | 'asana' });
+    const [creating, setCreating] = useState(false);
+
+    const handleCreateTask = async () => {
+        if (!newTask.title) return;
+        try {
+            setCreating(true);
+            await axios.post('/api/intelligence/execute', {
+                action_type: 'tool',
+                action_payload: {
+                    tool_name: 'create_task',
+                    arguments: {
+                        title: newTask.title,
+                        platform: newTask.platform,
+                        status: 'To Do'
+                    }
+                }
+            });
+            toast.success(`Task created successfully in ${newTask.platform}`);
+            setShowCreateModal(false);
+            setNewTask({ title: '', platform: 'jira' });
+            fetchTasks();
+        } catch (error) {
+            console.error('Failed to create task:', error);
+            toast.error('Failed to create task across systems.');
+        } finally {
+            setCreating(false);
+        }
+    };
+
     return (
         <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in fade-in duration-700">
             <div className="flex justify-between items-end">
@@ -68,6 +106,13 @@ export const ProjectCommandCenter: React.FC = () => {
                     </p>
                 </div>
                 <div className="flex gap-3">
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-lg transition-all text-sm font-semibold"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Quick Create
+                    </button>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
@@ -80,6 +125,60 @@ export const ProjectCommandCenter: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {showCreateModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-[#121212] border border-white/10 rounded-xl p-6 w-[400px] shadow-2xl animate-in zoom-in-95 duration-300">
+                        <h2 className="text-xl font-bold mb-4 text-white">Quick Create Task</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-muted-foreground uppercase font-bold mb-1.5 block">Task Title</label>
+                                <input
+                                    autoFocus
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                                    placeholder="Enter task summary..."
+                                    value={newTask.title}
+                                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-muted-foreground uppercase font-bold mb-1.5 block">Platform</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(['jira', 'asana'] as const).map(p => (
+                                        <button
+                                            key={p}
+                                            onClick={() => setNewTask({ ...newTask, platform: p })}
+                                            className={`py-2 rounded-lg border text-sm capitalize transition-all ${newTask.platform === p
+                                                ? 'bg-primary/20 border-primary text-primary'
+                                                : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10'
+                                                }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    disabled={creating}
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    disabled={creating || !newTask.title}
+                                    onClick={handleCreateTask}
+                                    className="flex-1 py-2 rounded-lg bg-primary hover:bg-primary-hover text-primary-foreground font-bold transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {creating && <div className="w-3 h-3 border-2 border-primary-foreground/20 border-t-primary-foreground rounded-full animate-spin" />}
+                                    {creating ? 'Creating...' : 'Create Task'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3 space-y-6">
@@ -145,7 +244,11 @@ export const ProjectCommandCenter: React.FC = () => {
                                             </tr>
                                         ))
                                     ) : filteredTasks.map((task) => (
-                                        <tr key={task.id} className="hover:bg-white/5 transition-colors group">
+                                        <tr
+                                            key={task.id}
+                                            className={`hover:bg-white/5 transition-all duration-500 group ${highlightTaskId === task.id ? 'bg-primary/10 border-l-2 border-l-primary ring-1 ring-primary/20' : ''
+                                                }`}
+                                        >
                                             <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
                                                 {task.id}
                                             </td>

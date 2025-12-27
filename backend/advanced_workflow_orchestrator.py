@@ -2235,7 +2235,7 @@ Return your response as a JSON object with this format:
             
             # If we have a connection_id, fetch real credentials
             if connection_id and not credentials:
-                from backend.core.connection_service import connection_service
+                from core.connection_service import connection_service
                 user_id = context.user_id
                 credentials = await connection_service.get_connection_credentials(connection_id, user_id)
                 if credentials:
@@ -2255,7 +2255,7 @@ Return your response as a JSON object with this format:
             # Real Execution via External Integration Service (Node.js Bridge)
             logger.info(f"Universal Integration (Real): {service} -> {action}")
             
-            from backend.core.external_integration_service import external_integration_service
+            from core.external_integration_service import external_integration_service
             
             # Prepare parameters - merge step params with input data
             # Filter out system params like 'service', 'action', 'credentials'

@@ -578,41 +578,87 @@ class MCPService:
                 return {"error": f"Platform {p_name} not yet fully supported for create_task via MCP."}
 
             elif tool_name == "search_contacts":
-                from core.external_integration_service import ConnectionService
+                from integrations.universal_integration_service import UniversalIntegrationService
+                service = UniversalIntegrationService()
+                
                 user_id = context.get("user_id", "default_user")
                 platform = arguments.get("platform", "").lower()
                 query = arguments.get("query")
-                
-                conn_service = ConnectionService()
-                connections = await conn_service.list_connections(user_id=user_id)
                 
                 all_contacts = []
                 
                 # Salesforce
                 if not platform or platform == "salesforce":
-                    sf_conn = next((c for c in connections if c.piece_name == "salesforce"), None)
-                    if sf_conn:
-                        from integrations.salesforce_service import SalesforceService
-                        sf = SalesforceService() # Uses env or we'd need to passing credentials
-                        # Mocking real call for now if credentials missing in env
-                        all_contacts.append({"name": "John Doe (Demo)", "email": "john@example.com", "platform": "salesforce"})
+                    try:
+                        sf_res = await service.search("salesforce", query, "contact", {"user_id": user_id})
+                        for contact in sf_res:
+                            all_contacts.append({
+                                "name": contact.get("Name"),
+                                "email": contact.get("Email"),
+                                "platform": "salesforce",
+                                "id": contact.get("Id")
+                            })
+                    except Exception as e:
+                        logger.error(f"Salesforce contact search failed: {e}")
 
                 # HubSpot
                 if not platform or platform == "hubspot":
-                    hs_conn = next((c for c in connections if c.piece_name == "hubspot"), None)
-                    if hs_conn:
-                        from integrations.hubspot_service import HubSpotService
-                        hs = HubSpotService()
-                        all_contacts.append({"name": "Jane Smith (Demo)", "email": "jane@hubspot.com", "platform": "hubspot"})
+                    try:
+                        hs_res = await service.search("hubspot", query, "contact", {"user_id": user_id})
+                        for contact in hs_res:
+                            all_contacts.append({
+                                "name": f"{contact.get('properties', {}).get('firstname', '')} {contact.get('properties', {}).get('lastname', '')}".strip(),
+                                "email": contact.get('properties', {}).get('email'),
+                                "platform": "hubspot",
+                                "id": contact.get("id")
+                            })
+                    except Exception as e:
+                        logger.error(f"HubSpot contact search failed: {e}")
 
                 return all_contacts
 
             elif tool_name == "get_sales_pipeline":
-                # Implementation for pipeline/deals
-                return [
-                    {"deal": "Enterprise License", "value": 50000, "status": "Closed Won", "platform": "salesforce"},
-                    {"deal": "SaaS Subscription", "value": 12000, "status": "Proposal", "platform": "hubspot"}
-                ]
+                from integrations.universal_integration_service import UniversalIntegrationService
+                service = UniversalIntegrationService()
+                
+                user_id = context.get("user_id", "default_user")
+                platform = arguments.get("platform", "").lower()
+                
+                pipeline = []
+                
+                # Fetch Salesforce Opportunities
+                if not platform or platform == "salesforce":
+                    try:
+                        sf_res = await service.execute("salesforce", "list", {"entity": "opportunity"}, context={"user_id": user_id})
+                        if isinstance(sf_res, list):
+                            for op in sf_res:
+                                pipeline.append({
+                                    "deal": op.get("Name"),
+                                    "value": op.get("Amount", 0),
+                                    "status": op.get("StageName"),
+                                    "platform": "salesforce",
+                                    "company": op.get("Account", {}).get("Name")
+                                })
+                    except Exception as e:
+                        logger.error(f"Failed to fetch Salesforce deals: {e}")
+
+                # Fetch HubSpot Deals
+                if not platform or platform == "hubspot":
+                    try:
+                        hs_res = await service.execute("hubspot", "list", {"entity": "deal"}, context={"user_id": user_id})
+                        if isinstance(hs_res, list):
+                            for deal in hs_res:
+                                pipeline.append({
+                                    "deal": deal.get("properties", {}).get("dealname"),
+                                    "value": float(deal.get("properties", {}).get("amount") or 0),
+                                    "status": deal.get("properties", {}).get("dealstage"),
+                                    "platform": "hubspot",
+                                    "company": "HubSpot Account" # HubSpot structure varies for associations
+                                })
+                    except Exception as e:
+                        logger.error(f"Failed to fetch HubSpot deals: {e}")
+
+                return pipeline
 
             elif tool_name == "send_message":
                 from core.external_integration_service import ConnectionService
@@ -654,52 +700,38 @@ class MCPService:
                 return {"error": f"Unified messaging for {p_name} not yet implemented."}
 
             elif tool_name == "unified_knowledge_search":
-                from core.external_integration_service import ConnectionService
-                user_id = context.get("user_id", "default_user")
-                platform = arguments.get("platform", "").lower()
+                from ai.data_intelligence import engine
+                query = arguments.get("query", "").lower()
+                platform_filter = arguments.get("platform", "").lower()
                 type_filter = arguments.get("type", "").lower()
-                query = arguments.get("query", "")
-                
-                conn_service = ConnectionService()
-                connections = await conn_service.list_connections(user_id=user_id)
                 
                 all_results = []
                 
-                # 1. Storage Providers (Files)
-                if not type_filter or type_filter == "file":
-                    # GDrive, OneDrive, Zoho WorkDrive (as previously implemented)
-                    if not platform or platform in ["gdrive", "google_drive"]:
-                        all_results.append({"id": "g1", "name": f"Roadmap_{query}.pdf", "type": "file", "platform": "gdrive", "modified_at": "2023-12-25"})
+                # Query the unified entity registry
+                for entity in engine.entity_registry.values():
+                    # Apply query match
+                    if query and query not in entity.canonical_name.lower():
+                        continue
                     
-                    if not platform or platform == "zoho_workdrive":
-                        z_conn = next((c for c in connections if c.piece_name == "zoho_workdrive"), None)
-                        if z_conn:
-                            from integrations.zoho_workdrive_service import ZohoWorkDriveService
-                            zoho = ZohoWorkDriveService()
-                            files = await zoho.list_files(user_id)
-                            for f in files:
-                                if query.lower() in f["name"].lower():
-                                    all_results.append({**f, "type": "file", "platform": "zoho_workdrive"})
-
-                # 2. PM Platforms (Tasks/Issues)
-                if not type_filter or type_filter == "task":
-                    # Jira, Asana, etc.
-                    if not platform or platform == "jira":
-                        all_results.append({"id": "j1", "name": f"Fix {query} bug", "type": "task", "platform": "jira", "status": "In Progress", "modified_at": "2023-12-26"})
-                    if not platform or platform == "asana":
-                        all_results.append({"id": "a1", "name": f"Deploy {query} feature", "type": "task", "platform": "asana", "status": "To Do", "modified_at": "2023-12-27"})
-
-                # 3. CRM Platforms (Deals/Leads)
-                if not type_filter or type_filter == "deal":
-                    if not platform or platform == "salesforce":
-                        all_results.append({"id": "sf1", "name": f"{query} Enterprise Contract", "type": "deal", "platform": "salesforce", "value": 50000, "status": "Negotiation"})
-                    if not platform or platform == "hubspot":
-                        all_results.append({"id": "hs1", "name": f"{query} Growth Pack", "type": "deal", "platform": "hubspot", "value": 12000, "status": "Qualified"})
-
-                # 4. Support Platforms (Tickets)
-                if not type_filter or type_filter == "ticket":
-                    if not platform or platform == "zendesk":
-                        all_results.append({"id": "zd1", "name": f"Help with {query}", "type": "ticket", "platform": "zendesk", "status": "Open", "priority": "High"})
+                    # Apply platform filter
+                    entity_platforms = [p.value for p in entity.source_platforms]
+                    if platform_filter and platform_filter not in entity_platforms:
+                        continue
+                    
+                    # Apply type filter
+                    if type_filter and entity.entity_type.value != type_filter:
+                        continue
+                    
+                    # Map to search result format
+                    all_results.append({
+                        "id": entity.entity_id,
+                        "name": entity.canonical_name,
+                        "type": entity.entity_type.value,
+                        "platform": entity_platforms[0] if entity_platforms else "unknown",
+                        "status": entity.attributes.get("status") or entity.attributes.get("StageName") or entity.attributes.get("status"),
+                        "value": entity.attributes.get("amount") or entity.attributes.get("value"),
+                        "modified_at": entity.updated_at.isoformat()
+                    })
 
                 return all_results
 

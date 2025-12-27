@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from ai.data_intelligence import DataIntelligenceEngine, PlatformType
-from typing import List
+from typing import List, Optional, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -95,4 +95,42 @@ async def refresh_intelligence():
         return {"status": "success", "message": "Intelligence data refreshed"}
     except Exception as e:
         logger.error(f"Error refreshing intelligence: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/execute")
+async def execute_insight_action(request: Dict[str, Any]):
+    """
+    Execute an actionable recommendation from an insight.
+    """
+    try:
+        action_type = request.get("action_type")
+        payload = request.get("action_payload", {})
+        user_id = request.get("user_id", "default_user")
+
+        if action_type == "workflow":
+            from advanced_workflow_orchestrator import get_orchestrator
+            orchestrator = get_orchestrator()
+            workflow_id = payload.get("workflow_id")
+            inputs = payload.get("inputs", {})
+            
+            logger.info(f"Executing workflow action: {workflow_id}")
+            result = await orchestrator.execute_workflow(workflow_id, inputs)
+            return {"status": "success", "result": result}
+
+        elif action_type == "tool":
+            from integrations.mcp_service import mcp_service
+            tool_name = payload.get("tool_name")
+            arguments = payload.get("arguments", {})
+            
+            logger.info(f"Executing tool action: {tool_name}")
+            result = await mcp_service.execute_tool(
+                "local-tools", 
+                tool_name, 
+                arguments, 
+                {"user_id": user_id}
+            )
+            return {"status": "success", "result": result}
+
+        raise HTTPException(status_code=400, detail=f"Unsupported action type: {action_type}")
+    except Exception as e:
+        logger.error(f"Error executing insight action: {e}")
         raise HTTPException(status_code=500, detail=str(e))

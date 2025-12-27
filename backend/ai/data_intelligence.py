@@ -105,6 +105,8 @@ class DataAnomaly:
     recommendation: str
     timestamp: datetime
     metadata: Dict[str, Any]
+    action_type: Optional[str] = None  # "workflow", "tool", "link"
+    action_payload: Optional[Dict[str, Any]] = None
 
 
 class DataIntelligenceEngine:
@@ -911,7 +913,16 @@ class DataIntelligenceEngine:
                                     platforms=list(entity.source_platforms) + list(task.source_platforms),
                                     recommendation=f"Resolve the blocker on '{task.canonical_name}' to unblock this deal.",
                                     timestamp=datetime.now(),
-                                    metadata={"deal_amount": amount, "task_status": status}
+                                    metadata={"deal_amount": amount, "task_status": status},
+                                    action_type="workflow",
+                                    action_payload={
+                                        "workflow_id": "escalate_deal_blocker",
+                                        "inputs": {
+                                            "deal_id": entity.entity_id,
+                                            "task_id": task_id,
+                                            "manager_email": "ops@example.com"
+                                        }
+                                    }
                                 ))
         return risks
 
@@ -936,7 +947,15 @@ class DataIntelligenceEngine:
                         platforms=list(entity.source_platforms),
                         recommendation="Prioritize this item to avoid customer dissatisfaction.",
                         timestamp=datetime.now(),
-                        metadata={"priority": priority, "status": status}
+                        metadata={"priority": priority, "status": status},
+                        action_type="tool",
+                        action_payload={
+                            "tool_name": "send_message",
+                            "arguments": {
+                                "target": "#ops-alerts",
+                                "message": f"SLA Warning: '{entity.canonical_name}' is stalling. Platform: {entity.source_platforms[0].value if entity.source_platforms else 'Unknown'}"
+                            }
+                        }
                     ))
         return breaches
 

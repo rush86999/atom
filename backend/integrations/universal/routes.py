@@ -4,11 +4,11 @@ from fastapi.responses import HTMLResponse
 from typing import Optional, Dict
 import logging
 
-from backend.integrations.universal.auth_handler import universal_auth, OAuthState
-from backend.integrations.universal.config import get_oauth_config
-from backend.core.connection_service import connection_service
-from backend.core.auth import get_current_user
-from backend.core.models import User
+from integrations.universal.auth_handler import universal_auth, OAuthState
+from integrations.universal.config import get_oauth_config
+from core.connection_service import connection_service
+from core.auth import get_current_user
+from core.models import User
 
 router = APIRouter(prefix="/api/v1/integrations/universal", tags=["Universal Integrations"])
 logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ async def universal_callback(
 
         # 5. Record experience in World Model for Agent Memory
         try:
-            from backend.core.agent_world_model import WorldModelService, AgentExperience
+            from core.agent_world_model import WorldModelService, AgentExperience
             from datetime import datetime
             import uuid
             

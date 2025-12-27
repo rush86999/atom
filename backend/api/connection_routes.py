@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Dict, Any, Optional
-from backend.core.connection_service import connection_service
-from backend.core.auth import get_current_user
-from backend.core.models import User
+from core.connection_service import connection_service
+from core.auth import get_current_user
+from core.models import User
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/connections", tags=["Connections"])

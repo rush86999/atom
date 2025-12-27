@@ -5,6 +5,9 @@ import uuid
 import enum
 from core.database import Base
 
+# Import Deal for relationship resolution
+from sales.models import Deal
+
 class ContractType(str, enum.Enum):
     FIXED_FEE = "fixed_fee"
     RETAINER = "retainer"

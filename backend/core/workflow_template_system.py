@@ -34,8 +34,8 @@ class TemplateComplexity(str, Enum):
 class TemplateParameter(BaseModel):
     """Template parameter definition"""
     name: str
-    label: str
-    description: str
+    label: Optional[str] = None
+    description: Optional[str] = None
     type: str = "string"
     required: bool = True
     default_value: Any = None
@@ -44,18 +44,27 @@ class TemplateParameter(BaseModel):
     help_text: Optional[str] = None
     example_value: Optional[Any] = None
 
+    @validator('label', 'description', pre=True, always=True)
+    def set_defaults(cls, v, values):
+        return v or values.get('name', 'Parameter')
+
 class TemplateStep(BaseModel):
     """Template step definition"""
-    step_id: str
+    step_id: str = Field(..., alias="id")
     name: str
-    description: str
-    step_type: str
-    parameters: List[TemplateParameter] = []
+    description: str = "Workflow step"
+    step_type: str = "action"
+    service: Optional[str] = None
+    action: Optional[str] = None
+    parameters: Union[List[TemplateParameter], Dict[str, Any]] = []
     condition: Optional[str] = None
     depends_on: List[str] = []
     estimated_duration: int = 60  # seconds
     is_optional: bool = False
     retry_config: Dict[str, Any] = {}
+
+    class Config:
+        populate_by_name = True
 
     @validator('depends_on')
     def validate_dependencies(cls, v):
@@ -1104,24 +1113,28 @@ class WorkflowTemplateManager:
             ],
             "steps": [
                 {
-                    "id": "init_goal",
+                    "step_id": "init_goal",
                     "name": "Initialize and Decompose Goal",
+                    "description": "Create goal and break it down into tasks",
+                    "step_type": "goal_initialization",
                     "service": "goal_management",
                     "action": "create_goal",
-                    "parameters": {
-                        "title": "${input.goal_text}",
-                        "target_date": "${input.target_date}"
-                    }
+                    "parameters": [
+                        {"name": "title", "default_value": "${input.goal_text}"},
+                        {"name": "target_date", "default_value": "${input.target_date}"}
+                    ]
                 },
                 {
-                    "id": "notify_user",
+                    "step_id": "notify_user",
                     "name": "Notify Goal Creation",
+                    "description": "Send success notification",
+                    "step_type": "notification",
                     "service": "main_agent",
                     "action": "send_notification",
-                    "parameters": {
-                        "message": "Goal '${input.goal_text}' has been initialized with ${init_goal.result.sub_tasks.length} sub-tasks.",
-                        "type": "success"
-                    }
+                    "parameters": [
+                        {"name": "message", "default_value": "Goal '${input.goal_text}' has been initialized."},
+                        {"name": "type", "default_value": "success"}
+                    ]
                 }
             ],
             "is_public": True,

@@ -3,16 +3,36 @@ Background Agent API Routes - Phase 35
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
 import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/api/background-agents", tags=["Background Agents"])
 
 class RegisterAgentRequest(BaseModel):
     interval_seconds: int = 3600
+
+@router.get("/tasks")
+async def list_background_tasks():
+    """List all background agent tasks"""
+    try:
+        from core.background_agent_runner import background_runner
+        status = background_runner.get_status()
+        return {
+            "tasks": list(status.get("agents", {}).values()),
+            "total": len(status.get("agents", {})),
+            "active": sum(1 for a in status.get("agents", {}).values() if a.get("running")),
+            "timestamp": status.get("timestamp")
+        }
+    except ImportError:
+        return {
+            "tasks": [],
+            "total": 0,
+            "active": 0,
+            "message": "Background runner not initialized"
+        }
 
 @router.post("/{agent_id}/register")
 async def register_background_agent(agent_id: str, request: RegisterAgentRequest):
@@ -44,8 +64,11 @@ async def stop_background_agent(agent_id: str):
 @router.get("/status")
 async def get_all_agent_status():
     """Get status of all background agents"""
-    from core.background_agent_runner import background_runner
-    return background_runner.get_status()
+    try:
+        from core.background_agent_runner import background_runner
+        return background_runner.get_status()
+    except ImportError:
+        return {"agents": {}, "message": "Background runner not available"}
 
 @router.get("/{agent_id}/status")
 async def get_agent_status(agent_id: str):
@@ -64,3 +87,4 @@ async def get_all_logs(limit: int = 100):
     """Get all recent agent logs"""
     from core.background_agent_runner import background_runner
     return background_runner.get_logs(limit=limit)
+

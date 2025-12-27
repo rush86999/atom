@@ -195,6 +195,89 @@ async def get_services():
 async def get_workflows():
     return {"success": True, "workflows": [w.dict() for w in MOCK_WORKFLOWS]}
 
+# Alias for /workflows to match common API patterns
+@router.get("/workflows")
+async def list_workflows():
+    """List all workflows (alias for /definitions)"""
+    return {"success": True, "workflows": [w.dict() for w in MOCK_WORKFLOWS]}
+
+@router.get("/workflows/{workflow_id}")
+async def get_workflow_by_id(workflow_id: str):
+    """Get a specific workflow by ID"""
+    for w in MOCK_WORKFLOWS:
+        if w.id == workflow_id:
+            return {"success": True, "workflow": w.dict()}
+    raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+
+@router.post("/workflows")
+async def create_workflow(payload: Dict[str, Any]):
+    """Create a new workflow"""
+    new_id = f"wf_{uuid.uuid4().hex[:8]}"
+    new_workflow = WorkflowDefinition(
+        id=new_id,
+        name=payload.get("name", "New Workflow"),
+        description=payload.get("description", ""),
+        steps=[],
+        input_schema={},
+        created_at=datetime.now().isoformat(),
+        updated_at=datetime.now().isoformat(),
+        steps_count=len(payload.get("steps", []))
+    )
+    MOCK_WORKFLOWS.insert(0, new_workflow)
+    return {"success": True, "workflow": new_workflow.dict()}
+
+@router.put("/workflows/{workflow_id}")
+async def update_workflow(workflow_id: str, payload: Dict[str, Any]):
+    """Update an existing workflow"""
+    for i, w in enumerate(MOCK_WORKFLOWS):
+        if w.id == workflow_id:
+            MOCK_WORKFLOWS[i] = WorkflowDefinition(
+                id=workflow_id,
+                name=payload.get("name", w.name),
+                description=payload.get("description", w.description),
+                steps=w.steps,
+                input_schema=w.input_schema,
+                created_at=w.created_at,
+                updated_at=datetime.now().isoformat(),
+                steps_count=w.steps_count
+            )
+            return {"success": True, "workflow": MOCK_WORKFLOWS[i].dict()}
+    raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+
+@router.delete("/workflows/{workflow_id}")
+async def delete_workflow(workflow_id: str):
+    """Delete a workflow"""
+    for i, w in enumerate(MOCK_WORKFLOWS):
+        if w.id == workflow_id:
+            del MOCK_WORKFLOWS[i]
+            return {"success": True, "message": f"Workflow '{workflow_id}' deleted"}
+    raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+
+@router.post("/workflows/{workflow_id}/execute")
+async def execute_workflow_by_id(workflow_id: str, background_tasks: BackgroundTasks, payload: Dict[str, Any] = None):
+    """Execute a workflow by ID"""
+    from advanced_workflow_orchestrator import orchestrator
+    
+    execution_id = f"exec_{uuid.uuid4().hex[:8]}"
+    input_data = payload or {}
+    input_data["_ui_workflow_id"] = workflow_id
+    
+    async def _run_orchestration():
+        await orchestrator.execute_workflow(workflow_id, input_data, execution_id=execution_id)
+    
+    try:
+        background_tasks.add_task(_run_orchestration)
+    except:
+        pass  # Orchestrator may not be available
+    
+    return {"success": True, "execution_id": execution_id, "workflow_id": workflow_id}
+
+@router.get("/workflows/{workflow_id}/history")
+async def get_workflow_history(workflow_id: str):
+    """Get execution history for a workflow"""
+    history = [e.dict() for e in MOCK_EXECUTIONS if e.workflow_id == workflow_id]
+    return {"success": True, "workflow_id": workflow_id, "history": history}
+
 @router.post("/definitions")
 async def create_workflow_definition(payload: Dict[str, Any]):
     new_id = f"wf_{uuid.uuid4().hex[:8]}"

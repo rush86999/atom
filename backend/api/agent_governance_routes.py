@@ -146,6 +146,56 @@ MOCK_AGENTS = {
 
 # ==================== API Endpoints ====================
 
+@router.get("/rules")
+async def get_governance_rules():
+    """
+    Get governance rules and maturity level definitions.
+    Used by frontend to understand the governance framework.
+    """
+    return {
+        "maturity_levels": {
+            "student": {
+                "description": "New agent, learning from examples",
+                "confidence_threshold": 0.0,
+                "max_complexity": 1,
+                "allowed_actions": ["search", "read", "list", "get", "fetch", "summarize"],
+                "requires_approval": True
+            },
+            "intern": {
+                "description": "Basic proficiency, can suggest but not execute",
+                "confidence_threshold": 0.5,
+                "max_complexity": 2,
+                "allowed_actions": ["analyze", "suggest", "draft", "generate", "recommend"],
+                "requires_approval": True
+            },
+            "supervised": {
+                "description": "Good performance, can execute with oversight",
+                "confidence_threshold": 0.7,
+                "max_complexity": 3,
+                "allowed_actions": ["create", "update", "send_email", "post_message", "schedule"],
+                "requires_approval": "for_complex_actions"
+            },
+            "autonomous": {
+                "description": "Expert level, full autonomy",
+                "confidence_threshold": 0.9,
+                "max_complexity": 4,
+                "allowed_actions": ["delete", "execute", "deploy", "transfer", "payment", "approve"],
+                "requires_approval": False
+            }
+        },
+        "action_complexity": {
+            1: ["search", "read", "list", "get", "fetch", "summarize"],
+            2: ["analyze", "suggest", "draft", "generate", "recommend"],
+            3: ["create", "update", "send_email", "post_message", "schedule"],
+            4: ["delete", "execute", "deploy", "transfer", "payment", "approve"]
+        },
+        "promotion_requirements": {
+            "student_to_intern": {"min_executions": 50, "min_success_rate": 0.7},
+            "intern_to_supervised": {"min_executions": 100, "min_success_rate": 0.8},
+            "supervised_to_autonomous": {"min_executions": 200, "min_success_rate": 0.9, "requires_admin_approval": True}
+        }
+    }
+
 @router.get("/agents", response_model=List[AgentMaturityResponse])
 async def list_agents_with_maturity(
     category: Optional[str] = Query(None, description="Filter by category")

@@ -3,8 +3,8 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import logging
 
-from backend.core.auth import get_current_user
-from backend.core.models import User
+from core.auth import get_current_user
+from core.models import User
 
 router = APIRouter(prefix="/api/v1/integrations", tags=["Integrations"])
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ async def get_dynamic_options(request: DynamicOptionsRequest, current_user: User
     """
     credentials = None
     if request.connectionId:
-        from backend.core.connection_service import connection_service
+        from core.connection_service import connection_service
         credentials = await connection_service.get_connection_credentials(request.connectionId, current_user.id)
     
     # In a real implementation, we'd call the Node engine's dynamic options endpoint.
@@ -38,7 +38,7 @@ async def get_dynamic_options(request: DynamicOptionsRequest, current_user: User
     
     if credentials:
         try:
-            from backend.integrations.bridge.node_bridge_service import node_bridge
+            from integrations.bridge.node_bridge_service import node_bridge
             
             # This requires a new endpoint in the node engine for dynamic options
             # For now, we will proxy this to a potential node endpoint or implement a bridge call

@@ -8,7 +8,7 @@ import uuid
 
 from core.database import get_db
 from core.models import AgentFeedback, User, UserRole
-from core.security import get_current_user
+from core.auth import get_current_user
 from core.agent_governance_service import AgentGovernanceService
 
 router = APIRouter(prefix="/api/reasoning", tags=["reasoning"])
