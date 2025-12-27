@@ -78,13 +78,54 @@ class IngestedDocument:
 class DocumentParser:
     """
     Parses various document formats and extracts text.
+    Uses docling as primary parser with fallback to legacy parsers.
     Reuses existing parsers from DocumentLifecycleLearner where available.
     """
+    
+    # Docling processor (lazy-loaded)
+    _docling_processor = None
+    
+    @classmethod
+    def _get_docling_processor(cls):
+        """Get or initialize the docling processor."""
+        if cls._docling_processor is None:
+            try:
+                from core.docling_processor import get_docling_processor, is_docling_available
+                if is_docling_available():
+                    cls._docling_processor = get_docling_processor()
+                    logger.info("Docling processor initialized for DocumentParser")
+                else:
+                    cls._docling_processor = False  # Mark as unavailable
+            except ImportError:
+                cls._docling_processor = False
+                logger.debug("Docling not available, using fallback parsers")
+        return cls._docling_processor if cls._docling_processor else None
     
     @staticmethod
     async def parse_document(file_content: bytes, file_type: str, file_name: str) -> str:
         """Parse document and extract text content"""
         try:
+            # Try docling first for supported formats
+            docling = DocumentParser._get_docling_processor()
+            docling_formats = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'png', 'jpg', 'jpeg', 'tiff']
+            
+            if docling and file_type in docling_formats:
+                try:
+                    result = await docling.process_document(
+                        source=file_content,
+                        file_type=file_type,
+                        file_name=file_name,
+                        export_format="markdown"
+                    )
+                    if result.get("success") and result.get("content"):
+                        logger.info(f"Docling parsed {file_name}: {result.get('total_chars', 0)} chars")
+                        return result["content"]
+                    else:
+                        logger.warning(f"Docling parse failed for {file_name}, using fallback")
+                except Exception as e:
+                    logger.warning(f"Docling error for {file_name}: {e}, using fallback")
+            
+            # Fallback to legacy parsers
             if file_type in ["txt", "md"]:
                 return file_content.decode("utf-8", errors="ignore")
             

@@ -1,6 +1,9 @@
 # Use multi-stage build for smaller image size
 FROM python:3.11-slim as builder
 
+# Build argument for optional Docling OCR support (adds ~2GB)
+ARG ENABLE_DOCLING=false
+
 WORKDIR /app
 
 # Install build dependencies
@@ -9,9 +12,16 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# Install core dependencies
 COPY requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
+
+# Optionally install Docling for advanced OCR (if enabled and requirements file exists)
+# Create empty placeholder if file doesn't exist to prevent COPY failure
+COPY requirements-docling.tx[t] ./
+RUN if [ "$ENABLE_DOCLING" = "true" ] && [ -f requirements-docling.txt ]; then \
+    pip install --user --no-cache-dir -r requirements-docling.txt; \
+    fi
 
 # Final stage
 FROM python:3.11-slim
