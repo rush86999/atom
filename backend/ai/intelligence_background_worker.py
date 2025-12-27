@@ -58,12 +58,12 @@ class IntelligenceBackgroundWorker:
         if not self.engine.entity_registry:
             logger.info("Initializing background engine registry with first-run data")
             for platform in [PlatformType.SALESFORCE, PlatformType.JIRA, PlatformType.ASANA]:
-                data = self.engine._get_platform_data(platform)
+                data = await self.engine._get_platform_data(platform)
                 if data:
-                    self.engine.ingest_platform_data(platform, data)
+                    await self.engine.ingest_platform_data(platform, data)
 
         # 2. Run detection
-        anomalies = self.engine.detect_anomalies()
+        anomalies = await self.engine.detect_anomalies()
         
         # 3. Process and broadcast NEW critical anomalies
         for anomaly in anomalies:
