@@ -18,7 +18,7 @@ from core.enterprise_security import enterprise_security, AuditEvent, EventType,
 from core.database import get_db
 from sqlalchemy.orm import Session
 from core.agent_governance_service import AgentGovernanceService
-from core.models import AgentRegistry, AgentStatus, AgentFeedback, HITLAction, HITLActionStatus
+from core.models import AgentRegistry, AgentStatus, AgentFeedback, HITLAction, HITLActionStatus, AgentJob
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +58,20 @@ async def list_agents(
     governance_service = AgentGovernanceService(db)
     agents_db = governance_service.list_agents(category)
     
+    # Get last run times
+    from sqlalchemy import func
+    latest_jobs = db.query(AgentJob.agent_id, func.max(AgentJob.start_time).label('last_run'))\
+        .group_by(AgentJob.agent_id)\
+        .all()
+    last_run_map = {job.agent_id: job.last_run.isoformat() for job in latest_jobs if job.last_run}
+
     return [
         AgentInfo(
             id=a.id,
             name=a.name,
             description=a.description,
             status=a.status,
-            last_run=None, # In real app, query AgentJob table
+            last_run=last_run_map.get(a.id),
             category=a.category
         ) for a in agents_db
     ]
@@ -365,10 +372,15 @@ async def execute_atom(
     """
     from core.atom_meta_agent import handle_manual_trigger
     
+    # Determine workspace from user context
+    workspace_id = "default"
+    if hasattr(user, "workspaces") and user.workspaces:
+        workspace_id = user.workspaces[0].id
+
     result = await handle_manual_trigger(
         request=req.request,
         user=user,
-        workspace_id="default"  # TODO: Get from user context
+        workspace_id=workspace_id
     )
     
     return result

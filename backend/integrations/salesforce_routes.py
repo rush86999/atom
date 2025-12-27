@@ -545,11 +545,35 @@ async def get_sales_pipeline_analytics(
         )
 
     try:
-        # Analytics stub
+        sf = get_salesforce_client_from_env()
+        if not sf:
+             return format_salesforce_error_response("No credentials found")
+
+        # Query for open opportunities
+        # SOQL doesn't support SUM() directly without grouping in REST API easily sometimes, 
+        # but modern versions do. We'll fetch fields and aggregate in python for safety/simplicity 
+        # unless we want to do a proper aggregate query.
+        # Let's try aggregate query first, if it fails fallback or just fetch all open opps (limit 2000)
+        
+        # Aggregate query: SELECT SUM(Amount), COUNT(Id) FROM Opportunity WHERE IsClosed = false
+        # Note: simple-salesforce returns query results structure
+        
+        query = "SELECT Amount FROM Opportunity WHERE IsClosed = false AND Amount != null LIMIT 2000"
+        result = await execute_soql_query(sf, query)
+        
+        total_value = 0.0
+        count = 0
+        if result and result.get('records'):
+            for record in result['records']:
+                if record.get('Amount'):
+                    total_value += float(record['Amount'])
+            count = len(result['records'])
+
         return format_salesforce_response({
-            "pipeline_value": 0,
-            "opportunities_count": 0,
-            "message": "Analytics not implemented in simple mode"
+            "pipeline_value": total_value,
+            "opportunities_count": count,
+            "currency": "USD", # Assumption
+            "message": "Real-time pipeline analytics"
         })
     except Exception as e:
         return format_salesforce_error_response(str(e))
@@ -569,11 +593,32 @@ async def get_leads_analytics(
         )
 
     try:
-        # Analytics stub
+        sf = get_salesforce_client_from_env()
+        if not sf:
+             return format_salesforce_error_response("No credentials found")
+
+        # Query for leads stats
+        # 1. Total Leads (Limit 2000)
+        query_all = "SELECT Id, IsConverted FROM Lead LIMIT 2000"
+        result = await execute_soql_query(sf, query_all)
+        
+        total_leads = 0
+        converted_leads = 0
+        
+        if result and result.get('records'):
+            records = result['records']
+            total_leads = len(records)
+            converted_leads = len([r for r in records if r.get('IsConverted')])
+            
+        conversion_rate = 0.0
+        if total_leads > 0:
+            conversion_rate = (converted_leads / total_leads) * 100
+
         return format_salesforce_response({
-            "leads_count": 0,
-            "conversion_rate": 0,
-            "message": "Analytics not implemented in simple mode"
+            "leads_count": total_leads,
+            "converted_count": converted_leads,
+            "conversion_rate": round(conversion_rate, 2),
+            "message": "Real-time leads analytics"
         })
     except Exception as e:
         return format_salesforce_error_response(str(e))
