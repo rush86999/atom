@@ -122,7 +122,7 @@ class DataIntelligenceEngine:
         # Falls back to empty data if integration not configured
         return {platform: self._get_platform_data for platform in PlatformType}
     
-    def _get_platform_data(self, platform: PlatformType) -> List[Dict[str, Any]]:
+    async def _get_platform_data(self, platform: PlatformType) -> List[Dict[str, Any]]:
         """Get data from real platform integration or return empty if not configured"""
         import os
         
@@ -140,11 +140,11 @@ class DataIntelligenceEngine:
             
             # Platform-specific data fetching via execute("list")
             # This ensures we use the same robust logic as agents
-            res = asyncio.run(service.execute(
+            res = await service.execute(
                 service=platform.value,
                 action="list",
                 params={"entity": self._get_default_entity(platform)}
-            ))
+            )
             
             if isinstance(res, list):
                 return res
@@ -183,7 +183,7 @@ class DataIntelligenceEngine:
             EntityType.USER: self._resolve_user_entity,
         }
 
-    def ingest_platform_data(
+    async def ingest_platform_data(
         self, platform: PlatformType, data: List[Dict[str, Any]]
     ) -> List[UnifiedEntity]:
         """Ingest data from a specific platform and unify entities"""
@@ -870,7 +870,7 @@ class DataIntelligenceEngine:
         """Resolve user entity with enhanced matching"""
         return self._create_unified_entity(PlatformType.SLACK, EntityType.USER, data)
 
-    def detect_anomalies(self) -> List[DataAnomaly]:
+    async def detect_anomalies(self) -> List[DataAnomaly]:
         """Run anomaly detection rules across the unified data registry"""
         anomalies = []
         

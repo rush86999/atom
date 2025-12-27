@@ -1,6 +1,7 @@
 export interface WebSocketMessage {
     type: string;
     timestamp: string;
+    message?: string;
     execution_id?: string;
     data?: any;
 }
