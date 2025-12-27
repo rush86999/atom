@@ -19,6 +19,18 @@ except ImportError:
     BYOK_AVAILABLE = False
     get_byok_manager = None
 
+# Docling integration (highest priority OCR - optional)
+try:
+    from core.docling_processor import get_docling_processor, is_docling_available
+    DOCLING_AVAILABLE = is_docling_available()
+except ImportError:
+    try:
+        from backend.core.docling_processor import get_docling_processor, is_docling_available
+        DOCLING_AVAILABLE = is_docling_available()
+    except ImportError:
+        DOCLING_AVAILABLE = False
+        get_docling_processor = None
+
 # Optional imports for advanced features
 try:
     import pytesseract
@@ -93,6 +105,14 @@ class PDFOCRService:
         """Initialize OCR readers based on available libraries."""
         self.ocr_readers = {}
 
+        # Docling (highest priority - advanced document understanding with OCR)
+        if DOCLING_AVAILABLE:
+            try:
+                self.ocr_readers["docling"] = get_docling_processor()
+                logger.info("Docling document processor initialized (highest priority)")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Docling: {e}")
+
         # Tesseract OCR
         if TESSERACT_AVAILABLE:
             try:
@@ -125,6 +145,7 @@ class PDFOCRService:
         """Check availability of different OCR services."""
         status = {
             "basic_pdf": True,  # Always available (PyPDF2)
+            "docling": "docling" in self.ocr_readers,
             "tesseract": "tesseract" in self.ocr_readers,
             "easyocr": "easyocr" in self.ocr_readers,
             "openai_vision": "openai" in self.ocr_readers,
@@ -318,6 +339,10 @@ class PDFOCRService:
             except Exception as e:
                 logger.warning(f"BYOK optimization failed: {e}")
 
+        # Docling first (highest priority - best OCR with layout analysis)
+        if "docling" in self.ocr_readers:
+            methods.insert(0, "docling")
+
         # Fallback to default logic if BYOK not available or failed
         if not methods and use_advanced_comprehension and "openai" in self.ocr_readers:
             methods.append("openai_vision")
@@ -335,7 +360,9 @@ class PDFOCRService:
         self, method_name: str, pdf_data: bytes
     ) -> Dict[str, Any]:
         """Run specific OCR method on PDF."""
-        if method_name == "tesseract":
+        if method_name == "docling":
+            return await self._ocr_with_docling(pdf_data)
+        elif method_name == "tesseract":
             return await self._ocr_with_tesseract(pdf_data)
         elif method_name == "easyocr":
             return await self._ocr_with_easyocr(pdf_data)
@@ -343,6 +370,40 @@ class PDFOCRService:
             return await self._ocr_with_openai_vision(pdf_data)
         else:
             raise ValueError(f"Unknown OCR method: {method_name}")
+
+    async def _ocr_with_docling(self, pdf_data: bytes) -> Dict[str, Any]:
+        """Extract text using Docling with advanced OCR and layout analysis."""
+        if "docling" not in self.ocr_readers:
+            raise RuntimeError("Docling not available")
+
+        try:
+            processor = self.ocr_readers["docling"]
+            result = await processor.process_pdf(pdf_data, use_ocr=True)
+
+            if result.get("success"):
+                return {
+                    "method": "docling",
+                    "extracted_text": result.get("extracted_text", ""),
+                    "page_texts": result.get("page_texts", []),
+                    "page_count": result.get("page_count", 0),
+                    "total_chars": result.get("total_chars", 0),
+                    "tables": result.get("tables", []),
+                    "success": True,
+                }
+            else:
+                raise RuntimeError(result.get("error", "Docling processing failed"))
+
+        except Exception as e:
+            logger.error(f"Docling OCR failed: {e}")
+            return {
+                "method": "docling",
+                "extracted_text": "",
+                "page_texts": [],
+                "page_count": 0,
+                "total_chars": 0,
+                "success": False,
+                "error": str(e),
+            }
 
     async def _ocr_with_tesseract(self, pdf_data: bytes) -> Dict[str, Any]:
         """Extract text using Tesseract OCR."""
