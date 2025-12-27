@@ -48,18 +48,22 @@ export const KnowledgeCommandCenter: React.FC = () => {
     const fetchKnowledge = async () => {
         try {
             setLoading(true);
-            const mockResults: KnowledgeItem[] = [
-                { id: '1', name: 'Product Strategy 2024.pdf', platform: 'gdrive', type: 'file', modified_at: '2023-12-25' },
-                { id: 'j1', name: 'Fix backend timeout bug', platform: 'jira', type: 'task', status: 'In Progress', modified_at: '2023-12-26' },
-                { id: 'sf1', name: 'Enterprise License - Acme Corp', platform: 'salesforce', type: 'deal', value: 85000, status: 'Negotiation' },
-                { id: 'zd1', name: 'Login issue reporting', platform: 'zendesk', type: 'ticket', status: 'Open', priority: 'High' },
-                { id: '3', name: 'Design Assets - Phase 14', platform: 'zoho_workdrive', type: 'file', modified_at: '2023-12-27' },
-                { id: 'a1', name: 'Update documentation', platform: 'asana', type: 'task', status: 'To Do', modified_at: '2023-12-28' }
-            ];
-
-            setItems(mockResults);
+            const response = await axios.get<{ status: string, entities: any[] }>('/api/intelligence/entities');
+            if (response.data?.status === 'success') {
+                const mappedItems: KnowledgeItem[] = response.data.entities.map(e => ({
+                    id: e.id,
+                    name: e.name,
+                    platform: e.platforms[0] || 'unknown',
+                    type: e.type,
+                    status: e.status,
+                    value: e.value,
+                    modified_at: e.modified_at
+                }));
+                setItems(mappedItems);
+            }
         } catch (error) {
             console.error('Failed to fetch knowledge:', error);
+            toast.error('Failed to fetch real-time intelligence data');
         } finally {
             setLoading(false);
         }
@@ -74,19 +78,6 @@ export const KnowledgeCommandCenter: React.FC = () => {
             }
         } catch (error) {
             console.error('Failed to fetch insights:', error);
-            // Fallback mock if API fails/not running
-            setInsights([
-                {
-                    anomaly_id: '1',
-                    severity: 'critical',
-                    title: 'High-Value Deal at Risk',
-                    description: 'Acme Corp deal ($85k) is linked to a BLOCKED Jira task.',
-                    affected_entities: ['sf1', 'j1'],
-                    platforms: ['salesforce', 'jira'],
-                    recommendation: 'Escalate the blocked task to the engineering lead.',
-                    timestamp: new Date().toISOString()
-                }
-            ]);
         } finally {
             setInsightsLoading(false);
         }
