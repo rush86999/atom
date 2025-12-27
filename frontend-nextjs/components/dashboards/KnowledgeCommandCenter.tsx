@@ -9,6 +9,8 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { CommentSection } from '@/components/shared/CommentSection';
 import { cn } from '@/lib/utils';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useToast } from '@/components/ui/use-toast';
 
 interface KnowledgeItem {
     id: string;
@@ -40,6 +42,8 @@ export const KnowledgeCommandCenter: React.FC = () => {
     const [search, setSearch] = useState('');
     const [activeType, setActiveType] = useState<string>('all');
     const [activePlatform, setActivePlatform] = useState<string>('all');
+    const { toast: uiToast } = useToast();
+    const { lastMessage, isConnected } = useWebSocket({ workspaceId: 'demo-workspace' });
 
     const fetchKnowledge = async () => {
         try {
@@ -92,6 +96,17 @@ export const KnowledgeCommandCenter: React.FC = () => {
         fetchKnowledge();
         fetchInsights();
     }, []);
+
+    // Listen for real-time critical alerts
+    useEffect(() => {
+        if (lastMessage && lastMessage.type === 'urgent_alert') {
+            toast.error(lastMessage.message, {
+                duration: 5000,
+            });
+            // Refresh insights as well
+            fetchInsights();
+        }
+    }, [lastMessage]);
 
     const getTypeIcon = (type: string) => {
         switch (type) {

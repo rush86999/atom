@@ -11,6 +11,7 @@ interface WebSocketMessage {
 interface UseWebSocketOptions {
     url?: string;
     autoConnect?: boolean;
+    workspaceId?: string;
 }
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
@@ -27,10 +28,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const connect = useCallback(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
+        const workspaceId = options.workspaceId || "demo-workspace";
         // In a production app, we'd get the token from the session
-        // For this environment, we'll use a dummy token or try to extract it
         const token = (session as any)?.accessToken || "demo-token";
-        const socketUrl = `${url}?token=${token}`;
+
+        // Remove trailing slash if present in url
+        const baseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+        const socketUrl = `${baseUrl}/${workspaceId}?token=${token}`;
 
         const ws = new WebSocket(socketUrl);
         wsRef.current = ws;
