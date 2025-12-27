@@ -117,6 +117,17 @@ const IntegrationsPage: React.FC = () => {
       documentation:
         "https://docs.microsoft.com/en-us/graph/api/resources/onedrive",
     },
+    {
+      id: "zoho-workdrive",
+      name: "Zoho WorkDrive",
+      description: "Online file management for teams that work together",
+      category: "storage",
+      status: "complete",
+      connected: false,
+      icon: HardDrive,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/workdrive/api.html",
+    },
 
     // Communication & Collaboration
     {
@@ -499,6 +510,7 @@ const IntegrationsPage: React.FC = () => {
         fetch("/api/integrations/microsoft365/health"),
         fetch("/api/integrations/azure/health"),
         fetch("/api/integrations/teams/health"),
+        fetch("/api/zoho-workdrive/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {
