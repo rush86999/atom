@@ -28,7 +28,7 @@ chromadb>=0.4.0,<1.0.0
 oagi>=0.1.0 # OpenAGI Lux SDK
 anthropic>=0.3.0
 pyautogui>=0.9.50
-opencv-python>=4.8.0
+opencv-python-headless>=4.8.0
 Pillow>=10.0.0
 
 # Authentication & Security
