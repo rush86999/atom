@@ -3,13 +3,16 @@
     windows_subsystem = "windows"
 )]
 
+use serde::Serialize;
 use serde_json::json;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use tauri::{AppHandle, Manager, Window};
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Manager, Emitter, Runtime, Window};
+use notify::{Watcher, RecursiveMode, Config, Event};
 
 // Enhanced file dialog command using Tauri v2 plugin
 #[tauri::command]
@@ -539,8 +542,88 @@ async fn atom_invoke_command(
             }))
         }
 
+        "start_watching_folder" => {
+            let path = params.and_then(|p| p.get("path").and_then(|v| v.as_str()).map(|s| s.to_string())).ok_or("Path is required")?;
+            start_watching_folder(_app_handle, path).await.map_err(|e| e.to_string())?;
+            Ok(json!({ "success": true }))
+        }
+
+        "stop_watching_folder" => {
+            let path = params.and_then(|p| p.get("path").and_then(|v| v.as_str()).map(|s| s.to_string())).ok_or("Path is required")?;
+            stop_watching_folder(_app_handle, path).await.map_err(|e| e.to_string())?;
+            Ok(json!({ "success": true }))
+        }
+
+        "get_watched_folders" => {
+            let state = _app_handle.state::<AppState>();
+            let watchers = state.watchers.lock().unwrap();
+            let folders: Vec<String> = watchers.keys().cloned().collect();
+            Ok(json!({ "folders": folders }))
+        }
+
         _ => Err(format!("Unknown command: {}", command)),
     }
+}
+
+// App state to manage watchers
+struct AppState {
+    watchers: Mutex<HashMap<String, notify::RecommendedWatcher>>,
+}
+
+#[derive(Clone, Serialize)]
+struct FileEvent {
+    path: String,
+    operation: String,
+}
+
+async fn start_watching_folder(app: AppHandle, path: String) -> notify::Result<()> {
+    let state = app.state::<AppState>();
+    let mut watchers = state.watchers.lock().unwrap();
+
+    if watchers.contains_key(&path) {
+        return Ok(());
+    }
+
+    let app_handle = app.clone();
+    let path_clone = path.clone();
+
+    let mut watcher = notify::RecommendedWatcher::new(
+        move |res: notify::Result<Event>| {
+            if let Ok(event) = res {
+                let operation = match event.kind {
+                    notify::EventKind::Create(_) => "create",
+                    notify::EventKind::Modify(_) => "modify",
+                    notify::EventKind::Remove(_) => "remove",
+                    _ => return,
+                };
+
+                for path_buf in event.paths {
+                    let file_event = FileEvent {
+                        path: path_buf.to_string_lossy().to_string(),
+                        operation: operation.to_string(),
+                    };
+                    let _ = app_handle.emit("folder-event", file_event);
+                }
+            }
+        },
+        Config::default(),
+    )?;
+
+    watcher.watch(Path::new(&path), RecursiveMode::Recursive)?;
+    watchers.insert(path_clone, watcher);
+
+    Ok(())
+}
+
+async fn stop_watching_folder(app: AppHandle, path: String) -> notify::Result<()> {
+    let state = app.state::<AppState>();
+    let mut watchers = state.watchers.lock().unwrap();
+
+    if let Some(mut watcher) = watchers.remove(&path) {
+        watcher.unwatch(Path::new(&path))?;
+    }
+
+    Ok(())
 }
 
 // Main entry point
@@ -576,6 +659,10 @@ fn main() {
             app.manage(std::sync::Mutex::new(
                 HashMap::<String, serde_json::Value>::new(),
             ));
+
+            app.manage(AppState {
+                watchers: Mutex::new(HashMap::new()),
+            });
 
             Ok(())
         })

@@ -77,6 +77,7 @@ INTEGRATION_REGISTRY = {
     "onedrive": "integrations.onedrive_routes:onedrive_router",
     "microsoft365": "integrations.microsoft365_routes:microsoft365_router",
     "box": "integrations.box_routes:router",
+    "zoho_workdrive": "api.zoho_workdrive_routes:router",
     
     # CRM & Support
     "salesforce": "integrations.salesforce_routes:router",
