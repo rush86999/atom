@@ -324,6 +324,20 @@ try:
     except ImportError as e:
         logger.warning(f"Dynamic options routes not found: {e}")
 
+    try:
+        from integrations.universal.routes import router as universal_auth_router
+        app.include_router(universal_auth_router)
+        logger.info("✓ Universal Auth Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Universal auth routes not found: {e}")
+
+    try:
+        from backend.integrations.bridge.external_integration_routes import router as ext_router
+        app.include_router(ext_router)
+        logger.info("✓ External Integration Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"External integration bridge routes not found: {e}")
+
     logger.info("✓ Core Routes Loaded Successfully")
 
 except ImportError as e:

@@ -50,9 +50,10 @@ Atom remembers everything so you don't have to repeat yourself.
 - **Cross-App Search**: Ask complex questions like *"What features did we promise Client X in last week's email?"*
 - **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted.
 
-### 🔌 **Deep Integrations**
-Connect your entire business ecosystem.
-- **Apps**: Slack, Gmail, HubSpot, Salesforce, Linear, Asana, Notion, and major enterprise platforms.
+### 🔌 **Deep Integrations (Hybrid Runtime)**
+Connect your entire business ecosystem with over 500+ apps.
+- **Hybrid Engine**: Combines Python's orchestration power with a Node.js Piece Engine to support the full ActivePieces catalog.
+- **Apps**: Slack, Gmail, HubSpot, Salesforce, Linear, Asana, Notion, and 500+ others via the Piece Engine.
 - **Visual Builder**: Drag-and-drop steps, loops, and branches for precise control.
 - **Computer Use**: Atom can even control your desktop capabilities to interact with legacy software.
 
