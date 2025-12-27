@@ -2,7 +2,7 @@
 # Contributing New Integrations to Atom
 
 Atom is designed to be highly extensible. We support two types of integrations:
-1. **Catalog pieces**: Automated pieces from the Activepieces ecosystem (559+ supported).
+1. **Catalog pieces**: Automated pieces from external ecosystems (Future support).
 2. **Native implementations**: High-performance, deep integrations built directly into Atom's core.
 
 ## 1. Adding a New Integration (The Easy Way)

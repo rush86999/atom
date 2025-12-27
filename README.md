@@ -50,9 +50,9 @@ Atom remembers everything so you don't have to repeat yourself.
 - **Cross-App Search**: Ask complex questions like *"What features did we promise Client X in last week's email?"*
 - **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted.
 
-### 🔌 **500+ Integrations**
+### 🔌 **Deep Integrations**
 Connect your entire business ecosystem.
-- **Apps**: Slack, Gmail, HubSpot, Salesforce, Linear, Asana, Notion, and 500+ more via our catalog.
+- **Apps**: Slack, Gmail, HubSpot, Salesforce, Linear, Asana, Notion, and major enterprise platforms.
 - **Visual Builder**: Drag-and-drop steps, loops, and branches for precise control.
 - **Computer Use**: Atom can even control your desktop capabilities to interact with legacy software.
 
