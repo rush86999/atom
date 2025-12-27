@@ -43,8 +43,8 @@ class MCPService:
         """Returns a list of tools supported by a specific MCP server."""
         if server_id == "google-search":
             return [
-                {"name": "web_search", "description": "Search the web for real-time information"},
-                {"name": "fetch_page", "description": "Fetch the content of a specific URL"}
+                {"name": "web_search", "description": "Search the web for real-time information", "parameters": {"query": "string"}},
+                {"name": "fetch_page", "description": "Fetch the content of a specific URL", "parameters": {"url": "string"}}
             ]
         elif server_id == "local-tools":
             return [
@@ -106,6 +106,35 @@ class MCPService:
                 }
             ]
         return self.active_servers.get(server_id, {}).get("tools", [])
+
+    async def get_all_tools(self) -> List[Dict[str, Any]]:
+        """Returns a unified list of all tools from all available servers."""
+        all_tools = []
+        
+        # 1. Hardcoded internal "servers"
+        all_tools.extend(await self.get_server_tools("google-search"))
+        all_tools.extend(await self.get_server_tools("local-tools"))
+        
+        # 2. Dynamic MCP server tools
+        for server_id in self.active_servers:
+            all_tools.extend(await self.get_server_tools(server_id))
+            
+        return all_tools
+
+    async def call_tool(self, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
+        """Executes a tool by name, dynamically resolving the server_id."""
+        # 1. Look in hardcoded servers
+        for server_id in ["google-search", "local-tools"]:
+            tools = await self.get_server_tools(server_id)
+            if any(t["name"] == tool_name for t in tools):
+                return await self.execute_tool(server_id, tool_name, arguments, context)
+        
+        # 2. Look in dynamic MCP servers
+        for server_id, server_info in self.active_servers.items():
+            if any(t["name"] == tool_name for t in server_info.get("tools", [])):
+                return await self.execute_tool(server_id, tool_name, arguments, context)
+        
+        return {"error": f"Tool '{tool_name}' not found on any active server."}
 
     async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool on a specific MCP server."""
