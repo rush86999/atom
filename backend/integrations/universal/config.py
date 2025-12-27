@@ -1,6 +1,6 @@
 
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Map of piece names to OAuth configuration
 # In production, these should be stored in the database or a secure vault.

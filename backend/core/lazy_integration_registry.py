@@ -122,8 +122,7 @@ INTEGRATION_REGISTRY = {
     # Team Messaging
     "team_messaging": "core.team_messaging:router",
     
-    # Formula Storage
-    "formulas": "api.formula_routes:router",
+    # Note: formulas, memory, voice, documents are eagerly loaded in main_api_app.py
 }
 
 # Essential integrations to load at startup

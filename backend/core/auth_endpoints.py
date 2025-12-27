@@ -134,3 +134,33 @@ async def verify_token(request: VerifyTokenRequest):
 @router.post("/reset-password")
 async def reset_password(request: ResetPasswordRequest):
      return {"success": False, "message": "Feature pending migration to new DB"}
+
+@router.post("/refresh")
+async def refresh_token(current_user: User = Depends(get_current_user)):
+    """Refresh the access token"""
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": current_user.id}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/logout")
+async def logout():
+    """Logout the current user (client should discard token)"""
+    return {"success": True, "message": "Logged out successfully"}
+
+@router.get("/profile")
+async def get_user_profile(current_user: User = Depends(get_current_user)):
+    """Get user profile (alias for /me)"""
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+        "role": current_user.role,
+        "status": current_user.status.value if current_user.status else None,
+        "workspace_id": current_user.workspace_id,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+        "last_login": current_user.last_login.isoformat() if current_user.last_login else None
+    }
+

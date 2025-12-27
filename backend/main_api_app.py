@@ -244,6 +244,12 @@ try:
         logger.warning(f"Failed to load Intelligence routes: {e}")
 
     try:
+        from api.sales_routes import router as sales_router
+        app.include_router(sales_router)
+    except ImportError as e:
+        logger.warning(f"Failed to load Sales routes: {e}")
+
+    try:
         from core.workflow_endpoints import router as workflow_router
         app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
     except ImportError as e:
@@ -338,7 +344,7 @@ try:
         logger.warning(f"Universal auth routes not found: {e}")
 
     try:
-        from backend.integrations.bridge.external_integration_routes import router as ext_router
+        from integrations.bridge.external_integration_routes import router as ext_router
         app.include_router(ext_router)
         logger.info("✓ External Integration Routes Loaded")
     except ImportError as e:
@@ -346,11 +352,83 @@ try:
 
     # Register Connection routes
     try:
-        from backend.api.connection_routes import router as conn_router
+        from api.connection_routes import router as conn_router
         app.include_router(conn_router)
         logger.info("✓ Connection Management Routes Loaded")
     except ImportError as e:
         logger.warning(f"Connection routes not found: {e}")
+
+    # 7. Chat Orchestrator Routes (Critical for chat functionality)
+    try:
+        from integrations.chat_routes import router as chat_router
+        app.include_router(chat_router, prefix="/api", tags=["Chat"])
+        logger.info("✓ Chat Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Chat routes not found: {e}")
+
+    # 8. Agent Governance Routes
+    try:
+        from api.agent_governance_routes import router as gov_router
+        app.include_router(gov_router)
+        logger.info("✓ Agent Governance Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Agent Governance routes not found: {e}")
+
+    # 9. Memory/Document Routes
+    try:
+        from api.memory_routes import router as memory_router
+        app.include_router(memory_router, prefix="/api/v1/memory", tags=["Memory"])
+        logger.info("✓ Memory Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Memory routes not found: {e}")
+
+    # 10. Voice Routes
+    try:
+        from api.voice_routes import router as voice_router
+        app.include_router(voice_router, prefix="/api/voice", tags=["Voice"])
+        logger.info("✓ Voice Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Voice routes not found: {e}")
+
+    # 11. Document Ingestion Routes
+    try:
+        from api.document_routes import router as doc_router
+        app.include_router(doc_router, prefix="/api/documents", tags=["Documents"])
+        logger.info("✓ Document Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Document routes not found: {e}")
+
+    # 12. Formula Routes
+    try:
+        from api.formula_routes import router as formula_router
+        app.include_router(formula_router, prefix="/api/formulas", tags=["Formulas"])
+        logger.info("✓ Formula Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Formula routes not found: {e}")
+
+    # 13. AI Workflows Routes (NLU Parse, Completion)
+    try:
+        from api.ai_workflows_routes import router as ai_wf_router
+        app.include_router(ai_wf_router, tags=["AI Workflows"])
+        logger.info("✓ AI Workflows Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"AI Workflows routes not found: {e}")
+
+    # 14. Background Agent Routes
+    try:
+        from api.background_agent_routes import router as bg_agent_router
+        app.include_router(bg_agent_router, tags=["Background Agents"])
+        logger.info("✓ Background Agent Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Background Agent routes not found: {e}")
+
+    # 15. Integration Health Stubs (fallback endpoints for missing integrations)
+    try:
+        from api.integration_health_stubs import router as health_stubs_router
+        app.include_router(health_stubs_router, tags=["Integration Stubs"])
+        logger.info("✓ Integration Health Stubs Loaded")
+    except ImportError as e:
+        logger.warning(f"Integration Health Stubs not found: {e}")
 
     logger.info("✓ Core Routes Loaded Successfully")
 

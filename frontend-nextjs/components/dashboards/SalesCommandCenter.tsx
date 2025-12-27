@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, Search, TrendingUp, Users, Zap, Building2, ArrowUpRight } from 'lucide-react';
 import axios from 'axios';
+import { useRouter } from 'next/router';
+import { toast } from 'sonner';
 import { CommentSection } from '@/components/shared/CommentSection';
 
 interface Deal {
@@ -13,18 +15,82 @@ interface Deal {
     company?: string;
 }
 
+interface Insight {
+    anomaly_id: string;
+    severity: 'critical' | 'warning' | 'info';
+    title: string;
+    description: string;
+    recommendation: string;
+    action_type?: string;
+    action_payload?: any;
+}
+
 export const SalesCommandCenter: React.FC = () => {
+    const router = useRouter();
     const [deals, setDeals] = useState<Deal[]>([]);
+    const [insights, setInsights] = useState<Insight[]>([]);
     const [loading, setLoading] = useState(true);
+    const [executing, setExecuting] = useState<string | null>(null);
+
+    const fetchDeals = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get<Deal[]>('/api/sales/pipeline');
+            setDeals(response.data);
+        } catch (error) {
+            console.error('Failed to fetch deals:', error);
+            // Fallback for demo
+            setDeals([
+                { deal: 'Global Logistics Expansion (Mock)', value: 85000, status: 'Negotiation', platform: 'salesforce', company: 'LogiCorp' },
+                { deal: 'Software Suite V3 (Mock)', value: 32000, status: 'Qualified', platform: 'hubspot', company: 'TechStart' }
+            ]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchInsights = async () => {
+        try {
+            const response = await axios.get<{ insights: Insight[] }>('/api/intelligence/insights');
+            setInsights(response.data.insights || []);
+        } catch (error) {
+            console.error('Failed to fetch insights:', error);
+        }
+    };
+
+    const handleExecuteAction = async (insight: Insight) => {
+        if (!insight.action_type || !insight.action_payload) return;
+
+        // Custom handling for project deep-links
+        if (insight.action_type === 'workflow' && insight.action_payload.workflow_id === 'escalate_deal_blocker') {
+            const taskId = insight.action_payload.inputs?.task_id;
+            if (taskId) {
+                toast.info('Navigating to blocking task in Project Command Center...');
+                router.push(`/projects?highlight=${taskId}`);
+                return;
+            }
+        }
+
+        try {
+            setExecuting(insight.anomaly_id);
+            await axios.post('/api/intelligence/execute', {
+                action_type: insight.action_type,
+                action_payload: insight.action_payload
+            });
+            toast.success(`Action executed: ${insight.title}`);
+            // Refresh insights after action
+            fetchInsights();
+        } catch (error) {
+            console.error('Action failed:', error);
+            toast.error('Failed to execute resolution.');
+        } finally {
+            setExecuting(null);
+        }
+    };
 
     useEffect(() => {
-        setDeals([
-            { deal: 'Global Logistics Expansion', value: 85000, status: 'Negotiation', platform: 'salesforce', company: 'LogiCorp' },
-            { deal: 'Software Suite V3', value: 32000, status: 'Qualified', platform: 'hubspot', company: 'TechStart' },
-            { deal: 'Q4 Consulting Contract', value: 15000, status: 'Closed Won', platform: 'salesforce', company: 'BuildIt' },
-            { deal: 'Infrastructure Upgrade', value: 120000, status: 'Discovery', platform: 'hubspot', company: 'CloudNet' }
-        ]);
-        setLoading(false);
+        fetchDeals();
+        fetchInsights();
     }, []);
 
     const totalPipeline = deals.reduce((acc, d) => acc + d.value, 0);
@@ -125,21 +191,51 @@ export const SalesCommandCenter: React.FC = () => {
                                 <CardTitle className="text-lg">Lead Intelligence</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
-                                    <p className="text-sm font-medium text-primary">Opportunity Found</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        LogiCorp recently expanded their headcount by 20%. Potential for upsell on the Logistics deal.
-                                    </p>
-                                </div>
-                                <div className="p-4 rounded-lg bg-orange-500/5 border border-orange-500/10">
-                                    <p className="text-sm font-medium text-orange-400">Churn Risk</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        CloudNet hasn't logged into the support portal in 14 days.
-                                    </p>
-                                </div>
-                                <button className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm transition-colors border border-white/10 text-white">
-                                    View Full Insights
-                                </button>
+                                {insights.length > 0 ? (
+                                    insights.map((insight) => (
+                                        <div
+                                            key={insight.anomaly_id}
+                                            className={`p-4 rounded-lg border transition-all duration-300 ${insight.severity === 'critical'
+                                                ? 'bg-red-500/5 border-red-500/20'
+                                                : insight.severity === 'warning'
+                                                    ? 'bg-orange-500/5 border-orange-500/20'
+                                                    : 'bg-primary/5 border-primary/20'
+                                                }`}
+                                        >
+                                            <div className="flex justify-between items-start mb-1">
+                                                <p className={`text-sm font-medium ${insight.severity === 'critical' ? 'text-red-400' : 'text-primary'
+                                                    }`}>
+                                                    {insight.title}
+                                                </p>
+                                                <Badge variant="outline" className="text-[9px] px-1 h-4 uppercase opacity-70">
+                                                    {insight.severity}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                                                {insight.description}
+                                            </p>
+                                            {insight.action_type && (
+                                                <button
+                                                    onClick={() => handleExecuteAction(insight)}
+                                                    disabled={executing === insight.anomaly_id}
+                                                    className="w-full py-1.5 bg-white/5 hover:bg-white/10 disabled:opacity-50 rounded-md text-[11px] font-semibold transition-all border border-white/10 flex items-center justify-center gap-2 group"
+                                                >
+                                                    {executing === insight.anomaly_id ? (
+                                                        <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                                    ) : (
+                                                        <Zap className="w-3 h-3 text-amber-400 group-hover:scale-110 transition-transform" />
+                                                    )}
+                                                    {insight.action_type === 'workflow' ? 'Resolve via Workflow' : 'Run Auto-Fix'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8 opacity-40">
+                                        <Zap className="w-8 h-8 mx-auto mb-2" />
+                                        <p className="text-xs">No critical anomalies detected</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
