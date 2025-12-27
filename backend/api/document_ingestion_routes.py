@@ -3,10 +3,11 @@ Automatic Document Ingestion API Routes
 Manage per-integration document ingestion settings and memory removal.
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, File, UploadFile
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import logging
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,16 @@ router = APIRouter(prefix="/api/document-ingestion", tags=["Document Ingestion"]
 
 
 # ==================== Request/Response Models ====================
+
+class ParseResultResponse(BaseModel):
+    """Result of a standalone document parse operation"""
+    success: bool
+    content: str
+    metadata: Dict[str, Any]
+    total_chars: int
+    page_count: int
+    method: str = "docling"
+    error: Optional[str] = None
 
 class IngestionSettingsRequest(BaseModel):
     """Update ingestion settings for an integration"""
@@ -363,4 +374,69 @@ async def get_ocr_status():
         pass
     
     return status
+
+
+@router.post("/parse", response_model=ParseResultResponse)
+async def parse_document_file(
+    file: UploadFile = File(...),
+    export_format: str = Query("markdown", description="Output format: markdown, text, json, html"),
+    workspace_id: str = Depends(get_workspace_id)
+):
+    """
+    Directly parse a document file and return its content.
+    Uses docling for high-fidelity extraction if available.
+    """
+    try:
+        content = await file.read()
+        file_name = file.filename
+        file_ext = file_name.split(".")[-1].lower() if "." in file_name else "pdf"
+        
+        from core.docling_processor import get_docling_processor, is_docling_available
+        
+        if is_docling_available():
+            processor = get_docling_processor()
+            # source can be bytes, path, or URL
+            result = await processor.process_document(
+                source=content,
+                file_type=file_ext,
+                file_name=file_name,
+                export_format=export_format
+            )
+            
+            return ParseResultResponse(
+                success=result.get("success", False),
+                content=result.get("content", ""),
+                metadata=result.get("metadata", {}),
+                total_chars=result.get("total_chars", 0),
+                page_count=result.get("page_count", 0),
+                method="docling",
+                error=result.get("error")
+            )
+        else:
+            # Fallback for docling unavailability
+            logger.warning("Docling not available for direct parse request, using basic fallback")
+            from core.auto_document_ingestion import DocumentParser
+            text = await DocumentParser.parse_document(content, file_ext, file_name)
+            
+            return ParseResultResponse(
+                success=True,
+                content=text,
+                metadata={"file_name": file_name, "file_type": file_ext},
+                total_chars=len(text),
+                page_count=0,
+                method="fallback",
+                error=None
+            )
+            
+    except Exception as e:
+        logger.error(f"Manual parse failed: {e}")
+        return ParseResultResponse(
+            success=False,
+            content="",
+            metadata={},
+            total_chars=0,
+            page_count=0,
+            method="error",
+            error=str(e)
+        )
 
