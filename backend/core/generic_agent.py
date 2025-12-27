@@ -159,7 +159,7 @@ class GenericAgent:
 {self.system_prompt}
 
 You are an agent executing a task. You have access to the following tools:
-(Assuming MCP tools are available via mcp_service - dynamic listing would be better)
+{json.dumps(await self.mcp.get_all_tools(), indent=2)}
 
 Use the following format:
 
@@ -200,12 +200,8 @@ Previous Steps:
             finally:
                 db.close()
 
-            # 2. Execute via MCP Service
-            server_id = "local-tools"
-            if tool_name in ["web_search", "fetch_page"]:
-                server_id = "google-search"
-                
-            return await self.mcp.execute_tool(server_id, tool_name, args, context=context)
+            # 2. Execute via MCP Service (Dynamic Resolution)
+            return await self.mcp.call_tool(tool_name, args, context=context)
             
         except Exception as e:
             error_msg = str(e)
