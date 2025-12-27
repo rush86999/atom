@@ -1,4 +1,4 @@
-import { AUTO_GENERATED_PIECES } from './auto-generated-pieces';
+
 
 /**
  * Extended Integrations Catalog - 500+ Pieces
@@ -493,12 +493,8 @@ const MANUAL_PIECES = [
     ...OTHER_PIECES,
 ];
 
-const manualIds = new Set(MANUAL_PIECES.map(p => p.id));
-const filteredAutoPieces = AUTO_GENERATED_PIECES.filter(p => !manualIds.has(p.id));
-
 export const ALL_INTEGRATIONS: Integration[] = [
-    ...MANUAL_PIECES,
-    ...filteredAutoPieces
+    ...MANUAL_PIECES
 ];
 
 // Helper functions
