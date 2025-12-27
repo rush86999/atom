@@ -7,10 +7,10 @@ import hashlib
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from backend.core.database import SessionLocal
-from backend.core.models import UserConnection
+from core.database import SessionLocal
+from core.models import UserConnection
 from cryptography.fernet import Fernet
-from backend.core.config import get_config
+from core.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,7 @@ class ConnectionService:
         if not should_refresh:
             return None
 
-        from backend.integrations.universal.config import get_oauth_config
+        from integrations.universal.config import get_oauth_config
         config = get_oauth_config(conn.integration_id)
         if not config:
             return None

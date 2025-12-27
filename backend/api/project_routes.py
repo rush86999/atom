@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Any
-from core.external_integration_service import ConnectionService
 from integrations.mcp_service import mcp_service
 import logging
 

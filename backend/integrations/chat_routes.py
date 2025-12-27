@@ -12,7 +12,8 @@ from pydantic import BaseModel, Field
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from chat_orchestrator import ChatOrchestrator, FeatureType
+from integrations.chat_orchestrator import ChatOrchestrator, FeatureType
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
