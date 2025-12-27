@@ -17,14 +17,20 @@ class ExternalIntegrationService:
         Unifies the format for the frontend.
         """
         try:
-            pieces = await node_bridge.get_catalog()
-            
-            # Transform to match Atom's Integration Interface if needed
-            # For now, pass through the Node engine's metadata
-            return pieces
+            return await node_bridge.get_catalog()
         except Exception as e:
             logger.error(f"Failed to get external integrations: {e}")
             return []
+
+    async def get_piece_details(self, piece_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetches detailed metadata for a specific piece.
+        """
+        try:
+            return await node_bridge.get_piece_details(piece_name)
+        except Exception as e:
+            logger.error(f"Failed to get details for piece {piece_name}: {e}")
+            return None
 
     async def execute_integration_action(self, 
                                        integration_id: str, 
