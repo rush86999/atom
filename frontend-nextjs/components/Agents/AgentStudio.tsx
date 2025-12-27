@@ -61,11 +61,15 @@ interface RunResponse {
 }
 
 interface TraceStep {
-    step: number;
-    thought: string;
+    step?: number;
+    type?: string;
+    thought?: string;
     action?: any;
     output?: string;
     final_answer?: string;
+    action_id?: string;
+    reason?: string;
+    status?: 'pending' | 'approved' | 'rejected';
 }
 
 const AgentStudio: React.FC = () => {
@@ -131,9 +135,32 @@ const AgentStudio: React.FC = () => {
             }
         }
 
+        if (lastMessage && (lastMessage as any).type === "hitl_paused") {
+            const { agent_id, action_id, tool, reason } = lastMessage as any;
+            if (isRunning && agent_id === selectedAgent?.id) {
+                setRunTrace(prev => [
+                    ...prev,
+                    {
+                        type: "hitl_paused",
+                        action_id,
+                        action: { tool },
+                        reason,
+                        status: "pending"
+                    }
+                ]);
+            }
+        }
+
+        if (lastMessage && (lastMessage as any).type === "hitl_decision") {
+            const { action_id, decision } = lastMessage as any;
+            setRunTrace(prev => prev.map(s =>
+                s.action_id === action_id ? { ...s, status: decision === 'approved' ? 'approved' : 'rejected' } : s
+            ));
+        }
+
         if (lastMessage && (lastMessage as any).type === "agent_status_change") {
             const { agent_id, status, result } = lastMessage as any;
-            if (isRunning && agent_id === selectedAgent?.id && status === "success") {
+            if (isRunning && (agent_id === selectedAgent?.id || agent_id === "atom_main") && status === "success") {
                 setRunResult(result.output || result.final_output || "Completed.");
                 setIsRunning(false);
             }
@@ -295,6 +322,14 @@ const AgentStudio: React.FC = () => {
             setIsFeedbackOpen(false);
         } catch (err) {
             toast({ title: "Error", description: "Failed to submit feedback", variant: "error" });
+        }
+    };
+    const handleHITLDecision = async (actionId: string, decision: 'approved' | 'rejected') => {
+        try {
+            await axios.post(`/api/agents/approvals/${actionId}`, { decision });
+            toast({ title: `Action ${decision}`, variant: "success" });
+        } catch (err) {
+            toast({ title: "Error", description: "Failed to submit decision", variant: "error" });
         }
     };
 
@@ -466,31 +501,60 @@ const AgentStudio: React.FC = () => {
                                 </div>
                                 {runTrace.length > 0 ? (
                                     <div className="space-y-4">
-                                        {runTrace.map((step) => (
-                                            <div key={step.step} className="p-3 border rounded bg-white text-sm space-y-2">
-                                                <div className="flex justify-between items-start">
-                                                    <span className="font-bold text-xs bg-gray-200 px-2 py-0.5 rounded">Step {step.step}</span>
-                                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleOpenFeedback(step)}>
-                                                        <ThumbsDown className="w-3 h-3 text-gray-400 hover:text-red-500" />
-                                                    </Button>
-                                                </div>
-                                                <div className="text-gray-700"><strong>Thought:</strong> {step.thought}</div>
-                                                {step.action && (
-                                                    <div className="font-mono text-xs bg-gray-50 p-2 rounded">
-                                                        <span className="text-blue-600">Action:</span> {JSON.stringify(step.action)}
+                                        {runTrace.map((step, idx) => (
+                                            <React.Fragment key={step.step || `hitl-${idx}`}>
+                                                {step.type === "hitl_paused" ? (
+                                                    <div className="p-3 border-2 border-yellow-200 rounded bg-yellow-50 space-y-3">
+                                                        <div className="flex items-center gap-2 text-yellow-800 font-semibold">
+                                                            <Settings className="w-4 h-4 animate-spin" />
+                                                            Human Approval Required
+                                                        </div>
+                                                        <p className="text-sm text-yellow-700">
+                                                            <strong>Action:</strong> {step.action?.tool}<br />
+                                                            <strong>Reason:</strong> {step.reason}
+                                                        </p>
+                                                        {step.status === "pending" ? (
+                                                            <div className="flex gap-2">
+                                                                <Button size="sm" onClick={() => handleHITLDecision(step.action_id!, 'approved')}>
+                                                                    Approve
+                                                                </Button>
+                                                                <Button size="sm" variant="destructive" onClick={() => handleHITLDecision(step.action_id!, 'rejected')}>
+                                                                    Reject
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <Badge variant={step.status === 'approved' ? 'default' : 'destructive'}>
+                                                                {step.status?.toUpperCase()}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-3 border rounded bg-white text-sm space-y-2">
+                                                        <div className="flex justify-between items-start">
+                                                            <span className="font-bold text-xs bg-gray-200 px-2 py-0.5 rounded">Step {step.step}</span>
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleOpenFeedback(step)}>
+                                                                <ThumbsDown className="w-3 h-3 text-gray-400 hover:text-red-500" />
+                                                            </Button>
+                                                        </div>
+                                                        <div className="text-gray-700"><strong>Thought:</strong> {step.thought}</div>
+                                                        {step.action && (
+                                                            <div className="font-mono text-xs bg-gray-50 p-2 rounded">
+                                                                <span className="text-blue-600">Action:</span> {JSON.stringify(step.action)}
+                                                            </div>
+                                                        )}
+                                                        {step.output && (
+                                                            <div className="font-mono text-xs text-gray-500">
+                                                                <span className="text-green-600">Observation:</span> {step.output}
+                                                            </div>
+                                                        )}
+                                                        {step.final_answer && (
+                                                            <div className="bg-green-50 p-2 rounded border border-green-100 mt-2">
+                                                                <strong>Final Answer:</strong> {step.final_answer}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
-                                                {step.output && (
-                                                    <div className="font-mono text-xs text-gray-500">
-                                                        <span className="text-green-600">Observation:</span> {step.output}
-                                                    </div>
-                                                )}
-                                                {step.final_answer && (
-                                                    <div className="bg-green-50 p-2 rounded border border-green-100 mt-2">
-                                                        <strong>Final Answer:</strong> {step.final_answer}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            </React.Fragment>
                                         ))}
                                     </div>
                                 ) : (

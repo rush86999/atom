@@ -9,7 +9,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from enum import Enum
 
-from core.models import AgentRegistry, AgentStatus, User
+from core.models import AgentRegistry, AgentStatus, User, HITLActionStatus
 from core.database import SessionLocal
 from core.agent_world_model import WorldModelService, AgentExperience
 from core.agent_governance_service import AgentGovernanceService
@@ -89,7 +89,8 @@ class AtomMetaAgent:
         self.llm = BYOKHandler(workspace_id=workspace_id)
         
     async def execute(self, request: str, context: Dict[str, Any] = None, 
-                     trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL) -> Dict[str, Any]:
+                      trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
+                      step_callback: Optional[callable] = None) -> Dict[str, Any]:
         """
         Main entry point for Atom. Uses ReAct loop to solve the request.
         """
@@ -132,6 +133,10 @@ class AtomMetaAgent:
                     "timestamp": datetime.utcnow().isoformat()
                 }
                 
+                # Stream if callback provided
+                if step_callback:
+                    await step_callback(step_record)
+                
                 if thought:
                     execution_history += f"Thought: {thought}\n"
                 
@@ -151,9 +156,14 @@ class AtomMetaAgent:
                     tool_name = action.get("tool")
                     tool_args = action.get("params", {})
                     
-                    observation = await self._step_act(tool_name, tool_args, context)
+                    observation = await self._step_act(tool_name, tool_args, context, step_callback)
                     
                     step_record["output"] = observation
+                    execution_history += f"Observation: {observation}\n"
+                    
+                    # Update stream with result
+                    if step_callback:
+                        await step_callback(step_record)
                     execution_history += f"Observation: {str(observation)}\n"
                     
                 else:
@@ -248,7 +258,7 @@ Next Step:
             temperature=0.2
         )
 
-    async def _step_act(self, tool_name: str, args: Dict, context: Dict) -> Any:
+    async def _step_act(self, tool_name: str, args: Dict, context: Dict, step_callback: Optional[callable] = None) -> Any:
         """Execute Meta Tools with Governance Check"""
         try:
             # 1. Governance Maturity Check
@@ -257,7 +267,35 @@ Next Step:
                 gov = AgentGovernanceService(db)
                 # Atom Agent check
                 auth_check = gov.can_perform_action("atom_main", tool_name)
-                if not auth_check["allowed"]:
+                
+                if auth_check.get("requires_human_approval"):
+                    # Create HITL Action
+                    action_id = gov.request_approval(
+                        agent_id="atom_main",
+                        action_type=tool_name,
+                        params=args,
+                        reason=auth_check["reason"],
+                        workspace_id=self.workspace_id
+                    )
+                    
+                    logger.info(f"Atom Action {tool_name} requires approval. Pausing...")
+                    
+                    if step_callback:
+                        await step_callback({
+                            "type": "hitl_paused",
+                            "action_id": action_id,
+                            "tool": tool_name,
+                            "reason": auth_check["reason"]
+                        })
+                    
+                    # Wait for approval
+                    approved = await self._wait_for_approval(action_id)
+                    if not approved:
+                        return f"Governance Error: Action {tool_name} was REJECTED by user or timed out."
+                    
+                    logger.info(f"Atom Action {tool_name} APPROVED. Proceeding...")
+                    
+                elif not auth_check["allowed"]:
                     return f"Governance Error: {auth_check['reason']}"
             finally:
                 db.close()
@@ -404,6 +442,30 @@ Next Step:
             confidence_score=1.0
         )
     
+    async def _wait_for_approval(self, action_id: str) -> bool:
+        """Poll for HITL decision"""
+        max_wait = 600 # Default 10 mins
+        interval = 5
+        elapsed = 0
+        
+        while elapsed < max_wait:
+            db = SessionLocal()
+            try:
+                gov = AgentGovernanceService(db)
+                status_info = gov.get_approval_status(action_id)
+                
+                if status_info["status"] == HITLActionStatus.APPROVED.value:
+                    return True
+                if status_info["status"] == HITLActionStatus.REJECTED.value:
+                    return False
+            finally:
+                db.close()
+                
+            await asyncio.sleep(interval)
+            elapsed += interval
+            
+        return False # Timeout
+
     async def _record_execution(self, request: str, result: Dict, 
                                 trigger_mode: AgentTriggerMode):
         """Record execution to World Model for future learning"""

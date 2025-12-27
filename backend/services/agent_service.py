@@ -140,16 +140,10 @@ class ComputerUseAgent:
                      task.logs.append(f"Model Execution Error: {model_err}")
                 
             else:
-                # Mock Mode (No Key Found)
-                task.logs.append("Running in MOCK mode (No API Key found in BYOK)")
-                await asyncio.sleep(1)
-                task.logs.append("Analyzing goal...")
-                await asyncio.sleep(1)
-                task.logs.append(f"Simulating action for: {task.goal}")
-                await asyncio.sleep(1)
-                
-                task.status = "completed"
-                task.result = f"Mock execution of '{task.goal}' complete. (Add 'lux' or 'anthropic' key to BYOK to enable real mode)"
+                # No API Key Found - Fail Fast
+                task.status = "failed"
+                task.logs.append("ERROR: No API key found in BYOK. Cannot execute.")
+                task.result = "Execution failed: Add a 'lux' or 'anthropic' key to BYOK to enable agent execution."
                 
         except Exception as e:
             logger.error(f"Agent task failed: {e}")

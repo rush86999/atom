@@ -7,7 +7,7 @@ import uuid
 
 from core.models import (
     User, AgentRegistry, AgentFeedback, AgentStatus, 
-    FeedbackStatus, UserRole
+    FeedbackStatus, UserRole, HITLAction, HITLActionStatus
 )
 from core.rbac_service import RBACService, Permission
 
@@ -424,4 +424,42 @@ class AgentGovernanceService:
             "action_required": None,
             "agent_status": check["agent_status"],
             "confidence": check["confidence_score"]
+        }
+
+    def request_approval(
+        self, 
+        agent_id: str, 
+        action_type: str, 
+        params: Dict, 
+        reason: str,
+        workspace_id: str = "default"
+    ) -> str:
+        """Create a HITL action and return its ID"""
+        hitl = HITLAction(
+            id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
+            agent_id=agent_id,
+            action_type=action_type,
+            platform="internal", # Generic internal platform
+            params=params,
+            status=HITLActionStatus.PENDING.value,
+            reason=reason,
+            confidence_score=0.0 # Initial
+        )
+        self.db.add(hitl)
+        self.db.commit()
+        logger.info(f"Requested HITL approval for {agent_id} -> {action_type} (ID: {hitl.id})")
+        return hitl.id
+
+    def get_approval_status(self, action_id: str) -> Dict[str, Any]:
+        """Check if a HITL action has been decided"""
+        hitl = self.db.query(HITLAction).filter(HITLAction.id == action_id).first()
+        if not hitl:
+            return {"status": "not_found"}
+        
+        return {
+            "id": hitl.id,
+            "status": hitl.status,
+            "user_feedback": hitl.user_feedback,
+            "reviewed_at": hitl.reviewed_at
         }

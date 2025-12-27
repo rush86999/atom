@@ -28,9 +28,15 @@ services:
       - "8001:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-atom_user}:${POSTGRES_PASSWORD:-atom_password}@postgres:5432/${POSTGRES_DB:-atom_db}
+      - BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY}
       - TAVILY_API_KEY=${TAVILY_API_KEY}
       - BRAVE_SEARCH_API_KEY=${BRAVE_SEARCH_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
     restart: unless-stopped
     depends_on:
       postgres:
