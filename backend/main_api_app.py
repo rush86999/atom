@@ -500,6 +500,14 @@ async def startup_event():
         logger.info("✓ Agent Scheduler running")
     except ImportError:
         logger.warning("Agent Scheduler module not found.")
+
+    # 4. Start Intelligence Background Worker
+    try:
+        from ai.intelligence_background_worker import intelligence_worker
+        await intelligence_worker.start()
+        logger.info("✓ Intelligence Background Worker running")
+    except Exception as e:
+        logger.error(f"Failed to start intelligence worker: {e}")
     
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
