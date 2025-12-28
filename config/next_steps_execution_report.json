@@ -32,7 +32,7 @@
       "duration": 0.0,
       "details": {
         "message": "NLU system diagnostics identified issues",
-        "diagnostic_output": "/Users/rushiparikh/projects/atom/atom/ai-coding-orchestrator/venv/lib/python3.11/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field \"model_name\" has conflict with protected namespace \"model_\".\n\nYou may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.\n  warnings.warn(\n2025-11-03 19:21:49,950 - db_utils - ERROR - DATABASE_URL environment variable is not set\n2025-11-03 19:21:49,950 - workflow_agent_integration - INFO - Workflow Agent Integrati..."
+        "diagnostic_output": "/home/developer/projects/atom/atom/ai-coding-orchestrator/venv/lib/python3.11/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field \"model_name\" has conflict with protected namespace \"model_\".\n\nYou may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.\n  warnings.warn(\n2025-11-03 19:21:49,950 - db_utils - ERROR - DATABASE_URL environment variable is not set\n2025-11-03 19:21:49,950 - workflow_agent_integration - INFO - Workflow Agent Integrati..."
       },
       "error": "NLU diagnostics failed"
     },

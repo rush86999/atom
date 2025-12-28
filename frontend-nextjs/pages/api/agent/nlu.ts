@@ -10,7 +10,7 @@ async function understandMessage(
   options?: any,
 ): Promise<any> {
   // Try to use backend LLM with BYOK integration first
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5059';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
   try {
     // Call verified NLU endpoint

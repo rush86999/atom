@@ -127,6 +127,17 @@ class AtomCommunicationMemoryAPI:
                 success = ingestion_pipeline.ingest_message(app_id, message_data)
                 
                 if success:
+                    # Broadcast update to connected clients
+                    from core.websockets import manager
+                    import asyncio
+                    
+                    # Create a background task for broadcasting to not block ingestion
+                    asyncio.create_task(manager.broadcast_event(
+                        "communication_stats", 
+                        "status_update", 
+                        {"last_ingested_app": app_id, "timestamp": datetime.now().isoformat()}
+                    ))
+
                     return {
                         "success": True,
                         "message": f"Message from {app_id} ingested successfully",
@@ -188,7 +199,8 @@ class AtomCommunicationMemoryAPI:
             app_id: Optional[str] = Query(None, description="Filter by app ID"),
             limit: int = Query(10, ge=1, le=100, description="Result limit"),
             time_start: Optional[str] = Query(None, description="Start date (ISO format)"),
-            time_end: Optional[str] = Query(None, description="End date (ISO format)")
+            time_end: Optional[str] = Query(None, description="End date (ISO format)"),
+            tag: Optional[str] = Query(None, description="Filter by tag (e.g., sales, project)")
         ):
             """Search memory with various filters"""
             try:
@@ -210,14 +222,19 @@ class AtomCommunicationMemoryAPI:
                     # Filter by content query
                     if query:
                         results = [r for r in results if query.lower() in r.get("content", "").lower()]
+                    
+                    # Filter by tag if specified
+                    if tag:
+                        results = [r for r in results if tag in r.get("tags", [])]
                 else:
                     # Regular search
-                    results = memory_manager.search_communications(query, limit, app_id)
+                    results = memory_manager.search_communications(query, limit, app_id, tag)
                 
                 return {
                     "success": True,
                     "query": query,
                     "app_filter": app_id,
+                    "tag_filter": tag,
                     "time_range": {"start": time_start, "end": time_end} if time_start or time_end else None,
                     "limit": limit,
                     "total_results": len(results),

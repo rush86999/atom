@@ -23,7 +23,7 @@ github_oauth_bp = Blueprint("github_oauth_bp", __name__)
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
 GITHUB_REDIRECT_URI = os.getenv(
-    "GITHUB_REDIRECT_URI", "http://localhost:5059/api/auth/github/callback"
+    "GITHUB_REDIRECT_URI", "http://localhost:8000/api/auth/github/callback"
 )
 GITHUB_SCOPES = "repo,user,read:org,read:project"
 

@@ -56,10 +56,10 @@ def check_privacy_status():
                 
                 # Check for personal information patterns
                 personal_patterns = [
-                    "rushiparikh",
-                    "/Users/rushiparikh",
+                    "developer",
+                    "/Users/developer",
                     "admin@atom.com",
-                    "Rushi Parikh"
+                    "Atom Developer"
                 ]
                 
                 found_patterns = []

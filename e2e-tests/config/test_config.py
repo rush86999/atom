@@ -20,7 +20,7 @@ class TestConfig:
 
     # Test environment URLs
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5059")
+    BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
     # Required credentials for different test categories
     REQUIRED_CREDENTIALS = {

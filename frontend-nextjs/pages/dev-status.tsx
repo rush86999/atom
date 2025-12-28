@@ -81,7 +81,7 @@ const DevStatus = () => {
       // Simulate service status checks
       const services = {
         frontend: await checkService("Frontend", "http://localhost:3000"),
-        backend: await checkService("Backend", "http://localhost:5059", false, "GET"),
+        backend: await checkService("Backend", "http://localhost:8000", false, "GET"),
         database: await checkService("Database", null, true), // Assume database is running
         desktop: await checkService("Desktop App", null, true), // Assume desktop is running
       };

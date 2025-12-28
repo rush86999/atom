@@ -5,8 +5,8 @@ import sys
 try:
     result = subprocess.run([
         sys.executable, 
-        '/Users/rushiparikh/projects/atom/atom/backend/integrations/final_additional_platforms_phase_7_report.py'
-    ], capture_output=True, text=True, cwd='/Users/rushiparikh/projects/atom/atom/backend/integrations')
+        '/home/developer/projects/atom/atom/backend/integrations/final_additional_platforms_phase_7_report.py'
+    ], capture_output=True, text=True, cwd='/home/developer/projects/atom/atom/backend/integrations')
     
     print("🌍 ATOM Enhanced Communication Ecosystem - Phase 7 Additional Platforms Success! 🌍")
     print("=" * 80)

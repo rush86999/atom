@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Forward the request to the backend Teams OAuth endpoint
     const backendResponse = await fetch(
-      `http://localhost:5059/api/auth/teams/authorize?user_id=${user_id}`,
+      `http://localhost:8000/api/auth/teams/authorize?user_id=${user_id}`,
       {
         method: 'GET',
         headers: {

@@ -430,6 +430,21 @@ try:
     except ImportError as e:
         logger.warning(f"Integration Health Stubs not found: {e}")
 
+    # 16. Live Command Center APIs (Parallel Pipeline)
+    try:
+        from integrations.atom_communication_live_api import router as comm_live_router
+        from integrations.atom_sales_live_api import router as sales_live_router
+        from integrations.atom_projects_live_api import router as projects_live_router
+        from integrations.atom_finance_live_api import router as finance_live_router
+        
+        app.include_router(comm_live_router)
+        app.include_router(sales_live_router)
+        app.include_router(projects_live_router)
+        app.include_router(finance_live_router)
+        logger.info("✓ Live Command Center APIs Loaded (Comm, Sales, Projects, Finance)")
+    except ImportError as e:
+        logger.warning(f"Live Command Center APIs not found: {e}")
+
     logger.info("✓ Core Routes Loaded Successfully")
 
 except ImportError as e:
@@ -601,4 +616,4 @@ async def shutdown_event():
         pass
 
 if __name__ == "__main__":
-    uvicorn.run("main_api_app:app", host="0.0.0.0", port=5059, reload=True)
+    uvicorn.run("main_api_app:app", host="0.0.0.0", port=8000, reload=True)

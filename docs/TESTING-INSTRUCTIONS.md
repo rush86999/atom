@@ -30,8 +30,8 @@ After running the fix script:
    ```
 
 2. **Ensure Backend is Running:**
-   - Backend should be running on port 5059
-   - Check: http://localhost:5059/health
+   - Backend should be running on port 8000
+   - Check: http://localhost:8000/health
 
 ### 3. Run Automated Tests
 
@@ -81,7 +81,7 @@ lighthouse http://localhost:3000 --view
 **Solution:** Check tsconfig.json paths configuration
 
 ### 2. Port Conflicts
-**Problem:** Port 3000 or 5059 already in use
+**Problem:** Port 3000 or 8000 already in use
 **Solution:**
 ```bash
 # Kill processes on ports

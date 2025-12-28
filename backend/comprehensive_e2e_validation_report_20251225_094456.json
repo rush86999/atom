@@ -81,7 +81,7 @@
       "confidence": 0.0,
       "execution_time": 0.003426074981689453,
       "evidence": [],
-      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "error_message": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
       "timestamp": "2025-12-25T09:45:02.007456",
       "screenshot_path": null
     },
@@ -93,7 +93,7 @@
       "confidence": 0.0,
       "execution_time": 0.0019559860229492188,
       "evidence": [],
-      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "error_message": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
       "timestamp": "2025-12-25T09:45:02.009480",
       "screenshot_path": null
     },
@@ -105,7 +105,7 @@
       "confidence": 0.0,
       "execution_time": 0.0016858577728271484,
       "evidence": [],
-      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "error_message": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
       "timestamp": "2025-12-25T09:45:02.011214",
       "screenshot_path": null
     },
@@ -143,7 +143,7 @@
       "confidence": 0.0,
       "execution_time": 0.0022461414337158203,
       "evidence": [],
-      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "error_message": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
       "timestamp": "2025-12-25T09:45:02.157181",
       "screenshot_path": null
     },
@@ -155,7 +155,7 @@
       "confidence": 0.0,
       "execution_time": 0.0025179386138916016,
       "evidence": [],
-      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "error_message": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
       "timestamp": "2025-12-25T09:45:02.159771",
       "screenshot_path": null
     },
@@ -167,7 +167,7 @@
       "confidence": 0.0,
       "execution_time": 0.0016682147979736328,
       "evidence": [],
-      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "error_message": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
       "timestamp": "2025-12-25T09:45:02.161503",
       "screenshot_path": null
     },
@@ -179,7 +179,7 @@
       "confidence": 0.0,
       "execution_time": 0.0015799999237060547,
       "evidence": [],
-      "error_message": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+      "error_message": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
       "timestamp": "2025-12-25T09:45:02.163119",
       "screenshot_path": null
     },
@@ -271,43 +271,43 @@
       {
         "test_name": "Workflow Engine Execution",
         "category": "core_systems",
-        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "error": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
         "severity": "high"
       },
       {
         "test_name": "BYOK Key Management",
         "category": "core_systems",
-        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "error": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
         "severity": "high"
       },
       {
         "test_name": "Real-Time Monitoring System",
         "category": "core_systems",
-        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "error": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
         "severity": "high"
       },
       {
         "test_name": "Analytics API",
         "category": "analytics",
-        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "error": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
         "severity": "high"
       },
       {
         "test_name": "Project Management Workflow",
         "category": "real_world_scenarios",
-        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "error": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
         "severity": "high"
       },
       {
         "test_name": "Content Creation Pipeline",
         "category": "real_world_scenarios",
-        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "error": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
         "severity": "high"
       },
       {
         "test_name": "Customer Support Automation",
         "category": "real_world_scenarios",
-        "error": "Cannot connect to host localhost:5059 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5059, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5059)]",
+        "error": "Cannot connect to host localhost:8000 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 8000, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8000)]",
         "severity": "high"
       }
     ],

@@ -809,14 +809,14 @@ class ComprehensiveE2ETester:
                     ]
                 }
                 
-                async with session.post("http://localhost:5059/api/v1/workflows", json=workflow_def) as response:
+                async with session.post("http://localhost:8000/api/v1/workflows", json=workflow_def) as response:
                     if response.status not in [200, 201]:
                         raise Exception(f"Failed to create workflow: {response.status}")
                     workflow_data = await response.json()
                     workflow_id = workflow_data.get("id")
 
                 # 2. Execute the workflow
-                async with session.post(f"http://localhost:5059/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                async with session.post(f"http://localhost:8000/api/v1/workflows/{workflow_id}/execute", json={}) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to execute workflow: {response.status}")
                     execution_result = await response.json()
@@ -855,7 +855,7 @@ class ComprehensiveE2ETester:
         try:
             async with aiohttp.ClientSession() as session:
                 # Check BYOK health/status
-                async with session.get("http://localhost:5059/api/v1/byok/health") as response:
+                async with session.get("http://localhost:8000/api/v1/byok/health") as response:
                     if response.status != 200:
                         raise Exception(f"BYOK system unhealthy: {response.status}")
                     health_data = await response.json()
@@ -894,7 +894,7 @@ class ComprehensiveE2ETester:
         try:
             async with aiohttp.ClientSession() as session:
                 # Check metrics endpoint
-                async with session.get("http://localhost:5059/metrics") as response:
+                async with session.get("http://localhost:8000/metrics") as response:
                     if response.status != 200:
                         raise Exception(f"Metrics endpoint failed: {response.status}")
                     metrics_data = await response.text()
@@ -1111,7 +1111,7 @@ class ComprehensiveE2ETester:
         start_time = time.time()
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get("http://localhost:5059/api/v1/analytics/metrics", timeout=10) as response:
+                async with session.get("http://localhost:8000/api/v1/analytics/metrics", timeout=10) as response:
                     self.test_results.append(TestResult(test_name=test_name, category="analytics", status=TestStatus.PASSED if response.status == 200 else TestStatus.FAILED, success_rate=1.0 if response.status == 200 else 0.0, confidence=0.9, execution_time=time.time() - start_time, evidence=[{'analytics_status': response.status}], error_message=None if response.status == 200 else f"Metrics failed: {response.status}", timestamp=datetime.now().isoformat()))
         except Exception as e:
             self.test_results.append(TestResult(test_name=test_name, category="analytics", status=TestStatus.FAILED, success_rate=0.0, confidence=0.0, execution_time=time.time() - start_time, evidence=[], error_message=str(e), timestamp=datetime.now().isoformat()))
@@ -1150,14 +1150,14 @@ class ComprehensiveE2ETester:
                     ]
                 }
                 
-                async with session.post("http://localhost:5059/api/v1/workflows", json=workflow_def) as response:
+                async with session.post("http://localhost:8000/api/v1/workflows", json=workflow_def) as response:
                     if response.status not in [200, 201]:
                         raise Exception(f"Failed to init project workflow: {response.status}")
                     workflow_data = await response.json()
                     workflow_id = workflow_data.get("id")
 
                 # Execute
-                async with session.post(f"http://localhost:5059/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                async with session.post(f"http://localhost:8000/api/v1/workflows/{workflow_id}/execute", json={}) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to execute project workflow: {response.status}")
                     result = await response.json()
@@ -1205,14 +1205,14 @@ class ComprehensiveE2ETester:
                     ]
                 }
                 
-                async with session.post("http://localhost:5059/api/v1/workflows", json=workflow_def) as response:
+                async with session.post("http://localhost:8000/api/v1/workflows", json=workflow_def) as response:
                     if response.status not in [200, 201]:
                         raise Exception(f"Failed to init content workflow: {response.status}")
                     workflow_data = await response.json()
                     workflow_id = workflow_data.get("id")
 
                 # Execute
-                async with session.post(f"http://localhost:5059/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                async with session.post(f"http://localhost:8000/api/v1/workflows/{workflow_id}/execute", json={}) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to execute content workflow: {response.status}")
                     result = await response.json()
@@ -1260,14 +1260,14 @@ class ComprehensiveE2ETester:
                     ]
                 }
                 
-                async with session.post("http://localhost:5059/api/v1/workflows", json=workflow_def) as response:
+                async with session.post("http://localhost:8000/api/v1/workflows", json=workflow_def) as response:
                     if response.status not in [200, 201]:
                         raise Exception(f"Failed to init support workflow: {response.status}")
                     workflow_data = await response.json()
                     workflow_id = workflow_data.get("id")
 
                 # Execute
-                async with session.post(f"http://localhost:5059/api/v1/workflows/{workflow_id}/execute", json={}) as response:
+                async with session.post(f"http://localhost:8000/api/v1/workflows/{workflow_id}/execute", json={}) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to execute support workflow: {response.status}")
                     result = await response.json()

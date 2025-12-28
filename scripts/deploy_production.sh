@@ -9,7 +9,7 @@ echo "🚀 ATOM Chat Interface - Production Deployment"
 echo "=============================================="
 echo ""
 
-PROJECT_ROOT="/Users/rushiparikh/projects/atom/atom"
+PROJECT_ROOT="/home/developer/projects/atom/atom"
 cd "$PROJECT_ROOT"
 
 echo "📁 Project Root: $PROJECT_ROOT"

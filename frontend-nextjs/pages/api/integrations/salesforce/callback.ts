@@ -30,7 +30,7 @@ export default async function handler(
     }
 
     // Exchange authorization code for tokens
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:8000';
     // Backend expects GET /api/salesforce/callback?code=...
     const response = await fetch(`${backendUrl}/api/salesforce/callback?code=${code}${state ? `&state=${state}` : ''}`, {
       method: 'GET',

@@ -45,7 +45,7 @@ atom/
 - Password reset functionality
 
 **Backend Connection:**
-- REST API to `backend/` on port 5059
+- REST API to `backend/` on port 8000
 - PostgreSQL database for persistent storage
 - Direct SQL queries via `lib/db.ts`
 

@@ -29,7 +29,7 @@
       "category": "Security",
       "description": "Dependency security audit",
       "status": "failed",
-      "details": "  File \"/Users/rushiparikh/projects/atom/atom/scripts/cleanup_dependencies.py\", line 208\n    f\"echo '  - Frontend packages removed: {len(self.unused_dependencies[\\\"frontend\\\"])}'\",\n                                                                                          ^\nSyntaxError: f-string expression part cannot include a backslash\n"
+      "details": "  File \"/home/developer/projects/atom/atom/scripts/cleanup_dependencies.py\", line 208\n    f\"echo '  - Frontend packages removed: {len(self.unused_dependencies[\\\"frontend\\\"])}'\",\n                                                                                          ^\nSyntaxError: f-string expression part cannot include a backslash\n"
     },
     {
       "timestamp": "2025-11-11T18:59:58.249002",

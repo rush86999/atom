@@ -76,10 +76,10 @@ check_prerequisites() {
     fi
 
     # Check if chat interface is running
-    if curl -s http://localhost:5059/health > /dev/null; then
+    if curl -s http://localhost:8000/health > /dev/null; then
         log_success "Chat Interface Server is running"
     else
-        log_error "Chat Interface Server is not running on port 5059"
+        log_error "Chat Interface Server is not running on port 8000"
         exit 1
     fi
 

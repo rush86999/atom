@@ -37,5 +37,5 @@ fly secrets set TAVILY_API_KEY=your_key
 ## Testing
 
 ```bash
-curl "http://localhost:5059/api/mcp/search?query=AI%20trends%202025"
+curl "http://localhost:8000/api/mcp/search?query=AI%20trends%202025"
 ```

@@ -10,7 +10,7 @@ class CrossUICoordinationTester:
     """Test cross-UI coordination and workflow automation"""
 
     def __init__(self):
-        self.base_url = "http://localhost:5059"
+        self.base_url = "http://localhost:8000"
         self.frontend_url = "http://localhost:3000"
         self.test_results = {}
 

@@ -6,8 +6,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=%i
-WorkingDirectory=/Users/rushiparikh/projects/atom/atom
-ExecStart=/Users/rushiparikh/projects/atom/atom/scripts/periodic-sync.sh --continuous
+WorkingDirectory=/home/developer/projects/atom/atom
+ExecStart=/home/developer/projects/atom/atom/scripts/periodic-sync.sh --continuous
 Restart=always
 RestartSec=60
 StandardOutput=journal
