@@ -107,6 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     ];
 
     const toggleSidebar = () => {
+
         setIsCollapsed(!isCollapsed);
     };
 
