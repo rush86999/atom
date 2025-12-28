@@ -171,3 +171,47 @@ async def get_audit_log(transaction_id: Optional[str] = None):
     from core.ai_accounting_engine import ai_accounting
     
     return ai_accounting.get_audit_log(transaction_id)
+
+
+# ==================== DASHBOARD SYNC ====================
+
+@router.get("/dashboard/summary")
+async def get_accounting_dashboard_summary(workspace_id: str = "default"):
+    """
+    Fetch aggregated finance stats from Postgres Cache (Sync Strategy).
+    Aggregates data from Stripe, Xero, etc.
+    """
+    try:
+        from core.database import SessionLocal
+        from saas.models import IntegrationMetric
+        
+        db = SessionLocal()
+        
+        # Query cached metrics
+        metrics = db.query(IntegrationMetric).filter(
+            IntegrationMetric.workspace_id == workspace_id,
+            IntegrationMetric.metric_key.in_(["total_revenue", "pending_revenue", "gross_profit"])
+        ).all()
+        
+        total_revenue = 0.0
+        pending_revenue = 0.0
+        
+        for m in metrics:
+            if m.metric_key == "total_revenue":
+                total_revenue += float(m.value) if m.value else 0.0
+            elif m.metric_key == "pending_revenue":
+                pending_revenue += float(m.value) if m.value else 0.0
+                
+        db.close()
+        
+        return {
+            "total_revenue": total_revenue,
+            "pending_revenue": pending_revenue,
+            "runway_months": 12, # Placeholder or calc
+            "currency": "USD",
+            "source": "synced_database"
+        }
+            
+    except Exception as e:
+        logger.error(f"Error fetching accounting summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
