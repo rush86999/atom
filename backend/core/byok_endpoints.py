@@ -959,3 +959,137 @@ async def byok_status_v1(byok_manager: BYOKManager = Depends(get_byok_manager)):
         "cost_tracking": "enabled",
         "providers_list": providers_list
     }
+
+
+# Dynamic Pricing Endpoints
+
+@router.get("/api/ai/pricing")
+async def get_ai_pricing():
+    """Get current AI model pricing from cache"""
+    try:
+        from core.dynamic_pricing_fetcher import get_pricing_fetcher
+        fetcher = get_pricing_fetcher()
+        
+        return {
+            "status": "success",
+            "model_count": len(fetcher.pricing_cache),
+            "last_updated": fetcher.last_fetch.isoformat() if fetcher.last_fetch else None,
+            "cache_valid": fetcher._is_cache_valid(),
+            "cheapest_models": fetcher.get_cheapest_models(5),
+            "provider_comparison": fetcher.compare_providers()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get pricing: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/api/ai/pricing/refresh")
+async def refresh_ai_pricing(force: bool = False):
+    """Refresh AI pricing from LiteLLM and OpenRouter"""
+    try:
+        from core.dynamic_pricing_fetcher import refresh_pricing_cache
+        pricing = await refresh_pricing_cache(force=force)
+        
+        return {
+            "status": "success",
+            "models_fetched": len(pricing),
+            "message": "Pricing data refreshed successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to refresh pricing: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/api/ai/pricing/model/{model_name:path}")
+async def get_model_pricing(model_name: str):
+    """Get pricing for a specific model"""
+    try:
+        from core.dynamic_pricing_fetcher import get_pricing_fetcher
+        fetcher = get_pricing_fetcher()
+        
+        pricing = fetcher.get_model_price(model_name)
+        if pricing:
+            return {
+                "status": "success",
+                "model": model_name,
+                "pricing": pricing
+            }
+        else:
+            return {
+                "status": "not_found",
+                "model": model_name,
+                "message": "Model pricing not found. Try refreshing the cache."
+            }
+    except Exception as e:
+        logger.error(f"Failed to get model pricing: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/api/ai/pricing/provider/{provider}")
+async def get_provider_pricing(provider: str, limit: int = 10):
+    """Get all models and pricing for a specific provider"""
+    try:
+        from core.dynamic_pricing_fetcher import get_pricing_fetcher
+        fetcher = get_pricing_fetcher()
+        
+        models = fetcher.get_provider_models(provider)[:limit]
+        
+        return {
+            "status": "success",
+            "provider": provider,
+            "model_count": len(models),
+            "models": models
+        }
+    except Exception as e:
+        logger.error(f"Failed to get provider pricing: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/api/ai/pricing/estimate")
+async def estimate_request_cost(request_data: Dict[str, Any]):
+    """Estimate the cost of an AI request"""
+    try:
+        from core.dynamic_pricing_fetcher import get_pricing_fetcher
+        fetcher = get_pricing_fetcher()
+        
+        model = request_data.get("model", "gpt-4o-mini")
+        input_tokens = request_data.get("input_tokens", 0)
+        output_tokens = request_data.get("output_tokens", 500)
+        
+        # If prompt provided, estimate tokens
+        prompt = request_data.get("prompt")
+        if prompt and not input_tokens:
+            input_tokens = len(prompt) // 4  # Rough token estimate
+        
+        estimated_cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
+        
+        if estimated_cost is not None:
+            return {
+                "status": "success",
+                "model": model,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "estimated_cost_usd": estimated_cost
+            }
+        else:
+            # Try to find similar model
+            pricing = fetcher.get_model_price(model)
+            if pricing:
+                input_cost = pricing.get("input_cost_per_token", 0) * input_tokens
+                output_cost = pricing.get("output_cost_per_token", 0) * output_tokens
+                return {
+                    "status": "success",
+                    "model": model,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "estimated_cost_usd": input_cost + output_cost
+                }
+            
+            return {
+                "status": "pricing_unavailable",
+                "model": model,
+                "message": "Model pricing not found. Refresh pricing cache."
+            }
+    except Exception as e:
+        logger.error(f"Failed to estimate cost: {e}")
+        return {"status": "error", "message": str(e)}
