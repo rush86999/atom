@@ -289,12 +289,28 @@ class BYOKHandler:
         complexity = self.analyze_query_complexity(prompt, task_type)
         try:
             provider_id, model = self.get_optimal_provider(complexity, task_type)
+            
+            # Try to get dynamic pricing
+            estimated_cost = None
+            try:
+                from core.dynamic_pricing_fetcher import get_pricing_fetcher
+                fetcher = get_pricing_fetcher()
+                pricing = fetcher.get_model_price(model)
+                if pricing:
+                    # Estimate for ~500 token response
+                    input_tokens = len(prompt) // 4
+                    output_tokens = 500
+                    estimated_cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
+            except:
+                pass
+            
             return {
                 "complexity": complexity.value,
                 "selected_provider": provider_id,
                 "selected_model": model,
                 "available_providers": self.get_available_providers(),
-                "cost_tier": "budget" if provider_id in PROVIDER_TIERS["budget"] else "mid" if provider_id in PROVIDER_TIERS["mid"] else "premium"
+                "cost_tier": "budget" if provider_id in PROVIDER_TIERS["budget"] else "mid" if provider_id in PROVIDER_TIERS["mid"] else "premium",
+                "estimated_cost_usd": estimated_cost
             }
         except ValueError as e:
             return {
@@ -302,3 +318,39 @@ class BYOKHandler:
                 "error": str(e),
                 "available_providers": []
             }
+
+    async def refresh_pricing(self, force: bool = False) -> Dict[str, Any]:
+        """Refresh dynamic pricing data from LiteLLM and OpenRouter"""
+        try:
+            from core.dynamic_pricing_fetcher import refresh_pricing_cache
+            pricing = await refresh_pricing_cache(force=force)
+            return {"status": "success", "model_count": len(pricing)}
+        except Exception as e:
+            logger.error(f"Failed to refresh pricing: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_provider_comparison(self) -> Dict[str, Any]:
+        """Get cost comparison across all providers using dynamic pricing"""
+        try:
+            from core.dynamic_pricing_fetcher import get_pricing_fetcher
+            fetcher = get_pricing_fetcher()
+            return fetcher.compare_providers()
+        except Exception as e:
+            logger.warning(f"Could not get provider comparison: {e}")
+            # Return static fallback
+            return {
+                "openai": {"avg_cost_per_token": 0.00003, "tier": "premium"},
+                "anthropic": {"avg_cost_per_token": 0.000025, "tier": "premium"},
+                "deepseek": {"avg_cost_per_token": 0.000002, "tier": "budget"},
+                "moonshot": {"avg_cost_per_token": 0.000003, "tier": "budget"},
+            }
+
+    def get_cheapest_models(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """Get the cheapest models available"""
+        try:
+            from core.dynamic_pricing_fetcher import get_pricing_fetcher
+            fetcher = get_pricing_fetcher()
+            return fetcher.get_cheapest_models(limit=limit)
+        except Exception as e:
+            logger.warning(f"Could not get cheapest models: {e}")
+            return []
