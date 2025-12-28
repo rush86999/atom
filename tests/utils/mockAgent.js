@@ -1,4 +1,4 @@
-// /Users/rushiparikh/projects/atom/atom/atomic-docker/app_build_docker/tests/utils/mockAgent.js
+// /home/developer/projects/atom/atom/atomic-docker/app_build_docker/tests/utils/mockAgent.js
 export const mockAgentResponse = {
   id: 'agent-123',
   status: 'completed',

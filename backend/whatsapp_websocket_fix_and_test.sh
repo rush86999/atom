@@ -297,9 +297,9 @@ frontend_files=(
 )
 
 for file in "${frontend_files[@]}"; do
-    if [ -f "/Users/rushiparikh/projects/atom/atom/$file" ]; then
+    if [ -f "/home/developer/projects/atom/atom/$file" ]; then
         echo "✅ $file: EXISTS"
-        size=$(wc -c < "/Users/rushiparikh/projects/atom/atom/$file")
+        size=$(wc -c < "/home/developer/projects/atom/atom/$file")
         echo "   📄 Size: $size characters"
     else
         echo "❌ $file: MISSING"
@@ -318,9 +318,9 @@ backend_files=(
 )
 
 for file in "${backend_files[@]}"; do
-    if [ -f "/Users/rushiparikh/projects/atom/atom/$file" ]; then
+    if [ -f "/home/developer/projects/atom/atom/$file" ]; then
         echo "✅ $file: EXISTS"
-        size=$(wc -c < "/Users/rushiparikh/projects/atom/atom/$file")
+        size=$(wc -c < "/home/developer/projects/atom/atom/$file")
         echo "   📄 Size: $size characters"
     else
         echo "❌ $file: MISSING"

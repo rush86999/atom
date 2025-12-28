@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 def verify_marketplace():
     """Verify Marketplace API endpoints"""
-    base_url = "http://localhost:5059/api/marketplace"
+    base_url = "http://localhost:8000/api/marketplace"
     
     print("="*60)
     print("VERIFYING WORKFLOW MARKETPLACE")
@@ -60,8 +60,8 @@ def verify_marketplace():
         return True
 
     except requests.exceptions.ConnectionError:
-        print("\n❌ Connection Error: Is the backend server running on port 5059?")
-        print("   Run: uvicorn main_api_app:app --port 5059")
+        print("\n❌ Connection Error: Is the backend server running on port 8000?")
+        print("   Run: uvicorn main_api_app:app --port 8000")
         return False
     except Exception as e:
         print(f"\n❌ Unexpected Error: {e}")

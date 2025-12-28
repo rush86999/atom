@@ -201,6 +201,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         }
     };
 
+    const handleMessageFeedback = async (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => {
+        try {
+            toast({
+                title: comment ? "Correction Received" : (type === 'thumbs_up' ? "Helpful" : "Flagged"),
+                description: comment ? "We'll use this to improve our reasoning." : "Thanks for your feedback!",
+            });
+
+            const originalContent = messages.find(m => m.id === messageId)?.content;
+
+            await fetch('/api/reasoning/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    agent_id: "agent_chat_assistant",
+                    run_id: sessionId,
+                    step_index: -1,
+                    step_content: { thought: "Final Agent Response", output: originalContent },
+                    feedback_type: type,
+                    comment: comment
+                })
+            });
+        } catch (e) {
+            console.error("Feedback failed", e);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-background">
             {/* Chat Header */}
@@ -219,6 +245,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
                             key={msg.id}
                             message={msg}
                             onActionClick={handleActionClick}
+                            onFeedback={handleMessageFeedback}
                         />
                     ))}
                     {isProcessing && (

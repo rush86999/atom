@@ -4,6 +4,7 @@ from fastapi import WebSocket
 import json
 import logging
 import asyncio
+from datetime import datetime
 from core.auth import get_current_user_ws
 from core.database import SessionLocal
 
@@ -88,6 +89,15 @@ class ConnectionManager:
                     logger.error(f"Error broadcasting to {channel}: {e}")
                     # Cleanup dead connection?
                     
+    async def broadcast_event(self, channel: str, event_type: str, data: Any):
+        """Standardized event broadcasting"""
+        message = {
+            "type": event_type,
+            "data": data,
+            "timestamp": datetime.now().isoformat()
+        }
+        await self.broadcast(channel, message)
+
     async def send_personal_message(self, user_id: str, message: dict):
         if user_id in self.user_connections:
             connections = self.user_connections[user_id][:]

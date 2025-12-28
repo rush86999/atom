@@ -4,11 +4,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:8000';
 
   try {
     // Start OAuth flow
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:8000';
     const response = await fetch(`${backendUrl}/api/slack/auth/url`);
 
     if (response.ok) {

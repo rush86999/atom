@@ -122,6 +122,7 @@ export interface CommunicationHubProps {
   compactView?: boolean;
   isComposeOpen?: boolean;
   onComposeChange?: (isOpen: boolean) => void;
+  currentUser?: string;
 }
 
 const CommunicationHub: React.FC<CommunicationHubProps> = ({
@@ -136,6 +137,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
   compactView = false,
   isComposeOpen: externalIsComposeOpen,
   onComposeChange,
+  currentUser = "User",
 }) => {
   const [internalIsComposeOpen, setInternalIsComposeOpen] = useState(false);
 
@@ -150,6 +152,19 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
   const [isMessageOpen, setIsMessageOpen] = useState(false);
 
   const { toast } = useToast();
+
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
+  const [templates, setTemplates] = useState<QuickReplyTemplate[]>(initialTemplates);
+  const [loading, setLoading] = useState(true);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [view, setView] = useState<CommunicationView>({
+    type: "inbox",
+    filter: {},
+    sort: { field: "timestamp", direction: "desc" },
+  });
 
   // Mock data for demonstration
   useEffect(() => {
@@ -301,7 +316,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
       toast({
         title: "Error",
         description: "Failed to process message.",
-        variant: "destructive"
+        variant: "error"
       });
     }
   };
@@ -458,7 +473,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
       e.preventDefault();
       onSubmit({
         platform: formData.platform as any,
-        from: "user@example.com", // Current user
+        from: currentUser, // Current user
         to: formData.to,
         subject: formData.subject,
         preview:

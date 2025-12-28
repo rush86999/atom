@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useSession } from "next-auth/react";
 import {
     Search,
     MessageSquare,
@@ -34,6 +35,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     const router = useRouter();
+    const { data: session } = useSession();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
@@ -74,6 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Sales & CRM", icon: Zap, path: "/dashboards/sales" },
                 { label: "Support", icon: Heart, path: "/dashboards/support" },
                 { label: "Knowledge", icon: Layout, path: "/dashboards/knowledge" },
+                { label: "Communication", icon: MessageSquare, path: "/communication" },
             ]
         },
         {
@@ -195,8 +198,8 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                             <User className="h-5 w-5" />
                         </div>
                         <div className="ml-3 flex-1 overflow-hidden">
-                            <p className="text-sm font-bold text-foreground truncate">Rushi Parikh</p>
-                            <p className="text-[11px] text-muted-foreground truncate">Premium Agent Ops</p>
+                            <p className="text-sm font-bold text-foreground truncate">{session?.user?.name || "Atom User"}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{session?.user?.email || "Premium Agent Ops"}</p>
                         </div>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
                             <LogOut className="h-4 w-4" />

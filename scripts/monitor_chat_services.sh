@@ -13,7 +13,7 @@ CONFIG_DIR="$PROJECT_ROOT/config"
 ALERT_THRESHOLD=3  # Number of consecutive failures before alert
 
 # Service endpoints
-CHAT_API_URL="http://localhost:5059"
+CHAT_API_URL="http://localhost:8000"
 WEBSOCKET_URL="ws://localhost:5060"
 
 # Colors for output

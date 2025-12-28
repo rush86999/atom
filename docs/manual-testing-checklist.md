@@ -5,7 +5,7 @@ This checklist provides a comprehensive guide for manually testing the ATOM web 
 
 ## Setup Requirements
 - [ ] Frontend running on http://localhost:3000
-- [ ] Backend running on http://localhost:5059
+- [ ] Backend running on http://localhost:8000
 - [ ] Chrome/Firefox browser with Developer Tools
 - [ ] Test user credentials (create if needed)
 

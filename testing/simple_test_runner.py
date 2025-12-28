@@ -22,7 +22,7 @@ class SimpleTestRunner:
     """Simple test runner to identify bugs without complex dependencies"""
 
     def __init__(self):
-        self.backend_url = "http://localhost:5059"
+        self.backend_url = "http://localhost:8000"
         self.frontend_url = "http://localhost:3002"
         self.test_results = {
             "start_time": datetime.now().isoformat(),

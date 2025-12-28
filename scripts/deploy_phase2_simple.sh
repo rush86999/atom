@@ -20,7 +20,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 check_services() {
     log_info "Checking Phase 1 services..."
 
-    if curl -s http://localhost:5059/health > /dev/null; then
+    if curl -s http://localhost:8000/health > /dev/null; then
         log_success "Chat Interface Server: Running"
     else
         log_error "Chat Interface Server: Not accessible"
@@ -74,7 +74,7 @@ import requests
 import json
 
 # Test file upload
-url = 'http://localhost:5059/api/v1/chat/upload'
+url = 'http://localhost:8000/api/v1/chat/upload'
 files = {'file': ('test.txt', b'Test content', 'text/plain')}
 data = {'user_id': 'phase2_test', 'file_type': 'document'}
 
@@ -97,7 +97,7 @@ import requests
 import json
 
 # Test TTS
-url = 'http://localhost:5059/api/v1/voice/tts'
+url = 'http://localhost:8000/api/v1/voice/tts'
 data = {
     'text': 'Phase 2 voice integration test.',
     'user_id': 'phase2_test',
@@ -129,7 +129,7 @@ import requests
 
 # Test if analytics endpoints exist
 try:
-    response = requests.get('http://localhost:5059/api/v1/analytics/chat-metrics')
+    response = requests.get('http://localhost:8000/api/v1/analytics/chat-metrics')
     if response.status_code == 200:
         print('Analytics: SUCCESS')
     else:
@@ -171,15 +171,15 @@ check_service() {
 
 echo "🔍 Phase 2 Monitoring"
 echo "===================="
-check_service "Chat Interface" "http://localhost:5059/health"
+check_service "Chat Interface" "http://localhost:8000/health"
 check_service "WebSocket" "http://localhost:5060/health"
-check_service "Voice Service" "http://localhost:5059/api/v1/voice/health"
+check_service "Voice Service" "http://localhost:8000/api/v1/voice/health"
 
 echo ""
 echo "📊 Quick Commands:"
-echo "  Test file upload: curl -X POST http://localhost:5059/api/v1/chat/upload -F 'file=@test.txt' -F 'user_id=test' -F 'file_type=document'"
-echo "  Test TTS: curl -X POST http://localhost:5059/api/v1/voice/tts -H 'Content-Type: application/json' -d '{\"text\":\"Hello\",\"user_id\":\"test\",\"voice_type\":\"standard\"}'"
-echo "  Get metrics: curl http://localhost:5059/api/v1/analytics/chat-metrics"
+echo "  Test file upload: curl -X POST http://localhost:8000/api/v1/chat/upload -F 'file=@test.txt' -F 'user_id=test' -F 'file_type=document'"
+echo "  Test TTS: curl -X POST http://localhost:8000/api/v1/voice/tts -H 'Content-Type: application/json' -d '{\"text\":\"Hello\",\"user_id\":\"test\",\"voice_type\":\"standard\"}'"
+echo "  Get metrics: curl http://localhost:8000/api/v1/analytics/chat-metrics"
 EOF
 
     chmod +x monitor_phase2.sh
@@ -225,7 +225,7 @@ main() {
     echo "  4. Review analytics dashboard"
     echo ""
     echo "🔧 Quick Start:"
-    echo "  curl -X POST http://localhost:5059/api/v1/chat/multimodal \\"
+    echo "  curl -X POST http://localhost:8000/api/v1/chat/multimodal \\"
     echo "    -H 'Content-Type: application/json' \\"
     echo "    -d '{\"message\":\"Analyze this\",\"user_id\":\"test\",\"file_ids\":[]}'"
 }

@@ -24,7 +24,7 @@ chmod +x deploy_chat_interface.sh
 
 This will:
 - Install dependencies
-- Start Chat Interface Server (port 5059)
+- Start Chat Interface Server (port 8000)
 - Start WebSocket Server (port 5060)
 - Run health checks
 - Execute integration tests
@@ -33,7 +33,7 @@ This will:
 
 ```bash
 # Check service health
-curl http://localhost:5059/health
+curl http://localhost:8000/health
 curl http://localhost:5060/health
 
 # Test WebSocket connection
@@ -52,7 +52,7 @@ chmod +x monitor_chat_services.sh
 
 ## 🎯 Core Components
 
-### Chat Interface Server (Port 5059)
+### Chat Interface Server (Port 8000)
 - HTTP API for chat message processing
 - Integration with workflow engine
 - Context management and conversation history
@@ -69,7 +69,7 @@ chmod +x monitor_chat_services.sh
 ### Send Chat Message (HTTP)
 
 ```bash
-curl -X POST http://localhost:5059/api/v1/chat/message \
+curl -X POST http://localhost:8000/api/v1/chat/message \
   -H "Content-Type: application/json" \
   -d '{
     "message": "Hello, create a task in Asana",
@@ -82,7 +82,7 @@ curl -X POST http://localhost:5059/api/v1/chat/message \
 ### Get User Context
 
 ```bash
-curl http://localhost:5059/api/v1/chat/users/user_123/context
+curl http://localhost:8000/api/v1/chat/users/user_123/context
 ```
 
 ### WebSocket Communication (Python)
@@ -156,7 +156,7 @@ tail -f logs/websocket_server.log
 
 ### Common Issues
 
-1. **Port Conflicts**: Ensure ports 5059 and 5060 are available
+1. **Port Conflicts**: Ensure ports 8000 and 5060 are available
 2. **Dependencies**: Run `pip3 install -r backend/requirements.txt`
 3. **Permissions**: Make scripts executable with `chmod +x *.sh`
 
@@ -186,7 +186,7 @@ threads = [threading.Thread(target=test_user, args=(f'user_{i}',)) for i in rang
 Create `.env` file in backend directory:
 
 ```env
-CHAT_API_PORT=5059
+CHAT_API_PORT=8000
 WEBSOCKET_PORT=5060
 DATABASE_URL=postgresql://user:pass@localhost/atom
 OPENAI_API_KEY=your_key_here

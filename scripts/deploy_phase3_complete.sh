@@ -94,7 +94,7 @@ check_prerequisites() {
     fi
 
     # Check if current chat interface is running
-    if curl -s http://localhost:5059/health > /dev/null; then
+    if curl -s http://localhost:8000/health > /dev/null; then
         log_success "Current Chat Interface Server is running"
     else
         log_warning "Current Chat Interface Server is not running - will deploy new instance"

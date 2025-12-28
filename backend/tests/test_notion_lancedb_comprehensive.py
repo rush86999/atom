@@ -24,7 +24,7 @@ os.environ.setdefault('NOTION_CLIENT_SECRET', 'test_client_secret')
 os.environ.setdefault('NOTION_REDIRECT_URI', 'http://localhost:5058/api/auth/notion/callback')
 
 # Add backend to Python path
-sys.path.insert(0, '/Users/rushiparikh/projects/atom/atom/backend/python-api-service')
+sys.path.insert(0, '/home/developer/projects/atom/atom/backend/python-api-service')
 
 def test_module_imports():
     """Test that all required modules can be imported"""
@@ -405,7 +405,7 @@ def test_database_schema():
     
     try:
         # Test if migration file exists
-        migration_file = "/Users/rushiparikh/projects/atom/atom/backend/python-api-service/migrations/003_notion_oauth.sql"
+        migration_file = "/home/developer/projects/atom/atom/backend/python-api-service/migrations/003_notion_oauth.sql"
         
         if os.path.exists(migration_file):
             print("  ✓ Notion OAuth migration file exists")
@@ -506,7 +506,7 @@ def generate_test_report(results):
         "production_ready": passed_tests >= total_tests * 0.8
     }
     
-    report_file = "/Users/rushiparikh/projects/atom/atom/notion_lancedb_test_report.json"
+    report_file = "/home/developer/projects/atom/atom/notion_lancedb_test_report.json"
     with open(report_file, 'w') as f:
         json.dump(report_data, f, indent=2)
     

@@ -3,7 +3,7 @@ import requests
 import sys
 
 def test_login():
-    url = "http://127.0.0.1:5059/api/auth/login"
+    url = "http://127.0.0.1:8000/api/auth/login"
     data = {"username": "admin@example.com", "password": "securePass123"}
     try:
         print(f"Sending POST to {url}...")

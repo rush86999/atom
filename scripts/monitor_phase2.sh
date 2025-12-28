@@ -24,7 +24,7 @@ LOG_DIR="$PROJECT_ROOT/logs"
 BACKEND_DIR="$PROJECT_ROOT/backend"
 
 # Service URLs
-CHAT_URL="http://localhost:5059"
+CHAT_URL="http://localhost:8000"
 WEBSOCKET_URL="http://localhost:5060"
 
 # Check service health
@@ -87,7 +87,7 @@ import json
 
 # Test file upload endpoint
 try:
-    url = 'http://localhost:5059/api/v1/chat/upload'
+    url = 'http://localhost:8000/api/v1/chat/upload'
     files = {'file': ('test_monitor.txt', b'Monitoring test content', 'text/plain')}
     data = {'user_id': 'monitor_user', 'file_type': 'document'}
 
@@ -111,7 +111,7 @@ import json
 
 # Test TTS endpoint
 try:
-    url = 'http://localhost:5059/api/v1/voice/tts'
+    url = 'http://localhost:8000/api/v1/voice/tts'
     data = {
         'text': 'Phase 2 monitoring test successful.',
         'user_id': 'monitor_user',
@@ -149,7 +149,7 @@ endpoints = [
 
 for endpoint in endpoints:
     try:
-        url = f'http://localhost:5059{endpoint}'
+        url = f'http://localhost:8000{endpoint}'
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             print(f'✓ Analytics {endpoint}: SUCCESS')

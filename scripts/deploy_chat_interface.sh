@@ -164,7 +164,7 @@ run_health_checks() {
     local all_healthy=true
 
     # Check chat interface health
-    if curl -s http://localhost:5059/health > /dev/null; then
+    if curl -s http://localhost:8000/health > /dev/null; then
         log_success "Chat Interface Server is healthy"
     else
         log_error "Chat Interface Server health check failed"
@@ -218,12 +218,12 @@ show_deployment_info() {
     log_success "🎉 Chat Interface Deployment Completed Successfully!"
     echo ""
     echo "📊 Deployment Summary:"
-    echo "   Chat Interface Server: http://localhost:5059"
+    echo "   Chat Interface Server: http://localhost:8000"
     echo "   WebSocket Server: ws://localhost:5060"
-    echo "   Health Check: curl http://localhost:5059/health"
+    echo "   Health Check: curl http://localhost:8000/health"
     echo ""
     echo "📝 Quick Test Commands:"
-    echo "   Test Chat API: curl -X POST http://localhost:5059/api/v1/chat/message -H 'Content-Type: application/json' -d '{\"message\": \"Hello\", \"user_id\": \"test_user\"}'"
+    echo "   Test Chat API: curl -X POST http://localhost:8000/api/v1/chat/message -H 'Content-Type: application/json' -d '{\"message\": \"Hello\", \"user_id\": \"test_user\"}'"
     echo "   Test WebSocket: python3 -c \"import websocket; ws = websocket.create_connection('ws://localhost:5060/ws/test_user'); ws.send('{\\\"type\\\": \\\"ping\\\"}'); print(ws.recv()); ws.close()\""
     echo ""
     echo "📋 Next Steps:"

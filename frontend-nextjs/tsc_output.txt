@@ -88,7 +88,7 @@ node_modules/@types/react-native/legacy-properties.d.ts(41,5): error TS2724: '"r
 node_modules/@types/react-native/legacy-properties.d.ts(42,5): error TS2305: Module '"react-native"' has no exported member 'TabBarIOSProps'.
 node_modules/@types/react-native/legacy-properties.d.ts(53,5): error TS2724: '"react-native"' has no exported member named 'ViewPagerAndroidProps'. Did you mean 'ViewPagerAndroidProperties'?
 node_modules/@types/react/global.d.ts(155,11): error TS2300: Duplicate identifier 'FormData'.
-node_modules/react-clock/dist/cjs/Clock.d.ts(1,8): error TS1259: Module '"/Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/react-clock/dist/cjs/Clock.d.ts(1,8): error TS1259: Module '"/home/developer/projects/atom/frontend-nextjs/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
 node_modules/react-native/types/index.d.ts(200,9): error TS2451: Cannot redeclare block-scoped variable 'originalXMLHttpRequest'.
 node_modules/react-native/types/index.d.ts(202,9): error TS2451: Cannot redeclare block-scoped variable '__BUNDLE_START_TIME__'.
 node_modules/react-native/types/index.d.ts(203,9): error TS2451: Cannot redeclare block-scoped variable 'ErrorUtils'.
@@ -164,7 +164,7 @@ node_modules/typescript/lib/lib.dom.d.ts(39228,6): error TS2300: Duplicate ident
 node_modules/typescript/lib/lib.dom.d.ts(39429,6): error TS2300: Duplicate identifier 'XMLHttpRequestResponseType'.
 node_modules/typescript/lib/lib.dom.iterable.d.ts(153,11): error TS2300: Duplicate identifier 'FormData'.
 node_modules/typescript/lib/lib.dom.iterable.d.ts(418,11): error TS2300: Duplicate identifier 'URLSearchParams'.
-pages/integrations/salesforce.tsx(6,8): error TS1259: Module '"/Users/rushiparikh/projects/atom/frontend-nextjs/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+pages/integrations/salesforce.tsx(6,8): error TS1259: Module '"/home/developer/projects/atom/frontend-nextjs/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
 pages/integrations/salesforce.tsx(35,58): error TS2307: Cannot find module '@/components/ui/card' or its corresponding type declarations.
 pages/integrations/salesforce.tsx(36,24): error TS2307: Cannot find module '@/components/ui/button' or its corresponding type declarations.
 pages/integrations/salesforce.tsx(37,23): error TS2307: Cannot find module '@/components/ui/input' or its corresponding type declarations.

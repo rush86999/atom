@@ -18,7 +18,7 @@
       "test_details": {
         "conditional_high_priority_case": {
           "status": "error",
-          "error": "HTTPConnectionPool(host='localhost', port=5059): Read timed out. (read timeout=30)"
+          "error": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=30)"
         },
         "conditional_low_priority_case": {
           "status": "failed",

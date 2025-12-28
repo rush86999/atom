@@ -683,7 +683,7 @@ def start_development_now():
     print("\\n🔧 Creating WebSocket Handler...")
     websocket_code = create_first_feature()
     
-    with open('/Users/rushiparikh/projects/atom/atom/backend/integrations/whatsapp_websocket_handler.py', 'w') as f:
+    with open('/home/developer/projects/atom/atom/backend/integrations/whatsapp_websocket_handler.py', 'w') as f:
         f.write(websocket_code)
     
     print("✅ WebSocket handler created: integrations/whatsapp_websocket_handler.py")
@@ -692,7 +692,7 @@ def start_development_now():
     print("🎨 Creating React Component...")
     react_code = create_react_component()
     
-    with open('/Users/rushiparikh/projects/atom/atom/frontend-nextjs/components/integrations/WhatsAppRealtimeStatus.tsx', 'w') as f:
+    with open('/home/developer/projects/atom/atom/frontend-nextjs/components/integrations/WhatsAppRealtimeStatus.tsx', 'w') as f:
         f.write(react_code)
     
     print("✅ React component created: components/integrations/WhatsAppRealtimeStatus.tsx")

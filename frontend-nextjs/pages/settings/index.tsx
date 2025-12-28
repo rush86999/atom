@@ -1,9 +1,9 @@
-
 import React from 'react';
 import Head from 'next/head';
 import { Layout } from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PreferencesTab } from "@/components/Settings/PreferencesTab";
+import { DataPipelinesTab } from "@/components/Settings/DataPipelinesTab"; // Import
 
 export default function SettingsPage() {
     return (
@@ -23,12 +23,17 @@ export default function SettingsPage() {
                 <Tabs defaultValue="preferences" className="space-y-4">
                     <TabsList>
                         <TabsTrigger value="preferences">Preferences</TabsTrigger>
+                        <TabsTrigger value="pipelines">Data Pipelines</TabsTrigger> {/* New Tab */}
                         <TabsTrigger value="workspace" disabled>Workspace</TabsTrigger>
                         <TabsTrigger value="account" disabled>Account</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="preferences" className="space-y-4">
                         <PreferencesTab />
+                    </TabsContent>
+
+                    <TabsContent value="pipelines" className="space-y-4">
+                        <DataPipelinesTab /> {/* New Component */}
                     </TabsContent>
 
                     <TabsContent value="workspace">

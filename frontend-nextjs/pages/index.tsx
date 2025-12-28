@@ -31,7 +31,7 @@ const Home = () => {
         const token = localStorage.getItem("token");
         // Only check if we have a token (logged in)
         if (token) {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5059'}/api/onboarding/status`, {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/onboarding/status`, {
             headers: { "Authorization": `Bearer ${token}` }
           });
           if (res.ok) {
@@ -39,7 +39,7 @@ const Home = () => {
             if (!data.onboarding_completed) {
               setShowWizard(true);
               // Fetch full user details for wizard personalized greeting
-              const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5059'}/api/users/me`, {
+              const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/users/me`, {
                 headers: { "Authorization": `Bearer ${token}` }
               });
               if (userRes.ok) {

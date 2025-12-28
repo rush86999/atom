@@ -30,8 +30,8 @@ class Phase3ServiceVerifier:
                 "required": True,
             },
             "main_chat_api": {
-                "url": "http://localhost:5059",
-                "port": 5059,
+                "url": "http://localhost:8000",
+                "port": 8000,
                 "endpoints": ["/health"],
                 "required": True,
             },

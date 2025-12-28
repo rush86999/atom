@@ -44,7 +44,7 @@ class TestBusinessOutcomes:
         # from our previous successful execution or a new call
         import requests
         response = requests.post(
-            "http://localhost:5059/api/v1/workflows/demo-customer-support",
+            "http://localhost:8000/api/v1/workflows/demo-customer-support",
             timeout=20
         )
         assert response.status_code == 200
@@ -91,7 +91,7 @@ class TestBusinessOutcomes:
         # Get actual performance from API
         import requests
         response = requests.post(
-            "http://localhost:5059/api/v1/workflows/demo-sales-lead",
+            "http://localhost:8000/api/v1/workflows/demo-sales-lead",
             timeout=20
         )
         data = response.json()

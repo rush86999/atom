@@ -166,7 +166,7 @@ python testing/enhanced_ai_e2e_integration.py authentication dashboard
 ```python
 # Environment variables needed
 OPENAI_API_KEY=your_openai_key
-BACKEND_URL=http://localhost:5059
+BACKEND_URL=http://localhost:8000
 FRONTEND_URL=http://localhost:3002
 ```
 

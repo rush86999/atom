@@ -26,7 +26,7 @@ import requests
 class LanceDBAPIClient:
     """Client for interacting with LanceDB conversation endpoints"""
 
-    def __init__(self, base_url: str = "http://localhost:5059"):
+    def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url.rstrip("/")
         self.session = None
 
@@ -295,7 +295,7 @@ def main():
     )
     parser.add_argument(
         "--base-url",
-        default="http://localhost:5059",
+        default="http://localhost:8000",
         help="Base URL of the chat interface API",
     )
     parser.add_argument(

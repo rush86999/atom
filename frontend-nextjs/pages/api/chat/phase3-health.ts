@@ -58,7 +58,7 @@ export default async function handler(
         },
         main_chat_api: {
           status: "unavailable",
-          port: 5059,
+          port: 8000,
         },
         websocket_server: {
           status: "unavailable",
@@ -122,7 +122,7 @@ export default async function handler(
         },
         main_chat_api: {
           status: "unavailable",
-          port: 5059,
+          port: 8000,
         },
         websocket_server: {
           status: "unavailable",
@@ -183,7 +183,7 @@ async function checkPhase3Service(): Promise<any> {
 async function checkMainChatAPI(): Promise<any> {
   const startTime = Date.now();
   try {
-    const response = await fetch("http://localhost:5059/health", {
+    const response = await fetch("http://localhost:8000/health", {
       method: "GET",
       timeout: 5000,
     } as any);
@@ -196,13 +196,13 @@ async function checkMainChatAPI(): Promise<any> {
 
     return {
       status: "available",
-      port: 5059,
+      port: 8000,
       response_time: responseTime,
     };
   } catch (error) {
     return {
       status: "unavailable",
-      port: 5059,
+      port: 8000,
     };
   }
 }
@@ -258,7 +258,7 @@ function generateRecommendations(healthChecks: any): string[] {
   }
 
   if (healthChecks.main_chat_api.status === "unavailable") {
-    recommendations.push("Start main chat API service on port 5059");
+    recommendations.push("Start main chat API service on port 8000");
   }
 
   if (healthChecks.websocket_server.status === "unavailable") {

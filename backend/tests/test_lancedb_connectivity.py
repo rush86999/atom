@@ -150,7 +150,7 @@ async def test_api_endpoints():
 
     import aiohttp
 
-    base_url = "http://localhost:5059"
+    base_url = "http://localhost:8000"
     test_user_id = "test-user-123"
 
     try:

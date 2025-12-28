@@ -306,7 +306,7 @@ class LanceDBMemoryManager:
             logger.error(f"Error generating embedding: {str(e)}")
             return [0.0] * 768
 
-    def search_communications(self, query: str, limit: int = 10, app_type: str = None) -> List[Dict]:
+    def search_communications(self, query: str, limit: int = 10, app_type: str = None, tag: str = None) -> List[Dict]:
         """Search communications using hybrid search (vector + FTS)"""
         try:
             if not self.connections_table:
@@ -341,6 +341,10 @@ class LanceDBMemoryManager:
             
             if app_type:
                 search_builder = search_builder.where(f"app_type = '{app_type}'")
+            
+            if tag:
+                # Use array_has_any for tag filtering in LanceDB
+                search_builder = search_builder.where(f"array_has_any(tags, ['{tag}'])")
             
             results = search_builder.to_pandas()
             

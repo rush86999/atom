@@ -3,7 +3,7 @@ import httpx
 import sys
 
 async def verify_unified_centers():
-    base_url = "http://127.0.0.1:5059"
+    base_url = "http://127.0.0.1:8000"
     
     print("--- Verifying Unified Command Centers ---")
     

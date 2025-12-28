@@ -51,8 +51,8 @@ check_prerequisites() {
     fi
 
     # Check if backend is running
-    if ! curl -s http://localhost:5059/healthz > /dev/null; then
-        log_warning "Backend server not running on port 5059"
+    if ! curl -s http://localhost:8000/healthz > /dev/null; then
+        log_warning "Backend server not running on port 8000"
         log_info "Please start the backend server first"
         exit 1
     fi
@@ -231,7 +231,7 @@ validate_plaid() {
 test_backend_connectivity() {
     log_info "Testing backend connectivity..."
 
-    if curl -s http://localhost:5059/healthz | grep -q '"status":"ok"'; then
+    if curl -s http://localhost:8000/healthz | grep -q '"status":"ok"'; then
         log_success "Backend connectivity: PASS"
         return 0
     else
@@ -265,7 +265,7 @@ test_oauth_endpoints() {
     local all_working=true
 
     for endpoint in "${endpoints[@]}"; do
-        if curl -s "http://localhost:5059${endpoint}?user_id=test" > /dev/null; then
+        if curl -s "http://localhost:8000${endpoint}?user_id=test" > /dev/null; then
             log_success "Endpoint $endpoint: RESPONSIVE"
         else
             log_warning "Endpoint $endpoint: UNRESPONSIVE"
@@ -399,7 +399,7 @@ show_help() {
     echo "  Checks environment variables, service connectivity, and OAuth endpoints"
     echo ""
     echo "Prerequisites:"
-    echo "  - Backend server running on port 5059"
+    echo "  - Backend server running on port 8000"
     echo "  - .env.production file with service credentials"
     echo ""
     echo "Examples:"
