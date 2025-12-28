@@ -50,3 +50,29 @@ class UsageEvent(Base):
     # but usually better to stick to one side or strictly define both. 
     # For now, we will assume relationship is set up in Subscription or we just usage joins.
     subscription = relationship("Subscription", backref="usage_events")
+
+class Formula(Base):
+    """
+    SQL Storage for Formula Definitions (Math & Logic).
+    Metadata and Context are mirrored to LanceDB for Semantic Search.
+    """
+    __tablename__ = "formulas"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)
+    
+    name = Column(String, nullable=False)
+    expression = Column(Text, nullable=False) # e.g. "(revenue - cost) / revenue"
+    description = Column(Text, nullable=True) # "Calculates Gross Margin"
+    
+    domain = Column(String, default="general") # finance, sales
+    
+    # JSON Structures
+    parameters = Column(JSON, default=list) # [{"name": "revenue", "type": "number"}]
+    dependencies = Column(JSON, default=list) # List of Formula IDs ["f1", "f2"]
+    
+    # Metadata
+    creator_id = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
