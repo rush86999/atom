@@ -7,7 +7,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // output: 'export', // Disabled for dynamic API routes
+  output: 'standalone',
   images: {
     unoptimized: true,
   },
