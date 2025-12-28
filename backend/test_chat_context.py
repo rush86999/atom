@@ -8,7 +8,7 @@ import aiohttp
 import json
 import time
 
-BASE_URL = "http://localhost:5059"
+BASE_URL = "http://localhost:8000"
 
 async def test_chat_context():
     print("Testing Chat Context Resolution...")

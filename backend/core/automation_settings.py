@@ -22,7 +22,12 @@ class AutomationSettingsManager:
         "enable_accounting_automations": True,
         "enable_sales_automations": True,
         "response_control_mode": "suggest", # suggest, draft, auto_send
-        "enable_integration_enrichment": True
+        "enable_integration_enrichment": True,
+        "pipelines": {
+            "sales": {"mode": "scheduled", "cron": "*/30 * * * *"},
+            "projects": {"mode": "scheduled", "cron": "*/15 * * * *"},
+            "finance": {"mode": "scheduled", "cron": "0 * * * *"}
+        }
     }
     
     def __init__(self):

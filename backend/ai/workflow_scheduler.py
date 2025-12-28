@@ -54,8 +54,52 @@ class WorkflowScheduler:
     def start(self):
         """Start the scheduler"""
         if not self.scheduler.running:
+            self.reschedule_system_pipelines()
             self.scheduler.start()
             logger.info("WorkflowScheduler started")
+
+    def reschedule_system_pipelines(self):
+        """Register or refresh System Pipelines (Memory Ingestion) based on settings"""
+        try:
+            from core.automation_settings import get_automation_settings
+            settings = get_automation_settings().get_settings()
+            pipeline_config = settings.get("pipelines", {})
+
+            from integrations.atom_sales_memory_pipeline import sales_pipeline
+            from integrations.atom_projects_memory_pipeline import projects_pipeline
+            from integrations.atom_finance_memory_pipeline import finance_pipeline
+            
+            pipelines = {
+                'sales': sales_pipeline,
+                'projects': projects_pipeline,
+                'finance': finance_pipeline
+            }
+
+            for name, pipeline in pipelines.items():
+                config = pipeline_config.get(name, {})
+                mode = config.get("mode", "scheduled")
+                job_id = f"system_{name}_ingestion"
+
+                if mode == "real_time":
+                    # For real-time, we use a high-frequency interval (e.g., 1 minute)
+                    trigger = IntervalTrigger(minutes=1)
+                    logger.info(f"Setting {name} pipeline to REAL-TIME (1m interval)")
+                else:
+                    # Scheduled mode uses cron
+                    cron_expr = config.get("cron", "*/30 * * * *" if name != 'finance' else "0 * * * *")
+                    trigger = CronTrigger.from_crontab(cron_expr)
+                    logger.info(f"Setting {name} pipeline to SCHEDULED ({cron_expr})")
+
+                self.scheduler.add_job(
+                    pipeline.run_pipeline,
+                    trigger,
+                    id=job_id,
+                    replace_existing=True
+                )
+
+            logger.info("✓ System Memory Pipelines (Re)Scheduled")
+        except Exception as e:
+            logger.error(f"Error rescheduling system pipelines: {e}")
             
     def shutdown(self):
         """Shutdown the scheduler"""

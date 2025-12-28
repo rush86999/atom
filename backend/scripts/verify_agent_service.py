@@ -8,7 +8,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-BASE_URL = "http://localhost:5059/api/agent"
+BASE_URL = "http://localhost:8000/api/agent"
 
 async def verify_agent_endpoints():
     """

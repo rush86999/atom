@@ -4,7 +4,7 @@ The Independent AI Validator requires API credentials for multiple AI providers 
 
 ## Required Credentials File
 
-**Path:** `/Users/rushiparikh/projects/atom/atom/backend/independent_ai_validator/data/credentials.json`
+**Path:** `/home/developer/projects/atom/atom/backend/independent_ai_validator/data/credentials.json`
 
 **Format:** JSON file with API keys
 
@@ -52,7 +52,7 @@ Based on the validator configuration, you need API keys for the following provid
 
 ## Credentials File Template
 
-Create the file at: `/Users/rushiparikh/projects/atom/atom/backend/independent_ai_validator/data/credentials.json`
+Create the file at: `/home/developer/projects/atom/atom/backend/independent_ai_validator/data/credentials.json`
 
 ```json
 {
@@ -86,7 +86,7 @@ The validator is configured to use **only DeepSeek** for AI processing, so you c
 
 The credential manager also supports loading from a markdown file. If you prefer, you can create:
 
-**Path:** `/Users/rushiparikh/projects/atom/atom/backend/notes/credentials.md`
+**Path:** `/home/developer/projects/atom/atom/backend/notes/credentials.md`
 
 ```markdown
 # API Credentials
@@ -105,14 +105,14 @@ ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
 
 2. **Create credentials file**
    ```bash
-   mkdir -p /Users/rushiparikh/projects/atom/atom/backend/independent_ai_validator/data
+   mkdir -p /home/developer/projects/atom/atom/backend/independent_ai_validator/data
    ```
 
 3. **Add credentials** (choose one method):
    
    **Method A - JSON (Recommended):**
    ```bash
-   cat > /Users/rushiparikh/projects/atom/atom/backend/independent_ai_validator/data/credentials.json << 'EOF'
+   cat > /home/developer/projects/atom/atom/backend/independent_ai_validator/data/credentials.json << 'EOF'
    {
      "deepseek": {
        "api_key": "sk-your-actual-key-here",
@@ -124,13 +124,13 @@ ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
 
    **Method B - Markdown:**
    ```bash
-   mkdir -p /Users/rushiparikh/projects/atom/atom/backend/notes
-   echo "DEEPSEEK_API_KEY=sk-your-actual-key-here" > /Users/rushiparikh/projects/atom/atom/backend/notes/credentials.md
+   mkdir -p /home/developer/projects/atom/atom/backend/notes
+   echo "DEEPSEEK_API_KEY=sk-your-actual-key-here" > /home/developer/projects/atom/atom/backend/notes/credentials.md
    ```
 
 4. **Run the validator**
    ```bash
-   cd /Users/rushiparikh/projects/atom/atom/backend
+   cd /home/developer/projects/atom/atom/backend
    python3 comprehensive_app_readiness_validator.py
    ```
 

@@ -369,7 +369,7 @@
         },
         "https_configuration": {
           "status": "failed",
-          "backend_url": "http://localhost:5059",
+          "backend_url": "http://localhost:8000",
           "uses_https": false,
           "security_characteristics": {
             "encrypted_communications": false,

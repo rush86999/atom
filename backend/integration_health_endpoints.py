@@ -7,8 +7,9 @@ Provides comprehensive health status for all 33+ service integrations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
+from core.websockets import manager
+import asyncio
 import time
-import datetime
 
 router = APIRouter(prefix="/api/v1", tags=["integration_health"])
 
@@ -248,6 +249,18 @@ def get_integration_health(service_name: str) -> IntegrationHealthStatus:
 
     # Simulate health check - in production, this would check actual API connectivity
     is_healthy = integration_info["enabled"] and integration_info["configured"]
+    
+    status = "healthy" if is_healthy else "unhealthy"
+
+    # Broadcast platform status change
+    try:
+        from core.websockets import manager
+        asyncio.create_task(manager.broadcast_event("platform_status", "platform_status_change", {
+            "platform": service_name,
+            "status": status
+        }))
+    except Exception:
+        pass
 
     return IntegrationHealthStatus(
         service_name=service_name,

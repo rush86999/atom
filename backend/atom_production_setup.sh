@@ -208,5 +208,5 @@ echo "⏰ Timeline: Next 24-48 hours"
 echo "📊 Status: READY FOR EXECUTION"
 EOF
 
-chmod +x /Users/rushiparikh/projects/atom/atom/backend/atom_production_setup.sh
-./Users/rushiparikh/projects/atom/atom/backend/atom_production_setup.sh
+chmod +x /home/developer/projects/atom/atom/backend/atom_production_setup.sh
+./home/developer/projects/atom/atom/backend/atom_production_setup.sh

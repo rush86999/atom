@@ -10,7 +10,7 @@ class ApplicationTester:
     """Test script to verify Atom application functionality"""
 
     def __init__(self):
-        self.base_url = "http://localhost:5059"
+        self.base_url = "http://localhost:8000"
         self.frontend_url = "http://localhost:3000"
         self.test_results = {}
 

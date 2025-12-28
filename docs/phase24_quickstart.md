@@ -27,14 +27,14 @@ Schedule workflows using a visual interface with three modes:
 
 ### Start Backend Server
 ```bash
-cd /Users/rushiparikh/projects/atom/backend
+cd /home/developer/projects/atom/backend
 python main_api_app.py
-# Server runs on http://localhost:5059
+# Server runs on http://localhost:8000
 ```
 
 ### Start Frontend
 ```bash
-cd /Users/rushiparikh/projects/atom/frontend-nextjs
+cd /home/developer/projects/atom/frontend-nextjs
 npm run dev
 # Frontend runs on http://localhost:3000
 ```
@@ -42,7 +42,7 @@ npm run dev
 ### Test Workflow Creation via Chat
 ```bash
 # Test the chat endpoint directly
-curl -X POST http://localhost:5059/api/workflow-agent/chat \
+curl -X POST http://localhost:8000/api/workflow-agent/chat \
   -H "Content-Type: application/json" \
   -d '{
     "message": "Create a workflow to send an email to alerts@company.com every hour",
@@ -65,7 +65,7 @@ curl -X POST http://localhost:5059/api/workflow-agent/chat \
 ### Verify Scheduled Jobs
 ```bash
 # Check all scheduled jobs
-curl http://localhost:5059/api/v1/scheduler/jobs
+curl http://localhost:8000/api/v1/scheduler/jobs
 
 # Or view in UI: Workflow Editor → Schedule tab → Scheduled Jobs table
 ```

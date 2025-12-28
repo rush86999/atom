@@ -621,7 +621,7 @@ print('Server started at http://127.0.0.1:5058')
 "
 
 echo "🧪 Running comprehensive tests..."
-cd /Users/rushiparikh/projects/atom/atom/backend
+cd /home/developer/projects/atom/atom/backend
 python tests/whatsapp_comprehensive_test_suite.py
 
 echo "⚡ Running performance benchmarks..."

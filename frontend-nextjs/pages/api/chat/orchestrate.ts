@@ -47,7 +47,7 @@ export default async function handler(
 
     // Forward the request to the backend Python API
     const backendResponse = await fetch(
-      "http://localhost:5059/api/workflow_agent/chat",
+      "http://localhost:8000/api/workflow_agent/chat",
       {
         method: "POST",
         headers: {

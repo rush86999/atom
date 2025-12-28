@@ -16,7 +16,7 @@ async def run_validation():
     print("Focus: Verifying Value Delivery (Time Savings, Efficiency, Automation)")
     print("-" * 80)
     
-    validator = BusinessOutcomeValidator("http://localhost:5059")
+    validator = BusinessOutcomeValidator("http://localhost:8000")
     results = await validator.validate_business_outcomes()
     
     print(f"\nValidation Complete at {results['timestamp']}")

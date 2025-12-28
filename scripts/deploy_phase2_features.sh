@@ -42,7 +42,7 @@ check_prerequisites() {
     log_info "Checking Phase 2 prerequisites..."
 
     # Check if Phase 1 services are running
-    if curl -s http://localhost:5059/health > /dev/null; then
+    if curl -s http://localhost:8000/health > /dev/null; then
         log_success "Chat Interface Server is running"
     else
         log_error "Chat Interface Server is not running. Please deploy Phase 1 first."
@@ -128,7 +128,7 @@ import requests
 import json
 
 # Test file upload endpoint
-url = 'http://localhost:5059/api/v1/chat/upload'
+url = 'http://localhost:8000/api/v1/chat/upload'
 files = {'file': ('test.txt', b'Test content', 'text/plain')}
 data = {'user_id': 'phase2_test_user', 'file_type': 'document'}
 
@@ -167,7 +167,7 @@ deploy_voice_features() {
 
     # Test voice service health
     log_info "Testing voice integration service..."
-    if curl -s http://localhost:5059/api/v1/voice/health > /dev/null; then
+    if curl -s http://localhost:8000/api/v1/voice/health > /dev/null; then
         log_success "Voice integration service is healthy"
     else
         log_warning "Voice integration service health check failed"
@@ -186,7 +186,7 @@ import requests
 import json
 
 # Test TTS endpoint
-url = 'http://localhost:5059/api/v1/voice/tts'
+url = 'http://localhost:8000/api/v1/voice/tts'
 data = {
     'text': 'Hello, this is a Phase 2 voice integration test.',
     'user_id': 'phase2_test_user',
@@ -266,7 +266,7 @@ EOF
 
     # Test analytics endpoints
     log_info "Testing analytics endpoints..."
-    if curl -s http://localhost:5059/api/v1/analytics/chat-metrics > /dev/null; then
+    if curl -s http://localhost:8000/api/v1/analytics/chat-metrics > /dev/null; then
         log_success "Chat analytics endpoint is accessible"
     else
         log_warning "Chat analytics endpoint test failed"
@@ -301,7 +301,7 @@ def test_multimodal_chat():
     print("Testing multi-modal chat features...")
 
     # Test file upload
-    url = 'http://localhost:5059/api/v1/chat/upload'
+    url = 'http://localhost:8000/api/v1/chat/upload'
     files = {'file': ('test_document.txt', b'This is a test document for Phase 2.', 'text/plain')}
     data = {'user_id': 'phase2_test_user', 'file_type': 'document'}
 
@@ -318,7 +318,7 @@ def test_multimodal_chat():
         return False
 
     # Test multi-modal message
-    url = 'http://localhost:5059/api/v1/chat/multimodal'
+    url = 'http://localhost:8000/api/v1/chat/multimodal'
     data = {
         'message': 'Analyze this document',
         'user_id': 'phase2_test_user',
@@ -343,7 +343,7 @@ def test_voice_integration():
     print("Testing voice integration features...")
 
     # Test TTS
-    url = 'http://localhost:5059/api/v1/voice/tts'
+    url = 'http://localhost:8000/api/v1/voice/tts'
     data = {
         'text': 'Phase 2 voice integration is working correctly.',
         'user_id': 'phase2_test_user',
@@ -367,7 +367,7 @@ def test_voice_integration():
         return False
 
     # Test voice service health
-    url = 'http://localhost:5059/api/v1/voice/health'
+    url = 'http://localhost:8000/api/v1/voice/health'
     try:
         response = requests.get(url)
         if response.status_code == 200:
@@ -386,7 +386,7 @@ def test_analytics():
     print("Testing analytics features...")
 
     # Test chat metrics
-    url = 'http://localhost:5059/api/v1/analytics/chat-metrics'
+    url = 'http://localhost:8000/api/v1/analytics/chat-metrics'
     try:
         response = requests.get(url)
         if response.status_code == 200:
@@ -400,7 +400,7 @@ def test_analytics():
         return False
 
     # Test voice metrics
-    url = 'http://localhost:5059/api/v1/analytics/voice-metrics'
+    url = 'http://localhost:8000/api/v1/analytics/voice-metrics'
     try:
         response = requests.get(url)
         if response.status_code == 200:
@@ -515,10 +515,10 @@ main() {
 
     # Service health checks
     log_info "Service Health Checks:"
-    check_service "Chat Interface" "http://localhost:5059/health"
+    check_service "Chat Interface" "http://localhost:8000/health"
     check_service "WebSocket Server" "http://localhost:5060/health"
-    check_service "Voice Integration" "http://localhost:5059/api/v1/voice/health"
-    check_service "Analytics" "http://localhost:5059/api/v1/analytics/chat-metrics"
+    check_service "Voice Integration" "http://localhost:8000/api/v1/voice/health"
+    check_service "Analytics" "http://localhost:8000/api/v1/analytics/chat-metrics"
     echo ""
 
     # Disk usage checks

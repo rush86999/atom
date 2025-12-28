@@ -16539,7 +16539,7 @@
       "test_name": "blacklist"
     },
     {
-      "code": "5 try:\n6     result = subprocess.run([\n7         sys.executable, \n8         '/Users/rushiparikh/projects/atom/atom/backend/integrations/final_additional_platforms_phase_7_report.py'\n9     ], capture_output=True, text=True, cwd='/Users/rushiparikh/projects/atom/atom/backend/integrations')\n10     \n",
+      "code": "5 try:\n6     result = subprocess.run([\n7         sys.executable, \n8         '/home/developer/projects/atom/atom/backend/integrations/final_additional_platforms_phase_7_report.py'\n9     ], capture_output=True, text=True, cwd='/home/developer/projects/atom/atom/backend/integrations')\n10     \n",
       "col_offset": 13,
       "end_col_offset": 104,
       "filename": "backend/integrations\\display_phase_7_success.py",
@@ -16562,7 +16562,7 @@
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "9 \n10 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/final_phase_10_progress_report.py').read())\n",
+      "code": "9 \n10 exec(open('/home/developer/projects/atom/atom/backend/integrations/final_phase_10_progress_report.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 113,
       "filename": "backend/integrations\\execute_phase_10_progress.py",
@@ -16582,7 +16582,7 @@
       "test_name": "exec_used"
     },
     {
-      "code": "9 \n10 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/ULTIMATE_FINAL_SUCCESS_SUMMARY_PHASE_10.py').read())\n",
+      "code": "9 \n10 exec(open('/home/developer/projects/atom/atom/backend/integrations/ULTIMATE_FINAL_SUCCESS_SUMMARY_PHASE_10.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 122,
       "filename": "backend/integrations\\execute_ultimate_final_success_phase_10.py",
@@ -17361,7 +17361,7 @@
       "test_name": "try_except_continue"
     },
     {
-      "code": "5 # Import and run the Phase 7 success display\n6 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/display_phase_7_success.py').read())\n",
+      "code": "5 # Import and run the Phase 7 success display\n6 exec(open('/home/developer/projects/atom/atom/backend/integrations/display_phase_7_success.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 106,
       "filename": "backend/integrations\\run_display_phase_7.py",
@@ -17381,7 +17381,7 @@
       "test_name": "exec_used"
     },
     {
-      "code": "5 \n6 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/final_phase_8_display.py').read())\n",
+      "code": "5 \n6 exec(open('/home/developer/projects/atom/atom/backend/integrations/final_phase_8_display.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 104,
       "filename": "backend/integrations\\run_final_phase_8.py",
@@ -17401,7 +17401,7 @@
       "test_name": "exec_used"
     },
     {
-      "code": "10 # Import the final status module\n11 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/SLACK_ENHANCED_FINAL_STATUS.py').read())\n12 \n",
+      "code": "10 # Import the final status module\n11 exec(open('/home/developer/projects/atom/atom/backend/integrations/SLACK_ENHANCED_FINAL_STATUS.py').read())\n12 \n",
       "col_offset": 0,
       "end_col_offset": 110,
       "filename": "backend/integrations\\run_final_status.py",
@@ -17421,7 +17421,7 @@
       "test_name": "exec_used"
     },
     {
-      "code": "9 \n10 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/final_phase_10_success_report.py').read())\n",
+      "code": "9 \n10 exec(open('/home/developer/projects/atom/atom/backend/integrations/final_phase_10_success_report.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 112,
       "filename": "backend/integrations\\run_phase_10_final_success.py",
@@ -17441,7 +17441,7 @@
       "test_name": "exec_used"
     },
     {
-      "code": "5 \n6 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/final_phase_10_progress_report.py').read())\n",
+      "code": "5 \n6 exec(open('/home/developer/projects/atom/atom/backend/integrations/final_phase_10_progress_report.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 113,
       "filename": "backend/integrations\\run_phase_10_progress.py",
@@ -17461,7 +17461,7 @@
       "test_name": "exec_used"
     },
     {
-      "code": "9 \n10 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/PHASE_10_IMPLEMENTATION_SUMMARY.py').read())\n",
+      "code": "9 \n10 exec(open('/home/developer/projects/atom/atom/backend/integrations/PHASE_10_IMPLEMENTATION_SUMMARY.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 114,
       "filename": "backend/integrations\\run_phase_10_summary.py",
@@ -17501,7 +17501,7 @@
       "test_name": "blacklist"
     },
     {
-      "code": "5 try:\n6     result = subprocess.run([sys.executable, '/Users/rushiparikh/projects/atom/atom/backend/integrations/final_additional_platforms_phase_7_report.py'], \n7                           capture_output=True, text=True, cwd='/Users/rushiparikh/projects/atom/atom/backend/integrations')\n8     print(result.stdout)\n",
+      "code": "5 try:\n6     result = subprocess.run([sys.executable, '/home/developer/projects/atom/atom/backend/integrations/final_additional_platforms_phase_7_report.py'], \n7                           capture_output=True, text=True, cwd='/home/developer/projects/atom/atom/backend/integrations')\n8     print(result.stdout)\n",
       "col_offset": 13,
       "end_col_offset": 123,
       "filename": "backend/integrations\\run_phase_7_report.py",
@@ -17522,7 +17522,7 @@
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "5 \n6 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/final_phase_9_report.py').read())\n",
+      "code": "5 \n6 exec(open('/home/developer/projects/atom/atom/backend/integrations/final_phase_9_report.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 103,
       "filename": "backend/integrations\\run_phase_9_success.py",
@@ -17542,7 +17542,7 @@
       "test_name": "exec_used"
     },
     {
-      "code": "5 \n6 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/ULTIMATE_FINAL_INTEGRATION_SUMMARY.py').read())\n",
+      "code": "5 \n6 exec(open('/home/developer/projects/atom/atom/backend/integrations/ULTIMATE_FINAL_INTEGRATION_SUMMARY.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 117,
       "filename": "backend/integrations\\run_ultimate_final.py",
@@ -17562,7 +17562,7 @@
       "test_name": "exec_used"
     },
     {
-      "code": "5 \n6 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/ULTIMATE_FINAL_SUCCESS_SUMMARY.py').read())\n",
+      "code": "5 \n6 exec(open('/home/developer/projects/atom/atom/backend/integrations/ULTIMATE_FINAL_SUCCESS_SUMMARY.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 113,
       "filename": "backend/integrations\\run_ultimate_final_success.py",
@@ -17582,7 +17582,7 @@
       "test_name": "exec_used"
     },
     {
-      "code": "9 \n10 exec(open('/Users/rushiparikh/projects/atom/atom/backend/integrations/ULTIMATE_FINAL_SUCCESS_SUMMARY_PHASE_10.py').read())\n",
+      "code": "9 \n10 exec(open('/home/developer/projects/atom/atom/backend/integrations/ULTIMATE_FINAL_SUCCESS_SUMMARY_PHASE_10.py').read())\n",
       "col_offset": 0,
       "end_col_offset": 122,
       "filename": "backend/integrations\\run_ultimate_final_success_phase_10.py",
@@ -29132,7 +29132,7 @@
       "test_name": "hardcoded_tmp_directory"
     },
     {
-      "code": "228 if __name__ == \"__main__\":\n229     uvicorn.run(app, host=\"0.0.0.0\", port=5059)\n",
+      "code": "228 if __name__ == \"__main__\":\n229     uvicorn.run(app, host=\"0.0.0.0\", port=8000)\n",
       "col_offset": 26,
       "end_col_offset": 35,
       "filename": "backend/main_api_app.py",
@@ -30061,7 +30061,7 @@
       "test_name": "hardcoded_bind_all_interfaces"
     },
     {
-      "code": "558         \"chat_interface_server:app\",\n559         host=\"0.0.0.0\",\n560         port=5059,\n",
+      "code": "558         \"chat_interface_server:app\",\n559         host=\"0.0.0.0\",\n560         port=8000,\n",
       "col_offset": 13,
       "end_col_offset": 22,
       "filename": "backend/scripts\\chat_interface_server.py",

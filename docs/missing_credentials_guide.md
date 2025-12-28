@@ -7,8 +7,8 @@ This guide documents all required environment variables and credentials for the 
 | Variable | Description | Default / Example |
 |----------|-------------|-------------------|
 | `NODE_ENV` | Environment mode | `development` or `production` |
-| `NEXT_PUBLIC_API_BASE_URL` | URL of the Python backend (for Frontend) | `http://localhost:5059` |
-| `PYTHON_API_SERVICE_BASE_URL` | URL of the Python backend (for Backend/Skills) | `http://localhost:5059` |
+| `NEXT_PUBLIC_API_BASE_URL` | URL of the Python backend (for Frontend) | `http://localhost:8000` |
+| `PYTHON_API_SERVICE_BASE_URL` | URL of the Python backend (for Backend/Skills) | `http://localhost:8000` |
 | `LOG_LEVEL` | Logging verbosity | `info`, `debug` |
 
 ## 2. Database & Storage

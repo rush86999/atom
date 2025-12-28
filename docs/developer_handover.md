@@ -110,7 +110,7 @@ EMAIL_FROM=noreply@yourdomain.com
 **Phase 55: UI/UX Polish ✅**
 - **Modern AI Theme**: Implemented deep space blue/black dark mode with neon electric blue accents.
 - **Main Page**: Added missing feature cards (Finance, Integrations, Settings, Voice, Dev Studio).
-- **Status**: Local environment fully operational (Backend port 5059, Frontend port 3000).
+- **Status**: Local environment fully operational (Backend port 8000, Frontend port 3000).
 
 **Phase 56: Navigation Enhancements ✅**
 - **Sidebar**: Implemented collapsible, responsive sidebar (`components/layout/Sidebar.tsx`).

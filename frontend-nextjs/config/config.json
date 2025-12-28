@@ -8,10 +8,10 @@
     "canonical": ""
   },
   "api": {
-    "baseUrl": "http://localhost:5059",
-    "pythonApiUrl": "http://localhost:5059",
+    "baseUrl": "http://localhost:8000",
+    "pythonApiUrl": "http://localhost:8000",
     "functionsUrl": "http://localhost:3000/v1/functions",
-    "graphqlUrl": "http://localhost:5059/graphql"
+    "graphqlUrl": "http://localhost:8000/graphql"
   },
   "features": {
     "calendar": true,

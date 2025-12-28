@@ -3,7 +3,7 @@ import requests
 import sys
 
 def check_health():
-    url = "http://127.0.0.1:5059/health"
+    url = "http://127.0.0.1:8000/health"
     try:
         print(f"Checking {url}...")
         response = requests.get(url, timeout=5)

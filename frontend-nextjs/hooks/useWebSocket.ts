@@ -11,13 +11,13 @@ interface WebSocketMessage {
 interface UseWebSocketOptions {
     url?: string;
     autoConnect?: boolean;
-    workspaceId?: string;
+    initialChannels?: string[];
 }
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const { data: session } = useSession();
     const {
-        url = "ws://localhost:5059/ws",
+        url = "ws://localhost:8000/ws",
         autoConnect = true,
     } = options;
 
@@ -28,13 +28,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const connect = useCallback(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-        const workspaceId = options.workspaceId || "demo-workspace";
-        // In a production app, we'd get the token from the session
-        const token = (session as any)?.accessToken || "demo-token";
+        // @ts-ignore
+        const token = session?.backendToken || (session as any)?.accessToken;
+        if (!token) return;
 
-        // Remove trailing slash if present in url
-        const baseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-        const socketUrl = `${baseUrl}/${workspaceId}?token=${token}`;
+        // Native WebSocket Connection URL construction
+        const wsUrl = (process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:8000').replace('http', 'ws');
+        const socketUrl = `${wsUrl}/ws?token=${token}`;
 
         const ws = new WebSocket(socketUrl);
         wsRef.current = ws;
@@ -42,6 +42,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         ws.onopen = () => {
             console.log("WebSocket Connected");
             setIsConnected(true);
+
+            // Re-subscribe to channels if any
+            if (options.initialChannels) {
+                options.initialChannels.forEach(channel => {
+                    ws.send(JSON.stringify({ type: "subscribe", channel }));
+                });
+            }
         };
 
         ws.onmessage = (event) => {
@@ -56,12 +63,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         ws.onclose = () => {
             console.log("WebSocket Disconnected");
             setIsConnected(false);
+            // Attempt reconnect logic could go here
         };
 
         ws.onerror = (error) => {
             console.error("WebSocket Error:", error);
         };
-    }, [url, session]);
+    }, [url, session, options.initialChannels]);
 
     const disconnect = useCallback(() => {
         if (wsRef.current) {
@@ -76,17 +84,24 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         }
     }, []);
 
+    const unsubscribe = useCallback((channel: string) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "unsubscribe", channel }));
+        }
+    }, []);
+
     useEffect(() => {
-        if (autoConnect) {
+        if (autoConnect && session) {
             connect();
         }
         return () => disconnect();
-    }, [autoConnect, connect, disconnect]);
+    }, [autoConnect, connect, disconnect, session]);
 
     return {
         isConnected,
         lastMessage,
         subscribe,
+        unsubscribe,
         sendMessage: (msg: any) => wsRef.current?.send(JSON.stringify(msg)),
     };
 };

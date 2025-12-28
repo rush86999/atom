@@ -51,7 +51,7 @@ npm run dev
 3. ✓ Activates virtual environment
 4. ✓ Installs/updates dependencies from `requirements.txt`
 5. ✓ Checks for `.env` configuration
-6. ✓ Starts FastAPI server on port 5059
+6. ✓ Starts FastAPI server on port 8000
 
 ### Frontend Script (`start-frontend.ps1`)
 1. ✓ Checks Node.js installation
@@ -66,9 +66,9 @@ Once both services are running:
 | Service | URL | Description |
 |---------|-----|-------------|
 | **Frontend** | http://localhost:3000 | Main application UI |
-| **Backend API** | http://localhost:5059 | API server |
-| **API Docs** | http://localhost:5059/docs | Interactive API documentation (Swagger UI) |
-| **Health Check** | http://localhost:5059/health | Backend health status |
+| **Backend API** | http://localhost:8000 | API server |
+| **API Docs** | http://localhost:8000/docs | Interactive API documentation (Swagger UI) |
+| **Health Check** | http://localhost:8000/health | Backend health status |
 
 ## Environment Configuration
 
@@ -81,13 +81,13 @@ The backend uses the root `.env` file located at `c:\Users\Mannan Bajaj\atom\.en
 - `OPENAI_API_KEY`: Required for AI features
 - `USE_MOCK_DATA=true`: Use mock data for testing
 - `ENABLE_OAUTH_DEMO=true`: Enable OAuth demo mode
-- `PORT=5059`: Backend server port
+- `PORT=8000`: Backend server port
 
 ### Frontend Environment (`.env.local`)
 
 Auto-created by the startup script with:
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5059
+NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_APP_NAME=ATOM Platform
 ```
 
@@ -103,10 +103,10 @@ cd backend
 pip install -r requirements.txt --force-reinstall
 ```
 
-**Problem: Port 5059 already in use**
+**Problem: Port 8000 already in use**
 ```powershell
 # Find and kill the process
-netstat -ano | findstr :5059
+netstat -ano | findstr :8000
 taskkill /PID <process_id> /F
 ```
 
@@ -207,12 +207,12 @@ ATOM Platform
 
 1. **Configure API Keys**: Update `.env` with your actual API keys
 2. **Set up Database**: Configure PostgreSQL if needed (optional)
-3. **Explore API**: Visit http://localhost:5059/docs
+3. **Explore API**: Visit http://localhost:8000/docs
 4. **Test Features**: Try creating workflows, integrations, etc.
 
 ## Getting Help
 
-- Check the [API Documentation](http://localhost:5059/docs) when running
+- Check the [API Documentation](http://localhost:8000/docs) when running
 - Review error messages in terminal output
 - Check browser console for frontend errors
 - Refer to `DEPLOYMENT_GUIDE.md` for production setup

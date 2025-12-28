@@ -20,7 +20,7 @@ class GitHubIntegrationValidator:
     """Validates GitHub integration setup and functionality"""
 
     def __init__(self):
-        self.base_url = "http://localhost:5059"  # Default backend port
+        self.base_url = "http://localhost:8000"  # Default backend port
         self.client_id = os.getenv("GITHUB_CLIENT_ID")
         self.client_secret = os.getenv("GITHUB_CLIENT_SECRET")
         self.access_token = os.getenv("GITHUB_ACCESS_TOKEN")

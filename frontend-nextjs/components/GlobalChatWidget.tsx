@@ -292,6 +292,31 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         }
     };
 
+    const handleMessageFeedback = async (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => {
+        try {
+            toast({
+                title: comment ? "Correction Received" : (type === 'thumbs_up' ? "Helpful" : "Flagged"),
+                description: comment ? "We'll use this to improve." : "Thanks for your feedback!",
+            });
+
+            // Send to backend (using the same endpoint but with context identifying it as a message)
+            await fetch('/api/reasoning/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    agent_id: "universal_assistant", // Mapping to global assistant
+                    run_id: sessionId,
+                    step_index: -1, // -1 indicates final output feedback
+                    step_content: { thought: "Final Assistant Output", output: messages.find(m => m.id === messageId)?.content },
+                    feedback_type: type,
+                    comment: comment
+                })
+            });
+        } catch (e) {
+            console.error("Feedback failed", e);
+        }
+    };
+
     return (
         <div className="fixed bottom-6 right-6 z-50">
             <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -332,6 +357,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                                     key={msg.id}
                                     message={msg}
                                     onActionClick={handleActionClick}
+                                    onFeedback={handleMessageFeedback}
                                 />
                             ))}
                             {isLoading && (

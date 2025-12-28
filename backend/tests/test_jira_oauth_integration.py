@@ -23,11 +23,11 @@ load_dotenv()
 
 class JiraOAuthIntegrationTest:
     def __init__(self):
-        self.base_url = "http://localhost:5059"  # Default backend port
+        self.base_url = "http://localhost:8000"  # Default backend port
         self.client_id = os.getenv("JIRA_CLIENT_ID")
         self.client_secret = os.getenv("JIRA_CLIENT_SECRET")
         self.redirect_uri = os.getenv(
-            "JIRA_REDIRECT_URI", "http://localhost:5059/api/auth/jira/callback"
+            "JIRA_REDIRECT_URI", "http://localhost:8000/api/auth/jira/callback"
         )
 
     def print_header(self, message):

@@ -32,6 +32,8 @@ interface IntegrationHealth {
   };
 }
 
+import { useWebSocket } from "@/hooks/useWebSocket";
+
 interface IntegrationHealthDashboardProps {
   autoRefresh?: boolean;
   refreshInterval?: number;
@@ -47,6 +49,23 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // WebSocket for Real-Time Health Updates
+  const { lastMessage } = useWebSocket({
+    initialChannels: ['platform_status']
+  });
+
+  useEffect(() => {
+    if (lastMessage && lastMessage.type === 'platform_status_change') {
+      const { platform, status } = lastMessage.data;
+      setIntegrations(prev => prev.map(integration =>
+        integration.id.toLowerCase() === platform.toLowerCase()
+          ? { ...integration, status, connected: status === 'healthy' }
+          : integration
+      ));
+      setLastUpdated(new Date());
+    }
+  }, [lastMessage]);
 
   const integrationList: Omit<IntegrationHealth, "status" | "lastSync" | "responseTime" | "errorCount">[] = [
     {

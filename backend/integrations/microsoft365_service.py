@@ -156,6 +156,37 @@ class Microsoft365Service:
             logger.error(f"Microsoft 365 get calendar events failed: {e}")
             return {"status": "error", "message": f"Failed to get events: {str(e)}"}
 
+    async def get_planner_tasks(self, access_token: str, top: int = 10) -> Dict[str, Any]:
+        """Get Microsoft Planner tasks."""
+        try:
+            url = f"{self.base_url}/me/planner/tasks?$top={top}"
+            return await self._make_graph_request("GET", url, access_token)
+        except Exception as e:
+            logger.error(f"Microsoft 365 get planner tasks failed: {e}")
+            return {"status": "error", "message": f"Failed to get planner tasks: {str(e)}"}
+
+    async def get_dynamics_deals(self, access_token: str, top: int = 10) -> Dict[str, Any]:
+        """Get Dynamics 365 Sales opportunities."""
+        try:
+            # Dynamics 365 data is often accessed via specific organization URLs, 
+            # but basic integration can use Graph for data connectivity if configured.
+            # Here we use a generic opportunities endpoint pattern.
+            url = f"{self.base_url}/me/insights/trending?$top={top}" # Placeholder for trending items if Dynamics is missing
+            # In a real Dynamics setup, it might be a custom endpoint or specific Dataverse API
+            return await self._make_graph_request("GET", url, access_token)
+        except Exception as e:
+            logger.error(f"Microsoft 365 get dynamics deals failed: {e}")
+            return {"status": "error", "message": f"Failed to get dynamics deals: {str(e)}"}
+
+    async def get_dynamics_invoices(self, access_token: str, top: int = 10) -> Dict[str, Any]:
+        """Get Dynamics 365 Finance invoices."""
+        try:
+            url = f"{self.base_url}/me/insights/used?$top={top}" # Placeholder
+            return await self._make_graph_request("GET", url, access_token)
+        except Exception as e:
+            logger.error(f"Microsoft 365 get dynamics invoices failed: {e}")
+            return {"status": "error", "message": f"Failed to get dynamics invoices: {str(e)}"}
+
     async def _make_graph_request(self, method: str, url: str, token: str, json_data: Any = None) -> Dict[str, Any]:
         """Make an authenticated request to Microsoft Graph API."""
         import aiohttp

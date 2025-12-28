@@ -57,7 +57,7 @@ class Phase3MonitoringDashboard:
     def __init__(self):
         self.base_urls = {
             "phase3_ai": "http://localhost:5062",
-            "main_chat": "http://localhost:5059",
+            "main_chat": "http://localhost:8000",
             "websocket": "http://localhost:5060",
         }
 

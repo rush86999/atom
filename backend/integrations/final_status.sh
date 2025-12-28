@@ -3,7 +3,7 @@
 echo "📋 Generating final status report..."
 
 # Change to the correct directory
-cd /Users/rushiparikh/projects/atom/atom/backend/integrations
+cd /home/developer/projects/atom/atom/backend/integrations
 
 # Run the final status script
 python run_final_status.py

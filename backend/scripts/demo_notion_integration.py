@@ -86,7 +86,7 @@ def demo_notion_integration():
     print("\n🎨 5. Frontend Skills")
     
     try:
-        sys.path.append('/Users/rushiparikh/projects/atom/atom/src/ui-shared/integrations/notion/skills')
+        sys.path.append('/home/developer/projects/atom/atom/src/ui-shared/integrations/notion/skills')
         from notionSkills import notionSkills
         
         print(f"   ✓ {len(notionSkills)} skills loaded")

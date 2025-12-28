@@ -8,15 +8,15 @@ echo "Stopping any existing backend processes..."
 pkill -f "python.*start_app" 2>/dev/null || true
 pkill -f "python.*main_api_app" 2>/dev/null || true
 
-# Kill processes on port 5059
-echo "Clearing port 5059..."
-lsof -ti:5059 | xargs kill -9 2>/dev/null || true
+# Kill processes on port 8000
+echo "Clearing port 8000..."
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 
 # Set environment variables
 export DATABASE_URL="sqlite:///tmp/atom_dev.db"
 export ATOM_OAUTH_ENCRYPTION_KEY="nCsfAph2Gln5Ag0uuEeqUVOvSEPtl7OLGT_jKsyzP84="
 export FLASK_ENV="development"
-export PYTHON_API_PORT="5059"
+export PYTHON_API_PORT="8000"
 
 # Change to backend directory
 cd backend/python-api-service

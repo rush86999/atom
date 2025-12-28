@@ -9,7 +9,7 @@ echo "🧪 ATOM Chat Interface - Quick Development Test"
 echo "============================================"
 echo ""
 
-PROJECT_ROOT="/Users/rushiparikh/projects/atom/atom"
+PROJECT_ROOT="/home/developer/projects/atom/atom"
 cd "$PROJECT_ROOT"
 
 echo "📁 Project Root: $PROJECT_ROOT"
@@ -154,7 +154,7 @@ Test the new chat interface functionality without requiring full Tauri build.
 
 ### 1. Frontend Build Test
 ```bash
-cd /Users/rushiparikh/projects/atom/atom
+cd /home/developer/projects/atom/atom
 npm run build
 ```
 **Expected**: Frontend builds successfully without errors
@@ -333,7 +333,7 @@ The Atom Chat Interface has been successfully built and integrated with the exis
 
 #### Frontend Build Test
 ```bash
-cd /Users/rushiparikh/projects/atom/atom
+cd /home/developer/projects/atom/atom
 npm run build
 ```
 
@@ -353,7 +353,7 @@ npm run build
 
 #### Start Tauri Dev Server
 ```bash
-cd /Users/rushiparikh/projects/atom/atom/src-tauri
+cd /home/developer/projects/atom/atom/src-tauri
 cargo tauri dev
 ```
 
@@ -379,7 +379,7 @@ cargo tauri dev
 
 #### Build Production Package
 ```bash
-cd /Users/rushiparikh/projects/atom/atom/src-tauri
+cd /home/developer/projects/atom/atom/src-tauri
 cargo build --release
 ```
 

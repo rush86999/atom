@@ -293,12 +293,12 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
         setPrompt('');
     };
 
-    const handleReasoningFeedback = async (stepIndex: number, type: 'thumbs_up' | 'thumbs_down') => {
+    const handleReasoningFeedback = async (stepIndex: number, type: 'thumbs_up' | 'thumbs_down', comment?: string) => {
         try {
-            // Optimistic update (could add visual feedback state here)
+            // Optimistic update
             toast({
-                title: type === 'thumbs_up' ? "Helpful" : "Flagged",
-                description: "Thanks for your feedback! I'm learning.",
+                title: comment ? "Correction Received" : (type === 'thumbs_up' ? "Helpful" : "Flagged"),
+                description: comment ? "We'll use this to improve our reasoning." : "Thanks for your feedback! I'm learning.",
             });
 
             // Send to backend
@@ -310,7 +310,8 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                     run_id: 'simulated-run-' + Date.now(),
                     step_index: stepIndex,
                     step_content: reasoningSteps[stepIndex],
-                    feedback_type: type
+                    feedback_type: type,
+                    comment: comment
                 })
             });
         } catch (e) {

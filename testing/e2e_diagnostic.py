@@ -444,7 +444,7 @@ class E2EFlowTester:
             "all_results": self.results
         }
         
-        report_path = "/Users/rushiparikh/projects/atom/testing/e2e_diagnostic_report.json"
+        report_path = "/home/developer/projects/atom/testing/e2e_diagnostic_report.json"
         with open(report_path, "w") as f:
             json.dump(report, f, indent=2, default=str)
         print(f"\n📄 Full report saved to: {report_path}")

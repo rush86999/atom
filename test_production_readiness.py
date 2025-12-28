@@ -14,7 +14,7 @@ def test_authentication_required():
     print("🔍 Testing Authentication Requirements...")
 
     # Check that api_routes.py has authentication dependencies
-    with open('/Users/rushiparikh/projects/atom/backend/core/api_routes.py', 'r') as f:
+    with open('/home/developer/projects/atom/backend/core/api_routes.py', 'r') as f:
         content = f.read()
 
     required_imports = [
@@ -38,7 +38,7 @@ def test_database_security():
     """Test that database configuration is production-ready"""
     print("🔍 Testing Database Security...")
 
-    with open('/Users/rushiparikh/projects/atom/backend/core/database.py', 'r') as f:
+    with open('/home/developer/projects/atom/backend/core/database.py', 'r') as f:
         content = f.read()
 
     required_features = [
@@ -66,9 +66,9 @@ def test_no_mock_fallbacks():
 
     # Check key integration files for mock data removal
     files_to_check = [
-        '/Users/rushiparikh/projects/atom/backend/integrations/salesforce_routes.py',
-        '/Users/rushiparikh/projects/atom/backend/integrations/hubspot_routes.py',
-        '/Users/rushiparikh/projects/atom/backend/integrations/zoom_routes.py'
+        '/home/developer/projects/atom/backend/integrations/salesforce_routes.py',
+        '/home/developer/projects/atom/backend/integrations/hubspot_routes.py',
+        '/home/developer/projects/atom/backend/integrations/zoom_routes.py'
     ]
 
     mock_issues = []
@@ -91,9 +91,9 @@ def test_archive_created():
     print("🔍 Testing File Archival...")
 
     archive_files = [
-        '/Users/rushiparikh/projects/atom/backend/core/archive/auth_v1.py',
-        '/Users/rushiparikh/projects/atom/backend/core/archive/api_routes_v1.py',
-        '/Users/rushiparikh/projects/atom/backend/core/archive/database_v1.py'
+        '/home/developer/projects/atom/backend/core/archive/auth_v1.py',
+        '/home/developer/projects/atom/backend/core/archive/api_routes_v1.py',
+        '/home/developer/projects/atom/backend/core/archive/database_v1.py'
     ]
 
     missing_archives = []
@@ -112,7 +112,7 @@ def test_security_headers():
     """Test that security middleware is configured"""
     print("🔍 Testing Security Headers...")
 
-    with open('/Users/rushiparikh/projects/atom/backend/main_api_app.py', 'r') as f:
+    with open('/home/developer/projects/atom/backend/main_api_app.py', 'r') as f:
         content = f.read()
 
     required_middleware = [
@@ -146,7 +146,7 @@ def run_import_tests():
     try:
         # Test database import
         import sys
-        sys.path.insert(0, '/Users/rushiparikh/projects/atom/backend')
+        sys.path.insert(0, '/home/developer/projects/atom/backend')
 
         # Test database module
         from core.database import get_database_url, DATABASE_URL

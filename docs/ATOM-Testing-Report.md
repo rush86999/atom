@@ -2,7 +2,7 @@
 
 **Date:** December 14, 2025
 **Test Environment:** Windows 10, Chrome Browser, http://localhost:3000
-**Backend:** http://localhost:5059
+**Backend:** http://localhost:8000
 **Testing Method:** Automated Browser Testing (Puppeteer) + Manual Analysis
 
 ---

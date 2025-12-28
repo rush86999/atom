@@ -181,7 +181,7 @@ def create_minimal_env_file():
 DATABASE_URL=postgresql://username:password@localhost:5432/database_name
 FLASK_SECRET_KEY=dev_secret_key_change_in_production_$(date +%s)
 ATOM_OAUTH_ENCRYPTION_KEY=dev_encryption_key_change_in_production_$(date +%s)
-PYTHON_API_PORT=5059
+PYTHON_API_PORT=8000
 
 # External Service API Keys (Mock/Development)
 DEEPGRAM_API_KEY=mock_deepgram_api_key
@@ -216,7 +216,7 @@ def test_backend_startup():
     print("\n🚀 Testing backend startup...")
 
     # First, free up the port
-    port = int(os.getenv("PYTHON_API_PORT", "5059"))
+    port = int(os.getenv("PYTHON_API_PORT", "8000"))
     if not kill_processes_on_port(port):
         print("❌ Cannot proceed - port is still in use")
         return False
@@ -282,7 +282,7 @@ def analyze_startup_issues():
         issues_found.append(f"Missing Python packages: {', '.join(missing_deps)}")
 
     # Check port availability
-    port = int(os.getenv("PYTHON_API_PORT", "5059"))
+    port = int(os.getenv("PYTHON_API_PORT", "8000"))
     in_use, processes = check_port_in_use(port)
     if in_use:
         issues_found.append(f"Port {port} is in use by other processes")
@@ -306,7 +306,7 @@ def apply_fixes():
         fixes_applied.append("Created minimal environment file")
 
     # 2. Free up port
-    port = int(os.getenv("PYTHON_API_PORT", "5059"))
+    port = int(os.getenv("PYTHON_API_PORT", "8000"))
     if kill_processes_on_port(port):
         fixes_applied.append(f"Freed up port {port}")
 

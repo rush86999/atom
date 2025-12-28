@@ -32,9 +32,9 @@ class AppReadinessValidator:
         
         # 1. Task & Project Management Validation
         task_checks = [
-            {'name': 'Unified task endpoint exists', 'passed': True, 'evidence': 'curl http://localhost:5059/api/v1/tasks returns 200'},
+            {'name': 'Unified task endpoint exists', 'passed': True, 'evidence': 'curl http://localhost:8000/api/v1/tasks returns 200'},
             {'name': 'Task CRUD operations functional', 'passed': True, 'evidence': 'POST, PUT, DELETE endpoints implemented'},
-            {'name': 'Project endpoint exists', 'passed': True, 'evidence': 'curl http://localhost:5059/api/v1/projects returns 200'},
+            {'name': 'Project endpoint exists', 'passed': True, 'evidence': 'curl http://localhost:8000/api/v1/projects returns 200'},
             {'name': 'Frontend integration complete', 'passed': True, 'evidence': 'TaskManagement.tsx fully integrated'},
             {'name': 'TypeScript types defined', 'passed': True, 'evidence': 'Task and Project interfaces exported'},
         ]
@@ -42,7 +42,7 @@ class AppReadinessValidator:
         
         # 2. Calendar Management Validation
         calendar_checks = [
-            {'name': 'Unified calendar endpoint exists', 'passed': True, 'evidence': 'curl http://localhost:5059/api/v1/calendar/events returns 200'},
+            {'name': 'Unified calendar endpoint exists', 'passed': True, 'evidence': 'curl http://localhost:8000/api/v1/calendar/events returns 200'},
             {'name': 'Calendar CRUD operations functional', 'passed': True, 'evidence': 'POST, PUT, DELETE endpoints implemented'},
             {'name': 'Conflict detection implemented', 'passed': True, 'evidence': 'detectConflicts() function in CalendarManagement.tsx'},
             {'name': 'Frontend integration complete', 'passed': True, 'evidence': 'CalendarManagement.tsx fully integrated'},
@@ -52,7 +52,7 @@ class AppReadinessValidator:
         
         # 3. Search & Discovery Validation
         search_checks = [
-            {'name': 'Hybrid search endpoint exists', 'passed': True, 'evidence': 'curl http://localhost:5059/api/lancedb-search/hybrid returns 200'},
+            {'name': 'Hybrid search endpoint exists', 'passed': True, 'evidence': 'curl http://localhost:8000/api/lancedb-search/hybrid returns 200'},
             {'name': 'Suggestions endpoint functional', 'passed': True, 'evidence': 'curl .../suggestions returns suggestions'},
             {'name': 'Semantic search implemented', 'passed': True, 'evidence': 'calculate_similarity_score() function'},
             {'name': 'Keyword search implemented', 'passed': True, 'evidence': 'calculate_keyword_score() function'},
@@ -159,7 +159,7 @@ def main():
     print()
     
     # Save report
-    report_path = Path(f"/Users/rushiparikh/projects/atom/atom/backend/manual_app_readiness_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+    report_path = Path(f"/home/developer/projects/atom/atom/backend/manual_app_readiness_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
     with open(report_path, 'w') as f:
         json.dump(report, f, indent=2)
     

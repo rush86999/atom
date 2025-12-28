@@ -127,10 +127,10 @@ COPY . .
 RUN mkdir -p logs
 
 # Expose port
-EXPOSE 5059
+EXPOSE 8000
 
 # Run application
-CMD ["uvicorn", "main_api_app.py:app", "--host", "0.0.0.0", "--port", "5059"]
+CMD ["uvicorn", "main_api_app.py:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 #### Create Dockerfile for Frontend
@@ -180,7 +180,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "5059:5059"
+      - "8000:8000"
     environment:
       - DEBUG=false
       - DATABASE_URL=postgresql://user:pass@db:5432/atom
@@ -196,7 +196,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5059
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - backend
     restart: unless-stopped
@@ -307,7 +307,7 @@ server {
 
     # Backend API
     location /api/ {
-        proxy_pass http://localhost:5059;
+        proxy_pass http://localhost:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

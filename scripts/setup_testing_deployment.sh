@@ -9,7 +9,7 @@ echo "🚀 ATOM Chat Interface - Testing & Deployment Script"
 echo "=================================================="
 echo ""
 
-PROJECT_ROOT="/Users/rushiparikh/projects/atom/atom"
+PROJECT_ROOT="/home/developer/projects/atom/atom"
 cd "$PROJECT_ROOT"
 
 echo "📁 Project Root: $PROJECT_ROOT"
@@ -215,7 +215,7 @@ cat > test_development.sh << 'EOF'
 echo "🧪 ATOM Chat Interface - Development Test"
 echo "======================================"
 
-PROJECT_ROOT="/Users/rushiparikh/projects/atom/atom"
+PROJECT_ROOT="/home/developer/projects/atom/atom"
 cd "$PROJECT_ROOT/src-tauri"
 
 echo "🚀 Starting Tauri development server..."
@@ -262,7 +262,7 @@ cat > build_production.sh << 'EOF'
 echo "📦 ATOM Chat Interface - Production Build"
 echo "======================================"
 
-PROJECT_ROOT="/Users/rushiparikh/projects/atom/atom"
+PROJECT_ROOT="/home/developer/projects/atom/atom"
 cd "$PROJECT_ROOT"
 
 echo "🧹 Clean previous builds..."
@@ -361,7 +361,7 @@ The Atom Chat Interface has been successfully built and integrated with the exis
 
 ### Start Development Server
 ```bash
-cd /Users/rushiparikh/projects/atom/atom
+cd /home/developer/projects/atom/atom
 ./test_development.sh
 ```
 
@@ -394,7 +394,7 @@ cd /Users/rushiparikh/projects/atom/atom
 
 ### Create Production Package
 ```bash
-cd /Users/rushiparikh/projects/atom/atom
+cd /home/developer/projects/atom/atom
 ./build_production.sh
 ```
 

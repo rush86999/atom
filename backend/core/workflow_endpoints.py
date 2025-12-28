@@ -522,3 +522,14 @@ async def list_scheduled_jobs(user: User = Depends(require_permission(Permission
     from ai.workflow_scheduler import workflow_scheduler
     return workflow_scheduler.list_jobs()
 
+@router.post("/scheduler/reload")
+async def reload_scheduler_jobs(user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE))):
+    """Reload system jobs from user preferences"""
+    from ai.workflow_scheduler import workflow_scheduler
+    try:
+        workflow_scheduler.reload_system_jobs()
+        return {"status": "success", "message": "System pipelines reloaded from preferences"}
+    except Exception as e:
+        logger.error(f"Failed to reload scheduler: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+

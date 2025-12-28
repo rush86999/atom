@@ -16,7 +16,7 @@ print()
 
 async def test_websocket_connection():
     """Test WebSocket connection and basic messaging"""
-    uri = "ws://localhost:5059/ws?user_id=test_user&channels=workflows,system"
+    uri = "ws://localhost:8000/ws?user_id=test_user&channels=workflows,system"
     
     try:
         print("Test 1: WebSocket Connection")
@@ -103,7 +103,7 @@ async def test_websocket_connection():
             
     except Exception as e:
         print(f"❌ Connection Error: {str(e)}")
-        print(f"   Make sure the backend server is running on port 5059")
+        print(f"   Make sure the backend server is running on port 8000")
         return False
 
 # Run the test
@@ -125,7 +125,7 @@ else:
     print("="*70)
     print()
     print("Please ensure:")
-    print("  1. Backend server is running (uvicorn main_api_app:app --port 5059)")
+    print("  1. Backend server is running (uvicorn main_api_app:app --port 8000)")
     print("  2. WebSocket routes are properly registered")
     print("  3. No firewall blocking WebSocket connections")
 print()

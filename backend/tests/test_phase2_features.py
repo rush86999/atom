@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
-CHAT_API_URL = "http://localhost:5059"
+CHAT_API_URL = "http://localhost:8000"
 TEST_USER_ID = "phase2_test_user_001"
 TEST_CONTEXT_ID = "phase2_test_context_001"
 

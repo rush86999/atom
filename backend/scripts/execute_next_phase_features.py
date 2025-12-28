@@ -43,7 +43,7 @@ class NextPhaseFeatureExecutor:
     """Executor for Phase 3 advanced feature implementation"""
 
     def __init__(self):
-        self.base_url = "http://localhost:5059"
+        self.base_url = "http://localhost:8000"
         self.websocket_url = "ws://localhost:5060"
         self.execution_results = {}
         self.feature_status = {}

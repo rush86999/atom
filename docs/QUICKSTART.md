@@ -43,7 +43,7 @@ NEXTAUTH_SECRET=your-secret-here  # Generate: openssl rand -base64 32
 NEXTAUTH_URL=http://localhost:3000
 
 # Backend API
-NEXT_PUBLIC_API_BASE_URL=http://localhost:5059
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 
 # Optional: OAuth Providers
 GOOGLE_CLIENT_ID=your-google-client-id
@@ -55,7 +55,7 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 Create `backend/.env`:
 ```bash
 DATABASE_URL=postgresql://user:password@localhost:5432/atom_production
-PYTHON_API_SERVICE_BASE_URL=http://localhost:5059
+PYTHON_API_SERVICE_BASE_URL=http://localhost:8000
 
 # AI Providers (from notes/credentials.md)
 OPENAI_API_KEY=your-key
@@ -85,7 +85,7 @@ npm run dev
 
 ### Access
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5059
+- **Backend API**: http://localhost:8000
 - **Sign In**: http://localhost:3000/auth/signin
 
 ## Key Features

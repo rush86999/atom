@@ -10,7 +10,7 @@ This repository has been cleaned for public privacy.
 
 ## Replacements Made
 - `developer` → `developer`
-- `Rushi Parikh` → `Developer`
+- `Developer` → `Developer`
 - `/Users/developer` → `/home/developer`
 - `/Users/developer/projects/atom` → `/home/developer/projects`
 - `/Users/developer/atom-production` → `/opt/atom`

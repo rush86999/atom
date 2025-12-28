@@ -75,7 +75,7 @@ def main():
     config["NODE_ENV"] = get_input("Environment", default="development")
     config["NEXT_PUBLIC_API_BASE_URL"] = get_input(
         "Backend API URL",
-        default="http://localhost:5059"
+        default="http://localhost:8000"
     )
     config["LOG_LEVEL"] = get_input("Log Level", default="info")
     

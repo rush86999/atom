@@ -323,7 +323,7 @@
           "evidence_data": {
             "endpoint": "/api/analytics/insights",
             "status_code": 200,
-            "response_time_ms": 4.457950592041016,
+            "response_time_ms": 4.457980002041016,
             "real_time_processing": true,
             "instant_insights": true,
             "data_available": true,

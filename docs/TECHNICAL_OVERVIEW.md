@@ -252,7 +252,7 @@ services:
   
   backend:
     build: ./backend
-    ports: ["5059:5059"]
+    ports: ["8000:8000"]
     environment:
       - DATABASE_URL=postgresql://...
       - REDIS_URL=redis://...

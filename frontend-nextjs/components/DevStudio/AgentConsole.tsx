@@ -31,7 +31,7 @@ const AgentConsole: React.FC = () => {
         if (isRunning && taskId) {
             interval = setInterval(async () => {
                 try {
-                    const response = await fetch(`http://localhost:5059/api/agent/status/${taskId}`);
+                    const response = await fetch(`http://localhost:8000/api/agent/status/${taskId}`);
                     if (response.ok) {
                         const data = await response.json();
                         setStatus(data.status);
@@ -78,7 +78,7 @@ const AgentConsole: React.FC = () => {
         setStatus("starting");
 
         try {
-            const response = await fetch("http://localhost:5059/api/agent/run", {
+            const response = await fetch("http://localhost:8000/api/agent/run", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ goal, mode }),
@@ -110,7 +110,7 @@ const AgentConsole: React.FC = () => {
         if (!taskId) return;
 
         try {
-            await fetch("http://localhost:5059/api/agent/stop", {
+            await fetch("http://localhost:8000/api/agent/stop", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ task_id: taskId }),

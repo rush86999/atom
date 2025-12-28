@@ -159,7 +159,7 @@ async def upload_invoice(
     check_accounting_enabled()
     
     # 1. Save file locally (Simulating cloud storage)
-    upload_dir = "/Users/rushiparikh/projects/atom/backend/data/uploads/invoices"
+    upload_dir = "/home/developer/projects/atom/backend/data/uploads/invoices"
     os.makedirs(upload_dir, exist_ok=True)
     
     file_id = str(uuid.uuid4())

@@ -115,6 +115,7 @@ export const COMMUNICATION_PIECES: Integration[] = [
     { id: 'crisp', name: 'Crisp', description: 'Live chat', category: 'communication', color: '#4285F4', authType: 'api_key', triggers: ['message_received'], actions: ['send_message'] },
     { id: 'tawk', name: 'Tawk.to', description: 'Free live chat', category: 'communication', color: '#03C04A', authType: 'api_key', triggers: ['chat_started'], actions: ['send_message'] },
     { id: 'drift', name: 'Drift', description: 'Conversational marketing', category: 'communication', color: '#0176D3', authType: 'oauth2', triggers: ['conversation_started'], actions: ['send_message'] },
+    { id: 'zoho-mail', name: 'Zoho Mail', description: 'Business email', category: 'communication', color: '#DC2626', authType: 'oauth2', triggers: ['new_email'], actions: ['send_email', 'create_draft'] },
 ];
 
 // CRM & SALES PIECES
@@ -132,6 +133,7 @@ export const CRM_PIECES: Integration[] = [
     { id: 'linkedin-sales', name: 'LinkedIn Sales Navigator', description: 'B2B prospecting', category: 'crm', color: '#0A66C2', authType: 'oauth2', triggers: [], actions: ['search_leads', 'send_inmail'] },
     { id: 'clearbit', name: 'Clearbit', description: 'Data enrichment', category: 'crm', color: '#47B7F8', authType: 'api_key', triggers: [], actions: ['enrich_company', 'enrich_person', 'reveal_visitor'] },
     { id: 'zoominfo', name: 'ZoomInfo', description: 'B2B database', category: 'crm', color: '#FF5733', authType: 'api_key', triggers: [], actions: ['search_contacts', 'enrich'] },
+    { id: 'dynamics-365-sales', name: 'Dynamics 365 Sales', description: 'Microsoft CRM', category: 'crm', color: '#002050', authType: 'oauth2', triggers: ['opportunity_created'], actions: ['create_opportunity'], popular: true },
 ];
 
 // PRODUCTIVITY PIECES
@@ -152,6 +154,8 @@ export const PRODUCTIVITY_PIECES: Integration[] = [
     { id: 'microsoft-todo', name: 'Microsoft To Do', description: 'Task management', category: 'productivity', color: '#3B78E7', authType: 'oauth2', triggers: ['task_created'], actions: ['create_task'] },
     { id: 'evernote', name: 'Evernote', description: 'Note-taking', category: 'productivity', color: '#00A82D', authType: 'oauth2', triggers: ['note_created'], actions: ['create_note'] },
     { id: 'coda', name: 'Coda', description: 'Doc + spreadsheet', category: 'productivity', color: '#F46A54', authType: 'oauth2', triggers: ['row_created'], actions: ['add_row', 'update_row'] },
+    { id: 'zoho-projects', name: 'Zoho Projects', description: 'Project management', category: 'productivity', color: '#DC2626', authType: 'oauth2', triggers: ['task_created', 'milestone_completed'], actions: ['create_task', 'add_comment'] },
+    { id: 'microsoft-planner', name: 'Microsoft Planner', description: 'MS task management', category: 'productivity', color: '#3B78E7', authType: 'oauth2', triggers: ['task_created'], actions: ['create_task'], popular: true },
 ];
 
 // MARKETING PIECES
@@ -216,6 +220,7 @@ export const STORAGE_PIECES: Integration[] = [
     { id: 'cloudflare-r2', name: 'Cloudflare R2', description: 'Object storage', category: 'storage', color: '#F38020', authType: 'api_key', triggers: [], actions: ['upload', 'download'] },
     { id: 'wasabi', name: 'Wasabi', description: 'Cloud storage', category: 'storage', color: '#00C14D', authType: 'api_key', triggers: [], actions: ['upload', 'download'] },
     { id: 'backblaze', name: 'Backblaze B2', description: 'Cloud storage', category: 'storage', color: '#E21E29', authType: 'api_key', triggers: [], actions: ['upload', 'download'] },
+    { id: 'zoho-workdrive', name: 'Zoho WorkDrive', description: 'Cloud storage', category: 'storage', color: '#DC2626', authType: 'oauth2', triggers: ['file_created'], actions: ['upload_file', 'share_link'] },
 ];
 
 // ECOMMERCE PIECES
@@ -230,6 +235,7 @@ export const ECOMMERCE_PIECES: Integration[] = [
     { id: 'gumroad', name: 'Gumroad', description: 'Creator commerce', category: 'ecommerce', color: '#FF90E8', authType: 'api_key', triggers: ['sale_created'], actions: [] },
     { id: 'lemonsqueezy', name: 'Lemon Squeezy', description: 'Digital commerce', category: 'ecommerce', color: '#FFC233', authType: 'api_key', triggers: ['order_created', 'subscription_created'], actions: ['create_checkout'] },
     { id: 'paddle', name: 'Paddle', description: 'SaaS billing', category: 'ecommerce', color: '#32325D', authType: 'api_key', triggers: ['payment_succeeded', 'subscription_created'], actions: ['create_subscription'] },
+    { id: 'zoho-inventory', name: 'Zoho Inventory', description: 'Inventory management', category: 'ecommerce', color: '#DC2626', authType: 'oauth2', triggers: ['order_created', 'stock_low'], actions: ['create_item', 'update_stock'] },
 ];
 
 // SUPPORT PIECES
@@ -319,6 +325,8 @@ export const FINANCE_PIECES: Integration[] = [
     { id: 'ramp', name: 'Ramp', description: 'Corporate cards', category: 'finance', color: '#00C48C', authType: 'api_key', triggers: ['transaction_created'], actions: [] },
     { id: 'chargebee', name: 'Chargebee', description: 'Subscription billing', category: 'finance', color: '#FF6849', authType: 'api_key', triggers: ['subscription_created', 'invoice_generated'], actions: ['create_subscription'] },
     { id: 'recurly', name: 'Recurly', description: 'Subscription management', category: 'finance', color: '#5E5E5E', authType: 'api_key', triggers: ['subscription_created'], actions: ['create_subscription'] },
+    { id: 'zoho-books', name: 'Zoho Books', description: 'Accounting software', category: 'finance', color: '#DC2626', authType: 'oauth2', triggers: ['invoice_created', 'payment_received'], actions: ['create_invoice', 'add_contact'], popular: true },
+    { id: 'dynamics-365-finance', name: 'Dynamics 365 Finance', description: 'Microsoft ERP', category: 'finance', color: '#002050', authType: 'oauth2', triggers: ['invoice_created'], actions: ['create_invoice'], popular: true },
 ];
 
 // SECURITY PIECES

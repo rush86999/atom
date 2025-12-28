@@ -154,8 +154,8 @@ echo "---------------------------------------"
 
 # Check React WebSocket files
 frontend_files=(
-    "/Users/rushiparikh/projects/atom/atom/frontend-nextjs/hooks/useWhatsAppWebSocket.ts"
-    "/Users/rushiparikh/projects/atom/atom/frontend-nextjs/components/integrations/WhatsAppRealtimeStatus.tsx"
+    "/home/developer/projects/atom/atom/frontend-nextjs/hooks/useWhatsAppWebSocket.ts"
+    "/home/developer/projects/atom/atom/frontend-nextjs/components/integrations/WhatsAppRealtimeStatus.tsx"
 )
 
 echo "Checking React components..."

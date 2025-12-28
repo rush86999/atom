@@ -17,7 +17,7 @@ class TestWorkflowExecution:
 
     def setup_method(self):
         """Setup test fixtures"""
-        self.base_url = "http://localhost:5059"
+        self.base_url = "http://localhost:8000"
         self.workflow_api = f"{self.base_url}/api/v1/workflows"
         self.max_execution_time = 30  # seconds
         self.performance_target = 5  # seconds (ideal)

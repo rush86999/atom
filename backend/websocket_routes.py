@@ -4,7 +4,7 @@ WebSocket API Endpoints
 Provides WebSocket connections for real-time updates
 """
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends, Body
 from core.websockets import manager
 import json
 import logging
@@ -76,12 +76,12 @@ async def get_websocket_stats():
     return manager.get_stats()
 
 
-# Example: Trigger a test broadcast (for development/testing)
 @router.post("/ws/test/broadcast")
-async def test_broadcast(channel: str = "workflows", message: str = "Test message"):
+async def test_broadcast(
+    channel: str = "communication_stats", 
+    event_type: str = "status_update",
+    message: dict = Body(...)
+):
     """Test endpoint to broadcast a message to a channel"""
-    await manager.broadcast(channel, {
-        "type": "test",
-        "message": message
-    })
-    return {"status": "broadcasted", "channel": channel}
+    await manager.broadcast_event(channel, event_type, message)
+    return {"status": "broadcasted", "channel": channel, "event": event_type}

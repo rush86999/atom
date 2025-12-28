@@ -30,11 +30,11 @@ KEY_FILES = [
 
 # Define replacements
 REPLACEMENTS = {
-    "rushiparikh": "developer",
-    "Rushi Parikh": "Developer", 
-    "/Users/rushiparikh": "/home/developer",
-    "/Users/rushiparikh/projects/atom": "/home/developer/projects",
-    "/Users/rushiparikh/atom-production": "/opt/atom",
+    "developer": "developer",
+    "Developer": "Developer", 
+    "/home/developer": "/home/developer",
+    "/home/developer/projects/atom": "/home/developer/projects",
+    "/home/developer/atom-production": "/opt/atom",
     "admin@atom.com": "noreply@atom.com",
     "your_email@gmail.com": "noreply@atom.com"
 }

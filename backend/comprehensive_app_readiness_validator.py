@@ -115,7 +115,7 @@ async def run_comprehensive_validation():
     # Initialize validator
     validator = IndependentAIValidator(
         credentials_file="notes/credentials.md",
-        backend_url="http://localhost:5059"
+        backend_url="http://localhost:8000"
     )
     
     try:
@@ -164,7 +164,7 @@ async def run_comprehensive_validation():
         print()
         
         from independent_ai_validator.core.business_outcome_validator import BusinessOutcomeValidator
-        business_validator = BusinessOutcomeValidator(backend_url="http://localhost:5059")
+        business_validator = BusinessOutcomeValidator(backend_url="http://localhost:8000")
         business_results = await business_validator.validate_business_outcomes()
         
         print(f"Business Value Score: {business_results['total_value_score']:.2f}/1.0")
@@ -200,7 +200,7 @@ async def run_comprehensive_validation():
         print()
         
         # Save detailed report
-        report_path = Path(f"/Users/rushiparikh/projects/atom/atom/backend/app_readiness_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+        report_path = Path(f"/home/developer/projects/atom/atom/backend/app_readiness_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
         detailed_report = {
             "validation_date": datetime.now().isoformat(),
             "overall_score": avg_score,

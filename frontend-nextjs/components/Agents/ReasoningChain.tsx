@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ThumbsUp, ThumbsDown, ChevronDown, ChevronRight, Activity, Cpu } from 'lucide-react';
+import { Check, ThumbsUp, ThumbsDown, ChevronDown, ChevronRight, Activity, Cpu, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -18,7 +18,7 @@ export interface ReasoningStep {
 interface ReasoningChainProps {
     steps: ReasoningStep[];
     isReasoning?: boolean; // Is the agent currently thinking?
-    onFeedback?: (stepIndex: number, type: 'thumbs_up' | 'thumbs_down') => void;
+    onFeedback?: (stepIndex: number, type: 'thumbs_up' | 'thumbs_down', comment?: string) => void;
     className?: string;
 }
 
@@ -29,6 +29,8 @@ export const ReasoningChain: React.FC<ReasoningChainProps> = ({
     className
 }) => {
     const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
+    const [feedbackStep, setFeedbackStep] = useState<number | null>(null);
+    const [comment, setComment] = useState('');
 
     const toggleStep = (index: number) => {
         const newExpanded = new Set(expandedSteps);
@@ -38,6 +40,14 @@ export const ReasoningChain: React.FC<ReasoningChainProps> = ({
             newExpanded.add(index);
         }
         setExpandedSteps(newExpanded);
+    };
+
+    const handleFeedbackSubmit = (index: number) => {
+        if (onFeedback && comment.trim()) {
+            onFeedback(index, 'thumbs_down', comment);
+            setFeedbackStep(null);
+            setComment('');
+        }
     };
 
     return (
@@ -66,6 +76,13 @@ export const ReasoningChain: React.FC<ReasoningChainProps> = ({
                                     <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onFeedback(idx, 'thumbs_down'); }}>
                                         <ThumbsDown className="w-3 h-3 text-gray-400 hover:text-red-600" />
                                     </Button>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => {
+                                        e.stopPropagation();
+                                        setFeedbackStep(feedbackStep === idx ? null : idx);
+                                        setComment('');
+                                    }}>
+                                        <MessageSquare className={cn("w-3 h-3 transition-colors", feedbackStep === idx ? "text-blue-500" : "text-gray-400 hover:text-blue-500")} />
+                                    </Button>
                                 </div>
                             )}
                             {step.status === 'completed' ? (
@@ -81,6 +98,34 @@ export const ReasoningChain: React.FC<ReasoningChainProps> = ({
                     {/* Details: Action & Observation */}
                     {expandedSteps.has(idx) && (
                         <div className="p-3 bg-slate-50 space-y-3 animation-in slide-in-from-top-2 duration-200">
+                            {/* Comment Feedback Input */}
+                            {feedbackStep === idx && (
+                                <div className="bg-blue-50 border border-blue-100 rounded-md p-3 mb-2 space-y-2">
+                                    <div className="text-xs font-semibold text-blue-700 flex items-center gap-2">
+                                        <MessageSquare className="w-3 h-3" />
+                                        Suggest a Correction
+                                    </div>
+                                    <div className="bg-white border border-blue-200 rounded p-2 text-xs text-gray-400 italic mb-2 select-none">
+                                        "{steps[idx].thought || steps[idx].action}"
+                                    </div>
+                                    <textarea
+                                        className="w-full h-20 bg-white border border-blue-200 rounded p-2 text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                                        placeholder="Explain what the agent should have done differently..."
+                                        value={comment}
+                                        onChange={(e) => setComment(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); setFeedbackStep(null); }}>
+                                            Cancel
+                                        </Button>
+                                        <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700" onClick={(e) => { e.stopPropagation(); handleFeedbackSubmit(idx); }} disabled={!comment.trim()}>
+                                            Submit Correction
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
                             {step.action && (
                                 <div className="space-y-1">
                                     <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</div>

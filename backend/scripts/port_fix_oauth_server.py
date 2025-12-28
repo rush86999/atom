@@ -20,7 +20,7 @@ def is_port_available(port):
 # Find available port
 TEST_PORT = 5058
 if not is_port_available(TEST_PORT):
-    TEST_PORT = 5059
+    TEST_PORT = 8000
     if not is_port_available(TEST_PORT):
         TEST_PORT = 5060
         if not is_port_available(TEST_PORT):
