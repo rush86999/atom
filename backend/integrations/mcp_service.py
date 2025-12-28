@@ -88,14 +88,21 @@ class MCPService:
                 },
                 {
                     "name": "call_integration",
-                    "description": "Call an external integration (Salesforce, HubSpot, etc.)",
+                    "description": "Execute actions on any of 39 native integrations or 280+ Activepieces connectors",
                     "parameters": {
-                        "service": "string (salesforce, hubspot)",
-                        "action": "string (create, read, list, update, query)",
-                        "params": "dict"
+                        "service": "string (salesforce, hubspot, shopify, slack, teams, discord, asana, jira, linear, trello, monday, google_drive, dropbox, onedrive, box, notion, zendesk, freshdesk, intercom, github, gitlab, stripe, quickbooks, xero, zoho_crm, zoho_mail, zoho_workdrive, zoho_books, zoho_inventory, zoho_projects, mailchimp, tableau, google_analytics, figma, telegram, whatsapp, zoom, or any Activepieces piece)",
+                        "action": "string (create, read, list, update, delete, search, send_message, analytics, etc.)",
+                        "params": "dict (action-specific parameters)",
+                        "entity": "string (optional - contact, deal, task, file, ticket, etc.)"
                     }
                 },
-                {"name": "search_integration", "description": "Search for entities in an integration", "parameters": {"service": "string", "query": "string", "entity_type": "string (optional)"}},
+                {
+                    "name": "list_integrations", 
+                    "description": "List all available integrations (39 native + Activepieces catalog)",
+                    "parameters": {}
+                },
+                {"name": "search_integration", "description": "Search for entities across any integration", "parameters": {"service": "string", "query": "string", "entity_type": "string (optional)"}},
+
                 {"name": "list_agents", "description": "List all available specialty agent templates", "parameters": {}},
                 {"name": "spawn_agent", "description": "Spawn a specialty agent to handle a sub-task", "parameters": {"template": "string", "task": "string"}},
                 {
@@ -156,6 +163,37 @@ class MCPService:
                         "platform": "string (optional)",
                         "type": "string (optional)"
                     }
+                },
+                # Phase 8: New Platform Tools
+                {
+                    "name": "send_telegram_message",
+                    "description": "Send a message via Telegram to a chat or channel",
+                    "parameters": {
+                        "channel_id": "int",
+                        "message": "string"
+                    }
+                },
+                {
+                    "name": "send_whatsapp_message",
+                    "description": "Send a WhatsApp message to a phone number",
+                    "parameters": {
+                        "to": "string (phone number with country code)",
+                        "message": "string"
+                    }
+                },
+                {
+                    "name": "create_zoom_meeting",
+                    "description": "Create a Zoom meeting and get the join URL",
+                    "parameters": {
+                        "topic": "string",
+                        "duration": "int (minutes, optional)",
+                        "start_time": "string (ISO format, optional)"
+                    }
+                },
+                {
+                    "name": "get_zoom_meetings",
+                    "description": "List upcoming Zoom meetings",
+                    "parameters": {}
                 }
             ]
         return self.active_servers.get(server_id, {}).get("tools", [])
@@ -318,7 +356,38 @@ class MCPService:
                      context=context
                 )
 
+            elif tool_name == "list_integrations":
+                from integrations.universal_integration_service import NATIVE_INTEGRATIONS
+                # Try to get Activepieces catalog
+                activepieces_count = 0
+                try:
+                    from core.external_integration_service import external_integration_service
+                    pieces = await external_integration_service.list_available_pieces()
+                    activepieces_count = len(pieces) if pieces else 280  # Default estimate
+                except:
+                    activepieces_count = 280  # Default estimate
+                
+                return {
+                    "native_integrations": sorted(list(NATIVE_INTEGRATIONS)),
+                    "native_count": len(NATIVE_INTEGRATIONS),
+                    "activepieces_count": activepieces_count,
+                    "total_available": len(NATIVE_INTEGRATIONS) + activepieces_count,
+                    "categories": {
+                        "sales_crm": ["salesforce", "hubspot", "zoho_crm"],
+                        "communication": ["slack", "teams", "discord", "google_chat", "telegram", "whatsapp", "zoom", "zoho_mail"],
+                        "project_management": ["asana", "jira", "linear", "trello", "monday", "zoho_projects"],
+                        "storage_knowledge": ["google_drive", "dropbox", "onedrive", "box", "notion", "zoho_workdrive"],
+                        "support": ["zendesk", "freshdesk", "intercom"],
+                        "development": ["github", "gitlab", "figma"],
+                        "finance": ["stripe", "quickbooks", "xero", "zoho_books", "zoho_inventory"],
+                        "marketing": ["mailchimp", "hubspot_marketing"],
+                        "analytics": ["tableau", "google_analytics"],
+                        "ecommerce": ["shopify"]
+                    }
+                }
+
             elif tool_name == "list_agents":
+
                 from core.atom_meta_agent import SpecialtyAgentTemplate
                 return SpecialtyAgentTemplate.TEMPLATES
 
@@ -734,6 +803,96 @@ class MCPService:
                     })
 
                 return all_results
+
+            # Phase 8: New Platform Tool Handlers
+            elif tool_name == "send_telegram_message":
+                try:
+                    from integrations.atom_telegram_integration import atom_telegram_integration
+                    channel_id = arguments.get("channel_id")
+                    message = arguments.get("message")
+                    
+                    if not channel_id or not message:
+                        return {"error": "channel_id and message are required"}
+                    
+                    result = await atom_telegram_integration.send_intelligent_message(
+                        channel_id=int(channel_id),
+                        message=message,
+                        metadata={"via": "mcp", "context": context}
+                    )
+                    return result
+                except Exception as e:
+                    logger.error(f"Telegram MCP tool failed: {e}")
+                    return {"error": str(e), "platform": "telegram"}
+
+            elif tool_name == "send_whatsapp_message":
+                try:
+                    from integrations.whatsapp_business_integration import whatsapp_integration
+                    to = arguments.get("to")
+                    message = arguments.get("message")
+                    
+                    if not to or not message:
+                        return {"error": "to and message are required"}
+                    
+                    result = whatsapp_integration.send_message(
+                        to=to,
+                        message_type="text",
+                        content={"text": message}
+                    )
+                    return result
+                except ImportError:
+                    return {"error": "WhatsApp integration not available", "status": "not_configured"}
+                except Exception as e:
+                    logger.error(f"WhatsApp MCP tool failed: {e}")
+                    return {"error": str(e), "platform": "whatsapp"}
+
+            elif tool_name == "create_zoom_meeting":
+                try:
+                    from integrations.zoom_service import zoom_service
+                    from core.external_integration_service import ConnectionService
+                    
+                    user_id = context.get("user_id", "default_user")
+                    conn_service = ConnectionService()
+                    connections = await conn_service.list_connections(user_id=user_id)
+                    zoom_conn = next((c for c in connections if c.piece_name == "zoom"), None)
+                    
+                    if not zoom_conn:
+                        return {"error": "Zoom not connected", "status": "not_configured"}
+                    
+                    topic = arguments.get("topic", "ATOM Meeting")
+                    duration = arguments.get("duration", 60)
+                    start_time = arguments.get("start_time")
+                    
+                    result = await zoom_service.create_meeting(
+                        topic=topic,
+                        duration=duration,
+                        start_time=start_time,
+                        access_token=zoom_conn.credentials.get("access_token")
+                    )
+                    return {"status": "success", "meeting": result}
+                except Exception as e:
+                    logger.error(f"Zoom MCP tool failed: {e}")
+                    return {"error": str(e), "platform": "zoom"}
+
+            elif tool_name == "get_zoom_meetings":
+                try:
+                    from integrations.zoom_service import zoom_service
+                    from core.external_integration_service import ConnectionService
+                    
+                    user_id = context.get("user_id", "default_user")
+                    conn_service = ConnectionService()
+                    connections = await conn_service.list_connections(user_id=user_id)
+                    zoom_conn = next((c for c in connections if c.piece_name == "zoom"), None)
+                    
+                    if not zoom_conn:
+                        return {"error": "Zoom not connected", "status": "not_configured"}
+                    
+                    result = await zoom_service.list_meetings(
+                        access_token=zoom_conn.credentials.get("access_token")
+                    )
+                    return {"status": "success", "meetings": result}
+                except Exception as e:
+                    logger.error(f"Zoom list meetings failed: {e}")
+                    return {"error": str(e), "platform": "zoom"}
 
         # Unknown MCP server - fail explicitly
         return {"error": f"Tool '{tool_name}' on server '{server_id}' is not implemented.", "status": "not_implemented"}
