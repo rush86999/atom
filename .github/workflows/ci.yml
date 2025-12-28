@@ -138,3 +138,66 @@ jobs:
           cache-to: type=gha,mode=min
           build-args: |
              SKIP_ENV_VALIDATION=true
+
+  # Tauri build validation (Linux only for CI speed)
+  tauri-build-check:
+    runs-on: ubuntu-22.04
+    needs: frontend-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri dependencies (Ubuntu)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Next.js static export for Tauri
+        working-directory: ./frontend-nextjs
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8001
+          SKIP_ENV_VALIDATION: true
+        run: |
+          # Create static export config
+          cat > next.config.tauri.js << EOF
+          /** @type {import('next').NextConfig} */
+          const nextConfig = {
+            output: 'export',
+            images: { unoptimized: true },
+            typescript: { ignoreBuildErrors: true },
+            eslint: { ignoreDuringBuilds: true },
+          };
+          module.exports = nextConfig;
+          EOF
+          
+          # Backup and replace config
+          if [ -f next.config.js ]; then mv next.config.js next.config.js.bak; fi
+          mv next.config.tauri.js next.config.js
+          
+          npm run build
+          
+          # Restore config
+          rm next.config.js
+          if [ -f next.config.js.bak ]; then mv next.config.js.bak next.config.js; fi
+
+      - name: Verify Tauri config
+        working-directory: ./frontend-nextjs
+        run: |
+          echo "Checking Tauri configuration..."
+          cat src-tauri/tauri.conf.json | head -20
+          echo "Tauri frontendDist: $(grep frontendDist src-tauri/tauri.conf.json)"
+
+      - name: Build Tauri App (check only)
+        working-directory: ./frontend-nextjs
+        run: npm run tauri build -- --verbose
