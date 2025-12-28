@@ -120,6 +120,8 @@ export interface CommunicationHubProps {
   initialTemplates?: QuickReplyTemplate[];
   showNavigation?: boolean;
   compactView?: boolean;
+  isComposeOpen?: boolean;
+  onComposeChange?: (isOpen: boolean) => void;
 }
 
 const CommunicationHub: React.FC<CommunicationHubProps> = ({
@@ -132,25 +134,19 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
   initialTemplates = [],
   showNavigation = true,
   compactView = false,
+  isComposeOpen: externalIsComposeOpen,
+  onComposeChange,
 }) => {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [conversations, setConversations] =
-    useState<Conversation[]>(initialConversations);
-  const [templates, setTemplates] =
-    useState<QuickReplyTemplate[]>(initialTemplates);
-  const [view, setView] = useState<CommunicationView>({
-    type: "inbox",
-    filter: {},
-    sort: { field: "timestamp", direction: "desc" },
-  });
-  const [selectedConversation, setSelectedConversation] =
-    useState<Conversation | null>(null);
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [internalIsComposeOpen, setInternalIsComposeOpen] = useState(false);
 
-  // Modal states
-  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const isComposeOpen = externalIsComposeOpen !== undefined ? externalIsComposeOpen : internalIsComposeOpen;
+  const setIsComposeOpen = (open: boolean) => {
+    if (onComposeChange) {
+      onComposeChange(open);
+    } else {
+      setInternalIsComposeOpen(open);
+    }
+  };
   const [isMessageOpen, setIsMessageOpen] = useState(false);
 
   const { toast } = useToast();
@@ -261,21 +257,53 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
     setLoading(false);
   }, []);
 
-  const handleSendMessage = (
+  const handleSendMessage = async (
     messageData: Omit<Message, "id" | "timestamp" | "status">,
   ) => {
-    const newMessage: Message = {
-      ...messageData,
-      id: Date.now().toString(),
-      timestamp: new Date(),
-      status: "sent",
-    };
-    setMessages((prev) => [...prev, newMessage]);
-    onMessageSend?.(messageData);
-    toast({
-      title: "Message sent",
-      description: "Your message has been sent successfully.",
-    });
+    try {
+      const newMessage = {
+        ...messageData,
+        timestamp: new Date().toISOString(),
+        status: "sent"
+      };
+
+      // Ingest into memory (this simulates sending for now)
+      const res = await fetch(`/api/atom/communication/memory/ingest?app_id=${messageData.platform}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newMessage,
+          sender: messageData.from,
+          recipient: messageData.to,
+          direction: 'outbound',
+          app_type: messageData.platform
+        })
+      });
+
+      if (res.ok) {
+        const savedMessage: Message = {
+          ...messageData,
+          id: Date.now().toString(),
+          timestamp: new Date(),
+          status: "sent",
+        };
+        setMessages((prev) => [...prev, savedMessage]);
+        onMessageSend?.(messageData);
+        toast({
+          title: "Message sent",
+          description: "Your message has been processed and saved.",
+        });
+      } else {
+        throw new Error('Failed to ingest sent message');
+      }
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process message.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleUpdateMessage = (
