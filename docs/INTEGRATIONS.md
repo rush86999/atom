@@ -229,11 +229,15 @@ Atom provides comprehensive integration with a wide range of third-party service
 ## E-commerce
 
 ### 🛍️ Online Retail
-- **✅ Shopify** - E-commerce platform
-  - Store management
-  - Product catalog
-  - Order processing
-  - Customer management
+- **✅ Shopify** - Full E-commerce Business Lifecycle
+  - Store management and analytics
+  - Product catalog and inventory
+  - **Order processing and fulfillment**
+  - **Customer management and search**
+  - **Draft orders and transactions**
+  - **Refund processing**
+  - **Shop analytics and metrics**
+  - **Agent runtime integration** for autonomous management
 
 ## Customer Support
 
@@ -261,10 +265,13 @@ Atom provides comprehensive integration with a wide range of third-party service
   - Data synchronization
 
 ### 🏢 Business Applications
-- **✅ Zoho** - Business software suite
-  - CRM integration
-  - Email management
-  - Document collaboration
+- **✅ Zoho Suite** - Complete Business Software Suite
+  - **Zoho CRM** - Customer relationship management
+  - **Zoho Mail** - Business email solution
+  - **Zoho Projects** - Task and project management
+  - **Zoho WorkDrive** - Cloud storage and file sharing
+  - **Zoho Books** - Accounting and invoicing
+  - **Zoho Inventory** - Inventory management
 
 ### 📄 Document Management
 - **✅ DocuSign** - Electronic signatures

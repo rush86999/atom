@@ -14,6 +14,7 @@ from integrations.marketing_unified_service import marketing_service, MarketingP
 from integrations.atom_whatsapp_integration import atom_whatsapp_integration
 from integrations.document_logic_service import document_logic_service
 from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
+from integrations.shopify_service import ShopifyService
 from core.governance_engine import contact_governance
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,13 @@ class ActionType(Enum):
     FETCH_FORMULAS = "fetch_formulas"  # Phase 30: Formula Memory Access
     APPLY_FORMULA = "apply_formula"     # Phase 30: Execute formula with learning
     SYNC_DATA = "sync_data"
+    # Shopify Lifecycle Actions
+    SHOPIFY_GET_CUSTOMERS = "shopify_get_customers"
+    SHOPIFY_GET_ORDERS = "shopify_get_orders"
+    SHOPIFY_GET_PRODUCTS = "shopify_get_products"
+    SHOPIFY_CREATE_FULFILLMENT = "shopify_create_fulfillment"
+    SHOPIFY_GET_ANALYTICS = "shopify_get_analytics"
+    SHOPIFY_MANAGE_INVENTORY = "shopify_manage_inventory"
 
 
 class AgentIntegrationGateway:
@@ -39,7 +47,8 @@ class AgentIntegrationGateway:
             "ecommerce": ecommerce_service,
             "marketing": marketing_service,
             "whatsapp": atom_whatsapp_integration,
-            "docs": document_logic_service
+            "docs": document_logic_service,
+            "shopify": ShopifyService()
         }
 
     async def execute_action(self, action_type: ActionType, platform: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -79,6 +88,19 @@ class AgentIntegrationGateway:
                 return await self._handle_fetch_formulas(params)
             elif action_type == ActionType.APPLY_FORMULA:
                 return await self._handle_apply_formula(params)
+            # Shopify Lifecycle Actions
+            elif action_type == ActionType.SHOPIFY_GET_CUSTOMERS:
+                return await self._handle_shopify_customers(params)
+            elif action_type == ActionType.SHOPIFY_GET_ORDERS:
+                return await self._handle_shopify_orders(params)
+            elif action_type == ActionType.SHOPIFY_GET_PRODUCTS:
+                return await self._handle_shopify_products(params)
+            elif action_type == ActionType.SHOPIFY_CREATE_FULFILLMENT:
+                return await self._handle_shopify_fulfillment(params)
+            elif action_type == ActionType.SHOPIFY_GET_ANALYTICS:
+                return await self._handle_shopify_analytics(params)
+            elif action_type == ActionType.SHOPIFY_MANAGE_INVENTORY:
+                return await self._handle_shopify_inventory(params)
             
             return {"status": "error", "message": "Unsupported action type"}
 
@@ -265,6 +287,131 @@ class AgentIntegrationGateway:
                 "status": "error",
                 "message": f"Formula execution failed: {str(e)}"
             }
+
+    # ==================== SHOPIFY LIFECYCLE HANDLERS ====================
+    
+    async def _handle_shopify_customers(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get/search Shopify customers"""
+        access_token = params.get("access_token")
+        shop = params.get("shop")
+        query = params.get("query")
+        customer_id = params.get("customer_id")
+        limit = params.get("limit", 20)
+        
+        if not access_token or not shop:
+            return {"status": "error", "message": "access_token and shop are required"}
+        
+        shopify = self.services["shopify"]
+        
+        try:
+            if customer_id:
+                customer = await shopify.get_customer(access_token, shop, customer_id)
+                return {"status": "success", "data": customer}
+            elif query:
+                customers = await shopify.search_customers(access_token, shop, query)
+                return {"status": "success", "data": customers, "count": len(customers)}
+            else:
+                customers = await shopify.get_customers(access_token, shop, limit)
+                return {"status": "success", "data": customers, "count": len(customers)}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    async def _handle_shopify_orders(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get Shopify orders"""
+        access_token = params.get("access_token")
+        shop = params.get("shop")
+        limit = params.get("limit", 20)
+        
+        if not access_token or not shop:
+            return {"status": "error", "message": "access_token and shop are required"}
+        
+        shopify = self.services["shopify"]
+        
+        try:
+            orders = await shopify.get_orders(access_token, shop, limit)
+            return {"status": "success", "data": orders, "count": len(orders)}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    async def _handle_shopify_products(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get Shopify products"""
+        access_token = params.get("access_token")
+        shop = params.get("shop")
+        limit = params.get("limit", 20)
+        
+        if not access_token or not shop:
+            return {"status": "error", "message": "access_token and shop are required"}
+        
+        shopify = self.services["shopify"]
+        
+        try:
+            products = await shopify.get_products(access_token, shop, limit)
+            return {"status": "success", "data": products, "count": len(products)}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    async def _handle_shopify_fulfillment(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Create fulfillment for an order"""
+        access_token = params.get("access_token")
+        shop = params.get("shop")
+        order_id = params.get("order_id")
+        location_id = params.get("location_id")
+        tracking_number = params.get("tracking_number")
+        tracking_company = params.get("tracking_company")
+        
+        if not all([access_token, shop, order_id, location_id]):
+            return {"status": "error", "message": "access_token, shop, order_id, and location_id are required"}
+        
+        shopify = self.services["shopify"]
+        
+        try:
+            result = await shopify.create_fulfillment(
+                access_token, shop, order_id, location_id, tracking_number, tracking_company
+            )
+            logger.info(f"Agent created fulfillment for order {order_id}")
+            return {"status": "success", "data": result}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    async def _handle_shopify_analytics(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get comprehensive Shopify analytics"""
+        access_token = params.get("access_token")
+        shop = params.get("shop")
+        
+        if not access_token or not shop:
+            return {"status": "error", "message": "access_token and shop are required"}
+        
+        shopify = self.services["shopify"]
+        
+        try:
+            analytics = await shopify.get_shop_analytics(access_token, shop)
+            return {"status": "success", "data": analytics}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    async def _handle_shopify_inventory(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get/manage Shopify inventory"""
+        access_token = params.get("access_token")
+        shop = params.get("shop")
+        location_id = params.get("location_id")
+        
+        if not access_token or not shop:
+            return {"status": "error", "message": "access_token and shop are required"}
+        
+        shopify = self.services["shopify"]
+        
+        try:
+            inventory = await shopify.get_inventory_levels(access_token, shop, location_id)
+            locations = await shopify.get_locations(access_token, shop)
+            return {
+                "status": "success",
+                "inventory": inventory,
+                "locations": locations,
+                "inventory_count": len(inventory),
+                "location_count": len(locations)
+            }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
 
 # Global singleton

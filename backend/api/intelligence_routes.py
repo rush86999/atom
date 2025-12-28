@@ -76,26 +76,93 @@ async def get_entities(type: Optional[str] = None, platform: Optional[str] = Non
 async def refresh_intelligence():
     """
     Manually trigger a cross-platform data ingestion and analysis.
+    Syncs data from all connected integrations into their respective dashboards.
     """
     try:
-        # In a real scenario, this would trigger background tasks to fetch real data
-        # For now, we simulate a refresh
+        # All platforms to sync - organized by sidebar category
         platforms_to_sync = [
-            PlatformType.ASANA,
+            # === SALES & CRM (feeds Sales dashboard) ===
             PlatformType.SALESFORCE,
             PlatformType.HUBSPOT,
-            PlatformType.ZENDESK
+            PlatformType.ZOHO_CRM,
+            
+            # === COMMUNICATION (feeds Communication hub) ===
+            PlatformType.SLACK,
+            PlatformType.TEAMS,
+            PlatformType.DISCORD,
+            PlatformType.GOOGLE_CHAT,
+            PlatformType.TELEGRAM,
+            PlatformType.WHATSAPP,
+            PlatformType.ZOOM,
+            PlatformType.ZOHO_MAIL,
+            
+            # === PROJECT MANAGEMENT (feeds Projects dashboard) ===
+            PlatformType.ASANA,
+            PlatformType.JIRA,
+            PlatformType.LINEAR,
+            PlatformType.TRELLO,
+            PlatformType.MONDAY,
+            PlatformType.ZOHO_PROJECTS,
+            
+            # === KNOWLEDGE & STORAGE (feeds Knowledge dashboard) ===
+            PlatformType.GOOGLE_DRIVE,
+            PlatformType.DROPBOX,
+            PlatformType.ONEDRIVE,
+            PlatformType.BOX,
+            PlatformType.NOTION,
+            PlatformType.ZOHO_WORKDRIVE,
+            
+            # === SUPPORT (feeds Support dashboard) ===
+            PlatformType.ZENDESK,
+            PlatformType.FRESHDESK,
+            PlatformType.INTERCOM,
+            
+            # === DEVELOPMENT (feeds Dev Studio) ===
+            PlatformType.GITHUB,
+            PlatformType.GITLAB,
+            PlatformType.FIGMA,
+            
+            # === FINANCE (feeds Finance dashboard) ===
+            PlatformType.STRIPE,
+            PlatformType.QUICKBOOKS,
+            PlatformType.XERO,
+            PlatformType.ZOHO_BOOKS,
+            PlatformType.ZOHO_INVENTORY,
+            
+            # === MARKETING (feeds Marketing dashboard) ===
+            PlatformType.MAILCHIMP,
+            PlatformType.HUBSPOT_MARKETING,
+            
+            # === ANALYTICS (feeds Analytics dashboard) ===
+            PlatformType.TABLEAU,
+            PlatformType.GOOGLE_ANALYTICS,
+            
+            # === E-COMMERCE ===
+            PlatformType.SHOPIFY,
         ]
+
         
+        synced_count = 0
         for platform in platforms_to_sync:
-            data = await engine._get_platform_data(platform)
-            if data:
-                await engine.ingest_platform_data(platform, data)
+            try:
+                data = await engine._get_platform_data(platform)
+                if data:
+                    await engine.ingest_platform_data(platform, data)
+                    synced_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to sync {platform.value}: {e}")
+                continue
                 
-        return {"status": "success", "message": "Intelligence data refreshed"}
+        return {
+            "status": "success", 
+            "message": f"Intelligence data refreshed across all categories",
+            "platforms_synced": synced_count,
+            "total_entities": len(engine.entity_registry)
+        }
     except Exception as e:
         logger.error(f"Error refreshing intelligence: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/execute")
 async def execute_insight_action(request: Dict[str, Any]):
     """

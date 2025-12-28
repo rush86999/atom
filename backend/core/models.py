@@ -5,6 +5,7 @@ from sqlalchemy.sql import func
 import uuid
 import enum
 from core.database import Base
+from core.data_visibility import DataVisibility
 
 # Enums
 class UserRole(str, enum.Enum):
@@ -180,9 +181,16 @@ class WorkflowExecution(Base):
     error = Column(Text, nullable=True)
     # Add user_id foreign key for user binding
     user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    
+    # Visibility scoping
+    visibility = Column(String, default=DataVisibility.WORKSPACE.value, nullable=False, index=True)
+    owner_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    team_id = Column(String, ForeignKey("teams.id"), nullable=True, index=True)
 
     # Relationships
-    user = relationship("User", backref="workflow_executions")
+    user = relationship("User", foreign_keys=[user_id], backref="workflow_executions")
+    owner = relationship("User", foreign_keys=[owner_id])
+    team = relationship("Team")
 
 class ChatProcess(Base):
     __tablename__ = "chat_processes"
@@ -200,9 +208,16 @@ class ChatProcess(Base):
     missing_parameters = Column(Text, nullable=True)  # JSON array of missing param names
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Visibility scoping
+    visibility = Column(String, default=DataVisibility.PRIVATE.value, nullable=False, index=True)
+    owner_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    team_id = Column(String, ForeignKey("teams.id"), nullable=True, index=True)
 
     # Relationships
-    user = relationship("User", backref="chat_processes")
+    user = relationship("User", foreign_keys=[user_id], backref="chat_processes")
+    owner = relationship("User", foreign_keys=[owner_id])
+    team = relationship("Team")
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"

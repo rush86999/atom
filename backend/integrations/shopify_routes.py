@@ -125,7 +125,145 @@ async def shopify_root():
             "/shop",
             "/products",
             "/orders",
+            "/customers",
+            "/customers/search",
+            "/fulfillments/{order_id}",
+            "/refunds/{order_id}",
+            "/draft-orders",
+            "/transactions/{order_id}",
+            "/analytics",
             "/webhooks/setup",
             "/status"
         ]
     }
+
+# ==================== FULL BUSINESS LIFECYCLE ROUTES ====================
+
+# --- CUSTOMERS ---
+@router.get("/customers")
+async def list_customers(
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """List Shopify customers"""
+    customers = await shopify_service.get_customers(access_token, shop, limit)
+    return {"ok": True, "data": customers, "count": len(customers)}
+
+@router.get("/customers/search")
+async def search_customers(
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+    query: str = Query(..., description="Search query (email, name, etc.)")
+):
+    """Search customers"""
+    customers = await shopify_service.search_customers(access_token, shop, query)
+    return {"ok": True, "data": customers, "count": len(customers)}
+
+@router.get("/customers/{customer_id}")
+async def get_customer(
+    customer_id: str,
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain")
+):
+    """Get a specific customer"""
+    customer = await shopify_service.get_customer(access_token, shop, customer_id)
+    return {"ok": True, "data": customer}
+
+# --- FULFILLMENTS ---
+@router.get("/fulfillments/{order_id}")
+async def get_fulfillments(
+    order_id: str,
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain")
+):
+    """Get fulfillments for an order"""
+    fulfillments = await shopify_service.get_fulfillments(access_token, shop, order_id)
+    return {"ok": True, "data": fulfillments, "count": len(fulfillments)}
+
+@router.post("/fulfillments/{order_id}")
+async def create_fulfillment(
+    order_id: str,
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+    location_id: str = Query(..., description="Location ID"),
+    tracking_number: str = Query(None, description="Tracking Number"),
+    tracking_company: str = Query(None, description="Tracking Company")
+):
+    """Create a fulfillment for an order"""
+    result = await shopify_service.create_fulfillment(
+        access_token, shop, order_id, location_id, tracking_number, tracking_company
+    )
+    return {"ok": True, "data": result}
+
+# --- REFUNDS ---
+@router.get("/refunds/{order_id}")
+async def get_refunds(
+    order_id: str,
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain")
+):
+    """Get refunds for an order"""
+    refunds = await shopify_service.get_refunds(access_token, shop, order_id)
+    return {"ok": True, "data": refunds, "count": len(refunds)}
+
+# --- DRAFT ORDERS ---
+@router.get("/draft-orders")
+async def list_draft_orders(
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """List draft orders"""
+    drafts = await shopify_service.get_draft_orders(access_token, shop, limit)
+    return {"ok": True, "data": drafts, "count": len(drafts)}
+
+@router.post("/draft-orders/{draft_id}/complete")
+async def complete_draft_order(
+    draft_id: str,
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain")
+):
+    """Convert draft order to real order"""
+    result = await shopify_service.complete_draft_order(access_token, shop, draft_id)
+    return {"ok": True, "data": result}
+
+# --- TRANSACTIONS ---
+@router.get("/transactions/{order_id}")
+async def get_transactions(
+    order_id: str,
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain")
+):
+    """Get transactions for an order"""
+    transactions = await shopify_service.get_transactions(access_token, shop, order_id)
+    return {"ok": True, "data": transactions, "count": len(transactions)}
+
+# --- ANALYTICS ---
+@router.get("/analytics")
+async def get_shop_analytics(
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain")
+):
+    """Get comprehensive shop analytics"""
+    analytics = await shopify_service.get_shop_analytics(access_token, shop)
+    return {"ok": True, "data": analytics}
+
+@router.get("/inventory")
+async def get_inventory(
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+    location_id: str = Query(None, description="Filter by location")
+):
+    """Get inventory levels"""
+    inventory = await shopify_service.get_inventory_levels(access_token, shop, location_id)
+    return {"ok": True, "data": inventory, "count": len(inventory)}
+
+@router.get("/locations")
+async def get_locations(
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain")
+):
+    """Get shop locations"""
+    locations = await shopify_service.get_locations(access_token, shop)
+    return {"ok": True, "data": locations, "count": len(locations)}

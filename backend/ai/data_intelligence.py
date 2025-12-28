@@ -62,6 +62,13 @@ class PlatformType(Enum):
     GOOGLE_ANALYTICS = "google_analytics"
     FIGMA = "figma"
     SHOPIFY = "shopify"
+    # Zoho Suite
+    ZOHO_WORKDRIVE = "zoho_workdrive"
+    ZOHO_CRM = "zoho_crm"
+    ZOHO_BOOKS = "zoho_books"
+    ZOHO_INVENTORY = "zoho_inventory"
+    ZOHO_MAIL = "zoho_mail"
+    ZOHO_PROJECTS = "zoho_projects"
 
 
 @dataclass
@@ -162,13 +169,68 @@ class DataIntelligenceEngine:
     def _get_default_entity(self, platform: PlatformType) -> str:
         """Get default entity type to list for a platform"""
         defaults = {
+            # === SALES & CRM (feeds Sales dashboard) ===
             PlatformType.SALESFORCE: "contact",
             PlatformType.HUBSPOT: "contact",
+            PlatformType.ZOHO_CRM: "contact",
+            
+            # === COMMUNICATION (feeds Communication hub) ===
             PlatformType.SLACK: "message",
+            PlatformType.TEAMS: "message",
+            PlatformType.DISCORD: "message",
+            PlatformType.GOOGLE_CHAT: "message",
+            PlatformType.TELEGRAM: "message",
+            PlatformType.WHATSAPP: "message",
+            PlatformType.ZOOM: "meeting",
+            PlatformType.ZOHO_MAIL: "message",
+            
+            # === PROJECT MANAGEMENT (feeds Projects dashboard) ===
             PlatformType.ASANA: "task",
-            PlatformType.SHOPIFY: "product"
+            PlatformType.JIRA: "task",
+            PlatformType.LINEAR: "task",
+            PlatformType.TRELLO: "task",
+            PlatformType.MONDAY: "task",
+            PlatformType.ZOHO_PROJECTS: "task",
+            
+            # === STORAGE & KNOWLEDGE (feeds Knowledge dashboard) ===
+            PlatformType.GOOGLE_DRIVE: "file",
+            PlatformType.DROPBOX: "file",
+            PlatformType.ONEDRIVE: "file",
+            PlatformType.BOX: "file",
+            PlatformType.NOTION: "file",
+            PlatformType.ZOHO_WORKDRIVE: "file",
+            
+            # === SUPPORT (feeds Support dashboard) ===
+            PlatformType.ZENDESK: "ticket",
+            PlatformType.FRESHDESK: "ticket",
+            PlatformType.INTERCOM: "conversation",
+            
+            # === DEVELOPMENT (feeds Dev Studio) ===
+            PlatformType.GITHUB: "repository",
+            PlatformType.GITLAB: "repository",
+            PlatformType.FIGMA: "file",
+            
+            # === FINANCE (feeds Finance dashboard) ===
+            PlatformType.STRIPE: "payment",
+            PlatformType.QUICKBOOKS: "invoice",
+            PlatformType.XERO: "invoice",
+            PlatformType.ZOHO_BOOKS: "invoice",
+            PlatformType.ZOHO_INVENTORY: "inventory",
+            
+            # === MARKETING (feeds Marketing dashboard) ===
+            PlatformType.MAILCHIMP: "campaign",
+            PlatformType.HUBSPOT_MARKETING: "campaign",
+            
+            # === ANALYTICS (feeds Analytics dashboard) ===
+            PlatformType.TABLEAU: "report",
+            PlatformType.GOOGLE_ANALYTICS: "report",
+            
+            # === E-COMMERCE (feeds Sales/Finance) ===
+            PlatformType.SHOPIFY: "order",
         }
         return defaults.get(platform, "contact")
+
+
 
     def _initialize_entity_resolvers(self) -> Dict[EntityType, callable]:
         """Initialize entity resolution functions"""
