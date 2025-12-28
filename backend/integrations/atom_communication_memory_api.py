@@ -326,6 +326,10 @@ class AtomCommunicationMemoryAPI:
                 }
                 
                 # Analyze records
+                thread_map = {}
+                total_inbound = 0
+                total_outbound = 0
+                
                 for record in filtered_records:
                     # App distribution
                     app_type = record.get("app_type", "unknown")
@@ -335,6 +339,11 @@ class AtomCommunicationMemoryAPI:
                     direction = record.get("direction", "unknown")
                     if direction in analytics["direction_distribution"]:
                         analytics["direction_distribution"][direction] += 1
+                    
+                    if direction == "inbound":
+                        total_inbound += 1
+                    elif direction == "outbound":
+                        total_outbound += 1
                     
                     # Priority distribution
                     priority = record.get("priority", "normal")
@@ -347,10 +356,93 @@ class AtomCommunicationMemoryAPI:
                     # Timeline data (by day)
                     if "timestamp" in record:
                         try:
-                            record_date = datetime.fromisoformat(record["timestamp"]).date().isoformat()
+                            # Parse timestamp
+                            ts_str = record["timestamp"]
+                            if isinstance(ts_str, datetime):
+                                ts = ts_str
+                            else:
+                                ts = datetime.fromisoformat(ts_str)
+                            
+                            record_date = ts.date().isoformat()
                             analytics["timeline_data"][record_date] = analytics["timeline_data"].get(record_date, 0) + 1
-                        except:
+                            
+                            # Group by thread for response time calc
+                            # Parse metadata to find thread_id
+                            thread_id = None
+                            try:
+                                metadata_str = record.get("metadata", "{}")
+                                if isinstance(metadata_str, str):
+                                    metadata = json.loads(metadata_str)
+                                else:
+                                    metadata = metadata_str
+                                thread_id = metadata.get("thread_id")
+                            except:
+                                pass
+                            
+                            # Fallback grouping key if no thread_id
+                            if not thread_id:
+                                # Use subject as backup grouping if available, else just don't group
+                                subject = record.get("subject")
+                                if subject:
+                                    thread_id = f"subj_{subject}"
+                                else:
+                                    thread_id = f"ungrouped_{record['id']}"
+                            
+                            if thread_id:
+                                if thread_id not in thread_map:
+                                    thread_map[thread_id] = []
+                                thread_map[thread_id].append({
+                                    "ts": ts,
+                                    "direction": direction
+                                })
+                        except Exception as e:
+                            logger.error(f"Error processing record for analytics: {e}")
                             pass
+
+                # Calculate Response Rate
+                response_rate = 0
+                if total_inbound > 0:
+                    response_rate = min(100, (total_outbound / total_inbound) * 100)
+                
+                # Calculate Avg Response Time
+                total_response_time_seconds = 0
+                response_count = 0
+                
+                for thread_id, messages in thread_map.items():
+                    # Sort by timestamp
+                    sorted_msgs = sorted(messages, key=lambda x: x["ts"])
+                    
+                    # Find Inbound -> Outbound pairs
+                    last_inbound_time = None
+                    
+                    for msg in sorted_msgs:
+                        if msg["direction"] == "inbound":
+                            last_inbound_time = msg["ts"]
+                        elif msg["direction"] == "outbound" and last_inbound_time:
+                            # Found a response
+                            diff = (msg["ts"] - last_inbound_time).total_seconds()
+                            if diff > 0: # Sanity check
+                                total_response_time_seconds += diff
+                                response_count += 1
+                            last_inbound_time = None # Reset
+                
+                avg_response_time_str = "0m"
+                if response_count > 0:
+                    avg_seconds = total_response_time_seconds / response_count
+                    if avg_seconds < 60:
+                        avg_response_time_str = f"{int(avg_seconds)}s"
+                    elif avg_seconds < 3600:
+                        avg_response_time_str = f"{int(avg_seconds / 60)}m"
+                    elif avg_seconds < 86400:
+                        avg_response_time_str = f"{int(avg_seconds / 3600)}h"
+                    else:
+                        avg_response_time_str = f"{int(avg_seconds / 86400)}d"
+
+                analytics["performance"] = {
+                    "response_rate": round(response_rate, 1),
+                    "avg_response_time": avg_response_time_str,
+                    "total_responses": response_count
+                }
                 
                 return {
                     "success": True,
