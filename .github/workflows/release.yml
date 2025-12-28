@@ -87,7 +87,7 @@ jobs:
         working-directory: frontend-nextjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run tauri build -- ${{ matrix.args }}
+        run: npm run tauri build -- --verbose ${{ matrix.args }}
 
       - name: Get App Version
         id: version
