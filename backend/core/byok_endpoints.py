@@ -41,6 +41,7 @@ class AIProviderConfig:
     is_active: bool = True
     requires_encryption: bool = True
     reasoning_level: int = 1  # 1=Low, 2=Medium, 3=High, 4=Very High
+    supports_structured_output: bool = False
 
     def __post_init__(self):
         if self.supported_tasks is None:
@@ -153,16 +154,30 @@ class BYOKManager:
 
     def _initialize_default_providers(self):
         """Initialize default AI providers"""
+        # Optimized provider list based on 2025 Architecture Report
         defaults = [
+            AIProviderConfig(
+                id="deepseek",
+                name="DeepSeek V3",
+                description="Commoditized Intelligence (Reasoning Engine)",
+                api_key_env_var="DEEPSEEK_API_KEY",
+                base_url="https://api.deepseek.com/v1",
+                supported_tasks=["general", "chat", "code", "analysis", "reasoning"],
+                cost_per_token=0.00000014, # ~$0.14 per million tokens
+                model="deepseek-chat",
+                reasoning_level=4, # High reasoning capability
+                supports_structured_output=True # Via OpenAI compat + instructor
+            ),
             AIProviderConfig(
                 id="openai",
                 name="OpenAI",
                 description="GPT-4 and GPT-3.5 models",
                 api_key_env_var="OPENAI_API_KEY",
                 supported_tasks=["general", "chat", "code", "analysis"],
-                cost_per_token=0.00003,
+                cost_per_token=0.00003, # ~$30 per million
                 model="gpt-4o",
-                reasoning_level=3
+                reasoning_level=3,
+                supports_structured_output=True
             ),
             AIProviderConfig(
                 id="anthropic",
@@ -172,18 +187,20 @@ class BYOKManager:
                 supported_tasks=["general", "chat", "code", "analysis", "writing"],
                 cost_per_token=0.000015,
                 model="claude-3-5-sonnet-20240620",
-                reasoning_level=2
+                reasoning_level=3,
+                supports_structured_output=True # Via tool use / instructor
             ),
             AIProviderConfig(
-                id="moonshot",
-                name="Moonshot AI (Kimi)",
-                description="Kimi k1.5 Thinking Model",
-                api_key_env_var="MOONSHOT_API_KEY",
-                base_url="https://api.moonshot.cn/v1",
-                supported_tasks=["general", "chat", "thinking", "reasoning"],
-                cost_per_token=0.00001, # Estimated
-                model="kimi-k2-thinking",
-                reasoning_level=4
+                id="groq",
+                name="Groq (Llama 3)",
+                description="Ultra-fast Llama 3.3/3.1 inference",
+                api_key_env_var="GROQ_API_KEY",
+                base_url="https://api.groq.com/openai/v1",
+                supported_tasks=["general", "chat", "code", "analysis", "realtime"],
+                cost_per_token=0.0000008, # Very cheap
+                model="llama-3.1-70b-versatile", # Update to 3.3 if available
+                reasoning_level=3,
+                supports_structured_output=True
             ),
             AIProviderConfig(
                 id="google",
@@ -194,9 +211,10 @@ class BYOKManager:
                 supported_tasks=["general", "chat", "code", "analysis", "multimodal"],
                 cost_per_token=0.0000125,
                 model="gemini-1.5-pro",
-                reasoning_level=3
+                reasoning_level=3,
+                supports_structured_output=True
             ),
-            AIProviderConfig(
+             AIProviderConfig(
                 id="google_flash",
                 name="Google Gemini Flash",
                 description="Gemini 1.5 Flash - High Speed",
@@ -205,7 +223,8 @@ class BYOKManager:
                 supported_tasks=["general", "chat", "summary", "extraction"],
                 cost_per_token=0.0000005,
                 model="gemini-1.5-flash",
-                reasoning_level=2
+                reasoning_level=2,
+                supports_structured_output=True
             ),
             AIProviderConfig(
                 id="lux",
@@ -215,40 +234,8 @@ class BYOKManager:
                 supported_tasks=["computer_use", "agentic", "desktop"],
                 cost_per_token=0.00002, 
                 model="lux-1.0",
-                reasoning_level=3
-            ),
-            AIProviderConfig(
-                id="deepseek",
-                name="DeepSeek",
-                description="DeepSeek-V3 and DeepSeek-R1",
-                api_key_env_var="DEEPSEEK_API_KEY",
-                base_url="https://api.deepseek.com/v1",
-                supported_tasks=["general", "chat", "code", "analysis"],
-                cost_per_token=0.000002,
-                model="deepseek-chat",
-                reasoning_level=3
-            ),
-            AIProviderConfig(
-                id="glm",
-                name="Zhipu GLM",
-                description="GLM-4 and GLM-4.6 models",
-                api_key_env_var="GLM_API_KEY",
-                base_url="https://open.bigmodel.cn/api/paas/v4",
-                supported_tasks=["general", "chat", "analysis"],
-                cost_per_token=0.000005,
-                model="glm-4.6",
-                reasoning_level=3
-            ),
-            AIProviderConfig(
-                id="groq",
-                name="Groq",
-                description="Groq Llama 3.1 and Mixtral models",
-                api_key_env_var="GROQ_API_KEY",
-                base_url="https://api.groq.com/openai/v1",
-                supported_tasks=["general", "chat", "code", "analysis"],
-                cost_per_token=0.000001,
-                model="llama-3.1-70b-versatile",
-                reasoning_level=3
+                reasoning_level=3,
+                supports_structured_output=True
             ),
             AIProviderConfig(
                 id="mistral",
@@ -259,29 +246,20 @@ class BYOKManager:
                 supported_tasks=["general", "chat", "code", "analysis"],
                 cost_per_token=0.000004,
                 model="mistral-large-latest",
-                reasoning_level=3
+                reasoning_level=3,
+                supports_structured_output=True
             ),
             AIProviderConfig(
-                id="perplexity",
-                name="Perplexity",
-                description="Perplexity Sonar online models",
-                api_key_env_var="PERPLEXITY_API_KEY",
-                base_url="https://api.perplexity.ai",
-                supported_tasks=["search", "chat", "analysis"],
+                id="glm",
+                name="Zhipu GLM",
+                description="GLM-4 and GLM-4.6 models",
+                api_key_env_var="GLM_API_KEY",
+                base_url="https://open.bigmodel.cn/api/paas/v4",
+                supported_tasks=["general", "chat", "analysis"],
                 cost_per_token=0.000005,
-                model="llama-3.1-sonar-large-128k-online",
-                reasoning_level=3
-            ),
-            AIProviderConfig(
-                id="cohere",
-                name="Cohere",
-                description="Command R and Command R+ models",
-                api_key_env_var="COHERE_API_KEY",
-                base_url="https://api.cohere.ai/v1",
-                supported_tasks=["chat", "rag", "analysis"],
-                cost_per_token=0.000015,
-                model="command-r-plus",
-                reasoning_level=3
+                model="glm-4.6",
+                reasoning_level=3,
+                supports_structured_output=False
             )
         ]
         
@@ -431,10 +409,28 @@ class BYOKManager:
                     suitable_providers.append((provider_id, provider))
 
         if not suitable_providers:
-            raise ValueError(f"No suitable providers found for task type: {task_type}")
+            # If no provider meets the specific reasoning level, try to fallback to ANY provider with keys
+            # for 'general' tasks, but respect reasoning if strict
+            if min_reasoning_level > 3:
+                 raise ValueError(f"No high-reasoning providers (level {min_reasoning_level}) available for task: {task_type}")
+            # Try relaxing reasoning constraint if possible (implied fallback logic)
+
+        if not suitable_providers:
+            # Last ditch: Check if OpenAI or DeepSeek keys exist even if not explicitly matched (fallback)
+            if self.get_api_key("deepseek") and min_reasoning_level <= 4:
+                return "deepseek"
+            if self.get_api_key("openai"):
+                return "openai"
+
+            return None
 
         # Sort by cost (cheapest first)
         suitable_providers.sort(key=lambda x: x[1].cost_per_token)
+
+        # INTELLIGENT ROUTING LOGIC (2025 Architecture)
+        # If High Reasoning is needed (>=3) and DeepSeek is available, favor it due to extreme cost efficiency
+        # unless budget is unlimited and OpenAI is preferred explicitly.
+        # The sort above already puts DeepSeek (0.00000014) above OpenAI (0.00003).
 
         # Apply budget constraints if provided
         if budget_constraint is not None:
