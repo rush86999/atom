@@ -42,6 +42,8 @@ class AIProviderConfig:
     requires_encryption: bool = True
     reasoning_level: int = 1  # 1=Low, 2=Medium, 3=High, 4=Very High
     supports_structured_output: bool = False
+    max_context_window: int = 4096
+    max_output_tokens: int = 2048
 
     def __post_init__(self):
         if self.supported_tasks is None:
@@ -295,6 +297,16 @@ class BYOKManager:
                             if new_cost > 0:
                                 provider.cost_per_token = new_cost
                                 updated_count += 1
+
+                        # Update context window info
+                        # litellm often uses max_input_tokens for context window
+                        max_tokens = pricing.get("max_input_tokens") or pricing.get("max_tokens")
+                        max_output = pricing.get("max_output_tokens")
+
+                        if max_tokens and int(max_tokens) > 0:
+                            provider.max_context_window = int(max_tokens)
+                        if max_output and int(max_output) > 0:
+                            provider.max_output_tokens = int(max_output)
 
             if updated_count > 0:
                 logger.info(f"Updated costs for {updated_count} providers from dynamic pricing")
