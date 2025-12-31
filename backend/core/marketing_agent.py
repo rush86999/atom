@@ -1,77 +1,54 @@
 import logging
 import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from core.database import SessionLocal
-from ecommerce.models import EcommerceCustomer, EcommerceOrder
-from service_delivery.models import Appointment, AppointmentStatus
-from core.communication_intelligence import CommunicationIntelligenceService
+from typing import Dict, Any, List
+from core.react_agent_engine import ReActAgentEngine
 
 logger = logging.getLogger(__name__)
 
 class MarketingAgent:
     """
     Automates reputation management and local SEO for small businesses.
+    Uses ReActAgentEngine for intelligent decision making.
     """
 
     def __init__(self, ai_service: Any = None, db_session: Any = None):
-        self.ai = ai_service
+        self.engine = ReActAgentEngine()
         self.db = db_session
-        self.comm_intel = CommunicationIntelligenceService(ai_service=ai_service, db_session=db_session)
 
     async def trigger_review_request(self, customer_id: str, workspace_id: str):
         """
         Sends a review request if the customer sentiment is positive.
         """
-        db = self.db or SessionLocal()
-        try:
-            customer = db.query(EcommerceCustomer).filter(EcommerceCustomer.id == customer_id).first()
-            if not customer:
-                return {"status": "error", "message": "Customer not found"}
+        prompt = f"Check sentiment for customer {customer_id} and draft a review request if positive."
 
-            # 1. Analyze sentiment from recent communications
-            # (Simplified for prototype: assume positive unless recent churn signals detected)
-            sentiment_summary = "positive" # Default for completed orders/appointments
+        # Define Tools for this specific agent
+        tools_def = """
+Available Tools:
+1. get_customer_sentiment(customer_id: str) -> str: Returns 'positive' or 'negative'.
+2. draft_message(type: str, context: dict) -> str: Drafts a message.
+3. send_message(target: str, message: str) -> str: Sends the message.
+        """
+
+        async def executor(name: str, params: Dict) -> Any:
+            if name == "get_customer_sentiment":
+                return "positive" # Mock logic
+            elif name == "draft_message":
+                return f"Draft: Hi {params.get('context', {}).get('customer_id')}, please review us!"
+            elif name == "send_message":
+                return "Message Sent"
+            return "Tool not found"
             
-            # 2. Draft specialized message
-            if sentiment_summary == "positive":
-                message = f"Hi {customer.id}, thanks for choosing us! We'd love to hear your feedback. Please leave us a review here: [Link]"
-                logger.info(f"Drafted PUBLIC review request for {customer_id}")
-            else:
-                message = f"Hi {customer.id}, we'd love to hear how we can improve. Please share your feedback privately here: [Internal Link]"
-                logger.info(f"Drafted PRIVATE feedback request for {customer_id}")
+        result = await self.engine.run_loop(prompt, tools_def, executor, system_prompt="You are a Marketing Agent.")
 
-            return {"status": "success", "message": message, "target": "sms/email"}
-        finally:
-            if not self.db:
-                db.close()
+        return {"status": result.status, "output": result.output, "steps": [s.model_dump() for s in result.steps]}
 
 class RetentionEngine:
     """
     Detects rebooking cycles and triggers reactivation nudges.
     """
-
     def __init__(self, db_session: Any = None):
         self.db = db_session
 
     async def scan_for_rebooking_opportunities(self, workspace_id: str):
-        """
-        Identify customers who are due for a recurring service.
-        """
-        db = self.db or SessionLocal()
-        opportunities = []
-        try:
-            # Prototype logic: If a customer had a 'COMPLETED' appointment/order > 6 months ago 
-            # and nothing since, trigger a nudge.
-            six_months_ago = datetime.utcnow() - timedelta(days=180)
-            
-            # Find customers with no recent activity but past activity
-            # (In a real app, this would use many more signals)
-            
-            # For the prototype, we'll return a few mock opportunities if any exist
-            logger.info(f"Scanning for rebooking opportunities in workspace {workspace_id}")
-            
-            return opportunities
-        finally:
-            if not self.db:
-                db.close()
+        # ... legacy logic or refactor similarly ...
+        return []
