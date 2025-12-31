@@ -7,14 +7,19 @@ import os
 import json
 import logging
 import asyncio
+from typing import Any, Dict, List, Optional, Union, Tuple
+
 try:
     import numpy as np
     # FORCE DISABLE numpy to prevent crash
     NUMPY_AVAILABLE = False # True
 except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
+    # Mock numpy for type hint
+    class MockNumpy:
+        ndarray = Any
+    np = MockNumpy
     print(f"Numpy not available: {e}")
-from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
 try:
@@ -34,6 +39,10 @@ try:
     LANCEDB_AVAILABLE = False # True
 except (ImportError, BaseException) as e:
     LANCEDB_AVAILABLE = False
+    Table = Any
+    LanceDBConnection = Any
+    LanceModel = Any
+    Vector = Any
     print(f"LanceDB not available: {e}")
 
 # Import sentence transformers for embeddings
@@ -61,6 +70,26 @@ except ImportError:
     get_byok_manager = None
 
 logger = logging.getLogger(__name__)
+
+class MockEmbedder:
+    """Deterministic mock embedder for testing when ML libs are missing"""
+    def __init__(self, dim):
+        self.dim = dim
+
+    def encode(self, text, convert_to_numpy=False):
+        # Generate pseudo-random vector based on text hash for consistency
+        import hashlib
+        hash_val = int(hashlib.sha256(text.encode('utf-8')).hexdigest(), 16)
+        try:
+            import numpy as np
+            np.random.seed(hash_val % 2**32)
+            vector = np.random.rand(self.dim).astype(np.float32)
+            if not convert_to_numpy:
+                return vector.tolist()
+            return vector
+        except ImportError:
+            # Fallback for no numpy
+            return [0.0] * self.dim
 
 class LanceDBHandler:
     """LanceDB vector database handler"""
@@ -840,26 +869,6 @@ def get_chat_history_manager(workspace_id: Optional[str] = None) -> ChatHistoryM
     """Get workspace-aware chat history manager instance"""
     handler = get_lancedb_handler(workspace_id)
     return ChatHistoryManager(handler)
-
-class MockEmbedder:
-    """Deterministic mock embedder for testing when ML libs are missing"""
-    def __init__(self, dim):
-        self.dim = dim
-        
-    def encode(self, text, convert_to_numpy=False):
-        # Generate pseudo-random vector based on text hash for consistency
-        import hashlib
-        hash_val = int(hashlib.sha256(text.encode('utf-8')).hexdigest(), 16)
-        try:
-            import numpy as np
-            np.random.seed(hash_val % 2**32)
-            vector = np.random.rand(self.dim).astype(np.float32)
-            if not convert_to_numpy:
-                return vector.tolist()
-            return vector
-        except ImportError:
-            # Fallback for no numpy
-            return [0.0] * self.dim
 
 # Global chat context manager helper
 def get_chat_context_manager(workspace_id: Optional[str] = None) -> 'ChatContextManager':

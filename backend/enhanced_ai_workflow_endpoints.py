@@ -20,6 +20,9 @@ import anthropic
 import instructor
 from dotenv import load_dotenv
 
+# Import Memory Services
+from core.lancedb_handler import get_lancedb_handler
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -100,11 +103,47 @@ class ReActAgent:
     Implements the Reason -> Act -> Observe loop.
     Uses DeepSeek V3 (via Instructor) for cost-effective reasoning.
     """
-    def __init__(self, client, model_name: str):
+    def __init__(self, client, model_name: str, context_window: int = 128000):
         self.client = client
         self.model_name = model_name
+        self.context_window = context_window
         self.max_loops = 10
         self.history: List[Dict[str, str]] = []
+
+    def _estimate_tokens(self, text: str) -> int:
+        """Rough estimate of tokens (4 chars/token)"""
+        if not text:
+            return 0
+        return len(text) // 4
+
+    def _prune_history(self):
+        """Prune history to fit within context window"""
+        # Reserve tokens for system prompt and new output (e.g., 2000)
+        reserve_tokens = 2000
+        limit = self.context_window - reserve_tokens
+        if limit < 1000:
+            limit = 1000 # Minimum sanity buffer
+
+        current_tokens = sum(self._estimate_tokens(m.get("content", "")) for m in self.history)
+
+        if current_tokens <= limit:
+            return
+
+        logger.info(f"Pruning history: {current_tokens} tokens > {limit} limit")
+
+        # Keep system message (index 0)
+        system_message = self.history[0] if self.history and self.history[0]["role"] == "system" else None
+
+        # Remove messages from index 1 until fit
+        while len(self.history) > 2 and current_tokens > limit:
+            # Don't remove system message if we saved it
+            idx_to_remove = 1 if system_message else 0
+            removed_msg = self.history.pop(idx_to_remove)
+            current_tokens -= self._estimate_tokens(removed_msg.get("content", ""))
+
+        if system_message and self.history[0] != system_message:
+            # Ensure system message is still first
+             self.history.insert(0, system_message)
 
     def _get_available_tools(self) -> str:
         """Define available tools for the LLM context"""
@@ -114,7 +153,8 @@ Available Tools:
 1. get_order(client_id: str) -> dict: Fetch order details (items, qty).
 2. check_inventory(item_id: str) -> dict: Check current stock levels.
 3. send_email(to: str, subject: str, body: str) -> str: Send an email.
-4. search_knowledge_base(query: str) -> str: Search internal docs.
+4. search_knowledge_base(query: str) -> str: Search Atom's structured knowledge graph for facts, relationships, and business rules (Atom's Memory).
+5. search_experience(query: str) -> str: Search historical communications and past events (Atom's Experience) for context.
 """
 
     async def _execute_tool(self, tool_call: ToolCall) -> str:
@@ -145,7 +185,43 @@ Available Tools:
             return f"Email sent to {params.get('to')}"
 
         elif name == "search_knowledge_base":
-            return "Policy: We do not partial ship coffee beans."
+            query = params.get("query")
+            if not query:
+                return "Error: Query required for knowledge search."
+
+            try:
+                # Atom's Memory (Knowledge Graph)
+                # Lazy import to avoid circular dependency
+                from core.knowledge_query_endpoints import get_knowledge_query_manager
+                manager = get_knowledge_query_manager()
+                result = await manager.answer_query(query)
+                return json.dumps(result)
+            except Exception as e:
+                logger.error(f"Knowledge search failed: {e}")
+                return f"Error querying knowledge base: {str(e)}"
+
+        elif name == "search_experience":
+            query = params.get("query")
+            if not query:
+                return "Error: Query required for experience search."
+
+            try:
+                # Atom's Experience (Historical Communications)
+                handler = get_lancedb_handler()
+                docs = handler.search(table_name="atom_communications", query=query, limit=5)
+
+                # Format simple summary
+                results = []
+                for doc in docs:
+                    results.append({
+                        "text": doc.get("text", "")[:200] + "...", # Truncate for context window
+                        "source": doc.get("source"),
+                        "date": doc.get("created_at")
+                    })
+                return json.dumps(results)
+            except Exception as e:
+                logger.error(f"Experience search failed: {e}")
+                return f"Error searching experience: {str(e)}"
 
         return f"Error: Tool '{name}' not found."
 
@@ -161,6 +237,9 @@ Available Tools:
         final_answer = None
 
         for i in range(self.max_loops):
+            # 0. PRUNE HISTORY
+            self._prune_history()
+
             # 1. REASON (Call LLM)
             try:
                 step_decision = await self.client.chat.completions.create(
@@ -315,9 +394,11 @@ class RealAIWorkflowService:
         if not client:
             raise HTTPException(status_code=500, detail="No active AI provider found.")
 
-        model_name = self._byok.providers[provider].model or "gpt-4o"
+        provider_config = self._byok.providers[provider]
+        model_name = provider_config.model or "gpt-4o"
+        context_window = provider_config.max_context_window or 128000
 
-        agent = ReActAgent(client, model_name)
+        agent = ReActAgent(client, model_name, context_window=context_window)
         return await agent.run_loop(text)
 
     async def get_active_provider_keys(self) -> List[str]:
