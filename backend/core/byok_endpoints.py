@@ -267,8 +267,40 @@ class BYOKManager:
             if provider.id not in self.providers:
                 self.providers[provider.id] = provider
         
+        # Update costs from dynamic fetcher
+        self.update_provider_costs()
+
         # Save defaults
         self._save_configuration()
+
+    def update_provider_costs(self):
+        """Update provider costs from dynamic pricing fetcher"""
+        try:
+            from core.dynamic_pricing_fetcher import get_pricing_fetcher
+            fetcher = get_pricing_fetcher()
+
+            updated_count = 0
+            for provider_id, provider in self.providers.items():
+                if provider.model:
+                    # Try exact match first, then model name
+                    pricing = fetcher.get_model_price(provider.model)
+
+                    if pricing:
+                        input_cost = pricing.get("input_cost_per_token", 0)
+                        output_cost = pricing.get("output_cost_per_token", 0)
+
+                        # Update cost if we have valid data (average of input and output as single metric)
+                        if input_cost > 0 or output_cost > 0:
+                            new_cost = (input_cost + output_cost) / 2
+                            if new_cost > 0:
+                                provider.cost_per_token = new_cost
+                                updated_count += 1
+
+            if updated_count > 0:
+                logger.info(f"Updated costs for {updated_count} providers from dynamic pricing")
+
+        except Exception as e:
+            logger.error(f"Failed to update provider costs: {e}")
 
     def _generate_encryption_key(self) -> str:
         """Generate a secure encryption key for Fernet"""
@@ -430,7 +462,7 @@ class BYOKManager:
         # INTELLIGENT ROUTING LOGIC (2025 Architecture)
         # If High Reasoning is needed (>=3) and DeepSeek is available, favor it due to extreme cost efficiency
         # unless budget is unlimited and OpenAI is preferred explicitly.
-        # The sort above already puts DeepSeek (0.00000014) above OpenAI (0.00003).
+        # The sort above uses dynamically fetched pricing to ensure we always pick the cheapest valid provider.
 
         # Apply budget constraints if provided
         if budget_constraint is not None:
@@ -980,16 +1012,22 @@ async def get_ai_pricing():
 
 
 @router.post("/api/ai/pricing/refresh")
-async def refresh_ai_pricing(force: bool = False):
+async def refresh_ai_pricing(
+    force: bool = False,
+    byok_manager: BYOKManager = Depends(get_byok_manager)
+):
     """Refresh AI pricing from LiteLLM and OpenRouter"""
     try:
         from core.dynamic_pricing_fetcher import refresh_pricing_cache
         pricing = await refresh_pricing_cache(force=force)
         
+        # Update BYOK manager costs
+        byok_manager.update_provider_costs()
+
         return {
             "status": "success",
             "models_fetched": len(pricing),
-            "message": "Pricing data refreshed successfully"
+            "message": "Pricing data refreshed successfully and provider costs updated"
         }
     except Exception as e:
         logger.error(f"Failed to refresh pricing: {e}")
