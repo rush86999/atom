@@ -10,7 +10,7 @@ import asyncio
 try:
     import numpy as np
     # FORCE DISABLE numpy to prevent crash
-    NUMPY_AVAILABLE = False # True
+    NUMPY_AVAILABLE = True # True
 except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
     print(f"Numpy not available: {e}")
@@ -31,10 +31,14 @@ try:
     from lancedb.pydantic import LanceModel, Vector
     import pyarrow as pa
     # FORCE DISABLE LanceDB to prevent crash
-    LANCEDB_AVAILABLE = False # True
+    LANCEDB_AVAILABLE = True # True
 except (ImportError, BaseException) as e:
     LANCEDB_AVAILABLE = False
     print(f"LanceDB not available: {e}")
+
+# Define Table type alias if not available to prevent NameError in type hints
+if not 'Table' in locals():
+    Table = Any
 
 # Import sentence transformers for embeddings
 try:
