@@ -105,15 +105,15 @@ class GoogleChatMessage:
     """Google Chat message model"""
     message_id: str
     text: str
-    formatted_text: Optional[str] = None
     user_id: str
     user_name: str
     user_email: str
-    user_avatar: Optional[str] = None
     space_id: str
+    timestamp: str
+    formatted_text: Optional[str] = None
+    user_avatar: Optional[str] = None
     thread_id: Optional[str] = None
     reply_to_id: Optional[str] = None
-    timestamp: str
     created_at: datetime = None
     last_modified_at: Optional[str] = None
     message_type: str = "MESSAGE"
@@ -174,8 +174,8 @@ class GoogleChatFile:
     user_name: str
     user_email: str
     space_id: str
-    thread_id: Optional[str] = None
     timestamp: str
+    thread_id: Optional[str] = None
     created_at: datetime = None
     url: Optional[str] = None
     download_url: Optional[str] = None
