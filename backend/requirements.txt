@@ -103,3 +103,4 @@ ujson>=5.7.0,<6.0.0
 apscheduler>=3.10.0,<4.0.0
 gunicorn==21.2.0
 playwright==1.40.0
+instructor>=1.0.0
