@@ -118,7 +118,7 @@ class AtomIngestionPipeline:
             
         return normalized
 
-    def ingest_record(self, app_type: str, record_type: str, data: Dict[str, Any]) -> bool:
+    async def ingest_record(self, app_type: str, record_type: str, data: Dict[str, Any]) -> bool:
         """Ingest a single record from any integration"""
         try:
             r_type = RecordType(record_type)
@@ -138,7 +138,10 @@ class AtomIngestionPipeline:
             
             # If the manager supports generic ingestion, use it
             if hasattr(self.memory_manager, "ingest_generic_record"):
-                return self.memory_manager.ingest_generic_record(record)
+                # Run sync method in executor if it's blocking
+                import asyncio
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(None, self.memory_manager.ingest_generic_record, record)
             
             # Fallback to ingest_communication if it's a message-like record
             comm_data = CommunicationData(
@@ -152,7 +155,9 @@ class AtomIngestionPipeline:
                 vector_embedding=record.vector_embedding
             )
             
-            return self.memory_manager.ingest_communication(comm_data)
+            import asyncio
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, self.memory_manager.ingest_communication, comm_data)
             
         except Exception as e:
             logger.error(f"Error ingesting record from {app_type}: {str(e)}")

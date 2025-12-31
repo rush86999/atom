@@ -4,6 +4,14 @@ from typing import Dict, Any, List, Optional
 from core.database import SessionLocal
 from integrations.salesforce_service import SalesforceService
 from integrations.hubspot_service import get_hubspot_service
+from integrations.atom_telegram_integration import atom_telegram_integration
+from integrations.whatsapp_business_integration import whatsapp_integration
+from integrations.zoom_service import zoom_service
+from integrations.google_chat_enhanced_service import google_chat_enhanced_service
+from integrations.figma_service import figma_service
+from integrations.mailchimp_service import MailchimpService
+from integrations.tableau_service import tableau_service
+from integrations.google_integration import google_integration
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +70,7 @@ class UniversalIntegrationService:
                 return await self._execute_hubspot(action, params)
             elif service == "shopify":
                 return await self._execute_shopify(action, params, context)
-            elif service in ("slack", "teams", "discord"):
+            elif service in ("slack", "teams", "discord", "google_chat", "telegram", "whatsapp", "zoom", "zoho_mail"):
                 return await self._execute_communication(service, action, params, context)
             elif service in ("asana", "jira", "linear", "trello", "monday", "zoho_projects"):
                 return await self._execute_project_management(service, action, params, context)
@@ -70,11 +78,15 @@ class UniversalIntegrationService:
                 return await self._execute_storage(service, action, params, context)
             elif service in ("zendesk", "freshdesk", "intercom"):
                 return await self._execute_support(service, action, params, context)
-            elif service in ("github", "gitlab"):
+            elif service in ("github", "gitlab", "figma"):
                 return await self._execute_development(service, action, params, context)
             elif service in ("stripe", "quickbooks", "xero", "zoho_books"):
                 return await self._execute_finance(service, action, params, context)
-            elif service in ("zoho_crm", "zoho_mail", "zoho_inventory"):
+            elif service in ("mailchimp", "hubspot_marketing"):
+                return await self._execute_marketing(service, action, params, context)
+            elif service in ("tableau", "google_analytics"):
+                return await self._execute_analytics(service, action, params, context)
+            elif service in ("zoho_crm", "zoho_inventory"):
                 return await self._execute_zoho(service, action, params, context)
             elif service in NATIVE_INTEGRATIONS:
                 # Generic handler for other native integrations
@@ -255,7 +267,7 @@ class UniversalIntegrationService:
 
     # --- Communication Platforms ---
     async def _execute_communication(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle Slack, Teams, Discord"""
+        """Handle Slack, Teams, Discord, Google Chat, Telegram, WhatsApp, Zoom"""
         if service == "slack":
             from integrations.slack_service import slack_service
             if action == "send_message":
@@ -270,7 +282,51 @@ class UniversalIntegrationService:
             from integrations.discord_service import discord_service
             if action == "send_message":
                 return await discord_service.send_message(params.get("channel_id"), params.get("message"))
-        
+        elif service == "google_chat":
+            if action == "send_message":
+                return await google_chat_enhanced_service.send_message(params.get("space_id"), params.get("text"))
+            elif action == "list_messages":
+                return await google_chat_enhanced_service.get_space_messages(params.get("space_id"))
+            elif action == "list_spaces":
+                return await google_chat_enhanced_service.get_spaces(context.get("user_id"))
+        elif service == "telegram":
+            if action == "send_message":
+                return await atom_telegram_integration.send_intelligent_message(
+                    params.get("channel_id"), params.get("message"), params.get("metadata")
+                )
+        elif service == "whatsapp":
+            if action == "send_message":
+                # Use executor for synchronous call
+                import asyncio
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(
+                    None,
+                    whatsapp_integration.send_message,
+                    params.get("to"), "text", params.get("content")
+                )
+            elif action == "get_messages":
+                import asyncio
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(
+                    None,
+                    whatsapp_integration.get_messages,
+                    params.get("whatsapp_id")
+                )
+        elif service == "zoom":
+            if action == "create_meeting":
+                return await zoom_service.create_meeting(
+                    params.get("topic"),
+                    access_token=context.get("access_token"),
+                    start_time=params.get("start_time"),
+                    duration=params.get("duration", 60)
+                )
+            elif action == "list_meetings":
+                return await zoom_service.list_meetings(access_token=context.get("access_token"))
+        elif service == "zoho_mail":
+            from integrations.zoho_mail_service import zoho_mail_service
+            if action == "list":
+                return await zoho_mail_service.get_messages()
+
         return {"status": "success", "message": f"Routed to {service} handler"}
 
     # --- Project Management ---
@@ -355,7 +411,7 @@ class UniversalIntegrationService:
 
     # --- Development Platforms ---
     async def _execute_development(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GitHub, GitLab"""
+        """Handle GitHub, GitLab, Figma"""
         if service == "github":
             from integrations.github_service import github_service
             if action == "list":
@@ -366,6 +422,11 @@ class UniversalIntegrationService:
             from integrations.gitlab_service import gitlab_service
             if action == "list":
                 return await gitlab_service.list_projects()
+        elif service == "figma":
+            if action == "get_file":
+                return await figma_service.get_file(params.get("file_key"), context.get("access_token"))
+            elif action == "get_comments":
+                return await figma_service.get_comments(params.get("file_key"), context.get("access_token"))
         
         return {"status": "success", "message": f"Routed to {service} handler"}
 
@@ -387,6 +448,39 @@ class UniversalIntegrationService:
             if action == "list_invoices":
                 return await xero_service.get_invoices()
         
+        return {"status": "success", "message": f"Routed to {service} handler"}
+
+    # --- Marketing Platforms ---
+    async def _execute_marketing(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle Mailchimp, HubSpot Marketing"""
+        if service == "mailchimp":
+            mc_service = MailchimpService()
+            if action == "list_campaigns":
+                return await mc_service.get_campaigns(context.get("access_token"), context.get("server_prefix"), params.get("limit", 20))
+            elif action == "list_audiences":
+                return await mc_service.get_audiences(context.get("access_token"), context.get("server_prefix"), params.get("limit", 20))
+            await mc_service.close()
+        elif service == "hubspot_marketing":
+            hs_service = get_hubspot_service()
+            if action == "list_campaigns":
+                return await hs_service.get_campaigns(params.get("limit", 20), token=context.get("access_token"))
+
+        return {"status": "success", "message": f"Routed to {service} handler"}
+
+    # --- Analytics Platforms ---
+    async def _execute_analytics(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle Tableau, Google Analytics"""
+        if service == "tableau":
+            if action == "list_workbooks":
+                return await tableau_service.get_workbooks(context.get("auth_token"))
+            elif action == "list_views":
+                return await tableau_service.get_views(context.get("auth_token"))
+        elif service == "google_analytics":
+            google_integration.set_access_token(context.get("access_token"))
+            if action == "list_properties":
+                # Assuming list_items for generic call or implement specific GA calls
+                return await google_integration.list_items()
+
         return {"status": "success", "message": f"Routed to {service} handler"}
 
     # --- Zoho Suite ---
