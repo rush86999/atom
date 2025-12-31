@@ -1,0 +1,1336 @@
+{
+  "generated_at": "2025-12-31T00:48:05.630544",
+  "total_integrations_audited": 147,
+  "integrations": {
+    "ai_enhanced": {
+      "name": "ai_enhanced",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/ai_enhanced_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "ai_enhanced_api_routes": {
+      "name": "ai_enhanced_api_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/ai_enhanced_api_routes.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "partially_compliant"
+    },
+    "ai_routes": {
+      "name": "ai_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/ai_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "airtable": {
+      "name": "airtable",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/airtable_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "airtable_routes": {
+      "name": "airtable_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/airtable_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "asana": {
+      "name": "asana",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/asana_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "asana_real": {
+      "name": "asana_real",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/asana_real_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "asana_routes": {
+      "name": "asana_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/asana_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_ai": {
+      "name": "atom_ai",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_ai_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_communication_apps_lancedb": {
+      "name": "atom_communication_apps_lancedb",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_communication_apps_lancedb_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_discord": {
+      "name": "atom_discord",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_discord_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_education_customization": {
+      "name": "atom_education_customization",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_education_customization_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_enterprise_api_routes": {
+      "name": "atom_enterprise_api_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_enterprise_api_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_enterprise_security": {
+      "name": "atom_enterprise_security",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_enterprise_security_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_enterprise_unified": {
+      "name": "atom_enterprise_unified",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_enterprise_unified_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_finance_customization": {
+      "name": "atom_finance_customization",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_finance_customization_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_google_chat": {
+      "name": "atom_google_chat",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_google_chat_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_healthcare_customization": {
+      "name": "atom_healthcare_customization",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_healthcare_customization_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_hubspot": {
+      "name": "atom_hubspot",
+      "in_universal_registry": false,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "non_compliant"
+    },
+    "atom_quickbooks": {
+      "name": "atom_quickbooks",
+      "in_universal_registry": false,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "non_compliant"
+    },
+    "atom_teams": {
+      "name": "atom_teams",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_teams_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_telegram": {
+      "name": "atom_telegram",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_telegram_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_video_ai": {
+      "name": "atom_video_ai",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_video_ai_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_voice_ai": {
+      "name": "atom_voice_ai",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_voice_ai_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_voice_video": {
+      "name": "atom_voice_video",
+      "in_universal_registry": false,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "non_compliant"
+    },
+    "atom_whatsapp": {
+      "name": "atom_whatsapp",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_whatsapp_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_workflow_automation": {
+      "name": "atom_workflow_automation",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_workflow_automation_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "atom_zendesk": {
+      "name": "atom_zendesk",
+      "in_universal_registry": false,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "non_compliant"
+    },
+    "atom_zoom": {
+      "name": "atom_zoom",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_zoom_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "bitbucket": {
+      "name": "bitbucket",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/bitbucket_service.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "partially_compliant"
+    },
+    "bitbucket_routes": {
+      "name": "bitbucket_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/bitbucket_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "box": {
+      "name": "box",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/box_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "box_routes": {
+      "name": "box_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/box_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "calendly": {
+      "name": "calendly",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/calendly_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "calendly_routes": {
+      "name": "calendly_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/calendly_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "chat_routes": {
+      "name": "chat_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/chat_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "deepgram": {
+      "name": "deepgram",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/deepgram_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "deepgram_routes": {
+      "name": "deepgram_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/deepgram_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "discord": {
+      "name": "discord",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/discord_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "discord_enhanced": {
+      "name": "discord_enhanced",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/discord_enhanced_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "discord_enhanced_api_routes": {
+      "name": "discord_enhanced_api_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/discord_enhanced_api_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "discord_routes": {
+      "name": "discord_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/discord_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "document_logic": {
+      "name": "document_logic",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/document_logic_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "dropbox": {
+      "name": "dropbox",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/dropbox_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "dropbox_enhanced": {
+      "name": "dropbox_enhanced",
+      "in_universal_registry": false,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "non_compliant"
+    },
+    "dropbox_routes": {
+      "name": "dropbox_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/dropbox_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "ecommerce_unified": {
+      "name": "ecommerce_unified",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/ecommerce_unified_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "email_routes": {
+      "name": "email_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/email_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "figma": {
+      "name": "figma",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/figma_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "figma_routes": {
+      "name": "figma_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/figma_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "figma_routes_fix": {
+      "name": "figma_routes_fix",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/figma_routes_fix.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "freshdesk": {
+      "name": "freshdesk",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/freshdesk_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "freshdesk_routes": {
+      "name": "freshdesk_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/freshdesk_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "github": {
+      "name": "github",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/github_service.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "compliant"
+    },
+    "github_routes": {
+      "name": "github_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/github_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "github_routes_fix": {
+      "name": "github_routes_fix",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/github_routes_fix.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "gitlab": {
+      "name": "gitlab",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/gitlab_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "gitlab_routes": {
+      "name": "gitlab_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/gitlab_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "gmail": {
+      "name": "gmail",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/gmail_service.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "partially_compliant"
+    },
+    "gmail_routes": {
+      "name": "gmail_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/gmail_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "google": {
+      "name": "google",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/google_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "google_analytics": {
+      "name": "google_analytics",
+      "in_universal_registry": true,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "partially_compliant"
+    },
+    "google_calendar": {
+      "name": "google_calendar",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/google_calendar_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "google_calendar_routes": {
+      "name": "google_calendar_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/google_calendar_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "google_chat": {
+      "name": "google_chat",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_google_chat_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "google_chat_enhanced": {
+      "name": "google_chat_enhanced",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/google_chat_enhanced_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "google_drive": {
+      "name": "google_drive",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/google_drive_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "google_drive_routes": {
+      "name": "google_drive_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/google_drive_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "hubspot": {
+      "name": "hubspot",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/hubspot_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "hubspot_marketing": {
+      "name": "hubspot_marketing",
+      "in_universal_registry": true,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "partially_compliant"
+    },
+    "hubspot_routes": {
+      "name": "hubspot_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/hubspot_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "intercom": {
+      "name": "intercom",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/intercom_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "intercom_routes": {
+      "name": "intercom_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/intercom_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "jira": {
+      "name": "jira",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/jira_service.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "compliant"
+    },
+    "jira_routes": {
+      "name": "jira_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/jira_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "linear": {
+      "name": "linear",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/linear_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "linear_routes": {
+      "name": "linear_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/linear_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "linkedin": {
+      "name": "linkedin",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/linkedin_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "linkedin_routes": {
+      "name": "linkedin_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/linkedin_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "mailchimp": {
+      "name": "mailchimp",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/mailchimp_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "mailchimp_routes": {
+      "name": "mailchimp_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/mailchimp_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "marketing_unified": {
+      "name": "marketing_unified",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/marketing_unified_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "mcp": {
+      "name": "mcp",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/mcp_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "mcp_routes": {
+      "name": "mcp_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/mcp_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "meta_business": {
+      "name": "meta_business",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/meta_business_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "microsoft365": {
+      "name": "microsoft365",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/microsoft365_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "microsoft365_routes": {
+      "name": "microsoft365_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/microsoft365_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "monday": {
+      "name": "monday",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/monday_service.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "compliant"
+    },
+    "monday_routes": {
+      "name": "monday_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/monday_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "notion": {
+      "name": "notion",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/notion_service.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "compliant"
+    },
+    "notion_routes": {
+      "name": "notion_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/notion_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "notion_routes_fix": {
+      "name": "notion_routes_fix",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/notion_routes_fix.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "onedrive": {
+      "name": "onedrive",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/onedrive_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "onedrive_routes": {
+      "name": "onedrive_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/onedrive_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "outlook": {
+      "name": "outlook",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/outlook_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "outlook_calendar": {
+      "name": "outlook_calendar",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/outlook_calendar_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "outlook_enhanced": {
+      "name": "outlook_enhanced",
+      "in_universal_registry": false,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "non_compliant"
+    },
+    "outlook_routes": {
+      "name": "outlook_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/outlook_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "outlook_routes_enhanced": {
+      "name": "outlook_routes_enhanced",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/outlook_routes_enhanced.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "plaid": {
+      "name": "plaid",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/plaid_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "plaid_routes": {
+      "name": "plaid_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/plaid_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "quickbooks": {
+      "name": "quickbooks",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/quickbooks_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "quickbooks_routes": {
+      "name": "quickbooks_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/quickbooks_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "salesforce": {
+      "name": "salesforce",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/salesforce_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "salesforce_core": {
+      "name": "salesforce_core",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/salesforce_core_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "salesforce_routes": {
+      "name": "salesforce_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/salesforce_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "sendgrid_routes": {
+      "name": "sendgrid_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/sendgrid_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "shopify": {
+      "name": "shopify",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/shopify_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "shopify_routes": {
+      "name": "shopify_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/shopify_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "slack": {
+      "name": "slack",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/slack_enhanced_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "slack_enhanced": {
+      "name": "slack_enhanced",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/slack_enhanced_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "slack_enhanced_api_routes": {
+      "name": "slack_enhanced_api_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/slack_enhanced_api_routes.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "partially_compliant"
+    },
+    "slack_routes": {
+      "name": "slack_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/slack_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "slack_unified": {
+      "name": "slack_unified",
+      "in_universal_registry": false,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "non_compliant"
+    },
+    "stripe": {
+      "name": "stripe",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/stripe_service.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "compliant"
+    },
+    "stripe_routes": {
+      "name": "stripe_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/stripe_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "tableau": {
+      "name": "tableau",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/tableau_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "tableau_routes": {
+      "name": "tableau_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/tableau_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "teams": {
+      "name": "teams",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/teams_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "teams_enhanced": {
+      "name": "teams_enhanced",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/teams_enhanced_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "teams_enhanced_api_routes": {
+      "name": "teams_enhanced_api_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/teams_enhanced_api_routes.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "partially_compliant"
+    },
+    "teams_routes": {
+      "name": "teams_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/teams_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "telegram": {
+      "name": "telegram",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_telegram_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "trello": {
+      "name": "trello",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/trello_service.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "compliant"
+    },
+    "trello_routes": {
+      "name": "trello_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/trello_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "twilio": {
+      "name": "twilio",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/twilio_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "twilio_routes": {
+      "name": "twilio_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/twilio_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "universal": {
+      "name": "universal",
+      "in_universal_registry": false,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "non_compliant"
+    },
+    "whatsapp": {
+      "name": "whatsapp",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_whatsapp_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "whatsapp_business": {
+      "name": "whatsapp_business",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/whatsapp_business_integration.py",
+      "credentials_configured": false,
+      "async_support": "unlikely",
+      "compliance_status": "partially_compliant"
+    },
+    "whatsapp_fastapi_routes": {
+      "name": "whatsapp_fastapi_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/whatsapp_fastapi_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "whatsapp_final_websocket": {
+      "name": "whatsapp_final_websocket",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/whatsapp_final_websocket_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "whatsapp_manager": {
+      "name": "whatsapp_manager",
+      "in_universal_registry": false,
+      "has_service_file": false,
+      "service_file_path": null,
+      "credentials_configured": false,
+      "async_support": "unknown",
+      "compliance_status": "non_compliant"
+    },
+    "workflow_approval_routes": {
+      "name": "workflow_approval_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/workflow_approval_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "workflow_automation_routes": {
+      "name": "workflow_automation_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/workflow_automation_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "xero": {
+      "name": "xero",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/xero_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "xero_routes": {
+      "name": "xero_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/xero_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "zendesk": {
+      "name": "zendesk",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/zendesk_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "zendesk_routes": {
+      "name": "zendesk_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/zendesk_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    },
+    "zoho_books": {
+      "name": "zoho_books",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/zoho_books_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "zoho_crm": {
+      "name": "zoho_crm",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/zoho_crm_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "zoho_inventory": {
+      "name": "zoho_inventory",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/zoho_inventory_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "zoho_mail": {
+      "name": "zoho_mail",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/zoho_mail_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "zoho_projects": {
+      "name": "zoho_projects",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/zoho_projects_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "zoho_workdrive": {
+      "name": "zoho_workdrive",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/zoho_workdrive_service.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "zoom": {
+      "name": "zoom",
+      "in_universal_registry": true,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/atom_zoom_integration.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "compliant"
+    },
+    "zoom_routes": {
+      "name": "zoom_routes",
+      "in_universal_registry": false,
+      "has_service_file": true,
+      "service_file_path": "backend/integrations/zoom_routes.py",
+      "credentials_configured": false,
+      "async_support": "likely",
+      "compliance_status": "partially_compliant"
+    }
+  },
+  "summary": {
+    "compliant": 37,
+    "partially_compliant": 101,
+    "non_compliant": 9,
+    "missing_credentials": 147,
+    "active": 0
+  }
+}
