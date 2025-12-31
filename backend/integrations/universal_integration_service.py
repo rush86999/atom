@@ -12,6 +12,22 @@ from integrations.figma_service import figma_service
 from integrations.mailchimp_service import MailchimpService
 from integrations.tableau_service import tableau_service
 from integrations.google_integration import google_integration
+from integrations.airtable_service import AirtableService
+from integrations.bitbucket_service import BitbucketService
+from integrations.calendly_service import CalendlyService
+from integrations.deepgram_service import DeepgramService
+from integrations.gmail_service import GmailService
+from integrations.google_calendar_service import GoogleCalendarService
+from integrations.linkedin_service import LinkedInService
+from integrations.meta_business_service import MetaBusinessService
+from integrations.microsoft365_service import Microsoft365Service
+from integrations.plaid_service import PlaidService
+from integrations.twilio_service import TwilioService
+from integrations.atom_education_customization_service import AtomEducationCustomizationService
+from integrations.atom_healthcare_customization_service import AtomHealthcareCustomizationService
+from integrations.atom_finance_customization_service import AtomFinanceCustomizationService
+from integrations.atom_video_ai_service import AtomVideoAIService
+from integrations.atom_voice_ai_service import AtomVoiceAIService
 
 logger = logging.getLogger(__name__)
 
@@ -20,23 +36,29 @@ NATIVE_INTEGRATIONS = {
     # Sales & CRM
     "salesforce", "hubspot", "zoho_crm",
     # Communication
-    "slack", "teams", "discord", "google_chat", "telegram", "whatsapp", "zoom", "zoho_mail",
+    "slack", "teams", "discord", "google_chat", "telegram", "whatsapp", "zoom", "zoho_mail", "twilio",
     # Project Management
     "asana", "jira", "linear", "trello", "monday", "zoho_projects",
     # Storage & Knowledge
-    "google_drive", "dropbox", "onedrive", "box", "notion", "zoho_workdrive",
+    "google_drive", "dropbox", "onedrive", "box", "notion", "zoho_workdrive", "airtable",
     # Support
     "zendesk", "freshdesk", "intercom",
     # Development
-    "github", "gitlab", "figma",
+    "github", "gitlab", "figma", "bitbucket",
     # Finance
-    "stripe", "quickbooks", "xero", "zoho_books", "zoho_inventory",
+    "stripe", "quickbooks", "xero", "zoho_books", "zoho_inventory", "plaid", "atom_finance_customization",
     # Marketing
     "mailchimp", "hubspot_marketing",
     # Analytics
     "tableau", "google_analytics",
     # E-commerce
     "shopify",
+    # Productivity
+    "microsoft365", "google_calendar", "calendly", "gmail",
+    # Social
+    "linkedin", "meta_business",
+    # AI & Industry
+    "deepgram", "atom_video_ai", "atom_voice_ai", "atom_education_customization", "atom_healthcare_customization"
 }
 
 class UniversalIntegrationService:
@@ -88,6 +110,16 @@ class UniversalIntegrationService:
                 return await self._execute_analytics(service, action, params, context)
             elif service in ("zoho_crm", "zoho_inventory"):
                 return await self._execute_zoho(service, action, params, context)
+            elif service in ("google_calendar", "calendly", "outlook_calendar"):
+                return await self._execute_calendar(service, action, params, context)
+            elif service in ("microsoft365", "airtable", "gmail"):
+                return await self._execute_productivity(service, action, params, context)
+            elif service in ("linkedin", "meta_business"):
+                return await self._execute_social(service, action, params, context)
+            elif service in ("deepgram", "atom_video_ai", "atom_voice_ai"):
+                return await self._execute_ai(service, action, params, context)
+            elif service in ("atom_education_customization", "atom_healthcare_customization", "atom_finance_customization"):
+                return await self._execute_industry(service, action, params, context)
             elif service in NATIVE_INTEGRATIONS:
                 # Generic handler for other native integrations
                 return await self._execute_generic_native(service, action, params, context)
@@ -326,6 +358,11 @@ class UniversalIntegrationService:
             from integrations.zoho_mail_service import zoho_mail_service
             if action == "list":
                 return await zoho_mail_service.get_messages()
+        elif service == "twilio":
+            from integrations.twilio_service import TwilioService
+            ts = TwilioService()
+            if action == "send_sms":
+                return await ts.send_sms(params.get("to"), params.get("body"))
 
         return {"status": "success", "message": f"Routed to {service} handler"}
 
@@ -411,7 +448,7 @@ class UniversalIntegrationService:
 
     # --- Development Platforms ---
     async def _execute_development(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GitHub, GitLab, Figma"""
+        """Handle GitHub, GitLab, Figma, Bitbucket"""
         if service == "github":
             from integrations.github_service import github_service
             if action == "list":
@@ -427,12 +464,17 @@ class UniversalIntegrationService:
                 return await figma_service.get_file(params.get("file_key"), context.get("access_token"))
             elif action == "get_comments":
                 return await figma_service.get_comments(params.get("file_key"), context.get("access_token"))
+        elif service == "bitbucket":
+            from integrations.bitbucket_service import BitbucketService
+            bs = BitbucketService()
+            if action == "list_repos":
+                return await bs.list_repositories(context.get("access_token"))
         
         return {"status": "success", "message": f"Routed to {service} handler"}
 
     # --- Finance Platforms ---
     async def _execute_finance(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle Stripe, QuickBooks, Xero, Zoho Books"""
+        """Handle Stripe, QuickBooks, Xero, Zoho Books, Plaid"""
         if service == "stripe":
             from integrations.stripe_service import stripe_service
             if action == "list_payments":
@@ -447,7 +489,12 @@ class UniversalIntegrationService:
             from integrations.xero_service import xero_service
             if action == "list_invoices":
                 return await xero_service.get_invoices()
-        
+        elif service == "plaid":
+            from integrations.plaid_service import PlaidService
+            ps = PlaidService()
+            if action == "get_transactions":
+                return await ps.get_transactions(params.get("access_token"), params.get("start_date"), params.get("end_date"))
+
         return {"status": "success", "message": f"Routed to {service} handler"}
 
     # --- Marketing Platforms ---
@@ -499,6 +546,67 @@ class UniversalIntegrationService:
             if action == "list":
                 return await zoho_inventory_service.get_items()
         
+        return {"status": "success", "message": f"Routed to {service} handler"}
+
+    # --- Calendar Platforms ---
+    async def _execute_calendar(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle Google Calendar, Calendly, Outlook Calendar"""
+        if service == "google_calendar":
+            from integrations.google_calendar_service import GoogleCalendarService
+            # Implement specific actions
+            pass
+        elif service == "calendly":
+            from integrations.calendly_service import CalendlyService
+            cs = CalendlyService()
+            if action == "list_events":
+                return await cs.list_events(context.get("access_token"))
+        return {"status": "success", "message": f"Routed to {service} handler"}
+
+    # --- Productivity Platforms ---
+    async def _execute_productivity(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle Microsoft 365, Airtable, Gmail"""
+        if service == "microsoft365":
+            from integrations.microsoft365_service import Microsoft365Service
+            ms = Microsoft365Service()
+            if action == "get_user":
+                return await ms.get_user(context.get("access_token"))
+        elif service == "airtable":
+            from integrations.airtable_service import AirtableService
+            ats = AirtableService()
+            if action == "list_records":
+                return await ats.list_records(params.get("base_id"), params.get("table_id"))
+        elif service == "gmail":
+            from integrations.gmail_service import GmailService
+            # Implement actions
+            pass
+        return {"status": "success", "message": f"Routed to {service} handler"}
+
+    # --- Social Platforms ---
+    async def _execute_social(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle LinkedIn, Meta Business"""
+        if service == "linkedin":
+            from integrations.linkedin_service import LinkedInService
+            ls = LinkedInService()
+            if action == "get_profile":
+                return await ls.get_profile(context.get("access_token"))
+        elif service == "meta_business":
+            from integrations.meta_business_service import MetaBusinessService
+            # Implement actions
+            pass
+        return {"status": "success", "message": f"Routed to {service} handler"}
+
+    # --- AI & Industry Platforms ---
+    async def _execute_ai(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle Deepgram, Atom Video/Voice AI"""
+        if service == "deepgram":
+            from integrations.deepgram_service import DeepgramService
+            ds = DeepgramService()
+            if action == "transcribe":
+                return await ds.transcribe_url(params.get("url"))
+        return {"status": "success", "message": f"Routed to {service} handler"}
+
+    async def _execute_industry(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle Atom Industry Customizations"""
         return {"status": "success", "message": f"Routed to {service} handler"}
 
     # --- Generic Native Handler ---

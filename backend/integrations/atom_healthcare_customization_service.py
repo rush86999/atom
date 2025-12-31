@@ -44,6 +44,18 @@ try:
     from atom_hubspot_integration_service import atom_hubspot_integration_service
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
+    atom_enterprise_security_service = None
+    atom_enterprise_unified_service = None
+    atom_workflow_automation_service = None
+    ai_enhanced_service = None
+    atom_ai_integration = None
+    atom_slack_integration = None
+    atom_teams_integration = None
+    atom_google_chat_integration = None
+    atom_discord_integration = None
+    atom_telegram_integration = None
+    atom_whatsapp_integration = None
+    atom_zoom_integration = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
