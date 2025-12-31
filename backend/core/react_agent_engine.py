@@ -13,12 +13,10 @@ import datetime
 from typing import Dict, Any, List, Optional, Union, Literal
 from dataclasses import dataclass, field
 from pydantic import BaseModel, Field
-import openai
-import anthropic
 import instructor
 from dotenv import load_dotenv
 
-from core.byok_endpoints import get_byok_manager
+from core.llm.byok_handler import BYOKHandler, QueryComplexity
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -54,6 +52,7 @@ class AgentExecutionResult(BaseModel):
     steps: List[ReActStepResult]
     execution_time_ms: float
     provider: str
+    model: str
 
 # --- Core Engine ---
 
@@ -62,91 +61,71 @@ class ReActAgentEngine:
     Reusable engine for ReAct loops.
     Can be composed into any specific agent (Generic, Marketing, etc.).
     """
-    def __init__(self, workspace_id: str = "default", model_override: str = None):
+    def __init__(self, workspace_id: str = "default"):
         self.workspace_id = workspace_id
-        self.byok = get_byok_manager()
-        self.model_override = model_override
-        self.clients = {}
+        # Use BYOKHandler for dynamic pricing and optimization
+        self.byok = BYOKHandler(workspace_id=workspace_id)
 
-    def _get_client(self, provider_id: str):
-        """Get instructor-patched client"""
-        if provider_id in self.clients:
-            return self.clients[provider_id]
+    def _get_client_and_model(self, complexity: QueryComplexity, estimated_tokens: int, preferred_provider: str = None):
+        """Get instructor-patched client and optimal model"""
 
-        api_key = self.byok.get_api_key(provider_id)
-        if not api_key:
-            return None
+        # 1. Determine optimal provider/model via BYOKHandler
+        if preferred_provider:
+            self.byok.default_provider_id = preferred_provider
 
-        config = self.byok.providers.get(provider_id)
-        base_url = config.base_url
+        provider_id, model_name = self.byok.get_optimal_provider(
+            complexity=complexity,
+            task_type="react_loop", # Hint to prioritize reasoning capability
+            estimated_tokens=estimated_tokens
+        )
 
-        client = None
+        # 2. Get raw client
+        raw_client = self.byok.get_client(provider_id, async_client=True)
+        if not raw_client:
+            raise Exception(f"Failed to initialize client for provider: {provider_id}")
+
+        # 3. Wrap with Instructor
         mode = instructor.Mode.JSON
-
         if provider_id == "openai":
-            client = openai.AsyncOpenAI(api_key=api_key)
             mode = instructor.Mode.TOOLS
-        elif provider_id == "deepseek":
-            client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.deepseek.com/v1")
-            mode = instructor.Mode.JSON
-        elif provider_id == "groq":
-             client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.groq.com/openai/v1")
-             mode = instructor.Mode.JSON
-        elif provider_id == "anthropic":
-            try:
-                base_client = anthropic.AsyncAnthropic(api_key=api_key)
-                client = instructor.from_anthropic(base_client)
-                self.clients[provider_id] = client
-                return client
-            except: return None
-        else:
-             client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
 
-        if client:
-            patched = instructor.from_openai(client, mode=mode)
-            self.clients[provider_id] = patched
-            return patched
-        return None
+        if provider_id == "anthropic":
+             client = instructor.from_anthropic(raw_client)
+        else:
+             client = instructor.from_openai(raw_client, mode=mode)
+
+        return client, provider_id, model_name
+
+    def _estimate_tokens(self, text: str) -> int:
+        """Rough estimate of tokens (chars / 4)"""
+        return len(text) // 4
 
     async def run_loop(self,
                        user_input: str,
                        tools_definition: str,
                        tool_executor: callable,
                        system_prompt: str = "You are a helpful agent.",
-                       max_loops: int = 10) -> AgentExecutionResult:
+                       max_loops: int = 10,
+                       preferred_provider: str = None) -> AgentExecutionResult:
         """
         Execute the ReAct loop.
-
-        Args:
-            user_input: The task description
-            tools_definition: String describing available tools (for LLM context)
-            tool_executor: Async function(name, params) -> str result
-            system_prompt: Base persona
-            max_loops: Safety limit
         """
         start_time = time.time()
 
-        # Select Provider (DeepSeek Preference)
-        provider = self.byok.get_optimal_provider("reasoning", min_reasoning_level=4) or "openai"
-        client = self._get_client(provider)
+        # Determine Complexity
+        complexity = self.byok.analyze_query_complexity(user_input, task_type="react_loop")
 
-        # Fallback
-        if not client and provider != "openai":
-            provider = "openai"
-            client = self._get_client("openai")
+        # Initial Context Estimate
+        current_context_length = self._estimate_tokens(system_prompt + tools_definition + user_input)
 
-        if not client:
-             # Last ditch: check any active key
-             for pid in self.byok.providers.keys():
-                 if self.byok.get_api_key(pid):
-                     provider = pid
-                     client = self._get_client(pid)
-                     break
-
-        if not client:
-            raise Exception("No active AI provider found.")
-
-        model_name = self.model_override or self.byok.providers[provider].model or "gpt-4o"
+        # Get Client & Model (Dynamically Selected)
+        try:
+            client, provider, model = self._get_client_and_model(complexity, current_context_length, preferred_provider)
+        except Exception as e:
+            logger.error(f"Initialization failed: {e}")
+            return AgentExecutionResult(
+                task_id="failed", status="error", input=user_input, output=str(e), steps=[], execution_time_ms=0, provider="none", model="none"
+            )
 
         # History Setup
         history = [
@@ -159,15 +138,19 @@ class ReActAgentEngine:
         status = "success"
 
         for i in range(max_loops):
+            # Recalculate context size and switch model if needed?
+            # For simplicity, we stick to the initial large-context selection if valid,
+            # but ideally we might check if we are approaching limits.
+
             try:
                 step_decision = await client.chat.completions.create(
-                    model=model_name,
+                    model=model,
                     response_model=AgentStep,
                     messages=history,
                     max_retries=2
                 )
             except Exception as e:
-                logger.error(f"Reasoning error: {e}")
+                logger.error(f"Reasoning error with {model}: {e}")
                 final_answer = f"Error during reasoning: {e}"
                 status = "error"
                 break
@@ -212,6 +195,9 @@ class ReActAgentEngine:
                     "content": f"Tool Output: {tool_output}"
                 })
 
+                # Update Token Estimate
+                current_context_length += self._estimate_tokens(str(tool_output))
+
         if not final_answer:
             final_answer = "Max loops reached."
             status = "timeout"
@@ -223,5 +209,6 @@ class ReActAgentEngine:
             output=final_answer,
             steps=steps_record,
             execution_time_ms=(time.time() - start_time) * 1000,
-            provider=provider
+            provider=provider,
+            model=model
         )

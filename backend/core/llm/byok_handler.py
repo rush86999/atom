@@ -1,16 +1,20 @@
 
 import logging
 import os
-from typing import Optional, Dict, Any, List
+import openai
+import anthropic
+from typing import Optional, Dict, Any, List, Union
 from enum import Enum
 
 # Try imports
 try:
-    from openai import OpenAI
+    from openai import OpenAI, AsyncOpenAI
 except ImportError:
     OpenAI = None
+    AsyncOpenAI = None
 
 from core.byok_endpoints import get_byok_manager
+from core.dynamic_pricing_fetcher import get_pricing_fetcher
 
 logger = logging.getLogger(__name__)
 
@@ -23,100 +27,79 @@ class QueryComplexity(Enum):
     ADVANCED = "advanced"   # Code, math, analysis -> specialized provider
 
 
-# Provider tier mapping for cost optimization
-PROVIDER_TIERS = {
-    # Budget tier - cheapest, good for simple tasks
-    "budget": ["deepseek", "moonshot", "glm"],
-    # Mid tier - balanced cost/quality
-    "mid": ["anthropic", "gemini", "mistral"],
-    # Premium tier - best quality, higher cost
-    "premium": ["openai", "anthropic"],
-    # Specialized - task-specific
-    "code": ["deepseek", "openai"],
-    "math": ["deepseek", "openai"],
-    "creative": ["anthropic", "openai"],
-}
-
-# Model recommendations per provider
-COST_EFFICIENT_MODELS = {
-    "openai": {
-        QueryComplexity.SIMPLE: "gpt-4o-mini",
-        QueryComplexity.MODERATE: "gpt-4o-mini",
-        QueryComplexity.COMPLEX: "gpt-4o",
-        QueryComplexity.ADVANCED: "gpt-4o",
-    },
-    "anthropic": {
-        QueryComplexity.SIMPLE: "claude-3-haiku-20240307",
-        QueryComplexity.MODERATE: "claude-3-5-sonnet-20241022",
-        QueryComplexity.COMPLEX: "claude-3-5-sonnet-20241022",
-        QueryComplexity.ADVANCED: "claude-3-5-sonnet-20241022",
-    },
-    "deepseek": {
-        QueryComplexity.SIMPLE: "deepseek-chat",
-        QueryComplexity.MODERATE: "deepseek-chat",
-        QueryComplexity.COMPLEX: "deepseek-reasoner",
-        QueryComplexity.ADVANCED: "deepseek-reasoner",
-    },
-    "moonshot": {
-        QueryComplexity.SIMPLE: "kimi-k1-5",
-        QueryComplexity.MODERATE: "kimi-k1-5",
-        QueryComplexity.COMPLEX: "kimi-k1-5",
-        QueryComplexity.ADVANCED: "kimi-k1-5",
-    },
-    "gemini": {
-        QueryComplexity.SIMPLE: "gemini-2.0-flash",
-        QueryComplexity.MODERATE: "gemini-2.0-flash",
-        QueryComplexity.COMPLEX: "gemini-2.0-flash-thinking-exp",
-        QueryComplexity.ADVANCED: "gemini-2.0-flash-thinking-exp",
-    },
-}
+# Base Model Preferences (Hardcoded fallback if dynamic fetching fails)
+# We prioritize DeepSeek for reasoning due to architecture report
+DEFAULT_REASONING_MODELS = ["deepseek-chat", "gpt-4o", "claude-3-5-sonnet-20241022"]
+DEFAULT_BUDGET_MODELS = ["deepseek-chat", "gpt-4o-mini", "llama-3.1-70b-versatile"]
 
 
 class BYOKHandler:
     """
     Handler for LLM interactions using BYOK system with intelligent cost optimization.
-    Automatically routes queries to the most cost-effective provider based on complexity.
+    Automatically routes queries to the most cost-effective provider based on complexity and dynamic pricing.
     """
     def __init__(self, workspace_id: str = "default", provider_id: str = "auto"):
         self.workspace_id = workspace_id
         self.default_provider_id = provider_id if provider_id != "auto" else None
-        self.clients: Dict[str, Any] = {}
         self.byok_manager = get_byok_manager()
-        self._initialize_clients()
+        self.pricing_fetcher = get_pricing_fetcher()
+        self.clients: Dict[str, Any] = {}
 
-    def _initialize_clients(self):
-        """Initialize clients for all available providers"""
-        if not OpenAI:
-            logger.warning("OpenAI package not installed. LLM features may be limited.")
-            return
+    def get_client(self, provider_id: str, async_client: bool = True) -> Union[OpenAI, AsyncOpenAI, Any]:
+        """
+        Get an initialized client for the specific provider.
+        Supports OpenAI, Anthropic, DeepSeek, Groq, Moonshot, etc.
+        """
+        if provider_id in self.clients:
+            return self.clients[provider_id]
 
-        # Initialize OpenAI-compatible clients for each provider
-        providers_config = {
-            "openai": {"base_url": None},
-            "deepseek": {"base_url": "https://api.deepseek.com/v1"},
-            "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
-        }
+        api_key = self.byok_manager.get_api_key(provider_id)
+        if not api_key:
+            # Fallback to env
+            api_key = os.getenv(f"{provider_id.upper()}_API_KEY")
         
-        for provider_id, config in providers_config.items():
-            api_key = self.byok_manager.get_api_key(provider_id)
-            
-            # Fallback to env for development
-            if not api_key:
-                env_key = f"{provider_id.upper()}_API_KEY"
-                api_key = os.getenv(env_key)
-            
-            if api_key:
-                try:
-                    if config["base_url"]:
-                        self.clients[provider_id] = OpenAI(
-                            api_key=api_key,
-                            base_url=config["base_url"]
-                        )
-                    else:
-                        self.clients[provider_id] = OpenAI(api_key=api_key)
-                    logger.info(f"Initialized BYOK client for {provider_id}")
-                except Exception as e:
-                    logger.error(f"Failed to initialize {provider_id} client: {e}")
+        if not api_key:
+            logger.error(f"No API key found for {provider_id}")
+            return None
+
+        provider_config = self.byok_manager.providers.get(provider_id)
+        base_url = provider_config.base_url if provider_config else None
+
+        client = None
+        try:
+            if provider_id == "anthropic":
+                # Native Anthropic Client
+                if async_client:
+                    client = anthropic.AsyncAnthropic(api_key=api_key)
+                else:
+                    client = anthropic.Anthropic(api_key=api_key)
+            elif provider_id == "google":
+                # Google via OpenAI Compat
+                base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+                if async_client:
+                    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+                else:
+                    client = OpenAI(api_key=api_key, base_url=base_url)
+            else:
+                # Generic OpenAI Compatible (DeepSeek, Groq, OpenAI, Moonshot)
+                if provider_id == "deepseek" and not base_url:
+                    base_url = "https://api.deepseek.com/v1"
+                elif provider_id == "groq" and not base_url:
+                    base_url = "https://api.groq.com/openai/v1"
+
+                if async_client:
+                    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+                else:
+                    client = OpenAI(api_key=api_key, base_url=base_url)
+
+            if client:
+                self.clients[provider_id] = client
+                logger.debug(f"Initialized client for {provider_id}")
+                return client
+
+        except Exception as e:
+            logger.error(f"Failed to initialize client for {provider_id}: {e}")
+            return None
 
     def analyze_query_complexity(self, prompt: str, task_type: Optional[str] = None) -> QueryComplexity:
         """
@@ -153,7 +136,7 @@ class BYOKHandler:
             complexity_score += 2
         
         # Multi-step reasoning indicators
-        reasoning_keywords = ["step by step", "analyze", "compare", "evaluate", "synthesize", "explain why"]
+        reasoning_keywords = ["step by step", "analyze", "compare", "evaluate", "synthesize", "explain why", "react", "loop"]
         if any(kw in prompt_lower for kw in reasoning_keywords):
             complexity_score += 1
         
@@ -164,7 +147,7 @@ class BYOKHandler:
         
         # Task type override
         if task_type:
-            if task_type in ["code", "analysis", "reasoning"]:
+            if task_type in ["code", "analysis", "reasoning", "react_loop"]:
                 complexity_score += 2
             elif task_type in ["chat", "general"]:
                 complexity_score -= 1
@@ -183,174 +166,121 @@ class BYOKHandler:
         self, 
         complexity: QueryComplexity, 
         task_type: Optional[str] = None,
-        prefer_cost: bool = True
+        estimated_tokens: int = 0
     ) -> tuple[str, str]:
         """
-        Get the optimal provider and model based on complexity and available keys.
-        Returns (provider_id, model_name)
+        Get the optimal provider and model based on complexity, Dynamic Pricing, and Context Window.
+        Returns (provider_id, model_name).
         """
-        # If user specified a provider, use it
-        if self.default_provider_id and self.default_provider_id in self.clients:
-            provider = self.default_provider_id
-            models = COST_EFFICIENT_MODELS.get(provider, {})
-            model = models.get(complexity, "gpt-4o-mini")
-            return provider, model
+        # 1. Check if user forced a provider
+        if self.default_provider_id:
+            if self.default_provider_id == "deepseek":
+                return "deepseek", "deepseek-chat"
+            if self.default_provider_id == "openai":
+                return "openai", "gpt-4o" if complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED] else "gpt-4o-mini"
+            return self.default_provider_id, "default"
+
+        # 2. Determine Candidate Models based on Complexity
+        candidates = []
         
-        # Priority order based on complexity and cost preference
-        if complexity == QueryComplexity.SIMPLE:
-            provider_priority = ["deepseek", "moonshot", "openai"]
-        elif complexity == QueryComplexity.MODERATE:
-            provider_priority = ["deepseek", "openai", "anthropic"]
-        elif complexity == QueryComplexity.COMPLEX:
-            if task_type == "code":
-                provider_priority = ["deepseek", "openai"]
+        if complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]:
+            # Reasoning/High-Performance Tier
+            candidates = self._get_reasoning_candidates(estimated_tokens)
+        else:
+            # Budget/Simple Tier
+            candidates = self._get_budget_candidates(estimated_tokens)
+
+        # 3. Filter Candidates by Available API Keys
+        available_candidates = []
+        for cand in candidates:
+            provider = self._infer_provider_from_model(cand['model'])
+            if self.byok_manager.get_api_key(provider):
+                available_candidates.append({**cand, "provider": provider})
+
+        if not available_candidates:
+            # If nothing fits, check for fallback (ignore context limit constraint if desperate or allow truncation)
+            # Or just check if we filtered everything out due to context
+            # We'll try reasoning candidates again without token limit just to find *something*
+            if estimated_tokens > 0:
+                 candidates = self._get_reasoning_candidates(0)
+                 for cand in candidates:
+                    provider = self._infer_provider_from_model(cand['model'])
+                    if self.byok_manager.get_api_key(provider):
+                        available_candidates.append({**cand, "provider": provider})
+
+            if not available_candidates:
+                # Absolute Fallback
+                active_keys = [p for p in self.byok_manager.providers.keys() if self.byok_manager.get_api_key(p)]
+                if not active_keys:
+                    raise ValueError("No active AI provider keys found.")
+
+                fallback_provider = active_keys[0]
+                fallback_model = "gpt-4o" if fallback_provider == "openai" else "deepseek-chat" if fallback_provider == "deepseek" else "default"
+                logger.warning(f"No optimal candidates found. Falling back to {fallback_provider}/{fallback_model}")
+                return fallback_provider, fallback_model
+
+        # 4. Sort by Price (Cheapest First)
+        available_candidates.sort(key=lambda x: x.get('input_cost_per_token', 999))
+        
+        best_choice = available_candidates[0]
+        logger.info(f"Optimal Model Selected: {best_choice['model']} ({best_choice['provider']}) - Cost: ${best_choice.get('input_cost_per_token', 0):.8f}/token - Context: {best_choice.get('max_tokens', 'unknown')}")
+        
+        return best_choice['provider'], best_choice['model']
+
+    def _get_reasoning_candidates(self, min_context: int = 0) -> List[Dict[str, Any]]:
+        """
+        Get list of candidate models suitable for reasoning, with current pricing and context validation.
+        """
+        target_models = ["deepseek-chat", "gpt-4o", "claude-3-5-sonnet", "gemini-1.5-pro", "llama-3.1-70b"]
+        
+        candidates = []
+        for model in target_models:
+            price = self.pricing_fetcher.get_model_price(model)
+            if price:
+                max_tokens = price.get("max_input_tokens") or price.get("max_tokens") or 128000
+                if max_tokens >= min_context:
+                    candidates.append({"model": model, **price})
             else:
-                provider_priority = ["openai", "anthropic", "deepseek"]
-        else:  # ADVANCED
-            if task_type in ["code", "math"]:
-                provider_priority = ["deepseek", "openai"]
-            else:
-                provider_priority = ["openai", "anthropic"]
-        
-        # Find first available provider
-        for provider_id in provider_priority:
-            if provider_id in self.clients:
-                models = COST_EFFICIENT_MODELS.get(provider_id, {})
-                model = models.get(complexity, "gpt-4o-mini")
-                logger.info(f"Cost-optimized routing: {complexity.value} -> {provider_id}/{model}")
-                return provider_id, model
-        
-        # Fallback to any available provider
-        if self.clients:
-            provider_id = list(self.clients.keys())[0]
-            return provider_id, "gpt-4o-mini"
-        
-        raise ValueError("No LLM providers available. Please configure BYOK keys.")
+                # Default fallback context for known models
+                default_context = 128000 if "gpt-4" in model or "claude" in model or "deepseek" in model else 8000
+                if default_context >= min_context:
+                    fallback_cost = 0.00000014 if "deepseek" in model else 0.000005
+                    candidates.append({"model": model, "input_cost_per_token": fallback_cost, "max_tokens": default_context})
 
-    async def generate_response(
-        self, 
-        prompt: str, 
-        system_instruction: str = "You are a helpful assistant.",
-        model_type: str = "auto",  # "auto", "fast", "quality", or specific model
-        temperature: float = 0.7,
-        task_type: Optional[str] = None,
-        prefer_cost: bool = True
-    ) -> str:
+        return candidates
+
+    def _get_budget_candidates(self, min_context: int = 0) -> List[Dict[str, Any]]:
         """
-        Generate a response using cost-optimized provider routing.
-        
-        Args:
-            prompt: The user prompt
-            system_instruction: System instruction for the LLM
-            model_type: "auto" for complexity-based routing, or specify model
-            temperature: Sampling temperature
-            task_type: Optional task type hint (code, chat, analysis, etc.)
-            prefer_cost: If True, prefer cheaper providers when quality is similar
+        Get list of cheapest models for simple tasks with context validation.
         """
-        if not self.clients:
-            return "LLM Client not initialized (No API Keys configured)."
-        
-        try:
-            # Analyze complexity for routing
-            complexity = self.analyze_query_complexity(prompt, task_type)
-            
-            # Get optimal provider
-            provider_id, model = self.get_optimal_provider(complexity, task_type, prefer_cost)
-            
-            client = self.clients[provider_id]
-            
-            # Make the request
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=temperature
-            )
-            
-            result = response.choices[0].message.content
-            
-            # Log for analytics
-            logger.info(f"BYOK Cost Optimization: complexity={complexity.value}, provider={provider_id}, model={model}")
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"LLM Generation failed: {e}")
-            return f"Error generating response: {str(e)}"
+        cheapest = self.pricing_fetcher.get_cheapest_models(limit=15)
+        supported_substrings = ["deepseek", "gpt-4o-mini", "haiku", "llama-3", "flash"]
+        valid_candidates = []
 
-    def get_available_providers(self) -> List[str]:
-        """Get list of providers with valid API keys"""
-        return list(self.clients.keys())
+        for cand in cheapest:
+            name = cand['model'].lower()
+            if any(s in name for s in supported_substrings):
+                max_tokens = cand.get("max_input_tokens") or cand.get("max_tokens") or 8000 # Assume small if unknown
+                if max_tokens >= min_context:
+                    valid_candidates.append(cand)
 
-    def get_routing_info(self, prompt: str, task_type: Optional[str] = None) -> Dict[str, Any]:
-        """Get routing decision info without making an API call (useful for UI)"""
-        complexity = self.analyze_query_complexity(prompt, task_type)
-        try:
-            provider_id, model = self.get_optimal_provider(complexity, task_type)
-            
-            # Try to get dynamic pricing
-            estimated_cost = None
-            try:
-                from core.dynamic_pricing_fetcher import get_pricing_fetcher
-                fetcher = get_pricing_fetcher()
-                pricing = fetcher.get_model_price(model)
-                if pricing:
-                    # Estimate for ~500 token response
-                    input_tokens = len(prompt) // 4
-                    output_tokens = 500
-                    estimated_cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
-            except:
-                pass
-            
-            return {
-                "complexity": complexity.value,
-                "selected_provider": provider_id,
-                "selected_model": model,
-                "available_providers": self.get_available_providers(),
-                "cost_tier": "budget" if provider_id in PROVIDER_TIERS["budget"] else "mid" if provider_id in PROVIDER_TIERS["mid"] else "premium",
-                "estimated_cost_usd": estimated_cost
-            }
-        except ValueError as e:
-            return {
-                "complexity": complexity.value,
-                "error": str(e),
-                "available_providers": []
-            }
+        # Ensure DeepSeek is in there
+        if not any("deepseek" in c['model'] for c in valid_candidates):
+             deepseek_price = self.pricing_fetcher.get_model_price("deepseek-chat")
+             if deepseek_price:
+                 max_tokens = deepseek_price.get("max_input_tokens", 128000)
+                 if max_tokens >= min_context:
+                     valid_candidates.append({"model": "deepseek-chat", **deepseek_price})
 
-    async def refresh_pricing(self, force: bool = False) -> Dict[str, Any]:
-        """Refresh dynamic pricing data from LiteLLM and OpenRouter"""
-        try:
-            from core.dynamic_pricing_fetcher import refresh_pricing_cache
-            pricing = await refresh_pricing_cache(force=force)
-            return {"status": "success", "model_count": len(pricing)}
-        except Exception as e:
-            logger.error(f"Failed to refresh pricing: {e}")
-            return {"status": "error", "message": str(e)}
+        return valid_candidates
 
-    def get_provider_comparison(self) -> Dict[str, Any]:
-        """Get cost comparison across all providers using dynamic pricing"""
-        try:
-            from core.dynamic_pricing_fetcher import get_pricing_fetcher
-            fetcher = get_pricing_fetcher()
-            return fetcher.compare_providers()
-        except Exception as e:
-            logger.warning(f"Could not get provider comparison: {e}")
-            # Return static fallback
-            return {
-                "openai": {"avg_cost_per_token": 0.00003, "tier": "premium"},
-                "anthropic": {"avg_cost_per_token": 0.000025, "tier": "premium"},
-                "deepseek": {"avg_cost_per_token": 0.000002, "tier": "budget"},
-                "moonshot": {"avg_cost_per_token": 0.000003, "tier": "budget"},
-            }
-
-    def get_cheapest_models(self, limit: int = 5) -> List[Dict[str, Any]]:
-        """Get the cheapest models available"""
-        try:
-            from core.dynamic_pricing_fetcher import get_pricing_fetcher
-            fetcher = get_pricing_fetcher()
-            return fetcher.get_cheapest_models(limit=limit)
-        except Exception as e:
-            logger.warning(f"Could not get cheapest models: {e}")
-            return []
+    def _infer_provider_from_model(self, model_name: str) -> str:
+        """Helper to map model name to provider ID"""
+        m = model_name.lower()
+        if "gpt" in m or "o1" in m: return "openai"
+        if "claude" in m: return "anthropic"
+        if "deepseek" in m: return "deepseek"
+        if "gemini" in m: return "google"
+        if "llama" in m or "mixtral" in m: return "groq"
+        if "kimi" in m: return "moonshot"
+        return "openai" # Default fallback
