@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-12-31T00:48:05.630544",
+  "generated_at": "2025-12-31T01:18:36.781022",
   "total_integrations_audited": 147,
   "integrations": {
     "ai_enhanced": {
@@ -31,12 +31,12 @@
     },
     "airtable": {
       "name": "airtable",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/airtable_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "airtable_routes": {
       "name": "airtable_routes",
@@ -103,12 +103,12 @@
     },
     "atom_education_customization": {
       "name": "atom_education_customization",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/atom_education_customization_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "atom_enterprise_api_routes": {
       "name": "atom_enterprise_api_routes",
@@ -139,12 +139,12 @@
     },
     "atom_finance_customization": {
       "name": "atom_finance_customization",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/atom_finance_customization_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "atom_google_chat": {
       "name": "atom_google_chat",
@@ -157,12 +157,12 @@
     },
     "atom_healthcare_customization": {
       "name": "atom_healthcare_customization",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/atom_healthcare_customization_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "atom_hubspot": {
       "name": "atom_hubspot",
@@ -202,21 +202,21 @@
     },
     "atom_video_ai": {
       "name": "atom_video_ai",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/atom_video_ai_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "atom_voice_ai": {
       "name": "atom_voice_ai",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/atom_voice_ai_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "atom_voice_video": {
       "name": "atom_voice_video",
@@ -265,12 +265,12 @@
     },
     "bitbucket": {
       "name": "bitbucket",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/bitbucket_service.py",
       "credentials_configured": false,
       "async_support": "unlikely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "bitbucket_routes": {
       "name": "bitbucket_routes",
@@ -301,12 +301,12 @@
     },
     "calendly": {
       "name": "calendly",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/calendly_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "calendly_routes": {
       "name": "calendly_routes",
@@ -328,12 +328,12 @@
     },
     "deepgram": {
       "name": "deepgram",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/deepgram_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "deepgram_routes": {
       "name": "deepgram_routes",
@@ -526,12 +526,12 @@
     },
     "gmail": {
       "name": "gmail",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/gmail_service.py",
       "credentials_configured": false,
       "async_support": "unlikely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "gmail_routes": {
       "name": "gmail_routes",
@@ -562,12 +562,12 @@
     },
     "google_calendar": {
       "name": "google_calendar",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/google_calendar_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "google_calendar_routes": {
       "name": "google_calendar_routes",
@@ -697,12 +697,12 @@
     },
     "linkedin": {
       "name": "linkedin",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/linkedin_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "linkedin_routes": {
       "name": "linkedin_routes",
@@ -760,21 +760,21 @@
     },
     "meta_business": {
       "name": "meta_business",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/meta_business_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "microsoft365": {
       "name": "microsoft365",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/microsoft365_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "microsoft365_routes": {
       "name": "microsoft365_routes",
@@ -895,12 +895,12 @@
     },
     "plaid": {
       "name": "plaid",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/plaid_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "plaid_routes": {
       "name": "plaid_routes",
@@ -1129,12 +1129,12 @@
     },
     "twilio": {
       "name": "twilio",
-      "in_universal_registry": false,
+      "in_universal_registry": true,
       "has_service_file": true,
       "service_file_path": "backend/integrations/twilio_service.py",
       "credentials_configured": false,
       "async_support": "likely",
-      "compliance_status": "partially_compliant"
+      "compliance_status": "compliant"
     },
     "twilio_routes": {
       "name": "twilio_routes",
@@ -1327,8 +1327,8 @@
     }
   },
   "summary": {
-    "compliant": 37,
-    "partially_compliant": 101,
+    "compliant": 53,
+    "partially_compliant": 85,
     "non_compliant": 9,
     "missing_credentials": 147,
     "active": 0

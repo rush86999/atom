@@ -44,6 +44,11 @@ try:
     from atom_hubspot_integration_service import atom_hubspot_integration_service
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
+    atom_enterprise_security_service = None
+    atom_enterprise_unified_service = None
+    atom_workflow_automation_service = None
+    ai_enhanced_service = None
+    atom_ai_integration = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -286,15 +291,21 @@ class AtomEducationCustomizationService:
         self.ai_service = config.get('ai_service') or ai_enhanced_service
         
         # Platform integrations
-        self.platform_integrations = {
-            'slack': atom_slack_integration,
-            'teams': atom_teams_integration,
-            'google_chat': atom_google_chat_integration,
-            'discord': atom_discord_integration,
-            'telegram': atom_telegram_integration,
-            'whatsapp': atom_whatsapp_integration,
-            'zoom': atom_zoom_integration
-        }
+        self.platform_integrations = {}
+        if 'atom_slack_integration' in globals():
+            self.platform_integrations['slack'] = atom_slack_integration
+        if 'atom_teams_integration' in globals():
+            self.platform_integrations['teams'] = atom_teams_integration
+        if 'atom_google_chat_integration' in globals():
+            self.platform_integrations['google_chat'] = atom_google_chat_integration
+        if 'atom_discord_integration' in globals():
+            self.platform_integrations['discord'] = atom_discord_integration
+        if 'atom_telegram_integration' in globals():
+            self.platform_integrations['telegram'] = atom_telegram_integration
+        if 'atom_whatsapp_integration' in globals():
+            self.platform_integrations['whatsapp'] = atom_whatsapp_integration
+        if 'atom_zoom_integration' in globals():
+            self.platform_integrations['zoom'] = atom_zoom_integration
         
         # Analytics and monitoring
         self.analytics_metrics = {

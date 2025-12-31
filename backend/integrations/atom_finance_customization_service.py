@@ -44,6 +44,18 @@ try:
     from atom_hubspot_integration_service import atom_hubspot_integration_service
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
+    atom_enterprise_security_service = None
+    atom_enterprise_unified_service = None
+    atom_workflow_automation_service = None
+    ai_enhanced_service = None
+    atom_ai_integration = None
+    atom_slack_integration = None
+    atom_teams_integration = None
+    atom_google_chat_integration = None
+    atom_discord_integration = None
+    atom_telegram_integration = None
+    atom_whatsapp_integration = None
+    atom_zoom_integration = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -239,18 +251,10 @@ class AtomFinanceCustomizationService:
         
         # Banking core integration
         self.banking_core_integration = None
-        if self.finance_config['banking_core_integration']:
-            self.banking_core_integration = self._initialize_banking_core_integration()
-        
         # Trading system integration
         self.trading_system_integration = None
-        if self.finance_config['trading_system_integration']:
-            self.trading_system_integration = self._initialize_trading_system_integration()
-        
         # Credit bureau integration
         self.credit_bureau_integration = None
-        if self.finance_config['credit_bureau_integration']:
-            self.credit_bureau_integration = self._initialize_credit_bureau_integration()
         
         # Enterprise integration
         self.enterprise_security = config.get('security_service') or atom_enterprise_security_service
