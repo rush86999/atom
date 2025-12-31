@@ -432,12 +432,14 @@ class CommunicationIngestionPipeline:
         }
         logger.info(f"Configured ingestion for {app_type.value}")
     
-    def ingest_message(self, app_type: str, message_data: Dict[str, Any]) -> bool:
+    async def ingest_message(self, app_type: str, message_data: Dict[str, Any]) -> bool:
         """Ingest single message from any communication app"""
         try:
             # Initialize memory manager if needed
             if not self.memory_manager.db:
-                self.memory_manager.initialize()
+                # Use executor for potentially blocking initialize
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, self.memory_manager.initialize)
 
             # Normalize message data
             normalized_data = self._normalize_message(app_type, message_data)
@@ -449,8 +451,9 @@ class CommunicationIngestionPipeline:
             if self.ingestion_configs.get(app_type, {}).get('embed_content', False):
                 comm_data.vector_embedding = self._generate_embedding(comm_data.content)
             
-            # Ingest into memory
-            success = self.memory_manager.ingest_communication(comm_data)
+            # Ingest into memory (run in executor to avoid blocking)
+            loop = asyncio.get_running_loop()
+            success = await loop.run_in_executor(None, self.memory_manager.ingest_communication, comm_data)
             
             if success:
                 # Trigger Knowledge Extraction asynchronously if enabled and content exists
@@ -463,7 +466,6 @@ class CommunicationIngestionPipeline:
                         knowledge_manager = get_knowledge_ingestion()
                         # Use a background task if loop exists
                         try:
-                            loop = asyncio.get_running_loop()
                             if loop.is_running():
                                 loop.create_task(knowledge_manager.process_document(
                                     text=comm_data.content,
