@@ -10,5 +10,8 @@
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.4.0"
+  },
+  "scripts": {
+    "dev": "cd frontend-nextjs && npm run dev"
   }
 }
