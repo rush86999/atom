@@ -4,8 +4,12 @@ import sys
 import asyncio
 import json
 import numpy as np
-import openwakeword
-from openwakeword.model import Model
+try:
+    import openwakeword
+    from openwakeword.model import Model
+except ImportError:
+    openwakeword = None
+    Model = None
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 import uvicorn
@@ -32,6 +36,10 @@ wakeword_model = None
 
 def get_model():
     global wakeword_model
+    if Model is None:
+        logger.warning("openwakeword not installed. Voice activation disabled.")
+        return None
+
     if wakeword_model is None:
         logger.info("Loading Wake Word Model...")
         # If model_paths is provided, it loads that. Otherwise loads default.
