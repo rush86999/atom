@@ -6,8 +6,8 @@ export default async function handler(
 ) {
   try {
     // Check backend QuickBooks service health
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
-    const response = await fetch(`${backendUrl}/api/quickbooks/health`, {
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
+    const response = await fetch(`${backendUrl}/api/quickbooks/status`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

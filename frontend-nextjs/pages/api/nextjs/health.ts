@@ -15,8 +15,8 @@ export default async function handler(
 
   try {
     // Forward request to backend service
-    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5058';
-    const response = await fetch(`${backendUrl}/api/nextjs/health`, {
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5059';
+    const response = await fetch(`${backendUrl}/health`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

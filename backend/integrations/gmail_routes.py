@@ -54,6 +54,15 @@ async def gmail_status(user_id: str = "test_user"):
         "timestamp": datetime.now().isoformat(),
     }
 
+@router.get("/health")
+async def gmail_health():
+    """Health check for Gmail service"""
+    return {
+        "status": "healthy",
+        "service": "gmail",
+        "timestamp": datetime.now().isoformat(),
+    }
+
 @router.post("/search")
 async def gmail_search(request: GmailSearchRequest):
     """Search Gmail messages"""

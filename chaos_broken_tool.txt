@@ -1,0 +1,7 @@
+>>> [CHAOS] Starting TEST 3: The Broken Tool Loop
+[FAIL] Exception: 'RealAIWorkflowService' object has no attribute '_tools'
+Traceback (most recent call last):
+  File "C:\Users\Mannan Bajaj\atom\backend\tests\chaos\test_broken_tool_loop.py", line 86, in main
+    service._tools["search_web"] = broken_search
+    ^^^^^^^^^^^^^^
+AttributeError: 'RealAIWorkflowService' object has no attribute '_tools'

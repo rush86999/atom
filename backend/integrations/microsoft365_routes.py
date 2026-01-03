@@ -25,6 +25,11 @@ class Microsoft365SubscriptionRequest(BaseModel):
     expirationDateTime: str
 
 
+class Microsoft365ActionRequest(BaseModel):
+    action: str
+    params: Dict[str, Any] = {}
+
+
 # Initialize router
 microsoft365_router = APIRouter(tags=["Microsoft 365"])
 
@@ -166,6 +171,30 @@ async def delete_microsoft365_event(event_id: str, access_token: str):
     if result["status"] == "error":
         raise HTTPException(status_code=400, detail=result["message"])
     return {"status": "success", "message": "Event deleted"}
+
+
+@microsoft365_router.post("/excel/execute")
+async def execute_excel_action(request: Microsoft365ActionRequest, access_token: str):
+    """Execute generic Excel action."""
+    return await microsoft365_service.execute_excel_action(access_token, request.action, request.params)
+
+
+@microsoft365_router.post("/teams/execute")
+async def execute_teams_action(request: Microsoft365ActionRequest, access_token: str):
+    """Execute generic Teams action."""
+    return await microsoft365_service.execute_teams_action(access_token, request.action, request.params)
+
+
+@microsoft365_router.post("/outlook/execute")
+async def execute_outlook_action(request: Microsoft365ActionRequest, access_token: str):
+    """Execute generic Outlook action."""
+    return await microsoft365_service.execute_outlook_action(access_token, request.action, request.params)
+
+
+@microsoft365_router.post("/onedrive/execute")
+async def execute_onedrive_action(request: Microsoft365ActionRequest, access_token: str):
+    """Execute generic OneDrive action."""
+    return await microsoft365_service.execute_onedrive_action(access_token, request.action, request.params)
 
 
 @microsoft365_router.delete("/files/{item_id}")
