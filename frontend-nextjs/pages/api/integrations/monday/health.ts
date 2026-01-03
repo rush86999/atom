@@ -15,8 +15,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
     // Forward health check to backend
-    const backendResponse = await fetch('http://localhost:8000/api/monday/health', {
+    const backendResponse = await fetch(`${backendUrl}/api/monday/status?user_id=test_user`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${access_token}`,

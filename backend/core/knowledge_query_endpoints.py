@@ -4,7 +4,6 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from core.lancedb_handler import get_lancedb_handler
-from enhanced_ai_workflow_endpoints import RealAIWorkflowService
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ class KnowledgeQueryManager:
     def __init__(self, workspace_id: Optional[str] = None):
         self.workspace_id = workspace_id or "default"
         self.handler = get_lancedb_handler(self.workspace_id)
-        self.ai_service = RealAIWorkflowService()
+        # Lazy load ai_service to prevent circular dependency
 
     async def answer_query(self, query: str, user_id: str = "default_user", workspace_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -64,7 +63,9 @@ class KnowledgeQueryManager:
         If the facts don't contain the answer, say you don't know based on the current records.
         """
         
-        result = await self.ai_service.analyze_text(query, system_prompt=system_prompt)
+        from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+        ai_service = RealAIWorkflowService()
+        result = await ai_service.analyze_text(query, system_prompt=system_prompt)
         answer = "Failed to synthesize an answer from the knowledge graph."
         if result and result.get("success"):
             answer = result.get("response", "Internal error synthesizing answer.")
