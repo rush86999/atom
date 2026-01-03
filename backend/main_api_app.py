@@ -112,7 +112,13 @@ async def auto_load_integration_middleware(request, call_next):
             integration_map = {
                 "lancedb-search": "unified_search",
                 "atom-agent": "atom_agent",
+                "gdrive": "google_drive",
+                "gcal": "google_calendar",
+                "ms365": "microsoft365",
+                "office365": "microsoft365",
                 "v1": None,  # Skip - handled by core routes
+                "auth": None,  # Core auth routes
+                "nextjs": None, # Core/frontend routes
             }
             
             # Get the actual integration name
@@ -296,7 +302,10 @@ try:
     # 4. Microsoft 365 Integration
     try:
         from integrations.microsoft365_routes import microsoft365_router
-        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365"])
+        # Primary Route (New Standard)
+        app.include_router(microsoft365_router, prefix="/api/integrations/microsoft365", tags=["Microsoft 365"])
+        # Legacy Route (For backward compatibility/caching rewrites)
+        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365 (Legacy)"])
     except ImportError:
         logger.warning("Microsoft 365 routes not found, skipping.")
 

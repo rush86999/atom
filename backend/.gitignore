@@ -60,12 +60,12 @@ tests/legacy/
 logs/
 
 # Additional log patterns
-*.log
+# *.log
 *.out
 *.err
 
 # Development artifacts
-test_*.py
-*_test.py
+# test_*.py
+# *_test.py
 temp_*.py
 debug_*.py

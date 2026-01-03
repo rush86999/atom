@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 import uuid
 import enum
 from core.database import Base
+import accounting.models # Ensure Entity is registered for relationships
 
 # Import Deal for relationship resolution
 from sales.models import Deal
@@ -62,7 +63,7 @@ class Contract(Base):
 
     # Relationships
     deal = relationship("Deal") # Assuming Deal model is imported where used or using string
-    product_service = relationship("core.models.BusinessProductService")
+    product_service = relationship("BusinessProductService")
     projects = relationship("Project", back_populates="contract")
 
 class Project(Base):

@@ -27,7 +27,7 @@ const nextConfig = {
       },
       {
         source: "/api/integrations/:path*",
-        destination: "http://localhost:8000/api/v1/integrations/:path*",
+        destination: "http://127.0.0.1:5059/api/integrations/:path*",
       },
       {
         source: "/api/workflows/:path*",
