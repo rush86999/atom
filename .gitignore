@@ -707,3 +707,5 @@ frontend-nextjs/npm_install_log.txt
 test-results/
 playwright-report/
 blob-report/
+playwright-report/
+test-results/
