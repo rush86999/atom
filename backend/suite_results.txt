@@ -1,0 +1,53 @@
+Running Grey-Box Test Suite...
+============================= test session starts =============================
+platform win32 -- Python 3.13.1, pytest-7.4.4, pluggy-1.6.0 -- C:\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Mannan Bajaj\atom\backend
+plugins: anyio-4.9.0, langsmith-0.4.59, asyncio-0.23.8, cov-4.1.0
+asyncio: mode=Mode.STRICT
+collecting ... collected 10 items
+
+tests/grey_box/test_llm_mocking.py::test_routing_logic_sales PASSED      [ 10%]
+tests/grey_box/test_llm_mocking.py::test_malformed_llm_response PASSED   [ 20%]
+tests/grey_box/test_prompts.py::test_system_prompt_structure PASSED      [ 30%]
+tests/grey_box/test_prompts.py::test_prompt_rendering_empty_input PASSED [ 40%]
+tests/grey_box/test_prompts.py::test_prompt_rendering_large_input PASSED [ 50%]
+tests/grey_box/test_schema_contracts.py::test_schema_validation_success PASSED [ 60%]
+tests/grey_box/test_schema_contracts.py::test_schema_validation_missing_field PASSED [ 70%]
+tests/grey_box/test_schema_contracts.py::test_schema_validation_empty_string PASSED [ 80%]
+tests/grey_box/test_tool_mocking.py::test_tool_failure_500 PASSED        [ 90%]
+tests/grey_box/test_tool_mocking.py::test_tool_timeout PASSED            [100%]
+
+============================== warnings summary ===============================
+enhanced_ai_workflow_endpoints.py:683
+  C:\Users\Mannan Bajaj\atom\backend\enhanced_ai_workflow_endpoints.py:683: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @router.on_event("startup")
+
+enhanced_ai_workflow_endpoints.py:688
+  C:\Users\Mannan Bajaj\atom\backend\enhanced_ai_workflow_endpoints.py:688: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @router.on_event("shutdown")
+
+core\messaging_schemas.py:15
+  C:\Users\Mannan Bajaj\atom\backend\core\messaging_schemas.py:15: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('user_id')
+
+tests/grey_box/test_schema_contracts.py::test_schema_validation_success
+tests/grey_box/test_schema_contracts.py::test_schema_validation_missing_field
+tests/grey_box/test_schema_contracts.py::test_schema_validation_empty_string
+  C:\Users\Mannan Bajaj\AppData\Roaming\Python\Python313\site-packages\pydantic\main.py:253: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 10 passed, 6 warnings in 6.75s ========================
+
+Final Exit Code: 0

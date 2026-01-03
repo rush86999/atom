@@ -112,7 +112,13 @@ async def auto_load_integration_middleware(request, call_next):
             integration_map = {
                 "lancedb-search": "unified_search",
                 "atom-agent": "atom_agent",
+                "gdrive": "google_drive",
+                "gcal": "google_calendar",
+                "ms365": "microsoft365",
+                "office365": "microsoft365",
                 "v1": None,  # Skip - handled by core routes
+                "auth": None,  # Core auth routes
+                "nextjs": None, # Core/frontend routes
             }
             
             # Get the actual integration name
@@ -296,7 +302,10 @@ try:
     # 4. Microsoft 365 Integration
     try:
         from integrations.microsoft365_routes import microsoft365_router
-        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365"])
+        # Primary Route (New Standard)
+        app.include_router(microsoft365_router, prefix="/api/integrations/microsoft365", tags=["Microsoft 365"])
+        # Legacy Route (For backward compatibility/caching rewrites)
+        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365 (Legacy)"])
     except ImportError:
         logger.warning("Microsoft 365 routes not found, skipping.")
 
@@ -572,35 +581,41 @@ async def startup_event():
             except Exception as e:
                 logger.error(f"  ✗ Failed to load essential plugin {name}: {e}")
 
-    # 2. Start Workflow Scheduler (Run in main event loop)
-    try:
-        from ai.workflow_scheduler import workflow_scheduler
-        
-        logger.info("Starting Workflow Scheduler...")
+    # Check if schedulers should run (Default: True for Monolith, False for API-only replicas)
+    enable_scheduler = os.getenv("ENABLE_SCHEDULER", "true").lower() == "true"
+    
+    if enable_scheduler:
+        # 2. Start Workflow Scheduler (Run in main event loop)
         try:
-            workflow_scheduler.start()
-            logger.info("✓ Workflow Scheduler running")
+            from ai.workflow_scheduler import workflow_scheduler
+            
+            logger.info("Starting Workflow Scheduler...")
+            try:
+                workflow_scheduler.start()
+                logger.info("✓ Workflow Scheduler running")
+            except Exception as e:
+                logger.error(f"!!! Workflow Scheduler Crashed: {e}")
+            
+        except ImportError:
+            logger.warning("Workflow Scheduler module not found.")
+
+        # 3. Start Agent Scheduler (Upstream compatibility)
+        try:
+            from core.scheduler import AgentScheduler
+            AgentScheduler.get_instance()
+            logger.info("✓ Agent Scheduler running")
+        except ImportError:
+            logger.warning("Agent Scheduler module not found.")
+
+        # 4. Start Intelligence Background Worker
+        try:
+            from ai.intelligence_background_worker import intelligence_worker
+            await intelligence_worker.start()
+            logger.info("✓ Intelligence Background Worker running")
         except Exception as e:
-            logger.error(f"!!! Workflow Scheduler Crashed: {e}")
-        
-    except ImportError:
-        logger.warning("Workflow Scheduler module not found.")
-
-    # 3. Start Agent Scheduler (Upstream compatibility)
-    try:
-        from core.scheduler import AgentScheduler
-        AgentScheduler.get_instance()
-        logger.info("✓ Agent Scheduler running")
-    except ImportError:
-        logger.warning("Agent Scheduler module not found.")
-
-    # 4. Start Intelligence Background Worker
-    try:
-        from ai.intelligence_background_worker import intelligence_worker
-        await intelligence_worker.start()
-        logger.info("✓ Intelligence Background Worker running")
-    except Exception as e:
-        logger.error(f"Failed to start intelligence worker: {e}")
+            logger.error(f"Failed to start intelligence worker: {e}")
+    else:
+        logger.info("Skipping Scheduler startup (ENABLE_SCHEDULER=false)")
     
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
