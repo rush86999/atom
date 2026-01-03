@@ -4,33 +4,34 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
 
   try {
-    // Check health of all Microsoft services
-    const [outlookResponse, teamsResponse, onedriveResponse] = await Promise.all([
-      fetch(`${backendUrl}/api/integrations/microsoft/health`),
-      fetch(`${backendUrl}/api/integrations/teams/health`),
-      fetch(`${backendUrl}/api/onedrive/health`),
-    ]);
+    // Check health of Microsoft 365 service (Unified Endpoint)
+    const response = await fetch(`${backendUrl}/api/integrations/microsoft365/health`);
+
+    // Default structure if backend doesn't return detailed breakdown
+    // The backend returns { status: "healthy", service: "microsoft365", ... }
+    const isHealthy = response.ok;
 
     const services = {
       outlook: {
-        status: outlookResponse.ok ? "healthy" : "unhealthy",
-        connected: outlookResponse.ok,
+        status: isHealthy ? "healthy" : "unhealthy",
+        connected: isHealthy,
       },
       teams: {
-        status: teamsResponse.ok ? "healthy" : "unhealthy", 
-        connected: teamsResponse.ok,
+        status: isHealthy ? "healthy" : "unhealthy",
+        connected: isHealthy,
       },
       onedrive: {
-        status: onedriveResponse.ok ? "healthy" : "unhealthy",
-        connected: onedriveResponse.ok,
+        status: isHealthy ? "healthy" : "unhealthy",
+        connected: isHealthy,
       },
+      // Backend is the source of truth
     };
 
-    const overallStatus = Object.values(services).some(s => s.connected) 
-      ? "healthy" 
+    const overallStatus = Object.values(services).some(s => s.connected)
+      ? "healthy"
       : "disconnected";
 
     return res.status(200).json({
