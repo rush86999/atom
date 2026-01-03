@@ -72,7 +72,7 @@ google-auth-httplib2>=0.1.0,<1.0.0
 google-auth-oauthlib>=1.0.0,<2.0.0
 
 # Cloud Storage
-dropbox>=11.36.0,<12.0.0
+# dropbox>=11.36.0
 boxsdk>=3.0.0,<4.0.0
 
 # CRM & Business
@@ -87,7 +87,7 @@ xero-python>=1.5.0,<2.0.0
 PyGithub>=1.59.0,<2.0.0
 
 # Video & Audio
-openwakeword>=0.6.0,<1.0.0
+# openwakeword>=0.6.0,<1.0.0
 elevenlabs>=0.2.0,<1.0.0
 
 # Testing & Monitoring
