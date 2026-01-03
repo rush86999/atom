@@ -418,6 +418,13 @@ class AutoDocumentIngestionService:
             results["files_found"] = len(files)
             
             for file_info in files:
+                # LAMBDA SAFEGUARD: Check if we are approaching timeout (10 mins)
+                # If running longer than 10 minutes, stop and let the next scheduled run pick up the rest
+                if (datetime.utcnow() - datetime.fromisoformat(results["started_at"])).total_seconds() > 600:
+                    logger.warning(f"Ingestion time limit reached (10m) for {integration_id}. Stopping early.")
+                    results["errors"].append("Time limit reached - continuing in next run")
+                    break
+
                 try:
                     # Skip if already ingested and not modified
                     external_id = file_info.get("id")

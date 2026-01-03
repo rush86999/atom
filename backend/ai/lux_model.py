@@ -17,7 +17,14 @@ import anthropic
 from PIL import Image, ImageGrab
 import io
 import platform
-import pyautogui
+try:
+    import pyautogui
+    PYAUTOGUI_AVAILABLE = True
+except (ImportError, KeyError):
+    # KeyError can happen on headless systems seeking FILE_ATTRIBUTE_REPARSE_POINT
+    PYAUTOGUI_AVAILABLE = False
+    pyautogui = None
+
 import cv2
 import numpy as np
 from pathlib import Path
@@ -85,7 +92,16 @@ class LuxModel:
         else:
             self.client = None
             
-        self.screen_width, self.screen_height = pyautogui.size()
+        if PYAUTOGUI_AVAILABLE:
+            try:
+                self.screen_width, self.screen_height = pyautogui.size()
+            except Exception:
+                self.screen_width, self.screen_height = 1920, 1080 # Fallback
+                logger.warning("Could not get screen size, defaulting to 1080p")
+        else:
+            self.screen_width, self.screen_height = 1920, 1080
+            logger.warning("PyAutoGUI not available. Computer Use features will be disabled.")
+
         self.screenshot_cache = {}
 
         # Computer use model configuration
