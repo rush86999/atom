@@ -572,35 +572,41 @@ async def startup_event():
             except Exception as e:
                 logger.error(f"  ✗ Failed to load essential plugin {name}: {e}")
 
-    # 2. Start Workflow Scheduler (Run in main event loop)
-    try:
-        from ai.workflow_scheduler import workflow_scheduler
-        
-        logger.info("Starting Workflow Scheduler...")
+    # Check if schedulers should run (Default: True for Monolith, False for API-only replicas)
+    enable_scheduler = os.getenv("ENABLE_SCHEDULER", "true").lower() == "true"
+    
+    if enable_scheduler:
+        # 2. Start Workflow Scheduler (Run in main event loop)
         try:
-            workflow_scheduler.start()
-            logger.info("✓ Workflow Scheduler running")
+            from ai.workflow_scheduler import workflow_scheduler
+            
+            logger.info("Starting Workflow Scheduler...")
+            try:
+                workflow_scheduler.start()
+                logger.info("✓ Workflow Scheduler running")
+            except Exception as e:
+                logger.error(f"!!! Workflow Scheduler Crashed: {e}")
+            
+        except ImportError:
+            logger.warning("Workflow Scheduler module not found.")
+
+        # 3. Start Agent Scheduler (Upstream compatibility)
+        try:
+            from core.scheduler import AgentScheduler
+            AgentScheduler.get_instance()
+            logger.info("✓ Agent Scheduler running")
+        except ImportError:
+            logger.warning("Agent Scheduler module not found.")
+
+        # 4. Start Intelligence Background Worker
+        try:
+            from ai.intelligence_background_worker import intelligence_worker
+            await intelligence_worker.start()
+            logger.info("✓ Intelligence Background Worker running")
         except Exception as e:
-            logger.error(f"!!! Workflow Scheduler Crashed: {e}")
-        
-    except ImportError:
-        logger.warning("Workflow Scheduler module not found.")
-
-    # 3. Start Agent Scheduler (Upstream compatibility)
-    try:
-        from core.scheduler import AgentScheduler
-        AgentScheduler.get_instance()
-        logger.info("✓ Agent Scheduler running")
-    except ImportError:
-        logger.warning("Agent Scheduler module not found.")
-
-    # 4. Start Intelligence Background Worker
-    try:
-        from ai.intelligence_background_worker import intelligence_worker
-        await intelligence_worker.start()
-        logger.info("✓ Intelligence Background Worker running")
-    except Exception as e:
-        logger.error(f"Failed to start intelligence worker: {e}")
+            logger.error(f"Failed to start intelligence worker: {e}")
+    else:
+        logger.info("Skipping Scheduler startup (ENABLE_SCHEDULER=false)")
     
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
