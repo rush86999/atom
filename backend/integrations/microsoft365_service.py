@@ -9,7 +9,6 @@ Teams, Outlook, OneDrive, SharePoint, and Power Platform.
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -25,9 +24,6 @@ MICROSOFT365_SCOPES = [
     "Channel.ReadBasic.All",
     "ChannelMessage.Read",
 ]
-
-# Initialize router
-microsoft365_router = APIRouter(prefix="/microsoft365", tags=["Microsoft 365"])
 
 
 # Pydantic models
@@ -199,6 +195,16 @@ class Microsoft365Service:
         import os
         if token == "fake_token" and os.getenv("ATOM_ENV") == "development":
              logger.info(f"MOCK BYPASS: {method} {url}")
+             if "joinedTeams" in url:
+                 return {"status": "success", "data": {"value": []}}
+             if "messages" in url:
+                 return {"status": "success", "data": {"value": []}}
+             if "calendarView" in url:
+                 return {"status": "success", "data": {"value": []}}
+             if "me" == url.split("/")[-1]: # Profile
+                 return {"status": "success", "data": {
+                     "id": "mock_user", "displayName": "Mock User", "mail": "mock@example.com", "userPrincipalName": "mock@example.com"
+                 }}
              return {"status": "success", "data": {"id": "mock_id_123"}}
 
         async with aiohttp.ClientSession() as session:
@@ -226,10 +232,78 @@ class Microsoft365Service:
                 url = f"{self.base_url}/me/drive/root:/{path}:/content"
                 # Note: Content handling might need stream processing, keeping simple for JSON APIs
                 return await self._make_graph_request("GET", url, token)
+            
+            elif action == "upload_file":
+                # Only supports small files (<4MB) via simple upload
+                # For larger files, need upload session (omitted for brevity)
+                path = params.get("path") # e.g. "Documents/file.txt"
+                content = params.get("content") # String or bytes
+                
+                url = f"{self.base_url}/me/drive/root:/{path}:/content"
+                # Using PUT for upload
+                # In real usage, content should be properly encoded/streamed
+                return await self._make_graph_request("PUT", url, token, content)
+
+            elif action == "create_folder":
+                parent_path = params.get("parent_path", "") # Root if empty
+                name = params.get("name")
+                
+                if parent_path:
+                     url = f"{self.base_url}/me/drive/root:/{parent_path}:/children"
+                else:
+                     url = f"{self.base_url}/me/drive/root/children"
+                
+                payload = {
+                    "name": name,
+                    "folder": {},
+                    "@microsoft.graph.conflictBehavior": "rename"
+                }
+                return await self._make_graph_request("POST", url, token, payload)
+
+            elif action == "move_item":
+                item_id = params.get("item_id")
+                parent_id = params.get("parent_id")
+                name = params.get("name") # Optional new name
+                
+                url = f"{self.base_url}/me/drive/items/{item_id}"
+                payload = {
+                    "parentReference": {"id": parent_id},
+                }
+                if name:
+                    payload["name"] = name
+                    
+                return await self._make_graph_request("PATCH", url, token, payload)
+
+            elif action == "copy_item":
+                item_id = params.get("item_id")
+                parent_id = params.get("parent_id")
+                name = params.get("name")
+                
+                url = f"{self.base_url}/me/drive/items/{item_id}/copy"
+                payload = {
+                    "parentReference": {"id": parent_id},
+                }
+                if name:
+                    payload["name"] = name
+                
+                # Copy is async, returns 202 Accepted. We need to handle that in _make_graph_request or here.
+                # Assuming standard behavior.
+                return await self._make_graph_request("POST", url, token, payload)
+
             return {"status": "error", "message": f"Unknown OneDrive action: {action}"}
         except Exception as e:
             logger.error(f"OneDrive action failed: {e}")
             return {"status": "error", "message": str(e)}
+
+    async def _get_excel_table_columns(self, token: str, item_id: str, table_name: str) -> List[str]:
+        """Get column names for an Excel table."""
+        url = f"{self.base_url}/me/drive/items/{item_id}/workbook/tables/{table_name}/columns"
+        result = await self._make_graph_request("GET", url, token)
+        
+        if result["status"] == "success":
+            # Graph API returns columns in 'value' list, each having a 'name' property
+            return [col["name"] for col in result["data"].get("value", [])]
+        return []
 
     async def execute_excel_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Excel action."""
@@ -249,19 +323,78 @@ class Microsoft365Service:
                 values = params.get("values") # [[1, 2], [3, 4]]
                 url = f"{self.base_url}/me/drive/items/{item_id}/workbook/worksheets/{range_address.split('!')[0]}/range(address='{range_address.split('!')[1]}')"
                 return await self._make_graph_request("PATCH", url, token, {"values": values})
+            
             elif action == "append_row":
                  sheet = params.get("sheet", "Sheet1")
-                 values = params.get("values") # [col1, col2]
                  table = params.get("table")
+                 values = params.get("values") # [col1, col2] or [[col1, col2]]
+                 column_mapping = params.get("column_mapping") # {"ColA": "ValA", "ColB": "ValB"}
                  
-                 if table:
-                     url = f"{self.base_url}/me/drive/items/{item_id}/workbook/tables/{table}/rows"
+                 if not table:
+                     return {"status": "error", "message": "Append row currently requires a table defined in Excel"}
+                 
+                 # Granular update using column mapping
+                 if column_mapping:
+                     # 1. Fetch current columns to ensure order
+                     columns = await self._get_excel_table_columns(token, item_id, table)
+                     if not columns:
+                         return {"status": "error", "message": f"Could not fetch columns for table '{table}'"}
+                     
+                     # 2. Map values to column order
+                     # If a column in the mapping isn't in the table, it's ignored or logged
+                     # If a table column isn't in the mapping, it gets None/Empty
+                     ordered_row = []
+                     for col_name in columns:
+                         ordered_row.append(column_mapping.get(col_name, ""))
+                     
+                     # Graph API expects 'values' as a list of rows (list of lists)
+                     final_values = [ordered_row]
+                     
+                 elif values:
+                     # Fallback to direct values if provided
+                     # Ensure it is a list of lists
+                     if values and not isinstance(values[0], list):
+                         final_values = [values]
+                     else:
+                         final_values = values
                  else:
-                     # Identify used range and append... simplistic approach:
-                     return {"status": "error", "message": "Append row requires a table defined in Excel"}
+                     return {"status": "error", "message": "Either 'values' or 'column_mapping' must be provided"}
                  
-                 return await self._make_graph_request("POST", url, token, {"values": [values]})
+                 url = f"{self.base_url}/me/drive/items/{item_id}/workbook/tables/{table}/rows"
+                 return await self._make_graph_request("POST", url, token, {"values": final_values})
             
+            elif action == "read_range":
+                range_address = params.get("range") # e.g. Sheet1!A1:B2
+                if not range_address:
+                    return {"status": "error", "message": "Range is required for read_range"}
+                url = f"{self.base_url}/me/drive/items/{item_id}/workbook/worksheets/{range_address.split('!')[0]}/range(address='{range_address.split('!')[1]}')"
+                return await self._make_graph_request("GET", url, token)
+
+            elif action == "create_worksheet":
+                name = params.get("name")
+                url = f"{self.base_url}/me/drive/items/{item_id}/workbook/worksheets"
+                payload = {"name": name} if name else {}
+                return await self._make_graph_request("POST", url, token, payload)
+
+            elif action == "delete_worksheet":
+                worksheet_id = params.get("worksheet_id") # Name or ID
+                if not worksheet_id:
+                    return {"status": "error", "message": "Worksheet ID/Name required"}
+                url = f"{self.base_url}/me/drive/items/{item_id}/workbook/worksheets/{worksheet_id}"
+                return await self._make_graph_request("DELETE", url, token)
+
+            elif action == "run_script":
+                script_id = params.get("script_id")
+                script_params = params.get("script_params", {})
+                if not script_id:
+                     return {"status": "error", "message": "Script ID required"}
+                url = f"{self.base_url}/me/drive/items/{item_id}/workbook/runScript"
+                payload = {
+                    "scriptId": script_id,
+                    "parameters": script_params
+                }
+                return await self._make_graph_request("POST", url, token, payload)
+
             return {"status": "error", "message": f"Unknown Excel action: {action}"}
         except Exception as e:
              logger.error(f"Excel action failed: {e}")
@@ -299,6 +432,22 @@ class Microsoft365Service:
                     }
                 }
                 return await self._make_graph_request("POST", url, token, payload)
+            
+            elif action == "reply_to_message":
+                team_id = params.get("team_id")
+                channel_id = params.get("channel_id")
+                message_id = params.get("message_id")
+                message = params.get("message")
+                
+                url = f"{self.base_url}/teams/{team_id}/channels/{channel_id}/messages/{message_id}/replies"
+                payload = {
+                    "body": {
+                        "content": message,
+                        "contentType": "text"
+                    }
+                }
+                return await self._make_graph_request("POST", url, token, payload)
+
             elif action == "create_channel":
                 team_id = params.get("team_id")
                 display_name = params.get("display_name")
@@ -310,6 +459,39 @@ class Microsoft365Service:
                    "description": description
                 }
                 return await self._make_graph_request("POST", url, token, payload)
+
+            elif action == "create_team":
+                # Creating a team is complex (requires group creation first usually), 
+                # but Graph API v1.0 supports a direct team create with group schema
+                display_name = params.get("display_name")
+                description = params.get("description", "")
+                
+                url = f"{self.base_url}/teams"
+                payload = {
+                    "template@odata.bind": "https://graph.microsoft.com/v1.0/teamsTemplates('standard')",
+                    "displayName": display_name,
+                    "description": description
+                }
+                return await self._make_graph_request("POST", url, token, payload)
+
+            elif action == "add_member":
+                team_id = params.get("team_id")
+                user_id = params.get("user_id") # O365 User ID
+                # To add a member, we actually add them to the underlying group
+                # However, /teams/{id}/members is also an endpoint but usually requires specific role
+                
+                url = f"{self.base_url}/teams/{team_id}/members"
+                payload = {
+                    "@odata.type": "#microsoft.graph.aadUserConversationMember",
+                    "roles": [], # Empty for member, ["owner"] for owner
+                    "user@odata.bind": f"https://graph.microsoft.com/v1.0/users('{user_id}')"
+                }
+                return await self._make_graph_request("POST", url, token, payload)
+            
+            elif action == "list_members":
+                team_id = params.get("team_id")
+                url = f"{self.base_url}/teams/{team_id}/members"
+                return await self._make_graph_request("GET", url, token)
 
             return {"status": "error", "message": f"Unknown Teams action: {action}"}
         except Exception as e:
@@ -341,6 +523,42 @@ class Microsoft365Service:
                 }
                 return await self._make_graph_request("POST", url, token, payload)
             
+            elif action == "reply_email":
+                message_id = params.get("message_id")
+                comment = params.get("comment", "")
+                
+                url = f"{self.base_url}/me/messages/{message_id}/reply"
+                payload = {"comment": comment}
+                return await self._make_graph_request("POST", url, token, payload)
+
+            elif action == "forward_email":
+                message_id = params.get("message_id")
+                to_recipients = params.get("to", []) # List of emails
+                comment = params.get("comment", "")
+                
+                url = f"{self.base_url}/me/messages/{message_id}/forward"
+                payload = {
+                    "comment": comment,
+                    "toRecipients": [{"emailAddress": {"address": email}} for email in to_recipients]
+                }
+                return await self._make_graph_request("POST", url, token, payload)
+
+            elif action == "move_email":
+                message_id = params.get("message_id")
+                destination_id = params.get("destination_id") # Folder ID
+                
+                url = f"{self.base_url}/me/messages/{message_id}/move"
+                payload = {"destinationId": destination_id}
+                return await self._make_graph_request("POST", url, token, payload)
+
+            elif action == "mark_read":
+                message_id = params.get("message_id")
+                is_read = params.get("is_read", True)
+                
+                url = f"{self.base_url}/me/messages/{message_id}"
+                payload = {"isRead": is_read}
+                return await self._make_graph_request("PATCH", url, token, payload)
+
             elif action == "create_event":
                 subject = params.get("subject", "Meeting")
                 start_time = params.get("start_time") # ISO format
@@ -449,86 +667,35 @@ class Microsoft365Service:
             logger.error(f"Delete subscription failed: {e}")
             return {"status": "error", "message": str(e)}
 
+    async def get_service_status(self, token: str) -> Dict[str, Any]:
+        """Get Microsoft 365 service status (connectivity check)."""
+        try:
+            # Simple connectivity check by fetching user profile
+            url = f"{self.base_url}/me"
+            response = await self._make_graph_request("GET", url, token)
+            
+            if response.get("status") == "success":
+                 return {
+                    "status": "success",
+                    "data": {
+                        "connectivity": "connected",
+                        "service": "Microsoft 365",
+                        "timestamp": "now" # In real app, use datetime
+                    }
+                }
+            else:
+                 return {
+                    "status": "error", 
+                    "data": {
+                        "connectivity": "disconnected",
+                        "error": response.get("message")
+                    }
+                }
+        except Exception as e:
+            logger.error(f"Service status check failed: {e}")
+            return {"status": "error", "message": str(e)}
+
 
 # Service instance
 microsoft365_service = Microsoft365Service()
 
-
-# API Routes
-@microsoft365_router.get("/auth")
-async def microsoft365_auth(user_id: str):
-    """Initiate Microsoft 365 OAuth flow."""
-    result = await microsoft365_service.authenticate(user_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return Microsoft365AuthResponse(**result)
-
-
-@microsoft365_router.get("/user")
-async def get_microsoft365_user(access_token: str):
-    """Get Microsoft 365 user profile."""
-    result = await microsoft365_service.get_user_profile(access_token)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return Microsoft365User(**result["data"])
-
-
-@microsoft365_router.get("/teams")
-async def list_microsoft365_teams(access_token: str):
-    """List Microsoft Teams."""
-    result = await microsoft365_service.list_teams(access_token)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return {"teams": result["data"]["value"]}
-
-
-@microsoft365_router.get("/teams/{team_id}/channels")
-async def list_microsoft365_channels(team_id: str, access_token: str):
-    """List channels in a Microsoft Team."""
-    result = await microsoft365_service.list_channels(access_token, team_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return {"channels": result["data"]["value"]}
-
-
-@microsoft365_router.get("/outlook/messages")
-async def get_microsoft365_messages(
-    access_token: str, folder_id: str = "inbox", top: int = 10
-):
-    """Get Outlook messages."""
-    result = await microsoft365_service.get_outlook_messages(
-        access_token, folder_id, top
-    )
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return {"messages": result["data"]["value"]}
-
-
-@microsoft365_router.get("/calendar/events")
-async def get_microsoft365_events(access_token: str, start_date: str, end_date: str):
-    """Get calendar events."""
-    result = await microsoft365_service.get_calendar_events(
-        access_token, start_date, end_date
-    )
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return {"events": result["data"]["value"]}
-
-
-@microsoft365_router.get("/services/status")
-async def get_microsoft365_service_status(access_token: str):
-    """Get Microsoft 365 service status."""
-    result = await microsoft365_service.get_service_status(access_token)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return result["data"]
-
-
-@microsoft365_router.get("/health")
-async def microsoft365_health():
-    """Health check for Microsoft 365 service."""
-    return {
-        "status": "healthy",
-        "service": "microsoft365",
-        "timestamp": "2024-01-21T10:00:00Z",
-    }

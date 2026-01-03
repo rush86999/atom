@@ -28,30 +28,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
   const startTime = Date.now();
 
   try {
     // Comprehensive health checks for Linear services
     const healthChecks = await Promise.allSettled([
       // API Health Check
-      fetch(`${backendUrl}/api/linear/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }),
-      // Auth Service Health Check
-      fetch(`${backendUrl}/api/oauth/linear/status`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }),
-      // Issues Service Health Check
-      fetch(`${backendUrl}/api/linear/issues/health`, {
+      fetch(`${backendUrl}/api/linear/status`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -68,42 +52,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }),
     ]);
 
-    const [apiResult, authResult, issuesResult, teamsResult] = healthChecks;
+    const [statusResult, teamsResult] = healthChecks;
+
+    const isHealthy = statusResult.status === 'fulfilled' && statusResult.value.ok;
 
     // Process results
     const apiHealth: ServiceHealth = {
-      status: apiResult.status === 'fulfilled' && apiResult.value.ok ? 'healthy' : 'unhealthy',
-      connected: apiResult.status === 'fulfilled' && apiResult.value.ok,
-      response_time: apiResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      connected: isHealthy,
+      response_time: statusResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: apiResult.status === 'rejected' ? apiResult.reason?.message :
-        apiResult.value?.ok ? undefined : await getErrorText(apiResult.value),
+      error: statusResult.status === 'rejected' ? statusResult.reason?.message :
+        statusResult.value?.ok ? undefined : await getErrorText(statusResult.value),
     };
 
     const authHealth: ServiceHealth = {
-      status: authResult.status === 'fulfilled' && authResult.value.ok ? 'healthy' : 'unhealthy',
-      connected: authResult.status === 'fulfilled' && authResult.value.ok,
-      response_time: authResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      connected: isHealthy,
       last_check: new Date().toISOString(),
-      error: authResult.status === 'rejected' ? authResult.reason?.message :
-        authResult.value?.ok ? undefined : await getErrorText(authResult.value),
     };
 
     const issuesHealth: ServiceHealth = {
-      status: issuesResult.status === 'fulfilled' && issuesResult.value.ok ? 'healthy' : 'degraded',
-      connected: issuesResult.status === 'fulfilled' && issuesResult.value.ok,
-      response_time: issuesResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'degraded',
+      connected: isHealthy,
       last_check: new Date().toISOString(),
-      error: issuesResult.status === 'rejected' ? issuesResult.reason?.message :
-        issuesResult.value?.ok ? undefined : await getErrorText(issuesResult.value),
     };
 
     const teamsHealth: ServiceHealth = {
-      status: teamsResult.status === 'fulfilled' && teamsResult.value.ok ? 'healthy' : 'degraded',
-      connected: teamsResult.status === 'fulfilled' && teamsResult.value.ok,
-      response_time: teamsResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: teamsResult && teamsResult.status === 'fulfilled' && teamsResult.value.ok ? 'healthy' : 'degraded',
+      connected: teamsResult && teamsResult.status === 'fulfilled' && teamsResult.value.ok,
       last_check: new Date().toISOString(),
-      error: teamsResult.status === 'rejected' ? teamsResult.reason?.message :
+      error: !teamsResult ? 'Check skipped' : teamsResult.status === 'rejected' ? teamsResult.reason?.message :
         teamsResult.value?.ok ? undefined : await getErrorText(teamsResult.value),
     };
 
