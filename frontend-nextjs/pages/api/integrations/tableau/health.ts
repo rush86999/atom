@@ -4,7 +4,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
 
   try {
     // Check health of Tableau services
@@ -28,8 +28,8 @@ export default async function handler(
       },
     };
 
-    const overallStatus = Object.values(services).some(s => s.connected) 
-      ? "healthy" 
+    const overallStatus = Object.values(services).some(s => s.connected)
+      ? "healthy"
       : "disconnected";
 
     return res.status(200).json({
