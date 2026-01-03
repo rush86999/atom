@@ -85,42 +85,44 @@ class OneDriveService:
     ) -> Dict[str, Any]:
         """List files from OneDrive."""
         try:
-            # Mock implementation - in real scenario, use Microsoft Graph API
-            mock_files = [
-                {
-                    "id": "file1",
-                    "name": "Project Document.docx",
-                    "webUrl": "https://onedrive.live.com/redir?resid=file1",
-                    "createdDateTime": "2024-01-15T10:00:00Z",
-                    "lastModifiedDateTime": "2024-01-20T14:30:00Z",
-                    "size": 1024000,
-                    "file": {
-                        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    },
-                },
-                {
-                    "id": "file2",
-                    "name": "Meeting Notes.pdf",
-                    "webUrl": "https://onedrive.live.com/redir?resid=file2",
-                    "createdDateTime": "2024-01-18T09:15:00Z",
-                    "lastModifiedDateTime": "2024-01-19T16:45:00Z",
-                    "size": 512000,
-                    "file": {"mimeType": "application/pdf"},
-                },
-                {
-                    "id": "folder1",
-                    "name": "Project Files",
-                    "webUrl": "https://onedrive.live.com/redir?resid=folder1",
-                    "createdDateTime": "2024-01-10T08:00:00Z",
-                    "lastModifiedDateTime": "2024-01-15T12:00:00Z",
-                    "folder": {"childCount": 5},
-                },
-            ]
+            if not access_token or access_token == "mock":
+                # Fallback to mock data
+                logger.info("Using mock data - no access token provided")
+                mock_files = [
+                    {
+                        "id": "mock_file1",
+                        "name": "Project Document.docx (MOCK)",
+                        "webUrl": "https://onedrive.live.com/redir?resid=file1",
+                        "createdDateTime": "2024-01-15T10:00:00Z",
+                        "lastModifiedDateTime": "2024-01-20T14:30:00Z",
+                        "size": 1024000,
+                        "file": {"mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+                    }
+                ]
+                return {"status": "success", "data": {"value": mock_files, "nextLink": None}, "mode": "mock"}
 
-            return {
-                "status": "success",
-                "data": {"value": mock_files, "nextLink": None},
-            }
+            # Real Microsoft Graph API call
+            import httpx
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {access_token}"}
+                
+                if folder_id:
+                    url = f"{self.base_url}/items/{folder_id}/children"
+                else:
+                    url = f"{self.base_url}/root/children"
+                
+                params = {"$top": page_size}
+                if page_token:
+                    params["$skiptoken"] = page_token
+
+                response = await client.get(url, headers=headers, params=params, timeout=30.0)
+                response.raise_for_status()
+                data = response.json()
+                return {
+                    "status": "success",
+                    "data": {"value": data.get("value", []), "nextLink": data.get("@odata.nextLink")},
+                    "mode": "real"
+                }
         except Exception as e:
             logger.error(f"OneDrive list files failed: {e}")
             return {"status": "error", "message": f"Failed to list files: {str(e)}"}
@@ -134,25 +136,37 @@ class OneDriveService:
     ) -> Dict[str, Any]:
         """Search files in OneDrive."""
         try:
-            # Mock implementation
-            mock_files = [
-                {
-                    "id": "file3",
-                    "name": f"Search Result for {query}.docx",
-                    "webUrl": f"https://onedrive.live.com/redir?resid=file3",
-                    "createdDateTime": "2024-01-10T08:00:00Z",
-                    "lastModifiedDateTime": "2024-01-12T11:20:00Z",
-                    "size": 2048000,
-                    "file": {
-                        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    },
-                }
-            ]
+            if not access_token or access_token == "mock":
+                # Fallback to mock data
+                mock_files = [
+                    {
+                        "id": "mock_file3",
+                        "name": f"Search Result for {query}.docx (MOCK)",
+                        "webUrl": "https://onedrive.live.com/redir?resid=file3",
+                        "createdDateTime": "2024-01-10T08:00:00Z",
+                        "lastModifiedDateTime": "2024-01-12T11:20:00Z",
+                        "size": 2048000,
+                    }
+                ]
+                return {"status": "success", "data": {"value": mock_files, "nextLink": None}, "mode": "mock"}
 
-            return {
-                "status": "success",
-                "data": {"value": mock_files, "nextLink": None},
-            }
+            # Real Microsoft Graph API search
+            import httpx
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {access_token}"}
+                url = f"{self.base_url}/root/search(q='{query}')"
+                params = {"$top": page_size}
+                if page_token:
+                    params["$skiptoken"] = page_token
+
+                response = await client.get(url, headers=headers, params=params, timeout=30.0)
+                response.raise_for_status()
+                data = response.json()
+                return {
+                    "status": "success",
+                    "data": {"value": data.get("value", []), "nextLink": data.get("@odata.nextLink")},
+                    "mode": "real"
+                }
         except Exception as e:
             logger.error(f"OneDrive search failed: {e}")
             return {"status": "error", "message": f"Search failed: {str(e)}"}
