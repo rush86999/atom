@@ -8,6 +8,7 @@ import { ChatMessageData, ReasoningStep } from "../GlobalChat/ChatMessage";
 import { VoiceInput } from "../Voice/VoiceInput";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import { useToast } from "../ui/use-toast";
+import { useVoiceAgent } from "../../hooks/useVoiceAgent";
 
 interface ChatInterfaceProps {
     sessionId: string | null;
@@ -21,6 +22,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { isConnected, lastMessage, subscribe } = useWebSocket();
     const { toast } = useToast();
+    const { playAudio, isPlaying, stopAudio } = useVoiceAgent();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -125,14 +127,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         setIsProcessing(true);
 
         try {
-            const response = await fetch("/api/atom-agent/chat", {
+            const response = await fetch("/api/chat/enhanced", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     message: input,
-                    session_id: sessionId,
-                    user_id: "default_user",
-                    current_page: "/chat",
+                    userId: "default_user",
+                    sessionId: sessionId,
+                    audioOutput: true, // Always request audio for now, or toggle based on pref
                     conversation_history: messages.slice(-5).map(m => ({
                         role: m.type === "user" ? "user" : "assistant",
                         content: m.content
@@ -142,15 +144,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
 
             const data = await response.json();
 
-            if (data.success && data.response) {
+            if (data.success) {
                 const agentMsg: ChatMessageData = {
                     id: (Date.now() + 1).toString(),
                     type: "assistant",
-                    content: data.response.message,
+                    content: data.message,
                     timestamp: new Date(),
-                    actions: data.response.actions || [],
+                    actions: data.metadata?.actions || [],
                 };
                 setMessages(prev => [...prev, agentMsg]);
+
+                if (data.metadata?.audioData) {
+                    playAudio(data.metadata.audioData);
+                }
             } else {
                 throw new Error(data.error || "Failed to process request");
             }

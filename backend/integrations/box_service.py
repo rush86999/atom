@@ -96,58 +96,41 @@ class BoxService:
     ) -> Dict[str, Any]:
         """List files from Box."""
         try:
-            # Mock implementation - in real scenario, use Box API
-            mock_files = [
-                {
-                    "id": "file_123456789",
-                    "name": "Project Proposal.docx",
-                    "type": "file",
-                    "size": 1024000,
-                    "created_at": "2024-01-15T10:00:00Z",
-                    "modified_at": "2024-01-20T14:30:00Z",
-                    "shared_link": {
-                        "url": "https://app.box.com/s/file_123456789",
-                        "download_url": "https://app.box.com/shared/static/file_123456789.docx",
-                    },
-                    "path_collection": {
-                        "total_count": 2,
-                        "entries": [
-                            {"id": "0", "name": "All Files"},
-                            {"id": "folder_123", "name": "Project Documents"},
-                        ],
-                    },
-                },
-                {
-                    "id": "file_987654321",
-                    "name": "Meeting Notes.pdf",
-                    "type": "file",
-                    "size": 512000,
-                    "created_at": "2024-01-18T09:15:00Z",
-                    "modified_at": "2024-01-19T16:45:00Z",
-                    "shared_link": {
-                        "url": "https://app.box.com/s/file_987654321",
-                        "download_url": "https://app.box.com/shared/static/file_987654321.pdf",
-                    },
-                    "path_collection": {
-                        "total_count": 2,
-                        "entries": [
-                            {"id": "0", "name": "All Files"},
-                            {"id": "folder_123", "name": "Project Documents"},
-                        ],
-                    },
-                },
-            ]
+            if not access_token or access_token == "mock":
+                logger.info("Using mock data - no access token provided")
+                mock_files = [
+                    {
+                        "id": "mock_file_123",
+                        "name": "Project Proposal.docx (MOCK)",
+                        "type": "file",
+                        "size": 1024000,
+                        "created_at": "2024-01-15T10:00:00Z",
+                        "modified_at": "2024-01-20T14:30:00Z",
+                    }
+                ]
+                return {"status": "success", "data": {"entries": mock_files, "total_count": 1, "offset": offset, "limit": limit, "next_marker": None}, "mode": "mock"}
 
-            return {
-                "status": "success",
-                "data": {
-                    "entries": mock_files,
-                    "total_count": len(mock_files),
-                    "offset": offset,
-                    "limit": limit,
-                    "next_marker": None,
-                },
-            }
+            # Real Box API call
+            import httpx
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {access_token}"}
+                url = f"{self.base_url}/folders/{folder_id}/items"
+                params = {"limit": limit, "offset": offset, "fields": "id,name,type,size,created_at,modified_at,shared_link,path_collection"}
+
+                response = await client.get(url, headers=headers, params=params, timeout=30.0)
+                response.raise_for_status()
+                data = response.json()
+                return {
+                    "status": "success",
+                    "data": {
+                        "entries": data.get("entries", []),
+                        "total_count": data.get("total_count", 0),
+                        "offset": data.get("offset", 0),
+                        "limit": data.get("limit", limit),
+                        "next_marker": data.get("next_marker")
+                    },
+                    "mode": "real"
+                }
         except Exception as e:
             logger.error(f"Box list files failed: {e}")
             return {"status": "error", "message": f"Failed to list files: {str(e)}"}
@@ -161,39 +144,40 @@ class BoxService:
     ) -> Dict[str, Any]:
         """Search files in Box."""
         try:
-            # Mock implementation
-            mock_files = [
-                {
-                    "id": "file_555555555",
-                    "name": f"Search Result: {query}.docx",
-                    "type": "file",
-                    "size": 2048000,
-                    "created_at": "2024-01-10T08:00:00Z",
-                    "modified_at": "2024-01-12T11:20:00Z",
-                    "shared_link": {
-                        "url": f"https://app.box.com/s/file_555555555",
-                        "download_url": f"https://app.box.com/shared/static/file_555555555.docx",
-                    },
-                    "path_collection": {
-                        "total_count": 2,
-                        "entries": [
-                            {"id": "0", "name": "All Files"},
-                            {"id": "folder_456", "name": "Search Results"},
-                        ],
-                    },
-                }
-            ]
+            if not access_token or access_token == "mock":
+                mock_files = [
+                    {
+                        "id": "mock_search_file",
+                        "name": f"Search Result: {query}.docx (MOCK)",
+                        "type": "file",
+                        "size": 2048000,
+                        "created_at": "2024-01-10T08:00:00Z",
+                        "modified_at": "2024-01-12T11:20:00Z",
+                    }
+                ]
+                return {"status": "success", "data": {"entries": mock_files, "total_count": 1, "offset": offset, "limit": limit, "next_marker": None}, "mode": "mock"}
 
-            return {
-                "status": "success",
-                "data": {
-                    "entries": mock_files,
-                    "total_count": len(mock_files),
-                    "offset": offset,
-                    "limit": limit,
-                    "next_marker": None,
-                },
-            }
+            # Real Box API search
+            import httpx
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {access_token}"}
+                url = f"{self.base_url}/search"
+                params = {"query": query, "limit": limit, "offset": offset}
+
+                response = await client.get(url, headers=headers, params=params, timeout=30.0)
+                response.raise_for_status()
+                data = response.json()
+                return {
+                    "status": "success",
+                    "data": {
+                        "entries": data.get("entries", []),
+                        "total_count": data.get("total_count", 0),
+                        "offset": data.get("offset", 0),
+                        "limit": data.get("limit", limit),
+                        "next_marker": data.get("next_marker")
+                    },
+                    "mode": "real"
+                }
         except Exception as e:
             logger.error(f"Box search failed: {e}")
             return {"status": "error", "message": f"Search failed: {str(e)}"}
