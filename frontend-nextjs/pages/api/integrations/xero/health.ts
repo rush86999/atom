@@ -28,38 +28,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
   const startTime = Date.now();
 
   try {
     // Comprehensive health checks for Xero services
     const healthChecks = await Promise.allSettled([
-      // API Health Check
-      fetch(`${backendUrl}/api/xero/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }),
-      // Auth Service Health Check
-      fetch(`${backendUrl}/api/oauth/xero/status`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }),
-      // Accounting API Service Health Check
-      fetch(`${backendUrl}/api/xero/accounting/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }),
-      // Payroll Service Health Check
-      fetch(`${backendUrl}/api/xero/payroll/health`, {
+      // Status Check
+      fetch(`${backendUrl}/api/xero/status`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -68,43 +44,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }),
     ]);
 
-    const [apiResult, authResult, accountingResult, payrollResult] = healthChecks;
+    const [statusResult] = healthChecks;
 
-    // Process results
+    // Process results - All rely on the main status check since specific endpoints don't exist
+    const isHealthy = statusResult.status === 'fulfilled' && statusResult.value.ok;
+
     const apiHealth: ServiceHealth = {
-      status: apiResult.status === 'fulfilled' && apiResult.value.ok ? 'healthy' : 'unhealthy',
-      connected: apiResult.status === 'fulfilled' && apiResult.value.ok,
-      response_time: apiResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      connected: isHealthy,
+      response_time: statusResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: apiResult.status === 'rejected' ? apiResult.reason?.message :
-        apiResult.value?.ok ? undefined : await getErrorText(apiResult.value),
+      error: statusResult.status === 'rejected' ? statusResult.reason?.message :
+        statusResult.value?.ok ? undefined : await getErrorText(statusResult.value),
     };
 
     const authHealth: ServiceHealth = {
-      status: authResult.status === 'fulfilled' && authResult.value.ok ? 'healthy' : 'unhealthy',
-      connected: authResult.status === 'fulfilled' && authResult.value.ok,
-      response_time: authResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      connected: isHealthy,
       last_check: new Date().toISOString(),
-      error: authResult.status === 'rejected' ? authResult.reason?.message :
-        authResult.value?.ok ? undefined : await getErrorText(authResult.value),
     };
 
     const accountingHealth: ServiceHealth = {
-      status: accountingResult.status === 'fulfilled' && accountingResult.value.ok ? 'healthy' : 'degraded',
-      connected: accountingResult.status === 'fulfilled' && accountingResult.value.ok,
-      response_time: accountingResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'degraded',
+      connected: isHealthy,
       last_check: new Date().toISOString(),
-      error: accountingResult.status === 'rejected' ? accountingResult.reason?.message :
-        accountingResult.value?.ok ? undefined : await getErrorText(accountingResult.value),
     };
 
     const payrollHealth: ServiceHealth = {
-      status: payrollResult.status === 'fulfilled' && payrollResult.value.ok ? 'healthy' : 'degraded',
-      connected: payrollResult.status === 'fulfilled' && payrollResult.value.ok,
-      response_time: payrollResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'degraded',
+      connected: isHealthy,
       last_check: new Date().toISOString(),
-      error: payrollResult.status === 'rejected' ? payrollResult.reason?.message :
-        payrollResult.value?.ok ? undefined : await getErrorText(payrollResult.value),
     };
 
     const services = { api: apiHealth, auth: authHealth, accounting: accountingHealth, payroll: payrollHealth };

@@ -33,7 +33,7 @@
     "@ark-ui/react": "^5.27.1",
     "@azure/msal-node": "^3.8.2",
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
-    "@chakra-ui/react": "^3.30.0",
+    "@chakra-ui/react": "^3.3.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource/roboto": "^4.5.8",

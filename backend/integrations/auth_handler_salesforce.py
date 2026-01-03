@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlencode
 import aiohttp
 from fastapi import HTTPException
-from core.secret_manager import get_secret_manager
+from core.app_secrets import get_secret_manager
 
 logger = logging.getLogger(__name__)
 

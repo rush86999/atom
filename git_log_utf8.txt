@@ -1,0 +1,20 @@
+﻿0bd261ba|2025-12-24|Fix backend 404s, Auth stability, and clean up build artifacts
+84938916|2025-12-24|Standardize MS365 integration and fix NLU visualization
+3e862a0d|2025-12-22|docs: update README with Universal BYOK and External Governance features
+054a03b5|2025-12-22|Refactor multi-tenant memory isolation and implement Phase 64 budget guardrails
+71c1d933|2025-12-21|feat: implement autonomous stakeholder communication generation
+8671fdc7|2025-12-21|feat: implement small business mastery features (phases 60-62)
+2ffdbefe|2025-12-21|Phases 56-59 complete: Advanced AI Reasoning & Small Biz Financial Intelligence
+c7706b2a|2025-12-21|Implement Phase 40-42: AI Accounting, GraphRAG with Stakeholders, and Advanced Workflow Orchestration
+81fe7790|2025-12-21|docs: Add Knowledge Graph & AI Memory as key selling point
+c4fcf452|2025-12-21|docs: Add AI Accounting, Financial Ops, and Event-Sourced Architecture features to README
+5916038a|2025-12-20|fix: add API rewrites for sales and accounting, add demo seeding script
+9e546671|2025-12-20|feat: implement AI Sales Dashboard with Lead, Deal, and Meeting Intelligence
+67ad1e1b|2025-12-20|feat: implement AI Sales Automation suite with CRM intelligence and memory integration
+8517df2d|2025-12-20|Implement Phase 10 & 11: Cross-System Reasoning & HITL Enhancements
+2d0b93ff|2025-12-20|Fix login 500 & infinite loop, stabilize backend/frontend
+d3eb55c7|2025-12-20|Merge branch 'upstream/main' into office-365-integration
+1ca11895|2025-12-20|Added office 365 apps integrations including excel, power bi, teams etc.
+5ccfbb99|2025-12-19|feat: universal integrations, dynamic templates, and frontend refinements (Phase 13)
+3707d745|2025-12-19|feat: implement unified LanceDB ingestion pipeline with hybrid search
+1849ecce|2025-12-19|Merge remote-tracking branch 'origin/main' and resolve conflicts in favor of advanced local implementation

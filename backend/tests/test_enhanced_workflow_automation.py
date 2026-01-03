@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Test configuration
-BASE_URL = "http://localhost:5058"
+BASE_URL = "http://localhost:5059"
 TEST_TIMEOUT = 30
 
 
