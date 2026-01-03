@@ -20,6 +20,11 @@ import pandas as pd
 import numpy as np
 
 # Import existing ATOM services
+atom_enterprise_security_service = None
+atom_enterprise_unified_service = None
+atom_workflow_automation_service = None
+ai_enhanced_service = None
+
 try:
     from atom_enterprise_security_service import atom_enterprise_security_service, SecurityLevel, ComplianceStandard
     from atom_enterprise_unified_service import atom_enterprise_unified_service, WorkflowSecurityLevel
@@ -35,7 +40,7 @@ try:
     from atom_google_chat_integration import atom_google_chat_integration
     from atom_discord_integration import atom_discord_integration
 except ImportError as e:
-    logging.warning(f"Enterprise services not available: {e}")
+    logging.warning(f"Enterprise services not available: {e}. Using stubs/None.")
     atom_enterprise_security_service = None
     atom_enterprise_unified_service = None
     atom_workflow_automation_service = None

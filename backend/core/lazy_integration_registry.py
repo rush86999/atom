@@ -95,11 +95,33 @@ INTEGRATION_REGISTRY = {
     
     # Dev & Design
     "github": "integrations.github_routes:router",
+    "gitlab": "integrations.gitlab_routes:router",
     "figma": "integrations.figma_routes:router",
     
     # Marketing & Social
     "mailchimp": "integrations.mailchimp_routes:router",
     "linkedin": "integrations.linkedin_routes:router",
+    "openai": "integrations.openai_routes:router",
+    "workday": "integrations.workday_routes:router",
+    "okta": "integrations.okta_routes:router",
+    "webex": "integrations.webex_routes:router",
+    "telegram": "integrations.telegram_routes:router",
+    "whatsapp": "integrations.whatsapp_fastapi_routes:router",
+    
+    # Dev & Design (Extended)
+    "bitbucket": "integrations.bitbucket_routes:router",
+    
+    # Communication (Extended)
+    "discord": "integrations.discord_routes:router",
+    
+    # AI & MCP
+    "mcp": "integrations.mcp_routes:router",
+    "ai": "integrations.ai_routes:router",
+    "chat": "integrations.chat_routes:router",
+    
+    # Workflow Automation
+    "workflow_automation": "integrations.workflow_automation_routes:router",
+    "workflow_approval": "integrations.workflow_approval_routes:router",
     
     # Other
     "deepgram": "integrations.deepgram_routes:router",
@@ -131,6 +153,7 @@ ESSENTIAL_INTEGRATIONS = [
     "oauth",
     "system_status",
     "service_health",
+    "openai",
     # Temporarily disabled - causing backend startup failures
     # "atom_agent",  # Agent chat functionality
     # "unified_calendar",  # Calendar endpoints
