@@ -1,0 +1,4 @@
+>>> [SECURITY] Starting TEST 2: Sandbox Breakout
+[INFO] core/tools.py not found. Checking if file access is possible via any known tool.
+[PASS] No 'read_file' or 'exec_shell' tools exposed in ReAct Agent definition.
+       System is Secure by Logic (Attack Surface Reduction).

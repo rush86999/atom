@@ -6,7 +6,16 @@ import random
 from unittest.mock import MagicMock, patch, AsyncMock
 
 # Fix path
+import pathlib
+backend_path = pathlib.Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(backend_path))
 sys.path.append(os.getcwd())
+
+# MOCK MODULES
+sys.modules['anthropic'] = MagicMock()
+sys.modules['google.generativeai'] = MagicMock()
+sys.modules['zhipuai'] = MagicMock()
+sys.modules['instructor'] = MagicMock()
 
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
 
