@@ -23,6 +23,9 @@ from dotenv import load_dotenv
 # Configure logging
 logger = logging.getLogger(__name__)
 
+import base64
+from ai.voice_service import voice_service
+
 router = APIRouter(prefix="/api/v1/ai", tags=["ai_workflows"])
 
 # --- Pydantic Models for Tools & ReAct State (Robustness) ---
@@ -47,6 +50,29 @@ class ReActStepResult(BaseModel):
     tool_call: Optional[str] = None
     tool_output: Optional[str] = None
     timestamp: float
+
+# --- Chat Models ---
+
+class ChatRequest(BaseModel):
+    message: str
+    user_id: str
+    session_id: Optional[str] = None
+    audio_output: bool = False
+    context: Optional[Dict[str, Any]] = None
+
+class ChatResponse(BaseModel):
+    message: str
+    session_id: str
+    audio_data: Optional[str] = None # Base64 encoded audio
+    metadata: Optional[Dict[str, Any]] = None
+    timestamp: str
+
+class AIProvider(BaseModel):
+    provider_name: str
+    enabled: bool
+    model: str
+    capabilities: List[str]
+    status: str
 
 # --- Existing Models (kept for backward compat) ---
 
@@ -478,6 +504,47 @@ async def execute_ai_workflow(request: Dict[str, Any]):
         return await ai_service.run_react_agent(input_text, requested_provider)
     except Exception as e:
         logger.error(f"Execution Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat_with_agent(request: ChatRequest):
+    """
+    Enhanced chat endpoint with optional audio output.
+    """
+    try:
+        # Generate text response using AI service
+        # Using a system prompt that encourages conversational helpfulness
+        system_prompt = "You are ATOM, a helpful and intelligent AI assistant. Keep responses concise and natural."
+        
+        # If we have context, inject it
+        if request.context:
+             system_prompt += f"\nContext: {json.dumps(request.context)}"
+
+        response_text = await ai_service.analyze_text(
+            request.message, 
+            complexity=1,
+            system_prompt=system_prompt,
+            user_id=request.user_id
+        )
+
+        audio_data = None
+        if request.audio_output:
+            # Generate audio using VoiceService
+            # Try efficient provider first
+            audio_data = await voice_service.text_to_speech(response_text)
+
+        return ChatResponse(
+            message=response_text,
+            session_id=request.session_id or f"session_{int(time.time())}",
+            audio_data=audio_data,
+            timestamp=datetime.datetime.now().isoformat(),
+            metadata={
+                "provider": "atom_enhanced_ai",
+                "has_audio": bool(audio_data)
+            }
+        )
+    except Exception as e:
+        logger.error(f"Chat failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/nlu", response_model=NLUProcessingResponse)
