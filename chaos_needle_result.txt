@@ -1,7 +1,7 @@
 >>> [CHAOS] Starting TEST 2: Needle in a Haystack
 [CRITICAL FAIL] module 'core' has no attribute 'memory'
 Traceback (most recent call last):
-  File "C:\Users\Mannan Bajaj\atom\backend\tests\chaos\test_needle.py", line 21, in main
+  File "C:\Users\Mannan Bajaj\atom\backend\tests\chaos\test_needle.py", line 30, in main
     patch('core.memory.MemoryManager.get_chat_history') as mock_get_history, \
     ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "C:\Python313\Lib\unittest\mock.py", line 1479, in __enter__

@@ -1,0 +1,7 @@
+{
+  "id": "0ce7e86c-6e5b-4689-a376-521b3ec45292",
+  "input": "What is the capital of France?",
+  "expected_output_fragment": "The capital of France is Paris.",
+  "full_expected_output": "The capital of France is Paris.",
+  "trace_path": "backend/logs/traces/0ce7e86c-6e5b-4689-a376-521b3ec45292.json"
+}
