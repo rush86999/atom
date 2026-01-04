@@ -12,8 +12,13 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from dataclasses import dataclass, asdict
 import base64
-import dropbox
-from dropbox.exceptions import ApiError, AuthError
+try:
+    import dropbox
+    from dropbox.exceptions import ApiError, AuthError
+except ImportError:
+    dropbox = None
+    ApiError = None
+    AuthError = None
 
 logger = logging.getLogger(__name__)
 
@@ -140,8 +145,10 @@ class DropboxEnhancedService:
             logger.error(f"Error refreshing token for user {user_id}: {e}")
             return None
 
-    def _get_dropbox_client(self, access_token: str) -> dropbox.Dropbox:
+    def _get_dropbox_client(self, access_token: str) -> Any:
         """Get Dropbox client instance"""
+        if dropbox is None:
+             raise ImportError("Dropbox library not installed")
         return dropbox.Dropbox(access_token)
 
     # File Operations

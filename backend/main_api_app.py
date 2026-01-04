@@ -271,12 +271,19 @@ try:
         logger.error(f"CRITICAL: Workflow UI endpoints failed to load: {e}")
         # raise e # Uncomment to crash on startup if strict
 
-    # 3b. AI Workflow Endpoints (Real NLU)
     try:
         from enhanced_ai_workflow_endpoints import router as ai_router
         app.include_router(ai_router) # Prefix defined in router
     except ImportError as e:
         logger.warning(f"AI endpoints not found: {e}")
+
+    # 3c. Enhanced Workflow Automation (V2)
+    try:
+        from enhanced_workflow_api import router as enhanced_wf_router
+        app.include_router(enhanced_wf_router, prefix="/api/v2/workflows/enhanced")
+        logger.info("✓ Enhanced Workflow Automation (V2) routes registered")
+    except ImportError as e:
+        logger.warning(f"Enhanced Workflow Automation not available: {e}")
 
     # 4. Auth Routes (Standard Login)
     try:
@@ -454,7 +461,7 @@ try:
     except ImportError as e:
         logger.warning(f"Live Command Center APIs not found: {e}")
 
-    logger.info("✓ Core Routes Loaded Successfully")
+    logger.info("✓ Core Routes Loaded Successfully - Reload Triggered")
 
 except ImportError as e:
     logger.critical(f"CRITICAL: Core API routes failed to load: {e}")
