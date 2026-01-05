@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 import base64
-from ai.voice_service import voice_service
+from core.voice_service import get_voice_service
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai_workflows"])
 
@@ -531,7 +531,7 @@ async def chat_with_agent(request: ChatRequest):
         if request.audio_output:
             # Generate audio using VoiceService
             # Try efficient provider first
-            audio_data = await voice_service.text_to_speech(response_text)
+            audio_data = await get_voice_service().text_to_speech(response_text)
 
         return ChatResponse(
             message=response_text,
