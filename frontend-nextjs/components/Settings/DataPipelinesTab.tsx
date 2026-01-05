@@ -79,7 +79,7 @@ export function DataPipelinesTab() {
             toast({
                 title: "Error",
                 description: "Failed to update schedules.",
-                variant: "destructive"
+                variant: "error"
             });
         } finally {
             setIsSaving(false);
