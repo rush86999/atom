@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 import base64
-from ai.voice_service import voice_service
+from core.voice_service import get_voice_service
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai_workflows"])
 
@@ -107,6 +107,7 @@ class WorkflowExecutionResponse(BaseModel):
     ai_generated_tasks: List[str]
     confidence_score: float
     steps_executed: Optional[List[ReActStepResult]] = None
+    final_answer: Optional[str] = None
     orchestration_type: str = "react_loop"
 
 class NLUProcessingResponse(BaseModel):
@@ -257,6 +258,7 @@ Available Tools:
             ai_generated_tasks=[s.tool_call for s in steps_record],
             confidence_score=1.0, # Assumed high if completed
             steps_executed=steps_record,
+            final_answer=final_answer,
             orchestration_type="react_loop_deepseek"
         )
 
@@ -274,6 +276,14 @@ class RealAIWorkflowService:
         from core.byok_endpoints import get_byok_manager
         self._byok = get_byok_manager()
         self.clients = {}
+        
+        # Initialize attributes to prevent AttributeError on direct initialize_sessions calls
+        self.glm_api_key = None
+        self.anthropic_api_key = None
+        self.deepseek_api_key = None
+        self.openai_api_key = None
+        self.google_api_key = None
+        
         logger.info("RealAIWorkflowService (Instructor-enabled) Initialized.")
 
     def get_client(self, provider_id: str):
@@ -418,7 +428,8 @@ class RealAIWorkflowService:
                  "intent": "processed_by_react",
                  "workflow_suggestion": {"nodes": []}, # Placeholder
                  "tasks_generated": agent_resp.ai_generated_tasks,
-                 "confidence": agent_resp.confidence_score
+                 "confidence": agent_resp.confidence_score,
+                 "answer": agent_resp.final_answer # Restore backward compatibility
              }
         except Exception:
              # Fallback to manual logic if ReAct fails
@@ -520,7 +531,7 @@ async def chat_with_agent(request: ChatRequest):
         if request.audio_output:
             # Generate audio using VoiceService
             # Try efficient provider first
-            audio_data = await voice_service.text_to_speech(response_text)
+            audio_data = await get_voice_service().text_to_speech(response_text)
 
         return ChatResponse(
             message=response_text,
