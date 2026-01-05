@@ -459,3 +459,67 @@ class UserConnection(Base):
     # Relationships
     user = relationship("User", backref="connections")
     workspace = relationship("Workspace", backref="connections")
+
+class IngestedDocument(Base):
+    """Record of an ingested document from a service like Google Drive"""
+    __tablename__ = "ingested_documents"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    tenant_id = Column(String, nullable=True, index=True) # Upstream might use tenant parity later
+    
+    file_name = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    file_type = Column(String, nullable=False)
+    integration_id = Column(String, nullable=False, index=True)
+    
+    file_size_bytes = Column(Integer, default=0)
+    content_preview = Column(Text, nullable=True)
+    
+    external_id = Column(String, nullable=False, index=True) # ID in source system
+    external_modified_at = Column(DateTime(timezone=True), nullable=True)
+    
+    ingested_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class IngestionSettings(Base):
+    """Settings for document ingestion per integration"""
+    __tablename__ = "ingestion_settings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    integration_id = Column(String, nullable=False, index=True)
+    
+    enabled = Column(Boolean, default=False)
+    auto_sync_new_files = Column(Boolean, default=True)
+    file_types = Column(JSON, default=list) # ["pdf", "docx"]
+    sync_folders = Column(JSON, default=list)
+    exclude_folders = Column(JSON, default=list)
+    max_file_size_mb = Column(Integer, default=50)
+    sync_frequency_minutes = Column(Integer, default=60)
+    
+    last_sync = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class IntegrationMetric(Base):
+    """
+    Stores cached analytics data for dashboards (Sync Strategy).
+    Avoids real-time API rate limits and high latency.
+    """
+    __tablename__ = "integration_metrics"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
+    
+    integration_type = Column(String, nullable=False) # "salesforce", "hubspot", "stripe"
+    metric_key = Column(String, nullable=False) # "total_revenue", "pipeline_count", "lead_conversion_rate"
+    
+    # Store value as JSON to handle scalars (10.5) or time-series ([{date: v}, ...])
+    value = Column(JSON, nullable=False) 
+    
+    unit = Column(String, default="count") # "usd", "percent", "count"
+    timeframe = Column(String, default="current") # "30d", "current"
+    
+    last_synced_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
