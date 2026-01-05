@@ -1,0 +1,7 @@
+{
+  "id": "bad_trace_simulation",
+  "input": "What is 2 + 2?",
+  "expected_output_fragment": "4",
+  "full_expected_output": "4",
+  "trace_path": ".\\bad_trace_simulation.json"
+}
