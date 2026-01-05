@@ -315,7 +315,7 @@ const Microsoft365Integration: React.FC = () => {
     const [webhookUrl, setWebhookUrl] = useState("https://api.atom.com/webhook");
     const [webhookResource, setWebhookResource] = useState("me/mailFolders('Inbox')/messages");
 
-    const toast = useToast();
+    const { toast } = useToast();
 
     // Check connection status
     const checkConnection = async () => {
@@ -1242,7 +1242,7 @@ const Microsoft365Integration: React.FC = () => {
                                                     <Input placeholder="Sheet Name (e.g. Report_2025)" id="excel-sheet-name" />
                                                     <Button variant="outline" onClick={() => {
                                                         const name = (document.getElementById("excel-sheet-name") as HTMLInputElement).value;
-                                                        if (!name) return toast({ title: "Error", description: "Name required", variant: "destructive" });
+                                                        if (!name) return toast({ title: "Error", description: "Name required", variant: "error" });
                                                         fetch("/api/integrations/microsoft365/excel/execute?access_token=mock", {
                                                             method: "POST",
                                                             headers: { "Content-Type": "application/json" },
