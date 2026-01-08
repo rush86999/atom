@@ -659,25 +659,6 @@ api_service.pid
 *.db
 backend/atom_data.db
 data/
-backups/
-**/backups/
-audio_samples/
-**/audio_samples/
-workflow_templates/
-**/workflow_templates/
-**/notes/
-notes/
-credentials.md
-**/credentials.md
-**/credentials.json
-token.json
-**/token.json
-.env*
-! .env.example
-! .env.oauth.template
-! .env.production
-! .env.credentials.template
-! .env.real.credentials.template
 
 # Deployment and configuration
 deployment_info.txt
