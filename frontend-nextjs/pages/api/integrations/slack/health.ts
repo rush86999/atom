@@ -31,38 +31,14 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
   const startTime = Date.now();
 
   try {
     // Comprehensive health checks for Slack services
     const healthChecks = await Promise.allSettled([
-      // Auth Service Health Check
-      fetch(`${backendUrl}/api/slack/auth/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }),
-      // Messaging API Health Check
-      fetch(`${backendUrl}/api/slack/messaging/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }),
-      // Events API Health Check
-      fetch(`${backendUrl}/api/slack/events/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }),
-      // Webhooks Health Check
-      fetch(`${backendUrl}/api/slack/webhooks/health`, {
+      // Main Status Check
+      fetch(`${backendUrl}/api/slack/status`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -71,43 +47,36 @@ export default async function handler(
       }),
     ]);
 
-    const [authResult, messagingResult, eventsResult, webhooksResult] = healthChecks;
+    const [statusResult] = healthChecks;
 
     // Process results
+    const isHealthy = statusResult.status === 'fulfilled' && statusResult.value.ok;
+
     const authHealth: ServiceHealth = {
-      status: authResult.status === 'fulfilled' && authResult.value.ok ? 'healthy' : 'unhealthy',
-      connected: authResult.status === 'fulfilled' && authResult.value.ok,
-      response_time: authResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      connected: isHealthy,
+      response_time: statusResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
       last_check: new Date().toISOString(),
-      error: authResult.status === 'rejected' ? authResult.reason?.message :
-        authResult.value?.ok ? undefined : await getErrorText(authResult.value),
+      error: statusResult.status === 'rejected' ? statusResult.reason?.message :
+        statusResult.value?.ok ? undefined : await getErrorText(statusResult.value),
     };
 
     const messagingHealth: ServiceHealth = {
-      status: messagingResult.status === 'fulfilled' && messagingResult.value.ok ? 'healthy' : 'unhealthy',
-      connected: messagingResult.status === 'fulfilled' && messagingResult.value.ok,
-      response_time: messagingResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'degraded',
+      connected: isHealthy,
       last_check: new Date().toISOString(),
-      error: messagingResult.status === 'rejected' ? messagingResult.reason?.message :
-        messagingResult.value?.ok ? undefined : await getErrorText(messagingResult.value),
     };
 
     const eventsHealth: ServiceHealth = {
-      status: eventsResult.status === 'fulfilled' && eventsResult.value.ok ? 'healthy' : 'degraded',
-      connected: eventsResult.status === 'fulfilled' && eventsResult.value.ok,
-      response_time: eventsResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'degraded',
+      connected: isHealthy,
       last_check: new Date().toISOString(),
-      error: eventsResult.status === 'rejected' ? eventsResult.reason?.message :
-        eventsResult.value?.ok ? undefined : await getErrorText(eventsResult.value),
     };
 
     const webhooksHealth: ServiceHealth = {
-      status: webhooksResult.status === 'fulfilled' && webhooksResult.value.ok ? 'healthy' : 'degraded',
-      connected: webhooksResult.status === 'fulfilled' && webhooksResult.value.ok,
-      response_time: webhooksResult.status === 'fulfilled' ? Date.now() - startTime : undefined,
+      status: isHealthy ? 'healthy' : 'degraded',
+      connected: isHealthy,
       last_check: new Date().toISOString(),
-      error: webhooksResult.status === 'rejected' ? webhooksResult.reason?.message :
-        webhooksResult.value?.ok ? undefined : await getErrorText(webhooksResult.value),
     };
 
     const services = { auth: authHealth, messaging: messagingHealth, events: eventsHealth, webhooks: webhooksHealth };

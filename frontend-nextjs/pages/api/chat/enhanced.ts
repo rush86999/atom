@@ -120,7 +120,7 @@ export default async function handler(
     let backendResponse;
     try {
       backendResponse = await fetch(
-        "http://localhost:8000/api/workflow_agent/chat",
+        "http://localhost:8000/api/v1/ai/chat",
         {
           method: "POST",
           headers: {
@@ -130,6 +130,8 @@ export default async function handler(
             user_id: userId,
             message: enhancedResponse,
             session_id: sessionId,
+            audio_output: req.body.audioOutput || false,
+            context: req.body.context || {}
           }),
         },
       );
@@ -157,6 +159,7 @@ export default async function handler(
               suggestedActions: aiAnalysis.suggested_actions,
             },
           }),
+          audioData: backendData.audio_data, // Pass audio data to frontend
         },
         sessionId: sessionId || backendData.session_id || `session_${Date.now()}`,
         timestamp: new Date().toISOString(),

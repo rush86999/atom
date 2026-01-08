@@ -1,0 +1,62 @@
+# E2E Test Framework Dependencies for Atom Platform
+
+# Core testing framework
+pytest>=7.4.0,<8.0.0
+pytest-asyncio>=0.21.0,<1.0.0
+pytest-cov>=4.1.0,<5.0.0
+pytest-html>=3.2.0,<4.0.0
+
+# HTTP client for API testing
+requests>=2.28.0,<3.0.0
+httpx>=0.24.0,<1.0.0
+
+# LLM integration for marketing claim verification
+openai>=1.0.0,<2.0.0
+
+# Environment management
+python-dotenv>=1.0.0,<2.0.0
+
+# Data processing and utilities
+pandas>=1.5.0,<3.0.0
+numpy>=1.24.0,<2.0.0
+
+# JSON handling
+ujson>=5.7.0,<6.0.0
+
+# Date and time handling
+python-dateutil>=2.8.0,<3.0.0
+
+# Colored output for test runner
+colorama>=0.4.6,<1.0.0
+
+# Type hints support
+typing-extensions>=4.5.0,<5.0.0
+
+# Async utilities
+asyncio-mqtt>=0.16.0,<1.0.0
+
+# File system utilities
+pathlib2>=2.3.0,<3.0.0
+
+# Logging
+structlog>=23.1.0,<24.0.0
+
+# Test data generation
+faker>=18.0.0,<19.0.0
+
+# Performance testing
+locust>=2.15.0,<3.0.0
+
+# Security testing
+bandit>=1.7.0,<2.0.0
+safety>=2.3.0,<3.0.0
+
+# Code quality
+black>=23.0.0,<24.0.0
+flake8>=6.0.0,<7.0.0
+isort>=5.12.0,<6.0.0
+mypy>=1.0.0,<2.0.0
+
+# Documentation generation
+sphinx>=7.0.0,<8.0.0
+sphinx-rtd-theme>=1.2.0,<2.0.0

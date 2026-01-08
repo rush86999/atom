@@ -1,0 +1,30 @@
+{
+  "overall_status": "NO_TESTS",
+  "start_time": "2025-11-18T20:27:02.026330",
+  "end_time": "2025-11-18T20:27:02.833384",
+  "duration_seconds": 0.807054,
+  "total_tests": 0,
+  "tests_passed": 0,
+  "tests_failed": 0,
+  "test_categories": [
+    "crm"
+  ],
+  "category_results": {
+    "crm": {
+      "category": "crm",
+      "tests_run": 0,
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "test_details": {},
+      "marketing_claims_verified": {},
+      "start_time": "2025-11-18T20:27:02.825396",
+      "error": "Category test failed: expected an indented block after 'try' statement on line 66 (test_crm.py, line 67)"
+    }
+  },
+  "llm_verification_available": true,
+  "marketing_claims_verified": {
+    "total": 0,
+    "verified": 0,
+    "verification_rate": 0.0
+  }
+}

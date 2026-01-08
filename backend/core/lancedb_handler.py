@@ -64,7 +64,28 @@ try:
 except ImportError:
     get_byok_manager = None
 
+
 logger = logging.getLogger(__name__)
+
+class MockEmbedder:
+    """Deterministic mock embedder for testing when ML libs are missing"""
+    def __init__(self, dim):
+        self.dim = dim
+        
+    def encode(self, text, convert_to_numpy=False):
+        # Generate pseudo-random vector based on text hash for consistency
+        import hashlib
+        hash_val = int(hashlib.sha256(text.encode('utf-8')).hexdigest(), 16)
+        try:
+            import numpy as np
+            np.random.seed(hash_val % 2**32)
+            vec = np.random.rand(self.dim).astype(np.float32)
+            return vec if convert_to_numpy else vec.tolist()
+        except ImportError:
+            # Fallback for no numpy
+            import random
+            random.seed(hash_val)
+            return [random.random() for _ in range(self.dim)]
 
 class LanceDBHandler:
     """LanceDB vector database handler"""
@@ -845,25 +866,7 @@ def get_chat_history_manager(workspace_id: Optional[str] = None) -> ChatHistoryM
     handler = get_lancedb_handler(workspace_id)
     return ChatHistoryManager(handler)
 
-class MockEmbedder:
-    """Deterministic mock embedder for testing when ML libs are missing"""
-    def __init__(self, dim):
-        self.dim = dim
-        
-    def encode(self, text, convert_to_numpy=False):
-        # Generate pseudo-random vector based on text hash for consistency
-        import hashlib
-        hash_val = int(hashlib.sha256(text.encode('utf-8')).hexdigest(), 16)
-        try:
-            import numpy as np
-            np.random.seed(hash_val % 2**32)
-            vector = np.random.rand(self.dim).astype(np.float32)
-            if not convert_to_numpy:
-                return vector.tolist()
-            return vector
-        except ImportError:
-            # Fallback for no numpy
-            return [0.0] * self.dim
+
 
 # Global chat context manager helper
 def get_chat_context_manager(workspace_id: Optional[str] = None) -> 'ChatContextManager':

@@ -4,18 +4,18 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
 
   if (req.method === 'GET') {
     try {
       const response = await fetch(`${backendUrl}/api/integrations/discord/health`, {
         method: 'GET',
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req.body)
+        // GET requests cannot have a body
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         return res.status(200).json(data);
       } else {

@@ -1,0 +1,25 @@
+# Fly.io Configuration for Celery Worker
+# Deploy with: fly launch --config fly.worker.toml
+
+app = "atom-celery-worker"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.worker"
+
+[env]
+  PYTHONUNBUFFERED = "1"
+
+# No HTTP service - this is a background worker
+[processes]
+  worker = "celery -A core.celery_app worker --loglevel=info --concurrency=2"
+  beat = "celery -A core.celery_app beat --loglevel=info"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+# Keep at least 1 worker running for scheduled tasks
+[services]
+  min_machines_running = 1

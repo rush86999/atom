@@ -40,6 +40,20 @@ class CircuitBreaker:
         self.stats: Dict[str, IntegrationStats] = defaultdict(IntegrationStats)
         self.disabled: Set[str] = set()
         self.disabled_until: Dict[str, float] = {}
+        
+        # Callbacks for autonomous actions
+        self._on_open_callbacks = []
+        self._on_reset_callbacks = []
+    
+    def on_open(self, callback):
+        """Register a callback for when circuit opens"""
+        self._on_open_callbacks.append(callback)
+        return callback
+        
+    def on_reset(self, callback):
+        """Register a callback for when circuit resets/closes"""
+        self._on_reset_callbacks.append(callback)
+        return callback
     
     def record_success(self, integration: str):
         """Record a successful integration call"""
@@ -142,6 +156,13 @@ class CircuitBreaker:
         logger.warning(
             f"Integration {integration} disabled for {self.cooldown_seconds}s"
         )
+        
+        # Trigger callbacks
+        for callback in self._on_open_callbacks:
+            try:
+                callback(integration)
+            except Exception as e:
+                logger.error(f"Error in circuit breaker on_open callback: {e}")
     
     def _try_reenable(self, integration: str) -> bool:
         """Try to re-enable a disabled integration if cooldown passed"""
@@ -153,6 +174,13 @@ class CircuitBreaker:
             if integration in self.disabled_until:
                 del self.disabled_until[integration]
             logger.info(f"Integration {integration} re-enabled after cooldown")
+            
+            # Trigger callbacks
+            for callback in self._on_reset_callbacks:
+                try:
+                    callback(integration)
+                except Exception as e:
+                    logger.error(f"Error in circuit breaker on_reset callback: {e}")
             return True
         
         return False

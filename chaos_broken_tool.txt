@@ -1,0 +1,7 @@
+>>> [CHAOS] Starting TEST 3: The Broken Tool Loop
+    [GOAL] Verify system handles repeated tool failures without infinite loop
+    [CHAOS] Executing Tool: search_web -> SIMULATING FAILURE
+    [CHAOS] Executing Tool: search_web -> SIMULATING FAILURE
+    [CHAOS] Executing Tool: search_web -> SIMULATING FAILURE
+    [RESULT] Agent Final Answer: I cannot search right now.
+[PASS] Circuit Breaker worked (Agent gave up naturally or Loop Limit hit).

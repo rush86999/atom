@@ -1,0 +1,41 @@
+{
+  "overall_status": "FAILED",
+  "total_tests": 4,
+  "passed_tests": 0,
+  "business_outcomes_verified": 0,
+  "business_readiness": "Needs Improvement",
+  "duration_seconds": 6.5e-05,
+  "test_results": [
+    {
+      "test_name": "skipped",
+      "status": "skipped",
+      "reason": "Business outcome validator not available",
+      "business_outcome_verified": false
+    },
+    {
+      "test_name": "skipped",
+      "status": "skipped",
+      "reason": "Business outcome validator not available",
+      "business_outcome_verified": false
+    },
+    {
+      "test_name": "skipped",
+      "status": "skipped",
+      "reason": "Business outcome validator not available",
+      "business_outcome_verified": false
+    },
+    {
+      "test_name": "skipped",
+      "status": "skipped",
+      "reason": "Business outcome validator not available",
+      "business_outcome_verified": false
+    }
+  ],
+  "executive_summary": {
+    "recommendation": "IMPROVE",
+    "confidence_level": "0%",
+    "key_benefits": [
+      "Needs improvement"
+    ]
+  }
+}
