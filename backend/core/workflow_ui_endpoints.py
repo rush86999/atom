@@ -303,33 +303,80 @@ async def get_executions():
         
         executions = []
         # Convert Orchestrator contexts to UI Execution models
-        for context in orchestrator.active_contexts.values():
-            status_map = {
-                WorkflowStatus.PENDING: "pending",
-                WorkflowStatus.RUNNING: "running",
-                WorkflowStatus.COMPLETED: "completed",
-                WorkflowStatus.FAILED: "failed",
-                WorkflowStatus.CANCELLED: "cancelled"
-            }
-            
-            # Calculate metrics
-            total_steps = 4 # Default estimate
-            current_step = 0
-            if context.results:
-                current_step = len(context.results)
-            
-            executions.append(WorkflowExecution(
-                execution_id=context.execution_id,
-                workflow_id=context.input_data.get("_ui_workflow_id", context.workflow_id), # Prefer UI ID if stored
-                status=status_map.get(context.status, "unknown"),
-                start_time=context.started_at.isoformat() if context.started_at else datetime.now().isoformat(),
-                end_time=context.completed_at.isoformat() if context.completed_at else None,
-                current_step=current_step,
-                total_steps=total_steps,
-                trigger_data=context.input_data,
-                results=context.results,
-                errors=[context.error_message] if context.error_message else []
-            ))
+
+        # Use list() to avoid RuntimeError if dict changes size during iteration
+        for context in list(orchestrator.active_contexts.values()):
+            try:
+                # Handle potential dict vs object (migration safety)
+                c_id = getattr(context, 'workflow_id', None)
+                if not c_id and isinstance(context, dict):
+                     c_id = context.get('workflow_id')
+                
+                c_input = getattr(context, 'input_data', {})
+                if not c_input and isinstance(context, dict):
+                    c_input = context.get('input_data', {})
+                
+                c_status = getattr(context, 'status', 'pending')
+                if isinstance(context, dict):
+                    c_status = context.get('status', 'pending')
+                
+                status_str = "unknown"
+                if hasattr(c_status, 'value'): 
+                    status_str = c_status.value
+                else:
+                    status_str = str(c_status)
+                
+                # Safe Date Handling
+                c_started = getattr(context, 'started_at', None)
+                if isinstance(context, dict):
+                     c_started = context.get('started_at')
+                     
+                start_time_str = datetime.now().isoformat()
+                if isinstance(c_started, datetime):
+                    start_time_str = c_started.isoformat()
+                elif isinstance(c_started, str):
+                    start_time_str = c_started
+                
+                c_ended = getattr(context, 'completed_at', None)
+                if isinstance(context, dict):
+                    c_ended = context.get('completed_at')
+                    
+                end_time_str = None
+                if isinstance(c_ended, datetime):
+                    end_time_str = c_ended.isoformat()
+                elif isinstance(c_ended, str):
+                    end_time_str = c_ended
+
+                c_results = getattr(context, 'results', {})
+                if isinstance(context, dict):
+                    c_results = context.get('results', {})
+                
+                c_error = getattr(context, 'error_message', None)
+                if isinstance(context, dict):
+                    c_error = context.get('error_message')
+
+                # Calculate metrics
+                current_step = len(c_results) if c_results else 0
+                
+                executions.append(WorkflowExecution(
+                    execution_id=str(c_id),
+                    workflow_id=c_input.get("_ui_workflow_id", str(c_id)), # Prefer UI ID if stored
+                    status=status_str,
+                    start_time=start_time_str,
+                    end_time=end_time_str,
+                    current_step=current_step,
+                    total_steps=4,
+                    trigger_data=c_input,
+                    results=c_results,
+                    errors=[str(c_error)] if c_error else []
+                ))
+            except Exception as e:
+                # Log but don't crash the whole list
+                import traceback
+                print(f"Error parsing execution context: {e}")
+                # traceback.print_exc()
+                continue
+
             
         # Sort by start time (newest first)
         executions.sort(key=lambda x: x.start_time, reverse=True)
@@ -338,10 +385,14 @@ async def get_executions():
     except ImportError:
         # Fallback if orchestrator not available/path issue
         return {"success": True, "executions": [e.dict() for e in MOCK_EXECUTIONS]}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e), "executions": []}
 
 @router.post("/execute")
 async def execute_workflow(payload: Dict[str, Any], background_tasks: BackgroundTasks):
-    from advanced_workflow_orchestrator import orchestrator
+    from advanced_workflow_orchestrator import orchestrator, WorkflowContext, WorkflowStatus, WorkflowDefinition, WorkflowStep, WorkflowStepType
     
     workflow_id = payload.get("workflow_id")
     input_data = payload.get("input", {})
@@ -359,18 +410,102 @@ async def execute_workflow(payload: Dict[str, Any], background_tasks: Background
     
     # Check if workflow exists in orchestrator
     if orchestrator_id not in orchestrator.workflows:
-        # Fallback logic could go here
-        pass
+        # [FIX] Bridge Mock/UI Workflows to Real Orchestrator
+        # If not found, check MOCK_WORKFLOWS and register it on the fly
+        found_mock = next((w for w in MOCK_WORKFLOWS if w.id == workflow_id), None)
+        if not found_mock:
+            # Check templates if not in active workflows
+            found_mock = next((t for t in MOCK_TEMPLATES if t.id == workflow_id), None)
+            
+        if found_mock:
+            orchestrator_steps = []
+            
+            # Simple conversion logic
+            for step in found_mock.steps:
+                # Default to universal integration
+                step_type = WorkflowStepType.UNIVERSAL_INTEGRATION
+                svc = step.service.lower() if step.service else "unknown"
+                act = step.action.lower() if step.action else "execute"
+                
+                if svc in ["ai", "llm"]:
+                    step_type = WorkflowStepType.NLU_ANALYSIS
+                elif svc in ["slack", "discord"]:
+                    step_type = WorkflowStepType.SLACK_NOTIFICATION
+                elif svc in ["email", "gmail", "outlook"]:
+                    step_type = WorkflowStepType.EMAIL_SEND
+                elif svc == "delay":
+                    step_type = WorkflowStepType.DELAY
+                
+                orchestrator_steps.append(WorkflowStep(
+                    step_id=step.id,
+                    step_type=step_type,
+                    description=step.name,
+                    parameters={**step.parameters, "service": svc, "action": act},
+                    next_steps=[] # Sequential by default in this simple bridge
+                ))
+            
+            # Link steps sequentially
+            for i in range(len(orchestrator_steps) - 1):
+                orchestrator_steps[i].next_steps = [orchestrator_steps[i+1].step_id]
+                
+            new_def = WorkflowDefinition(
+                workflow_id=workflow_id,
+                name=found_mock.name,
+                description=found_mock.description,
+                steps=orchestrator_steps,
+                start_step=orchestrator_steps[0].step_id if orchestrator_steps else "end",
+                version="1.0-ui-bridge"
+            )
+            
+            orchestrator.workflows[workflow_id] = new_def
+            orchestrator_id = workflow_id # Use the ID we just registered
+            pass
+        else:
+             print(f"Warning: Workflow ID {workflow_id} not found in orchestrator or mocks.")
 
     # Generate Execution ID for immediate UI feedback
     execution_id = f"exec_{uuid.uuid4().hex[:8]}"
     
+    # [FIX] Pre-register the context so it appears in lists immediately
+    # and provides valid data for the UI response
+    context = WorkflowContext(
+        workflow_id=execution_id, 
+        user_id="ui_user",
+        input_data=input_data
+    )
+    context.execution_id = execution_id # Ensure this field exists if defined by chance
+    context.started_at = datetime.now()
+    context.status = WorkflowStatus.PENDING
+    
+    # Register immediately
+    orchestrator.active_contexts[execution_id] = context
+    
     async def _run_orchestration():
-        await orchestrator.execute_workflow(orchestrator_id, input_data, execution_id=execution_id)
+        try:
+            # Pass the ALREADY CREATED contex ID
+            await orchestrator.execute_workflow(orchestrator_id, input_data, execution_id=execution_id)
+        except Exception as e:
+            print(f"Background execution failed: {e}")
+            import traceback
+            traceback.print_exc()
+            context.status = WorkflowStatus.FAILED
+            context.error_message = str(e)
+            context.completed_at = datetime.now()
         
     background_tasks.add_task(_run_orchestration)
     
-    return {"success": True, "execution_id": execution_id, "message": "Workflow started via Real Orchestrator"}
+    # Return FULL Execution Object compatible with Frontend
+    return {
+        "success": True, 
+        "execution_id": execution_id,
+        "workflow_id": workflow_id,
+        "status": "pending",
+        "start_time": context.started_at.isoformat(),
+        "current_step": 0,
+        "total_steps": 4, # Placeholder
+        "results": {},
+        "message": "Workflow started via Real Orchestrator"
+    }
 
 @router.post("/executions/{execution_id}/cancel")
 async def cancel_execution(execution_id: str):
@@ -379,3 +514,12 @@ async def cancel_execution(execution_id: str):
             exc.status = "cancelled"
             return {"success": True}
     raise HTTPException(status_code=404, detail="Execution not found")
+@router.get("/debug/state")
+async def get_orchestrator_state():
+    """Debug endpoint to inspect orchestrator memory"""
+    from advanced_workflow_orchestrator import orchestrator
+    return {
+        "active_contexts": list(orchestrator.active_contexts.keys()),
+        "memory_snapshots": list(orchestrator.memory_snapshots.keys()),
+        "snapshot_details": {k: {"step": v.get("current_step"), "vars": list(v.get("variables", {}).keys())} for k, v in orchestrator.memory_snapshots.items()}
+    }

@@ -112,7 +112,13 @@ async def auto_load_integration_middleware(request, call_next):
             integration_map = {
                 "lancedb-search": "unified_search",
                 "atom-agent": "atom_agent",
+                "gdrive": "google_drive",
+                "gcal": "google_calendar",
+                "ms365": "microsoft365",
+                "office365": "microsoft365",
                 "v1": None,  # Skip - handled by core routes
+                "auth": None,  # Core auth routes
+                "nextjs": None, # Core/frontend routes
             }
             
             # Get the actual integration name
@@ -265,12 +271,19 @@ try:
         logger.error(f"CRITICAL: Workflow UI endpoints failed to load: {e}")
         # raise e # Uncomment to crash on startup if strict
 
-    # 3b. AI Workflow Endpoints (Real NLU)
     try:
         from enhanced_ai_workflow_endpoints import router as ai_router
         app.include_router(ai_router) # Prefix defined in router
     except ImportError as e:
         logger.warning(f"AI endpoints not found: {e}")
+
+    # 3c. Enhanced Workflow Automation (V2)
+    try:
+        from enhanced_workflow_api import router as enhanced_wf_router
+        app.include_router(enhanced_wf_router, prefix="/api/v2/workflows/enhanced")
+        logger.info("✓ Enhanced Workflow Automation (V2) routes registered")
+    except ImportError as e:
+        logger.warning(f"Enhanced Workflow Automation not available: {e}")
 
     # 4. Auth Routes (Standard Login)
     try:
@@ -293,10 +306,19 @@ try:
     except ImportError as e:
         logger.warning(f"Reasoning routes not found: {e}")
 
+    # 4d. Time Travel Routes
+    try:
+        from api.time_travel_routes import router as time_travel_router # [Lesson 3]
+        app.include_router(time_travel_router) # [Lesson 3]
+    except ImportError as e:
+        logger.warning(f"Time Travel routes not found: {e}")
     # 4. Microsoft 365 Integration
     try:
         from integrations.microsoft365_routes import microsoft365_router
-        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365"])
+        # Primary Route (New Standard)
+        app.include_router(microsoft365_router, prefix="/api/integrations/microsoft365", tags=["Microsoft 365"])
+        # Legacy Route (For backward compatibility/caching rewrites)
+        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365 (Legacy)"])
     except ImportError:
         logger.warning("Microsoft 365 routes not found, skipping.")
 
@@ -445,7 +467,7 @@ try:
     except ImportError as e:
         logger.warning(f"Live Command Center APIs not found: {e}")
 
-    logger.info("✓ Core Routes Loaded Successfully")
+    logger.info("✓ Core Routes Loaded Successfully - Reload Triggered")
 
 except ImportError as e:
     logger.critical(f"CRITICAL: Core API routes failed to load: {e}")
@@ -572,35 +594,41 @@ async def startup_event():
             except Exception as e:
                 logger.error(f"  ✗ Failed to load essential plugin {name}: {e}")
 
-    # 2. Start Workflow Scheduler (Run in main event loop)
-    try:
-        from ai.workflow_scheduler import workflow_scheduler
-        
-        logger.info("Starting Workflow Scheduler...")
+    # Check if schedulers should run (Default: True for Monolith, False for API-only replicas)
+    enable_scheduler = os.getenv("ENABLE_SCHEDULER", "true").lower() == "true"
+    
+    if enable_scheduler:
+        # 2. Start Workflow Scheduler (Run in main event loop)
         try:
-            workflow_scheduler.start()
-            logger.info("✓ Workflow Scheduler running")
+            from ai.workflow_scheduler import workflow_scheduler
+            
+            logger.info("Starting Workflow Scheduler...")
+            try:
+                workflow_scheduler.start()
+                logger.info("✓ Workflow Scheduler running")
+            except Exception as e:
+                logger.error(f"!!! Workflow Scheduler Crashed: {e}")
+            
+        except ImportError:
+            logger.warning("Workflow Scheduler module not found.")
+
+        # 3. Start Agent Scheduler (Upstream compatibility)
+        try:
+            from core.scheduler import AgentScheduler
+            AgentScheduler.get_instance()
+            logger.info("✓ Agent Scheduler running")
+        except ImportError:
+            logger.warning("Agent Scheduler module not found.")
+
+        # 4. Start Intelligence Background Worker
+        try:
+            from ai.intelligence_background_worker import intelligence_worker
+            await intelligence_worker.start()
+            logger.info("✓ Intelligence Background Worker running")
         except Exception as e:
-            logger.error(f"!!! Workflow Scheduler Crashed: {e}")
-        
-    except ImportError:
-        logger.warning("Workflow Scheduler module not found.")
-
-    # 3. Start Agent Scheduler (Upstream compatibility)
-    try:
-        from core.scheduler import AgentScheduler
-        AgentScheduler.get_instance()
-        logger.info("✓ Agent Scheduler running")
-    except ImportError:
-        logger.warning("Agent Scheduler module not found.")
-
-    # 4. Start Intelligence Background Worker
-    try:
-        from ai.intelligence_background_worker import intelligence_worker
-        await intelligence_worker.start()
-        logger.info("✓ Intelligence Background Worker running")
-    except Exception as e:
-        logger.error(f"Failed to start intelligence worker: {e}")
+            logger.error(f"Failed to start intelligence worker: {e}")
+    else:
+        logger.info("Skipping Scheduler startup (ENABLE_SCHEDULER=false)")
     
     logger.info("=" * 60)
     logger.info("✓ Server Ready")

@@ -1,0 +1,78 @@
+{
+  "overall_status": "PASSED",
+  "start_time": "2025-12-13T17:14:34.090235",
+  "end_time": "2025-12-13T17:14:34.594407",
+  "duration_seconds": 0.504172,
+  "total_tests": 3,
+  "tests_passed": 3,
+  "tests_failed": 0,
+  "test_categories": [
+    "scheduling"
+  ],
+  "category_results": {
+    "scheduling": {
+      "category": "scheduling",
+      "tests_run": 3,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "test_details": {
+        "schedule_workflow": {
+          "status": "passed",
+          "job_id": "job_demo-customer-support_1765664074.261246",
+          "message": "Workflow scheduled with ID job_demo-customer-support_1765664074.261246"
+        },
+        "job_id": "job_demo-customer-support_1765664074.261246",
+        "list_scheduled_jobs": {
+          "status": "passed",
+          "jobs_count": 7,
+          "jobs": [
+            {
+              "id": "job_demo-customer-support_1765664074.261246",
+              "next_run_time": "2025-12-13T17:15:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='*', minute='*']"
+            },
+            {
+              "id": "dynamic_3afdf525_bc7b5a82",
+              "next_run_time": "2025-12-14T02:00:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='2', minute='0']"
+            },
+            {
+              "id": "dynamic_888bc91e_d79ea286",
+              "next_run_time": "2025-12-14T02:00:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='2', minute='0']"
+            },
+            {
+              "id": "dynamic_540cc30c_01ea4141",
+              "next_run_time": "2025-12-14T09:00:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='9', minute='0']"
+            },
+            {
+              "id": "dynamic_5855af92_b80f95ea",
+              "next_run_time": "2025-12-14T09:00:00-05:00",
+              "trigger": "cron[month='*', day='*', day_of_week='*', hour='9', minute='0']"
+            }
+          ]
+        },
+        "unschedule_workflow": {
+          "status": "passed",
+          "status_code": 200,
+          "response": {
+            "success": true,
+            "message": "Schedule removed"
+          }
+        }
+      },
+      "marketing_claims_verified": {},
+      "start_time": 1765664074.105403,
+      "test_outputs": {},
+      "end_time": 1765664074.594242,
+      "duration_seconds": 0.48883914947509766
+    }
+  },
+  "llm_verification_available": false,
+  "marketing_claims_verified": {
+    "total": 0,
+    "verified": 0,
+    "verification_rate": 0.0
+  }
+}

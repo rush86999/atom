@@ -5,6 +5,9 @@ import httpx
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from fastapi import HTTPException
+from core.database import SessionLocal
+from core.connection_service import connection_service
+from core.models import IngestedDocument, IntegrationMetric
 
 logger = logging.getLogger(__name__)
 
@@ -23,76 +26,27 @@ class ZohoWorkDriveService:
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def get_access_token(self, user_id: str) -> Optional[str]:
-        """Fetch access token for user from database (via DatabaseManager)"""
+        """Fetch access token for user using ConnectionService"""
         try:
-            from backend.database_manager import DatabaseManager
-            db = DatabaseManager()
+            # Find a zoho_workdrive or generic zoho connection
+            connections = connection_service.get_connections(user_id, "zoho_workdrive")
+            if not connections:
+                connections = connection_service.get_connections(user_id, "zoho")
             
-            tokens = await db.get_user_tokens(user_id, "zoho_workdrive")
-            if not tokens:
-                # Try generic zoho if available, or just fail
-                tokens = await db.get_user_tokens(user_id, "zoho")
+            if not connections:
+                return None
             
-            if tokens and tokens.get("access_token"):
-                if self._is_token_expired(tokens):
-                    return await self.refresh_token(user_id, tokens)
-                return tokens["access_token"]
+            # Use the first active connection
+            conn_id = connections[0]["id"]
+            creds = await connection_service.get_connection_credentials(conn_id, user_id)
+            
+            if creds and creds.get("access_token"):
+                return creds["access_token"]
             return None
         except Exception as e:
             logger.error(f"Error getting Zoho access token: {e}")
             return None
 
-    def _is_token_expired(self, tokens: Dict[str, Any]) -> bool:
-        """Check if token is expired based on expires_at and current time"""
-        expires_at = tokens.get("expires_at")
-        if not expires_at:
-            return True
-        try:
-            expires_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-            return datetime.now().astimezone() >= expires_dt
-        except Exception:
-            return True
-
-    async def refresh_token(self, user_id: str, tokens: Dict[str, Any]) -> Optional[str]:
-        """Refresh Zoho OAuth token"""
-        refresh_token = tokens.get("refresh_token")
-        if not refresh_token:
-            return None
-        
-        try:
-            url = f"{self.accounts_url}/token"
-            data = {
-                "grant_type": "refresh_token",
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "refresh_token": refresh_token
-            }
-            
-            response = await self.client.post(url, data=data)
-            response.raise_for_status()
-            new_tokens = response.json()
-            
-            if "access_token" in new_tokens:
-                # Update database
-                from backend.database_manager import DatabaseManager
-                db = DatabaseManager()
-                
-                # Calculate new expires_at
-                expires_in = new_tokens.get("expires_in", 3600)
-                from datetime import timedelta
-                expires_at = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
-                
-                await db.save_user_tokens(user_id, "zoho_workdrive", {
-                    "access_token": new_tokens["access_token"],
-                    "refresh_token": refresh_token,  # Zoho refresh tokens are usually long-lived
-                    "expires_at": expires_at
-                })
-                
-                return new_tokens["access_token"]
-            return None
-        except Exception as e:
-            logger.error(f"Failed to refresh Zoho token: {e}")
-            return None
 
     async def get_teams(self, user_id: str) -> List[Dict[str, Any]]:
         """List WorkDrive teams for the user"""
@@ -172,11 +126,10 @@ class ZohoWorkDriveService:
             meta = resp.json().get("data", {}).get("attributes", {})
             file_name = meta.get("name", "unknown")
             
-            # Simple ingestion for now - in a real app, this would use DocumentParser
-            from backend.core.auto_document_ingestion import AutoDocumentIngestionService
+            # Use AutoDocumentIngestionService
+            from core.auto_document_ingestion import AutoDocumentIngestionService
             ingestor = AutoDocumentIngestionService()
             
-            # Save temporarily if needed or pass bytes
             result = await ingestor.process_file_bytes(
                 content, 
                 file_name=file_name,
@@ -188,3 +141,140 @@ class ZohoWorkDriveService:
         except Exception as e:
             logger.error(f"Failed to ingest Zoho WorkDrive file: {e}")
             return {"success": False, "error": str(e)}
+
+    async def sync_files_to_db(self, user_id: str, tenant_id: str = "default", workspace_id: Optional[str] = None) -> Dict[str, Any]:
+        """Sync Zoho WorkDrive file metadata to the persistent IngestedDocument table."""
+        try:
+            files = await self.list_files(user_id)
+            if not files:
+                return {"success": True, "files_synced": 0}
+            
+            db = SessionLocal()
+            synced_count = 0
+            try:
+                for f in files:
+                    if f["type"] == "folder":
+                        continue
+                        
+                    # Check if already exists
+                    existing = db.query(IngestedDocument).filter_by(
+                        integration_id="zoho_workdrive",
+                        external_id=f["id"]
+                    ).first()
+                    
+                    modified_at = None
+                    if f.get("modified_at"):
+                        try:
+                            modified_at = datetime.fromisoformat(f["modified_at"].replace("Z", "+00:00"))
+                        except:
+                            pass
+
+                    if existing:
+                        existing.file_name = f["name"]
+                        existing.file_type = f.get("extension", "file")
+                        existing.file_size_bytes = f.get("size", 0)
+                        existing.external_modified_at = modified_at
+                        existing.updated_at = datetime.utcnow()
+                    else:
+                        doc = IngestedDocument(
+                            workspace_id=workspace_id or "default",
+                            tenant_id=tenant_id,
+                            file_name=f["name"],
+                            file_path=f["name"],
+                            file_type=f.get("extension", "file"),
+                            integration_id="zoho_workdrive",
+                            file_size_bytes=f.get("size", 0),
+                            external_id=f["id"],
+                            external_modified_at=modified_at
+                        )
+                        db.add(doc)
+                    synced_count += 1
+                
+                db.commit()
+                logger.info(f"Synced {synced_count} Zoho WorkDrive files for user {user_id}")
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Error syncing Zoho files to DB: {e}")
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "files_synced": synced_count}
+        except Exception as e:
+            logger.error(f"Zoho WorkDrive file sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def sync_to_postgres_cache(self, user_id: str, workspace_id: Optional[str] = None) -> Dict[str, Any]:
+        """Sync Zoho WorkDrive analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            # List files to get counts
+            files = await self.list_files(user_id)
+            file_count = len(files)
+            
+            # Count by type
+            docs_count = sum(1 for f in files if f.get("type") == "files")
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("zoho_workdrive_file_count", file_count, "count"),
+                    ("zoho_workdrive_docs_count", docs_count, "count"),
+                ]
+                
+                ws_id = workspace_id or "default"
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        workspace_id=ws_id,
+                        integration_type="zoho_workdrive",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = value
+                        existing.last_synced_at = datetime.utcnow()
+                    else:
+                        metric = IntegrationMetric(
+                            workspace_id=ws_id,
+                            integration_type="zoho_workdrive",
+                            metric_key=key,
+                            value=value,
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Zoho WorkDrive metrics to PostgreSQL cache")
+            except Exception as e:
+                logger.error(f"Error saving Zoho WorkDrive metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Zoho WorkDrive PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, user_id: str, tenant_id: str = "default", workspace_id: Optional[str] = None) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Zoho WorkDrive"""
+        # Pipeline 1: Persistent Cache & Metrics
+        cache_result = await self.sync_to_postgres_cache(user_id, workspace_id)
+        
+        # Pipeline 2: File Metadata Sync
+        file_sync_result = await self.sync_files_to_db(user_id, tenant_id, workspace_id)
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "tenant_id": tenant_id,
+            "postgres_cache": cache_result,
+            "file_sync": file_sync_result,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+# Singleton instance
+zoho_workdrive_service = ZohoWorkDriveService()

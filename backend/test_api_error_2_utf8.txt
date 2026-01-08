@@ -1,0 +1,200 @@
+﻿python : \u26a0\ufe0f 
+WARNING: Using SQLite 
+development database. 
+Set DATABASE_URL for 
+production deployment.
+At line:1 char:1
++ python tests/chaos/tes
+t_api_forking.py > 
+test_api_error_2.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo      
+        : NotSpecified  
+  : (\u26a0\ufe0f WA.   
+ ..ion deployment.:S    
+tring) [], RemoteEx    
+ception
+    + FullyQualifiedErr 
+   orId : NativeComman  
+  dError
+ 
+C:\Users\Mannan Bajaj\at
+om\backend\tests\chaos\.
+./..\core\workflow_templ
+ate_system.py:47: Pydant
+icDeprecatedSince20: 
+Pydantic V1 style 
+`@validator` validators 
+are deprecated. You 
+should migrate to 
+Pydantic V2 style 
+`@field_validator` 
+validators, see the 
+migration guide for 
+more details. 
+Deprecated in Pydantic 
+V2.0 to be removed in 
+V3.0. See Pydantic V2 
+Migration Guide at https
+://errors.pydantic.dev/2
+.11/migration/
+  @validator('label', 
+'description', 
+pre=True, always=True)
+C:\Users\Mannan Bajaj\at
+om\backend\tests\chaos\.
+./..\core\workflow_templ
+ate_system.py:69: Pydant
+icDeprecatedSince20: 
+Pydantic V1 style 
+`@validator` validators 
+are deprecated. You 
+should migrate to 
+Pydantic V2 style 
+`@field_validator` 
+validators, see the 
+migration guide for 
+more details. 
+Deprecated in Pydantic 
+V2.0 to be removed in 
+V3.0. See Pydantic V2 
+Migration Guide at https
+://errors.pydantic.dev/2
+.11/migration/
+  
+@validator('depends_on')
+C:\Users\Mannan Bajaj\Ap
+pData\Roaming\Python\Pyt
+hon313\site-packages\pyd
+antic\_internal\_config.
+py:323: PydanticDeprecat
+edSince20: Support for 
+class-based `config` is 
+deprecated, use 
+ConfigDict instead. 
+Deprecated in Pydantic 
+V2.0 to be removed in 
+V3.0. See Pydantic V2 
+Migration Guide at https
+://errors.pydantic.dev/2
+.11/migration/
+  warnings.warn(DEPRECAT
+ION_MESSAGE, 
+DeprecationWarning)
+C:\Users\Mannan Bajaj\at
+om\backend\tests\chaos\.
+./..\core\workflow_templ
+ate_system.py:111: Pydan
+ticDeprecatedSince20: 
+Pydantic V1 style 
+`@validator` validators 
+are deprecated. You 
+should migrate to 
+Pydantic V2 style 
+`@field_validator` 
+validators, see the 
+migration guide for 
+more details. 
+Deprecated in Pydantic 
+V2.0 to be removed in 
+V3.0. See Pydantic V2 
+Migration Guide at https
+://errors.pydantic.dev/2
+.11/migration/
+  @validator('steps')
+Could not initialize AI 
+service: No module 
+named 'anthropic'
+Error during execution 
+restoration: (sqlite3.Op
+erationalError) no such 
+column: workflow_executi
+ons.visibility
+[SQL: SELECT workflow_ex
+ecutions.execution_id 
+AS workflow_executions_e
+xecution_id, workflow_ex
+ecutions.workflow_id AS 
+workflow_executions_work
+flow_id, workflow_execut
+ions.status AS workflow_
+executions_status, workf
+low_executions.input_dat
+a AS workflow_executions
+_input_data, workflow_ex
+ecutions.steps AS workfl
+ow_executions_steps, wor
+kflow_executions.outputs
+ AS workflow_executions_
+outputs, workflow_execut
+ions.context AS workflow
+_executions_context, wor
+kflow_executions.version
+ AS workflow_executions_
+version, workflow_execut
+ions.created_at AS workf
+low_executions_created_a
+t, workflow_executions.u
+pdated_at AS workflow_ex
+ecutions_updated_at, wor
+kflow_executions.error 
+AS workflow_executions_e
+rror, workflow_execution
+s.user_id AS workflow_ex
+ecutions_user_id, workfl
+ow_executions.visibility
+ AS workflow_executions_
+visibility, workflow_exe
+cutions.owner_id AS work
+flow_executions_owner_id
+, workflow_executions.te
+am_id AS workflow_execut
+ions_team_id 
+FROM 
+workflow_executions 
+WHERE workflow_execution
+s.status IN (?, ?)]
+[parameters: 
+('running', 
+'waiting_approval')]
+(Background on this 
+error at: https://sqlalc
+he.me/e/20/e3q8)
+E
+========================
+========================
+======================
+ERROR: 
+test_fork_endpoint (__ma
+in__.ForkApiTest.test_fo
+rk_endpoint)
+Verify that POST /api/ti
+me-travel/workflows/:id/
+fork calls the 
+orchestrator.
+------------------------
+------------------------
+----------------------
+Traceback (most recent 
+call last):
+  File "C:\Python313\Lib
+\unittest\mock.py", 
+line 1424, in patched
+    return 
+func(*newargs, 
+**newkeywargs)
+TypeError: ForkApiTest.t
+est_fork_endpoint() 
+missing 1 required 
+positional argument: 
+'mock_fork'
+
+------------------------
+------------------------
+----------------------
+Ran 1 test in 1.316s
+
+FAILED (errors=1)
