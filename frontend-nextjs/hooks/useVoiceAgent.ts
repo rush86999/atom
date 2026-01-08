@@ -93,12 +93,12 @@ export const useVoiceAgent = (): UseVoiceAgentReturn => {
             console.error("Error creating audio object:", error);
             setIsPlaying(false);
         }
-    }
+
     }, [stopAudio]);
 
-return {
-    isPlaying,
-    playAudio,
-    stopAudio
-};
+    return {
+        isPlaying,
+        playAudio,
+        stopAudio
+    };
 };
