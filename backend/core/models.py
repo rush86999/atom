@@ -481,7 +481,6 @@ class WorkflowSnapshot(Base):
     
     # Relationships
     execution = relationship("WorkflowExecution", backref="snapshots")
-
 class IngestedDocument(Base):
     """Record of an ingested document from a service like Google Drive"""
     __tablename__ = "ingested_documents"

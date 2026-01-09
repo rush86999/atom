@@ -36,6 +36,7 @@ export const useVoiceAgent = (): UseVoiceAgentReturn => {
             }
         };
     }, []);
+
     const stopAudio = useCallback(() => {
         if (audioRef.current) {
             audioRef.current.pause();
