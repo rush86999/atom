@@ -41,6 +41,7 @@ export const useVoiceAgent = (): UseVoiceAgentReturn => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
+
         }
         setIsPlaying(false);
     }, []);
@@ -93,6 +94,7 @@ export const useVoiceAgent = (): UseVoiceAgentReturn => {
             console.error("Error creating audio object:", error);
             setIsPlaying(false);
         }
+
     }, [stopAudio]);
 
     return {

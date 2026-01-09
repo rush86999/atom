@@ -60,6 +60,8 @@ import {
   AlertTriangle,
   FileText,
   Activity,
+  History, // [Lesson 3]
+  GitBranch, // [Lesson 3]
 } from "lucide-react";
 
 interface WorkflowTemplate {
@@ -142,6 +144,12 @@ const WorkflowAutomation: React.FC = () => {
   const [builderInitialData, setBuilderInitialData] = useState<any>(null); // For AI generated workflows
   const [genPrompt, setGenPrompt] = useState("");
 
+  // [Lesson 3] Time-Travel State
+  const [isForkModalOpen, setIsForkModalOpen] = useState(false);
+  const [forkStepId, setForkStepId] = useState<string | null>(null);
+  const [forkVariables, setForkVariables] = useState<Record<string, any>>({});
+  // [Lesson 3] UX: Raw string state for editable text area
+  const [forkVariablesJson, setForkVariablesJson] = useState<string>("{}");
   const { toast } = useToast();
 
   // Fetch initial data
@@ -440,6 +448,47 @@ const WorkflowAutomation: React.FC = () => {
     }
   };
 
+  // [Lesson 3] Time-Travel / Fork Handler
+  const handleForkWorkflow = async () => {
+    if (!activeExecution || !forkStepId) return;
+
+    try {
+      setExecuting(true);
+      const response = await fetch(
+        `/api/time-travel/workflows/${activeExecution.execution_id}/fork`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            step_id: forkStepId,
+            new_variables: forkVariables
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        toast({
+          title: "Timeline Forked! 🌌",
+          description: `Created parallel universe: ${data.new_execution_id}`,
+        });
+        await fetchExecutions(); // Refresh list
+        setIsForkModalOpen(false);
+        setIsExecutionModalOpen(false); // Close details
+      } else {
+        throw new Error(data.detail || "Fork failed");
+      }
+    } catch (error) {
+      console.error("Fork Error:", error);
+      toast({
+        title: "Time-Travel Failed",
+        description: "Could not fork timeline.",
+        variant: "error",
+      });
+    } finally {
+      setExecuting(false);
+    }
+  };
   const handleFormChange = (field: string, value: any) => {
     setFormData((prev) => ({
       ...prev,
@@ -796,8 +845,16 @@ const WorkflowAutomation: React.FC = () => {
                           </Badge>
                           <span className="font-semibold">
                             {execution.workflow_id}
-                          </span>
-                        </div>
+                            {/* [Lesson 3] UX: Visual indicator for forked workflows */}
+                            {
+                              execution.execution_id.includes("-forked-") && (
+                                <span className="text-xs text-purple-500 ml-1 font-normal">
+                                  (forked)
+                                </span>
+                              )
+                            }
+                          </span >
+                        </div >
                         <div className="text-sm text-gray-500 space-y-1">
                           <p>
                             Started:{" "}
@@ -810,7 +867,7 @@ const WorkflowAutomation: React.FC = () => {
                             </p>
                           )}
                         </div>
-                      </div>
+                      </div >
 
                       <div className="flex items-center space-x-4 min-w-[300px]">
                         <div className="flex-1 space-y-1">
@@ -866,24 +923,26 @@ const WorkflowAutomation: React.FC = () => {
                           </Button>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </div >
+                  </CardContent >
+                </Card >
               ))}
-              {executions.length === 0 && (
-                <Alert>
-                  <Activity className="h-4 w-4" />
-                  <AlertTitle>No executions yet</AlertTitle>
-                  <AlertDescription>
-                    Execute a workflow to see execution history here.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </TabsContent>
+              {
+                executions.length === 0 && (
+                  <Alert>
+                    <Activity className="h-4 w-4" />
+                    <AlertTitle>No executions yet</AlertTitle>
+                    <AlertDescription>
+                      Execute a workflow to see execution history here.
+                    </AlertDescription>
+                  </Alert>
+                )
+              }
+            </div >
+          </TabsContent >
 
           {/* Services Tab */}
-          <TabsContent value="services" className="mt-6">
+          < TabsContent value="services" className="mt-6" >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Object.entries(services).map(([serviceName, serviceInfo]) => (
                 <Card key={serviceName}>
@@ -923,8 +982,8 @@ const WorkflowAutomation: React.FC = () => {
                 </Card>
               ))}
             </div>
-          </TabsContent>
-        </Tabs>
+          </TabsContent >
+        </Tabs >
       )}
 
       {/* Template Execution Modal */}
@@ -1206,38 +1265,150 @@ const WorkflowAutomation: React.FC = () => {
                           <AccordionItem key={stepId} value={stepId}>
                             <AccordionTrigger>Step: {stepId}</AccordionTrigger>
                             <AccordionContent>
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-semibold text-xs text-gray-500">
+                                  Captured State
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 text-xs bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                                  onClick={() => {
+                                    setForkStepId(stepId);
+                                    // [Lesson 3] UX Enhancement: Pre-fill with existing data so user can edit
+                                    // [Lesson 4] Safe Mode: Strip system keys to prevent accidents
+                                    const systemKeys = ['status', 'error', 'timestamp', 'execution_time_ms', 'step_id', 'step_type', 'notes', 'requires_confirmation'];
+                                    const safeVariables = { ...result };
+                                    systemKeys.forEach(key => delete safeVariables[key]);
+
+                                    setForkVariables(safeVariables);
+                                    setForkVariablesJson(JSON.stringify(safeVariables, null, 2));
+                                    setIsForkModalOpen(true);
+                                  }}
+                                >
+                                  <GitBranch className="w-3 h-3 mr-1" />
+                                  Fork & Time Travel
+                                </Button>
+                              </div>
                               <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-x-auto text-xs">
                                 {JSON.stringify(result, null, 2)}
                               </pre>
-                            </AccordionContent>
-                          </AccordionItem>
+                            </AccordionContent >
+                          </AccordionItem >
                         ),
                       )}
-                    </Accordion>
-                  </div>
+                    </Accordion >
+                  </div >
                 )}
-
-              {activeExecution.errors && activeExecution.errors.length > 0 && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Errors</AlertTitle>
-                  <div className="mt-2">
-                    {activeExecution.errors.map((error, index) => (
-                      <AlertDescription key={index} className="block">
-                        {error}
-                      </AlertDescription>
-                    ))}
-                  </div>
-                </Alert>
-              )}
-            </div>
+              {
+                activeExecution.errors && activeExecution.errors.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Errors</AlertTitle>
+                    <div className="mt-2">
+                      {activeExecution.errors.map((error, index) => (
+                        <AlertDescription key={index} className="block">
+                          {error}
+                        </AlertDescription>
+                      ))}
+                    </div>
+                  </Alert>
+                )
+              }
+            </div >
           )}
           <DialogFooter>
             <Button onClick={() => setIsExecutionModalOpen(false)}>Close</Button>
           </DialogFooter>
+        </DialogContent >
+      </Dialog >
+
+
+      {/* [Lesson 3] Fork / Time Travel Modal */}
+      < Dialog open={isForkModalOpen} onOpenChange={setIsForkModalOpen} >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <History className="w-5 h-5 mr-2 text-purple-500" />
+              Time Travel: Fork from Step {forkStepId}
+            </DialogTitle>
+            <DialogDescription>
+              Create a parallel universe starting from this step. You can patch variables to fix errors.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Alert className="bg-purple-50 border-purple-200">
+              <GitBranch className="h-4 w-4 text-purple-600" />
+              <AlertTitle className="text-purple-800">Branching Timeline</AlertTitle>
+              <AlertDescription className="text-purple-700 text-xs">
+                Original execution {activeExecution?.execution_id} will be preserved. A new execution will function as a "Clone".
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label>Hyperparameters & Variables</Label>
+                <Badge variant="outline" className="text-xs font-normal text-gray-500">
+                  {Object.keys(forkVariables).length} params
+                </Badge>
+              </div>
+
+              {Object.keys(forkVariables).length === 0 ? (
+                <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-md">
+                  <p className="text-sm text-gray-500">No tunable parameters found for this step.</p>
+                  <p className="text-xs text-gray-400 mt-1">Forking will proceed with original state.</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                  {Object.entries(forkVariables).map(([key, value]) => (
+                    <div key={key} className="space-y-1">
+                      <Label htmlFor={`param-${key}`} className="text-xs font-medium text-gray-600">
+                        {key}
+                      </Label>
+                      <Input
+                        id={`param-${key}`}
+                        className="h-8 text-sm"
+                        value={typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                        onChange={(e) => {
+                          const newVal = e.target.value;
+                          // Try to conserve types (number/bool) if possible, otherwise string
+                          let typedVal: any = newVal;
+                          if (newVal === 'true') typedVal = true;
+                          else if (newVal === 'false') typedVal = false;
+                          else if (!isNaN(Number(newVal)) && newVal.trim() !== '') typedVal = Number(newVal);
+
+                          setForkVariables(prev => ({ ...prev, [key]: typedVal }));
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsForkModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={() => {
+                // [Lesson 4] Safe Mode: Direct Object Submission
+                // No parsing needed, form keeps object in sync
+                handleForkWorkflow(forkStepId!, forkVariables);
+              }}
+              disabled={executing}
+            >
+              {executing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <GitBranch className="w-4 h-4 mr-2" />}
+              Fork Timeline
+            </Button>
+          </DialogFooter>
         </DialogContent>
-      </Dialog>
-    </div>
+      </Dialog >
+
+    </div >
   );
 };
 

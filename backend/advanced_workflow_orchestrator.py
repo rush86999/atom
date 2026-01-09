@@ -169,11 +169,308 @@ class AdvancedWorkflowOrchestrator:
             self.template_manager = None
             logger.warning("WorkflowTemplateManager not found, template features disabled")
 
+        # In-Memory Snapshot Query Store (Fallback for Time-Travel)
+        self.memory_snapshots = {}
+
         # Initialize AI service
         self._initialize_ai_service()
 
         # Load predefined workflows
         self._load_predefined_workflows()
+        
+        # Phase 11: Restore active executions (Fix Ghost Workflows)
+        self._restore_active_executions()
+
+    def _create_snapshot(self, context: WorkflowContext, step_id: str):
+        """
+        
+        """
+        # Create snapshot data object
+        snapshot_data = {
+             "variables": context.variables.copy(),
+             "results": context.results.copy(),
+             "execution_history": context.execution_history.copy(),
+             "current_step": context.current_step
+        }
+        
+        # 1. Save to Memory (Always available)
+        snapshot_key = f"{context.workflow_id}:{step_id}"
+        self.memory_snapshots[snapshot_key] = snapshot_data
+        logger.info(f"📸 In-Memory Snapshot created for {context.workflow_id} at step {step_id}")
+
+        # 2. Save to Database (If available)
+        if MODELS_AVAILABLE: 
+            try:
+                from core.database import SessionLocal
+                from core.models import WorkflowSnapshot
+                import json
+                
+                with SessionLocal() as db:
+                    snapshot = WorkflowSnapshot(
+                        execution_id=context.workflow_id,
+                        step_id=step_id,
+                        step_order=len(context.execution_history), # Index based on history length
+                        status=context.results.get(step_id, {}).get("status", "unknown"),
+                        context_snapshot=json.dumps(snapshot_data)
+                    )
+                    db.add(snapshot)
+                    db.commit()
+            except Exception as e:
+                logger.error(f"Failed to persist snapshot to DB: {e}")
+
+    def _restore_active_executions(self):
+        """
+        Restore state of running/waiting workflows from DB after restart.
+        This prevents 'Ghost Workflows' that vanish from memory.
+        """
+        if not MODELS_AVAILABLE:
+            logger.warning("Models not available, skipping execution restoration")
+            return
+
+        try:
+            from core.database import SessionLocal
+            from core.models import WorkflowExecution
+            import json
+            
+            with SessionLocal() as db:
+                # Fetch orphaned executions
+                restorable_statuses = [
+                    WorkflowStatus.RUNNING.value,
+                    WorkflowStatus.WAITING_APPROVAL.value
+                ]
+                executions = db.query(WorkflowExecution).filter(
+                    WorkflowExecution.status.in_(restorable_statuses)
+                ).all()
+                
+                restored_count = 0
+                for exec_record in executions:
+                    try:
+                        # Reconstruct Context
+                        context_data = json.loads(exec_record.context) if exec_record.context else {}
+                        
+                        # Create fresh context object
+                        context = WorkflowContext(
+                            workflow_id=exec_record.workflow_id,
+                            user_id=exec_record.user_id or "default_user", # Handle legacy nulls
+                            input_data=json.loads(exec_record.input_data) if exec_record.input_data else {}
+                        )
+                        
+                        # Rehydrate state
+                        # DB uses Uppercase (WorkflowExecutionStatus), Orchestrator uses Lowercase (WorkflowStatus)
+                        try:
+                            context.status = WorkflowStatus(exec_record.status.lower())
+                        except ValueError:
+                            # Fallback if unknown status
+                            logger.warning(f"Unknown status '{exec_record.status}' for workflow {exec_record.workflow_id}, defaulting to PENDING")
+                            context.status = WorkflowStatus.PENDING
+                            
+                        context.variables = context_data.get("variables", {})
+                        context.results = context_data.get("results", {})
+                        context.execution_history = context_data.get("execution_history", [])
+                        context.current_step = context_data.get("current_step")
+                        
+                        # Add to active memory
+                        # NOTE: This does not auto-resume the AsyncIO task (which requires a Task Manager),
+                        # but it makes the state visible effectively "pausing" it safely rather than losing it.
+                        self.active_contexts[exec_record.workflow_id] = context
+                        restored_count += 1
+                    except Exception as e:
+                        logger.error(f"Failed to restore execution {exec_record.attributes.get('id', 'unknown')}: {e}")
+                
+                if restored_count > 0:
+                    logger.info(f"👻 Resurrected {restored_count} Ghost Workflows from database.")
+                    
+        except Exception as e:
+            logger.error(f"Error during execution restoration: {e}")
+
+    async def fork_execution(self, original_execution_id: str, step_id: str, new_variables: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """
+        Args:
+            original_execution_id: The timeline we are branching from.
+            step_id: The moment in time (step) to branch from.
+            new_variables: Optional changes to history (e.g., fixing a wrong input).
+            
+        Returns:
+            new_execution_id: The ID of the parallel universe.
+        """
+        # Snapshot Retrieval Strategy: DB (Priority) -> Memory (Fallback)
+        snapshot_key = f"{original_execution_id}:{step_id}"
+        state_data = None
+        
+        # 1. Try DB First (Source of Truth)
+        if MODELS_AVAILABLE:
+            try:
+                from core.database import SessionLocal
+                from core.models import WorkflowSnapshot
+                import json
+                
+                with SessionLocal() as db:
+                    snapshot = db.query(WorkflowSnapshot).filter(
+                        WorkflowSnapshot.execution_id == original_execution_id,
+                        WorkflowSnapshot.step_id == step_id
+                    ).first()
+                    
+                    if snapshot:
+                         state_data = json.loads(snapshot.context_snapshot)
+                         logger.info(f"💾 Snapshot loaded from Database for {snapshot_key}")
+            except Exception as e:
+                logger.error(f"DB Snapshot lookup failed: {e}")
+
+        # 2. Fallback to Memory if DB failed or missed
+        if not state_data:
+            state_data = self.memory_snapshots.get(snapshot_key)
+            if state_data:
+                logger.info(f"🧠 Snapshot loaded from Memory (Fallback) for {snapshot_key}")
+
+        if not state_data:
+            logger.error(f"Snapshot not found for {original_execution_id} at {step_id} (DB + Memory checked)")
+            return None
+
+        try:
+            # 2. Resurrect State from Snapshot
+            # Apply "Time Travel" edits (New Variables)
+            # This is the "Fix" part of "Fork & Fix"
+            current_vars = state_data.get("variables", {}).copy()
+            if new_variables:
+                # [Lesson 4] Safe Mode: Backend Safeguard
+                # Explicitly ignore system keys to prevent state corruption
+                system_keys = {'status', 'error', 'timestamp', 'execution_time_ms', 'step_id', 'step_type', 'notes', 'requires_confirmation'}
+                sanitized_vars = {k: v for k, v in new_variables.items() if k not in system_keys}
+                current_vars.update(sanitized_vars)
+            
+            # 3. Create the Parallel Universe (New Execution Record)
+            
+            # Get original metadata FIRST (DB Priority -> Memory Fallback)
+            original_user_id = "default"
+            original_input_data = {}
+            original_workflow_id = "unknown"
+            
+            # 3a. Try DB for Metadata
+            meta_found = False
+            if MODELS_AVAILABLE:
+                try:
+                    from core.database import SessionLocal
+                    from core.models import WorkflowExecution, WorkflowExecutionStatus
+                    import json
+                    
+                    with SessionLocal() as db:
+                         original_exec = db.query(WorkflowExecution).filter(
+                            WorkflowExecution.execution_id == original_execution_id
+                         ).first()
+                         
+                         if original_exec:
+                             original_user_id = original_exec.user_id or "default"
+                             original_input_data = json.loads(original_exec.input_data) if original_exec.input_data else {}
+                             original_workflow_id = original_exec.workflow_id
+                             meta_found = True
+                except Exception as e:
+                    logger.warning(f"DB Metadata lookup failed: {e}")
+
+            # 3b. Fallback to Memory for Metadata
+            if not meta_found and original_execution_id in self.active_contexts:
+                orig_ctx = self.active_contexts[original_execution_id]
+                original_user_id = orig_ctx.user_id
+                original_input_data = orig_ctx.input_data
+                original_workflow_id = orig_ctx.workflow_id
+            
+            # Generate ID using the retrieved workflow_id
+            new_execution_id = f"{original_workflow_id}-forked-{str(uuid.uuid4())[:8]}"
+
+
+
+            # Persist the NEW execution to DB
+            if MODELS_AVAILABLE:
+                try:
+                    from core.database import SessionLocal
+                    from core.models import WorkflowExecution, WorkflowExecutionStatus
+                    import json
+
+                    with SessionLocal() as db:
+                        new_exec = WorkflowExecution(
+                            execution_id=new_execution_id,
+                            workflow_id=original_workflow_id,
+                            user_id=original_user_id,
+                            status=WorkflowExecutionStatus.PENDING.value, # Ready to run
+                            input_data=json.dumps(original_input_data),
+                            context=json.dumps({
+                                "variables": current_vars,
+                                "results": state_data.get("results"),
+                                "execution_history": state_data.get("execution_history"),
+                                "current_step": step_id
+                            }),
+                            version=1
+                        )
+                        db.add(new_exec)
+                        db.commit()
+                except Exception as e:
+                    logger.warning(f"Failed to persist new forked execution to DB: {e}")
+            
+            # 4. Load into Orchestrator Memory (Critical for Execution)
+            context = WorkflowContext(
+                workflow_id=new_execution_id,
+                user_id=original_user_id,
+                input_data=original_input_data
+            )
+            context.variables = current_vars
+            
+            # DEEP COPY results to prevent mutation bleeding between universes
+            import copy
+            context.results = copy.deepcopy(state_data.get("results", {}))
+            context.execution_history = copy.deepcopy(state_data.get("execution_history", []))
+            
+            context.current_step = step_id
+            
+            self.active_contexts[new_execution_id] = context
+            
+            # TRIGGER EXECUTION
+            # 1. Resolve Definition ID
+            definition_id = original_input_data.get("_ui_workflow_id")
+            
+            # Fallback: If not in input, try to find a workflow that contains this step_id
+            # This is expensive but necessary if _ui_workflow_id isn't present
+            menu_workflow = None
+            if definition_id and definition_id in self.workflows:
+                menu_workflow = self.workflows[definition_id]
+            else:
+                for wf in self.workflows.values():
+                    if any(s.step_id == step_id for s in wf.steps):
+                        menu_workflow = wf
+                        break
+            
+            if menu_workflow:
+                logger.info(f"🚀 Fork Auto-Start: Triggering execution for {new_execution_id} using def {menu_workflow.workflow_id}")
+                asyncio.create_task(self._run_forked_execution(menu_workflow, step_id, context))
+            else:
+                logger.warning(f"⚠️ Could not auto-start forked workflow {new_execution_id}: Definition not found.")
+
+            logger.info(f"🌌 Timeline Forked! Created {new_execution_id} from {step_id}")
+            return new_execution_id
+
+        except Exception as e:
+            logger.error(f"Forking failed: {e}")
+            return None
+
+    async def _run_forked_execution(self, workflow: WorkflowDefinition, start_step_id: str, context: WorkflowContext):
+        """Lifecycle manager for forked executions"""
+        try:
+            context.status = WorkflowStatus.RUNNING
+            # context.started_at = datetime.datetime.now() # Keep original start time? Or reset? Let's keep original for history.
+            
+            await self._execute_workflow_step(workflow, start_step_id, context)
+            
+            # Only mark completed if not already failed
+            if context.status != WorkflowStatus.FAILED:
+                context.status = WorkflowStatus.COMPLETED
+                context.completed_at = datetime.datetime.now()
+                logger.info(f"✅ Forked execution {context.workflow_id} completed successfully.")
+                
+        except Exception as e:
+            context.status = WorkflowStatus.FAILED
+            context.error_message = str(e)
+            context.completed_at = datetime.datetime.now()
+            logger.error(f"❌ Forked execution {context.workflow_id} failed: {e}")
+
+
 
     def _initialize_ai_service(self):
         """Initialize AI service for NLU processing"""
@@ -720,7 +1017,8 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
 
 
     async def execute_workflow(self, workflow_id: str, input_data: Dict[str, Any],
-                             execution_context: Optional[Dict[str, Any]] = None) -> WorkflowContext:
+                             execution_context: Optional[Dict[str, Any]] = None,
+                             execution_id: str = None) -> WorkflowContext:
         """Execute a complex workflow"""
 
         if workflow_id not in self.workflows:
@@ -728,7 +1026,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
 
         workflow = self.workflows[workflow_id]
         context = WorkflowContext(
-            workflow_id=str(uuid.uuid4()),
+            workflow_id=execution_id or str(uuid.uuid4()),
             user_id=execution_context.get("user_id", "default_user") if execution_context else "default_user",
             input_data=input_data,
             status=WorkflowStatus.RUNNING,
@@ -1076,6 +1374,9 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             # Sequential execution
             for next_step in target_next_steps:
                 await self._execute_workflow_step(workflow, next_step, context)
+        
+       
+        self._create_snapshot(context, step_id)
 
     async def _check_conditions(self, conditions: Dict[str, Any], context: WorkflowContext) -> bool:
         """Check if step conditions are met"""
@@ -1157,23 +1458,93 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             return True  # Default to proceeding if condition evaluation fails
 
     def _resolve_variables(self, value: Any, context: WorkflowContext) -> Any:
-        """Resolve variables in a value (string, dict, or list)"""
+
+        """
+        Resolve variables in a value (string, dict, or list) with support for nesting.
+        Uses an iterative inside-out approach to handle {{ {{var}} }}.
+        """
         if isinstance(value, str):
-            # Replace {{variable}} with value from context.variables
-            import re
-            matches = re.findall(r'\{\{([^}]+)\}\}', value)
-            for match in matches:
-                # Support nested access like {{step_id.key}}
-                if '.' in match:
-                    parts = match.split('.')
-                    step_id = parts[0]
-                    key = parts[1]
-                    if step_id in context.results:
-                        val = context.results[step_id].get(key, "")
-                        value = value.replace(f"{{{{{match}}}}}", str(val))
-                elif match in context.variables:
-                    value = value.replace(f"{{{{{match}}}}}", str(context.variables[match]))
-            return value
+            # Iteratively resolve innermost variables first
+            # Limit iterations to prevent infinite loops (e.g., self-referencing variables)
+            max_iterations = 10
+            current_value = value
+            
+            for _ in range(max_iterations):
+                # Find all {{ key }} patterns that do NOT contain other {{ }} inside them
+                # strictly matching the innermost pair
+                matches = re.finditer(r'\{\{([^{}]+)\}\}', current_value)
+                
+                replacements_made = False
+                # We must process matches carefully because the string changes
+                # It's safer to find one, replace, and re-scan, or process strictly distinct regions.
+                # Re-scanning is safer for overlaps, though slightly slower.
+                
+                # Let's collect ALL simple matches in this pass
+                found_matches = list(matches)
+                
+                if not found_matches:
+                    break # No more variables to resolve
+                
+                # Apply replacements for this pass
+                # We use a temporary string construction to avoid index offset issues
+                new_value = current_value
+                
+                for match in found_matches:
+                    full_match = match.group(0) # {{key}}
+                    var_content = match.group(1).strip() # key
+                    
+                    replacement_val = full_match # Default/Fallback
+                    
+                    # 1. Resolve the key
+                    if '.' in var_content:
+                        # Step output access: step_id.key.subkey...
+                        parts = var_content.split('.')
+                        step_id = parts[0]
+                        
+                        if step_id in context.results:
+                            # We found the step, now traverse the rest of the path
+                            val = context.results[step_id]
+                            path = parts[1:]
+                            
+                            found = True
+                            for p in path:
+                                if isinstance(val, dict):
+                                    val = val.get(p)
+                                    if val is None:
+                                        found = False
+                                        break
+                                else:
+                                    # We tried to access a property of a non-dict
+                                    found = False
+                                    break
+                            
+                            if found and val is not None:
+                                replacement_val = str(val)
+                    
+                    elif var_content in context.variables:
+                        # Direct context variable
+                        replacement_val = str(context.variables[var_content])
+                        
+                    # 2. Perform replacement if we found a value
+                    # Note: We replace ONLY if we resolved it, or should we leave it?
+                    # Previous logic left it. We'll stick to that but handle the recursion.
+                    if replacement_val != full_match:
+                        # Replace only the FIRST occurrence related to this specific match logic? 
+                        # Or all? All is standard for templates.
+                        # But be careful if two different vars resolve to same string.
+                        new_value = new_value.replace(full_match, replacement_val)
+                        replacements_made = True
+                
+                if not replacements_made:
+                    # If we found matches but couldn't resolve ANY of them, we are stuck.
+                    # Stop to avoid infinite loop.
+                    break
+                    
+                current_value = new_value
+                
+            return current_value
+
+
         elif isinstance(value, dict):
             return {k: self._resolve_variables(v, context) for k, v in value.items()}
         elif isinstance(value, list):

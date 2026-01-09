@@ -460,6 +460,27 @@ class UserConnection(Base):
     user = relationship("User", backref="connections")
     workspace = relationship("Workspace", backref="connections")
 
+class WorkflowSnapshot(Base):
+    """
+    Time-Travel Debugging: Immutable snapshot of execution state at a specific step.
+    This acts as a 'Save Point' allowing users to fork/replay from this exact moment.
+    """
+    __tablename__ = "workflow_snapshots"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    step_id = Column(String, nullable=False) # The step that just finished/is current
+    step_order = Column(Integer, nullable=False) # Sequence number (0, 1, 2...)
+    
+    # State Capture
+    context_snapshot = Column(Text, nullable=False) # Full JSON dump of WorkflowContext (vars, results)
+    
+    # Metadata
+    status = Column(String, nullable=False) # Status at this snapshot (e.g. COMPLETED, FAILED)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    execution = relationship("WorkflowExecution", backref="snapshots")
 class IngestedDocument(Base):
     """Record of an ingested document from a service like Google Drive"""
     __tablename__ = "ingested_documents"
