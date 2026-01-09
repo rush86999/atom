@@ -1,0 +1,5 @@
+
+> atomic-app@0.1.0-alpha.1 type-check
+> tsc --noEmit
+
+components/Microsoft365Integration.tsx(1245,129): error TS2322: Type '"destructive"' is not assignable to type '"error" | "default" | "success" | "warning"'.

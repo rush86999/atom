@@ -1,0 +1,40 @@
+
+> atomic-app@0.1.0-alpha.1 type-check
+> tsc --noEmit
+
+components/Microsoft365Integration.tsx(405,13): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(469,17): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(485,13): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(532,17): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(549,13): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(571,17): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(577,13): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(592,17): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(601,13): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(1245,75): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(1250,71): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(1271,67): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(1298,67): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(1313,67): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(1336,67): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(1346,67): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(1368,53): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.
+components/Microsoft365Integration.tsx(1373,67): error TS2349: This expression is not callable.
+  Type '{ toast: (props: Omit<ToastProps, "id">) => void; dismiss: (id: string) => void; toasts: ToastProps[]; }' has no call signatures.

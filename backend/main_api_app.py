@@ -306,6 +306,12 @@ try:
     except ImportError as e:
         logger.warning(f"Reasoning routes not found: {e}")
 
+    # 4d. Time Travel Routes
+    try:
+        from api.time_travel_routes import router as time_travel_router # [Lesson 3]
+        app.include_router(time_travel_router) # [Lesson 3]
+    except ImportError as e:
+        logger.warning(f"Time Travel routes not found: {e}")
     # 4. Microsoft 365 Integration
     try:
         from integrations.microsoft365_routes import microsoft365_router

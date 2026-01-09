@@ -18,8 +18,8 @@ try:
         LanceDBMemoryManager,
         CommunicationData
     )
-except ImportError:
-    logging.warning("Core LanceDB and Communication handlers not found. Using local fallbacks for development.")
+except (ImportError, OSError, Exception) as e:
+    logging.warning(f"Core LanceDB and Communication handlers not found ({e}). Using local fallbacks for development.")
 
 logger = logging.getLogger(__name__)
 

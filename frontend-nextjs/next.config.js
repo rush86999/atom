@@ -57,6 +57,10 @@ const nextConfig = {
         source: "/api/intelligence/:path*",
         destination: "http://localhost:8000/api/intelligence/:path*",
       },
+      {
+        source: "/api/time-travel/:path*",
+        destination: "http://localhost:8000/api/time-travel/:path*",
+      },
       // Add general API rewrite for other endpoints
       {
         source: "/api/v1/:path*",

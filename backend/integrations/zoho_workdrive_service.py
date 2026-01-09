@@ -47,6 +47,7 @@ class ZohoWorkDriveService:
             logger.error(f"Error getting Zoho access token: {e}")
             return None
 
+
     async def get_teams(self, user_id: str) -> List[Dict[str, Any]]:
         """List WorkDrive teams for the user"""
         token = await self.get_access_token(user_id)
