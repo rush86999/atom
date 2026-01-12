@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 import uuid
 import logging
 from datetime import datetime, timedelta
@@ -21,7 +21,7 @@ class Token(BaseModel):
     token_type: str
 
 class UserCreate(BaseModel):
-    email: str
+    email: EmailStr
     password: str
     first_name: str
     last_name: str
