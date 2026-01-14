@@ -98,9 +98,9 @@ export const byokAPI = {
 
 // Workflow API
 export const workflowAPI = {
-  getTemplates: () => apiClient.get("/api/workflows/templates"),
+  getTemplates: () => apiClient.get("/api/workflow-templates/"),
   getTemplate: (templateId: string) =>
-    apiClient.get(`/api/workflows/templates/${templateId}`),
+    apiClient.get(`/api/workflow-templates/${templateId}`),
   createWorkflow: (workflowData: any) =>
     apiClient.post("/api/workflows", workflowData),
   executeWorkflow: (workflowId: string, inputData: any) =>

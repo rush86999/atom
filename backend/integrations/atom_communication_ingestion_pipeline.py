@@ -11,20 +11,35 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass, asdict
 from enum import Enum
-import lancedb
-import pyarrow as pa
-import pandas as pd
+try:
+    import lancedb
+    import pyarrow as pa
+    import pandas as pd
+    import numpy as np
+except ImportError:
+    lancedb = None
+    pa = None
+    pd = None
+    np = None
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning("Heavy dependencies (lancedb, pyarrow, pandas, numpy) not available. Using mocks.")
+    from unittest.mock import MagicMock
+    lancedb = MagicMock()
+    pa = MagicMock()
+    pd = MagicMock()
+    np = MagicMock()
+
 from pathlib import Path
-import numpy as np
 from core.knowledge_ingestion import get_knowledge_ingestion
 
 logger = logging.getLogger(__name__)
 
 try:
     from sentence_transformers import SentenceTransformer
-except ImportError:
+except (ImportError, Exception) as e:
     SentenceTransformer = None
-    logger.warning("sentence_transformers not available, embeddings will be disabled")
+    logger.warning(f"sentence_transformers not available (error: {e}), embeddings will be disabled")
 
 class CommunicationAppType(Enum):
     """Supported communication apps for ingestion"""

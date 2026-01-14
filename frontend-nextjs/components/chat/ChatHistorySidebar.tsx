@@ -29,13 +29,22 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
     const fetchChatHistory = async () => {
         try {
             setLoading(true);
-            const response = await fetch("/api/atom-agent/sessions");
+            // Updated to correct backend endpoint
+            const response = await fetch("/api/chat/sessions?user_id=default_user");
             if (!response.ok) {
                 throw new Error("Failed to fetch chat history");
             }
             const data = await response.json();
-            if (data.success && data.sessions) {
-                setHistory(data.sessions);
+            // Backend returns { sessions: {id: data}, ... } structure check might be needed
+            if (data.sessions) {
+                // Transform object to array if needed, backend returns dict
+                const sessionsList = Object.entries(data.sessions).map(([id, session]: [string, any]) => ({
+                    id: id,
+                    title: session.title || "New Chat",
+                    date: new Date(session.last_updated).toLocaleDateString(),
+                    preview: session.last_message || "No messages"
+                }));
+                setHistory(sessionsList);
             }
         } catch (error) {
             console.error("Error fetching chat history:", error);
@@ -45,24 +54,10 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
         }
     };
 
-    const handleNewChat = async () => {
-        try {
-            setLoading(true);
-            const response = await fetch("/api/atom-agent/sessions", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: "default_user" })
-            });
-            const data = await response.json();
-            if (data.success && data.session_id) {
-                onSelectSession(data.session_id);
-                fetchChatHistory();
-            }
-        } catch (error) {
-            console.error("Error creating new chat:", error);
-        } finally {
-            setLoading(false);
-        }
+    const handleNewChat = () => {
+        // Backend creates sessions on first message, so we just generate ID locally
+        const newSessionId = `session_${Date.now()}`;
+        onSelectSession(newSessionId);
     };
 
     const filteredHistory = history.filter(session =>

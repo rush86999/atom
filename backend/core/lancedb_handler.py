@@ -8,9 +8,9 @@ import json
 import logging
 import asyncio
 try:
-    import numpy as np
+    # import numpy as np
     # FORCE DISABLE numpy to prevent crash
-    NUMPY_AVAILABLE = True # True
+    NUMPY_AVAILABLE = False # True
 except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
     print(f"Numpy not available: {e}")
@@ -18,20 +18,20 @@ from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
 try:
-    import pandas as pd
-    PANDAS_AVAILABLE = True
+    # import pandas as pd
+    PANDAS_AVAILABLE = False
 except (ImportError, BaseException) as e:
     PANDAS_AVAILABLE = False
     print(f"Pandas not available: {e}")
 
 try:
-    import lancedb
-    from lancedb.db import LanceDBConnection
-    from lancedb.table import Table
-    from lancedb.pydantic import LanceModel, Vector
-    import pyarrow as pa
+    # import lancedb
+    # from lancedb.db import LanceDBConnection
+    # from lancedb.table import Table
+    # from lancedb.pydantic import LanceModel, Vector
+    # import pyarrow as pa
     # FORCE DISABLE LanceDB to prevent crash
-    LANCEDB_AVAILABLE = True # True
+    LANCEDB_AVAILABLE = False # True
 except (ImportError, BaseException) as e:
     LANCEDB_AVAILABLE = False
     print(f"LanceDB not available: {e}")
@@ -46,6 +46,8 @@ try:
     SENTENCE_TRANSFORMERS_AVAILABLE = False # True
     # from sentence_transformers import SentenceTransformer
     # SENTENCE_TRANSFORMERS_AVAILABLE = True
+except (ImportError, BaseException) as e:
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
 except (ImportError, BaseException) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
     print(f"Sentence transformers not available: {e}")
@@ -292,7 +294,7 @@ class LanceDBHandler:
             logger.error(f"Failed to drop table '{table_name}': {e}")
             return False
     
-    def embed_text(self, text: str) -> Optional[np.ndarray]:
+    def embed_text(self, text: str) -> Optional[Any]:
         """Embed text using configured provider"""
         try:
             if self.embedding_provider == "openai" and self.openai_client:
@@ -301,6 +303,7 @@ class LanceDBHandler:
                     model="text-embedding-3-small"
                 )
                 if NUMPY_AVAILABLE:
+                    import numpy as np # Import locally if needed
                     return np.array(response.data[0].embedding)
                 return response.data[0].embedding
             

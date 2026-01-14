@@ -108,24 +108,19 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
         try {
             setIsLoading(true);
-            const response = await fetch(`/api/atom-agent/sessions/${sid}/history`);
+            const response = await fetch(`/api/chat/history/${sid}?user_id=${userId || 'default_user'}`);
 
             if (response.ok) {
                 try {
                     const data = await response.json();
-                    if (data.success && data.messages && data.messages.length > 0) {
+                    if (data.messages && data.messages.length > 0) {
                         const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
                             id: msg.id || `msg_${Date.now()}_${Math.random()}`,
                             type: msg.role === 'user' ? 'user' : 'assistant',
                             content: msg.content || '',
-                            timestamp: new Date(msg.timestamp),
-                            workflowData: msg.metadata?.workflow_id ? {
-                                workflowId: msg.metadata.workflow_id,
-                                workflowName: msg.metadata.workflow_name,
-                                stepsCount: msg.metadata.steps_count,
-                                isScheduled: msg.metadata.is_scheduled,
-                            } : undefined,
-                            actions: msg.metadata?.actions || [],
+                            timestamp: new Date(msg.timestamp || Date.now()),
+                            // Map any additional metadata if backend provides it
+                            actions: [],
                         }));
                         setMessages(chatMessages);
                     } else {
@@ -136,7 +131,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     setMessages([welcomeMsg]);
                 }
             } else {
-                console.error(`Failed to load history: ${response.status} ${response.statusText}`);
+                console.warn(`No history found or failed to load: ${response.status}`);
                 setMessages([welcomeMsg]);
             }
         } catch (error) {
@@ -159,18 +154,20 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         setIsLoading(true);
 
         try {
-            const response = await fetch("/api/atom-agent/chat", {
+            const response = await fetch("/api/chat/message", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     message: text,
                     user_id: userId,
                     session_id: sessionId,
-                    current_page: router.asPath, // Send current page context
-                    conversation_history: messages.slice(-10).map(msg => ({
-                        role: msg.type === "user" ? "user" : "assistant",
-                        content: msg.content,
-                    })),
+                    context: {
+                        current_page: router.asPath, // Send current page context
+                        conversation_history: messages.slice(-10).map(msg => ({
+                            role: msg.type === "user" ? "user" : "assistant",
+                            content: msg.content,
+                        })),
+                    }
                 }),
             });
 
@@ -179,17 +176,11 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             if (data.success) {
                 const assistantMessage: ChatMessageData = {
                     id: `assistant_${Date.now()}`,
-                    type: "assistant",
-                    content: data.response.message,
+                    type: "assistant", // Backend returns 'message', ensure mapping is handled if keys differ
+                    content: data.message, // Backend 'message' field
                     timestamp: new Date(),
-                    workflowData: data.response.workflow_id ? {
-                        workflowId: data.response.workflow_id,
-                        workflowName: data.response.workflow_name,
-                        stepsCount: data.response.steps_count,
-                        isScheduled: data.response.is_scheduled,
-                        requiresConfirmation: data.response.requires_confirmation,
-                    } : undefined,
-                    actions: data.response.actions || [],
+                    // Backend returns suggested_actions, map them if needed
+                    actions: data.suggested_actions?.map((action: string) => ({ label: action, type: 'suggested' })) || [],
                 };
                 setMessages(prev => [...prev, assistantMessage]);
             } else {
@@ -200,7 +191,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             toast({
                 title: "Error",
                 description: "Failed to process message. Please try again.",
-                variant: "error",
+                variant: "destructive", // "error" variant might not exist in shadcn default, using destructve
             });
             setMessages(prev => [...prev, {
                 id: `error_${Date.now()}`,

@@ -1,6 +1,7 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.pool import StaticPool
 import os
 import logging
 from dotenv import load_dotenv
@@ -23,7 +24,7 @@ def get_database_url():
             )
         else:
             # Development fallback with warning
-            database_url = "sqlite:///./atom_dev.db"
+            database_url = "sqlite:///:memory:"
             logger.warning(
                 "⚠️ WARNING: Using SQLite development database. "
                 "Set DATABASE_URL for production deployment."
@@ -46,7 +47,10 @@ if "sqlite" in DATABASE_URL:
         "check_same_thread": False,
         "timeout": 20  # Prevent database locking
     }
-    poolclass = None
+    if ":memory:" in DATABASE_URL:
+        poolclass = StaticPool
+    else:
+        poolclass = None
     pool_size = None
     max_overflow = None
 elif "postgresql" in DATABASE_URL:

@@ -242,10 +242,16 @@ const WorkflowAutomation: React.FC = () => {
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch("/api/workflows/templates");
-      const data = await response.json();
-      if (data.success) {
-        setTemplates(data.templates);
+      const response = await fetch("/api/workflow-templates/"); // Fixed endpoint with trailing slash
+      if (response.ok) {
+        const data = await response.json();
+        // The API returns the list directly, not { success: true, templates: ... }
+        // Also map template_id -> id for frontend compatibility
+        const mapped = Array.isArray(data) ? data.map((t: any) => ({
+          ...t,
+          id: t.template_id
+        })) : [];
+        setTemplates(mapped);
       }
     } catch (e) {
       console.error("Failed to fetch templates", e);
@@ -748,8 +754,8 @@ const WorkflowAutomation: React.FC = () => {
                       {template.description}
                     </CardDescription>
                     <div className="space-y-2">
-                      {template.steps.slice(0, 3).map((step, index) => (
-                        <div key={step.id} className="flex items-center text-sm">
+                      {(template.steps || []).slice(0, 3).map((step, index) => (
+                        <div key={step.id || index} className="flex items-center text-sm">
                           <Badge
                             variant="outline"
                             className="mr-2 w-5 h-5 flex items-center justify-center p-0"
@@ -759,9 +765,9 @@ const WorkflowAutomation: React.FC = () => {
                           <span className="truncate">{step.name}</span>
                         </div>
                       ))}
-                      {template.steps.length > 3 && (
+                      {(template.steps || []).length > 3 && (
                         <p className="text-xs text-gray-500 pl-7">
-                          +{template.steps.length - 3} more steps
+                          +{(template.steps || []).length - 3} more steps
                         </p>
                       )}
                     </div>
@@ -772,6 +778,14 @@ const WorkflowAutomation: React.FC = () => {
                       onClick={() => handleTemplateSelect(template)}
                     >
                       Use Template
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full mt-2"
+                      onClick={() => router.push(`/workflows/editor/${template.template_id}`)}
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit in Builder
                     </Button>
                   </CardFooter>
                 </Card>
@@ -795,7 +809,11 @@ const WorkflowAutomation: React.FC = () => {
                           {workflow.steps_count || workflow.steps?.length || 0}{" "}
                           steps
                         </Badge>
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => router.push(`/workflows/editor/${workflow.created_from_template || workflow.id}`)}
+                        >
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button

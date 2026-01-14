@@ -1022,7 +1022,31 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         """Execute a complex workflow"""
 
         if workflow_id not in self.workflows:
-            raise ValueError(f"Workflow {workflow_id} not found")
+             # Lazy Load from Template Manager
+            if self.template_manager and self.template_manager.get_template(workflow_id):
+                logger.info(f"Lazy-loading template {workflow_id} into orchestrator...")
+                template = self.template_manager.get_template(workflow_id)
+                # Convert Template -> WorkflowDefinition
+                steps = []
+                for t_step in template.steps:
+                    steps.append(WorkflowStep(
+                        step_id=t_step.step_id,
+                        step_type=WorkflowStepType(t_step.step_type) if hasattr(WorkflowStepType, t_step.step_type.upper()) else WorkflowStepType.API_CALL,
+                        description=t_step.description,
+                        parameters=t_step.parameters if isinstance(t_step.parameters, dict) else {}, # Handle list vs dict
+                        next_steps=t_step.depends_on if hasattr(t_step, 'depends_on') else []
+                    ))
+                
+                new_def = WorkflowDefinition(
+                    workflow_id=template.template_id,
+                    name=template.name,
+                    description=template.description,
+                    steps=steps,
+                    start_step=steps[0].step_id if steps else "end"
+                )
+                self.workflows[workflow_id] = new_def
+            else:
+                raise ValueError(f"Workflow {workflow_id} not found in registry or templates")
 
         workflow = self.workflows[workflow_id]
         context = WorkflowContext(
