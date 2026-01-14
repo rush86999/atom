@@ -117,8 +117,8 @@ export default function AnalyticsPage() {
     )
   }
 
-  const successRate = data.workflows.total_executions > 0
-    ? ((Object.values(data.workflows.workflows).reduce((sum, w) => sum + w.success_count, 0) / data.workflows.total_executions) * 100).toFixed(1)
+  const successRate = data?.workflows?.total_executions > 0
+    ? ((Object.values(data.workflows.workflows || {}).reduce((sum, w) => sum + w.success_count, 0) / data.workflows.total_executions) * 100).toFixed(1)
     : '0.0'
 
   return (
@@ -156,9 +156,9 @@ export default function AnalyticsPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.workflows.total_executions}</div>
+            <div className="text-2xl font-bold">{data?.workflows?.total_executions || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {data.workflows.workflow_count} workflows tracked
+              {data?.workflows?.workflow_count || 0} workflows tracked
             </p>
           </CardContent>
         </Card>
@@ -185,7 +185,7 @@ export default function AnalyticsPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.workflows.total_time_saved_hours}h</div>
+            <div className="text-2xl font-bold">{data?.workflows?.total_time_saved_hours || 0}h</div>
             <p className="text-xs text-muted-foreground">
               Automation efficiency
             </p>
@@ -198,7 +198,7 @@ export default function AnalyticsPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${data.workflows.total_business_value.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${(data?.workflows?.total_business_value || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Total value delivered
             </p>
@@ -213,7 +213,7 @@ export default function AnalyticsPage() {
           <CardDescription>Detailed metrics for each workflow</CardDescription>
         </CardHeader>
         <CardContent>
-          {Object.keys(data.workflows.workflows).length === 0 ? (
+          {Object.keys(data?.workflows?.workflows || {}).length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No workflow data yet. Execute workflows to see metrics.
             </div>
@@ -231,7 +231,7 @@ export default function AnalyticsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(data.workflows.workflows).map(([id, metric]) => (
+                  {Object.entries(data?.workflows?.workflows || {}).map(([id, metric]) => (
                     <tr key={id} className="border-b hover:bg-muted/50">
                       <td className="p-2 font-medium">{id}</td>
                       <td className="p-2 text-right">{metric.execution_count}</td>
@@ -255,12 +255,12 @@ export default function AnalyticsPage() {
       </Card>
 
       {/* Integration Health */}
-      {data.integrations.total_integrations > 0 && (
+      {data?.integrations?.total_integrations > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Integration Health</CardTitle>
             <CardDescription>
-              {data.integrations.ready_count} of {data.integrations.total_integrations} integrations ready
+              {data?.integrations?.ready_count || 0} of {data?.integrations?.total_integrations || 0} integrations ready
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -276,7 +276,7 @@ export default function AnalyticsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(data.integrations.integrations).map(([name, metric]) => (
+                  {Object.entries(data?.integrations?.integrations || {}).map(([name, metric]) => (
                     <tr key={name} className="border-b hover:bg-muted/50">
                       <td className="p-2 font-medium">{name}</td>
                       <td className="p-2 text-center">

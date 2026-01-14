@@ -51,7 +51,11 @@ class ConnectionManager:
             
         except Exception as e:
             logger.error(f"WebSocket connection error: {e}")
-            await websocket.close()
+            try:
+                await websocket.close()
+            except RuntimeError:
+                # Connection might be already closed or in a state where close() is invalid
+                pass
             return None
         finally:
             db.close()

@@ -122,7 +122,11 @@ class WorkflowTemplate(BaseModel):
 
     def calculate_estimated_duration(self):
         """Calculate total estimated duration"""
-        self.estimated_total_duration = sum(step.estimated_duration for step in self.steps)
+        self.estimated_total_duration = sum(
+            step.estimated_duration if hasattr(step, 'estimated_duration') 
+            else step.get('estimated_duration', 60) 
+            for step in self.steps
+        )
         return self.estimated_total_duration
 
     def add_usage(self):
@@ -195,6 +199,46 @@ class WorkflowTemplateManager:
     def get_template(self, template_id: str) -> Optional[WorkflowTemplate]:
         """Get template by ID"""
         return self.templates.get(template_id)
+
+    def update_template(self, template_id: str, updates: Dict[str, Any]) -> WorkflowTemplate:
+        """Update an existing workflow template"""
+        template = self.get_template(template_id)
+        if not template:
+            raise ValueError(f"Template {template_id} not found")
+
+        # Update core fields
+        for field, value in updates.items():
+            if hasattr(template, field) and value is not None:
+                # Handle steps list explicitly if needed, but Pydantic might handle assignment if valid
+                if field == "steps":
+                     # Ensure we convert dicts to TemplateStep objects if they are dicts
+                     new_steps = []
+                     for s in value:
+                         if isinstance(s, dict):
+                             # Ensure keys match alias (step_id vs id)
+                             if "step_id" not in s and "id" in s:
+                                 s["step_id"] = s["id"]
+                             
+                             # Clean up keys intended for frontend nodes but not in schema
+                             valid_keys = TemplateStep.__fields__.keys()
+                             valid_aliases = {f.alias for f in TemplateStep.__fields__.values()}
+                             # No strict filtering here, let Pydantic handle extra ignore
+                             new_steps.append(TemplateStep(**s))
+                         else:
+                             new_steps.append(s)
+                     template.steps = new_steps
+                else:
+                    setattr(template, field, value)
+
+        template.updated_at = datetime.now()
+        
+        # Re-save
+        self.templates[template_id] = template
+        self.marketplace.templates[template_id] = template
+        self._update_indexes(template) # Re-index
+        self._save_template(template)
+        
+        return template
 
     def list_templates(self,
                       category: Optional[TemplateCategory] = None,
@@ -579,7 +623,7 @@ class WorkflowTemplateManager:
     def _create_data_processing_template(self) -> Dict[str, Any]:
         """Create built-in data processing template"""
         return {
-            "template_id": "data_processing_etl",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "data_processing_etl")),
             "name": "ETL Data Processing Pipeline",
             "description": "Extract, Transform, Load pipeline for processing large datasets",
             "category": "data_processing",
@@ -658,7 +702,7 @@ class WorkflowTemplateManager:
     def _create_automation_template(self) -> Dict[str, Any]:
         """Create built-in automation template"""
         return {
-            "template_id": "workflow_automation",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "workflow_automation")),
             "name": "Automated Workflow Executor",
             "description": "Execute automated workflows with conditional logic",
             "category": "automation",
@@ -716,7 +760,7 @@ class WorkflowTemplateManager:
     def _create_monitoring_template(self) -> Dict[str, Any]:
         """Create built-in monitoring template"""
         return {
-            "template_id": "system_monitoring",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "system_monitoring")),
             "name": "System Health Monitoring",
             "description": "Monitor system health and send alerts",
             "category": "monitoring",
@@ -782,7 +826,7 @@ class WorkflowTemplateManager:
     def _create_integration_template(self) -> Dict[str, Any]:
         """Create built-in integration template"""
         return {
-            "template_id": "api_integration",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "api_integration")),
             "name": "API Integration Workflow",
             "description": "Integrate with external APIs and process responses",
             "category": "integration",
@@ -849,7 +893,7 @@ class WorkflowTemplateManager:
     def _create_content_management_template(self) -> Dict[str, Any]:
         """Create built-in content and file management template"""
         return {
-            "template_id": "content_file_management",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "content_file_management")),
             "name": "Auto-Archive & Task Linker",
             "description": "Automatically archive, tag, and link new files from cloud storage (Drive/Dropbox) to related tasks",
             "category": "data_processing",
@@ -940,7 +984,7 @@ class WorkflowTemplateManager:
     def _create_burnout_protection_template(self) -> Dict[str, Any]:
         """Create built-in burnout protection template"""
         return {
-            "template_id": "burnout_protection",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "burnout_protection")),
             "name": "Burnout & Overload Protection",
             "description": "Proactively monitor workload and suggest focus blocks, meeting rescheduling, and delegation.",
             "category": "monitoring",
@@ -986,7 +1030,7 @@ class WorkflowTemplateManager:
     def _create_deadline_mitigation_template(self) -> Dict[str, Any]:
         """Create built-in deadline mitigation template"""
         return {
-            "template_id": "deadline_mitigation",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "deadline_mitigation")),
             "name": "Deadline Risk Mitigation",
             "description": "Automatically handle tasks at risk of missing deadlines",
             "category": "automation",
@@ -1025,7 +1069,7 @@ class WorkflowTemplateManager:
     def _create_email_followup_template(self) -> Dict[str, Any]:
         """Create built-in email follow-up automation template"""
         return {
-            "template_id": "email_followup",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "email_followup")),
             "name": "AI Email Follow-up Automation",
             "description": "Automatically detect sent emails with no replies and draft polite follow-up nudges.",
             "category": "automation",
@@ -1071,7 +1115,7 @@ class WorkflowTemplateManager:
     def _create_goal_driven_automation_template(self) -> Dict[str, Any]:
         """Create built-in goal-driven automation template"""
         return {
-            "template_id": "goal_driven_automation",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "goal_driven_automation")),
             "name": "Goal-Driven Automation",
             "description": "High-level goal decomposition and progress monitoring",
             "category": "business",
@@ -1144,7 +1188,7 @@ class WorkflowTemplateManager:
     def _create_agent_pipeline_template(self) -> Dict[str, Any]:
         """Create built-in agent pipeline template (Phase 28)"""
         return {
-            "template_id": "agent_pipeline_sales",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "agent_pipeline_sales")),
             "name": "Sales Prospecting Pipeline",
             "description": "Multi-step agent workflow: Research prospects, update CRM, and check for pricing discrepancies.",
             "category": "automation",
@@ -1219,7 +1263,7 @@ class WorkflowTemplateManager:
     def _create_cost_optimization_template(self) -> Dict[str, Any]:
         """Create cost optimization workflow template"""
         return {
-            "template_id": "cost_optimization_workflow",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "cost_optimization_workflow")),
             "name": "Cost Optimization Workflow",
             "description": "Detect unused SaaS subscriptions, redundant tools, and generate savings report",
             "category": "business",
@@ -1241,7 +1285,7 @@ class WorkflowTemplateManager:
     def _create_budget_approval_template(self) -> Dict[str, Any]:
         """Create budget check and approval workflow template"""
         return {
-            "template_id": "budget_approval_workflow",
+            "template_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "budget_approval_workflow")),
             "name": "Budget Check & Approval",
             "description": "Check spending against budget limits tied to deal stages and milestones",
             "category": "business",

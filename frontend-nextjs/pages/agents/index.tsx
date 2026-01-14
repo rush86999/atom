@@ -16,7 +16,7 @@ const AgentsDashboard = () => {
     // Fetch Agents
     const fetchAgents = async () => {
         try {
-            const res = await fetch('/api/v1/agents');
+            const res = await fetch('/api/agents/', { credentials: 'include' });
             if (res.ok) {
                 const data = await res.json();
                 setAgents(data);
@@ -37,7 +37,8 @@ const AgentsDashboard = () => {
         setLogs([`Initializing agent: ${id}...`, "Connecting to reliable-messaging-service..."]);
 
         try {
-            const res = await fetch(`/api/v1/agents/${id}/run`, {
+            const res = await fetch(`/api/agents/${id}/run/`, {
+                credentials: 'include',
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ parameters: {} })

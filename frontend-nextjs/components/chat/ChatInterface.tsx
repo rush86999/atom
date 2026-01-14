@@ -91,15 +91,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     const loadSessionHistory = async (sid: string) => {
         try {
             setIsProcessing(true);
-            const response = await fetch(`/api/atom-agent/sessions/${sid}/history`);
+            const response = await fetch(`/api/chat/history/${sid}?user_id=default_user`);
             if (response.ok) {
                 const data = await response.json();
-                if (data.success && data.messages) {
+                if (data.messages) {
                     const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
                         id: msg.id || `msg_${Date.now()}_${Math.random()}`,
                         type: msg.role === 'user' ? 'user' : 'assistant',
                         content: msg.content || '',
-                        timestamp: new Date(msg.timestamp),
+                        timestamp: new Date(msg.timestamp || Date.now()),
                         actions: msg.metadata?.actions || [],
                     }));
                     setMessages(chatMessages);
@@ -127,18 +127,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         setIsProcessing(true);
 
         try {
-            const response = await fetch("/api/chat/enhanced", {
+            const response = await fetch("/api/chat/message", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     message: input,
-                    userId: "default_user",
-                    sessionId: sessionId,
-                    audioOutput: true, // Always request audio for now, or toggle based on pref
-                    conversation_history: messages.slice(-5).map(m => ({
-                        role: m.type === "user" ? "user" : "assistant",
-                        content: m.content
-                    }))
+                    user_id: "default_user",
+                    session_id: sessionId,
+                    context: {
+                        audioOutput: true,
+                        conversation_history: messages.slice(-5).map(m => ({
+                            role: m.type === "user" ? "user" : "assistant",
+                            content: m.content
+                        }))
+                    }
                 })
             });
 

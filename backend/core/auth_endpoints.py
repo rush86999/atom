@@ -149,6 +149,59 @@ async def logout():
     """Logout the current user (client should discard token)"""
     return {"success": True, "message": "Logged out successfully"}
 
+@router.get("/accounts")
+async def get_linked_accounts(current_user: User = Depends(get_current_user)):
+    """
+    Get linked accounts for the current user.
+    Note: Since we don't have a separate table for linked accounts yet,
+    we synthesize this from the User model.
+    """
+    accounts = []
+    
+    # Check for password (Credentials provider)
+    if current_user.password_hash:
+        accounts.append({
+            "id": f"creds_{current_user.id}",
+            "provider": "credentials",
+            "provider_account_id": current_user.email,
+            "created_at": current_user.created_at.isoformat() if current_user.created_at else datetime.utcnow().isoformat(),
+            "expires_at": None
+        })
+        
+    # Check for future OAuth providers (e.g. metadata_json)
+    # if current_user.metadata_json and "oauth" in current_user.metadata_json: ...
+
+    return {
+        "user": {
+            "name": f"{current_user.first_name} {current_user.last_name}".strip(),
+            "email": current_user.email,
+            "image": None, # Add avatar URL if available
+            "email_verified": None, # Add verification status if available
+            "created_at": current_user.created_at.isoformat() if current_user.created_at else datetime.utcnow().isoformat(),
+        },
+        "accounts": accounts
+    }
+
+class DeleteAccountRequest(BaseModel):
+    accountId: str
+
+@router.delete("/accounts")
+async def unlink_account(
+    data: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Unlink an account.
+    """
+    # For now, we only support credentials, which cannot be unlinked if it's the only one
+    if data.accountId.startswith("creds_"):
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot unlink your primary email/password account."
+        )
+        
+    return {"success": True}
+
 @router.get("/profile")
 async def get_user_profile(current_user: User = Depends(get_current_user)):
     """Get user profile (alias for /me)"""
