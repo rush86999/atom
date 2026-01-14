@@ -25,6 +25,13 @@ class CreateTemplateRequest(BaseModel):
     tags: List[str] = []
     steps: List[Dict[str, Any]] = []
 
+class UpdateTemplateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    steps: Optional[List[Dict[str, Any]]] = None
+    inputs: Optional[List[Dict[str, Any]]] = None
+    tags: Optional[List[str]] = None
+
 @router.post("/")
 async def create_template(request: CreateTemplateRequest):
     """Create a new workflow template from the visual builder"""
@@ -89,7 +96,8 @@ async def list_templates(category: Optional[str] = None, limit: int = 50):
                 "tags": t.tags,
                 "usage_count": t.usage_count,
                 "rating": t.rating,
-                "is_featured": t.is_featured
+                "is_featured": t.is_featured,
+                "steps": [s.model_dump() if hasattr(s, 'model_dump') else s.__dict__ for s in t.steps]
             }
             for t in templates
         ]
@@ -107,6 +115,52 @@ async def get_template(template_id: str):
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
     
     return template.dict()
+
+@router.put("/{template_id}")
+async def update_template_endpoint(template_id: str, request: UpdateTemplateRequest):
+    """Update an existing workflow template"""
+    try:
+        manager = get_template_manager()
+        
+        # Convert request model to dict, excluding None values
+        updates = {k: v for k, v in request.dict().items() if v is not None}
+        
+        if not updates:
+             raise HTTPException(status_code=400, detail="No updates provided")
+
+        # Special handling for steps if provided (need to map format)
+        if "steps" in updates:
+            # We assume steps come in the same format as CreateRequest, 
+            # so we might need to process them if the internal model expects differently.
+            # However, workflow_template_system.py expects Pydantic models or dicts matching schema.
+            # Let's clean up the steps just in case
+            processed_steps = []
+            for i, step in enumerate(updates["steps"]):
+                 processed_steps.append({
+                    "id": step.get("step_id", step.get("id", f"step_{i}")), # Map step_id -> id
+                    "name": step.get("name", f"Step {i}"),
+                    "description": step.get("description", ""),
+                    "step_type": step.get("step_type", "action"),
+                    "parameters": step.get("parameters", []),
+                    "depends_on": step.get("depends_on", []),
+                    "condition": step.get("condition"),
+                    # Add other fields as needed
+                 })
+            updates["steps"] = processed_steps
+
+        updated_template = manager.update_template(template_id, updates)
+        
+        return {
+            "status": "success",
+            "message": f"Template {template_id} updated",
+            "template": updated_template.dict()
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to update template: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/{template_id}/instantiate")
 async def instantiate_template(template_id: str, request: InstantiateRequest):

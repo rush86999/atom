@@ -428,7 +428,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                         </div>
                     ) : (
                         agents.map(agent => {
-                            const maturity = MATURITY_CONFIG[agent.maturityLevel];
+                            const maturity = MATURITY_CONFIG[agent.maturityLevel] || MATURITY_CONFIG['novice'];
                             const MaturityIcon = maturity.icon;
                             return (
                                 <button
@@ -479,7 +479,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                                     <div className="flex items-center gap-2">
                                         <h2 className="font-bold text-lg">{selectedAgent.name}</h2>
                                         {(() => {
-                                            const maturity = MATURITY_CONFIG[selectedAgent.maturityLevel];
+                                            const maturity = MATURITY_CONFIG[selectedAgent.maturityLevel] || MATURITY_CONFIG['novice'];
                                             const MaturityIcon = maturity.icon;
                                             return (
                                                 <div className={cn("flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border", maturity.color)}>
