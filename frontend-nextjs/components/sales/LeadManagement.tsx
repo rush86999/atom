@@ -43,10 +43,10 @@ const LeadManagement = () => {
         }
     };
 
-    const filteredLeads = leads.filter(lead =>
+    const filteredLeads = Array.isArray(leads) ? leads.filter(lead =>
         lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    ) : [];
 
     const getScoreColor = (score: number) => {
         if (score >= 80) return "bg-green-500";

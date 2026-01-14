@@ -5,6 +5,7 @@ import GitHubProvider from "next-auth/providers/github";
 import { JWT } from "next-auth/jwt";
 import { query } from "./db";
 import bcrypt from "bcryptjs";
+import * as jsonwebtoken from "jsonwebtoken";
 
 // Extend the built-in session types
 declare module "next-auth" {
@@ -106,6 +107,19 @@ export const authOptions = {
   },
   session: {
     strategy: "jwt" as const,
+  },
+  jwt: {
+    async encode({ secret, token }) {
+      return jsonwebtoken.sign(token!, secret as string, { algorithm: "HS256" });
+    },
+    async decode({ secret, token }) {
+      if (!token) return null;
+      try {
+        return jsonwebtoken.verify(token, secret as string, { algorithms: ["HS256"] }) as JWT;
+      } catch (error) {
+        return null;
+      }
+    },
   },
   secret: process.env.NEXTAUTH_SECRET || "atom_secure_secret_2025_fixed_key",
 };

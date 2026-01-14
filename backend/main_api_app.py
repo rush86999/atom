@@ -1,4 +1,17 @@
 import os
+import sys
+from unittest.mock import MagicMock
+import types
+
+# Prevent numpy/pandas from loading real DLLs that crash on Py 3.13
+# Setting to None raises ImportError instead of crashing, allowing try-except blocks to work
+sys.modules["numpy"] = None
+sys.modules["pandas"] = None
+sys.modules["lancedb"] = None
+sys.modules["pyarrow"] = None
+
+print("⚠️  WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash")
+
 import threading
 import logging
 from pathlib import Path
@@ -23,7 +36,11 @@ from core.lazy_integration_registry import (
 from core.circuit_breaker import circuit_breaker
 from core.resource_guards import ResourceGuard, MemoryGuard
 from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
-from core.integration_loader import IntegrationLoader # Kept for backward compatibility if needed
+try:
+    from core.integration_loader import IntegrationLoader # Kept for backward compatibility if needed
+except ImportError:
+    IntegrationLoader = None
+    print("⚠️ WARNING: IntegrationLoader could not be imported (likely numpy/lancedb issue)")
 
 # --- CONFIGURATION & LOGGING ---
 logging.basicConfig(
@@ -436,6 +453,14 @@ try:
     except ImportError as e:
         logger.warning(f"AI Workflows routes not found: {e}")
 
+    # 13.5 Workflow Templates Routes (Fix for 404s)
+    try:
+        from api.workflow_template_routes import router as wf_template_router
+        app.include_router(wf_template_router, prefix="/api/workflow-templates", tags=["Workflow Templates"])
+        logger.info("✓ Workflow Template Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Workflow Template routes not found: {e}")
+
     # 14. Background Agent Routes
     try:
         from api.background_agent_routes import router as bg_agent_router
@@ -443,6 +468,27 @@ try:
         logger.info("✓ Background Agent Routes Loaded")
     except ImportError as e:
         logger.warning(f"Background Agent routes not found: {e}")
+
+    # 14.5 Core Agent Routes (The missing piece)
+    try:
+        from api.agent_routes import router as agent_router
+        app.include_router(agent_router, prefix="/api/agents", tags=["Agents"])
+        logger.info("✓ Core Agent Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Core Agent routes not found: {e}")
+
+    # 14.6 Core Business Routes (Intelligence, Projects, Sales)
+    try:
+        from api.intelligence_routes import router as intelligence_router
+        from api.project_routes import router as project_router
+        from api.sales_routes import router as sales_router
+        
+        app.include_router(intelligence_router) # Prefix defined in router
+        app.include_router(project_router)      # Prefix defined in router
+        app.include_router(sales_router)        # Prefix defined in router
+        logger.info("✓ Core Business Routes Loaded (Intelligence, Projects, Sales)")
+    except ImportError as e:
+        logger.warning(f"Core Business routes not found: {e}")
 
     # 15. Integration Health Stubs (fallback endpoints for missing integrations)
     try:
@@ -579,6 +625,23 @@ async def startup_event():
     logger.info("ATOM Platform Starting (Hybrid Mode)")
     logger.info("=" * 60)
     
+    # 0. Initialize Database (Critical for in-memory DB)
+    try:
+        from core.database import engine
+        from core.models import Base
+        from core.admin_bootstrap import ensure_admin_user
+        
+        logger.info("Initializing database tables...")
+        Base.metadata.create_all(bind=engine)
+        logger.info("✓ Database tables created")
+        
+        logger.info("Bootstrapping admin user...")
+        ensure_admin_user()
+        logger.info("✓ Admin user ready")
+        
+    except Exception as e:
+        logger.error(f"CRITICAL: Database initialization failed: {e}")
+
     # 1. Load Essential Integrations (defined in registry)
     # This bridges the gap - specific plugins you ALWAYS want can be defined there
     if ESSENTIAL_INTEGRATIONS:
@@ -595,7 +658,7 @@ async def startup_event():
                 logger.error(f"  ✗ Failed to load essential plugin {name}: {e}")
 
     # Check if schedulers should run (Default: True for Monolith, False for API-only replicas)
-    enable_scheduler = os.getenv("ENABLE_SCHEDULER", "true").lower() == "true"
+    enable_scheduler = os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
     
     if enable_scheduler:
         # 2. Start Workflow Scheduler (Run in main event loop)
@@ -644,4 +707,11 @@ async def shutdown_event():
         pass
 
 if __name__ == "__main__":
+    # Bootstrap Admin User (Avoids DB locking issues)
+    try:
+        from core.admin_bootstrap import ensure_admin_user
+        ensure_admin_user()
+    except Exception as e:
+        logger.error(f"Failed to bootstrap admin: {e}")
+
     uvicorn.run("main_api_app:app", host="0.0.0.0", port=8000, reload=True)

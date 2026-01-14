@@ -249,6 +249,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET || "development-fallback-secret-123",
+  debug: true,
 };
 
 export default NextAuth(authOptions);

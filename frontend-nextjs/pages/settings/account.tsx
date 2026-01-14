@@ -44,13 +44,31 @@ export default function AccountSettings() {
 
     const fetchAccounts = async () => {
         try {
-            const response = await fetch('/api/auth/accounts');
+            // @ts-ignore - backendToken is added in [...nextauth].ts
+            const token = (session as any)?.backendToken || (session as any)?.user?.token;
+
+            const response = await fetch('/api/auth/accounts', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             if (!response.ok) {
-                throw new Error('Failed to fetch accounts');
+                // Try to parse error response
+                let errorMsg = `Error ${response.status}: ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.detail) errorMsg += ` - ${errorData.detail}`;
+                } catch (e) {
+                    // Ignore json parse error
+                    const text = await response.text();
+                    if (text) errorMsg += ` - ${text.substring(0, 100)}`;
+                }
+                throw new Error(errorMsg);
             }
             const data = await response.json();
             setAccountData(data);
         } catch (err: any) {
+            console.error("Fetch accounts error:", err);
             setError(err.message || 'Failed to load account information');
         } finally {
             setLoading(false);
@@ -66,9 +84,15 @@ export default function AccountSettings() {
         setError('');
 
         try {
+            // @ts-ignore
+            const token = (session as any)?.backendToken || (session as any)?.user?.token;
+
             const response = await fetch('/api/auth/accounts', {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ accountId }),
             });
 
@@ -125,7 +149,12 @@ export default function AccountSettings() {
         return (
             <div className="min-h-screen flex items-center justify-center p-4">
                 <Alert variant="destructive" className="max-w-md">
-                    <AlertDescription>Failed to load account information</AlertDescription>
+                    <AlertDescription className="space-y-4">
+                        <p className="font-semibold">{error || 'Failed to load account information'}</p>
+                        <Button variant="outline" size="sm" onClick={fetchAccounts} className="w-full">
+                            <span className="mr-2">↻</span> Retry
+                        </Button>
+                    </AlertDescription>
                 </Alert>
             </div>
         );

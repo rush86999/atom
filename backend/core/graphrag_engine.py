@@ -35,8 +35,8 @@ except ImportError:
 
 # NetworkX for Leiden community detection
 try:
-    import networkx as nx
-    NETWORKX_AVAILABLE = True
+    # import networkx as nx
+    NETWORKX_AVAILABLE = False # True
 except ImportError:
     NETWORKX_AVAILABLE = False
     logger.warning("NetworkX not available for Leiden community detection")
