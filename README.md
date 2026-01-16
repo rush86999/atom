@@ -47,6 +47,7 @@ Atom remembers everything so you don't have to repeat yourself.
 - **Capability Recall**: Agents use long-term memory to remember which services you've connected, allowing them to proactively suggest actions.
 - **Unified Index**: Emails, Notion docs, Jira tickets, and Slack threads are indexed for instant retrieval.
 - **Knowledge Graph**: Atom builds a graph of your people, projects, and tasks to understand *relationships*, not just keywords.
+- **Trusted Memory (New)**: Store critical business facts (policies, compliance rules) with **JIT Citations**. Agents must "Trust but Verify" these facts against the source document before acting, ensuring 100% adherence to your rules.
 - **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted (Fernet at-rest).
 
 ### 🔌 **Deep Integrations (Hybrid Runtime)**
