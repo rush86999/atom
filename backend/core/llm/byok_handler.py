@@ -1,6 +1,8 @@
 
 import logging
 import os
+import re
+import json
 from typing import Optional, Dict, Any, List
 from enum import Enum
 
@@ -95,6 +97,8 @@ class BYOKHandler:
             "openai": {"base_url": None},
             "deepseek": {"base_url": "https://api.deepseek.com/v1"},
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
+            "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
+            "google_flash": {"base_url": None}, # Google handled via vertex/ai-studio usually, but BYOK wraps it
         }
         
         for provider_id, config in providers_config.items():
@@ -234,47 +238,87 @@ class BYOKHandler:
         model_type: str = "auto",  # "auto", "fast", "quality", or specific model
         temperature: float = 0.7,
         task_type: Optional[str] = None,
-        prefer_cost: bool = True
+        prefer_cost: bool = True,
+        image_payload: Optional[List[Dict[str, Any]]] = None
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
-        
-        Args:
-            prompt: The user prompt
-            system_instruction: System instruction for the LLM
-            model_type: "auto" for complexity-based routing, or specify model
-            temperature: Sampling temperature
-            task_type: Optional task type hint (code, chat, analysis, etc.)
-            prefer_cost: If True, prefer cheaper providers when quality is similar
         """
         if not self.clients:
             return "LLM Client not initialized (No API Keys configured)."
         
         try:
+            # 1. Specialized Task Preference (e.g., DeepSeek-OCR for PDF)
+            if task_type == "pdf_ocr":
+                if "deepinfra" in self.clients:
+                    provider_id = "deepinfra"
+                    model = "deepseek-ai/DeepSeek-OCR"
+                    logger.info("Routing specialized PDF OCR task to DeepInfra")
+                    client = self.clients[provider_id]
+                    # Make the request
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": system_instruction},
+                            {"role": "user", "content": prompt if not image_payload else [
+                                {"type": "text", "text": prompt},
+                                *image_payload
+                            ]}
+                        ],
+                        temperature=temperature
+                    )
+                    return response.choices[0].message.content
+
             # Analyze complexity for routing
             complexity = self.analyze_query_complexity(prompt, task_type)
             
             # Get optimal provider
             provider_id, model = self.get_optimal_provider(complexity, task_type, prefer_cost)
-            
+
+            # Vision Routing logic
+            if image_payload:
+                vision_models = ["gpt-4o", "gemini-2.0-flash", "gemini-1.5-flash", "claude-3-5-sonnet", "deepseek", "deepinfra"]
+                
+                # Check if selected models supports vision
+                is_vision_capable = any(vm in model.lower() for vm in vision_models) or provider_id in ["deepseek", "deepinfra"]
+                
+                if not is_vision_capable:
+                    # Fallback to cheapest vision model
+                    if "deepinfra" in self.clients:
+                        provider_id, model = "deepinfra", "deepseek-ai/DeepSeek-OCR"
+                    elif "openai" in self.clients:
+                        provider_id, model = "openai", "gpt-4o-mini"
+                    else:
+                        # Find ANY vision model
+                        for v_id, v_client in self.clients.items():
+                            provider_id, model = v_id, "vision-default"
+                            break
+
             client = self.clients[provider_id]
             
             # Make the request
+            messages = [{"role": "system", "content": system_instruction}]
+            if image_payload:
+                messages.append({
+                    "role": "user",
+                    "content": [{"type": "text", "text": prompt}] + image_payload
+                })
+            else:
+                messages.append({"role": "user", "content": prompt})
+
             response = client.chat.completions.create(
                 model=model,
-                messages=[
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": prompt}
-                ],
+                messages=messages,
                 temperature=temperature
             )
             
             result = response.choices[0].message.content
-            
-            # Log for analytics
-            logger.info(f"BYOK Cost Optimization: complexity={complexity.value}, provider={provider_id}, model={model}")
-            
+            logger.info(f"BYOK: provider={provider_id}, model={model}, task={task_type}")
             return result
+            
+        except Exception as e:
+            logger.error(f"LLM Generation failed: {e}")
+            return f"Error generating response: {str(e)}"
             
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
