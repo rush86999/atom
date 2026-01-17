@@ -162,7 +162,7 @@ class BYOKManager:
                 description="Commoditized Intelligence (Reasoning Engine)",
                 api_key_env_var="DEEPSEEK_API_KEY",
                 base_url="https://api.deepseek.com/v1",
-                supported_tasks=["general", "chat", "code", "analysis", "reasoning"],
+                supported_tasks=["general", "chat", "code", "analysis", "reasoning", "vision"],
                 cost_per_token=0.00000014, # ~$0.14 per million tokens
                 model="deepseek-chat",
                 reasoning_level=4, # High reasoning capability
@@ -173,7 +173,7 @@ class BYOKManager:
                 name="OpenAI",
                 description="GPT-4 and GPT-3.5 models",
                 api_key_env_var="OPENAI_API_KEY",
-                supported_tasks=["general", "chat", "code", "analysis"],
+                supported_tasks=["general", "chat", "code", "analysis", "vision", "reasoning"],
                 cost_per_token=0.00003, # ~$30 per million
                 model="gpt-4o",
                 reasoning_level=3,
@@ -184,7 +184,7 @@ class BYOKManager:
                 name="Anthropic",
                 description="Claude 3 Opus, Sonnet, and Haiku",
                 api_key_env_var="ANTHROPIC_API_KEY",
-                supported_tasks=["general", "chat", "code", "analysis", "writing"],
+                supported_tasks=["general", "chat", "code", "analysis", "writing", "vision", "reasoning"],
                 cost_per_token=0.000015,
                 model="claude-3-5-sonnet-20240620",
                 reasoning_level=3,
@@ -208,7 +208,7 @@ class BYOKManager:
                 description="Gemini 1.5 Pro",
                 api_key_env_var="GOOGLE_API_KEY",
                 base_url="https://generativelanguage.googleapis.com/v1beta",
-                supported_tasks=["general", "chat", "code", "analysis", "multimodal"],
+                supported_tasks=["general", "chat", "code", "analysis", "multimodal", "vision", "reasoning"],
                 cost_per_token=0.0000125,
                 model="gemini-1.5-pro",
                 reasoning_level=3,
@@ -220,7 +220,7 @@ class BYOKManager:
                 description="Gemini 1.5 Flash - High Speed",
                 api_key_env_var="GOOGLE_API_KEY",
                 base_url="https://generativelanguage.googleapis.com/v1beta",
-                supported_tasks=["general", "chat", "summary", "extraction"],
+                supported_tasks=["general", "chat", "summary", "extraction", "vision", "pdf_ocr"],
                 cost_per_token=0.0000005,
                 model="gemini-1.5-flash",
                 reasoning_level=2,
@@ -260,6 +260,17 @@ class BYOKManager:
                 model="glm-4.6",
                 reasoning_level=3,
                 supports_structured_output=False
+            ),
+            AIProviderConfig(
+                id="deepinfra",
+                name="DeepInfra",
+                description="DeepSeek-OCR and other open models",
+                api_key_env_var="DEEPINFRA_API_KEY",
+                base_url="https://api.deepinfra.com/v1/openai",
+                supported_tasks=["general", "chat", "pdf_ocr", "image_comprehension"],
+                cost_per_token=0.000001, # Varies by model
+                model="deepseek-ai/DeepSeek-OCR",
+                reasoning_level=2
             )
         ]
         
