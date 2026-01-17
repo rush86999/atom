@@ -794,6 +794,72 @@ class MCPService:
         
         return {"error": f"Tool '{tool_name}' not found on any active server."}
 
+    async def _check_hitl_policy(self, tool_name: str, arguments: Dict[str, Any], context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Policy Engine for Human-in-the-Loop.
+        Returns a HITL interception result dict if action should be paused, else None.
+        """
+        risky_tools = ["send_email", "whatsapp_send_message", "whatsapp_send_template", "send_message", "create_invoice"]
+        
+        if tool_name not in risky_tools:
+            return None
+
+        # 1. Gather Context
+        agent_id = context.get("agent_id")
+        user_id = context.get("user_id")
+        workspace_id = context.get("workspace_id", "default")
+        
+        should_intercept = True
+        
+        try:
+            from core.database import SessionLocal
+            from core.models import AgentRegistry, User, Workspace
+            
+            with SessionLocal() as db:
+                # 2. Check Agent Maturity & Overrides
+                if agent_id:
+                    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+                    
+                    if agent and agent.maturity_level >= 5: # Autonomous
+                        # Check Workspace/Tenant Policy
+                        workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+                        allow_autonomous = False
+                        if workspace and workspace.metadata_json:
+                            # Replicating logic using Workspace as "Tenant" proxy
+                            allow_autonomous = workspace.metadata_json.get("governance", {}).get("allow_autonomous_external", False)
+                        
+                        # Check User Preference Override (Force HITL)
+                        user_force_hitl = False
+                        if user_id:
+                            user = db.query(User).filter(User.id == user_id).first()
+                            if user and user.preferences:
+                                user_force_hitl = user.preferences.get("force_agent_approval", False)
+                        
+                        if allow_autonomous and not user_force_hitl:
+                            should_intercept = False
+                            logger.info(f"HITL Bypass: Agent {agent_id} is Autonomous and allowed by policy.")
+
+        except Exception as e:
+            logger.error(f"HITL Policy Check Failed: {e}")
+            # Fail safe: intercept if error
+            should_intercept = True
+
+        if should_intercept:
+            from core.intervention_service import intervention_service
+            
+            reason = f"Action {tool_name} requires approval (Maturity/Policy check)"
+            return await intervention_service.request_intervention(
+                workspace_id=workspace_id,
+                action_type=tool_name,
+                platform="hitl_policy",
+                params=arguments,
+                reason=reason,
+                agent_id=agent_id,
+                user_id=user_id
+            )
+        
+        return None
+
     async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool on a specific MCP server."""
         # Phase 41: Helper to check cloud access
@@ -801,19 +867,26 @@ class MCPService:
             if workspace_id == "default": return True # Allow for easier testing
             try:
                 from core.database import SessionLocal
-                from core.models import Tenant, Workspace, PlanType
+                from core.models import Workspace
                 with SessionLocal() as db:
                     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
                     if not workspace: return False
-                    tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
-                    if not tenant: return False
-                    return tenant.plan_type == PlanType.ENTERPRISE
+                    # Use Workspace Plan Tier directly (assuming Tenant model is deprecated/missing in upstream)
+                    # Mapping generic plan names to PlanType if needed or just string match
+                    return workspace.plan_tier == "enterprise" 
             except Exception as e:
                 logger.warning(f"Cloud access check failed: {e}")
                 return False
 
         logger.info(f"Executing MCP tool {tool_name} on server {server_id} with args: {arguments}")
-        context = context or {}
+        if context is None:
+            context = {}
+            
+        # HITL Policy Enforcement
+        hitl_result = await self._check_hitl_policy(tool_name, arguments, context)
+        if hitl_result:
+             logger.info(f"Tool execution intercepted by HITL Policy: {tool_name}")
+             return hitl_result
         
         if server_id == "google-search" or tool_name == "web_search":
             return await self.web_search(arguments.get("query", ""))
