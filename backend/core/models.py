@@ -58,6 +58,7 @@ class Workspace(Base):
     # Autonomous Agent Guardrails
     is_startup = Column(Boolean, default=False)
     learning_phase_completed = Column(Boolean, default=False)
+    metadata_json = Column(JSON, default={}) # Governance & Config
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -106,6 +107,7 @@ class User(Base):
     capacity_hours = Column(Float, default=40.0) # Weekly capacity
     hourly_cost_rate = Column(Float, default=0.0) # Internal labor cost
     metadata_json = Column(JSON, nullable=True)
+    preferences = Column(JSON, default={}) # User Preferences (Phase 45)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -338,6 +340,10 @@ class HITLAction(Base):
     
     status = Column(String, default=HITLActionStatus.PENDING.value)
     reason = Column(String, nullable=True) # e.g., "Learning Phase: External Contact"
+    
+    # Ownership
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    
     confidence_score = Column(Float, default=0.0)
     user_feedback = Column(Text, nullable=True)
     
@@ -374,6 +380,10 @@ class AgentRegistry(Base):
     # Technical Config
     module_path = Column(String, nullable=False) # e.g., "operations.automations.inventory"
     class_name = Column(String, nullable=False)
+    
+    # Ownership
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+
     
     # Governance
     status = Column(String, default=AgentStatus.STUDENT.value)

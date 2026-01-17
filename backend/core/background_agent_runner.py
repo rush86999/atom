@@ -141,7 +141,26 @@ class BackgroundAgentRunner:
             
             if agent_id in AGENTS:
                 agent_def = AGENTS[agent_id]
-                result = await execute_agent_task(agent_id, agent_def, {})
+                
+                # Phase 35: Inject Context particularly user_id if we can determine it
+                # For background runners, they usually run as 'system' or 'owner'
+                # We can check if agent has an owner in DB
+                from core.database import SessionLocal
+                from core.models import AgentRegistry
+                
+                context = {"agent_id": agent_id}
+                
+                try:
+                    db = SessionLocal()
+                    agent_record = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+                    if agent_record and agent_record.user_id:
+                        context["user_id"] = agent_record.user_id
+                except Exception as e:
+                    logger.warning(f"Could not fetch agent owner context: {e}")
+                finally:
+                    db.close()
+
+                result = await execute_agent_task(agent_id, agent_def, context)
                 
                 self._log(agent_id, "completed", f"Result: {json.dumps(result)[:200]}")
                 return result
