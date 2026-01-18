@@ -26,6 +26,7 @@ interface OnboardingWizardProps {
 const steps = [
     { title: "Welcome", description: "Start here" },
     { title: "Profile", description: "Set up details" },
+    { title: "Connect", description: "AI Configuration" },
     { title: "Ready", description: "Let's go" },
 ];
 
@@ -47,17 +48,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     const handleNext = async () => {
         if (activeStep === 0) {
             setActiveStep(1);
-        } else if (activeStep === 1) {
-            // Validation could go here
-            if (!profileData.role) {
-                toast({
-                    title: "Role required",
-                    description: "Please tell us your primary role.",
-                    variant: "error",
-                });
-                return;
-            }
             setActiveStep(2);
+        } else if (activeStep === 2) {
+            // BYOK step - allow skip
+            setActiveStep(3);
         } else {
             await completeOnboarding();
         }
@@ -182,6 +176,26 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     )}
 
                     {activeStep === 2 && (
+                        <div className="space-y-4 px-4 text-center">
+                            <FaRobot className="w-12 h-12 text-purple-600 mx-auto" />
+                            <h3 className="text-xl font-bold">Connect Your Intelligence</h3>
+                            <p className="text-sm text-gray-500">
+                                Atom uses a "Tiered BYOK" approach. You can provide your own API keys for maximum control and lowest costs.
+                            </p>
+                            <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 text-left">
+                                <h4 className="text-sm font-semibold text-purple-900 mb-1">Recommended Pairing:</h4>
+                                <ul className="text-xs text-purple-800 space-y-1">
+                                    <li>• <b>Core Brain:</b> OpenAI or DeepSeek</li>
+                                    <li>• <b>Vision/OCR:</b> Google Gemini Flash (Cheapest for PDFs)</li>
+                                </ul>
+                            </div>
+                            <p className="text-xs text-gray-400">
+                                You can configure these later in Settings &gt; AI Provider.
+                            </p>
+                        </div>
+                    )}
+
+                    {activeStep === 3 && (
                         <div className="flex flex-col items-center text-center space-y-4">
                             <FaRocket className="w-16 h-16 text-green-500" />
                             <h2 className="text-2xl font-bold">You're Ready!</h2>

@@ -2,11 +2,14 @@ import logging
 import asyncio
 import base64
 import os
+import io
 from typing import Dict, Any, List, Optional
 from playwright.async_api import Page
+from PIL import Image
 
 from browser_engine.driver import BrowserManager
 from integrations.mcp_service import mcp_service
+from ai.lux_model import LuxModel, ComputerActionType
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +21,7 @@ class BrowserAgent:
     def __init__(self, headless: bool = True):
         self.manager = BrowserManager.get_instance(headless=headless)
         self.mcp = mcp_service  # MCP access for web search and web access
+        self.lux = LuxModel() # Vision-based brain
 
     async def execute_task(self, url: str, goal: str, safe_mode: bool = True) -> Dict[str, Any]:
         """
@@ -39,29 +43,48 @@ class BrowserAgent:
             await page.goto(url)
             await page.wait_for_load_state("networkidle")
             
-            # Simulated Lux Loop (Placeholder for 'oagi' integration)
-            # We pass context_data to the planner (mocked here)
-            action_plan = self._get_lux_action_plan(goal, context_data)
-            
             execution_log = []
+            max_steps = 10
             
-            for step in action_plan:
-                # Security Guardrail Check
-                if not self._validate_action_safety(step, safe_mode):
-                    error_msg = f"Security Guardrail Triggered: Action '{step.get('action')}' on '{step.get('selector')}' is blocked."
-                    logger.error(error_msg)
-                    return {"status": "blocked", "error": error_msg}
+            for i in range(max_steps):
+                # 3. Capture State (Visual)
+                screenshot_bytes = await page.screenshot(type="png")
+                screenshot_img = Image.open(io.BytesIO(screenshot_bytes))
                 
-                await self._perform_step(page, step)
-                execution_log.append(step)
-            
-            # 4. Knowledge Extraction (Simulated for MVP)
-            # In real system, we'd process the final DOM or visual state
-            result_data = {"goal": goal, "url": url, "status": "completed"}
-            if "Find CEO" in goal: 
-                # Mock finding data from page
-                result_data["extracted_info"] = {"role": "CEO", "name": "Alice Smith"}
-            
+                # 4. Lux Predict (Visual Reasoning)
+                # We ask Lux to interpret the current state vs the goal
+                state_desc = f"Current URL: {page.url}. I am on step {i+1} of '{goal}'."
+                
+                # Context integration
+                prompt_context = ""
+                if context_data.get("business_facts"):
+                    prompt_context += f"\nCONSTRAINT/FACTS: {'; '.join(context_data['business_facts'])}"
+                if context_data.get("credentials_hint"):
+                    prompt_context += f"\nHINT: {context_data['credentials_hint']}"
+                
+                full_prompt = f"{goal}. {state_desc} {prompt_context}"
+                actions = await self.lux.interpret_command(full_prompt, screenshot_img)
+                
+                if not actions:
+                    logger.info("No more actions predicted by Lux. Goal might be reached.")
+                    break
+                    
+                for action in actions:
+                    # Security Guardrail Check
+                    if not self._validate_action_safety(action, safe_mode):
+                        error_msg = f"Security Guardrail Triggered: Action '{action.action_type}' is blocked."
+                        logger.error(error_msg)
+                        return {"status": "blocked", "error": error_msg}
+                    
+                    # 5. Perform Action
+                    await self._perform_lux_action(page, action)
+                    execution_log.append(action.description)
+                    
+                    # Short wait for UI to react
+                    await asyncio.sleep(1)
+
+            # 6. Knowledge Extraction
+            result_data = {"goal": goal, "url": url, "status": "completed", "steps": execution_log}
             await self._save_knowledge(result_data)
                 
             return {"status": "success", "message": "Task completed", "data": result_data}
@@ -83,14 +106,24 @@ class BrowserAgent:
             
             # 1. Search semantic memory
             results = handler.search("documents", goal, limit=3)
+
+            # 2. Search Business Facts
+            from core.agent_world_model import WorldModelService
+            wm = WorldModelService(workspace_id="default") # Default for now, ideally passed in
+            facts = await wm.get_relevant_business_facts(goal, limit=3)
             
-            # 2. Convert to context dict
-            context = {}
+            # 3. Convert to context dict
+            context = {
+                "business_facts": [f"{f.fact} (Source: {f.citations})" for f in facts]
+            }
             for res in results:
                 # flatten relevant info
                 if "username" in res["text"].lower():
                     context["credentials_hint"] = res["text"]
             
+            if facts:
+                logger.info(f"Injecting {len(facts)} business facts into Browser Agent context")
+
             return context
         except ImportError:
             logger.warning("Core modules not available, skipping context injection")
@@ -118,7 +151,7 @@ class BrowserAgent:
         except Exception as e:
             logger.warning(f"Knowledge save failed: {e}")
 
-    def _validate_action_safety(self, step: Dict[str, Any], safe_mode: bool) -> bool:
+    def _validate_action_safety(self, action: Any, safe_mode: bool) -> bool:
         """
         Guardrail: Block high-risk actions unless verified.
         """
@@ -127,12 +160,12 @@ class BrowserAgent:
             
         risky_keywords = ["pay", "send money", "transfer", "tax", "checkout"]
         
-        # Check selector and value for risky keywords
-        selector = step.get("selector", "").lower()
-        value = str(step.get("value", "")).lower()
+        # Check description and parameters for risky keywords
+        description = action.description.lower()
+        params = str(action.parameters).lower()
         
         for keyword in risky_keywords:
-            if keyword in selector or keyword in value:
+            if keyword in description or keyword in params:
                 logger.warning(f"Guardrail Risk Detected: '{keyword}' in action.")
                 return False
                 
@@ -175,26 +208,48 @@ class BrowserAgent:
             
         return []
 
-    async def _perform_step(self, page: Page, step: Dict[str, Any]):
-        """Execute a single action on the page."""
-        action = step.get("action")
-        selector = step.get("selector")
+    async def _perform_lux_action(self, page: Page, action: Any):
+        """Execute a single Lux action using Playwright."""
+        action_type = action.action_type
+        params = action.parameters
         
-        logger.info(f"Agent Action: {action} on {selector}")
+        logger.info(f"Agent Action: {action_type} - {action.description}")
         
-        if action == "fill":
-            await page.fill(selector, step["value"])
-        elif action == "click":
-            await page.click(selector)
-        elif action == "wait":
-            await page.wait_for_load_state(step.get("state", "load"))
-        elif action == "wait_download":
-            # Handle download event
-            async with page.expect_download() as download_info:
-                # Trigger is usually the previous click, but for linear execution we assume it happened
-                # In real Playwright, expect_download must wrap the click. 
-                # Refactoring to standard Playwright sub-method if needed.
-                pass 
+        if action_type == ComputerActionType.CLICK:
+            if 'coordinates' in params:
+                x, y = params['coordinates']
+                await page.mouse.click(x, y)
+            elif 'selector' in params:
+                await page.click(params['selector'])
+                
+        elif action_type == ComputerActionType.TYPE:
+            text = params.get('text', '')
+            selector = params.get('selector')
+            # If coordinates provided, click first to focus
+            if 'coordinates' in params:
+                x, y = params['coordinates']
+                await page.mouse.click(x, y)
+            elif selector:
+                await page.fill(selector, text)
+                return
+            await page.keyboard.type(text)
+            
+        elif action_type == ComputerActionType.KEYBOARD:
+            keys = params.get('keys', [])
+            for key in keys:
+                await page.keyboard.press(key)
+                
+        elif action_type == ComputerActionType.SCROLL:
+            direction = params.get('direction', 'down')
+            amount = params.get('amount', 500)
+            if direction == 'down':
+                await page.mouse.wheel(0, amount)
+            else:
+                await page.mouse.wheel(0, -amount)
+                
+        elif action_type == ComputerActionType.WAIT:
+            duration = params.get('duration', 1.0)
+            await asyncio.sleep(duration)
 
     async def login_and_download(self, url: str, creds: Dict[str, str]):
         """

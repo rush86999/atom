@@ -529,7 +529,14 @@ test.describe('Comprehensive Full Stack Coverage', () => {
             });
         });
 
-        // Final count check: 83 + 18 = 101 tests.
+        test('100. System: Environment Mode Check', async ({ request }) => {
+            const response = await request.get(`${BACKEND_URL}/`);
+            expect(response.ok()).toBeTruthy();
+            const data = await response.json();
+            // Should contain mode info
+            expect(data.mode).toBeDefined();
+        });
+
     });
 
 });

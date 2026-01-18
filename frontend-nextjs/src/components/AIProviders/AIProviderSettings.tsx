@@ -226,6 +226,12 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     );
   }
 
+  const getProviderCategory = (capabilities: string[] = []) => {
+    if (capabilities.includes("reasoning")) return "Core Intelligence";
+    if (capabilities.includes("vision") || capabilities.includes("pdf_ocr")) return "Vision & Extraction";
+    return "Specialized & Alternatives";
+  };
+
   if (error) {
     return (
       <div className={`ai-provider-settings ${className}`}>
@@ -276,121 +282,129 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
         </div>
       )}
 
-      <div className="providers-grid">
-        {userStatus &&
-          Object.entries(userStatus.status).map(([provider, status]) => (
-            <div
-              key={provider}
-              className={`provider-card ${status.configured ? "configured" : "not-configured"}`}
-            >
-              <div className="provider-header">
-                <h3>{status.provider_info.name}</h3>
+      {["Core Intelligence", "Vision & Extraction", "Specialized & Alternatives"].map(category => {
+        const providersInCategory = userStatus ? Object.entries(userStatus.status).filter(
+          ([_, status]) => getProviderCategory(status.provider_info.capabilities) === category
+        ) : [];
+
+        if (providersInCategory.length === 0) return null;
+
+        return (
+          <div key={category} className="category-section">
+            <h3 className="category-title">{category}</h3>
+            <div className="providers-grid">
+              {providersInCategory.map(([provider, status]) => (
                 <div
-                  className={`status-badge ${status.test_result.success ? "success" : status.configured ? "error" : "not-configured"}`}
+                  key={provider}
+                  className={`provider-card ${status.configured ? "configured" : "not-configured"}`}
                 >
-                  {status.test_result.success
-                    ? "✓ Working"
-                    : status.configured
-                      ? "✗ Failed"
-                      : "Not Configured"}
-                </div>
-              </div>
-
-              <p className="provider-description">
-                {status.provider_info.description}
-              </p>
-
-              <div className="provider-details">
-                <div className="detail">
-                  <strong>Models:</strong>{" "}
-                  {status.provider_info.models.join(", ")}
-                </div>
-                <div className="detail">
-                  <strong>Capabilities:</strong>{" "}
-                  {status.provider_info.capabilities.join(", ")}
-                </div>
-                <div className="detail">
-                  <strong>Key Format:</strong>{" "}
-                  {status.provider_info.expected_format}
-                </div>
-              </div>
-
-              {status.test_result.message &&
-                !status.test_result.success &&
-                status.configured && (
-                  <div className="error-message">
-                    {status.test_result.message}
-                  </div>
-                )}
-
-              <div className="provider-actions">
-                {!status.configured || showKeyInput[provider] ? (
-                  <div className="key-input-section">
-                    <input
-                      type="password"
-                      placeholder={`Enter your ${status.provider_info.name} API key`}
-                      value={apiKeys[provider] || ""}
-                      onChange={(e) =>
-                        handleKeyChange(provider, e.target.value)
-                      }
-                      className="key-input"
-                    />
-                    <div className="key-actions">
-                      <button
-                        onClick={() =>
-                          saveAPIKey(provider, apiKeys[provider] || "")
-                        }
-                        disabled={!apiKeys[provider] || saving === provider}
-                        className="save-btn"
-                      >
-                        {saving === provider ? "Saving..." : "Save Key"}
-                      </button>
-                      {status.configured && (
-                        <button
-                          onClick={() => toggleKeyInput(provider)}
-                          className="cancel-btn"
-                        >
-                          Cancel
-                        </button>
-                      )}
+                  <div className="provider-header">
+                    <h3>{status.provider_info.name}</h3>
+                    <div
+                      className={`status-badge ${status.test_result.success ? "success" : status.configured ? "error" : "not-configured"}`}
+                    >
+                      {status.test_result.success
+                        ? "✓ Working"
+                        : status.configured
+                          ? "✗ Failed"
+                          : "Not Configured"}
                     </div>
                   </div>
-                ) : (
-                  <div className="configured-actions">
-                    <button
-                      onClick={() => testAPIKey(provider)}
-                      disabled={testing === provider}
-                      className="test-btn"
-                    >
-                      {testing === provider ? "Testing..." : "Test Connection"}
-                    </button>
-                    <button
-                      onClick={() => toggleKeyInput(provider)}
-                      className="update-btn"
-                    >
-                      Update Key
-                    </button>
-                    <button
-                      onClick={() => deleteAPIKey(provider)}
-                      className="delete-btn"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
 
-                <a
-                  href={status.provider_info.acquisition_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="get-key-link"
-                >
-                  Get API Key
-                </a>
-              </div>
+                  <p className="provider-description">
+                    {status.provider_info.description}
+                  </p>
+
+                  <div className="provider-details">
+                    <div className="detail">
+                      <strong>Models:</strong>{" "}
+                      {status.provider_info.models.join(", ")}
+                    </div>
+                    <div className="detail">
+                      <strong>Capabilities:</strong>{" "}
+                      {status.provider_info.capabilities.join(", ")}
+                    </div>
+                  </div>
+
+                  {status.test_result.message &&
+                    !status.test_result.success &&
+                    status.configured && (
+                      <div className="error-message">
+                        {status.test_result.message}
+                      </div>
+                    )}
+
+                  <div className="provider-actions">
+                    {!status.configured || showKeyInput[provider] ? (
+                      <div className="key-input-section">
+                        <input
+                          type="password"
+                          placeholder={`Enter your ${status.provider_info.name} API key`}
+                          value={apiKeys[provider] || ""}
+                          onChange={(e) =>
+                            handleKeyChange(provider, e.target.value)
+                          }
+                          className="key-input"
+                        />
+                        <div className="key-actions">
+                          <button
+                            onClick={() =>
+                              saveAPIKey(provider, apiKeys[provider] || "")
+                            }
+                            disabled={!apiKeys[provider] || saving === provider}
+                            className="save-btn"
+                          >
+                            {saving === provider ? "Saving..." : "Save Key"}
+                          </button>
+                          {status.configured && (
+                            <button
+                              onClick={() => toggleKeyInput(provider)}
+                              className="cancel-btn"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="configured-actions">
+                        <button
+                          onClick={() => testAPIKey(provider)}
+                          disabled={testing === provider}
+                          className="test-btn"
+                        >
+                          {testing === provider ? "Testing..." : "Test Connection"}
+                        </button>
+                        <button
+                          onClick={() => toggleKeyInput(provider)}
+                          className="update-btn"
+                        >
+                          Update Key
+                        </button>
+                        <button
+                          onClick={() => deleteAPIKey(provider)}
+                          className="delete-btn"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+
+                    <a
+                      href={status.provider_info.acquisition_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="get-key-link"
+                    >
+                      Get API Key
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-      </div>
+          </div>
+        );
+      })}
 
       <style>{`
         .ai-provider-settings {
@@ -402,6 +416,18 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
         .description {
           color: #666;
           margin-bottom: 30px;
+        }
+
+        .category-section {
+          margin-bottom: 40px;
+        }
+
+        .category-title {
+          font-size: 1.5rem;
+          color: #2c3e50;
+          margin-bottom: 20px;
+          padding-bottom: 10px;
+          border-bottom: 2px solid #ecf0f1;
         }
 
         .status-summary {
