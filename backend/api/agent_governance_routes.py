@@ -12,6 +12,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Import newly created intervention service
+from core.intervention_service import intervention_service
+from core.database import SessionLocal
+from core.models import User, UserRole
+
 router = APIRouter(prefix="/api/agent-governance", tags=["Agent Governance"])
 
 
@@ -400,12 +405,13 @@ async def list_pending_approvals(
     Used by team leads/admins to review and approve workflows.
     """
     try:
-        # In production, query HITLAction table for pending items
-        # For now, return mock data
+        # Use intervention service to get real pending actions
+        pending = intervention_service.get_pending_interventions(approver_id)
+        
         return {
-            "pending_approvals": [],
-            "count": 0,
-            "message": "No pending approvals"
+            "pending_approvals": pending,
+            "count": len(pending),
+            "message": f"Found {len(pending)} pending approvals"
         }
     
     except Exception as e:
@@ -422,8 +428,22 @@ async def approve_workflow(
     Approve a pending workflow.
     """
     try:
-        # In production, update HITLAction status and deploy the workflow
-        logger.info(f"Workflow {approval_id} approved by {approver_id}")
+        # RBAC Check
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.id == approver_id).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="Approver user not found")
+            
+            # Require at least Team Lead
+            allowed_roles = [UserRole.TEAM_LEAD.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SUPER_ADMIN.value]
+            if user.role not in allowed_roles:
+                raise HTTPException(status_code=403, detail="Insufficient permissions. Approval requires Team Lead or Admin role.")
+
+        # Use intervention service
+        result = await intervention_service.approve_intervention(approval_id, approver_id)
+        
+        if not result.get("success"):
+             raise HTTPException(status_code=400, detail=result.get("message"))
         
         return {
             "success": True,
@@ -431,7 +451,7 @@ async def approve_workflow(
             "status": "approved",
             "approved_by": approver_id,
             "approved_at": datetime.utcnow().isoformat(),
-            "message": "Workflow approved and deployed successfully"
+            "message": "Action approved successfully"
         }
     
     except Exception as e:
@@ -449,9 +469,12 @@ async def reject_workflow(
     Reject a pending workflow.
     """
     try:
-        # In production, update HITLAction status and notify the agent/user
-        logger.info(f"Workflow {approval_id} rejected by {approver_id}: {reason}")
+        # Use intervention service
+        result = await intervention_service.reject_intervention(approval_id, approver_id, reason)
         
+        if not result.get("success"):
+             raise HTTPException(status_code=400, detail=result.get("message"))
+             
         return {
             "success": True,
             "approval_id": approval_id,
@@ -459,7 +482,7 @@ async def reject_workflow(
             "rejected_by": approver_id,
             "rejected_at": datetime.utcnow().isoformat(),
             "reason": reason,
-            "message": "Workflow rejected"
+            "message": "Action rejected"
         }
     
     except Exception as e:

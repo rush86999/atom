@@ -12,12 +12,26 @@ from PIL import Image
 
 # BYOK Integration
 try:
-    from backend.core.byok_endpoints import get_byok_manager
-
+    from core.byok_endpoints import get_byok_manager
     BYOK_AVAILABLE = True
 except ImportError:
-    BYOK_AVAILABLE = False
-    get_byok_manager = None
+    try:
+        from backend.core.byok_endpoints import get_byok_manager
+        BYOK_AVAILABLE = True
+    except ImportError:
+        BYOK_AVAILABLE = False
+        get_byok_manager = None
+
+try:
+    from core.llm.byok_handler import BYOKHandler
+    BYOK_HANDLER_AVAILABLE = True
+except ImportError:
+    try:
+        from backend.core.llm.byok_handler import BYOKHandler
+        BYOK_HANDLER_AVAILABLE = True
+    except ImportError:
+        BYOK_HANDLER_AVAILABLE = False
+        BYOKHandler = None
 
 # Docling integration (highest priority OCR - optional)
 try:
@@ -131,8 +145,14 @@ class PDFOCRService:
             except Exception as e:
                 logger.warning(f"Failed to initialize EasyOCR: {e}")
 
-        # OpenAI Vision (for advanced image comprehension)
-        if OPENAI_AVAILABLE:
+        # AI Vision (for advanced image comprehension) - Using BYOKHandler
+        if BYOK_HANDLER_AVAILABLE:
+            try:
+                self.ocr_readers["ai_vision"] = BYOKHandler(workspace_id="default")
+                logger.info("AI Vision (BYOKHandler) initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize AI Vision (BYOKHandler): {e}")
+        elif OPENAI_AVAILABLE:
             openai_key = self._get_openai_api_key()
             if openai_key:
                 try:
@@ -148,9 +168,9 @@ class PDFOCRService:
             "docling": "docling" in self.ocr_readers,
             "tesseract": "tesseract" in self.ocr_readers,
             "easyocr": "easyocr" in self.ocr_readers,
-            "openai_vision": "openai" in self.ocr_readers,
+            "openai_vision": "openai" in self.ocr_readers or "ai_vision" in self.ocr_readers,
             "fallback_available": len(self.ocr_readers) > 0,
-            "byok_integrated": self.use_byok and self.byok_manager is not None,
+            "byok_integrated": self.use_byok and (self.byok_manager is not None or "ai_vision" in self.ocr_readers),
         }
         return status
 
@@ -366,8 +386,8 @@ class PDFOCRService:
             return await self._ocr_with_tesseract(pdf_data)
         elif method_name == "easyocr":
             return await self._ocr_with_easyocr(pdf_data)
-        elif method_name == "openai_vision":
-            return await self._ocr_with_openai_vision(pdf_data)
+        elif method_name in ["openai_vision", "ai_vision"]:
+            return await self._ocr_with_ai_vision(pdf_data)
         else:
             raise ValueError(f"Unknown OCR method: {method_name}")
 
@@ -494,15 +514,12 @@ class PDFOCRService:
                 "error": str(e),
             }
 
-    async def _ocr_with_openai_vision(self, pdf_data: bytes) -> Dict[str, Any]:
-        """Extract text and comprehend images using OpenAI Vision."""
-        if "openai" not in self.ocr_readers:
-            raise RuntimeError("OpenAI Vision not available")
+    async def _ocr_with_ai_vision(self, pdf_data: bytes) -> Dict[str, Any]:
+        """Extract text and comprehend images using AI Vision via BYOKHandler."""
+        if "ai_vision" not in self.ocr_readers and "openai" not in self.ocr_readers:
+            raise RuntimeError("AI Vision not available")
 
-        # Verify API key is still valid
-        openai_key = self._get_openai_api_key()
-        if not openai_key:
-            raise RuntimeError("OpenAI API key not available")
+        import base64
 
         try:
             images = await self._pdf_to_images(pdf_data)
@@ -516,30 +533,39 @@ class PDFOCRService:
                 image.save(img_byte_arr, format="PNG")
                 img_byte_arr = img_byte_arr.getvalue()
 
-                # Call OpenAI Vision API
-                response = self.ocr_readers["openai"].chat.completions.create(
-                    model="gpt-4-vision-preview",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": "Extract all text from this image and describe any visual elements that might be important for understanding the document.",
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/png;base64,{img_byte_arr}"
+                # Use BYOKHandler if available
+                if "ai_vision" in self.ocr_readers:
+                    handler = self.ocr_readers["ai_vision"]
+                    page_text = await handler.generate_response(
+                        prompt="Extract all text from this image and describe any visual elements that might be important for understanding the document.",
+                        image_payload=[{"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64.b64encode(img_byte_arr).decode('utf-8')}"}}],
+                        task_type="pdf_ocr",
+                        prefer_cost=True
+                    )
+                else:
+                    # Legacy OpenAI fallback
+                    response = self.ocr_readers["openai"].chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "Extract all text from this image and describe any visual elements that might be important for understanding the document.",
                                     },
-                                },
-                            ],
-                        }
-                    ],
-                    max_tokens=2000,
-                )
-
-                page_text = response.choices[0].message.content
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:image/png;base64,{base64.b64encode(img_byte_arr).decode('utf-8')}"
+                                        },
+                                    },
+                                ],
+                            }
+                        ],
+                        max_tokens=2000,
+                    )
+                    page_text = response.choices[0].message.content
                 text_content.append(
                     {
                         "page": page_num + 1,
