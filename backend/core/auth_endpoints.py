@@ -135,6 +135,45 @@ async def verify_token(request: VerifyTokenRequest):
 async def reset_password(request: ResetPasswordRequest):
      return {"success": False, "message": "Feature pending migration to new DB"}
 
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Change password for the currently authenticated user.
+    Requires current password verification.
+    """
+    # Verify current password
+    if not verify_password(request.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    # Validate new password length
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 8 characters"
+        )
+    
+    # Hash and update password
+    current_user.password_hash = get_password_hash(request.new_password)
+    current_user.updated_at = datetime.utcnow()
+    db.commit()
+    
+    logger.info(f"Password changed for user {current_user.id}")
+    
+    return {"success": True, "message": "Password updated successfully"}
+
 @router.post("/refresh")
 async def refresh_token(current_user: User = Depends(get_current_user)):
     """Refresh the access token"""
