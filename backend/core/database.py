@@ -23,10 +23,10 @@ def get_database_url():
                 "Cannot use default SQLite in production."
             )
         else:
-            # Development fallback with warning
-            database_url = "sqlite:///:memory:"
+            # Development fallback: Use FILE-BASED SQLite to prevent threading/import issues
+            database_url = "sqlite:///./dev.db"
             logger.warning(
-                "⚠️ WARNING: Using SQLite development database. "
+                "⚠️ WARNING: Using SQLite file database (dev.db). "
                 "Set DATABASE_URL for production deployment."
             )
 

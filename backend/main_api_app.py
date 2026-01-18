@@ -10,7 +10,7 @@ sys.modules["pandas"] = None
 sys.modules["lancedb"] = None
 sys.modules["pyarrow"] = None
 
-print("⚠️  WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash")
+print("WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash")
 
 import threading
 import logging
@@ -302,6 +302,21 @@ try:
     except ImportError as e:
         logger.warning(f"Enhanced Workflow Automation not available: {e}")
 
+    # 3e. Workflow DNA Analytics (Performance & Logs)
+    try:
+        from analytics.plugin import enable_workflow_dna
+        enable_workflow_dna(app)
+    except ImportError as e:
+        logger.warning(f"Workflow DNA Analytics not available: {e}")
+
+    # 3d. Workflow Automation Routes (Test Step, etc.)
+    try:
+        from integrations.workflow_automation_routes import router as workflow_automation_router
+        app.include_router(workflow_automation_router) # Prefix defined in router (/workflows)
+        logger.info("✓ Workflow Automation Routes (Test Step) registered")
+    except ImportError as e:
+        logger.warning(f"Workflow Automation routes not found: {e}")
+
     # 4. Auth Routes (Standard Login)
     try:
         from core.auth_endpoints import router as auth_router
@@ -513,6 +528,14 @@ try:
     except ImportError as e:
         logger.warning(f"Live Command Center APIs not found: {e}")
 
+    # 17. Workflow DNA Plugin (Analytics)
+    try:
+        from analytics.plugin import enable_workflow_dna
+        enable_workflow_dna(app)
+        logger.info("✓ Workflow DNA Plugin Enabled")
+    except ImportError as e:
+        logger.warning(f"Workflow DNA plugin not found: {e}")
+
     logger.info("✓ Core Routes Loaded Successfully - Reload Triggered")
 
 except ImportError as e:
@@ -629,11 +652,17 @@ async def startup_event():
     try:
         from core.database import engine
         from core.models import Base
+        from analytics.models import WorkflowExecutionLog # Force registration
         from core.admin_bootstrap import ensure_admin_user
+        from sqlalchemy import inspect
         
         logger.info("Initializing database tables...")
         Base.metadata.create_all(bind=engine)
-        logger.info("✓ Database tables created")
+        
+        # Verify tables
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        logger.info(f"✓ Database tables created: {tables}")
         
         logger.info("Bootstrapping admin user...")
         ensure_admin_user()

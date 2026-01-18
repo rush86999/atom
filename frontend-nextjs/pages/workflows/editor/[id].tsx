@@ -22,7 +22,7 @@ export default function WorkflowEditorPage() {
     const fetchWorkflow = async (workflowId: string) => {
         setIsLoading(true);
         try {
-            const res = await fetch(`http://localhost:8000/api/workflow-templates/${workflowId}`);
+            const res = await fetch(`/api/workflow-templates/${workflowId}`);
             if (!res.ok) throw new Error('Failed to load workflow');
 
             const template = await res.json();
@@ -109,7 +109,7 @@ export default function WorkflowEditorPage() {
                 steps: steps
             };
 
-            const res = await fetch(`http://localhost:8000/api/workflow-templates/${id}`, {
+            const res = await fetch(`/api/workflow-templates/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -143,7 +143,11 @@ export default function WorkflowEditorPage() {
 
     return (
         <div className="h-[calc(100vh-64px)] w-full bg-gray-50">
-            <WorkflowBuilder initialData={initialData} onSave={handleSave} />
+            <WorkflowBuilder
+                initialData={initialData}
+                onSave={handleSave}
+                workflowId={id as string}
+            />
         </div>
     );
 }

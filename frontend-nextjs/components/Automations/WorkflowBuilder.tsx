@@ -16,12 +16,14 @@ import AddStepEdge from './AddStepEdge';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useKeyPress } from 'reactflow';
 import PiecesSidebar, { Piece, PieceAction, PieceTrigger } from './PiecesSidebar';
+import { LogsSidebar } from './LogsSidebar';
 import SmartSuggestions, { StepSuggestion } from './SmartSuggestions';
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Zap, Monitor, Globe, Mail, Clock, Sparkles, PanelLeftClose, PanelLeft, Loader2, Settings2, Undo, Redo, RotateCcw } from "lucide-react";
+import { Plus, Save, Zap, Monitor, Globe, Mail, Clock, Sparkles, PanelLeftClose, PanelLeft, Loader2, Settings2, Undo, Redo, RotateCcw, Activity, List } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import NodeConfigSidebar from './NodeConfigSidebar';
 import { VoiceInput } from '@/components/Voice/VoiceInput';
+import OptimizationPanel, { OptimizationSuggestion as IOptimizationSuggestion } from './OptimizationPanel';
 
 const initialNodes: Node[] = [
     {
@@ -66,9 +68,10 @@ const edgeTypes = {
 interface WorkflowBuilderProps {
     onSave?: (data: { nodes: Node[]; edges: Edge[] }) => void;
     initialData?: { nodes: Node[]; edges: Edge[] };
+    workflowId?: string;
 }
 
-const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, initialData }) => {
+const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, initialData, workflowId }) => {
     // Use prop data if available, otherwise fallback to default initialNodes
     const [nodes, setNodes, onNodesChange] = useNodesState(initialData?.nodes || initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialData?.edges || initialEdges);
@@ -77,6 +80,66 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
     // Undo/Redo Hook
     const { undo, redo, takeSnapshot, canUndo, canRedo, history } = useUndoRedo({ nodes, edges });
 
+    // Performance Mode State
+    const [isPerformanceMode, setIsPerformanceMode] = useState(false);
+    const [analyticsData, setAnalyticsData] = useState<Record<string, any> | null>(null);
+
+    // Optimization State
+    const [isOptimizationOpen, setIsOptimizationOpen] = useState(false);
+    const [isOptimizing, setIsOptimizing] = useState(false);
+    const [optimizationSuggestions, setOptimizationSuggestions] = useState<IOptimizationSuggestion[]>([]);
+
+    const handleOptimize = async () => {
+        setIsOptimizationOpen(true);
+        setIsOptimizing(true);
+
+        // 1. Serialize Workflow (Minimal representation for analysis)
+        // Map edges to find next_steps
+        const nextStepsMap: Record<string, string[]> = {};
+        edges.forEach(edge => {
+            if (!nextStepsMap[edge.source]) nextStepsMap[edge.source] = [];
+            nextStepsMap[edge.source].push(edge.target);
+        });
+
+        const workflowPayload = {
+            workflow: {
+                workflow_id: workflowId || 'preview',
+                steps: nodes.map(node => ({
+                    step_id: node.id,
+                    step_type: node.type, // Map to backend type if needed
+                    description: node.data.label || node.id,
+                    parameters: node.data, // Pass full data as parameters for now (contains inputs)
+                    next_steps: nextStepsMap[node.id] || []
+                }))
+            }
+        };
+
+        try {
+            const res = await fetch('/api/workflows/optimize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(workflowPayload.workflow) // The proxy expects body to be the workflow dict? verify proxy
+            });
+            // Proxy: body: JSON.stringify(req.body) -> Backend: request.workflow
+            // So we should send { workflow: ... } to proxy?
+            // Proxy logic: body: JSON.stringify(req.body). So if I send { workflow: ... }, backend gets { workflow: ... }
+            // Backend OptimizeRequest expects { workflow: Dict }
+            // So yes, fetch('/api/workflows/optimize', body: JSON.stringify({ workflow: ... }))
+
+            if (res.ok) {
+                const data = await res.json();
+                setOptimizationSuggestions(data.suggestions || []);
+            } else {
+                toast({ title: "Optimization Failed", description: "Could not analyze workflow.", variant: "error" });
+            }
+        } catch (e) {
+            console.error(e);
+            toast({ title: "Optimization Error", description: String(e), variant: "error" });
+        } finally {
+            setIsOptimizing(false);
+        }
+    };
+
     // Sync history to state when undo/redo occurs
     React.useEffect(() => {
         if (history.present) {
@@ -84,6 +147,81 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
             setEdges(history.present.edges);
         }
     }, [history.present, setNodes, setEdges]);
+
+    // Fetch Analytics Effect
+    React.useEffect(() => {
+        if (isPerformanceMode && workflowId) {
+            const fetchAnalytics = async () => {
+                try {
+                    const res = await fetch(`/api/analytics/workflows/${workflowId}/heatmap`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setAnalyticsData(data);
+                        toast({ title: "Performance Mode", description: "Loaded execution heatmap." });
+                    }
+                } catch (e) {
+                    console.error("Failed to load analytics", e);
+                }
+            };
+            fetchAnalytics();
+        } else if (!isPerformanceMode) {
+            setAnalyticsData(null);
+        }
+    }, [isPerformanceMode, workflowId, toast]);
+
+    // Inject Analytics Data into Nodes
+    React.useEffect(() => {
+        if (!analyticsData) {
+            // Clear analytics data if mode is off
+            setNodes((nds) => nds.map(n => {
+                if (n.data && n.data._analytics) {
+                    const { _analytics, ...restData } = n.data;
+                    return { ...n, data: restData };
+                }
+                return n;
+            }));
+            return;
+        }
+
+        setNodes((nds) => nds.map((node) => {
+            const stats = analyticsData[node.id] || analyticsData[node.data.action] || analyticsData[node.data.label];
+
+            if (stats) {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        _analytics: {
+                            duration: stats.avg_duration,
+                            status: stats.status === 'red' ? 'error' : 'success'
+                        }
+                    }
+                };
+            }
+            return node;
+        }));
+    }, [analyticsData, setNodes]);
+
+    // Inject workflowId into nodes whenever it changes
+    React.useEffect(() => {
+        if (workflowId && nodes.length > 0) {
+            setNodes((nds) =>
+                nds.map((node) => {
+                    // Avoid infinite loop if ID is already set
+                    if (node.data?._workflowId === workflowId) return node;
+
+                    return {
+                        ...node,
+                        data: {
+                            ...node.data,
+                            id: node.id, // Inject ID so CustomNode can access data.id
+                            _workflowId: workflowId // Inject ID for child nodes to use
+                        }
+                    };
+                })
+            );
+        }
+    }, [workflowId, nodes.length]); // Re-run when ID changes or new nodes added
 
     // Keyboard Shortcuts
     React.useEffect(() => {
@@ -108,6 +246,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
 
     // Sidebar state - default to visible
     const [showSidebar, setShowSidebar] = useState(true);
+    const [showLogs, setShowLogs] = useState(false); // [NEW] Logs Panel State
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [pendingEdgeInsertion, setPendingEdgeInsertion] = useState<string | null>(null);
 
@@ -522,7 +661,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                 addNode('condition');
                 toast({ title: "AI Copilot", description: "Added Condition node." });
             } else {
-                toast({ title: "AI Copilot", description: `Intent: ${primaryGoal} | Service: ${service}. Try specifying a service like Slack, Gmail, or GitHub.` });
+                toast({ title: "AI Copilot", description: `Intent: ${primaryGoal} | Service: ${service}. Try specifying a service like Slack, GMail, or GitHub.` });
             }
 
         } catch (error) {
@@ -624,6 +763,46 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                         </Button>
                     </div>
 
+                    <Button
+                        size="sm"
+                        variant={isPerformanceMode ? "secondary" : "outline"}
+                        className={isPerformanceMode ? "bg-amber-100 text-amber-900 border-amber-200 hover:bg-amber-200" : ""}
+                        onClick={() => {
+                            if (!workflowId && !isPerformanceMode) {
+                                toast({
+                                    title: "Performance Unavailable",
+                                    description: "Please save or select a workflow to view execution data.",
+                                    variant: "error"
+                                });
+                                return;
+                            }
+                            setIsPerformanceMode(!isPerformanceMode);
+                        }}
+                    >
+                        <Activity className="w-3 h-3 mr-1" />
+                        {isPerformanceMode ? "Performance ON" : "Performance"}
+                    </Button>
+
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                        onClick={handleOptimize}
+                    >
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        Optimize
+                    </Button>
+
+                    <Button
+                        size="sm"
+                        variant={showLogs ? "secondary" : "outline"}
+                        className={showLogs ? "bg-blue-100 text-blue-900 border-blue-200" : ""}
+                        onClick={() => setShowLogs(!showLogs)}
+                    >
+                        <List className="w-3 h-3 mr-1" />
+                        Logs
+                    </Button>
+
                     <Button size="sm" variant="outline" onClick={() => addNode('condition')}>
                         <Plus className="w-3 h-3 mr-1" /> Condition
                     </Button>
@@ -687,44 +866,58 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                             <Controls />
                         </ReactFlow>
                     </ReactFlowProvider>
-
-                    {/* Node Configuration Sidebar */}
-                    {selectedNodeId && (
-                        <div className="absolute top-0 right-0 h-full z-20 pointer-events-auto">
-                            <NodeConfigSidebar
-                                selectedNode={nodes.find(n => n.id === selectedNodeId)}
-                                allNodes={nodes}
-                                onClose={() => setSelectedNodeId(null)}
-                                onUpdateNode={handleUpdateNode}
-                            />
-                        </div>
-                    )}
-
-                    {/* Empty State Hint */}
-                    {nodes.length === 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="text-center p-8 bg-white/80 rounded-lg shadow-sm">
-                                <Sparkles className="w-12 h-12 text-purple-300 mx-auto mb-3" />
-                                <h4 className="font-semibold text-gray-700 mb-1">Start Building Your Workflow</h4>
-                                <p className="text-sm text-gray-500 max-w-xs">
-                                    Describe your automation above, or browse pieces on the left
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Smart Suggestions Panel */}
-                    {nodes.length > 0 && (
-                        <div className="absolute bottom-4 right-4 w-72 z-10 pointer-events-auto">
-                            <SmartSuggestions
-                                nodes={nodes}
-                                edges={edges}
-                                onSuggestionClick={handleSuggestionClick}
-                            />
-                        </div>
+                    {showLogs && workflowId && (
+                        <LogsSidebar workflowId={workflowId} onClose={() => setShowLogs(false)} />
                     )}
                 </div>
+
+                {/* Node Configuration Sidebar */}
+                {selectedNodeId && (
+                    <div className="absolute top-0 right-0 h-full z-20 pointer-events-auto">
+                        <NodeConfigSidebar
+                            selectedNode={nodes.find(n => n.id === selectedNodeId)}
+                            allNodes={nodes}
+                            onClose={() => setSelectedNodeId(null)}
+                            onUpdateNode={handleUpdateNode}
+                        />
+                    </div>
+                )}
+
+                {/* Empty State Hint */}
+                {nodes.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="text-center p-8 bg-white/80 rounded-lg shadow-sm">
+                            <Sparkles className="w-12 h-12 text-purple-300 mx-auto mb-3" />
+                            <h4 className="font-semibold text-gray-700 mb-1">Start Building Your Workflow</h4>
+                            <p className="text-sm text-gray-500 max-w-xs">
+                                Describe your automation above, or browse pieces on the left
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Smart Suggestions Panel */}
+                {nodes.length > 0 && (
+                    <div className="absolute bottom-4 right-4 w-72 z-10 pointer-events-auto">
+                        <SmartSuggestions
+                            nodes={nodes}
+                            edges={edges}
+                            onSuggestionClick={handleSuggestionClick}
+                        />
+                    </div>
+                )}
             </div>
+
+            {/* Optimization Panel */}
+            <OptimizationPanel
+                open={isOptimizationOpen}
+                onOpenChange={setIsOptimizationOpen}
+                isLoading={isOptimizing}
+                suggestions={optimizationSuggestions}
+                onApply={(suggestion) => {
+                    toast({ title: "Feature Pending", description: "Auto-fix is coming soon!", variant: "default" });
+                }}
+            />
         </div>
     );
 };
