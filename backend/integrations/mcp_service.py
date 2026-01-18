@@ -2272,20 +2272,37 @@ class MCPService:
         # Unknown MCP server - fail explicitly
         return {"error": f"Tool '{tool_name}' on server '{server_id}' is not implemented.", "status": "not_implemented"}
 
-    async def web_search(self, query: str) -> Dict[str, Any]:
+    async def web_search(self, query: str, user_id: str = None) -> Dict[str, Any]:
         """
         Performs a web search using available search APIs or MCP servers.
+        Supports BYOK - checks user's Tavily key first, then falls back to env var.
         """
-        logger.info(f"Performing web search for: {query}")
+        logger.info(f"Performing web search for: {query} (user: {user_id})")
         
-        # If we have a real Tavily API key, use it
-        if os.getenv("TAVILY_API_KEY"):
+        # Priority 1: Check for user-specific BYOK Tavily key
+        tavily_api_key = None
+        if user_id:
+            try:
+                from core.byok_endpoints import get_byok_manager
+                byok_manager = get_byok_manager()
+                tavily_api_key = byok_manager.get_api_key("tavily")
+                if tavily_api_key:
+                    logger.info(f"Using BYOK Tavily key for user {user_id}")
+            except Exception as e:
+                logger.warning(f"Failed to get BYOK Tavily key: {e}")
+        
+        # Priority 2: Fall back to environment variable
+        if not tavily_api_key:
+            tavily_api_key = os.getenv("TAVILY_API_KEY")
+        
+        # If we have a Tavily API key, use it
+        if tavily_api_key:
             try:
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
                         "https://api.tavily.com/search",
                         json={
-                            "api_key": os.getenv("TAVILY_API_KEY"),
+                            "api_key": tavily_api_key,
                             "query": query,
                             "include_answer": True
                         },
@@ -2302,7 +2319,7 @@ class MCPService:
             "query": query,
             "results": [],
             "answer": None,
-            "error": "Web search is not configured. Please set TAVILY_API_KEY."
+            "error": "Web search is not configured. Add a Tavily API key via BYOK settings or set TAVILY_API_KEY."
         }
 
 # Singleton instance

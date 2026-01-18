@@ -271,6 +271,17 @@ class BYOKManager:
                 cost_per_token=0.000001, # Varies by model
                 model="deepseek-ai/DeepSeek-OCR",
                 reasoning_level=2
+            ),
+            AIProviderConfig(
+                id="tavily",
+                name="Tavily",
+                description="AI-native web search for agents and RAG",
+                api_key_env_var="TAVILY_API_KEY",
+                base_url="https://api.tavily.com",
+                supported_tasks=["search", "web_search", "research", "rag"],
+                cost_per_token=0.00001, # Per search query (estimated)
+                model="search",
+                reasoning_level=1
             )
         ]
         
