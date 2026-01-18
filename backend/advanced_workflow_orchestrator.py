@@ -1023,9 +1023,13 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
 
         if workflow_id not in self.workflows:
              # Lazy Load from Template Manager
-            if self.template_manager and self.template_manager.get_template(workflow_id):
-                logger.info(f"Lazy-loading template {workflow_id} into orchestrator...")
+            template = None
+            if self.template_manager:
                 template = self.template_manager.get_template(workflow_id)
+            
+            if template:
+                logger.info(f"Lazy-loading template {workflow_id} into orchestrator...")
+                # template = self.template_manager.get_template(workflow_id) # Removed redundant call
                 # Convert Template -> WorkflowDefinition
                 steps = []
                 for t_step in template.steps:

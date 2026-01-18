@@ -183,6 +183,8 @@ class TestStepRequest(BaseModel):
     service: str
     action: str
     parameters: Dict[str, Any] = {}
+    workflow_id: Optional[str] = None
+    step_id: Optional[str] = None
 
 
 class TestStepResponse(BaseModel):
@@ -228,6 +230,31 @@ async def test_workflow_step(request: TestStepRequest):
         duration_ms = int((time.time() - start_time) * 1000)
         
         logger.info(f"Tested workflow step: {request.service}/{request.action}")
+
+        # [ANALYTICS] Track step execution if context provided
+        if request.workflow_id and request.step_id:
+            try:
+                from analytics.collector import AsyncAnalyticsCollector
+                
+                # Synthesize start/end times from duration
+                end_ts = start_time + (duration_ms / 1000)
+                dt_start = datetime.fromtimestamp(start_time)
+                dt_end = datetime.fromtimestamp(end_ts)
+
+                await AsyncAnalyticsCollector.get_instance().log_step(
+                    execution_id=f"test_{uuid.uuid4().hex[:8]}", # Dummy execution ID for test
+                    workflow_id=request.workflow_id,
+                    step_id=request.step_id,
+                    step_type=request.service,
+                    start_time=dt_start,
+                    end_time=dt_end,
+                    status="COMPLETED",
+                    trigger_data=request.parameters, # Save Inputs
+                    results=test_result              # Save Outputs
+                )
+                logger.info(f"Tracked analytics for test step: {request.step_id} in {request.workflow_id}")
+            except Exception as e:
+                logger.error(f"Failed to track analytics for test step: {e}")
         
         return TestStepResponse(
             success=True,

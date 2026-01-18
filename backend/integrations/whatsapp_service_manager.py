@@ -49,14 +49,14 @@ class WhatsAppServiceManager:
             if validation["is_demo"]:
                 logger.info("Using demo WhatsApp configuration for testing")
                 print(
-                    "🎭 WhatsApp Business: DEMO MODE - Use real API credentials for production"
+                    "WhatsApp Business: DEMO MODE - Use real API credentials for production"
                 )
             elif not validation["is_valid"]:
                 logger.warning(
                     f"WhatsApp configuration incomplete: {validation['missing_required']}"
                 )
                 print(
-                    f"⚠️  WhatsApp Business: Configuration incomplete - {validation['missing_required']}"
+                    f"WhatsApp Business: Configuration incomplete - {validation['missing_required']}"
                 )
 
             # Add service-specific configuration
