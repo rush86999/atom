@@ -283,6 +283,7 @@ class RealAIWorkflowService:
         self.deepseek_api_key = None
         self.openai_api_key = None
         self.google_api_key = None
+        self.http_sessions = {}
         
         logger.info("RealAIWorkflowService (Instructor-enabled) Initialized.")
 
@@ -307,10 +308,7 @@ class RealAIWorkflowService:
         self.openai_api_key = self._byok.get_api_key("openai") or os.getenv("OPENAI_API_KEY")
         self.google_api_key = self._byok.get_api_key("google") or os.getenv("GOOGLE_API_KEY")
 
-        print(f"DEBUG: RealAIWorkflowService Initialized.")
-        
-        # Initialize HTTP sessions for manual NLU
-        self.http_sessions = {}
+        print(f"DEBUG: RealAIWorkflowService client requested for {provider_id}")
 
     async def initialize_sessions(self):
         """Initialize HTTP sessions for AI providers"""
