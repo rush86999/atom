@@ -208,11 +208,12 @@ async def ws_chat():
     }
 
 # Chat history (needs session_id)
-@router.get("/api/chat/history")
-async def chat_history():
+@router.get("/api/chat/history/{session_id}")
+async def chat_history(session_id: str):
     return {
         "history": [],
-        "message": "Provide session_id parameter: /api/chat/history/{session_id}"
+        "session_id": session_id,
+        "message": "Chat history stub for session"
     }
 
 # Workflow-specific endpoints

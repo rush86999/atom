@@ -1,0 +1,1578 @@
+﻿python : ΓÜá∩╕Å 
+WARNING: Using 
+SQLite file database 
+(dev.db). Set 
+DATABASE_URL for 
+production 
+deployment.
+At line:1 char:1
++ python 
+main_api_app.py > 
+server_v4.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (ΓÜá∩╕Å    
+ WARNING:...ion d    
+eployment.:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+Sentence 
+transformers not 
+available. Using 
+MockEmbedder for 
+testing.
+LanceDB not 
+initialized, chat 
+history disabled
+Heavy dependencies 
+(lancedb, pyarrow, 
+pandas, numpy) not 
+available. Using 
+mocks.
+C:\Users\Mannan Bajaj
+\AppData\Roaming\Pyth
+on\Python313\site-pac
+kages\instructor\prov
+iders\gemini\client.p
+y:6: FutureWarning: 
+
+All support for the `
+google.generativeai` 
+package has ended. 
+It will no longer be 
+receiving 
+updates or bug 
+fixes. Please switch 
+to the 
+`google.genai` 
+package as soon as 
+possible.
+See README for more 
+details:
+
+https://github.com/go
+ogle-gemini/deprecate
+d-generative-ai-pytho
+n/blob/main/README.md
+
+  import 
+google.generativeai 
+as genai
+No API key available 
+for GraphRAG LLM 
+extraction
+C:\Users\Mannan Bajaj
+\AppData\Roaming\Pyth
+on\Python313\site-pac
+kages\torch\_subclass
+es\functional_tensor.
+py:276: UserWarning: 
+Failed to initialize 
+NumPy: No module 
+named 'numpy.core'; 
+'numpy' is not a 
+package (Triggered 
+internally at C:\acti
+ons-runner\_work\pyto
+rch\pytorch\pytorch\t
+orch\csrc\utils\tenso
+r_numpy.cpp:81.)
+  cpu = _conversion_m
+ethod_template(device
+=torch.device("cpu"))
+sentence_transformers
+ not available 
+(error: import of 
+numpy halted; None 
+in sys.modules), 
+embeddings will be 
+disabled
+2026-01-18 
+21:45:32,849 - 
+ATOM_SERVER - INFO - 
+Configuration loaded 
+from C:\Users\Mannan 
+Bajaj\atom\.env
+2026-01-18 
+21:45:32,849 - 
+ATOM_SERVER - INFO - 
+DEBUG: Startup 
+DEEPSEEK_API_KEY 
+present: True
+2026-01-18 
+21:45:32,850 - 
+ATOM_SERVER - INFO - 
+Loading Core API 
+Routes...
+2026-01-18 
+21:45:32,912 - 
+core.auth - WARNING 
+- ΓÜá∩╕Å Using 
+hardcoded secret key 
+(matching NextAuth) 
+for development.
+2026-01-18 
+21:45:32,991 - core.w
+orkflow_template_syst
+em - INFO - Template 
+manager initialized 
+with 15 templates
+2026-01-18 
+21:45:33,001 - enhanc
+ed_ai_workflow_endpoi
+nts - INFO - RealAIWo
+rkflowService 
+(Instructor-enabled) 
+Initialized.
+2026-01-18 
+21:45:33,265 - integr
+ations.mcp_service - 
+INFO - MCP Service 
+initialized
+2026-01-18 
+21:45:33,328 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow UI 
+Endpoints Loaded
+2026-01-18 
+21:45:33,342 - 
+ATOM_SERVER - INFO - 
+Γ£ô Enhanced 
+Workflow Automation 
+(V2) routes 
+registered
+2026-01-18 
+21:45:33,354 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: API 
+Routes Registered 
+(at 
+/api/v1/analytics)
+2026-01-18 
+21:45:33,362 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: Database 
+Schema Verified
+2026-01-18 
+21:45:33,362 - analyt
+ics.instrumentation 
+- INFO - ≡ƒº¼ 
+Activating Workflow 
+DNA (Analytics 
+Instrumentation) for 
+AdvancedWorkflowOrche
+strator...
+2026-01-18 
+21:45:33,362 - analyt
+ics.instrumentation 
+- INFO - Γ£à 
+Workflow DNA Active: 
+Instrumentation 
+applied to AdvancedWo
+rkflowOrchestrator.
+2026-01-18 
+21:45:33,364 - integr
+ations.workflow_autom
+ation_routes - 
+WARNING - Enhanced 
+workflow automation 
+components not 
+available: No module 
+named 'backend'
+2026-01-18 
+21:45:33,396 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow 
+Automation Routes 
+(Test Step) 
+registered
+2026-01-18 
+21:45:33,469 - 
+core.token_storage - 
+WARNING - 
+Initializing 
+DEPRECATED 
+TokenStorage. Please 
+migrate to 
+ConnectionService.
+2026-01-18 
+21:45:33,469 - 
+core.token_storage - 
+INFO - No token 
+storage file found, 
+starting empty
+2026-01-18 
+21:45:33,490 - 
+ATOM_SERVER - INFO - 
+Γ£ô MCP Routes Loaded
+2026-01-18 
+21:45:33,499 - 
+ATOM_SERVER - INFO - 
+Γ£ô Integrations 
+Catalog Routes Loaded
+2026-01-18 
+21:45:33,506 - 
+ATOM_SERVER - INFO - 
+Γ£ô Dynamic Options 
+Routes Loaded
+2026-01-18 
+21:45:33,523 - 
+ATOM_SERVER - INFO - 
+Γ£ô Universal Auth 
+Routes Loaded
+2026-01-18 
+21:45:34,027 - 
+ATOM_SERVER - INFO - 
+Γ£ô External 
+Integration Routes 
+Loaded
+2026-01-18 
+21:45:34,035 - 
+ATOM_SERVER - INFO - 
+Γ£ô Connection 
+Management Routes 
+Loaded
+2026-01-18 
+21:45:34,041 - integr
+ations.chat_orchestra
+tor - WARNING - AI 
+engines not 
+available: No module 
+named 'backend'
+2026-01-18 
+21:45:34,053 - 
+ATOM_SERVER - INFO - 
+Γ£ô Chat Routes 
+Loaded
+2026-01-18 
+21:45:34,073 - 
+ATOM_SERVER - INFO - 
+Γ£ô Agent Governance 
+Routes Loaded
+2026-01-18 
+21:45:34,083 - 
+ATOM_SERVER - INFO - 
+Γ£ô Memory Routes 
+Loaded
+2026-01-18 
+21:45:34,093 - 
+ATOM_SERVER - INFO - 
+Γ£ô Voice Routes 
+Loaded
+2026-01-18 
+21:45:34,102 - 
+ATOM_SERVER - INFO - 
+Γ£ô Document Routes 
+Loaded
+2026-01-18 
+21:45:34,120 - 
+ATOM_SERVER - INFO - 
+Γ£ô Formula Routes 
+Loaded
+2026-01-18 
+21:45:34,128 - 
+ATOM_SERVER - INFO - 
+Γ£ô AI Workflows 
+Routes Loaded
+2026-01-18 
+21:45:34,133 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow 
+Template Routes 
+Loaded
+2026-01-18 
+21:45:34,136 - 
+ATOM_SERVER - INFO - 
+Γ£ô Background Agent 
+Routes Loaded
+2026-01-18 
+21:45:34,144 - 
+ATOM_SERVER - INFO - 
+Γ£ô Core Agent 
+Routes Loaded
+2026-01-18 
+21:45:34,149 - 
+ATOM_SERVER - INFO - 
+Γ£ô Core Business 
+Routes Loaded 
+(Intelligence, 
+Projects, Sales)
+2026-01-18 
+21:45:34,162 - 
+ATOM_SERVER - INFO - 
+Γ£ô Integration 
+Health Stubs Loaded
+2026-01-18 
+21:45:34,574 - integr
+ations.slack_service_
+unified - INFO - 
+Slack unified 
+service initialized 
+with base URL: 
+https://slack.com/api
+2026-01-18 
+21:45:36,131 - 
+ATOM_SERVER - 
+WARNING - Live 
+Command Center APIs 
+not found: No module 
+named 'db_connection'
+2026-01-18 
+21:45:36,136 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: API 
+Routes Registered 
+(at 
+/api/v1/analytics)
+2026-01-18 
+21:45:36,148 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: Database 
+Schema Verified
+2026-01-18 
+21:45:36,149 - analyt
+ics.instrumentation 
+- INFO - ≡ƒº¼ 
+Activating Workflow 
+DNA (Analytics 
+Instrumentation) for 
+AdvancedWorkflowOrche
+strator...
+2026-01-18 
+21:45:36,149 - analyt
+ics.instrumentation 
+- INFO - Γ£à 
+Workflow DNA Active: 
+Instrumentation 
+applied to AdvancedWo
+rkflowOrchestrator.
+2026-01-18 
+21:45:36,150 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow DNA 
+Plugin Enabled
+2026-01-18 
+21:45:36,150 - 
+ATOM_SERVER - INFO - 
+Γ£ô Core Routes 
+Loaded Successfully 
+- Reload Triggered
+2026-01-18 
+21:45:36,472 - 
+ATOM_SERVER - INFO - 
+[OK] WhatsApp 
+Business integration 
+routes loaded
+2026-01-18 
+21:45:36,475 - integr
+ations.whatsapp_confi
+guration_setup - 
+WARNING - Missing 
+required WhatsApp 
+configuration, using 
+demo mode
+2026-01-18 
+21:45:36,477 - integr
+ations.whatsapp_confi
+guration_setup - 
+INFO - Demo 
+configuration saved 
+to /tmp/whatsapp_demo
+_config.json
+2026-01-18 
+21:45:36,477 - integr
+ations.whatsapp_servi
+ce_manager - INFO - 
+Using demo WhatsApp 
+configuration for 
+testing
+2026-01-18 
+21:45:40,570 - integr
+ations.whatsapp_busin
+ess_integration - 
+WARNING - Database 
+connection failed in 
+demo mode: 
+connection to server 
+at "localhost" 
+(::1), port 5432 
+failed: Connection 
+refused 
+(0x0000274D/10061)
+	Is the server 
+running on that host 
+and accepting TCP/IP 
+connections?
+connection to server 
+at "localhost" 
+(127.0.0.1), port 
+5432 failed: 
+Connection refused 
+(0x0000274D/10061)
+	Is the server 
+running on that host 
+and accepting TCP/IP 
+connections?
+
+2026-01-18 
+21:45:40,570 - integr
+ations.whatsapp_busin
+ess_integration - 
+INFO - WhatsApp 
+Business Integration 
+running in demo mode 
+without database
+2026-01-18 
+21:45:40,570 - integr
+ations.whatsapp_busin
+ess_integration - 
+INFO - WhatsApp 
+Business Integration 
+initialized 
+successfully
+2026-01-18 
+21:45:40,571 - integr
+ations.whatsapp_servi
+ce_manager - INFO - 
+WhatsApp service 
+registered: 
+whatsapp_business
+2026-01-18 
+21:45:40,571 - integr
+ations.whatsapp_servi
+ce_manager - INFO - 
+WhatsApp Business 
+service initialized 
+successfully
+2026-01-18 
+21:45:40,572 - 
+ATOM_SERVER - INFO - 
+[OK] WhatsApp 
+Business service 
+initialized
+C:\Users\Mannan Bajaj
+\atom\backend\main_ap
+i_app.py:645: 
+DeprecationWarning: 
+        on_event is 
+deprecated, use 
+lifespan event 
+handlers instead.
+
+        Read more 
+about it in the
+        [FastAPI 
+docs for Lifespan Eve
+nts](https://fastapi.
+tiangolo.com/advanced
+/events/).
+        
+  @app.on_event("star
+tup")
+C:\Users\Mannan Bajaj
+\atom\backend\main_ap
+i_app.py:728: 
+DeprecationWarning: 
+        on_event is 
+deprecated, use 
+lifespan event 
+handlers instead.
+
+        Read more 
+about it in the
+        [FastAPI 
+docs for Lifespan Eve
+nts](https://fastapi.
+tiangolo.com/advanced
+/events/).
+        
+  @app.on_event("shut
+down")
+2026-01-18 
+21:45:40,580 - 
+ATOM_BOOTSTRAP - 
+INFO - BOOTSTRAP: 
+User 
+admin@example.com 
+found. resetting 
+password...
+2026-01-18 
+21:45:40,886 - 
+ATOM_BOOTSTRAP - 
+INFO - BOOTSTRAP: 
+Password for 
+admin@example.com 
+reset to 
+'securePass123'
+INFO:     Will watch 
+for changes in these 
+directories: 
+['C:\\Users\\Mannan B
+ajaj\\atom\\backend']
+INFO:     Uvicorn 
+running on 
+http://0.0.0.0:8000 
+(Press CTRL+C to 
+quit)
+INFO:     Started 
+reloader process 
+[25904] using 
+WatchFiles
+ΓÜá∩╕Å WARNING: 
+Using SQLite file 
+database (dev.db). 
+Set DATABASE_URL for 
+production 
+deployment.
+Sentence 
+transformers not 
+available. Using 
+MockEmbedder for 
+testing.
+LanceDB not 
+initialized, chat 
+history disabled
+Heavy dependencies 
+(lancedb, pyarrow, 
+pandas, numpy) not 
+available. Using 
+mocks.
+2026-01-18 
+21:45:44,415 - 
+watchfiles.main - 
+INFO - 2 changes 
+detected
+C:\Users\Mannan Bajaj
+\AppData\Roaming\Pyth
+on\Python313\site-pac
+kages\instructor\prov
+iders\gemini\client.p
+y:6: FutureWarning: 
+
+All support for the `
+google.generativeai` 
+package has ended. 
+It will no longer be 
+receiving 
+updates or bug 
+fixes. Please switch 
+to the 
+`google.genai` 
+package as soon as 
+possible.
+See README for more 
+details:
+
+https://github.com/go
+ogle-gemini/deprecate
+d-generative-ai-pytho
+n/blob/main/README.md
+
+  import 
+google.generativeai 
+as genai
+No API key available 
+for GraphRAG LLM 
+extraction
+C:\Users\Mannan Bajaj
+\AppData\Roaming\Pyth
+on\Python313\site-pac
+kages\torch\_subclass
+es\functional_tensor.
+py:276: UserWarning: 
+Failed to initialize 
+NumPy: No module 
+named 'numpy.core'; 
+'numpy' is not a 
+package (Triggered 
+internally at C:\acti
+ons-runner\_work\pyto
+rch\pytorch\pytorch\t
+orch\csrc\utils\tenso
+r_numpy.cpp:81.)
+  cpu = _conversion_m
+ethod_template(device
+=torch.device("cpu"))
+sentence_transformers
+ not available 
+(error: import of 
+numpy halted; None 
+in sys.modules), 
+embeddings will be 
+disabled
+2026-01-18 
+21:45:51,804 - 
+ATOM_SERVER - INFO - 
+Configuration loaded 
+from C:\Users\Mannan 
+Bajaj\atom\.env
+2026-01-18 
+21:45:51,804 - 
+ATOM_SERVER - INFO - 
+DEBUG: Startup 
+DEEPSEEK_API_KEY 
+present: True
+2026-01-18 
+21:45:51,804 - 
+ATOM_SERVER - INFO - 
+Loading Core API 
+Routes...
+2026-01-18 
+21:45:51,863 - 
+core.auth - WARNING 
+- ΓÜá∩╕Å Using 
+hardcoded secret key 
+(matching NextAuth) 
+for development.
+2026-01-18 
+21:45:51,933 - core.w
+orkflow_template_syst
+em - INFO - Template 
+manager initialized 
+with 15 templates
+2026-01-18 
+21:45:51,944 - enhanc
+ed_ai_workflow_endpoi
+nts - INFO - RealAIWo
+rkflowService 
+(Instructor-enabled) 
+Initialized.
+2026-01-18 
+21:45:52,189 - integr
+ations.mcp_service - 
+INFO - MCP Service 
+initialized
+2026-01-18 
+21:45:52,250 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow UI 
+Endpoints Loaded
+2026-01-18 
+21:45:52,263 - 
+ATOM_SERVER - INFO - 
+Γ£ô Enhanced 
+Workflow Automation 
+(V2) routes 
+registered
+2026-01-18 
+21:45:52,276 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: API 
+Routes Registered 
+(at 
+/api/v1/analytics)
+2026-01-18 
+21:45:52,283 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: Database 
+Schema Verified
+2026-01-18 
+21:45:52,284 - analyt
+ics.instrumentation 
+- INFO - ≡ƒº¼ 
+Activating Workflow 
+DNA (Analytics 
+Instrumentation) for 
+AdvancedWorkflowOrche
+strator...
+2026-01-18 
+21:45:52,284 - analyt
+ics.instrumentation 
+- INFO - Γ£à 
+Workflow DNA Active: 
+Instrumentation 
+applied to AdvancedWo
+rkflowOrchestrator.
+2026-01-18 
+21:45:52,286 - integr
+ations.workflow_autom
+ation_routes - 
+WARNING - Enhanced 
+workflow automation 
+components not 
+available: No module 
+named 'backend'
+2026-01-18 
+21:45:52,322 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow 
+Automation Routes 
+(Test Step) 
+registered
+2026-01-18 
+21:45:52,390 - 
+core.token_storage - 
+WARNING - 
+Initializing 
+DEPRECATED 
+TokenStorage. Please 
+migrate to 
+ConnectionService.
+2026-01-18 
+21:45:52,390 - 
+core.token_storage - 
+INFO - No token 
+storage file found, 
+starting empty
+2026-01-18 
+21:45:52,406 - 
+ATOM_SERVER - INFO - 
+Γ£ô MCP Routes Loaded
+2026-01-18 
+21:45:52,412 - 
+ATOM_SERVER - INFO - 
+Γ£ô Integrations 
+Catalog Routes Loaded
+2026-01-18 
+21:45:52,417 - 
+ATOM_SERVER - INFO - 
+Γ£ô Dynamic Options 
+Routes Loaded
+2026-01-18 
+21:45:52,429 - 
+ATOM_SERVER - INFO - 
+Γ£ô Universal Auth 
+Routes Loaded
+2026-01-18 
+21:45:52,958 - 
+ATOM_SERVER - INFO - 
+Γ£ô External 
+Integration Routes 
+Loaded
+2026-01-18 
+21:45:52,975 - 
+ATOM_SERVER - INFO - 
+Γ£ô Connection 
+Management Routes 
+Loaded
+2026-01-18 
+21:45:52,982 - integr
+ations.chat_orchestra
+tor - WARNING - AI 
+engines not 
+available: No module 
+named 'backend'
+2026-01-18 
+21:45:52,993 - 
+ATOM_SERVER - INFO - 
+Γ£ô Chat Routes 
+Loaded
+2026-01-18 
+21:45:53,033 - 
+ATOM_SERVER - INFO - 
+Γ£ô Agent Governance 
+Routes Loaded
+2026-01-18 
+21:45:53,045 - 
+ATOM_SERVER - INFO - 
+Γ£ô Memory Routes 
+Loaded
+2026-01-18 
+21:45:53,062 - 
+ATOM_SERVER - INFO - 
+Γ£ô Voice Routes 
+Loaded
+2026-01-18 
+21:45:53,076 - 
+ATOM_SERVER - INFO - 
+Γ£ô Document Routes 
+Loaded
+2026-01-18 
+21:45:53,095 - 
+ATOM_SERVER - INFO - 
+Γ£ô Formula Routes 
+Loaded
+2026-01-18 
+21:45:53,109 - 
+ATOM_SERVER - INFO - 
+Γ£ô AI Workflows 
+Routes Loaded
+2026-01-18 
+21:45:53,113 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow 
+Template Routes 
+Loaded
+2026-01-18 
+21:45:53,121 - 
+ATOM_SERVER - INFO - 
+Γ£ô Background Agent 
+Routes Loaded
+2026-01-18 
+21:45:53,128 - 
+ATOM_SERVER - INFO - 
+Γ£ô Core Agent 
+Routes Loaded
+2026-01-18 
+21:45:53,137 - 
+ATOM_SERVER - INFO - 
+Γ£ô Core Business 
+Routes Loaded 
+(Intelligence, 
+Projects, Sales)
+2026-01-18 
+21:45:53,151 - 
+ATOM_SERVER - INFO - 
+Γ£ô Integration 
+Health Stubs Loaded
+2026-01-18 
+21:45:53,618 - integr
+ations.slack_service_
+unified - INFO - 
+Slack unified 
+service initialized 
+with base URL: 
+https://slack.com/api
+2026-01-18 
+21:45:54,920 - 
+ATOM_SERVER - 
+WARNING - Live 
+Command Center APIs 
+not found: No module 
+named 'db_connection'
+2026-01-18 
+21:45:54,922 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: API 
+Routes Registered 
+(at 
+/api/v1/analytics)
+2026-01-18 
+21:45:54,929 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: Database 
+Schema Verified
+2026-01-18 
+21:45:54,929 - analyt
+ics.instrumentation 
+- INFO - ≡ƒº¼ 
+Activating Workflow 
+DNA (Analytics 
+Instrumentation) for 
+AdvancedWorkflowOrche
+strator...
+2026-01-18 
+21:45:54,929 - analyt
+ics.instrumentation 
+- INFO - Γ£à 
+Workflow DNA Active: 
+Instrumentation 
+applied to AdvancedWo
+rkflowOrchestrator.
+2026-01-18 
+21:45:54,929 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow DNA 
+Plugin Enabled
+2026-01-18 
+21:45:54,930 - 
+ATOM_SERVER - INFO - 
+Γ£ô Core Routes 
+Loaded Successfully 
+- Reload Triggered
+2026-01-18 
+21:45:55,089 - 
+ATOM_SERVER - INFO - 
+[OK] WhatsApp 
+Business integration 
+routes loaded
+2026-01-18 
+21:45:55,091 - integr
+ations.whatsapp_confi
+guration_setup - 
+WARNING - Missing 
+required WhatsApp 
+configuration, using 
+demo mode
+2026-01-18 
+21:45:55,092 - integr
+ations.whatsapp_confi
+guration_setup - 
+INFO - Demo 
+configuration saved 
+to /tmp/whatsapp_demo
+_config.json
+2026-01-18 
+21:45:55,092 - integr
+ations.whatsapp_servi
+ce_manager - INFO - 
+Using demo WhatsApp 
+configuration for 
+testing
+2026-01-18 
+21:45:58,005 - 
+watchfiles.main - 
+INFO - 1 change 
+detected
+2026-01-18 
+21:45:59,192 - integr
+ations.whatsapp_busin
+ess_integration - 
+WARNING - Database 
+connection failed in 
+demo mode: 
+connection to server 
+at "localhost" 
+(::1), port 5432 
+failed: Connection 
+refused 
+(0x0000274D/10061)
+	Is the server 
+running on that host 
+and accepting TCP/IP 
+connections?
+connection to server 
+at "localhost" 
+(127.0.0.1), port 
+5432 failed: 
+Connection refused 
+(0x0000274D/10061)
+	Is the server 
+running on that host 
+and accepting TCP/IP 
+connections?
+
+2026-01-18 
+21:45:59,192 - integr
+ations.whatsapp_busin
+ess_integration - 
+INFO - WhatsApp 
+Business Integration 
+running in demo mode 
+without database
+2026-01-18 
+21:45:59,192 - integr
+ations.whatsapp_busin
+ess_integration - 
+INFO - WhatsApp 
+Business Integration 
+initialized 
+successfully
+2026-01-18 
+21:45:59,193 - integr
+ations.whatsapp_servi
+ce_manager - INFO - 
+WhatsApp service 
+registered: 
+whatsapp_business
+2026-01-18 
+21:45:59,193 - integr
+ations.whatsapp_servi
+ce_manager - INFO - 
+WhatsApp Business 
+service initialized 
+successfully
+2026-01-18 
+21:45:59,193 - 
+ATOM_SERVER - INFO - 
+[OK] WhatsApp 
+Business service 
+initialized
+2026-01-18 
+21:45:59,348 - 
+ATOM_SERVER - INFO - 
+Configuration loaded 
+from C:\Users\Mannan 
+Bajaj\atom\.env
+2026-01-18 
+21:45:59,348 - 
+ATOM_SERVER - INFO - 
+DEBUG: Startup 
+DEEPSEEK_API_KEY 
+present: True
+2026-01-18 
+21:45:59,350 - 
+ATOM_SERVER - INFO - 
+Loading Core API 
+Routes...
+2026-01-18 
+21:45:59,441 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow UI 
+Endpoints Loaded
+2026-01-18 
+21:45:59,453 - 
+ATOM_SERVER - INFO - 
+Γ£ô Enhanced 
+Workflow Automation 
+(V2) routes 
+registered
+2026-01-18 
+21:45:59,454 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: API 
+Routes Registered 
+(at 
+/api/v1/analytics)
+2026-01-18 
+21:45:59,464 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: Database 
+Schema Verified
+2026-01-18 
+21:45:59,464 - analyt
+ics.instrumentation 
+- INFO - ≡ƒº¼ 
+Activating Workflow 
+DNA (Analytics 
+Instrumentation) for 
+AdvancedWorkflowOrche
+strator...
+2026-01-18 
+21:45:59,464 - analyt
+ics.instrumentation 
+- INFO - Γ£à 
+Workflow DNA Active: 
+Instrumentation 
+applied to AdvancedWo
+rkflowOrchestrator.
+2026-01-18 
+21:45:59,475 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow 
+Automation Routes 
+(Test Step) 
+registered
+2026-01-18 
+21:45:59,532 - 
+ATOM_SERVER - INFO - 
+Γ£ô MCP Routes Loaded
+2026-01-18 
+21:45:59,535 - 
+ATOM_SERVER - INFO - 
+Γ£ô Integrations 
+Catalog Routes Loaded
+2026-01-18 
+21:45:59,536 - 
+ATOM_SERVER - INFO - 
+Γ£ô Dynamic Options 
+Routes Loaded
+2026-01-18 
+21:45:59,538 - 
+ATOM_SERVER - INFO - 
+Γ£ô Universal Auth 
+Routes Loaded
+2026-01-18 
+21:45:59,539 - 
+ATOM_SERVER - INFO - 
+Γ£ô External 
+Integration Routes 
+Loaded
+2026-01-18 
+21:45:59,722 - 
+ATOM_SERVER - INFO - 
+Γ£ô Connection 
+Management Routes 
+Loaded
+2026-01-18 
+21:45:59,729 - 
+ATOM_SERVER - INFO - 
+Γ£ô Chat Routes 
+Loaded
+2026-01-18 
+21:45:59,739 - 
+ATOM_SERVER - INFO - 
+Γ£ô Agent Governance 
+Routes Loaded
+2026-01-18 
+21:45:59,745 - 
+ATOM_SERVER - INFO - 
+Γ£ô Memory Routes 
+Loaded
+2026-01-18 
+21:45:59,750 - 
+ATOM_SERVER - INFO - 
+Γ£ô Voice Routes 
+Loaded
+2026-01-18 
+21:45:59,754 - 
+ATOM_SERVER - INFO - 
+Γ£ô Document Routes 
+Loaded
+2026-01-18 
+21:45:59,760 - 
+ATOM_SERVER - INFO - 
+Γ£ô Formula Routes 
+Loaded
+2026-01-18 
+21:45:59,763 - 
+ATOM_SERVER - INFO - 
+Γ£ô AI Workflows 
+Routes Loaded
+2026-01-18 
+21:45:59,769 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow 
+Template Routes 
+Loaded
+2026-01-18 
+21:45:59,773 - 
+ATOM_SERVER - INFO - 
+Γ£ô Background Agent 
+Routes Loaded
+2026-01-18 
+21:45:59,784 - 
+ATOM_SERVER - INFO - 
+Γ£ô Core Agent 
+Routes Loaded
+2026-01-18 
+21:45:59,788 - 
+ATOM_SERVER - INFO - 
+Γ£ô Core Business 
+Routes Loaded 
+(Intelligence, 
+Projects, Sales)
+2026-01-18 
+21:45:59,792 - 
+ATOM_SERVER - INFO - 
+Γ£ô Integration 
+Health Stubs Loaded
+2026-01-18 
+21:45:59,794 - 
+ATOM_SERVER - 
+WARNING - Live 
+Command Center APIs 
+not found: No module 
+named 'db_connection'
+2026-01-18 
+21:45:59,796 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: API 
+Routes Registered 
+(at 
+/api/v1/analytics)
+2026-01-18 
+21:45:59,803 - 
+analytics.plugin - 
+INFO - ≡ƒöî Workflow 
+DNA Plugin: Database 
+Schema Verified
+2026-01-18 
+21:45:59,803 - analyt
+ics.instrumentation 
+- INFO - ≡ƒº¼ 
+Activating Workflow 
+DNA (Analytics 
+Instrumentation) for 
+AdvancedWorkflowOrche
+strator...
+2026-01-18 
+21:45:59,804 - analyt
+ics.instrumentation 
+- INFO - Γ£à 
+Workflow DNA Active: 
+Instrumentation 
+applied to AdvancedWo
+rkflowOrchestrator.
+2026-01-18 
+21:45:59,804 - 
+ATOM_SERVER - INFO - 
+Γ£ô Workflow DNA 
+Plugin Enabled
+2026-01-18 
+21:45:59,804 - 
+ATOM_SERVER - INFO - 
+Γ£ô Core Routes 
+Loaded Successfully 
+- Reload Triggered
+2026-01-18 
+21:45:59,821 - 
+ATOM_SERVER - INFO - 
+[OK] WhatsApp 
+Business integration 
+routes loaded
+2026-01-18 
+21:45:59,821 - integr
+ations.whatsapp_confi
+guration_setup - 
+WARNING - Missing 
+required WhatsApp 
+configuration, using 
+demo mode
+2026-01-18 
+21:45:59,822 - integr
+ations.whatsapp_confi
+guration_setup - 
+INFO - Demo 
+configuration saved 
+to /tmp/whatsapp_demo
+_config.json
+2026-01-18 
+21:45:59,822 - integr
+ations.whatsapp_servi
+ce_manager - INFO - 
+Using demo WhatsApp 
+configuration for 
+testing
+2026-01-18 
+21:46:00,057 - 
+watchfiles.main - 
+INFO - 1 change 
+detected
+2026-01-18 
+21:46:03,876 - integr
+ations.whatsapp_busin
+ess_integration - 
+WARNING - Database 
+connection failed in 
+demo mode: 
+connection to server 
+at "localhost" 
+(::1), port 5432 
+failed: Connection 
+refused 
+(0x0000274D/10061)
+	Is the server 
+running on that host 
+and accepting TCP/IP 
+connections?
+connection to server 
+at "localhost" 
+(127.0.0.1), port 
+5432 failed: 
+Connection refused 
+(0x0000274D/10061)
+	Is the server 
+running on that host 
+and accepting TCP/IP 
+connections?
+
+2026-01-18 
+21:46:03,877 - integr
+ations.whatsapp_busin
+ess_integration - 
+INFO - WhatsApp 
+Business Integration 
+running in demo mode 
+without database
+2026-01-18 
+21:46:03,877 - integr
+ations.whatsapp_busin
+ess_integration - 
+INFO - WhatsApp 
+Business Integration 
+initialized 
+successfully
+2026-01-18 
+21:46:03,878 - integr
+ations.whatsapp_servi
+ce_manager - INFO - 
+WhatsApp service 
+registered: 
+whatsapp_business
+2026-01-18 
+21:46:03,878 - integr
+ations.whatsapp_servi
+ce_manager - INFO - 
+WhatsApp Business 
+service initialized 
+successfully
+2026-01-18 
+21:46:03,878 - 
+ATOM_SERVER - INFO - 
+[OK] WhatsApp 
+Business service 
+initialized
+INFO:     Started 
+server process 
+[21372]
+INFO:     Waiting 
+for application 
+startup.
+2026-01-18 
+21:46:03,880 - 
+ATOM_SERVER - INFO - 
+=====================
+=====================
+==================
+2026-01-18 
+21:46:03,880 - 
+ATOM_SERVER - INFO - 
+ATOM Platform 
+Starting (Hybrid 
+Mode)
+2026-01-18 
+21:46:03,881 - 
+ATOM_SERVER - INFO - 
+=====================
+=====================
+==================
+2026-01-18 
+21:46:03,882 - 
+ATOM_SERVER - INFO - 
+Initializing 
+database tables...
+2026-01-18 
+21:46:03,896 - 
+ATOM_SERVER - INFO - 
+Γ£ô Database tables 
+created: ['accounting
+_accounts', 
+'accounting_bills', '
+accounting_budgets', 
+'accounting_categoriz
+ation_proposals', 
+'accounting_closes', 
+'accounting_documents
+', 'accounting_entiti
+es', 'accounting_invo
+ices', 'accounting_jo
+urnal_entries', 
+'accounting_rules', '
+accounting_tax_nexus'
+, 'accounting_transac
+tions', 
+'agent_feedback', 
+'agent_jobs', 
+'agent_registry', 'an
+alytics_workflow_logs
+', 'audit_logs', 'bus
+iness_product_service
+s', 
+'business_rules', 
+'chat_processes', 
+'hitl_actions', 'inge
+sted_documents', 'ing
+estion_settings', 'in
+tegration_catalog', '
+integration_metrics',
+ 'sales_call_transcri
+pts', 
+'sales_commissions', 
+'sales_deals', 'sales
+_follow_up_tasks', 
+'sales_leads', 'servi
+ce_appointments', 
+'service_contracts', 
+'service_milestones',
+ 'service_projects', 
+'service_tasks', 
+'team_members', 
+'team_messages', 
+'teams', 
+'user_connections', 
+'user_sessions', 
+'user_workspaces', 
+'users', 'workflow_ex
+ecutions', 'workflow_
+snapshots', 
+'workspaces']
+2026-01-18 
+21:46:03,896 - 
+ATOM_SERVER - INFO - 
+Bootstrapping admin 
+user...
+2026-01-18 
+21:46:03,905 - 
+ATOM_BOOTSTRAP - 
+INFO - BOOTSTRAP: 
+User 
+admin@example.com 
+found. resetting 
+password...
+2026-01-18 
+21:46:04,356 - 
+ATOM_BOOTSTRAP - 
+INFO - BOOTSTRAP: 
+Password for 
+admin@example.com 
+reset to 
+'securePass123'
+2026-01-18 
+21:46:04,357 - 
+ATOM_SERVER - INFO - 
+Γ£ô Admin user ready
+2026-01-18 
+21:46:04,357 - 
+ATOM_SERVER - INFO - 
+Loading 5 essential 
+plugins...
+2026-01-18 
+21:46:04,357 - core.l
+azy_integration_regis
+try - INFO - Loading 
+integration: auth 
+(core.auth_endpoints)
+2026-01-18 
+21:46:04,357 - core.l
+azy_integration_regis
+try - INFO - Γ£ô 
+Loaded auth
+2026-01-18 
+21:46:04,367 - 
+ATOM_SERVER - INFO - 
+  Γ£ô auth
+2026-01-18 
+21:46:04,367 - core.l
+azy_integration_regis
+try - INFO - Loading 
+integration: oauth 
+(oauth_routes)
+2026-01-18 
+21:46:04,367 - core.l
+azy_integration_regis
+try - INFO - Γ£ô 
+Loaded oauth
+2026-01-18 
+21:46:04,370 - 
+ATOM_SERVER - INFO - 
+  Γ£ô oauth
+2026-01-18 
+21:46:04,370 - core.l
+azy_integration_regis
+try - INFO - Loading 
+integration: 
+system_status 
+(core.system_status)
+2026-01-18 
+21:46:04,373 - core.l
+azy_integration_regis
+try - INFO - Γ£ô 
+Loaded system_status
+2026-01-18 
+21:46:04,373 - 
+ATOM_SERVER - INFO - 
+  Γ£ô system_status
+2026-01-18 
+21:46:04,373 - core.l
+azy_integration_regis
+try - INFO - Loading 
+integration: 
+service_health (servi
+ce_health_endpoints)
+2026-01-18 
+21:46:04,384 - core.l
+azy_integration_regis
+try - INFO - Γ£ô 
+Loaded service_health
+2026-01-18 
+21:46:04,388 - 
+ATOM_SERVER - INFO - 
+  Γ£ô service_health
+2026-01-18 
+21:46:04,388 - core.l
+azy_integration_regis
+try - INFO - Loading 
+integration: openai (
+integrations.openai_r
+outes)
+2026-01-18 
+21:46:04,396 - core.l
+azy_integration_regis
+try - INFO - Γ£ô 
+Loaded openai
+2026-01-18 
+21:46:04,397 - 
+ATOM_SERVER - INFO - 
+  Γ£ô openai
+2026-01-18 
+21:46:04,397 - 
+ATOM_SERVER - INFO - 
+Skipping Scheduler 
+startup (ENABLE_SCHED
+ULER=false)
+2026-01-18 
+21:46:04,397 - 
+ATOM_SERVER - INFO - 
+=====================
+=====================
+==================
+2026-01-18 
+21:46:04,397 - 
+ATOM_SERVER - INFO - 
+Γ£ô Server Ready
+INFO:     
+Application startup 
+complete.
+2026-01-18 
+21:46:04,428 - 
+watchfiles.main - 
+INFO - 3 changes 
+detected
+WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash
+Configuration loaded from environment variables
+WhatsApp Business: DEMO MODE - Use real API credentials for production
+WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash
+WhatsApp Business: DEMO MODE - Use real API credentials for production
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+2026-01-18 
+21:46:12,768 - 
+watchfiles.main - 
+INFO - 1 change 
+detected
+WARNING:  WatchFiles 
+detected changes in 
+'convert_log.py'. 
+Reloading...
+WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash
+Configuration loaded from environment variables
+WhatsApp Business: DEMO MODE - Use real API credentials for production
+ INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63409 - "GET /docs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+INFO:     ::1:0 - "GET /api/v1/analytics/workflows/data_processing_etl/logs HTTP/1.1" 200 OK
+2026-01-18 
+21:49:40,159 - integr
+ations.workflow_autom
+ation_routes - INFO 
+- Tested workflow 
+step: System/execute
+2026-01-18 
+21:49:40,185 - integr
+ations.workflow_autom
+ation_routes - INFO 
+- Tracked analytics 
+for test step: step1 
+in manual_verify_v2
+INFO:     127.0.0.1:53362 - "POST /workflows/test-step HTTP/1.1" 200 OK

@@ -298,13 +298,15 @@ const WorkflowAutomation: React.FC = () => {
   const handleBuilderSave = async (builderData: { nodes: any[]; edges: any[] }) => {
     try {
       setLoading(true);
+      const generatedName = `Visual Workflow ${new Date().toLocaleTimeString()}`;
+
       const response = await fetch("/api/workflows/definitions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: `Visual Workflow ${new Date().toLocaleTimeString()}`,
+          name: generatedName,
           description: "Created via Visual Builder",
           definition: builderData,
         }),
@@ -316,6 +318,29 @@ const WorkflowAutomation: React.FC = () => {
           description: "Your visual workflow has been saved to the database.",
         });
         await fetchWorkflowData(); // Refresh list
+
+        // Update current selected workflow so builder has the ID
+        if (data.workflow_id || data.id) {
+          const newId = data.workflow_id || data.id;
+          const newWorkflow = {
+            id: newId,
+            name: generatedName,
+            description: "Created via Visual Builder",
+            steps: builderData.nodes.map((n: any) => ({
+              id: n.id,
+              name: n.data?.label || n.id,
+              type: n.type,
+              service: n.data?.service,
+              action: n.data?.action,
+              parameters: n.data
+            })),
+            input_schema: {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          setSelectedWorkflow(newWorkflow as WorkflowDefinition);
+        }
+
       } else {
         throw new Error(data.error || "Failed to save");
       }
@@ -719,7 +744,28 @@ const WorkflowAutomation: React.FC = () => {
       </div>
 
       {viewMode === "builder" ? (
-        <WorkflowBuilder />
+        <WorkflowBuilder
+          initialData={builderInitialData || (selectedWorkflow ? {
+            nodes: selectedWorkflow.steps.map((s, i) => ({
+              id: s.id,
+              type: s.type === 'trigger' ? 'trigger' : 'action',
+              position: { x: 250, y: i * 200 + 50 },
+              data: {
+                label: s.name,
+                service: s.service || 'system',
+                action: s.action || 'execute',
+                ...s.parameters
+              }
+            })),
+            edges: selectedWorkflow.steps.slice(0, -1).map((s, i) => ({
+              id: `e${s.id}-${selectedWorkflow.steps[i + 1].id}`,
+              source: s.id,
+              target: selectedWorkflow.steps[i + 1].id,
+              type: 'addStepEdge'
+            }))
+          } : undefined)}
+          workflowId={selectedWorkflow?.id || selectedTemplate?.id}
+        />
       ) : (
         /* Main Content */
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

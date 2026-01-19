@@ -405,7 +405,6 @@ async def list_pending_approvals(
     Used by team leads/admins to review and approve workflows.
     """
     try:
-    try:
         # Use intervention service to get real pending actions
         pending = intervention_service.get_pending_interventions(approver_id)
         
@@ -428,7 +427,6 @@ async def approve_workflow(
     """
     Approve a pending workflow.
     """
-    try:
     try:
         # RBAC Check
         with SessionLocal() as db:
@@ -470,7 +468,6 @@ async def reject_workflow(
     """
     Reject a pending workflow.
     """
-    try:
     try:
         # Use intervention service
         result = await intervention_service.reject_intervention(approval_id, approver_id, reason)

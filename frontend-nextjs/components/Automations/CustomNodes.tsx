@@ -2,11 +2,27 @@ import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Play, GitBranch, Zap, Settings, PauseCircle, Code, MessageSquare, Mail, Globe, Clock } from 'lucide-react';
+import { Play, GitBranch, Zap, Settings, PauseCircle, Code, MessageSquare, Mail, Globe, Clock, Activity, CheckCircle2, XCircle } from 'lucide-react';
+
+// Helper for Performance Mode Overlay
+const PerformanceBadge = ({ analytics }: { analytics: { duration: number; status: string; error?: string } }) => {
+    if (!analytics) return null;
+    const isSuccess = analytics.status === 'COMPLETED' || analytics.status === 'success';
+    const colorClass = isSuccess ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200';
+    const Icon = isSuccess ? CheckCircle2 : XCircle;
+
+    return (
+        <div className={`absolute -top-3 right-2 z-50 flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold shadow-sm ${colorClass}`}>
+            <Icon className="w-3 h-3" />
+            <span>{analytics.duration?.toFixed(0)}ms</span>
+        </div>
+    );
+};
 
 export const TriggerNode = memo(({ data, isConnectable }: any) => {
     return (
-        <Card className="min-w-[250px] border-l-4 border-l-blue-500 shadow-md">
+        <Card className="min-w-[250px] border-l-4 border-l-blue-500 shadow-md relative overflow-visible">
+            {data._analytics && <PerformanceBadge analytics={data._analytics} />}
             <CardHeader className="p-3 pb-0">
                 <div className="flex items-center space-x-2">
                     <Zap className="w-4 h-4 text-blue-500 fill-blue-100" />
@@ -37,6 +53,7 @@ export const TriggerNode = memo(({ data, isConnectable }: any) => {
 
 export const ActionNode = memo(({ data, isConnectable }: any) => {
     const [testStatus, setTestStatus] = React.useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+    const [testDuration, setTestDuration] = React.useState<number | null>(null);
     const [isConnected, setIsConnected] = React.useState<boolean | null>(null);
     const [showRetryConfig, setShowRetryConfig] = React.useState(false);
 
@@ -66,11 +83,20 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    service: data.serviceId || data.service,
-                    action: data.action,
-                    parameters: data.parameters || {},
+                    service: data.serviceId || data.service || 'System',
+                    action: data.action || 'execute',
+                    parameters: Array.isArray(data.parameters) ? {} : (data.parameters || {}),
+                    workflow_id: data._workflowId,
+                    step_id: data.id, // 'data.id' might not exist, usually it's passed as prop 'id' to the node component
                 }),
             });
+
+            const result = await res.json();
+
+            if (res.ok && result?.duration_ms !== undefined) {
+                setTestDuration(result.duration_ms);
+            }
+
             setTestStatus(res.ok ? 'success' : 'error');
             // Reset after 3 seconds
             setTimeout(() => setTestStatus('idle'), 3000);
@@ -103,7 +129,8 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
     const branding = serviceBranding[data.service] || { color: 'border-l-green-500', bgColor: '' };
 
     return (
-        <Card className={`min-w-[220px] border-l-4 ${branding.color} ${branding.bgColor} shadow-sm`}>
+        <Card className={`min-w-[220px] border-l-4 ${branding.color} ${branding.bgColor} shadow-sm relative overflow-visible`}>
+            {data._analytics && <PerformanceBadge analytics={data._analytics} />}
             <Handle
                 type="target"
                 position={Position.Top}
@@ -169,7 +196,7 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
                         ) : testStatus === 'success' ? (
                             <>
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                Success
+                                Success {testDuration !== null ? `(${testDuration}ms)` : ''}
                             </>
                         ) : testStatus === 'error' ? (
                             <>

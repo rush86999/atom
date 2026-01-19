@@ -221,7 +221,7 @@ async def execute_template(template_id: str, parameters: Dict[str, Any] = {}):
         
         # Create execution context
         context = await orchestrator.execute_workflow(
-            template_id,  # Use template_id as workflow_id for now
+            workflow_id,  # Use the instantiated workflow_id
             input_data=parameters,
             execution_context={"source": "visual_builder"}
         )
