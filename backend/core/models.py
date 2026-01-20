@@ -559,3 +559,14 @@ class IntegrationMetric(Base):
     timeframe = Column(String, default="current") # "30d", "current"
     
     last_synced_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    conversation_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    role = Column(String, nullable=False)  # 'user', 'assistant', etc.
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
