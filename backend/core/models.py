@@ -358,7 +358,7 @@ class HITLAction(Base):
 
     # Relationships
     workspace = relationship("Workspace", backref="hitl_actions")
-    reviewer = relationship("User", backref="reviewed_hitl_actions")
+    reviewer = relationship("User", foreign_keys=[reviewed_by], backref="reviewed_hitl_actions")
 
 class AgentStatus(str, enum.Enum):
     STUDENT = "student"       # Initial phase, high supervision

@@ -1,0 +1,125 @@
+{
+  "template_id": "074614e4-df03-5323-b87b-de5575eb4023",
+  "name": "AI Email Follow-up Automation",
+  "description": "Updated via Visual Editor",
+  "category": "automation",
+  "complexity": "intermediate",
+  "tags": [
+    "email",
+    "productivity",
+    "follow-up"
+  ],
+  "version": "1.0.0",
+  "author": "System",
+  "created_at": "2026-01-16 22:53:44.575884",
+  "updated_at": "2026-01-17 19:53:06.557186",
+  "inputs": [
+    {
+      "name": "days_threshold",
+      "label": "Wait Threshold (Days)",
+      "description": "Number of days to wait before suggesting a follow-up",
+      "type": "number",
+      "required": true,
+      "default_value": 3,
+      "options": [],
+      "validation_rules": {},
+      "help_text": null,
+      "example_value": null
+    }
+  ],
+  "steps": [
+    {
+      "id": "detect_candidates",
+      "name": "Detect Cold Threads",
+      "description": "Identify sent emails needing follow-up",
+      "step_type": "action",
+      "parameters": [
+        {
+          "name": "service",
+          "label": "Service",
+          "description": "Service to use",
+          "type": "string",
+          "required": true,
+          "default_value": "email_automation",
+          "options": [],
+          "validation_rules": {},
+          "help_text": null,
+          "example_value": null
+        },
+        {
+          "name": "action",
+          "label": "Action",
+          "description": "Action to perform",
+          "type": "string",
+          "required": true,
+          "default_value": "detect_followups",
+          "options": [],
+          "validation_rules": {},
+          "help_text": null,
+          "example_value": null
+        },
+        {
+          "name": "days_threshold",
+          "label": "Threshold",
+          "description": "Days to wait",
+          "type": "number",
+          "required": true,
+          "default_value": 3,
+          "options": [],
+          "validation_rules": {},
+          "help_text": null,
+          "example_value": null
+        }
+      ],
+      "depends_on": [],
+      "condition": null
+    },
+    {
+      "id": "draft_followups",
+      "name": "Draft Follow-ups",
+      "description": "Use AI to draft polite follow-up messages",
+      "step_type": "action",
+      "parameters": [
+        {
+          "name": "service",
+          "label": "Service",
+          "description": "Service to use",
+          "type": "string",
+          "required": true,
+          "default_value": "email_automation",
+          "options": [],
+          "validation_rules": {},
+          "help_text": null,
+          "example_value": null
+        },
+        {
+          "name": "action",
+          "label": "Action",
+          "description": "Action to perform",
+          "type": "string",
+          "required": true,
+          "default_value": "draft_nudge",
+          "options": [],
+          "validation_rules": {},
+          "help_text": null,
+          "example_value": null
+        }
+      ],
+      "depends_on": [
+        "detect_candidates"
+      ],
+      "condition": null
+    }
+  ],
+  "output_schema": {},
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 120,
+  "prerequisites": [],
+  "dependencies": [],
+  "permissions": [],
+  "is_public": false,
+  "is_featured": false,
+  "license": "MIT"
+}
