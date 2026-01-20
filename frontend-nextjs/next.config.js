@@ -117,6 +117,10 @@ const nextConfig = {
         destination: "http://127.0.0.1:8000/api/auth/verify-token",
       },
       {
+        source: "/api/auth/change-password",
+        destination: "http://127.0.0.1:8000/api/auth/change-password",
+      },
+      {
         source: "/api/atom/:path*",
         destination: "http://127.0.0.1:8000/api/atom/:path*",
       },

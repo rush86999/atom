@@ -5,7 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Mail, CheckCircle2, XCircle, Trash2, Link as LinkIcon } from 'lucide-react';
+import { Loader2, Mail, CheckCircle2, XCircle, Trash2, Key, Eye, EyeOff, AlertCircle, Shield } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
+import TwoFactorSettings from '@/components/Settings/TwoFactorSettings';
 
 interface UserAccount {
     id: string;
@@ -33,6 +37,79 @@ export default function AccountSettings() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [removing, setRemoving] = useState<string | null>(null);
+    const { toast } = useToast();
+    const [changingPassword, setChangingPassword] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [passwordData, setPasswordData] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            toast({
+                title: 'Error',
+                description: 'New passwords do not match',
+                variant: 'error'
+            });
+            return;
+        }
+
+        if (passwordData.newPassword.length < 8) {
+            toast({
+                title: 'Error',
+                description: 'Password must be at least 8 characters',
+                variant: 'error'
+            });
+            return;
+        }
+
+        setChangingPassword(true);
+        try {
+            // @ts-ignore
+            const token = (session as any)?.backendToken || (session as any)?.user?.token;
+
+            const res = await fetch('/api/auth/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    current_password: passwordData.currentPassword,
+                    new_password: passwordData.newPassword
+                })
+            });
+
+            if (res.ok) {
+                toast({
+                    title: 'Success',
+                    description: 'Password updated successfully',
+                    variant: 'success'
+                });
+                setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            } else {
+                const data = await res.json();
+                toast({
+                    title: 'Error',
+                    description: data.detail || data.error || 'Failed to update password',
+                    variant: 'error'
+                });
+            }
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'Failed to update password',
+                variant: 'error'
+            });
+        } finally {
+            setChangingPassword(false);
+        }
+    };
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -213,6 +290,119 @@ export default function AccountSettings() {
                         <p className="text-sm text-gray-500">
                             Member since {new Date(accountData.user.created_at).toLocaleDateString()}
                         </p>
+                    </CardContent>
+                </Card>
+
+                {/* Password Change Card */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Key className="h-5 w-5 text-blue-500" />
+                            Change Password
+                        </CardTitle>
+                        <CardDescription>Update your account password</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleChangePassword} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="currentPassword">Current Password</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="currentPassword"
+                                        type={showCurrentPassword ? "text" : "password"}
+                                        value={passwordData.currentPassword}
+                                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                                        placeholder="Enter current password"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                    >
+                                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="newPassword">New Password</Label>
+                                    <div className="relative">
+                                        <Input
+                                            id="newPassword"
+                                            type={showNewPassword ? "text" : "password"}
+                                            value={passwordData.newPassword}
+                                            onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                                            placeholder="Min 8 characters"
+                                            required
+                                            minLength={8}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNewPassword(!showNewPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                        >
+                                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                                    <Input
+                                        id="confirmPassword"
+                                        type="password"
+                                        value={passwordData.confirmPassword}
+                                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                                        placeholder="Repeat new password"
+                                        required
+                                        minLength={8}
+                                    />
+                                </div>
+                            </div>
+
+                            {passwordData.newPassword && passwordData.confirmPassword && (
+                                <div className={`flex items-center gap-2 text-sm ${passwordData.newPassword === passwordData.confirmPassword ? 'text-green-600' : 'text-red-600'}`}>
+                                    {passwordData.newPassword === passwordData.confirmPassword ? (
+                                        <>
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            <span>Passwords match</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <AlertCircle className="h-4 w-4" />
+                                            <span>Passwords do not match</span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
+                            <Button
+                                type="submit"
+                                disabled={changingPassword || !passwordData.currentPassword || !passwordData.newPassword || passwordData.newPassword !== passwordData.confirmPassword}
+                                className="w-full"
+                            >
+                                {changingPassword ? (
+                                    <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Updating...</>
+                                ) : (
+                                    'Update Password'
+                                )}
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+
+                {/* Two-Factor Authentication Card */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Shield className="h-5 w-5 text-green-500" />
+                            Two-Factor Authentication
+                        </CardTitle>
+                        <CardDescription>Add an extra layer of security to your account</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <TwoFactorSettings />
                     </CardContent>
                 </Card>
 

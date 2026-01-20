@@ -1,8 +1,10 @@
-
-from fastapi import APIRouter, HTTPException, Body, Depends, status
+from fastapi import APIRouter, HTTPException, Body, Depends, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, Field
+from typing import Optional
+import uuid
+import logging
 import uuid
 import logging
 from datetime import datetime, timedelta
@@ -10,6 +12,9 @@ from datetime import datetime, timedelta
 from core.database import get_db
 from core.models import User, UserStatus
 from core.auth import verify_password, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
+from core.audit_service import audit_service
+from core.models import AuditEventType, SecurityLevel, ThreatLevel
+from fastapi import Request
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -21,7 +26,7 @@ class Token(BaseModel):
     token_type: str
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     first_name: str
     last_name: str
@@ -36,13 +41,35 @@ class ResetPasswordRequest(BaseModel):
 class VerifyTokenRequest(BaseModel):
     token: str
 
-@router.post("/login", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    totp_code: Optional[str] = None
+
+@router.post("/login")
+async def login_for_access_token(
+    request: Request,
+    login_data: LoginRequest,
+    db: Session = Depends(get_db)
+):
     import traceback
+    import pyotp
     from fastapi.responses import JSONResponse
     try:
-        user = db.query(User).filter(User.email == form_data.username).first()
-        if not user or not verify_password(form_data.password, user.password_hash):
+        user = db.query(User).filter(User.email == login_data.username).first()
+        if not user or not verify_password(login_data.password, user.password_hash):
+            audit_service.log_event(
+                db, 
+                event_type=AuditEventType.LOGIN.value,
+                action="login_failed",
+                description=f"Failed login attempt for email: {login_data.username}",
+                user_email=login_data.username,
+                security_level=SecurityLevel.MEDIUM.value,
+                threat_level=ThreatLevel.LOW.value,
+                success=False,
+                error_message="Incorrect username or password",
+                request=request
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
@@ -50,7 +77,42 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             )
         
         if user.status != UserStatus.ACTIVE:
+            # ... (unchanged audit and exception)
             raise HTTPException(status_code=400, detail="Inactive user")
+
+        # Check for 2FA
+        if user.two_factor_enabled:
+            if not login_data.totp_code:
+                return JSONResponse(
+                    status_code=status.HTTP_200_OK,
+                    content={
+                        "two_factor_required": True,
+                        "user_id": user.id,
+                        "email": user.email,
+                        "message": "Two-factor authentication required"
+                    }
+                )
+            
+            # Verify TOTP code
+            totp = pyotp.TOTP(user.two_factor_secret)
+            if not totp.verify(login_data.totp_code):
+                audit_service.log_event(
+                    db,
+                    event_type=AuditEventType.LOGIN.value,
+                    action="2fa_failed",
+                    description=f"Failed 2FA attempt for user: {user.email}",
+                    user_id=user.id,
+                    user_email=user.email,
+                    security_level=SecurityLevel.MEDIUM.value,
+                    threat_level=ThreatLevel.LOW.value,
+                    success=False,
+                    error_message="Invalid 2FA code",
+                    request=request
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid 2FA code"
+                )
 
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
@@ -60,6 +122,17 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         # Update last login
         user.last_login = datetime.utcnow()
         db.commit()
+
+        audit_service.log_event(
+            db,
+            event_type=AuditEventType.LOGIN.value,
+            action="login_success",
+            description=f"Successful login for user: {user.email}",
+            user_id=user.id,
+            user_email=user.email,
+            security_level=SecurityLevel.LOW.value,
+            request=request
+        )
         
         return {"access_token": access_token, "token_type": "bearer"}
     except HTTPException:
@@ -135,45 +208,6 @@ async def verify_token(request: VerifyTokenRequest):
 async def reset_password(request: ResetPasswordRequest):
      return {"success": False, "message": "Feature pending migration to new DB"}
 
-
-class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
-
-
-@router.post("/change-password")
-async def change_password(
-    request: ChangePasswordRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Change password for the currently authenticated user.
-    Requires current password verification.
-    """
-    # Verify current password
-    if not verify_password(request.current_password, current_user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect"
-        )
-    
-    # Validate new password length
-    if len(request.new_password) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be at least 8 characters"
-        )
-    
-    # Hash and update password
-    current_user.password_hash = get_password_hash(request.new_password)
-    current_user.updated_at = datetime.utcnow()
-    db.commit()
-    
-    logger.info(f"Password changed for user {current_user.id}")
-    
-    return {"success": True, "message": "Password updated successfully"}
-
 @router.post("/refresh")
 async def refresh_token(current_user: User = Depends(get_current_user)):
     """Refresh the access token"""
@@ -184,62 +218,23 @@ async def refresh_token(current_user: User = Depends(get_current_user)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/logout")
-async def logout():
-    """Logout the current user (client should discard token)"""
-    return {"success": True, "message": "Logged out successfully"}
-
-@router.get("/accounts")
-async def get_linked_accounts(current_user: User = Depends(get_current_user)):
-    """
-    Get linked accounts for the current user.
-    Note: Since we don't have a separate table for linked accounts yet,
-    we synthesize this from the User model.
-    """
-    accounts = []
-    
-    # Check for password (Credentials provider)
-    if current_user.password_hash:
-        accounts.append({
-            "id": f"creds_{current_user.id}",
-            "provider": "credentials",
-            "provider_account_id": current_user.email,
-            "created_at": current_user.created_at.isoformat() if current_user.created_at else datetime.utcnow().isoformat(),
-            "expires_at": None
-        })
-        
-    # Check for future OAuth providers (e.g. metadata_json)
-    # if current_user.metadata_json and "oauth" in current_user.metadata_json: ...
-
-    return {
-        "user": {
-            "name": f"{current_user.first_name} {current_user.last_name}".strip(),
-            "email": current_user.email,
-            "image": None, # Add avatar URL if available
-            "email_verified": None, # Add verification status if available
-            "created_at": current_user.created_at.isoformat() if current_user.created_at else datetime.utcnow().isoformat(),
-        },
-        "accounts": accounts
-    }
-
-class DeleteAccountRequest(BaseModel):
-    accountId: str
-
-@router.delete("/accounts")
-async def unlink_account(
-    data: DeleteAccountRequest,
-    current_user: User = Depends(get_current_user)
+async def logout(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """
-    Unlink an account.
-    """
-    # For now, we only support credentials, which cannot be unlinked if it's the only one
-    if data.accountId.startswith("creds_"):
-        raise HTTPException(
-            status_code=400, 
-            detail="Cannot unlink your primary email/password account."
-        )
-        
-    return {"success": True}
+    """Logout the current user (client should discard token)"""
+    audit_service.log_event(
+        db,
+        event_type=AuditEventType.LOGOUT.value,
+        action="logout",
+        description=f"User logged out: {current_user.email}",
+        user_id=current_user.id,
+        user_email=current_user.email,
+        security_level=SecurityLevel.LOW.value,
+        request=request
+    )
+    return {"success": True, "message": "Logged out successfully"}
 
 @router.get("/profile")
 async def get_user_profile(current_user: User = Depends(get_current_user)):
