@@ -15,7 +15,9 @@ export default async function handler(
     }
 
     try {
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        // FORCE 127.0.0.1 for debugging
+        const backendUrl = 'http://127.0.0.1:8000';
+        console.log(`[TestStep] Attempting fetch to: ${backendUrl}/workflows/test-step`);
 
         const response = await fetch(`${backendUrl}/workflows/test-step`, {
             method: 'POST',
@@ -25,14 +27,23 @@ export default async function handler(
             body: JSON.stringify(req.body),
         });
 
-        const data = await response.json();
+        if (!response.ok) {
+            const text = await response.text();
+            console.error(`Backend returned ${response.status}: ${text}`);
+            return res.status(response.status).json({
+                success: false,
+                error: `Backend error: ${response.status} - ${text}`,
+            });
+        }
 
-        return res.status(response.ok ? 200 : 400).json(data);
-    } catch (error) {
+        const data = await response.json();
+        return res.status(200).json(data);
+    } catch (error: any) {
         console.error('Test step API error:', error);
         return res.status(500).json({
             success: false,
-            error: 'Failed to test workflow step',
+            error: error.message || 'Failed to test workflow step',
+            details: error.cause ? JSON.stringify(error.cause) : undefined
         });
     }
 }
