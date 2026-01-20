@@ -8,6 +8,8 @@ import { useToast } from "@/components/ui/use-toast";
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [isTwoFactorRequired, setIsTwoFactorRequired] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -32,16 +34,22 @@ export default function SignIn() {
       const result = await signIn("credentials", {
         email,
         password,
+        totp_code: totpCode,
         redirect: false,
       });
 
-      if (result?.error || !result?.ok) {
-        // If there's an error string, use it. If not, check status or provide default.
-        const errorMessage = result?.error || "Authentication failed (check credentials or database)";
-        setError(errorMessage);
-
-        // Log for debugging since NextAuth might return empty error on 401
-        console.error("Sign in failed:", result);
+      if (result?.error) {
+        if (result.error === "2FA_REQUIRED" || result.error.includes("2FA_REQUIRED")) {
+          setIsTwoFactorRequired(true);
+          setError("");
+        } else if (result.error === "INVALID_2FA_CODE" || result.error.includes("INVALID_2FA_CODE")) {
+          setError("Invalid 2FA code. Please try again.");
+          setTotpCode("");
+        } else {
+          setError("Invalid email or password");
+        }
+      } else if (!result?.ok) {
+        setError("Authentication failed");
       } else {
         toast({
           title: "Successfully signed in!",
@@ -75,50 +83,81 @@ export default function SignIn() {
               </div>
             )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            {!isTwoFactorRequired ? (
+              <>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                      Password
+                    </label>
+                    <Link
+                      href="/auth/forgot-password"
+                      className="text-sm text-blue-600 hover:text-blue-500"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label htmlFor="totpCode" className="block text-sm font-medium text-gray-700 mb-1">
+                  Security Code
                 </label>
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-sm text-blue-600 hover:text-blue-500"
+                <input
+                  id="totpCode"
+                  type="text"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value)}
+                  placeholder="Enter 6-digit code"
+                  required
+                  autoFocus
+                  autoComplete="one-time-code"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="mt-2 text-xs text-gray-500 text-center">
+                  Enter the code from your authenticator app.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsTwoFactorRequired(false)}
+                  className="mt-2 w-full text-xs text-blue-600 hover:text-blue-500"
                 >
-                  Forgot password?
-                </Link>
+                  Back to login
+                </button>
               </div>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            )}
 
             <button
               type="submit"
               disabled={isLoading}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? "Signing in..." : (isTwoFactorRequired ? "Verify & Sign In" : "Sign In")}
             </button>
 
             <div className="relative py-2">

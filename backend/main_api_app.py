@@ -306,8 +306,13 @@ try:
     try:
         from core.auth_endpoints import router as auth_router
         app.include_router(auth_router)  # Already has prefix="/api/auth"
+
+        # 4a. 2FA Routes
+        from api.auth_2fa_routes import router as auth_2fa_router
+        app.include_router(auth_2fa_router) # Already has prefix="/api/auth/2fa"
+        logger.info("✓ 2FA Routes Loaded")
     except ImportError:
-        logger.warning("Auth endpoints not found, skipping.")
+        logger.warning("Auth endpoints or 2FA routes not found, skipping.")
 
     # 4b. Onboarding Routes
     try:

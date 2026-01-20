@@ -113,6 +113,11 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
 
+    # 2FA Fields
+    two_factor_enabled = Column(Boolean, default=False)
+    two_factor_secret = Column(String, nullable=True) # Should be encrypted in a real production app
+    two_factor_backup_codes = Column(JSON, nullable=True)
+
     # Relationships
     workspaces = relationship("Workspace", secondary=user_workspaces, back_populates="users")
     teams = relationship("Team", secondary=team_members, back_populates="members")
