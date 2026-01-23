@@ -175,6 +175,13 @@ try:
     except ImportError as e:
         logger.error(f"Failed to load Core API routes: {e}")
 
+    # 1.5 System Health (Safe Import)
+    try:
+        from api.admin.system_health_routes import router as health_router
+        app.include_router(health_router, prefix="") # Already has valid prefix
+    except ImportError as e:
+        logger.error(f"Failed to load System Health routes: {e}")
+
     # 2. Workflow Engine
     try:
         from core.availability_endpoints import router as availability_router

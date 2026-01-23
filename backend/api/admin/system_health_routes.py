@@ -1,0 +1,96 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy import text
+from core.database import SessionLocal
+from core.cache import RedisCacheService
+from core.admin_endpoints import get_super_admin
+from core.models import User
+import logging
+import time
+
+# Initialize cache service
+cache_service = RedisCacheService()
+
+# Safe import for LanceDB
+try:
+    from core.lancedb_handler import LanceDBHandler
+    HAS_LANCEDB = True
+except ImportError as e:
+    logging.getLogger(__name__).error(f"Failed to import LanceDBHandler: {e}")
+    HAS_LANCEDB = False
+
+router = APIRouter(tags=["Admin Health"])
+logger = logging.getLogger(__name__)
+
+# Hardcoded path to avoid prefix issues
+@router.get("/api/admin/health")
+def get_system_health(admin: User = Depends(get_super_admin)):
+    """
+    Real system health check for Admin Dashboard.
+    Verifies connectivity to:
+    1. Database (PostgreSQL/Neon)
+    2. Cache (Redis/Upstash)
+    3. Vector Store (LanceDB/R2)
+    """
+    
+    # 1. Database Check
+    db_status = "unknown"
+    try:
+        start = time.time()
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
+            db_time = time.time() - start
+            db_status = "operational" if db_time < 2.0 else "degraded"
+    except Exception as e:
+        logger.error(f"Health Check DB Error: {e}")
+        db_status = "degraded"
+
+    # 2. Redis Check
+    redis_status = "unknown"
+    try:
+        if cache_service.enabled and cache_service.client:
+             if cache_service.client.ping():
+                 redis_status = "operational"
+             else:
+                 redis_status = "degraded"
+        else:
+             if not cache_service.enabled:
+                 redis_status = "unknown" 
+    except Exception as e:
+        logger.error(f"Health Check Redis Error: {e}")
+        redis_status = "degraded"
+
+    # 3. Vector Store Check
+    vector_status = "unknown"
+    if HAS_LANCEDB:
+        try:
+            # Check default tenant storage
+            handler = LanceDBHandler(tenant_id="default")
+            res = handler.test_connection()
+            if res.get("connected"):
+                vector_status = "operational"
+            else:
+                vector_status = "degraded"
+                logger.error(f"Health Check Vector Error: {res.get('message')}")
+        except Exception as e:
+            logger.error(f"Health Check Vector Exception: {e}")
+            vector_status = "degraded"
+    else:
+        vector_status = "maintenance" # Import failed
+
+    # Determine Overall Status
+    overall_status = "healthy"
+    if db_status != "operational":
+        overall_status = "degraded"
+    elif redis_status == "degraded" or vector_status == "degraded":
+        overall_status = "degraded"
+
+    return {
+        "version": "2.1.0",
+        "status": overall_status,
+        "services": {
+            "database": db_status,
+            "redis": redis_status,
+            "vector_store": vector_status
+        },
+        "timestamp": time.time()
+    }

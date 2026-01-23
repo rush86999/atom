@@ -129,14 +129,33 @@ class LanceDBHandler:
         try:
             # Handle local path creation
             if not self.db_path.startswith("s3://"):
-                Path(self.db_path).mkdir(parents=True, exist_ok=True)
+                self.db_path = os.path.abspath(self.db_path)
+                os.makedirs(self.db_path, exist_ok=True)
             
-            # Connect to database
-            self.db = lancedb.connect(self.db_path)
-            logger.info(f"LanceDB connected at {self.db_path}")
+            # Connect to database with storage options (required for R2/S3 endpoints)
+            storage_options = {}
+            if self.db_path.startswith("s3://"):
+                endpoint = os.getenv("AWS_ENDPOINT_URL") or os.getenv("AWS_S3_ENDPOINT")
+                if endpoint:
+                    storage_options["endpoint"] = endpoint
+                
+                # Prioritize R2 specific keys, fallback to global AWS keys
+                access_key = os.getenv("R2_ACCESS_KEY_ID") or os.getenv("AWS_ACCESS_KEY_ID")
+                secret_key = os.getenv("R2_SECRET_ACCESS_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
+                region = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "auto"
+                
+                if access_key:
+                    storage_options["aws_access_key_id"] = access_key
+                if secret_key:
+                    storage_options["aws_secret_access_key"] = secret_key
+                if region:
+                    storage_options["region"] = region
+            
+            self.db = lancedb.connect(self.db_path, storage_options=storage_options)
+            logger.info(f"LanceDB connected at {self.db_path} (options: {list(storage_options.keys())})")
             
         except Exception as e:
-            logger.error(f"Failed to initialize LanceDB: {e}")
+            logger.error(f"Failed to initialize LanceDB at {self.db_path}: {e}")
             self.db = None
     
     def _initialize_embedder(self):
