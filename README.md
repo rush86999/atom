@@ -49,6 +49,7 @@ Atom remembers everything so you don't have to repeat yourself.
 - **Knowledge Graph**: Atom builds a graph of your people, projects, and tasks to understand *relationships*, not just keywords.
 - **Trusted Memory (New)**: Store critical business facts (policies, compliance rules) with **JIT Citations**. Agents must "Trust but Verify" these facts against the source document before acting, ensuring 100% adherence to your rules.
 - **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted (Fernet at-rest).
+- **Self-Evolving World Model**: Agents store and retrieve past "experiences" to learn from success and failure. See [docs/ai-world-model.md](docs/ai-world-model.md).
 
 ### 🔌 **Deep Integrations (Hybrid Runtime)**
 Connect your entire business ecosystem with over **500+ apps**.
