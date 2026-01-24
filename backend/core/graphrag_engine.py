@@ -53,20 +53,120 @@ class GraphRAGEngine:
     Uses SQL Recursive CTEs for traversal (Stateless).
     """
     
-    def __init__(self):
-        self._llm_client = None
-        self._initialize_llm_client()
-    
-    def _initialize_llm_client(self):
-        """Initialize LLM client"""
-        # (Same as before - simplified for brevity in this refactor)
+    def _get_llm_client(self, workspace_id: str):
+        """Get LLM client with BYOK support for specific workspace"""
+        if not GRAPHRAG_LLM_ENABLED:
+            return None
+            
         try:
             from openai import OpenAI
-            api_key = os.getenv("OPENAI_API_KEY")
+            from core.byok_endpoints import get_byok_manager
+            
+            byok = get_byok_manager()
+            # 1. Try Tenant-specific Key
+            api_key = byok.get_tenant_api_key(workspace_id, GRAPHRAG_LLM_PROVIDER)
+            
+            # 2. Fallback to Platform Key
+            if not api_key:
+                api_key = byok.get_api_key(GRAPHRAG_LLM_PROVIDER)
+            
             if api_key:
-                self._llm_client = OpenAI(api_key=api_key)
+                return OpenAI(api_key=api_key)
+            return None
         except ImportError:
-            pass
+            logger.warning("OpenAI or BYOK Manager not available")
+            return None
+
+    def _is_llm_available(self, workspace_id: str) -> bool:
+        return self._get_llm_client(workspace_id) is not None
+
+    # ==================== LLM EXTRACTION (Ported from V1 Enhanced) ====================
+
+    def _llm_extract_entities_and_relationships(
+        self, text: str, doc_id: str, source: str, workspace_id: str
+    ) -> tuple[List[Entity], List[Relationship]]:
+        """Extract using LLM with BYOK"""
+        client = self._get_llm_client(workspace_id)
+        if not client:
+            return [], []
+
+        prompt = f"""Analyze the following text and extract knowledge graph elements.
+Respond with valid JSON only.
+
+Text:
+\"\"\"
+{text[:6000]}
+\"\"\"
+
+JSON Schema:
+{{
+  "entities": [{{"name": "string", "type": "string", "description": "string"}}],
+  "relationships": [{{"from": "string", "to": "string", "type": "string", "description": "string"}}]
+}}"""
+
+        try:
+            response = client.chat.completions.create(
+                model=GRAPHRAG_LLM_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a knowledge graph extractor. Output valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
+            
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            
+            entities = []
+            for e in data.get("entities", []):
+                entities.append(Entity(
+                    id=str(uuid.uuid4()),
+                    name=e["name"],
+                    entity_type=e["type"],
+                    description=e.get("description", ""),
+                    properties={"source": source, "doc_id": doc_id, "llm_extracted": True}
+                ))
+            
+            relationships = []
+            for r in data.get("relationships", []):
+                relationships.append(Relationship(
+                    id=str(uuid.uuid4()),
+                    from_entity=r["from"], # Names for now, will map to IDs in ingestion
+                    to_entity=r["to"],
+                    rel_type=r["type"],
+                    description=r.get("description", ""),
+                    properties={"llm_extracted": True}
+                ))
+                
+            return entities, relationships
+        except Exception as e:
+            logger.error(f"LLM extraction failed: {e}")
+            return [], []
+
+    # ==================== INGESTION ORCHESTRATOR ====================
+
+    def ingest_document(self, workspace_id: str, doc_id: str, text: str, source: str = "unknown"):
+        """Ingest raw text -> Extract -> Store in Postgres"""
+        
+        # 1. Extract
+        if self._is_llm_available(workspace_id):
+            entities, relationships = self._llm_extract_entities_and_relationships(text, doc_id, source, workspace_id)
+        else:
+            # Fallback to simple patterns (simplified for V2)
+            entities, relationships = [], []
+            # TODO: Add pattern fallback if needed
+            
+        if not entities and not relationships:
+            logger.info("No entities extracted.")
+            return
+
+        # 2. Store (Using existing structured ingestion methods)
+        # Convert dataclasses to dicts for ingest_structured_data
+        e_dicts = [{"name": e.name, "type": e.entity_type, "description": e.description, "properties": e.properties} for e in entities]
+        r_dicts = [{"from": r.from_entity, "to": r.to_entity, "type": r.rel_type, "properties": r.properties} for r in relationships]
+        
+        self.ingest_structured_data(workspace_id, e_dicts, r_dicts)
 
     # ==================== WRITE OPERATIONS (SQL) ====================
 
