@@ -15,14 +15,19 @@ Every time an agent completes a task (whether successful or not), it records an 
     *   `confidence_score`: A float (0.0 - 1.0) indicating how trusted this pattern is.
     *   `trace`: Execution details for debugging.
 
-**Storage Technology**: [LanceDB](https://lancedb.com/) (Vector Database)
+    *   `trace`: Execution details for debugging.
+
+**Storage Technology**: PostgreSQL (Relational Graph Tables: `graph_nodes`, `graph_edges`) + Upstash Redis (Job Queue).
+Traversal is handled via SQL Recursive CTEs for stateless efficient lookup.
+Community Detection (clustering) is handled by a background worker using NetworkX + Leiden Algorithm.
 
 ## 2. The Retrieval Pipeline (`recall_experiences`)
 
 When an agent faces a new task `T`, the system calls `WorldModelService.recall_experiences(T)`. This triggers a multi-step retrieval process:
 
-### Step 1: Semantic Vector Search
-The system queries LanceDB using the vector embedding of the **current task description**. This retrieves experiences that are *conceptually similar* to the problem at hand.
+### Step 1: Graph Neighborhood Search
+The system queries the PostgreSQL Map using **Recursive CTEs** to find the neighborhood of the relevant entity (Person, Project, Document).
+This retrieves specific, connected context (Relationships) rather than just semantic similarity.
 
 ### Step 2: Role Scoping
 Results are filtered by `agent_role`.
@@ -61,7 +66,7 @@ When a human approves or rejects an action:
 
 ```mermaid
 graph TD
-    A[New Task] --> B[Vector Search (LanceDB)]
+    A[New Task] --> B[Map Search (Postgres Graph)]
     B --> C{Filter Results}
     C -->|Role Mismatch| D[Discard]
     C -->|Low Quality| D
