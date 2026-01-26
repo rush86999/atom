@@ -699,6 +699,8 @@ backend/verify_scheduler.py
 backend/test_chat_endpoint.py
 backend/scripts/test_*.py
 **/backend/scripts/test_*.py
+verify_*.py
+*.log.txt
 
 # Frontend build logs and debug scripts
 frontend-nextjs/*_log_*.txt

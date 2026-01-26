@@ -11,7 +11,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from enum import Enum
 import asyncio
@@ -20,6 +20,7 @@ from core.database import SessionLocal
 from core.automation_settings import get_automation_settings
 from core.automation_settings import get_automation_settings
 from api.agent_routes import execute_agent_task
+from core.chat_session_manager import get_chat_session_manager
 
 # Legacy Agent Definitions for Chat Mapping
 AGENTS = {
@@ -151,11 +152,34 @@ class ChatOrchestrator:
         self.feature_handlers = {}
         self.platform_connectors = {}
         self.ai_engines = {}
+        
+        # Initialize session manager for persistence
+        self.session_manager = get_chat_session_manager()
 
         # Initialize feature handlers
         self._initialize_feature_handlers()
         self._initialize_platform_connectors()
         self._initialize_ai_engines()
+        
+        # Load persisted sessions
+        self._load_persisted_sessions()
+
+    def _load_persisted_sessions(self):
+        """Load sessions from disk into memory"""
+        try:
+            persisted = self.session_manager._load_sessions()
+            for s in persisted:
+                # Convert flat session structure to orchestrator structure
+                self.conversation_sessions[s["session_id"]] = {
+                    "id": s["session_id"],
+                    "user_id": s["user_id"],
+                    "created_at": s.get("created_at"),
+                    "last_updated": s.get("last_active"), 
+                    "history": s.get("history", [])
+                }
+            logger.info(f"Loaded {len(persisted)} persisted sessions.")
+        except Exception as e:
+            logger.error(f"Failed to load persisted sessions: {e}")
 
     def _initialize_feature_handlers(self):
         """Initialize handlers for all ATOM features"""
@@ -188,20 +212,31 @@ class ChatOrchestrator:
 
     def _initialize_ai_engines(self):
         """Initialize AI engines for NLP, data intelligence, and automation"""
+        self.ai_engines = {}
+        
+        # NLP Engine (Lightweight, Critical for Chat)
         try:
-            # Import AI engines
             from backend.ai.nlp_engine import NaturalLanguageEngine
-            from backend.ai.data_intelligence import DataIntelligenceEngine
-            from backend.ai.automation_engine import AutomationEngine
+            self.ai_engines["nlp"] = NaturalLanguageEngine()
+            logger.info("NLP Engine initialized successfully")
+        except Exception as e:
+            logger.warning(f"NLP Engine not available: {e}")
 
-            self.ai_engines = {
-                "nlp": NaturalLanguageEngine(),
-                "data_intelligence": DataIntelligenceEngine(),
-                "automation": AutomationEngine(),
-            }
-        except ImportError as e:
-            logger.warning(f"AI engines not available: {e}")
-            self.ai_engines = {}
+        # Data Intelligence Engine (Heavy, uses LanceDB/Pandas)
+        try:
+            from backend.ai.data_intelligence import DataIntelligenceEngine
+            self.ai_engines["data_intelligence"] = DataIntelligenceEngine()
+            logger.info("Data Intelligence Engine initialized successfully")
+        except Exception as e:
+            logger.warning(f"Data Intelligence Engine not available (likely missing requirements): {e}")
+
+        # Automation Engine
+        try:
+            from backend.ai.automation_engine import AutomationEngine
+            self.ai_engines["automation"] = AutomationEngine()
+            logger.info("Automation Engine initialized successfully")
+        except Exception as e:
+            logger.warning(f"Automation Engine not available: {e}")
 
     def _create_platform_connector(self, platform: PlatformType):
         """Create a mock platform connector (would connect to real APIs in production)"""
@@ -254,7 +289,7 @@ class ChatOrchestrator:
             return response
 
         except Exception as e:
-            logger.error(f"Error processing chat message: {e}")
+            logger.error(f"Error processing chat message: {e}", exc_info=True)
             return self._generate_error_response(str(e), session_id)
 
 
@@ -291,9 +326,11 @@ class ChatOrchestrator:
             CommandType.ANALYZE: ChatIntent.DATA_ANALYSIS,
             CommandType.BUSINESS_HEALTH: ChatIntent.BUSINESS_HEALTH,
             CommandType.TRIGGER: ChatIntent.AUTOMATION_TRIGGER,
+            CommandType.NOTIFY: ChatIntent.MESSAGE_SEND,
+            CommandType.UNKNOWN: ChatIntent.HELP_REQUEST,
         }
 
-        return intent_mapping.get(command_type, ChatIntent.SEARCH_REQUEST)
+        return intent_mapping.get(command_type, ChatIntent.HELP_REQUEST)
 
     def _fallback_intent_analysis(self, message: str) -> Dict[str, Any]:
         """Fallback intent analysis when NLP is unavailable"""
@@ -311,15 +348,18 @@ class ChatOrchestrator:
         elif any(word in message_lower for word in ["schedule", "meeting", "calendar", "appointment"]):
             intent = ChatIntent.SCHEDULING
         # Business Health Detection
-        elif any(word in message_lower for word in ["priority", "priorities", "what should i do", "what to do today"]):
+        elif any(word in message_lower for word in ["priority", "priorities", "prioritize", "what should i do", "what to do today"]):
             intent = ChatIntent.BUSINESS_HEALTH
         elif any(word in message_lower for word in ["simulate", "simulation", "what if i", "impact of"]):
             intent = ChatIntent.BUSINESS_HEALTH
+        # Automation / Agent Trigger
+        elif any(word in message_lower for word in ["run", "execute", "check", "analyze", "inventory", "competitor"]):
+             intent = ChatIntent.AUTOMATION_TRIGGER
         # CRM & Sales Intelligence intents
         elif any(word in message_lower for word in ["deal", "lead", "pipeline", "sales", "prospect", "forecast"]):
             intent = ChatIntent.CRM
         else:
-            intent = ChatIntent.SEARCH_REQUEST
+            intent = ChatIntent.HELP_REQUEST
 
         return {
             "primary_intent": intent,
@@ -425,6 +465,11 @@ class ChatOrchestrator:
     ) -> str:
         """Generate main response message based on feature responses"""
         intent = intent_analysis["primary_intent"]
+        
+        # DEBUG LOGGING for User Issue
+        logger.info(f"DEBUG_CHAT: Intent={intent}, Responses={list(feature_responses.keys())}")
+        if FeatureType.SCHEDULING in feature_responses:
+            logger.info(f"DEBUG_CHAT: SchedData={feature_responses[FeatureType.SCHEDULING]}")
 
         if intent == ChatIntent.SEARCH_REQUEST:
             search_data = feature_responses.get(FeatureType.SEARCH, {})
@@ -436,8 +481,11 @@ class ChatOrchestrator:
         elif intent == ChatIntent.MESSAGE_SEND:
             comm_data = feature_responses.get(FeatureType.COMMUNICATION, {})
             if comm_data.get("success"):
-                return "Message sent successfully."
+                return "I've sent that message for you."
             return "I'll help you send that message."
+
+        elif intent == ChatIntent.HELP_REQUEST:
+             return "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
 
         elif intent == ChatIntent.TASK_MANAGEMENT:
             task_data = feature_responses.get(FeatureType.TASKS, {})
@@ -453,8 +501,12 @@ class ChatOrchestrator:
 
         elif intent == ChatIntent.SCHEDULING:
             schedule_data = feature_responses.get(FeatureType.SCHEDULING, {})
-            if schedule_data.get("data"):
-                return "Schedule updated successfully."
+            # Check for direct message (e.g. auth prompt or error)
+            if schedule_data.get("message"):
+                return schedule_data["message"]
+            # Check for data-embedded message (success case)
+            if schedule_data.get("data") and schedule_data["data"].get("message"):
+                return schedule_data["data"]["message"]
             return "I'll handle the scheduling for you."
 
         elif intent == ChatIntent.CRM:
@@ -573,7 +625,71 @@ class ChatOrchestrator:
     async def _handle_scheduling_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
-        return {"success": True, "data": {"message": "Scheduling logic here"}}
+        """Handle calendar and meeting requests"""
+        from integrations.google_calendar_service import google_calendar_service
+        
+        # Check if authenticated
+        if not google_calendar_service.authenticate():
+            return {
+                "success": True, # set to True so frontend processes the message/actions
+                "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+                "suggested_actions": ["Connect Google Calendar"],
+                "data": {
+                    "actions": [{
+                        "type": "view_calendar",
+                        "label": "Connect Google Calendar",
+                        "data": { "url": "http://localhost:8000/api/auth/google/initiate" }
+                    }]
+                },
+            }
+
+        message_lower = message.lower()
+        
+        # Simple extraction simulation (Real app would use NLP entities or specific extraction model)
+        # Ideally, we should use the `entities` from intent_analysis if available
+        event_topic = "Meeting"
+        if "meeting" in message_lower: event_topic = "Team Sync" # enhancing extraction slightly
+        if "call" in message_lower: event_topic = "Client Call"
+        if "demo" in message_lower: event_topic = "Product Demo"
+        
+        # Determine time (Basic heuristic for MVP)
+        start_time = datetime.now() + timedelta(days=1)
+        start_time = start_time.replace(hour=10, minute=0, second=0, microsecond=0)
+        
+        if "today" in message_lower:
+             start_time = datetime.now().replace(hour=16, minute=30, second=0, microsecond=0)
+             if start_time < datetime.now(): # If 4:30 PM passed, schedule for next hour
+                 start_time = datetime.now() + timedelta(hours=1)
+        
+        end_time = start_time + timedelta(hours=1)
+        
+        # Create Unified Event Object
+        event_data = {
+            "title": event_topic,
+            "description": f"Scheduled via ATOM Chat based on request: '{message}'",
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "location": "Virtual",
+            "attendees": [] 
+        }
+
+        # Call Real Service
+        created_event = await google_calendar_service.create_event(event_data)
+        
+        if created_event:
+            success_message = f"I've scheduled '{created_event['title']}' for {start_time.strftime('%A at %I:%M %p')}."
+            return {
+                "success": True, 
+                "data": {
+                    "message": success_message,
+                    "event": created_event
+                }
+            }
+        else:
+             return {
+                "success": False,
+                "message": "I encountered an error trying to schedule that event with Google Calendar."
+            }
 
     async def _handle_integration_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
@@ -616,7 +732,15 @@ class ChatOrchestrator:
         # Trigger the agent using unified execution
         try:
              # In a real app we might pass specific parameters extracted from NLP
-            run_params = {"trigger": "chat_user", "session_id": session.get("id"), "request": message}
+            # Explicitly pass workspace_id (default to "default" if not present)
+            # This ensures the agent broadcasts events to the correct channel
+            current_workspace_id = session.get("workspace_id") or context.get("workspace_id") or "default"
+            run_params = {
+                "trigger": "chat_user", 
+                "session_id": session.get("id"), 
+                "workspace_id": current_workspace_id,
+                "request": message
+            }
             
             # Use execute_agent_task from api.agent_routes
             # Note: execute_agent_task is async
@@ -750,12 +874,43 @@ class ChatOrchestrator:
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
         """Handle business health queries (priorities and simulations)"""
+        # Lazy import 
         from core.business_health_service import business_health_service
         
         message_lower = message.lower()
         workspace_id = context.get("workspace_id") if context else "default-workspace"
         
         try:
+            if any(word in message_lower for word in ["priority", "priorities", "prioritize", "what should i do", "what to do today"]):
+                # Daily Briefing / Priorities
+                health_data = await business_health_service.get_daily_priorities(workspace_id)
+                priorities_raw = health_data.get("priorities", [])
+                
+                # Format for display
+                priorities_text = []
+                for i, p in enumerate(priorities_raw, 1):
+                    priorities_text.append(f"{i}. {p['title']} ({p.get('priority', 'MEDIUM')} Priority)")
+                
+                owner_advice = health_data.get("owner_advice", "No specific advice generated.")
+                timestamp = health_data.get("timestamp", "")
+                
+                final_msg = (
+                    f"Here are your top priorities for today (Generated at {timestamp}):\n\n"
+                    f"{chr(10).join(priorities_text)}\n\n"
+                    f"💡 **AI Strategic Advice:**\n{owner_advice}"
+                )
+
+                return {
+                    "success": True, 
+                    "message": final_msg,
+                    "data": {"priorities": priorities_raw, "advice": owner_advice},
+                    "ui_updates": [{"type": "priority_list", "data": priorities_text}],
+                    "suggested_actions": ["View Dashboard", "Run Deep Analysis"]
+                }
+            
+            # Only import if we fall through to simulation
+            from core.business_health_service import business_health_service
+            
             if any(word in message_lower for word in ["simulate", "simulation", "impact", "what if"]):
                 # Run Simulation
                 # Simple extraction for demo purposes, in production use AI extraction
@@ -819,21 +974,52 @@ class ChatOrchestrator:
 
     def _get_or_create_session(self, user_id: str, session_id: str) -> Dict[str, Any]:
         if session_id not in self.conversation_sessions:
-            self.conversation_sessions[session_id] = {
-                "id": session_id,
-                "user_id": user_id,
-                "created_at": datetime.now().isoformat(),
-                "history": []
-            }
+            # Check persistence
+            persisted = self.session_manager.get_session(session_id)
+            
+            if persisted:
+                # Load from persistence
+                self.conversation_sessions[session_id] = {
+                    "id": persisted["session_id"],
+                    "user_id": persisted["user_id"],
+                    "created_at": persisted.get("created_at"),
+                    "last_updated": persisted.get("last_active"),
+                    "history": persisted.get("history", [])
+                }
+            else:
+                # Create new
+                self.session_manager.create_session(user_id, metadata={"source": "chat_orchestrator"}, session_id=session_id)
+                self.conversation_sessions[session_id] = {
+                    "id": session_id,
+                    "user_id": user_id,
+                    "created_at": datetime.now().isoformat(),
+                    "last_updated": datetime.now().isoformat(),
+                    "history": []
+                }
         return self.conversation_sessions[session_id]
 
     def _update_session(self, session: Dict, message: str, response: Dict, intent: Dict):
+        # Update memory
+        # Ensure intent is serializable
+        serializable_intent = intent.copy()
+        if "primary_intent" in serializable_intent and hasattr(serializable_intent["primary_intent"], "value"):
+            serializable_intent["primary_intent"] = serializable_intent["primary_intent"].value
+            
         session["history"].append({
             "message": message,
             "response": response,
-            "intent": intent,
+            "intent": serializable_intent,
             "timestamp": datetime.now().isoformat()
         })
+        session["last_updated"] = datetime.now().isoformat()
+        
+        # Update persistence
+        if self.session_manager:
+            self.session_manager.update_session_activity(
+                session_id=session["id"], 
+                history=session["history"],
+                last_message=response.get("message", "Sent a message")
+            )
 
     def _generate_error_response(self, error: str, session_id: str) -> Dict[str, Any]:
         return {

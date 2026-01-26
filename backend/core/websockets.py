@@ -23,7 +23,18 @@ class ConnectionManager:
         # Authenticate
         db = SessionLocal()
         try:
-            user = await get_current_user_ws(token, db)
+            # Allow dev bypass
+            if token == "dev-token":
+                # Create a mock user for dev
+                class MockUser:
+                    id = "dev-user"
+                    email = "dev@local.host"
+                    teams = []
+                    workspace_id = "default"
+                user = MockUser()
+            else:
+                user = await get_current_user_ws(token, db)
+            
             if not user:
                 await websocket.close(code=4001) # Unauthorized
                 return None
@@ -86,11 +97,14 @@ class ConnectionManager:
         if channel in self.active_connections:
             # Create a copy to avoid modification during iteration
             connections = self.active_connections[channel][:]
+            logger.info(f"[WS-DEBUG] Broadcasting to '{channel}' ({len(connections)} clients): {str(message)[:200]}...")
             for connection in connections:
                 try:
                     await connection.send_json(message)
                 except Exception as e:
                     logger.error(f"Error broadcasting to {channel}: {e}")
+        else:
+             logger.warning(f"[WS-DEBUG] Attempted broadcast to EMPTY channel: '{channel}'. Msg: {str(message)[:50]}...")
                     # Cleanup dead connection?
                     
     async def broadcast_event(self, channel: str, event_type: str, data: Any):

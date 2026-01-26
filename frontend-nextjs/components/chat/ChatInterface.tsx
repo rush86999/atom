@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from 'next/router';
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { ScrollArea } from "../ui/scroll-area";
@@ -12,9 +13,10 @@ import { useVoiceAgent } from "../../hooks/useVoiceAgent";
 
 interface ChatInterfaceProps {
     sessionId: string | null;
+    onSessionCreated?: (sessionId: string) => void;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreated }) => {
     const [input, setInput] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
     const [messages, setMessages] = useState<ChatMessageData[]>([]);
@@ -95,13 +97,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
             if (response.ok) {
                 const data = await response.json();
                 if (data.messages) {
-                    const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
-                        id: msg.id || `msg_${Date.now()}_${Math.random()}`,
-                        type: msg.role === 'user' ? 'user' : 'assistant',
-                        content: msg.content || '',
-                        timestamp: new Date(msg.timestamp || Date.now()),
-                        actions: msg.metadata?.actions || [],
-                    }));
+                    const chatMessages: ChatMessageData[] = [];
+
+                    data.messages.forEach((exchange: any) => {
+                        // User message
+                        if (exchange.message) {
+                            chatMessages.push({
+                                id: `msg_u_${Date.now()}_${Math.random()}`,
+                                type: 'user',
+                                content: exchange.message,
+                                timestamp: new Date(exchange.timestamp || Date.now()),
+                            });
+                        }
+
+                        // Assistant response
+                        if (exchange.response && exchange.response.message) {
+                            chatMessages.push({
+                                id: `msg_a_${Date.now()}_${Math.random()}`,
+                                type: 'assistant',
+                                content: exchange.response.message,
+                                timestamp: new Date(exchange.response.timestamp || Date.now()),
+                                actions: exchange.response.suggested_actions || [],
+                            });
+                        }
+                    });
+
                     setMessages(chatMessages);
                 }
             }
@@ -147,12 +167,38 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
             const data = await response.json();
 
             if (data.success) {
+                // Notify parent of new session if applicable
+                if (data.session_id && onSessionCreated && data.session_id !== sessionId) {
+                    onSessionCreated(data.session_id);
+                }
+
+                // Extract actions from either top-level or nested feature metadata
+                // Extract actions from either top-level or nested feature metadata
+                let extractedActions = data.metadata?.actions || [];
+                if (data.metadata) {
+                    Object.values(data.metadata).forEach((featureData: any) => {
+                        if (featureData && Array.isArray(featureData.actions)) {
+                            extractedActions = [...extractedActions, ...featureData.actions];
+                        }
+                    });
+                }
+
+                // Extract search results from ui_updates
+                let searchResults = [];
+                if (data.ui_updates) {
+                    const searchUpdate = data.ui_updates.find((u: any) => u.type === 'search_results');
+                    if (searchUpdate) {
+                        searchResults = searchUpdate.data;
+                    }
+                }
+
                 const agentMsg: ChatMessageData = {
                     id: (Date.now() + 1).toString(),
                     type: "assistant",
                     content: data.message,
                     timestamp: new Date(),
-                    actions: data.metadata?.actions || [],
+                    actions: extractedActions,
+                    searchResults: searchResults,
                 };
                 setMessages(prev => [...prev, agentMsg]);
 
@@ -175,9 +221,48 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         }
     };
 
+    const router = useRouter();
+
     const handleActionClick = (action: any) => {
         console.log("Action clicked:", action);
-        // Hub for global actions like 'execute', 'view', etc.
+
+        try {
+            switch (action.type) {
+                case 'view_calendar':
+                case 'auth_request': // enhanced flexibility
+                    if (action.data?.url) {
+                        window.open(action.data.url, '_blank');
+                    } else {
+                        router.push('/calendar');
+                    }
+                    break;
+
+                case 'schedule':
+                    router.push('/calendar'); // Navigate to calendar page
+                    break;
+
+                case 'create_event':
+                    // Ideally open a modal, for now navigate to calendar query
+                    router.push('/calendar?action=create');
+                    break;
+
+                case 'view_inbox':
+                    router.push('/mail');
+                    break;
+
+                case 'execute':
+                    toast({ title: "Executing...", description: `Running action: ${action.label}` });
+                    // Future: Trigger backend execution via WebSocket or API
+                    break;
+
+                default:
+                    console.warn("Unknown action type:", action.type);
+                    toast({ title: "Action Not Implemented", description: `Type: ${action.type}` });
+            }
+        } catch (error) {
+            console.error("Action handler error:", error);
+            toast({ variant: "destructive", title: "Action Failed", description: "Could not execute this action." });
+        }
     };
 
     const handleStop = () => {
