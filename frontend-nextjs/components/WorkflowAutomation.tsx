@@ -480,8 +480,11 @@ const WorkflowAutomation: React.FC = () => {
   };
 
   // [Lesson 3] Time-Travel / Fork Handler
-  const handleForkWorkflow = async () => {
-    if (!activeExecution || !forkStepId) return;
+  const handleForkWorkflow = async (stepId?: string, variables?: Record<string, any>) => {
+    const targetStepId = stepId || forkStepId;
+    const targetVariables = variables || forkVariables;
+
+    if (!activeExecution || !targetStepId) return;
 
     try {
       setExecuting(true);
@@ -491,8 +494,8 @@ const WorkflowAutomation: React.FC = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            step_id: forkStepId,
-            new_variables: forkVariables
+            step_id: targetStepId,
+            new_variables: targetVariables
           }),
         }
       );
