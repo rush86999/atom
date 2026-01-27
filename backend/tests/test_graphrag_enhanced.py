@@ -9,7 +9,7 @@ import json
 
 # Import the module under test
 from core.graphrag_engine import (
-    GraphRAGEngine, Entity, Relationship, Community,
+    GraphRAGEngine, Entity, Relationship,
     graphrag_engine, get_graphrag_context
 )
 
