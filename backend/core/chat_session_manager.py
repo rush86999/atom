@@ -48,17 +48,25 @@ class ChatSessionManager:
             return []
     
     def _save_sessions(self, sessions: List[Dict[str, Any]]):
-        """Save all sessions to file"""
+        """Save all sessions to file atomically"""
         try:
-            with open(self.sessions_file, 'w') as f:
+            # Atomic write pattern
+            temp_file = self.sessions_file + ".tmp"
+            with open(temp_file, 'w') as f:
                 json.dump(sessions, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno()) # Ensure write to disk
+            
+            # Atomic replace
+            os.replace(temp_file, self.sessions_file)
         except Exception as e:
             logger.error(f"Failed to save sessions: {e}")
     
     def create_session(
         self,
         user_id: str,
-        metadata: Dict[str, Any] = None
+        metadata: Dict[str, Any] = None,
+        session_id: str = None
     ) -> str:
         """
         Create a new chat session.
@@ -67,14 +75,16 @@ class ChatSessionManager:
         """
         sessions = self._load_sessions()
         
-        session_id = str(uuid.uuid4())
+        if not session_id:
+            session_id = str(uuid.uuid4())
         session = {
             "session_id": session_id,
             "user_id": user_id,
             "created_at": datetime.utcnow().isoformat(),
             "last_active": datetime.utcnow().isoformat(),
             "metadata": metadata or {},
-            "message_count": 0
+            "message_count": 0,
+            "history": [] 
         }
         
         sessions.append(session)
@@ -88,14 +98,38 @@ class ChatSessionManager:
         sessions = self._load_sessions()
         return next((s for s in sessions if s['session_id'] == session_id), None)
     
-    def update_session_activity(self, session_id: str):
-        """Update session's last_active timestamp"""
+    def update_session_activity(self, session_id: str, history: List[Dict] = None, last_message: str = None):
+        """Update session's last_active timestamp and history"""
         sessions = self._load_sessions()
+        updated = False
         for session in sessions:
             if session['session_id'] == session_id:
                 session['last_active'] = datetime.utcnow().isoformat()
-                session['message_count'] = session.get('message_count', 0) + 1
+                if history is not None:
+                    session['history'] = history
+                    session['message_count'] = len(history)
+                if last_message:
+                    session['last_message'] = last_message
+                updated = True
                 break
+        
+        if not updated:
+            # Auto-recover: Create missing session entry
+            logger.warning(f"Session {session_id} not found in persistence. Creating recovery entry.")
+            new_session = {
+                "session_id": session_id,
+                "user_id": "default_user", # Fallback, as we don't have it here. 
+                # Note: Ideally we should pass user_id to this method, but for now this saves the data.
+                "created_at": datetime.utcnow().isoformat(),
+                "last_active": datetime.utcnow().isoformat(),
+                "metadata": {"source": "recovered"},
+                "message_count": len(history) if history else 0,
+                "history": history or []
+            }
+            if last_message:
+                new_session["last_message"] = last_message
+            sessions.append(new_session)
+
         self._save_sessions(sessions)
     
     def list_user_sessions(

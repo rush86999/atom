@@ -1,1 +1,5686 @@
-[]
+[
+  {
+    "session_id": "e8f76eaa-d826-45fb-b540-0004454b875f",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-22T18:00:15.709494",
+    "last_active": "2026-01-22T18:00:15.709514",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "b7eaf212-aaa4-427e-9f47-a619c069df07",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-22T18:02:08.027542",
+    "last_active": "2026-01-22T18:02:08.027601",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "adde7ed4-1637-4163-8f79-7f2edf7245e0",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-22T18:03:04.761515",
+    "last_active": "2026-01-22T18:03:04.761541",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1765859279632_aeslqnoma",
+    "user_id": "anonymous",
+    "created_at": "2026-01-22T18:08:46.058500",
+    "last_active": "2026-01-22T18:08:46.059141",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "fb4760b0-377b-4d19-aa62-85635222007c",
+    "user_id": "default_user",
+    "created_at": "2026-01-22T18:09:15.095177",
+    "last_active": "2026-01-26T17:18:08.335861",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 5,
+    "history": [
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "Here are your top priorities for today based on your tasks and calendar:\n\n1. Review Q3 Financials (Due Today)\n2. Approve Engineering Hiring Plan\n3. Client Meeting with Acme Corp (2pm, Zoom)",
+          "session_id": "fb4760b0-377b-4d19-aa62-85635222007c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {
+            "business_health": {
+              "priorities": [
+                "1. Review Q3 Financials (Due Today)",
+                "2. Approve Engineering Hiring Plan",
+                "3. Client Meeting with Acme Corp (2pm, Zoom)"
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Mark Q3 Financials as Done",
+            "Reschedule Acme Meeting"
+          ],
+          "ui_updates": [
+            {
+              "type": "priority_list",
+              "data": [
+                "1. Review Q3 Financials (Due Today)",
+                "2. Approve Engineering Hiring Plan",
+                "3. Client Meeting with Acme Corp (2pm, Zoom)"
+              ]
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T16:50:45.597356"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T16:50:45.598000"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "fb4760b0-377b-4d19-aa62-85635222007c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T23:09:51.933704"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T23:09:51.934387"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "fb4760b0-377b-4d19-aa62-85635222007c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T23:17:06.090557"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T23:17:06.090623"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "fb4760b0-377b-4d19-aa62-85635222007c",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T22:45:22.879060"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T22:45:22.879089"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "fb4760b0-377b-4d19-aa62-85635222007c",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T22:48:08.283594"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T22:48:08.283871"
+      }
+    ],
+    "last_message": "I've processed your request across all connected platforms."
+  },
+  {
+    "session_id": "ad8c9a63-3033-4eca-9956-1aaca07bea89",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-22T18:16:21.340621",
+    "last_active": "2026-01-22T18:16:21.340657",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "56f7a618-2c12-4c82-a70c-8a7603a3e948",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-22T18:23:06.885964",
+    "last_active": "2026-01-22T18:23:06.886027",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "33965407-07fc-4420-bb6d-c50355dc9c6a",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-22T18:31:02.179351",
+    "last_active": "2026-01-22T18:31:02.179415",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1769136324946_1k174zja0",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T02:45:25.812614",
+    "last_active": "2026-01-23T02:45:25.813183",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T02:45:26.049980",
+    "last_active": "2026-01-25T07:58:10.473172",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 31,
+    "history": [
+      {
+        "message": "wtf diude",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "wtf diude",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T12:08:42.463487"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T12:08:42.463992"
+      },
+      {
+        "message": "search my data",
+        "response": {
+          "success": true,
+          "message": "I found 0 results for your search.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "search_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "search my data",
+              "platforms_searched": []
+            },
+            "ai_analytics": {
+              "message": "AI Analytics logic here"
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Refine your search with more specific terms",
+            "Check the search results in the Search UI",
+            "Save important results for quick access"
+          ],
+          "timestamp": "2026-01-23T12:08:56.482584"
+        },
+        "intent": {
+          "primary_intent": "search_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T12:08:56.482629"
+      },
+      {
+        "message": "schedule meetings",
+        "response": {
+          "success": true,
+          "message": "Schedule updated successfully.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "message": "Scheduling logic here"
+            }
+          },
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T12:09:09.132068"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T12:09:09.132080"
+      },
+      {
+        "message": "Find the Q3 Financial Report",
+        "response": {
+          "success": true,
+          "message": "I found 0 results for your search.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "search_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Find the Q3 Financial Report",
+              "platforms_searched": []
+            },
+            "ai_analytics": {
+              "message": "AI Analytics logic here"
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Refine your search with more specific terms",
+            "Check the search results in the Search UI",
+            "Save important results for quick access"
+          ],
+          "timestamp": "2026-01-23T13:37:59.428060"
+        },
+        "intent": {
+          "primary_intent": "search_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T13:37:59.429445"
+      },
+      {
+        "message": "Schedule a meeting with the engineering team for Tomorrow at 2pm",
+        "response": {
+          "success": true,
+          "message": "Schedule updated successfully.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "message": "Scheduling logic here"
+            }
+          },
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T13:39:33.423928"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T13:39:33.423947"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "What should I prioritize today?",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T13:40:09.379670"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T13:40:09.379688"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "I'll help you with your business health query.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T13:44:24.370651"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T13:44:24.370721"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "I'll help you with your business health query.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T13:49:17.018920"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T13:49:17.020281"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "I'll help you with your business health query.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T13:54:12.419268"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T13:54:12.419300"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "I'll help you with your business health query.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T13:57:15.066585"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T13:57:15.066642"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "I'll help you with your business health query.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T13:59:53.483411"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T13:59:53.483987"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "I'll help you with your business health query.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T16:26:58.140751"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T16:26:58.141327"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "Here are your top priorities for today based on your tasks and calendar:",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {
+            "business_health": {
+              "priorities": [
+                "1. Review Q3 Financials (Due Today)",
+                "2. Approve Engineering Hiring Plan",
+                "3. Client Meeting with Acme Corp (2pm, Zoom)"
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Mark Q3 Financials as Done",
+            "Reschedule Acme Meeting"
+          ],
+          "ui_updates": [
+            {
+              "type": "priority_list",
+              "data": [
+                "1. Review Q3 Financials (Due Today)",
+                "2. Approve Engineering Hiring Plan",
+                "3. Client Meeting with Acme Corp (2pm, Zoom)"
+              ]
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T16:43:29.215300"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T16:43:29.215437"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "Here are your top priorities for today based on live business metrics:\n\n1. Scale Check: Can you afford to hire? (LOW Priority)\n2. Price Drift: AWS Web Services (MEDIUM Priority)\n3. Price Drift: Figma (MEDIUM Priority)\n4. Pricing Opportunity: Senior Consultancy Hour (HIGH Priority)\n5. Pricing Opportunity: Basic Plan Subscription (HIGH Priority)\n6. SaaS Waste: Adobe Creative Cloud (HIGH Priority)\n7. SaaS Waste: ZoomInfo (HIGH Priority)\n8. High Churn Risk: Acme Corp (HIGH Priority)\n9. Suspected Fraud: $499.0 (HIGH Priority)",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {
+            "business_health": {
+              "priorities": [
+                {
+                  "id": "hiring_check",
+                  "type": "STRATEGY",
+                  "title": "Scale Check: Can you afford to hire?",
+                  "description": "Workload is up 15%. AI can simulate the impact of a new hire on your cash flow.",
+                  "priority": "LOW",
+                  "action_link": "/health/simulate"
+                },
+                {
+                  "id": "drift_v_aws",
+                  "type": "RISK",
+                  "priority": "MEDIUM",
+                  "title": "Price Drift: AWS Web Services",
+                  "description": "Cost up 47% from historical average. Review alternatives?",
+                  "action_link": "/dashboard/forensics?vendor=v_aws"
+                },
+                {
+                  "id": "drift_v_figma",
+                  "type": "RISK",
+                  "priority": "MEDIUM",
+                  "title": "Price Drift: Figma",
+                  "description": "Cost up 50% from historical average. Review alternatives?",
+                  "action_link": "/dashboard/forensics?vendor=v_figma"
+                },
+                {
+                  "id": "pricing_prod_Consulting_Hourly",
+                  "type": "STRATEGY",
+                  "priority": "HIGH",
+                  "title": "Pricing Opportunity: Senior Consultancy Hour",
+                  "description": "Margin compression detected. Consider raising price to $195.0.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "pricing_prod_SaaS_Basic",
+                  "type": "STRATEGY",
+                  "priority": "HIGH",
+                  "title": "Pricing Opportunity: Basic Plan Subscription",
+                  "description": "Margin compression detected. Consider raising price to $39.0.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "waste_sub_Adobe",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "SaaS Waste: Adobe Creative Cloud",
+                  "description": "Being billed $59.99/mo for a canceled subscription.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "waste_sub_ZoomInfo",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "SaaS Waste: ZoomInfo",
+                  "description": "Being billed $1499.0/mo for a canceled subscription.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "churn_cust_acme_corp",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "High Churn Risk: Acme Corp",
+                  "description": "Probability 85%. Action: Schedule executive business review immediately.",
+                  "action_link": "/dashboard/risk"
+                },
+                {
+                  "id": "fraud_tx_998877",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "Suspected Fraud: $499.0",
+                  "description": "Refund requested 2 mins after purchase from known excessive-return IP.",
+                  "action_link": "/dashboard/risk"
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "View Dashboard",
+            "Run Deep Analysis"
+          ],
+          "ui_updates": [
+            {
+              "type": "priority_list",
+              "data": [
+                "1. Scale Check: Can you afford to hire? (LOW Priority)",
+                "2. Price Drift: AWS Web Services (MEDIUM Priority)",
+                "3. Price Drift: Figma (MEDIUM Priority)",
+                "4. Pricing Opportunity: Senior Consultancy Hour (HIGH Priority)",
+                "5. Pricing Opportunity: Basic Plan Subscription (HIGH Priority)",
+                "6. SaaS Waste: Adobe Creative Cloud (HIGH Priority)",
+                "7. SaaS Waste: ZoomInfo (HIGH Priority)",
+                "8. High Churn Risk: Acme Corp (HIGH Priority)",
+                "9. Suspected Fraud: $499.0 (HIGH Priority)"
+              ]
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T17:30:25.298755"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T17:30:25.298810"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "Here are your top priorities for today based on live business metrics:\n\n1. Scale Check: Can you afford to hire? (LOW Priority)\n2. Price Drift: AWS Web Services (MEDIUM Priority)\n3. Price Drift: Figma (MEDIUM Priority)\n4. Pricing Opportunity: Senior Consultancy Hour (HIGH Priority)\n5. Pricing Opportunity: Basic Plan Subscription (HIGH Priority)\n6. SaaS Waste: Adobe Creative Cloud (HIGH Priority)\n7. SaaS Waste: ZoomInfo (HIGH Priority)\n8. High Churn Risk: Acme Corp (HIGH Priority)\n9. Suspected Fraud: $499.0 (HIGH Priority)",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {
+            "business_health": {
+              "priorities": [
+                {
+                  "id": "hiring_check",
+                  "type": "STRATEGY",
+                  "title": "Scale Check: Can you afford to hire?",
+                  "description": "Workload is up 15%. AI can simulate the impact of a new hire on your cash flow.",
+                  "priority": "LOW",
+                  "action_link": "/health/simulate"
+                },
+                {
+                  "id": "drift_v_aws",
+                  "type": "RISK",
+                  "priority": "MEDIUM",
+                  "title": "Price Drift: AWS Web Services",
+                  "description": "Cost up 47% from historical average. Review alternatives?",
+                  "action_link": "/dashboard/forensics?vendor=v_aws"
+                },
+                {
+                  "id": "drift_v_figma",
+                  "type": "RISK",
+                  "priority": "MEDIUM",
+                  "title": "Price Drift: Figma",
+                  "description": "Cost up 50% from historical average. Review alternatives?",
+                  "action_link": "/dashboard/forensics?vendor=v_figma"
+                },
+                {
+                  "id": "pricing_prod_Consulting_Hourly",
+                  "type": "STRATEGY",
+                  "priority": "HIGH",
+                  "title": "Pricing Opportunity: Senior Consultancy Hour",
+                  "description": "Margin compression detected. Consider raising price to $195.0.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "pricing_prod_SaaS_Basic",
+                  "type": "STRATEGY",
+                  "priority": "HIGH",
+                  "title": "Pricing Opportunity: Basic Plan Subscription",
+                  "description": "Margin compression detected. Consider raising price to $39.0.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "waste_sub_Adobe",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "SaaS Waste: Adobe Creative Cloud",
+                  "description": "Being billed $59.99/mo for a canceled subscription.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "waste_sub_ZoomInfo",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "SaaS Waste: ZoomInfo",
+                  "description": "Being billed $1499.0/mo for a canceled subscription.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "churn_cust_acme_corp",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "High Churn Risk: Acme Corp",
+                  "description": "Probability 85%. Action: Schedule executive business review immediately.",
+                  "action_link": "/dashboard/risk"
+                },
+                {
+                  "id": "fraud_tx_998877",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "Suspected Fraud: $499.0",
+                  "description": "Refund requested 2 mins after purchase from known excessive-return IP.",
+                  "action_link": "/dashboard/risk"
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "View Dashboard",
+            "Run Deep Analysis"
+          ],
+          "ui_updates": [
+            {
+              "type": "priority_list",
+              "data": [
+                "1. Scale Check: Can you afford to hire? (LOW Priority)",
+                "2. Price Drift: AWS Web Services (MEDIUM Priority)",
+                "3. Price Drift: Figma (MEDIUM Priority)",
+                "4. Pricing Opportunity: Senior Consultancy Hour (HIGH Priority)",
+                "5. Pricing Opportunity: Basic Plan Subscription (HIGH Priority)",
+                "6. SaaS Waste: Adobe Creative Cloud (HIGH Priority)",
+                "7. SaaS Waste: ZoomInfo (HIGH Priority)",
+                "8. High Churn Risk: Acme Corp (HIGH Priority)",
+                "9. Suspected Fraud: $499.0 (HIGH Priority)"
+              ]
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T22:14:00.727372"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T22:14:00.727401"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I've scheduled 'Team Sync' for tomorrow at 10:00 AM and sent invites to the team.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "message": "I've scheduled 'Team Sync' for tomorrow at 10:00 AM and sent invites to the team.",
+              "event": {
+                "topic": "Team Sync",
+                "time": "tomorrow at 10:00 AM",
+                "platform": "google_calendar"
+              }
+            }
+          },
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T22:30:59.997774"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T22:30:59.997822"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T08:25:37.430028"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T08:25:37.430503"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T21:21:44.604362"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T21:21:44.605259"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T22:35:48.817443"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T22:35:48.818374"
+      },
+      {
+        "message": "schedule a meeting",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T22:36:35.682883"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T22:36:35.682948"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T22:57:58.841799"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T22:57:58.842689"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T22:59:51.354613"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T22:59:51.354636"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T23:12:12.389893"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T23:12:12.389910"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T00:00:59.680933"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T00:00:59.681655"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T00:02:44.935034"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T00:02:44.935584"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T08:29:42.895701"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T08:29:42.910545"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "Here are your top priorities for today (Generated at 2026-01-25T12:56:56.676578):\n\n1. Scale Check: Can you afford to hire? (LOW Priority)\n2. Price Drift: AWS Web Services (MEDIUM Priority)\n3. Price Drift: Figma (MEDIUM Priority)\n4. Pricing Opportunity: Senior Consultancy Hour (HIGH Priority)\n5. Pricing Opportunity: Basic Plan Subscription (HIGH Priority)\n6. SaaS Waste: Adobe Creative Cloud (HIGH Priority)\n7. SaaS Waste: ZoomInfo (HIGH Priority)\n8. High Churn Risk: Acme Corp (HIGH Priority)\n9. Suspected Fraud: $499.0 (HIGH Priority)\n\n\ud83d\udca1 **AI Strategic Advice:**\nFocus on Sales: Your top leads represent the fastest path to revenue growth.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {
+            "business_health": {
+              "priorities": [
+                {
+                  "id": "hiring_check",
+                  "type": "STRATEGY",
+                  "title": "Scale Check: Can you afford to hire?",
+                  "description": "Workload is up 15%. AI can simulate the impact of a new hire on your cash flow.",
+                  "priority": "LOW",
+                  "action_link": "/health/simulate"
+                },
+                {
+                  "id": "drift_v_aws",
+                  "type": "RISK",
+                  "priority": "MEDIUM",
+                  "title": "Price Drift: AWS Web Services",
+                  "description": "Cost up 47% from historical average. Review alternatives?",
+                  "action_link": "/dashboard/forensics?vendor=v_aws"
+                },
+                {
+                  "id": "drift_v_figma",
+                  "type": "RISK",
+                  "priority": "MEDIUM",
+                  "title": "Price Drift: Figma",
+                  "description": "Cost up 50% from historical average. Review alternatives?",
+                  "action_link": "/dashboard/forensics?vendor=v_figma"
+                },
+                {
+                  "id": "pricing_prod_Consulting_Hourly",
+                  "type": "STRATEGY",
+                  "priority": "HIGH",
+                  "title": "Pricing Opportunity: Senior Consultancy Hour",
+                  "description": "Margin compression detected. Consider raising price to $195.0.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "pricing_prod_SaaS_Basic",
+                  "type": "STRATEGY",
+                  "priority": "HIGH",
+                  "title": "Pricing Opportunity: Basic Plan Subscription",
+                  "description": "Margin compression detected. Consider raising price to $39.0.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "waste_sub_Adobe",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "SaaS Waste: Adobe Creative Cloud",
+                  "description": "Being billed $59.99/mo for a canceled subscription.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "waste_sub_ZoomInfo",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "SaaS Waste: ZoomInfo",
+                  "description": "Being billed $1499.0/mo for a canceled subscription.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "churn_cust_acme_corp",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "High Churn Risk: Acme Corp",
+                  "description": "Probability 85%. Action: Schedule executive business review immediately.",
+                  "action_link": "/dashboard/risk"
+                },
+                {
+                  "id": "fraud_tx_998877",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "Suspected Fraud: $499.0",
+                  "description": "Refund requested 2 mins after purchase from known excessive-return IP.",
+                  "action_link": "/dashboard/risk"
+                }
+              ],
+              "advice": "Focus on Sales: Your top leads represent the fastest path to revenue growth."
+            }
+          },
+          "suggested_actions": [
+            "View Dashboard",
+            "Run Deep Analysis"
+          ],
+          "ui_updates": [
+            {
+              "type": "priority_list",
+              "data": [
+                "1. Scale Check: Can you afford to hire? (LOW Priority)",
+                "2. Price Drift: AWS Web Services (MEDIUM Priority)",
+                "3. Price Drift: Figma (MEDIUM Priority)",
+                "4. Pricing Opportunity: Senior Consultancy Hour (HIGH Priority)",
+                "5. Pricing Opportunity: Basic Plan Subscription (HIGH Priority)",
+                "6. SaaS Waste: Adobe Creative Cloud (HIGH Priority)",
+                "7. SaaS Waste: ZoomInfo (HIGH Priority)",
+                "8. High Churn Risk: Acme Corp (HIGH Priority)",
+                "9. Suspected Fraud: $499.0 (HIGH Priority)"
+              ]
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:56:56.680477"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:56:56.680806"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:57:19.753606"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:57:19.753655"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T13:27:40.880303"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:27:40.889043"
+      },
+      {
+        "message": "What should I prioritize today?",
+        "response": {
+          "success": true,
+          "message": "Here are your top priorities for today (Generated at 2026-01-25T13:27:57.609043):\n\n1. Scale Check: Can you afford to hire? (LOW Priority)\n2. Price Drift: AWS Web Services (MEDIUM Priority)\n3. Price Drift: Figma (MEDIUM Priority)\n4. Pricing Opportunity: Senior Consultancy Hour (HIGH Priority)\n5. Pricing Opportunity: Basic Plan Subscription (HIGH Priority)\n6. SaaS Waste: Adobe Creative Cloud (HIGH Priority)\n7. SaaS Waste: ZoomInfo (HIGH Priority)\n8. High Churn Risk: Acme Corp (HIGH Priority)\n9. Suspected Fraud: $499.0 (HIGH Priority)\n\n\ud83d\udca1 **AI Strategic Advice:**\nFocus on Sales: Your top leads represent the fastest path to revenue growth.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "business_health",
+          "confidence": 0.6,
+          "data": {
+            "business_health": {
+              "priorities": [
+                {
+                  "id": "hiring_check",
+                  "type": "STRATEGY",
+                  "title": "Scale Check: Can you afford to hire?",
+                  "description": "Workload is up 15%. AI can simulate the impact of a new hire on your cash flow.",
+                  "priority": "LOW",
+                  "action_link": "/health/simulate"
+                },
+                {
+                  "id": "drift_v_aws",
+                  "type": "RISK",
+                  "priority": "MEDIUM",
+                  "title": "Price Drift: AWS Web Services",
+                  "description": "Cost up 47% from historical average. Review alternatives?",
+                  "action_link": "/dashboard/forensics?vendor=v_aws"
+                },
+                {
+                  "id": "drift_v_figma",
+                  "type": "RISK",
+                  "priority": "MEDIUM",
+                  "title": "Price Drift: Figma",
+                  "description": "Cost up 50% from historical average. Review alternatives?",
+                  "action_link": "/dashboard/forensics?vendor=v_figma"
+                },
+                {
+                  "id": "pricing_prod_Consulting_Hourly",
+                  "type": "STRATEGY",
+                  "priority": "HIGH",
+                  "title": "Pricing Opportunity: Senior Consultancy Hour",
+                  "description": "Margin compression detected. Consider raising price to $195.0.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "pricing_prod_SaaS_Basic",
+                  "type": "STRATEGY",
+                  "priority": "HIGH",
+                  "title": "Pricing Opportunity: Basic Plan Subscription",
+                  "description": "Margin compression detected. Consider raising price to $39.0.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "waste_sub_Adobe",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "SaaS Waste: Adobe Creative Cloud",
+                  "description": "Being billed $59.99/mo for a canceled subscription.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "waste_sub_ZoomInfo",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "SaaS Waste: ZoomInfo",
+                  "description": "Being billed $1499.0/mo for a canceled subscription.",
+                  "action_link": "/dashboard/forensics"
+                },
+                {
+                  "id": "churn_cust_acme_corp",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "High Churn Risk: Acme Corp",
+                  "description": "Probability 85%. Action: Schedule executive business review immediately.",
+                  "action_link": "/dashboard/risk"
+                },
+                {
+                  "id": "fraud_tx_998877",
+                  "type": "RISK",
+                  "priority": "HIGH",
+                  "title": "Suspected Fraud: $499.0",
+                  "description": "Refund requested 2 mins after purchase from known excessive-return IP.",
+                  "action_link": "/dashboard/risk"
+                }
+              ],
+              "advice": "Focus on Sales: Your top leads represent the fastest path to revenue growth."
+            }
+          },
+          "suggested_actions": [
+            "View Dashboard",
+            "Run Deep Analysis"
+          ],
+          "ui_updates": [
+            {
+              "type": "priority_list",
+              "data": [
+                "1. Scale Check: Can you afford to hire? (LOW Priority)",
+                "2. Price Drift: AWS Web Services (MEDIUM Priority)",
+                "3. Price Drift: Figma (MEDIUM Priority)",
+                "4. Pricing Opportunity: Senior Consultancy Hour (HIGH Priority)",
+                "5. Pricing Opportunity: Basic Plan Subscription (HIGH Priority)",
+                "6. SaaS Waste: Adobe Creative Cloud (HIGH Priority)",
+                "7. SaaS Waste: ZoomInfo (HIGH Priority)",
+                "8. High Churn Risk: Acme Corp (HIGH Priority)",
+                "9. Suspected Fraud: $499.0 (HIGH Priority)"
+              ]
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T13:27:57.611200"
+        },
+        "intent": {
+          "primary_intent": "business_health",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:27:57.611220"
+      },
+      {
+        "message": "Find the Q3 Financial Report",
+        "response": {
+          "success": true,
+          "message": "I found 0 results for your search.",
+          "session_id": "8b9b0f32-4eb8-44fd-b2a7-a11443a1e77c",
+          "intent": "search_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Find the Q3 Financial Report",
+              "platforms_searched": []
+            },
+            "ai_analytics": {
+              "message": "AI Analytics logic here"
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Refine your search with more specific terms",
+            "Check the search results in the Search UI",
+            "Save important results for quick access"
+          ],
+          "timestamp": "2026-01-25T13:28:10.447434"
+        },
+        "intent": {
+          "primary_intent": "search_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:28:10.447447"
+      }
+    ],
+    "last_message": "I found 0 results for your search."
+  },
+  {
+    "session_id": "session_1769136377243_egd8q6bw4",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T02:46:17.834540",
+    "last_active": "2026-01-23T02:46:17.854789",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "97d4b998-841a-492a-823b-8503786c1184",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T02:46:19.065116",
+    "last_active": "2026-01-23T02:46:19.065130",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1769136407184_yue6k1hkv",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T02:46:49.946981",
+    "last_active": "2026-01-23T02:46:49.946999",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "abe2adfc-bc22-441a-aa52-c7108fe2e1b2",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T02:46:49.986225",
+    "last_active": "2026-01-23T02:46:49.986239",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1769136635448_xzr3afdxc",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T02:50:35.801491",
+    "last_active": "2026-01-23T02:50:35.804567",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "61fc4ca7-c529-47e3-b02f-401b41749459",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T02:50:35.953677",
+    "last_active": "2026-01-23T02:50:35.953690",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1769136680314_ot2qmlk5i",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T02:51:20.628925",
+    "last_active": "2026-01-23T02:51:20.628961",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T02:51:21.995628",
+    "last_active": "2026-01-26T17:08:39.935693",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 30,
+    "history": [
+      {
+        "message": "Find the Q3 Financial Report",
+        "response": {
+          "success": true,
+          "message": "I found 0 results for your search.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "search_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Find the Q3 Financial Report",
+              "platforms_searched": []
+            },
+            "ai_analytics": {
+              "message": "AI Analytics logic here"
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Refine your search with more specific terms",
+            "Check the search results in the Search UI",
+            "Save important results for quick access"
+          ],
+          "timestamp": "2026-01-25T13:37:56.806247"
+        },
+        "intent": {
+          "primary_intent": "search_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:37:56.806992"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "run inventory check",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T13:38:06.599542"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:38:06.599583"
+      },
+      {
+        "message": "schedule a meeting",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T13:38:24.282235"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:38:24.282275"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "run inventory check",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T13:47:46.739009"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:47:46.739628"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T13:59:09.280831"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:59:09.281232"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T23:49:56.413940"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T23:49:56.413956"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T00:12:08.985621"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T00:12:08.986160"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T00:21:31.432522"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T00:21:31.433156"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T00:25:12.540993"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T00:25:12.541671"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T00:40:54.135583"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T00:40:54.136045"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T00:47:06.049009"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T00:47:06.049511"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T00:51:50.046170"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T00:51:50.046659"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T08:49:56.606681"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T08:49:56.607800"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T09:05:37.163622"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T09:05:37.164251"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T09:08:23.570374"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T09:08:23.570461"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T09:12:46.468390"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T09:12:46.469350"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T09:20:33.769736"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T09:20:33.769763"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T09:22:32.187134"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T09:22:32.187223"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T09:25:56.283713"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T09:25:56.283775"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T09:26:49.479548"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T09:26:49.479573"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:01:57.001909"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:01:57.001950"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:04:17.053273"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:04:17.053292"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:08:48.695683"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:08:48.695737"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:15:42.117546"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:15:42.117582"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:26:34.696993"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:26:34.697025"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:34:14.777572"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:34:14.777912"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:34:29.844137"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:34:29.844159"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:38:57.963427"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:38:57.964160"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:43:02.979412"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:43:02.980138"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T22:38:39.899676"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T22:38:39.899740"
+      }
+    ],
+    "last_message": "I've processed your request across all connected platforms."
+  },
+  {
+    "session_id": "session_1769136726291_bdrlr40gb",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T02:52:06.436543",
+    "last_active": "2026-01-23T02:52:06.436560",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "8a9da2e5-e004-4f0a-9824-52f311a2c7ab",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T02:52:06.843464",
+    "last_active": "2026-01-23T02:52:06.843477",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1769140198990_zhe06nfby",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T03:50:05.818116",
+    "last_active": "2026-01-23T03:50:05.819854",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1769140251143_c3dbm3jjc",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T03:50:51.541157",
+    "last_active": "2026-01-23T03:50:51.541697",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "f6b2fa76-303f-4076-a7df-cb271cf44668",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T03:50:52.490569",
+    "last_active": "2026-01-23T03:50:52.490583",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1769140299422_a9w8456ed",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T03:51:39.792448",
+    "last_active": "2026-01-23T03:51:39.792463",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "df029106-7170-449f-962d-2bb4d9bddcae",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T03:51:40.064192",
+    "last_active": "2026-01-23T03:51:40.064206",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "aa78bcc9-fb61-472b-a393-7996b5da05f7",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-23T03:51:59.486781",
+    "last_active": "2026-01-23T03:51:59.486797",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "6eb9c22c-b6eb-4a35-97b6-60d48b7f6437",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-23T04:01:23.259933",
+    "last_active": "2026-01-23T04:01:23.259985",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "cdc04a21-547d-41a9-af68-0c55e6537539",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-23T04:09:30.534594",
+    "last_active": "2026-01-23T04:09:30.534628",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "952846e4-a0d9-4190-b19b-b4e5baf942cf",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-23T04:11:02.051007",
+    "last_active": "2026-01-23T04:11:02.051021",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "0c4d2477-f4df-430c-8ce5-65e47fd98cf2",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-23T04:13:56.356548",
+    "last_active": "2026-01-23T04:13:56.356562",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "0455afea-6856-4d23-a8d5-d57b40117574",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-23T04:17:42.288910",
+    "last_active": "2026-01-23T04:17:42.288921",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "ba30dd7b-d144-454a-8eaa-ad2d0ab75f19",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-23T04:21:49.981819",
+    "last_active": "2026-01-23T04:21:49.981829",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "22162cfa-cfb3-4d53-9f82-9a4018d157d4",
+    "user_id": "verify_dawg",
+    "created_at": "2026-01-23T04:31:37.573151",
+    "last_active": "2026-01-23T04:31:41.760551",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 3,
+    "history": [
+      {
+        "message": "Hello, this is message 1",
+        "response": {
+          "success": true,
+          "message": "I've sent that message for you.",
+          "session_id": "22162cfa-cfb3-4d53-9f82-9a4018d157d4",
+          "intent": "message_send",
+          "confidence": 0.6,
+          "data": {
+            "communication": {
+              "message": "Communication logic here"
+            }
+          },
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:01:37.587216"
+        },
+        "intent": {
+          "primary_intent": "message_send",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:01:37.588479"
+      },
+      {
+        "message": "This is message 2 - should be grouped",
+        "response": {
+          "success": true,
+          "message": "I've sent that message for you.",
+          "session_id": "22162cfa-cfb3-4d53-9f82-9a4018d157d4",
+          "intent": "message_send",
+          "confidence": 0.6,
+          "data": {
+            "communication": {
+              "message": "Communication logic here"
+            }
+          },
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:01:39.691643"
+        },
+        "intent": {
+          "primary_intent": "message_send",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:01:39.692872"
+      },
+      {
+        "message": "This is message 3 - final check",
+        "response": {
+          "success": true,
+          "message": "I've sent that message for you.",
+          "session_id": "22162cfa-cfb3-4d53-9f82-9a4018d157d4",
+          "intent": "message_send",
+          "confidence": 0.6,
+          "data": {
+            "communication": {
+              "message": "Communication logic here"
+            }
+          },
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:01:41.753931"
+        },
+        "intent": {
+          "primary_intent": "message_send",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:01:41.754840"
+      }
+    ],
+    "last_message": "I've sent that message for you."
+  },
+  {
+    "session_id": "session_1769142750681_7n7lrk574",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T04:32:31.073290",
+    "last_active": "2026-01-23T04:32:31.073307",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "8b20ab43-4a41-4b27-b28e-8450cfa575e1",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T04:32:31.297922",
+    "last_active": "2026-01-23T04:32:31.334023",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769142750156",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "8b20ab43-4a41-4b27-b28e-8450cfa575e1",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769142750156",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:02:31.311104"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:02:31.311992"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769142795882_1pc6dgpsn",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T04:33:16.157920",
+    "last_active": "2026-01-23T04:33:16.157949",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "39cc89d7-35b0-47d7-bc8f-dffb30c1458b",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T04:33:16.882424",
+    "last_active": "2026-01-23T04:33:16.964206",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769142796334",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "39cc89d7-35b0-47d7-bc8f-dffb30c1458b",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769142796334",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:03:16.936149"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:03:16.941216"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769142877280_lniplvitd",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T04:34:37.998792",
+    "last_active": "2026-01-23T04:34:37.999369",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "fa0c2f5e-df94-4cd0-aa45-0d8bc3c3ec4e",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T04:34:38.116308",
+    "last_active": "2026-01-23T04:34:38.206426",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769142876386",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "fa0c2f5e-df94-4cd0-aa45-0d8bc3c3ec4e",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769142876386",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:04:38.138895"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:04:38.140829"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769142934273_jrwsc5rly",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T04:35:34.757896",
+    "last_active": "2026-01-23T04:35:34.782146",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "b460408c-917a-4884-8e3d-240dd1afe389",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T04:35:35.746394",
+    "last_active": "2026-01-23T04:35:35.817945",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769142935029",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "b460408c-917a-4884-8e3d-240dd1afe389",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769142935029",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:05:35.807579"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:05:35.808915"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769142998759_5qa8bvddc",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T04:36:40.153516",
+    "last_active": "2026-01-23T04:36:40.154356",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "40cef2f4-364e-4486-870d-58b1424d77c1",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T04:36:40.856285",
+    "last_active": "2026-01-23T04:36:41.253760",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Hello",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "40cef2f4-364e-4486-870d-58b1424d77c1",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Hello",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:06:40.966263"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:06:40.967356"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769143005626_bjyrmrn12",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T04:36:46.685584",
+    "last_active": "2026-01-23T04:36:46.685604",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "be1fffd8-7457-4bef-b8f3-e6bfd2dba9c9",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T04:36:46.999517",
+    "last_active": "2026-01-23T04:36:47.120226",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769143004754",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "be1fffd8-7457-4bef-b8f3-e6bfd2dba9c9",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769143004754",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:06:47.057087"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:06:47.058233"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769143076974_8asjx387q",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T04:37:58.614782",
+    "last_active": "2026-01-23T04:37:58.615371",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "2d9da3a3-5730-443c-b25d-ffa935c0c99a",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T04:37:59.957839",
+    "last_active": "2026-01-23T04:38:00.080095",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769143078173",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "2d9da3a3-5730-443c-b25d-ffa935c0c99a",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769143078173",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:08:00.009144"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:08:00.010319"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769143117559_y17kff8ca",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T04:38:39.773903",
+    "last_active": "2026-01-23T04:38:39.774574",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "70cfcd91-e482-4767-afd4-f63e5c18d1aa",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T04:38:40.446848",
+    "last_active": "2026-01-23T04:38:40.616243",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Hello",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "70cfcd91-e482-4767-afd4-f63e5c18d1aa",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Hello",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:08:40.576654"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:08:40.579844"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769143198627_e71654x63",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T04:39:59.953602",
+    "last_active": "2026-01-23T04:39:59.953947",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "b3d915ea-3bf7-4272-801e-c5cd16eb1778",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T04:40:00.249674",
+    "last_active": "2026-01-23T04:40:00.531314",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Hello",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "b3d915ea-3bf7-4272-801e-c5cd16eb1778",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Hello",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T10:10:00.506313"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T10:10:00.508450"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769149762952_gj4anvbi5",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T06:29:23.857007",
+    "last_active": "2026-01-23T06:29:23.857653",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "51c9b223-1ade-4fb4-ae6b-53ba048badb1",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T06:29:24.686401",
+    "last_active": "2026-01-23T06:29:24.876947",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769149761986",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "51c9b223-1ade-4fb4-ae6b-53ba048badb1",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769149761986",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T11:59:24.841821"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T11:59:24.842276"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769149800165_e0ghjl3j9",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T06:30:00.643449",
+    "last_active": "2026-01-23T06:30:00.643469",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "ac846aaa-bd45-43a0-8370-193041af10a5",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T06:30:02.253660",
+    "last_active": "2026-01-23T06:30:02.311590",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769149800403",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "ac846aaa-bd45-43a0-8370-193041af10a5",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769149800403",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T12:00:02.285828"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T12:00:02.285848"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769149832833_3q2sbu51l",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T06:30:33.422879",
+    "last_active": "2026-01-23T06:30:33.422895",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "b71ada71-b321-4d5f-bfd9-0709e316fade",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T06:30:33.475954",
+    "last_active": "2026-01-23T06:30:33.511278",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Hello",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "b71ada71-b321-4d5f-bfd9-0709e316fade",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Hello",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T12:00:33.493479"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T12:00:33.493488"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769149984376_rx5hu4lhz",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T06:33:04.963426",
+    "last_active": "2026-01-23T06:33:04.963994",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "55c1f0f7-2d36-4f07-ac9a-992554a6d656",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T06:33:05.159766",
+    "last_active": "2026-01-23T06:33:05.220973",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769149983797",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "55c1f0f7-2d36-4f07-ac9a-992554a6d656",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769149983797",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T12:03:05.195875"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T12:03:05.195898"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769150009751_8uh39422v",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T06:33:29.921632",
+    "last_active": "2026-01-23T06:33:29.921695",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "062fce17-4bfd-423e-a561-2dc66b58a8ab",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T06:33:30.524748",
+    "last_active": "2026-01-23T06:33:30.831860",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769150009893",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "062fce17-4bfd-423e-a561-2dc66b58a8ab",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769150009893",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T12:03:30.609961"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T12:03:30.609993"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769150035681_w64nt7a9h",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T06:33:55.887951",
+    "last_active": "2026-01-23T06:33:55.887969",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "727807d8-c683-4707-acf1-c511198d8156",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T06:33:56.405372",
+    "last_active": "2026-01-23T06:33:56.405385",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1769150098147_quo2hl1ir",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T06:34:59.472732",
+    "last_active": "2026-01-23T06:34:59.473282",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1769150164819_crb3zxn7w",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T06:36:05.623431",
+    "last_active": "2026-01-23T06:36:05.623998",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "ba341761-8cf9-42c8-8692-2a71db6869fe",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T06:36:06.018674",
+    "last_active": "2026-01-23T06:36:06.080596",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Persistence Check 1769150164869",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "ba341761-8cf9-42c8-8692-2a71db6869fe",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Persistence Check 1769150164869",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T12:06:06.055459"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T12:06:06.055490"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769150231521_2xger59gn",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T06:37:12.138796",
+    "last_active": "2026-01-23T06:37:12.139447",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "ecc40c6e-7028-4b4f-b6f6-349b573cb4ff",
+    "user_id": "default_user",
+    "created_at": "2026-01-23T06:37:12.292530",
+    "last_active": "2026-01-23T06:37:12.334037",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Hello",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "ecc40c6e-7028-4b4f-b6f6-349b573cb4ff",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Hello",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-23T12:07:12.313462"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-23T12:07:12.313487"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "session_1769186461097_xjf9v4oei",
+    "user_id": "anonymous",
+    "created_at": "2026-01-23T16:41:01.904352",
+    "last_active": "2026-01-23T16:41:01.905121",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1767376509238_cmcy9x79k",
+    "user_id": "anonymous",
+    "created_at": "2026-01-24T15:46:44.588858",
+    "last_active": "2026-01-24T15:46:44.589497",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "3b51a65a-50cd-41e2-93fc-3165b1b3dfdc",
+    "user_id": "default_user",
+    "created_at": "2026-01-24T17:34:58.465160",
+    "last_active": "2026-01-24T17:34:58.631742",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "3b51a65a-50cd-41e2-93fc-3165b1b3dfdc",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T23:04:58.565095"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T23:04:58.565449"
+      }
+    ],
+    "last_message": "I'll handle the scheduling for you."
+  },
+  {
+    "session_id": "probe_session",
+    "user_id": "test_user",
+    "created_at": "2026-01-24T18:21:44.141675",
+    "last_active": "2026-01-24T18:25:53.033608",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 3,
+    "history": [
+      {
+        "message": "Schedule a meeting",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "probe_session",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T23:51:44.182927"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T23:51:44.182948"
+      },
+      {
+        "message": "Schedule a meeting",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "probe_session",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T23:52:45.203430"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T23:52:45.208200"
+      },
+      {
+        "message": "Schedule a meeting",
+        "response": {
+          "success": true,
+          "message": "I'll handle the scheduling for you.",
+          "session_id": "probe_session",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {},
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-24T23:55:53.028855"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-24T23:55:53.028898"
+      }
+    ],
+    "last_message": "I'll handle the scheduling for you."
+  },
+  {
+    "session_id": "verify_session_v3",
+    "user_id": "verify_user",
+    "created_at": "2026-01-25T02:40:46.396083",
+    "last_active": "2026-01-25T02:56:28.192758",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 6,
+    "history": [
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_v3",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T08:10:46.460682"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T08:10:46.460714"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_v3",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T08:12:16.593400"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T08:12:16.593426"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_v3",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T08:13:54.451596"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T08:13:54.451624"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_v3",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T08:20:33.850349"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T08:20:33.850643"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_v3",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T08:23:09.770764"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T08:23:09.770797"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_v3",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T08:26:28.187366"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T08:26:28.187461"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
+  },
+  {
+    "session_id": "verify_session_1",
+    "user_id": "verify_user",
+    "created_at": "2026-01-25T06:51:17.153755",
+    "last_active": "2026-01-25T07:24:08.737033",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 6,
+    "history": [
+      {
+        "message": "Schedule a team meeting for tomorrow at 10am",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_1",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:21:17.219049"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:21:17.219073"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow at 10am",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_1",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:23:28.053061"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:23:28.053092"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow at 10am",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_1",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:46:56.047040"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:46:56.047323"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow at 10am",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_1",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:48:45.971302"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:48:45.971467"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow at 10am",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_1",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:54:05.596590"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:54:05.596614"
+      },
+      {
+        "message": "Schedule a team meeting for tomorrow at 10am",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "verify_session_1",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:54:08.713986"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:54:08.714005"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
+  },
+  {
+    "session_id": "session_1769324681081_gx0mus9rz",
+    "user_id": "anonymous",
+    "created_at": "2026-01-25T07:04:41.784981",
+    "last_active": "2026-01-25T07:04:41.785521",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "0ac151f7-fcbc-4834-9dc1-2badf1ac9cee",
+    "user_id": "default_user",
+    "created_at": "2026-01-25T07:04:42.048978",
+    "last_active": "2026-01-25T07:04:42.125945",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "0ac151f7-fcbc-4834-9dc1-2badf1ac9cee",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:34:42.090879"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:34:42.090931"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
+  },
+  {
+    "session_id": "session_1769324724867_qjsll3eyu",
+    "user_id": "anonymous",
+    "created_at": "2026-01-25T07:05:25.176624",
+    "last_active": "2026-01-25T07:05:25.176685",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "adcee7c5-dab7-4bf1-905a-075127980975",
+    "user_id": "default_user",
+    "created_at": "2026-01-25T07:05:28.857941",
+    "last_active": "2026-01-25T07:05:29.110801",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "adcee7c5-dab7-4bf1-905a-075127980975",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:35:29.088892"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:35:29.088952"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
+  },
+  {
+    "session_id": "session_1769325015092_62tfh8joa",
+    "user_id": "anonymous",
+    "created_at": "2026-01-25T07:10:16.588820",
+    "last_active": "2026-01-25T07:10:16.589341",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "66866cd9-6cf3-403b-b544-a96551689f33",
+    "user_id": "default_user",
+    "created_at": "2026-01-25T07:10:16.733954",
+    "last_active": "2026-01-25T07:10:16.907880",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "66866cd9-6cf3-403b-b544-a96551689f33",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:40:16.869580"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:40:16.869612"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
+  },
+  {
+    "session_id": "session_1769325042600_dqxees5nc",
+    "user_id": "anonymous",
+    "created_at": "2026-01-25T07:10:42.981848",
+    "last_active": "2026-01-25T07:10:42.981866",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "e7cb863f-1f68-4ac8-b963-bccaa642af78",
+    "user_id": "default_user",
+    "created_at": "2026-01-25T07:10:44.192646",
+    "last_active": "2026-01-25T07:10:44.446167",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "e7cb863f-1f68-4ac8-b963-bccaa642af78",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:40:44.412071"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:40:44.412095"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
+  },
+  {
+    "session_id": "session_1769325211954_hirvah1v4",
+    "user_id": "anonymous",
+    "created_at": "2026-01-25T07:13:33.712275",
+    "last_active": "2026-01-25T07:13:33.712837",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "57427532-a9cc-4666-b1ad-74038bbfd807",
+    "user_id": "default_user",
+    "created_at": "2026-01-25T07:13:33.933228",
+    "last_active": "2026-01-25T07:13:34.200870",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "57427532-a9cc-4666-b1ad-74038bbfd807",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:43:34.177579"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:43:34.177614"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
+  },
+  {
+    "session_id": "session_1769325244335_z1cn2n13l",
+    "user_id": "anonymous",
+    "created_at": "2026-01-25T07:14:04.732498",
+    "last_active": "2026-01-25T07:14:04.732516",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "b028b716-1c16-4862-b86b-3afc02500fca",
+    "user_id": "default_user",
+    "created_at": "2026-01-25T07:14:06.673022",
+    "last_active": "2026-01-25T07:14:06.920412",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "Schedule a team meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "b028b716-1c16-4862-b86b-3afc02500fca",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T12:44:06.829280"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T12:44:06.829304"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
+  },
+  {
+    "session_id": "test_session_search",
+    "user_id": "test_user_1",
+    "created_at": "2026-01-25T07:42:23.757169",
+    "last_active": "2026-01-25T07:46:20.898828",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 2,
+    "history": [
+      {
+        "message": "Find docs about project requirements",
+        "response": {
+          "success": true,
+          "message": "I found 0 results for your search.",
+          "session_id": "test_session_search",
+          "intent": "search_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Find docs about project requirements",
+              "platforms_searched": []
+            },
+            "ai_analytics": {
+              "message": "AI Analytics logic here"
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Refine your search with more specific terms",
+            "Check the search results in the Search UI",
+            "Save important results for quick access"
+          ],
+          "timestamp": "2026-01-25T13:12:23.845033"
+        },
+        "intent": {
+          "primary_intent": "search_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:12:23.845056"
+      },
+      {
+        "message": "Hello",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "test_session_search",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "Hello",
+              "platforms_searched": []
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for detailed results",
+            "Save this search for later",
+            "Set up alert for similar content"
+          ],
+          "ui_updates": [
+            {
+              "type": "search_results",
+              "data": []
+            }
+          ],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-25T13:16:20.894044"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-25T13:16:20.894072"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?"
+  },
+  {
+    "session_id": "test_session_123",
+    "user_id": "simulated_user",
+    "created_at": "2026-01-26T13:18:59.836312",
+    "last_active": "2026-01-26T13:52:25.110250",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 3,
+    "history": [
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "test_session_123",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T18:48:59.915883"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T18:48:59.915907"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "test_session_123",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:21:04.492084"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:21:04.492134"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "test_session_123",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-26T19:22:25.107345"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-26T19:22:25.107360"
+      }
+    ],
+    "last_message": "I've processed your request across all connected platforms."
+  },
+  {
+    "session_id": "session_1765860138308_wb1183mhe",
+    "user_id": "anonymous",
+    "created_at": "2026-01-26T17:12:59.266523",
+    "last_active": "2026-01-26T17:12:59.267036",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  }
+]

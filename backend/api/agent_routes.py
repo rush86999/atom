@@ -226,12 +226,26 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
         task_context = f"Execute {agent.name} with params: {str(params)}"
         relevant_memories = await wm_service.recall_experiences(agent, task_context)
         
-        if relevant_memories:
-            logger.info(f"Agents {agent.name} found {len(relevant_memories)} relevant past experiences.")
-            # In a real agent, we'd inject these into the prompt.
-            # For now, we log them as 'Augmented Context'
-            for mem in relevant_memories:
-                logger.info(f"  [Memory] {mem.input_summary} -> {mem.learnings} ({mem.outcome})")
+        if isinstance(relevant_memories, dict):
+             # Extract the actual experiences list from the dictionary response
+             experiences = relevant_memories.get("experiences", [])
+             
+             if experiences:
+                logger.info(f"Agents {agent.name} found {len(experiences)} relevant past experiences.")
+                for mem in experiences:
+                    # Defensive check if mem is object or dict (mock vs real)
+                    if hasattr(mem, "input_summary"):
+                         logger.info(f"  [Memory] {mem.input_summary} -> {mem.learnings} ({mem.outcome})")
+                    else:
+                         logger.info(f"  [Memory] {str(mem)}")
+        elif isinstance(relevant_memories, list):
+             # Legacy/Fallback support if it returns a list directly
+             logger.info(f"Agents {agent.name} found {len(relevant_memories)} relevant past experiences.")
+             for mem in relevant_memories:
+                 if hasattr(mem, "input_summary"):
+                    logger.info(f"  [Memory] {mem.input_summary} -> {mem.learnings} ({mem.outcome})")
+                 else:
+                    logger.info(f"  [Memory] {str(mem)}")
 
         # Dynamic Import
         # Unified Execution Logic using GenericAgent ReAct Loop
@@ -324,6 +338,10 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
             raise e
 
     except Exception as e:
+        import traceback
+        import sys
+        error_msg = f"Agent execution FAILED: {str(e)}\n{traceback.format_exc()}"
+        print(f"!!! CRITICAL AGENT ERROR !!!\n{error_msg}", file=sys.stderr)
         logger.error(f"Agent {agent_id} execution wrapper failed: {e}")
         
         # Urgent Notification (Phase 34 requirement)
@@ -334,12 +352,14 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
         )
         
         # Notify UI Status
-        await notification_manager.broadcast({
+        workspace_id = params.get("workspace_id") or "default"
+        await ws_manager.broadcast(f"workspace:{workspace_id}", {
             "type": "agent_status_change",
             "agent_id": agent_id,
             "status": "failed",
-            "error": str(e)
-        }, "default_workspace")
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
     finally:
         db.close()
         

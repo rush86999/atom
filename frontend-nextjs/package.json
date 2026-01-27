@@ -31,6 +31,8 @@
   "dependencies": {
     "@apollo/client": "^3.7.10",
     "@ark-ui/react": "^5.27.1",
+    "@aws-sdk/client-s3": "^3.975.0",
+    "@aws-sdk/s3-request-presigner": "^3.975.0",
     "@azure/msal-node": "^3.8.2",
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@chakra-ui/react": "^3.3.0",

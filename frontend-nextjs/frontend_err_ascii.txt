@@ -1,0 +1,16 @@
+
+> atomic-app@0.1.0-alpha.1 type-check
+> tsc --noEmit
+
+components/chat/AgentWorkspace.tsx(41,41): error TS2339: Property 'step' does not exist on type 'WebSocketMessage'.
+components/chat/AgentWorkspace.tsx(53,40): error TS2339: Property 'status' does not exist on type 'WebSocketMessage'.
+components/chat/AgentWorkspace.tsx(56,41): error TS2339: Property 'agent_id' does not exist on type 'WebSocketMessage'.
+components/chat/ChatInterface.tsx(264,21): error TS2322: Type '"destructive"' is not assignable to type '"warning" | "default" | "success" | "error"'.
+components/GlobalChatWidget.tsx(123,29): error TS7018: Object literal's property 'actions' implicitly has an 'any[]' type.
+components/GlobalChatWidget.tsx(194,17): error TS2322: Type '"destructive"' is not assignable to type '"warning" | "default" | "success" | "error"'.
+components/WorkflowAutomation.tsx(831,80): error TS2339: Property 'template_id' does not exist on type 'WorkflowTemplate'.
+components/WorkflowAutomation.tsx(861,84): error TS2339: Property 'created_from_template' does not exist on type 'WorkflowDefinition'.
+components/WorkflowAutomation.tsx(1464,36): error TS2554: Expected 0 arguments, but got 2.
+lib/auth.ts(3,33): error TS2307: Cannot find module './database' or its corresponding type declarations.
+pages/workflows/editor/[id].tsx(75,86): error TS2322: Type '"destructive"' is not assignable to type '"warning" | "default" | "success" | "error"'.
+pages/workflows/editor/[id].tsx(124,77): error TS2322: Type '"destructive"' is not assignable to type '"warning" | "default" | "success" | "error"'.

@@ -17,55 +17,57 @@ from enum import Enum
 import httpx
 import aiohttp
 from collections import defaultdict, Counter
-import pandas as pd
-import numpy as np
+# import pandas as pd
+# import numpy as np
 
 # Import existing ATOM services
-try:
-    from atom_memory_service import AtomMemoryService
-except ImportError as e:
-    logging.warning(f"AtomMemoryService not available: {e}")
+# Import existing ATOM services - DISABLED TO PREVENT CRASH
+# try:
+#     from atom_memory_service import AtomMemoryService
+# except ImportError as e:
+#     logging.warning(f"AtomMemoryService not available: {e}")
+#
+# try:
+#     from atom_search_service import AtomSearchService
+# except ImportError as e:
+#     logging.warning(f"AtomSearchService not available: {e}")
+#
+# try:
+#     from atom_workflow_service import AtomWorkflowService
+# except ImportError as e:
+#     logging.warning(f"AtomWorkflowService not available: {e}")
+#
+# try:
+#     from atom_ingestion_pipeline import AtomIngestionPipeline
+# except ImportError as e:
+#     logging.warning(f"AtomIngestionPipeline not available: {e}")
+#
+# try:
+#     from atom_slack_integration import atom_slack_integration
+# except ImportError as e:
+#     logging.warning(f"atom_slack_integration not available: {e}")
+#
+# try:
+#     from atom_teams_integration import atom_teams_integration
+# except ImportError as e:
+#     logging.warning(f"atom_teams_integration not available: {e}")
+#
+# try:
+#     from atom_google_chat_integration import atom_google_chat_integration
+# except ImportError as e:
+#     logging.warning(f"atom_google_chat_integration not available: {e}")
+#
+# try:
+#     from atom_discord_integration import atom_discord_integration
+# except ImportError as e:
+#     logging.warning(f"atom_discord_integration not available: {e}")
 
-try:
-    from atom_search_service import AtomSearchService
-except ImportError as e:
-    logging.warning(f"AtomSearchService not available: {e}")
-
-try:
-    from atom_workflow_service import AtomWorkflowService
-except ImportError as e:
-    logging.warning(f"AtomWorkflowService not available: {e}")
-
-try:
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-except ImportError as e:
-    logging.warning(f"AtomIngestionPipeline not available: {e}")
-
-try:
-    from atom_slack_integration import atom_slack_integration
-except ImportError as e:
-    logging.warning(f"atom_slack_integration not available: {e}")
-
-try:
-    from atom_teams_integration import atom_teams_integration
-except ImportError as e:
-    logging.warning(f"atom_teams_integration not available: {e}")
-
-try:
-    from atom_google_chat_integration import atom_google_chat_integration
-except ImportError as e:
-    logging.warning(f"atom_google_chat_integration not available: {e}")
-
-try:
-    from atom_discord_integration import atom_discord_integration
-except ImportError as e:
-    logging.warning(f"atom_discord_integration not available: {e}")
-
-try:
-    from core.byok_endpoints import get_byok_manager
-except ImportError as e:
-    logging.warning(f"get_byok_manager not available: {e}")
-    def get_byok_manager(): return None
+# try:
+#     from core.byok_endpoints import get_byok_manager
+# except ImportError as e:
+#     logging.warning(f"get_byok_manager not available: {e}")
+#     def get_byok_manager(): return None
+def get_byok_manager(): return None
 
 # Configure logging
 logger = logging.getLogger(__name__)
