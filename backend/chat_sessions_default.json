@@ -1789,11 +1789,11 @@
     "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
     "user_id": "default_user",
     "created_at": "2026-01-23T02:51:21.995628",
-    "last_active": "2026-01-26T17:08:39.935693",
+    "last_active": "2026-01-28T02:34:32.506267",
     "metadata": {
       "source": "chat_orchestrator"
     },
-    "message_count": 30,
+    "message_count": 32,
     "history": [
       {
         "message": "Find the Q3 Financial Report",
@@ -2982,9 +2982,90 @@
           "command_type": "search"
         },
         "timestamp": "2026-01-26T22:38:39.899740"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-28T08:04:22.104607"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-28T08:04:22.105283"
+      },
+      {
+        "message": "schedule a meeting",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "ef1ff05e-9e7b-41a2-b9cd-7bb9fef2c3a9",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-28T08:04:32.483565"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-28T08:04:32.483592"
       }
     ],
-    "last_message": "I've processed your request across all connected platforms."
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
   },
   {
     "session_id": "session_1769136726291_bdrlr40gb",
@@ -5677,6 +5758,17 @@
     "user_id": "anonymous",
     "created_at": "2026-01-26T17:12:59.266523",
     "last_active": "2026-01-26T17:12:59.267036",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "cd143330-7828-4128-af09-eb3919e2721f",
+    "user_id": "test_user",
+    "created_at": "2026-01-27T17:08:45.484517",
+    "last_active": "2026-01-27T17:08:45.484535",
     "metadata": {
       "source": "chat_orchestrator"
     },

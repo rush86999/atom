@@ -570,6 +570,24 @@ class ChatMessage(Base):
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(String, default="default", index=True)
+    title = Column(String, nullable=True) # First message summary or custom title
+    metadata_json = Column(JSON, default={}) # For storing 'source', 'context', etc.
+    
+    # Tracking
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    message_count = Column(Integer, default=0)
+
+    # Relationships (Optional explicit link, or logical via conversation_id)
+    # messages = relationship("ChatMessage", backref="session", cascade="all, delete-orphan")
+
 # ==================== GRAPHRAG MODELS ====================
 
 class GraphNode(Base):
