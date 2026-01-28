@@ -14,19 +14,26 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 export interface ReasoningStep {
-    type: 'thought' | 'action' | 'observation' | 'error';
-    content: string;
+    type?: 'thought' | 'action' | 'observation' | 'error' | string;
+    content?: string;
+    thought?: string; // For AgentWorkflowGenerator/ChatMessage parity
+    action?: string | { tool: string; params?: any }; // For AgentWorkflowGenerator/ChatMessage parity
+    observation?: string; // For AgentWorkflowGenerator/ChatMessage parity
+    final_answer?: string; // For ChatMessage parity
     metadata?: any;
-    timestamp: Date;
+    timestamp?: Date | string;
     feedback?: 'thumbs_up' | 'thumbs_down';
     comment?: string;
+    [key: string]: any; // Catch-all for other variations
 }
 
 interface ReasoningChainProps {
     steps: ReasoningStep[];
     isThinking?: boolean;
+    isReasoning?: boolean; // For compatibility with some usages
     agentId?: string;
     runId?: string;
+    onFeedback?: (stepIndex: number, type: "thumbs_up" | "thumbs_down", comment?: string) => Promise<void>;
 }
 
 const ReasoningStepItem = ({ step, idx, localFeedback, onFeedback }: { step: ReasoningStep, idx: number, localFeedback?: { type: string, comment?: string }, onFeedback: (type: 'thumbs_up' | 'thumbs_down', comment?: string) => void }) => {
@@ -44,16 +51,20 @@ const ReasoningStepItem = ({ step, idx, localFeedback, onFeedback }: { step: Rea
         setShowComment(false);
     };
 
+    const displayType = step.type || (step.thought ? 'thought' : step.action ? 'action' : step.observation ? 'observation' : 'thought');
+    const displayContent = step.content || step.thought || (typeof step.action === 'string' ? step.action : JSON.stringify(step.action)) || step.observation || step.final_answer || "";
+    const displayTimestamp = step.timestamp ? new Date(step.timestamp) : new Date();
+
     return (
         <div className="group text-sm animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                    {step.type === 'thought' && <Brain className="h-3 w-3 text-blue-500" />}
-                    {step.type === 'action' && <Terminal className="h-3 w-3 text-orange-500" />}
-                    {step.type === 'observation' && <Eye className="h-3 w-3 text-green-500" />}
-                    <Badge variant="outline" className="text-[10px] uppercase">{step.type}</Badge>
+                    {displayType === 'thought' && <Brain className="h-3 w-3 text-blue-500" />}
+                    {displayType === 'action' && <Terminal className="h-3 w-3 text-orange-500" />}
+                    {displayType === 'observation' && <Eye className="h-3 w-3 text-green-500" />}
+                    <Badge variant="outline" className="text-[10px] uppercase">{displayType}</Badge>
                     <span className="text-[10px] text-muted-foreground">
-                        {new Date(step.timestamp).toLocaleTimeString()}
+                        {displayTimestamp.toLocaleTimeString()}
                     </span>
                 </div>
 
@@ -87,7 +98,7 @@ const ReasoningStepItem = ({ step, idx, localFeedback, onFeedback }: { step: Rea
             </div>
 
             <div className="pl-6 text-muted-foreground font-mono text-xs bg-muted/20 p-2 rounded overflow-x-auto whitespace-pre-wrap">
-                {step.content}
+                {displayContent}
             </div>
 
             {/* Inline Comment Box */}
@@ -118,7 +129,15 @@ const ReasoningStepItem = ({ step, idx, localFeedback, onFeedback }: { step: Rea
     );
 };
 
-export function ReasoningChain({ steps, isThinking, agentId = 'atom_main', runId }: ReasoningChainProps) {
+export function ReasoningChain({
+    steps,
+    isThinking,
+    isReasoning,
+    agentId = 'atom_main',
+    runId,
+    onFeedback: externalOnFeedback
+}: ReasoningChainProps) {
+    const activeIsThinking = isThinking || isReasoning;
     const [isOpen, setIsOpen] = useState(false);
     const { toast } = useToast();
     const [localFeedback, setLocalFeedback] = useState<Record<number, { type: string, comment?: string }>>({});
@@ -127,6 +146,11 @@ export function ReasoningChain({ steps, isThinking, agentId = 'atom_main', runId
 
     const handleFeedback = async (idx: number, type: 'thumbs_up' | 'thumbs_down', stepContent: any, comment?: string) => {
         setLocalFeedback(prev => ({ ...prev, [idx]: { type, comment } }));
+
+        if (externalOnFeedback) {
+            await externalOnFeedback(idx, type, comment);
+            return;
+        }
 
         try {
             await fetch('/api/reasoning/feedback', {
@@ -156,7 +180,7 @@ export function ReasoningChain({ steps, isThinking, agentId = 'atom_main', runId
                 {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                 <Brain className="h-3 w-3" />
                 <span>Reasoning Process ({steps.length} steps)</span>
-                {isThinking && <span className="animate-pulse ml-2 text-primary">Thinking...</span>}
+                {activeIsThinking && <span className="animate-pulse ml-2 text-primary">Thinking...</span>}
             </button>
 
             {isOpen && (

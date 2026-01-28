@@ -31,6 +31,17 @@ class CacheManager:
             else:
                 logger.info("Redis not enabled or no configuration found. Using in-memory cache.")
 
+    @property
+    def enabled(self):
+        return self.config.redis.enabled and REDIS_AVAILABLE
+
+    @property
+    def client(self):
+        return self.redis_client
+
+class RedisCacheService(CacheManager):
+    pass
+
     async def get(self, key: str) -> Optional[Any]:
         """Get value from cache"""
         try:
