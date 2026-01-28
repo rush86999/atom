@@ -120,7 +120,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                             content: msg.content || '',
                             timestamp: new Date(msg.timestamp || Date.now()),
                             // Map any additional metadata if backend provides it
-                            actions: [],
+                            actions: [] as ChatAction[],
                         }));
                         setMessages(chatMessages);
                     } else {
@@ -191,7 +191,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             toast({
                 title: "Error",
                 description: "Failed to process message. Please try again.",
-                variant: "destructive", // "error" variant might not exist in shadcn default, using destructve
+                variant: "error",
             });
             setMessages(prev => [...prev, {
                 id: `error_${Date.now()}`,

@@ -34,6 +34,7 @@ Pillow>=10.0.0
 # Authentication & Security
 python-jose[cryptography]>=3.3.0,<4.0.0
 passlib[bcrypt]>=1.7.4,<2.0.0
+bcrypt>=4.0.0
 python-multipart>=0.0.6,<1.0.0
 cryptography>=41.0.0,<43.0.0
 pyotp>=2.6.0,<3.0.0

@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, StopCircle, Paperclip, AlertCircle, Loader2 } from "lucide-react";
-import { ChatMessage } from "./ChatMessage";
-import { ChatMessageData, ReasoningStep } from "./ChatMessage";
+import { ChatMessage } from "../GlobalChat/ChatMessage";
+import { ChatMessageData, ReasoningStep } from "../GlobalChat/ChatMessage";
 import { VoiceInput } from "@/components/Voice/VoiceInput";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useToast } from "@/components/ui/use-toast";
-import { useFileUpload } from "@/hooks/useFileUpload";
+import { useFileUpload } from "../../hooks/useFileUpload";
 
 interface ChatInterfaceProps {
     sessionId: string | null;
@@ -105,10 +105,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         try {
             setIsProcessing(true);
             setStatusMessage("Loading history...");
-            const { apiClient } = await import('@/lib/api-client');
-            const response = await apiClient.get(`/api/atom-agent/sessions/${sid}/history`);
-            if (response.ok) {
-                const data = await response.json();
+            const { apiClient } = await import('../../lib/api-client');
+            const response = await apiClient.get(`/api/atom-agent/sessions/${sid}/history`) as any;
+            if (response.status === 200) {
+                const data = response.data;
                 if (data.success && data.messages) {
                     const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
                         id: msg.id || `msg_${Date.now()}_${Math.random()}`,
@@ -143,7 +143,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         setStatusMessage("Agent is thinking...");
 
         try {
-            const { apiClient } = await import('@/lib/api-client');
+            const { apiClient } = await import('../../lib/api-client');
             const response = await apiClient.post("/api/atom-agent/chat", {
                 message: input,
                 session_id: sessionId,
@@ -153,9 +153,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
                     role: m.type === "user" ? "user" : "assistant",
                     content: m.content
                 }))
-            });
-
-            const data = await response.json();
+            }) as any;
+            const data = response.data;
 
             if (data.success && data.response) {
                 const agentMsg: ChatMessageData = {
@@ -187,20 +186,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         // Hub for global actions like 'execute', 'view', etc.
     };
 
-    const handleFeedback = async (messageId: string, feedback: 'positive' | 'negative' | null) => {
-        if (!feedback) return; // Ignore if unselected (logic handled in ChatMessage)
-
+    const handleFeedback = async (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => {
         try {
-            const { apiClient } = await import('@/lib/api-client');
+            const { apiClient } = await import('../../lib/api-client');
             const response = await apiClient.post("/api/atom-agent/feedback", {
                 message_id: messageId,
-                feedback: feedback,
+                feedback: type, // frontend uses 'thumbs_up'/'thumbs_down', backend seems to expect 'thumbs_up'/'thumbs_down' based on ReasoningChain.tsx
+                comment: comment,
                 workspace_id: "default" // Should come from context
             });
 
-            const data = await response.json();
+            // The apiClient.post (axios) returns the response directly, not just a Fetch response
+            const data = (response as any).data || response;
 
-            if (data.success) {
+            if (data.success || response.status === 200) {
                 toast({
                     title: "Feedback Submitted",
                     description: "Thank you for your feedback!",
@@ -232,9 +231,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
 
     const handleHITLDecision = async (actionId: string, decision: 'approved' | 'rejected') => {
         try {
-            const { apiClient } = await import('@/lib/api-client');
-            const response = await apiClient.post(`/api/agents/approvals/${actionId}`, { decision });
-            const data = await response.json();
+            const { apiClient } = await import('../../lib/api-client');
+            const response = await apiClient.post(`/api/agents/approvals/${actionId}`, { decision }) as any;
+            const data = response.data;
             if (data.success) {
                 toast({ title: `Action ${decision}`, variant: "default" });
                 setPendingApproval(null);

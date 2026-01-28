@@ -66,6 +66,7 @@ import {
 
 interface WorkflowTemplate {
   id: string;
+  template_id?: string; // For backend parity
   name: string;
   description: string;
   category: string;
@@ -87,6 +88,7 @@ interface WorkflowDefinition {
   id: string;
   name: string;
   description: string;
+  created_from_template?: string;
   steps: WorkflowStep[];
   input_schema: any;
   created_at: string;

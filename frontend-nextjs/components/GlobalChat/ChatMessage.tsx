@@ -39,7 +39,7 @@ export interface ChatMessageData {
     id: string;
     type: "user" | "assistant" | "system";
     content: string;
-    timestamp: Date;
+    timestamp: Date | string;
     workflowData?: {
         workflowId?: string;
         workflowName?: string;
@@ -54,9 +54,12 @@ export interface ChatMessageData {
 export interface ReasoningStep {
     step: number;
     thought?: string;
-    action?: { tool: string; params?: any };
+    action?: string | { tool: string; params?: any };
     observation?: string;
     final_answer?: string;
+    timestamp?: Date | string;
+    status?: string;
+    [key: string]: any;
 }
 
 interface ChatMessageProps {
@@ -148,7 +151,7 @@ export function ChatMessage({ message, onActionClick, onFeedback }: ChatMessageP
                 </Card>
 
                 <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
 
                 {/* Feedback Controls for Assistant */}
