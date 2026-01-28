@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useVoiceIO } from '@/hooks/useVoiceIO';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -15,34 +15,21 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
         transcript,
         startListening,
         stopListening,
-        browserSupportsSpeechRecognition,
+        isSupported: browserSupportsSpeechRecognition,
         resetTranscript,
-        wakeWordEnabled,
-        setWakeWordMode
-    } = useSpeechRecognition();
+        wakeWordActive: wakeWordEnabled,
+        toggleWakeWord: setWakeWordMode
+    } = useVoiceIO({
+        wakeWord: 'atom',
+        onTranscript: onTranscriptChange // Auto-sync
+    });
 
-    // Sync transcript to parent
+    // Note: useVoiceIO's onTranscript handles the syncing, but we also sync if transcript changes
     useEffect(() => {
         if (transcript) {
             onTranscriptChange(transcript);
         }
     }, [transcript, onTranscriptChange]);
-
-    // Listen for global wake word event
-    useEffect(() => {
-        const handleWakeWord = (event: CustomEvent) => {
-            console.log("Global Wake Word Triggered!", event.detail);
-            if (!isListening) {
-                resetTranscript();
-                startListening();
-            }
-        };
-
-        window.addEventListener('wake-word-activated' as any, handleWakeWord as any);
-        return () => {
-            window.removeEventListener('wake-word-activated' as any, handleWakeWord as any);
-        };
-    }, [isListening, startListening, resetTranscript]);
 
     const toggleListening = () => {
         if (isListening) {
@@ -83,10 +70,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
                 onClick={() => {
                     if (wakeWordEnabled) {
                         setWakeWordMode(false);
-                        stopListening();
                     } else {
                         setWakeWordMode(true);
-                        startListening();
                     }
                 }}
                 className={cn(
