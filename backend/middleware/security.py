@@ -13,6 +13,7 @@ from starlette.responses import JSONResponse
 import hashlib
 import secrets
 import logging
+from core.auth import get_password_hash as secure_hash_password
 
 # Security logger
 security_logger = logging.getLogger("atom.security")
@@ -312,8 +313,8 @@ def setup_security_middleware(app):
 
 # Security utilities
 def hash_password(password: str) -> str:
-    """Hash password (for MVP - use bcrypt in production)"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash password using secure bcrypt implementation"""
+    return secure_hash_password(password)
 
 
 def generate_api_key() -> str:

@@ -356,7 +356,12 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
             case 'MARKDOWN':
                 return (
                     <div className="p-3 bg-blue-50/30 rounded border border-blue-100 text-[11px] text-blue-900 leading-relaxed prose prose-sm max-w-none">
-                        <div dangerouslySetInnerHTML={{ __html: prop.description?.replace(/\n/g, '<br/>') || '' }} />
+                        {prop.description?.split('\n').map((line: string, i: number) => (
+                            <React.Fragment key={i}>
+                                {line}
+                                <br />
+                            </React.Fragment>
+                        ))}
                     </div>
                 );
             case 'CHECKBOX':

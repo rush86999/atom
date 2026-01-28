@@ -226,9 +226,20 @@ export const authOptions: NextAuthOptions = {
     }
   },
   pages: {
-    signIn: '/auth/signin',
+    signIn: "/auth/signin",
     error: '/auth/error',
-  }
+  },
+  secret: (() => {
+    const s = process.env.NEXTAUTH_SECRET;
+    if (!s) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("CRITICAL: NEXTAUTH_SECRET is required in production");
+      }
+      console.warn("⚠️  NEXTAUTH_SECRET is not set. Using a temporary secret for development.");
+      return "atom_development_only_secret_please_set_in_env";
+    }
+    return s;
+  })(),
 };
 
 function extractSubdomainFromRequest(): string | null {

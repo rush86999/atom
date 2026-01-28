@@ -1,20 +1,19 @@
-from fastapi import APIRouter, HTTPException, Body, Depends, status, Request
+from fastapi import APIRouter, HTTPException, Body, Depends, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Optional
 import uuid
 import logging
-import uuid
-import logging
+import secrets
+import hashlib
 from datetime import datetime, timedelta
 
 from core.database import get_db
-from core.models import User, UserStatus
+from core.models import User, UserStatus, PasswordResetToken, AuditEventType, SecurityLevel, ThreatLevel
 from core.auth import verify_password, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
 from core.audit_service import audit_service
-from core.models import AuditEventType, SecurityLevel, ThreatLevel
-from fastapi import Request
+from core.email_utils import send_smtp_email
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -196,17 +195,79 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 # In a real scenario, we'd migrate the password reset tokens to SQLAlchemy too.
 
 @router.post("/forgot-password")
-async def forgot_password(request: ForgotPasswordRequest):
-    # Placeholder for now to satisfy interface
-    return {"success": True, "message": "Feature pending migration to new DB"}
+async def forgot_password(request: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Generate a password reset token and send an email to the user."""
+    user = db.query(User).filter(User.email == request.email).first()
+    
+    # We return success even if user not found to prevent user enumeration
+    success_msg = {"success": True, "message": "If your email is in our system, you will receive a reset link shortly."}
+    
+    if not user:
+        return success_msg
+    
+    # Generate token
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires_at = datetime.utcnow() + timedelta(hours=1)
+    
+    # Save to DB
+    reset_token = PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=expires_at
+    )
+    db.add(reset_token)
+    db.commit()
+    
+    # Send email asynchronously
+    reset_link = f"https://atom.app/reset-password?token={token}" # Placeholder domain
+    subject = "Password Reset Request"
+    body = f"Hello {user.first_name or 'User'},\n\nYou requested a password reset. Please use the link below to reset your password:\n\n{reset_link}\n\nThis link will expire in 1 hour."
+    html_body = f"<p>Hello {user.first_name or 'User'},</p><p>You requested a password reset. Please click the link below to reset your password:</p><p><a href='{reset_link}'>{reset_link}</a></p><p>This link will expire in 1 hour.</p>"
+    
+    background_tasks.add_task(send_smtp_email, user.email, subject, body, html_body)
+    
+    return success_msg
 
 @router.post("/verify-token")
-async def verify_token(request: VerifyTokenRequest):
-     return {"valid": False, "message": "Feature pending migration to new DB"}
+async def verify_token(request: VerifyTokenRequest, db: Session = Depends(get_db)):
+    """Verify if a password reset token is valid and not expired."""
+    token_hash = hashlib.sha256(request.token.encode()).hexdigest()
+    reset_token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == token_hash,
+        PasswordResetToken.is_used == False,
+        PasswordResetToken.expires_at > datetime.utcnow()
+    ).first()
+    
+    if not reset_token:
+        return {"valid": False, "message": "Invalid or expired token"}
+    
+    return {"valid": True, "message": "Token is valid"}
 
 @router.post("/reset-password")
-async def reset_password(request: ResetPasswordRequest):
-     return {"success": False, "message": "Feature pending migration to new DB"}
+async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset the user's password using a valid token."""
+    token_hash = hashlib.sha256(request.token.encode()).hexdigest()
+    reset_token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == token_hash,
+        PasswordResetToken.is_used == False,
+        PasswordResetToken.expires_at > datetime.utcnow()
+    ).first()
+    
+    if not reset_token:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    
+    user = db.query(User).filter(User.id == reset_token.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update password
+    user.password_hash = get_password_hash(request.password)
+    reset_token.is_used = True
+    db.commit()
+    
+    logger.info(f"Password reset successful for user {user.id}")
+    return {"success": True, "message": "Password reset successfully"}
 
 @router.post("/refresh")
 async def refresh_token(current_user: User = Depends(get_current_user)):

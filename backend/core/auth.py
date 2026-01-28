@@ -4,12 +4,8 @@ from datetime import datetime, timedelta
 from typing import Optional, Union, Any
 from jose import jwt, JWTError
 
-# Make bcrypt optional for authentication
-try:
-    import bcrypt
-    BCRYPT_AVAILABLE = True
-except ImportError:
-    BCRYPT_AVAILABLE = False
+import bcrypt
+BCRYPT_AVAILABLE = True
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -36,49 +32,23 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 def verify_password(plain_password, hashed_password):
-    """Verify password using bcrypt if available, otherwise fallback"""
-    if not BCRYPT_AVAILABLE:
-        logger.warning("bcrypt not available - using insecure password verification")
-        # Fallback: Simple string comparison (INSECURE - for development only)
-        # Fallback: Check if hashed_password looks like hex
-        try:
-             # Try to match the get_password_hash fallback (hex)
-             if isinstance(plain_password, str):
-                 plain_bytes = plain_password.encode('utf-8')
-             else:
-                 plain_bytes = plain_password
-             
-             return plain_bytes.hex() == hashed_password
-        except:
-             return plain_password == hashed_password
-
+    """Verify password using bcrypt"""
     if isinstance(plain_password, str):
         plain_password = plain_password.encode('utf-8')
     if isinstance(hashed_password, str):
         hashed_password = hashed_password.encode('utf-8')
+    
+    # Truncate to 71 bytes as bcrypt has a 72-byte limit and includes a null terminator
+    plain_password = plain_password[:71]
+    
     try:
         return bcrypt.checkpw(plain_password, hashed_password)
-    except ValueError as e:
-        logger.warning(f"bcrypt check failed (possibly invalid hash format): {e}")
-        # Fallback for legacy/dev hashes: try plain comparison if hash doesn't look like bcrypt
-        if plain_password.decode('utf-8') == hashed_password.decode('utf-8'):
-             logger.warning("⚠️  Auth successful using INSECURE fallback (legacy hash). Please reset password.")
-             return True
-        return False
     except Exception as e:
-        logger.error(f"Unexpected error in verify_password: {e}")
+        logger.error(f"Error in verify_password: {e}")
         return False
 
 def get_password_hash(password):
-    """Hash password using bcrypt if available, otherwise fallback"""
-    if not BCRYPT_AVAILABLE:
-        logger.warning("bcrypt not available - using insecure password hashing")
-        # Fallback: Simple encoding (INSECURE - for development only)
-        if isinstance(password, str):
-            password = password.encode('utf-8')
-        return password.hex()
-
-    # Bcrypt has a 72 byte limit
+    """Hash password using bcrypt"""
     if isinstance(password, str):
         # Encode to bytes, truncate to 71 bytes (safe margin)
         password = password.encode('utf-8')[:71]
