@@ -38,6 +38,9 @@
       "@lib/*": [
         "lib/*"
       ],
+      "@/hooks/*": [
+        "hooks/*"
+      ],
       "@assets/*": [
         "public/assets/*"
       ],
