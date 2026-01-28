@@ -65,6 +65,10 @@ class ChatSessionManager:
         except Exception as e:
             logger.error(f"Failed to load sessions file: {e}")
             return []
+            
+    def _load_sessions(self) -> List[Dict[str, Any]]:
+        """Backward compatibility alias for _load_sessions_file"""
+        return self._load_sessions_file()
     
     def _save_sessions_file(self, sessions: List[Dict[str, Any]]):
         """Save all sessions to file atomically"""
