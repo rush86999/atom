@@ -3265,9 +3265,6 @@ Return your response as a JSON object with this format:
             logger.error(f"Retention playbook execution failed: {e}")
             return {"status": "failed", "error": str(e)}
 
-# Global orchestrator instance
-orchestrator = AdvancedWorkflowOrchestrator()
-
 # Singleton instance
 _orchestrator_instance = None
 

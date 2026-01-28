@@ -214,29 +214,24 @@ class ChatOrchestrator:
         """Initialize AI engines for NLP, data intelligence, and automation"""
         self.ai_engines = {}
         
-        # NLP Engine (Lightweight, Critical for Chat)
+        # Import AI engines
         try:
-            from backend.ai.nlp_engine import NaturalLanguageEngine
-            self.ai_engines["nlp"] = NaturalLanguageEngine()
-            logger.info("NLP Engine initialized successfully")
-        except Exception as e:
-            logger.warning(f"NLP Engine not available: {e}")
+            from ai.nlp_engine import NaturalLanguageEngine
+            from ai.data_intelligence import DataIntelligenceEngine
+            from ai.automation_engine import AutomationEngine
 
-        # Data Intelligence Engine (Heavy, uses LanceDB/Pandas)
-        try:
-            from backend.ai.data_intelligence import DataIntelligenceEngine
-            self.ai_engines["data_intelligence"] = DataIntelligenceEngine()
-            logger.info("Data Intelligence Engine initialized successfully")
+            self.ai_engines = {
+                "nlp": NaturalLanguageEngine(),
+                "data_intelligence": DataIntelligenceEngine(),
+                "automation": AutomationEngine(),
+            }
+            logger.info("AI Engines initialized successfully")
+        except ImportError as e:
+            logger.warning(f"AI engines not available (ImportError): {e}")
+            self.ai_engines = {}
         except Exception as e:
-            logger.warning(f"Data Intelligence Engine not available (likely missing requirements): {e}")
-
-        # Automation Engine
-        try:
-            from backend.ai.automation_engine import AutomationEngine
-            self.ai_engines["automation"] = AutomationEngine()
-            logger.info("Automation Engine initialized successfully")
-        except Exception as e:
-            logger.warning(f"Automation Engine not available: {e}")
+            logger.error(f"Error initializing AI engines: {e}")
+            self.ai_engines = {}
 
     def _create_platform_connector(self, platform: PlatformType):
         """Create a mock platform connector (would connect to real APIs in production)"""
