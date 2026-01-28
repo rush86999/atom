@@ -1,30 +1,31 @@
+'use client';
+
 import React, { useState, useRef, useEffect } from "react";
-import { useRouter } from 'next/router';
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { ScrollArea } from "../ui/scroll-area";
-import { Send, StopCircle, Paperclip, Mic, AlertCircle } from "lucide-react";
-import { ChatMessage } from "../GlobalChat/ChatMessage";
-import { ChatMessageData, ReasoningStep } from "../GlobalChat/ChatMessage";
-import { VoiceInput } from "../Voice/VoiceInput";
-import { useWebSocket } from "../../hooks/useWebSocket";
-import { useToast } from "../ui/use-toast";
-import { useVoiceAgent } from "../../hooks/useVoiceAgent";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Send, StopCircle, Paperclip, AlertCircle, Loader2 } from "lucide-react";
+import { ChatMessage } from "./ChatMessage";
+import { ChatMessageData, ReasoningStep } from "./ChatMessage";
+import { VoiceInput } from "@/components/Voice/VoiceInput";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { useToast } from "@/components/ui/use-toast";
+import { useFileUpload } from "@/hooks/useFileUpload";
 
 interface ChatInterfaceProps {
     sessionId: string | null;
-    onSessionCreated?: (sessionId: string) => void;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreated }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     const [input, setInput] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
+    const [statusMessage, setStatusMessage] = useState("Agent is thinking...");
     const [messages, setMessages] = useState<ChatMessageData[]>([]);
     const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { isConnected, lastMessage, subscribe } = useWebSocket();
     const { toast } = useToast();
-    const { playAudio, isPlaying, stopAudio } = useVoiceAgent();
+    const { uploadFile, isUploading } = useFileUpload();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -47,7 +48,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages]);
+    }, [messages, statusMessage]);
 
     // WebSocket subscription
     useEffect(() => {
@@ -69,6 +70,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 observation: msg.step?.output,
                 final_answer: msg.step?.final_answer,
             };
+
+            // Update status message based on step
+            if (msg.step?.action) {
+                setStatusMessage(`Executing ${msg.step.action.tool}...`);
+            } else if (msg.step?.thought) {
+                setStatusMessage("Thinking...");
+            }
+
             setMessages(prev => {
                 const lastMsg = prev[prev.length - 1];
                 if (lastMsg && lastMsg.type === "assistant") {
@@ -83,45 +92,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
         if (msg.type === "hitl_paused") {
             setPendingApproval({ action_id: msg.action_id, tool: msg.tool, reason: msg.reason });
+            setStatusMessage("Waiting for approval...");
         }
 
         if (msg.type === "hitl_decision") {
             setPendingApproval(null);
+            setStatusMessage("Resuming execution...");
         }
     }, [lastMessage]);
 
     const loadSessionHistory = async (sid: string) => {
         try {
             setIsProcessing(true);
-            const response = await fetch(`/api/chat/history/${sid}?user_id=default_user`);
+            setStatusMessage("Loading history...");
+            const { apiClient } = await import('@/lib/api-client');
+            const response = await apiClient.get(`/api/atom-agent/sessions/${sid}/history`);
             if (response.ok) {
                 const data = await response.json();
-                if (data.messages) {
-                    const chatMessages: ChatMessageData[] = [];
-
-                    data.messages.forEach((exchange: any) => {
-                        // User message
-                        if (exchange.message) {
-                            chatMessages.push({
-                                id: `msg_u_${Date.now()}_${Math.random()}`,
-                                type: 'user',
-                                content: exchange.message,
-                                timestamp: new Date(exchange.timestamp || Date.now()),
-                            });
-                        }
-
-                        // Assistant response
-                        if (exchange.response && exchange.response.message) {
-                            chatMessages.push({
-                                id: `msg_a_${Date.now()}_${Math.random()}`,
-                                type: 'assistant',
-                                content: exchange.response.message,
-                                timestamp: new Date(exchange.response.timestamp || Date.now()),
-                                actions: exchange.response.suggested_actions || [],
-                            });
-                        }
-                    });
-
+                if (data.success && data.messages) {
+                    const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
+                        id: msg.id || `msg_${Date.now()}_${Math.random()}`,
+                        type: msg.role === 'user' ? 'user' : 'assistant',
+                        content: msg.content || '',
+                        timestamp: new Date(msg.timestamp),
+                        actions: msg.metadata?.actions || [],
+                    }));
                     setMessages(chatMessages);
                 }
             }
@@ -145,66 +140,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         setMessages(prev => [...prev, userMsg]);
         setInput("");
         setIsProcessing(true);
+        setStatusMessage("Agent is thinking...");
 
         try {
-            const response = await fetch("/api/chat/message", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message: input,
-                    user_id: "default_user",
-                    session_id: sessionId,
-                    context: {
-                        audioOutput: true,
-                        conversation_history: messages.slice(-5).map(m => ({
-                            role: m.type === "user" ? "user" : "assistant",
-                            content: m.content
-                        }))
-                    }
-                })
+            const { apiClient } = await import('@/lib/api-client');
+            const response = await apiClient.post("/api/atom-agent/chat", {
+                message: input,
+                session_id: sessionId,
+                user_id: "default_user",
+                current_page: "/chat",
+                conversation_history: messages.slice(-5).map(m => ({
+                    role: m.type === "user" ? "user" : "assistant",
+                    content: m.content
+                }))
             });
 
             const data = await response.json();
 
-            if (data.success) {
-                // Notify parent of new session if applicable
-                if (data.session_id && onSessionCreated && data.session_id !== sessionId) {
-                    onSessionCreated(data.session_id);
-                }
-
-                // Extract actions from either top-level or nested feature metadata
-                // Extract actions from either top-level or nested feature metadata
-                let extractedActions = data.metadata?.actions || [];
-                if (data.metadata) {
-                    Object.values(data.metadata).forEach((featureData: any) => {
-                        if (featureData && Array.isArray(featureData.actions)) {
-                            extractedActions = [...extractedActions, ...featureData.actions];
-                        }
-                    });
-                }
-
-                // Extract search results from ui_updates
-                let searchResults = [];
-                if (data.ui_updates) {
-                    const searchUpdate = data.ui_updates.find((u: any) => u.type === 'search_results');
-                    if (searchUpdate) {
-                        searchResults = searchUpdate.data;
-                    }
-                }
-
+            if (data.success && data.response) {
                 const agentMsg: ChatMessageData = {
                     id: (Date.now() + 1).toString(),
                     type: "assistant",
-                    content: data.message,
+                    content: data.response.message,
                     timestamp: new Date(),
-                    actions: extractedActions,
-                    searchResults: searchResults,
+                    actions: data.response.actions || [],
                 };
                 setMessages(prev => [...prev, agentMsg]);
-
-                if (data.metadata?.audioData) {
-                    playAudio(data.metadata.audioData);
-                }
             } else {
                 throw new Error(data.error || "Failed to process request");
             }
@@ -221,47 +182,39 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         }
     };
 
-    const router = useRouter();
-
     const handleActionClick = (action: any) => {
         console.log("Action clicked:", action);
+        // Hub for global actions like 'execute', 'view', etc.
+    };
+
+    const handleFeedback = async (messageId: string, feedback: 'positive' | 'negative' | null) => {
+        if (!feedback) return; // Ignore if unselected (logic handled in ChatMessage)
 
         try {
-            switch (action.type) {
-                case 'view_calendar':
-                case 'auth_request': // enhanced flexibility
-                    if (action.data?.url) {
-                        window.open(action.data.url, '_blank');
-                    } else {
-                        router.push('/calendar');
-                    }
-                    break;
+            const { apiClient } = await import('@/lib/api-client');
+            const response = await apiClient.post("/api/atom-agent/feedback", {
+                message_id: messageId,
+                feedback: feedback,
+                workspace_id: "default" // Should come from context
+            });
 
-                case 'schedule':
-                    router.push('/calendar'); // Navigate to calendar page
-                    break;
+            const data = await response.json();
 
-                case 'create_event':
-                    // Ideally open a modal, for now navigate to calendar query
-                    router.push('/calendar?action=create');
-                    break;
-
-                case 'view_inbox':
-                    router.push('/mail');
-                    break;
-
-                case 'execute':
-                    toast({ title: "Executing...", description: `Running action: ${action.label}` });
-                    // Future: Trigger backend execution via WebSocket or API
-                    break;
-
-                default:
-                    console.warn("Unknown action type:", action.type);
-                    toast({ title: "Action Not Implemented", description: `Type: ${action.type}` });
+            if (data.success) {
+                toast({
+                    title: "Feedback Submitted",
+                    description: "Thank you for your feedback!",
+                });
+            } else {
+                throw new Error(data.error || "Failed to submit feedback");
             }
         } catch (error) {
-            console.error("Action handler error:", error);
-            toast({ variant: "destructive", title: "Action Failed", description: "Could not execute this action." });
+            console.error("Feedback error:", error);
+            toast({
+                title: "Error",
+                description: "Failed to submit feedback. Please try again.",
+                variant: "error"
+            });
         }
     };
 
@@ -279,11 +232,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
     const handleHITLDecision = async (actionId: string, decision: 'approved' | 'rejected') => {
         try {
-            const response = await fetch(`/api/agents/approvals/${actionId}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ decision }),
-            });
+            const { apiClient } = await import('@/lib/api-client');
+            const response = await apiClient.post(`/api/agents/approvals/${actionId}`, { decision });
             const data = await response.json();
             if (data.success) {
                 toast({ title: `Action ${decision}`, variant: "default" });
@@ -291,32 +241,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
             }
         } catch (e) {
             toast({ title: "Error", description: String(e), variant: "error" });
-        }
-    };
-
-    const handleMessageFeedback = async (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => {
-        try {
-            toast({
-                title: comment ? "Correction Received" : (type === 'thumbs_up' ? "Helpful" : "Flagged"),
-                description: comment ? "We'll use this to improve our reasoning." : "Thanks for your feedback!",
-            });
-
-            const originalContent = messages.find(m => m.id === messageId)?.content;
-
-            await fetch('/api/reasoning/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    agent_id: "agent_chat_assistant",
-                    run_id: sessionId,
-                    step_index: -1,
-                    step_content: { thought: "Final Agent Response", output: originalContent },
-                    feedback_type: type,
-                    comment: comment
-                })
-            });
-        } catch (e) {
-            console.error("Feedback failed", e);
         }
     };
 
@@ -338,15 +262,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                             key={msg.id}
                             message={msg}
                             onActionClick={handleActionClick}
-                            onFeedback={handleMessageFeedback}
+                            onFeedback={handleFeedback}
                         />
                     ))}
                     {isProcessing && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-2">
-                            <div className="h-2 w-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <div className="h-2 w-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <div className="h-2 w-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                            Agent is thinking...
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-2 animate-in fade-in slide-in-from-bottom-2">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>{statusMessage}</span>
                         </div>
                     )}
                     <div ref={messagesEndRef} />
@@ -355,7 +277,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
             {/* HITL Approval Banner */}
             {pendingApproval && (
-                <div className="mx-4 mb-2 p-3 border-2 border-yellow-200 rounded-lg bg-yellow-50">
+                <div className="mx-4 mb-2 p-3 border-2 border-yellow-200 rounded-lg bg-yellow-50 animate-in slide-in-from-bottom-5">
                     <div className="flex items-center gap-2 text-yellow-800 font-medium text-sm mb-2">
                         <AlertCircle className="h-4 w-4" />
                         Approval Required
@@ -377,31 +299,55 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
             {/* Input Area */}
             <div className="p-4 border-t border-border bg-background">
-                <div className="max-w-3xl mx-auto flex gap-2">
-                    <Button variant="ghost" size="icon" className="shrink-0">
-                        <Paperclip className="h-5 w-5 text-muted-foreground" />
-                    </Button>
-                    <VoiceInput
-                        onTranscriptChange={(transcript) => setInput(transcript)}
-                        className="shrink-0"
-                    />
-                    <Input
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                        placeholder="Type a message..."
-                        className="flex-1"
-                        disabled={isProcessing}
-                    />
-                    {isProcessing ? (
-                        <Button variant="destructive" size="icon" onClick={handleStop} title="Stop Agent">
-                            <StopCircle className="h-5 w-5" />
-                        </Button>
-                    ) : (
-                        <Button onClick={handleSend} size="icon">
-                            <Send className="h-5 w-5" />
-                        </Button>
+                <div className="max-w-3xl mx-auto flex flex-col gap-2">
+                    {isUploading && (
+                        <div className="flex items-center gap-2 mb-2 p-2 bg-muted rounded-md animate-in fade-in">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span className="text-xs font-medium">Uploading file...</span>
+                        </div>
                     )}
+
+                    <div className="flex gap-2">
+                        <input
+                            type="file"
+                            id="chat-file-upload"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) uploadFile(file);
+                            }}
+                        />
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                            onClick={() => document.getElementById('chat-file-upload')?.click()}
+                            disabled={isUploading || isProcessing}
+                        >
+                            <Paperclip className="h-5 w-5 text-muted-foreground" />
+                        </Button>
+                        <VoiceInput
+                            onTranscriptChange={(transcript) => setInput(transcript)}
+                            className="shrink-0"
+                        />
+                        <Input
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                            placeholder="Type a message..."
+                            className="flex-1"
+                            disabled={isProcessing}
+                        />
+                        {isProcessing ? (
+                            <Button variant="destructive" size="icon" onClick={handleStop} title="Stop Agent">
+                                <StopCircle className="h-5 w-5" />
+                            </Button>
+                        ) : (
+                            <Button onClick={handleSend} size="icon">
+                                <Send className="h-5 w-5" />
+                            </Button>
+                        )}
+                    </div>
                 </div>
                 <div className="text-center mt-2">
                     <p className="text-[10px] text-muted-foreground">

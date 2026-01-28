@@ -573,6 +573,7 @@ class IntegrationMetric(Base):
     
     last_synced_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+<<<<<<< HEAD
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
@@ -612,10 +613,28 @@ class GraphNode(Base):
     type = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     properties = Column(JSON, default={})
+=======
+# ==================== GRAPHRAG V2 (PostgreSQL) ====================
+
+class GraphNode(Base):
+    """
+    Represents an entity in the Knowledge Graph (Person, Project, Document).
+    Replaces in-memory NetworkX nodes.
+    """
+    __tablename__ = "graph_nodes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, index=True) # Partition key
+    name = Column(String, nullable=False)
+    type = Column(String, nullable=False) # e.g., 'person', 'task', 'document'
+    description = Column(Text, nullable=True)
+    properties = Column(JSON, default={}) # Flexible metadata
+>>>>>>> f82de489 (feat: backport GraphRAG and Enhanced Chat UI from SaaS)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+<<<<<<< HEAD
     # Relationships
     workspace = relationship("Workspace", backref="graph_nodes")
 
@@ -627,11 +646,32 @@ class GraphEdge(Base):
     source_node_id = Column(String, ForeignKey("graph_nodes.id"), nullable=False, index=True)
     target_node_id = Column(String, ForeignKey("graph_nodes.id"), nullable=False, index=True)
     relationship_type = Column(String, nullable=False)
+=======
+    # Constraints: (workspace_id, name, type) should be unique to prevent dupes
+    # We'll enforce this via unique index in migration or explicit UNIQUE constraint
+
+class GraphEdge(Base):
+    """
+    Represents a relationship between two entities.
+    Replaces in-memory NetworkX edges.
+    """
+    __tablename__ = "graph_edges"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, index=True)
+    
+    source_node_id = Column(String, ForeignKey("graph_nodes.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_node_id = Column(String, ForeignKey("graph_nodes.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    relationship_type = Column(String, nullable=False) # e.g., 'manages', 'blocks'
+    weight = Column(Float, default=1.0)
+>>>>>>> f82de489 (feat: backport GraphRAG and Enhanced Chat UI from SaaS)
     properties = Column(JSON, default={})
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
+<<<<<<< HEAD
     source_node = relationship("GraphNode", foreign_keys=[source_node_id], backref="out_edges")
     target_node = relationship("GraphNode", foreign_keys=[target_node_id], backref="in_edges")
 
@@ -662,3 +702,31 @@ class CommunityMembership(Base):
     # Relationships
     community = relationship("GraphCommunity", backref="members")
     node = relationship("GraphNode", backref="communities")
+=======
+    source_node = relationship("GraphNode", foreign_keys=[source_node_id])
+    target_node = relationship("GraphNode", foreign_keys=[target_node_id])
+
+class GraphCommunity(Base):
+    """
+    Hierarchical clusters detected by Leiden algorithm.
+    Used for Global Search (Map-Reduce).
+    """
+    __tablename__ = "graph_communities"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, index=True)
+    
+    level = Column(Integer, default=0) # Hierarchy level
+    summary = Column(Text, nullable=False) # LLM-generated summary
+    keywords = Column(JSON, default=list) # Top keywords for indexing
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class CommunityMembership(Base):
+    """Mapping of Nodes to Communities (Many-to-Many but usually One-to-Many per level)"""
+    __tablename__ = "community_membership"
+
+    community_id = Column(String, ForeignKey("graph_communities.id", ondelete="CASCADE"), primary_key=True)
+    node_id = Column(String, ForeignKey("graph_nodes.id", ondelete="CASCADE"), primary_key=True)
+
+>>>>>>> f82de489 (feat: backport GraphRAG and Enhanced Chat UI from SaaS)
