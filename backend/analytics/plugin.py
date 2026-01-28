@@ -35,7 +35,8 @@ def enable_workflow_dna(app: FastAPI):
         
         # Checking `core/workflow_endpoints.py` usually reveals `orchestrator = AdvancedWorkflowOrchestrator()`
         
-        from advanced_workflow_orchestrator import orchestrator
+        from advanced_workflow_orchestrator import get_orchestrator
+        orchestrator = get_orchestrator()
         activate_analytics(orchestrator)
         
     except Exception as e:

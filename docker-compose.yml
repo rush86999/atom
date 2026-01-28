@@ -34,8 +34,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - ENVIRONMENT=production
+      - SECRET_KEY=${SECRET_KEY:-atom_secure_secret_2025_fixed_key}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-atom_secure_secret_2025_fixed_key}
+      - ENVIRONMENT=development
       - LOG_LEVEL=INFO
       - NODE_ENGINE_URL=http://atom-piece-engine:3003
     restart: unless-stopped

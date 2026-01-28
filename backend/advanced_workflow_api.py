@@ -10,7 +10,7 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
-from advanced_workflow_orchestrator import orchestrator, WorkflowContext, WorkflowStatus
+from advanced_workflow_orchestrator import get_orchestrator, WorkflowContext, WorkflowStatus
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ async def execute_advanced_workflow(
 
     try:
         # Execute workflow
-        context = await orchestrator.execute_workflow(
+        context = await get_orchestrator().execute_workflow(
             request.workflow_id,
             request.input_data,
             request.execution_context
@@ -95,7 +95,7 @@ async def get_workflow_definitions():
     """Get all available workflow definitions"""
 
     try:
-        definitions = orchestrator.get_workflow_definitions()
+        definitions = get_orchestrator().get_workflow_definitions()
         return [
             WorkflowDefinitionResponse(**def_dict)
             for def_dict in definitions
@@ -109,7 +109,7 @@ async def get_workflow_stats():
     """Get workflow execution statistics"""
 
     try:
-        stats = orchestrator.get_workflow_execution_stats()
+        stats = get_orchestrator().get_workflow_execution_stats()
         return WorkflowStatsResponse(**stats)
     except Exception as e:
         logger.error(f"Failed to get workflow stats: {e}")
@@ -126,7 +126,7 @@ async def demo_customer_support_workflow():
     }
 
     try:
-        context = await orchestrator.execute_workflow(
+        context = await get_orchestrator().execute_workflow(
             "customer_support_automation",
             demo_input
         )
@@ -173,7 +173,7 @@ async def demo_project_management_workflow():
     }
 
     try:
-        context = await orchestrator.execute_workflow(
+        context = await get_orchestrator().execute_workflow(
             "project_management_automation",
             demo_input
         )
@@ -218,7 +218,7 @@ async def demo_sales_lead_workflow():
     }
 
     try:
-        context = await orchestrator.execute_workflow(
+        context = await get_orchestrator().execute_workflow(
             "sales_lead_processing",
             demo_input
         )
@@ -258,8 +258,8 @@ async def get_workflow_validation_summary():
 
     try:
         # Get workflow stats
-        stats = orchestrator.get_workflow_execution_stats()
-        definitions = orchestrator.get_workflow_definitions()
+        stats = get_orchestrator().get_workflow_execution_stats()
+        definitions = get_orchestrator().get_workflow_definitions()
 
         # Calculate validation evidence
         complex_workflows_available = len(definitions)

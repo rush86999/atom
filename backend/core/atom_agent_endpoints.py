@@ -26,7 +26,7 @@ from core.unified_search_endpoints import SearchRequest
 
 # Import AI service for intent classification
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
-from advanced_workflow_orchestrator import orchestrator
+from advanced_workflow_orchestrator import get_orchestrator
 from dataclasses import asdict
 
 # Import chat history management
@@ -696,7 +696,7 @@ async def handle_create_workflow(request: ChatRequest, entities: Dict[str, Any])
     
     try:
         # Use the orchestrator to generate the workflow definition (now returns a dict)
-        workflow_def = await orchestrator.generate_dynamic_workflow(description)
+        workflow_def = await get_orchestrator().generate_dynamic_workflow(description)
         
         if not workflow_def:
             return {

@@ -479,22 +479,24 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
             metadata = json.loads(metadata) if metadata else {}
         
         # 1. Trigger Workflow Events
+        # 1. Trigger Workflow Events
         try:
-            from advanced_workflow_orchestrator import orchestrator
+            from advanced_workflow_orchestrator import get_orchestrator
             event_data = {
                 "text": item.content,
                 "doc_id": doc_id,
                 "source": item.app_type,
-                "metadata": metadata
+                "metadata": metadata,
+                "triggered_at": datetime.now(timezone.utc).isoformat()
             }
             
             try:
                 loop = asyncio.get_running_loop()
-                asyncio.create_task(orchestrator.trigger_event("document_uploaded", event_data))
+                asyncio.create_task(get_orchestrator().trigger_event("document_uploaded", event_data))
                 logger.debug(f"[Bytewax] Async workflow trigger for {doc_id}")
             except RuntimeError:
                 # No running event loop - run synchronously
-                asyncio.run(orchestrator.trigger_event("document_uploaded", event_data))
+                asyncio.run(get_orchestrator().trigger_event("document_uploaded", event_data))
                 logger.debug(f"[Bytewax] Sync workflow trigger for {doc_id}")
         except ImportError:
             logger.debug("Workflow orchestrator not available")
