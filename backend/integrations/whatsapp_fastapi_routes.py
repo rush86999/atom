@@ -407,7 +407,7 @@ async def get_analytics(
 
 @router.get("/analytics/export", summary="Export WhatsApp analytics")
 async def export_analytics(
-    format: str = Query(default="json", regex="^(json|csv)$"),
+    format: str = Query(default="json", pattern="^(json|csv)$"),
     start_date: str = Query(default="", description="Start date (YYYY-MM-DD)"),
     end_date: str = Query(default="", description="End date (YYYY-MM-DD)"),
 ):
