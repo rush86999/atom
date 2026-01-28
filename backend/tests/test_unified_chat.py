@@ -3,14 +3,19 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from integrations.chat_orchestrator import ChatOrchestrator, ChatIntent, FeatureType, PlatformType
 from core.auto_document_ingestion import AutoDocumentIngestionService, IngestionSettings
+import core.atom_meta_agent # Fix for patch resolution
 from datetime import datetime
 
 @pytest.fixture
 def mock_chat_orchestrator():
-    orchestrator = ChatOrchestrator()
-    orchestrator._initialize_ai_engines = MagicMock() # Mock out AI engines
-    orchestrator.ai_engines = {}
-    return orchestrator
+    with patch.object(ChatOrchestrator, '_initialize_ai_engines'), \
+         patch.object(ChatOrchestrator, '_load_persisted_sessions'), \
+         patch.object(ChatOrchestrator, '_initialize_platform_connectors'), \
+         patch("integrations.chat_orchestrator.get_chat_session_manager"):
+        
+        orchestrator = ChatOrchestrator()
+        orchestrator.ai_engines = {}
+        return orchestrator
 
 @pytest.mark.asyncio
 async def test_chat_triggers_automation_agent(mock_chat_orchestrator):
@@ -87,7 +92,11 @@ async def test_ingestion_triggers_atom():
     """Test that document ingestion triggers AtomMetaAgent"""
     
     workspace_id = "test_ws"
-    service = AutoDocumentIngestionService(workspace_id)
+    
+    # Mock init-time dependencies
+    with patch("core.lancedb_handler.get_lancedb_handler"), \
+         patch("core.secrets_redactor.get_secrets_redactor"):
+        service = AutoDocumentIngestionService(workspace_id)
     
     # Mock internal methods
     service._list_files = AsyncMock(return_value=[

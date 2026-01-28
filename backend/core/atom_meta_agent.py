@@ -15,7 +15,7 @@ from core.agent_world_model import WorldModelService, AgentExperience
 from core.agent_governance_service import AgentGovernanceService
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from integrations.mcp_service import mcp_service
-from ai.nlp_engine import NaturalLanguageEngine, CommandIntentResult, CommandType
+from ai.nlp_engine import NaturalLanguageEngine, CommandIntent, CommandType
 from typing import Literal
 
 logger = logging.getLogger(__name__)

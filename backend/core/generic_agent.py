@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timezone
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_world_model import WorldModelService, AgentExperience
-# from core.react_models import ReActStep, ToolCall  <-- REMOVED due to missing file
+from core.react_models import ReActStep, ToolCall, ReActObservation
 from core.models import AgentRegistry, AgentStatus, HITLActionStatus
 from core.database import SessionLocal
 from integrations.mcp_service import mcp_service
@@ -22,19 +22,6 @@ except ImportError:
     INSTRUCTOR_AVAILABLE = False
     instructor = None
     AsyncOpenAI = None
-
-# --- Inlined Models (Fix for ModuleNotFoundError) ---
-from pydantic import BaseModel, Field
-
-class ToolCall(BaseModel):
-    tool: str
-    params: Dict[str, Any]
-
-class ReActStep(BaseModel):
-    thought: str = Field(description="Reasoning about the current state")
-    action: Optional[ToolCall] = Field(None, description="Tool to execute, if any")
-    final_answer: Optional[str] = Field(None, description="Final response to the user, if task is complete")
-# ----------------------------------------------------
 
 logger = logging.getLogger(__name__)
 
