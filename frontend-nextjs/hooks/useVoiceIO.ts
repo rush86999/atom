@@ -1,11 +1,14 @@
-import { useSpeechRecognition, UseSpeechRecognitionReturn } from './useSpeechRecognition';
+import { useSpeechRecognition } from "./useSpeechRecognition";
 
-export interface UseVoiceIOReturn extends UseSpeechRecognitionReturn {
-    // Add any specific overrides if needed, but for now it's a direct proxy
-}
+export const useVoiceIO = (options?: { wakeWord?: string; onTranscript?: (t: string) => void }) => {
+    const speech = useSpeechRecognition();
 
-export function useVoiceIO(): UseVoiceIOReturn {
-    return useSpeechRecognition();
-}
+    return {
+        ...speech,
+        isSupported: speech.browserSupportsSpeechRecognition,
+        wakeWordActive: speech.wakeWordEnabled,
+        toggleWakeWord: speech.setWakeWordMode
+    };
+};
 
 export default useVoiceIO;

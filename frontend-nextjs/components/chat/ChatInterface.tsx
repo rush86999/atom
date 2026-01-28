@@ -14,6 +14,7 @@ import { useFileUpload } from "../../hooks/useFileUpload";
 
 interface ChatInterfaceProps {
     sessionId: string | null;
+    onSessionCreated?: (sessionId: string) => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {

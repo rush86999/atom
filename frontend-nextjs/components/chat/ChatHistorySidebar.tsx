@@ -31,13 +31,13 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
     const fetchChatHistory = async () => {
         try {
             setLoading(true);
-            const { apiClient } = await import('@/lib/api-client');
+            const { apiClient } = await import('../../lib/api-client');
             // In SaaS, we use the standard chat API
-            const response = await apiClient.get("/api/chat");
-            if (!response.ok) {
+            const response = await apiClient.get("/api/chat") as any;
+            if (response.status !== 200) {
                 throw new Error("Failed to fetch chat history");
             }
-            const data = await response.json();
+            const data = response.data;
             // Data format might differ, but assuming standard for now or using dummy for parity demo
             if (data.conversations) {
                 setHistory(data.conversations.map((c: any) => ({

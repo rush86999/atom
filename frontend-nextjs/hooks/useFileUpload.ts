@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import apiClient from '@/lib/api';
+import { apiClient } from '../lib/api-client';
 
 export function useFileUpload() {
     const [isUploading, setIsUploading] = useState(false);
@@ -13,7 +13,7 @@ export function useFileUpload() {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await apiClient.post('/api/upload', formData, {
+            const response = (await apiClient.post('/api/upload', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
@@ -23,7 +23,7 @@ export function useFileUpload() {
                     );
                     setProgress(percentCompleted);
                 },
-            } as any);
+            } as any)) as any;
 
             return response.data;
         } catch (error) {
