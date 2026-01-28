@@ -96,6 +96,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
                         filteredHistory.map((session) => (
                             <div
                                 key={session.id}
+                                data-testid="session-item"
                                 onClick={() => onSelectSession(session.id)}
                                 className={cn(
                                     "flex flex-col gap-1 p-3 rounded-lg cursor-pointer transition-colors hover:bg-accent",

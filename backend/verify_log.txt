@@ -1,0 +1,49 @@
+--- VERIFICATION START ---
+Waiting for server to be ready...
+Sending POST to http://localhost:8000/api/chat/message
+
+--- RESPONSE DUMP ---
+{
+  "success": true,
+  "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+  "session_id": "verify_session_v3",
+  "intent": "scheduling",
+  "confidence": 0.6,
+  "suggested_actions": [
+    "Connect Google Calendar"
+  ],
+  "requires_confirmation": false,
+  "next_steps": [
+    "Ask me to connect more services",
+    "Explore automation opportunities",
+    "Check your dashboard for insights"
+  ],
+  "timestamp": "2026-01-25T08:26:28.187366",
+  "metadata": {
+    "scheduling": {
+      "actions": [
+        {
+          "type": "view_calendar",
+          "label": "Connect Google Calendar",
+          "data": {
+            "url": "http://localhost:8000/api/auth/google/initiate"
+          }
+        }
+      ]
+    }
+  }
+}
+
+--- FINAL VERIFICATION RESPONSE ---
+Status Code: 200
+Message: I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:
+
+[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)
+
+--- CHECKS ---
+1. Success == True: ✅
+2. Metadata Present: ✅
+3. Actions Present: ❌ ({0})
+4. Valid 'Connect' Action Found: ❌
+
+🔥 VERIFICATION FAILED: The backend response is still wrong.

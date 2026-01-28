@@ -44,6 +44,7 @@ class ChatMessageResponse(BaseModel):
     requires_confirmation: bool = Field(..., description="Whether confirmation is needed")
     next_steps: list = Field(..., description="Suggested next steps")
     timestamp: str = Field(..., description="Response timestamp")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata and structured actions")
 
 
 class ChatHistoryRequest(BaseModel):
@@ -94,7 +95,8 @@ async def send_chat_message(request: ChatMessageRequest) -> ChatMessageResponse:
             suggested_actions=response.get("suggested_actions", []),
             requires_confirmation=response.get("requires_confirmation", False),
             next_steps=response.get("next_steps", []),
-            timestamp=response.get("timestamp", "")
+            timestamp=response.get("timestamp", ""),
+            metadata=response.get("data", {}) # Map 'data' to 'metadata' for frontend
         )
 
     except Exception as e:
@@ -139,17 +141,20 @@ async def get_chat_history(session_id: str, user_id: str) -> ChatHistoryResponse
     try:
         logger.info(f"Retrieving history for session {session_id} and user {user_id}")
 
-        # Check if session exists
+        # Lazy-load session if it doesn't exist (e.g. new chat from frontend)
         if session_id not in chat_orchestrator.conversation_sessions:
-            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+            logger.info(f"Session {session_id} not found, lazy-initializing for user {user_id}")
+            session = chat_orchestrator._get_or_create_session(user_id, session_id)
+        else:
+            session = chat_orchestrator.conversation_sessions[session_id]
 
-        session = chat_orchestrator.conversation_sessions[session_id]
+        # Verify user access (if we didn't just create it)
         if session.get("user_id") != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
         return ChatHistoryResponse(
             session_id=session_id,
-            messages=session.get("messages", []),
+            messages=session.get("history", []),
             timestamp=session.get("last_updated", "")
         )
 

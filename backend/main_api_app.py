@@ -56,11 +56,111 @@ logger.info(f"Configuration loaded from {env_path}")
 deepseek_status = os.getenv("DEEPSEEK_API_KEY")
 logger.info(f"DEBUG: Startup DEEPSEEK_API_KEY present: {bool(deepseek_status)}")
 
+
 # Environment settings
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 DISABLE_DOCS = ENVIRONMENT == "production"
+
+# --- LIFECYCLE MANAGER ---
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- STARTUP ---
+    logger.info("=" * 60)
+    logger.info("ATOM Platform Starting (Hybrid Mode) - FINAL FIX v3")
+    logger.info("=" * 60)
+    
+    # 0. Initialize Database (Critical for in-memory DB)
+    try:
+        from core.database import engine
+        from core.models import Base
+        from analytics.models import WorkflowExecutionLog # Force registration
+        from core.admin_bootstrap import ensure_admin_user
+        from sqlalchemy import inspect
+        
+        logger.info("Initializing database tables...")
+        Base.metadata.create_all(bind=engine)
+        
+        # Verify tables
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        logger.info(f"✓ Database tables created: {tables}")
+        
+        logger.info("Bootstrapping admin user...")
+        ensure_admin_user()
+        logger.info("✓ Admin user ready")
+        
+    except Exception as e:
+        logger.error(f"CRITICAL: Database initialization failed: {e}")
+
+    # 1. Load Essential Integrations (defined in registry)
+    # This bridges the gap - specific plugins you ALWAYS want can be defined there
+    if ESSENTIAL_INTEGRATIONS:
+        logger.info(f"Loading {len(ESSENTIAL_INTEGRATIONS)} essential plugins...")
+        for name in ESSENTIAL_INTEGRATIONS:
+            try:
+                router = load_integration(name)
+                if router:
+                    # Don't add prefix - routers already have their own prefixes defined
+                    app.include_router(router, tags=[name])
+                    _loaded_integrations.add(name)  # Track loaded integration
+                    logger.info(f"  ✓ {name}")
+            except Exception as e:
+                logger.error(f"  ✗ Failed to load essential plugin {name}: {e}")
+
+    # Check if schedulers should run (Default: True for Monolith, False for API-only replicas)
+    enable_scheduler = os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
+    
+    if enable_scheduler:
+        # 2. Start Workflow Scheduler (Run in main event loop)
+        try:
+            from ai.workflow_scheduler import workflow_scheduler
+            
+            logger.info("Starting Workflow Scheduler...")
+            try:
+                workflow_scheduler.start()
+                logger.info("✓ Workflow Scheduler running")
+            except Exception as e:
+                logger.error(f"!!! Workflow Scheduler Crashed: {e}")
+            
+        except ImportError:
+            logger.warning("Workflow Scheduler module not found.")
+
+        # 3. Start Agent Scheduler (Upstream compatibility)
+        try:
+            from core.scheduler import AgentScheduler
+            AgentScheduler.get_instance()
+            logger.info("✓ Agent Scheduler running")
+        except ImportError:
+            logger.warning("Agent Scheduler module not found.")
+
+        # 4. Start Intelligence Background Worker
+        try:
+            from ai.intelligence_background_worker import intelligence_worker
+            await intelligence_worker.start()
+            logger.info("✓ Intelligence Background Worker running")
+        except Exception as e:
+            logger.error(f"Failed to start intelligence worker: {e}")
+    else:
+        logger.info("Skipping Scheduler startup (ENABLE_SCHEDULER=false)")
+    
+    logger.info("=" * 60)
+    logger.info("✓ Server Ready")
+
+    yield
+
+    # --- SHUTDOWN ---
+    logger.info("Shutting down ATOM Platform...")
+    try:
+        from ai.workflow_scheduler import workflow_scheduler
+        workflow_scheduler.shutdown()
+        logger.info("✓ Workflow Scheduler stopped")
+    except:
+        pass
+
 
 # --- APP INITIALIZATION ---
 app = FastAPI(
@@ -70,6 +170,7 @@ app = FastAPI(
     docs_url=None if DISABLE_DOCS else "/docs",
     redoc_url=None if DISABLE_DOCS else "/redoc",
     openapi_url=None if DISABLE_DOCS else "/openapi.json",
+    lifespan=lifespan,
 )
 
 # Trusted Host Middleware
@@ -654,98 +755,7 @@ async def health_check():
 # 5. LIFECYCLE & SCHEDULER
 # ============================================================================
 
-@app.on_event("startup")
-async def startup_event():
-    logger.info("=" * 60)
-    logger.info("ATOM Platform Starting (Hybrid Mode)")
-    logger.info("=" * 60)
-    
-    # 0. Initialize Database (Critical for in-memory DB)
-    try:
-        from core.database import engine
-        from core.models import Base
-        from analytics.models import WorkflowExecutionLog # Force registration
-        from core.admin_bootstrap import ensure_admin_user
-        from sqlalchemy import inspect
-        
-        logger.info("Initializing database tables...")
-        Base.metadata.create_all(bind=engine)
-        
-        # Verify tables
-        inspector = inspect(engine)
-        tables = inspector.get_table_names()
-        logger.info(f"✓ Database tables created: {tables}")
-        
-        logger.info("Bootstrapping admin user...")
-        ensure_admin_user()
-        logger.info("✓ Admin user ready")
-        
-    except Exception as e:
-        logger.error(f"CRITICAL: Database initialization failed: {e}")
 
-    # 1. Load Essential Integrations (defined in registry)
-    # This bridges the gap - specific plugins you ALWAYS want can be defined there
-    if ESSENTIAL_INTEGRATIONS:
-        logger.info(f"Loading {len(ESSENTIAL_INTEGRATIONS)} essential plugins...")
-        for name in ESSENTIAL_INTEGRATIONS:
-            try:
-                router = load_integration(name)
-                if router:
-                    # Don't add prefix - routers already have their own prefixes defined
-                    app.include_router(router, tags=[name])
-                    _loaded_integrations.add(name)  # Track loaded integration
-                    logger.info(f"  ✓ {name}")
-            except Exception as e:
-                logger.error(f"  ✗ Failed to load essential plugin {name}: {e}")
-
-    # Check if schedulers should run (Default: True for Monolith, False for API-only replicas)
-    enable_scheduler = os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
-    
-    if enable_scheduler:
-        # 2. Start Workflow Scheduler (Run in main event loop)
-        try:
-            from ai.workflow_scheduler import workflow_scheduler
-            
-            logger.info("Starting Workflow Scheduler...")
-            try:
-                workflow_scheduler.start()
-                logger.info("✓ Workflow Scheduler running")
-            except Exception as e:
-                logger.error(f"!!! Workflow Scheduler Crashed: {e}")
-            
-        except ImportError:
-            logger.warning("Workflow Scheduler module not found.")
-
-        # 3. Start Agent Scheduler (Upstream compatibility)
-        try:
-            from core.scheduler import AgentScheduler
-            AgentScheduler.get_instance()
-            logger.info("✓ Agent Scheduler running")
-        except ImportError:
-            logger.warning("Agent Scheduler module not found.")
-
-        # 4. Start Intelligence Background Worker
-        try:
-            from ai.intelligence_background_worker import intelligence_worker
-            await intelligence_worker.start()
-            logger.info("✓ Intelligence Background Worker running")
-        except Exception as e:
-            logger.error(f"Failed to start intelligence worker: {e}")
-    else:
-        logger.info("Skipping Scheduler startup (ENABLE_SCHEDULER=false)")
-    
-    logger.info("=" * 60)
-    logger.info("✓ Server Ready")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down ATOM Platform...")
-    try:
-        from ai.workflow_scheduler import workflow_scheduler
-        workflow_scheduler.shutdown()
-        logger.info("✓ Workflow Scheduler stopped")
-    except:
-        pass
 
 if __name__ == "__main__":
     # Bootstrap Admin User (Avoids DB locking issues)
@@ -755,4 +765,5 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Failed to bootstrap admin: {e}")
 
+    # Trigger Reload
     uvicorn.run("main_api_app:app", host="0.0.0.0", port=8000, reload=True)

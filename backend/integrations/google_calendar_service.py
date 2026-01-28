@@ -13,7 +13,6 @@ from datetime import datetime, timedelta, timezone
 try:
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
-    from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
     GOOGLE_APIS_AVAILABLE = True
@@ -22,9 +21,10 @@ except ImportError as e:
     # Create dummy classes to prevent type errors
     class Credentials: pass
     class Request: pass
-    class InstalledAppFlow: pass
     class HttpError(Exception): pass
     def build(*args, **kwargs): return None
+
+from core.token_storage import token_storage
 
 logger = logging.getLogger(__name__)
 
@@ -34,102 +34,57 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 class GoogleCalendarService:
     """Service for real Google Calendar API interactions"""
     
-    def __init__(self, credentials_json: Optional[str] = None, token_file: str = "token.json"):
+    def __init__(self):
         """
         Initialize Google Calendar service
-        
-        Args:
-            credentials_json: Path to OAuth2 credentials file or JSON string
-            token_file: Path to store/load user token
         """
-        self.credentials_json = credentials_json or os.getenv("GOOGLE_CALENDAR_CREDENTIALS")
-        self.token_file = token_file
         self.service = None
         self.creds = None
         
     def authenticate(self) -> bool:
-        """Authenticate with Google Calendar API"""
+        """Authenticate with Google Calendar API using stored tokens"""
         if not GOOGLE_APIS_AVAILABLE:
             logger.warning("Google APIs not available - calendar integration disabled")
             return False
 
         try:
-            # Load existing token if available
-            if os.path.exists(self.token_file):
-                self.creds = Credentials.from_authorized_user_file(self.token_file, SCOPES)
+            # Retrieve token from storage
+            token_data = token_storage.get_token("google")
             
-            # If no valid credentials, refresh or get new ones
-            if not self.creds or not self.creds.valid:
-                if self.creds and self.creds.expired and self.creds.refresh_token:
-                    self.creds.refresh(Request())
-                else:
-                    if not self.credentials_json:
-                        logger.error("No Google Calendar credentials provided")
-                        return False
-                    
-                    # Check if credentials_json is a file path or JSON string
-                    if os.path.isfile(self.credentials_json):
-                        flow = InstalledAppFlow.from_client_secrets_file(
-                            self.credentials_json, SCOPES)
-                    else:
-                        # Assume it's a JSON string
-                        client_config = json.loads(self.credentials_json)
-                        flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
-                    
-                    # Custom local server flow to handle Web Client "No Trailing Slash" requirement
-                    # The standard flow.run_local_server() forces a trailing slash which Google rejects for Web clients
-                    import socket
-                    from wsgiref.simple_server import make_server, WSGIRequestHandler
-                    
-                    # Define the exact redirect URI (NO trailing slash)
-                    redirect_uri = "http://localhost:8080"
-                    flow.redirect_uri = redirect_uri
-                    
-                    # Create a simple WSGI app to catch the auth code
-                    auth_code = None
-                    
-                    def simple_app(environ, start_response):
-                        nonlocal auth_code
-                        from urllib.parse import parse_qs
-                        
-                        query = parse_qs(environ['QUERY_STRING'])
-                        if 'code' in query:
-                            auth_code = query['code'][0]
-                            start_response('200 OK', [('Content-type', 'text/html')])
-                            return [b'<html><body><h1>Authentication successful!</h1><p>You can close this window.</p><script>window.close()</script></body></html>']
-                        
-                        start_response('404 Not Found', [('Content-type', 'text/plain')])
-                        return [b'Not Found']
+            if not token_data:
+                logger.warning("No Google Calendar token found in storage")
+                return False
 
-                    # Start local server on port 8080
-                    try:
-                        httpd = make_server('localhost', 8080, simple_app)
-                    except OSError as e:
-                        print(f"⚠️ Port 8080 is in use. Please free it or use a different port. Error: {e}")
-                        raise e
-
-                    # Print auth URL and open browser
-                    auth_url, _ = flow.authorization_url(prompt='consent')
-                    print(f"\n🔗 AUTHORIZATION URL: {auth_url}\n")
-                    print("Opening browser...")
-                    
-                    import webbrowser
-                    webbrowser.open(auth_url)
-                    
-                    # Wait for request
-                    print("Waiting for authentication...")
-                    httpd.handle_request()
-                    
-                    if auth_code:
-                        flow.fetch_token(code=auth_code)
-                        self.creds = flow.credentials
-                    else:
-                        raise Exception("Failed to catch auth code")
-
-                # Save credentials for next run
-                with open(self.token_file, 'w') as token:
-                    token.write(self.creds.to_json())
+            # Create credentials object
+            from core.oauth_handler import GOOGLE_OAUTH_CONFIG
             
+            # Construct credentials from stored token
+            self.creds = Credentials(
+                token=token_data.get("access_token"),
+                refresh_token=token_data.get("refresh_token"),
+                token_uri=GOOGLE_OAUTH_CONFIG.token_url,
+                client_id=GOOGLE_OAUTH_CONFIG.client_id,
+                client_secret=GOOGLE_OAUTH_CONFIG.client_secret,
+                scopes=SCOPES
+            )
+            
+            # Refresh if expired
+            if self.creds.expired and self.creds.refresh_token:
+                logger.info("Google Calendar token expired, refreshing...")
+                self.creds.refresh(Request())
+                
+                # Update storage with new token
+                new_token_data = {
+                    "access_token": self.creds.token,
+                    "refresh_token": self.creds.refresh_token,
+                    "token_uri": self.creds.token_uri,
+                    "client_id": self.creds.client_id,
+                    "client_secret": self.creds.client_secret,
+                    "scopes": self.creds.scopes
+                }
+                # Preserve other fields from original if needed
+                token_storage.save_token("google", new_token_data)
+
             # Build the service
             self.service = build('calendar', 'v3', credentials=self.creds)
             logger.info("✅ Google Calendar service authenticated successfully")

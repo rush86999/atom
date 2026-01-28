@@ -331,9 +331,54 @@
     "session_id": "8b081142-08c5-4d9e-bcc2-dde827e4095a",
     "user_id": "default_user",
     "created_at": "2025-12-20T17:00:48.330907",
-    "last_active": "2025-12-20T17:00:49.996327",
+    "last_active": "2026-01-28T05:38:46.852440",
     "metadata": {},
-    "message_count": 1
+    "message_count": 1,
+    "history": [
+      {
+        "message": "schedule a meeting",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "8b081142-08c5-4d9e-bcc2-dde827e4095a",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-28T11:08:46.816789"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-28T11:08:46.817315"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)"
   },
   {
     "session_id": "66f95f6f-5070-4f72-abb7-7db5c8178dc0",
@@ -350,5 +395,14 @@
     "last_active": "2026-01-02T17:56:39.450527",
     "metadata": {},
     "message_count": 1
+  },
+  {
+    "session_id": "e21ffb39-0b0a-4aa3-a0f9-3dc234fba6ac",
+    "user_id": "unit_test_user",
+    "created_at": "2026-01-28T05:19:13.041598",
+    "last_active": "2026-01-28T05:19:13.041598",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
   }
 ]

@@ -72,7 +72,7 @@ export default function WorkflowEditorPage() {
 
         } catch (error) {
             console.error(error);
-            toast({ title: 'Error', description: 'Failed to load workflow template', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to load workflow template', variant: 'error' });
         } finally {
             setIsLoading(false);
         }
@@ -121,7 +121,7 @@ export default function WorkflowEditorPage() {
 
         } catch (error) {
             console.error(error);
-            toast({ title: 'Error', description: 'Failed to save workflow', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Failed to save workflow', variant: 'error' });
         }
     };
 

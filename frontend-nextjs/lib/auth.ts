@@ -1,6 +1,6 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { DatabaseService } from './database';
+import { query } from './db';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,7 +17,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const db = new DatabaseService();
+        // const db = new DatabaseService(); // REMOVED
 
         try {
           // Unified authentication flow: Always use backend API to ensure consistent JWT generation
@@ -42,7 +42,7 @@ export const authOptions: NextAuthOptions = {
             // Get rich user info from DB to populate session (keep existing rich session data)
             // Check admin_users first
             if (credentials.email.endsWith('@atom-saas.com') || credentials.email === 'admin@example.com') {
-              const adminResult = await db.query(`
+              const adminResult = await query(`
                 SELECT au.*, ar.name as role_name, ar.permissions
                 FROM admin_users au
                 JOIN admin_roles ar ON au.role_id = ar.id
@@ -52,7 +52,7 @@ export const authOptions: NextAuthOptions = {
               if (adminResult.rows.length > 0) {
                 const admin = adminResult.rows[0];
                 // Update last login
-                await db.query('UPDATE admin_users SET last_login = NOW() WHERE id = $1', [admin.id]);
+                await query('UPDATE admin_users SET last_login = NOW() WHERE id = $1', [admin.id]);
 
                 return {
                   id: admin.id,
@@ -68,7 +68,7 @@ export const authOptions: NextAuthOptions = {
             }
 
             // Check standard users (including super_admins in main table)
-            const userResult = await db.query(
+            const userResult = await query(
               "SELECT * FROM users WHERE email = $1 AND status = 'active'",
               [credentials.email]
             );
@@ -82,7 +82,7 @@ export const authOptions: NextAuthOptions = {
               let planType = null;
 
               if (user.tenant_id) {
-                const tenantResult = await db.query('SELECT * FROM tenants WHERE id = $1', [user.tenant_id]);
+                const tenantResult = await query('SELECT * FROM tenants WHERE id = $1', [user.tenant_id]);
                 if (tenantResult.rows.length > 0) {
                   tenantSubdomain = tenantResult.rows[0].subdomain;
                   tenantName = tenantResult.rows[0].name;
@@ -115,7 +115,7 @@ export const authOptions: NextAuthOptions = {
 
           if (tenantSubdomain) {
             // Get tenant by subdomain
-            const tenantResult = await db.query(
+            const tenantResult = await query(
               "SELECT * FROM tenants WHERE subdomain = $1 AND status = 'active'",
               [tenantSubdomain]
             );
@@ -127,7 +127,7 @@ export const authOptions: NextAuthOptions = {
             const tenant = tenantResult.rows[0];
 
             // Set tenant context for database queries
-            await db.query('SELECT set_tenant_context($1)', [tenant.id]);
+            await query('SELECT set_tenant_context($1)', [tenant.id]);
 
             // Get user via backend login endpoint which now handles 2FA
             const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/login`, {
@@ -144,7 +144,7 @@ export const authOptions: NextAuthOptions = {
 
             if (loginResponse.ok && loginData.access_token) {
               // Get user info if token is returned
-              const userResult = await db.query(
+              const userResult = await query(
                 "SELECT * FROM users WHERE email = $1 AND status = 'active'",
                 [credentials.email]
               );
