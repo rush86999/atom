@@ -477,9 +477,9 @@ class LanceDBHandler:
                 
                 # NEW: Trigger Workflow Events
                 try:
-                    from advanced_workflow_orchestrator import orchestrator
+                    from advanced_workflow_orchestrator import get_orchestrator
                     # Non-blocking trigger
-                    asyncio.create_task(orchestrator.trigger_event("document_uploaded", {
+                    asyncio.create_task(get_orchestrator().trigger_event("document_uploaded", {
                         "text": text,
                         "doc_id": doc_id,
                         "source": source,

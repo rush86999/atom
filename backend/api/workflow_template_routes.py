@@ -216,11 +216,11 @@ async def execute_template(template_id: str, parameters: Dict[str, Any] = {}):
         workflow_id = workflow_data.get("workflow_id")
         
         # 2. Execute via orchestrator
-        from advanced_workflow_orchestrator import orchestrator
+        from advanced_workflow_orchestrator import get_orchestrator
         import asyncio
         
         # Create execution context
-        context = await orchestrator.execute_workflow(
+        context = await get_orchestrator().execute_workflow(
             workflow_id,  # Use the instantiated workflow_id
             input_data=parameters,
             execution_context={"source": "visual_builder"}

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import logging
 
-from advanced_workflow_orchestrator import orchestrator
+from advanced_workflow_orchestrator import get_orchestrator
 
 router = APIRouter(prefix="/api/time-travel", tags=["time_travel"])
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ async def fork_workflow(execution_id: str, request: ForkRequest):
     
     
     # Use the shared singleton instance
-    orch = orchestrator
+    orch = get_orchestrator()
     
     new_execution_id = await orch.fork_execution(
         original_execution_id=execution_id,

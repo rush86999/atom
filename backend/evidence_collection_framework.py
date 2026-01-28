@@ -79,8 +79,8 @@ class EvidenceCollectionFramework:
 
         # Evidence 1: Complex Workflow Definitions
         try:
-            from advanced_workflow_orchestrator import orchestrator
-            workflow_definitions = orchestrator.get_workflow_definitions()
+            from advanced_workflow_orchestrator import get_orchestrator
+            workflow_definitions = get_orchestrator().get_workflow_definitions()
 
             evidence.evidence_items.append(EvidenceItem(
                 evidence_type="complex_workflow_definitions",
@@ -218,11 +218,11 @@ class EvidenceCollectionFramework:
     async def _test_workflow_execution(self) -> Dict[str, Any]:
         """Test actual workflow execution capabilities"""
         try:
-            from advanced_workflow_orchestrator import orchestrator
+            from advanced_workflow_orchestrator import get_orchestrator
 
             # Test customer support workflow
             start_time = time.time()
-            context = await orchestrator.execute_workflow(
+            context = await get_orchestrator().execute_workflow(
                 "customer_support_automation",
                 {
                     "text": "Urgent server downtime affecting customer access",
@@ -323,7 +323,7 @@ class EvidenceCollectionFramework:
     def _analyze_orchestration_capabilities(self) -> Dict[str, Any]:
         """Analyze workflow orchestration capabilities"""
         try:
-            from advanced_workflow_orchestrator import WorkflowStepType, orchestrator
+            from advanced_workflow_orchestrator import WorkflowStepType, get_orchestrator
 
             capabilities = {
                 "workflow_step_types": [step_type.value for step_type in WorkflowStepType],
@@ -336,7 +336,7 @@ class EvidenceCollectionFramework:
             }
 
             # Count workflow definitions
-            workflow_count = len(orchestrator.workflows)
+            workflow_count = len(get_orchestrator().workflows)
             capabilities["workflow_categories"] = workflow_count
             capabilities["enterprise_ready"] = workflow_count >= 3
 

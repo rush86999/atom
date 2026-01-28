@@ -256,7 +256,8 @@ async def delete_workflow(workflow_id: str):
 @router.post("/workflows/{workflow_id}/execute")
 async def execute_workflow_by_id(workflow_id: str, background_tasks: BackgroundTasks, payload: Dict[str, Any] = None):
     """Execute a workflow by ID"""
-    from advanced_workflow_orchestrator import orchestrator
+    from advanced_workflow_orchestrator import get_orchestrator
+    orchestrator = get_orchestrator()
     
     execution_id = f"exec_{uuid.uuid4().hex[:8]}"
     input_data = payload or {}
@@ -299,7 +300,8 @@ async def create_workflow_definition(payload: Dict[str, Any]):
 async def get_executions():
     # Fetch real executions from the orchestrator
     try:
-        from advanced_workflow_orchestrator import orchestrator, WorkflowStatus
+        from advanced_workflow_orchestrator import get_orchestrator, WorkflowStatus
+        orchestrator = get_orchestrator()
         
         executions = []
         # Convert Orchestrator contexts to UI Execution models
@@ -392,7 +394,8 @@ async def get_executions():
 
 @router.post("/execute")
 async def execute_workflow(payload: Dict[str, Any], background_tasks: BackgroundTasks):
-    from advanced_workflow_orchestrator import orchestrator, WorkflowContext, WorkflowStatus, WorkflowDefinition, WorkflowStep, WorkflowStepType
+    from advanced_workflow_orchestrator import get_orchestrator, WorkflowContext, WorkflowStatus, WorkflowDefinition, WorkflowStep, WorkflowStepType
+    orchestrator = get_orchestrator()
     
     workflow_id = payload.get("workflow_id")
     input_data = payload.get("input", {})
@@ -517,7 +520,8 @@ async def cancel_execution(execution_id: str):
 @router.get("/debug/state")
 async def get_orchestrator_state():
     """Debug endpoint to inspect orchestrator memory"""
-    from advanced_workflow_orchestrator import orchestrator
+    from advanced_workflow_orchestrator import get_orchestrator
+    orchestrator = get_orchestrator()
     return {
         "active_contexts": list(orchestrator.active_contexts.keys()),
         "memory_snapshots": list(orchestrator.memory_snapshots.keys()),

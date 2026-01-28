@@ -55,8 +55,9 @@ class RealWorldCaseStudies:
     async def initialize(self):
         """Initialize the system"""
         try:
-            from advanced_workflow_orchestrator import orchestrator
-            self.workflow_orchestrator = orchestrator
+        try:
+            from advanced_workflow_orchestrator import get_orchestrator
+            self.workflow_orchestrator = get_orchestrator()
         except Exception as e:
             logger.warning(f"Could not initialize workflow orchestrator: {e}")
 
