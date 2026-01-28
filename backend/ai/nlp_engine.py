@@ -310,7 +310,7 @@ Guidelines:
         """Initialize command recognition patterns"""
         return {
             CommandType.BUSINESS_HEALTH: [
-                r"priority", r"priorities", r"what.*should.*i.*do",
+                r"priorit.*", r"what.*should.*i.*do",
                 r"what.*to.*do.*today", r"simulate", r"simulation",
                 r"impact.*of", r"what.*if.*i",
             ],

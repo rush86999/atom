@@ -22,7 +22,10 @@ const ChatPage = () => {
 
                 {/* Middle Pane: Chat Interface */}
                 <ResizablePanel defaultSize={40} minSize={30}>
-                    <ChatInterface sessionId={selectedSessionId} />
+                    <ChatInterface
+                        sessionId={selectedSessionId}
+                        onSessionCreated={setSelectedSessionId}
+                    />
                 </ResizablePanel>
 
                 <ResizableHandle />

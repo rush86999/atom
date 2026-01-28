@@ -34,6 +34,8 @@ export interface ChatAction {
     data?: any;
 }
 
+import { SearchResults, UnifiedEntity } from "../chat/SearchResults";
+
 export interface ChatMessageData {
     id: string;
     type: "user" | "assistant" | "system";
@@ -47,6 +49,7 @@ export interface ChatMessageData {
         requiresConfirmation?: boolean;
     };
     actions?: ChatAction[];
+    searchResults?: UnifiedEntity[];
     reasoningTrace?: ReasoningStep[];
 }
 
@@ -86,6 +89,20 @@ export function ChatMessage({ message, onActionClick, onFeedback }: ChatMessageP
         }
     };
 
+    const handleResultClick = (entity: UnifiedEntity) => {
+        // Handle click on search result - can be same as action click or specific
+        console.log("Result clicked:", entity);
+        // Map to an action
+        onActionClick({
+            type: 'execute',
+            label: `Open ${entity.canonical_name}`,
+            data: {
+                url: entity.attributes.source_uri || entity.attributes.url,
+                entity_id: entity.entity_id
+            }
+        });
+    };
+
     return (
         <div className={cn("flex w-full gap-2 mb-4 group", isUser ? "justify-end" : "justify-start")}>
             {!isUser && (
@@ -120,6 +137,14 @@ export function ChatMessage({ message, onActionClick, onFeedback }: ChatMessageP
                                 </div>
                                 <div className="font-medium">{message.workflowData.workflowName}</div>
                             </div>
+                        )}
+
+                        {/* Search Results */}
+                        {message.searchResults && message.searchResults.length > 0 && (
+                            <SearchResults
+                                results={message.searchResults}
+                                onResultClick={handleResultClick}
+                            />
                         )}
 
                         {/* Reasoning Trace */}
@@ -165,19 +190,49 @@ export function ChatMessage({ message, onActionClick, onFeedback }: ChatMessageP
                     </CardContent>
 
                     {message.actions && message.actions.length > 0 && (
-                        <CardFooter className="p-2 pt-0 flex flex-wrap gap-2">
-                            {message.actions.map((action, idx) => (
-                                <Button
-                                    key={idx}
-                                    variant={action.type === 'execute' ? "default" : "secondary"}
-                                    size="sm"
-                                    className="h-7 text-xs px-2"
-                                    onClick={() => onActionClick(action)}
-                                >
-                                    {getActionIcon(action.type)}
-                                    {action.label}
-                                </Button>
-                            ))}
+                        <CardFooter className="p-3 pt-0 flex flex-col gap-3 items-start w-full border-t bg-muted/20">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 mt-2">
+                                <Play className="h-3 w-3" /> Suggested Actions
+                            </div>
+                            <div className="flex flex-wrap gap-2 w-full">
+                                {message.actions.map((action, idx) => {
+                                    const isPrimary = action.type === 'view_calendar' || action.type === 'schedule' || action.type === 'create_event';
+
+                                    // Special rendering for Auth/Connect actions
+                                    if (action.type === 'view_calendar' && action.label.toLowerCase().includes('connect')) {
+                                        return (
+                                            <div key={idx} className="w-full border rounded-md p-3 bg-background flex items-center justify-between shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => onActionClick(action)}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="bg-blue-100 p-2 rounded-full text-blue-600 group-hover:bg-blue-200 transition-colors">
+                                                        <Calendar className="h-4 w-4" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-sm text-foreground">{action.label}</span>
+                                                        <span className="text-xs text-muted-foreground">Enable calendar scheduling</span>
+                                                    </div>
+                                                </div>
+                                                <Button size="sm" variant="outline" className="h-7 text-xs">Connect</Button>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <Button
+                                            key={idx}
+                                            variant={isPrimary ? "default" : "secondary"}
+                                            size="sm"
+                                            className={cn(
+                                                "h-8 text-xs px-3 shadow-none transition-all",
+                                                isPrimary && "bg-primary hover:bg-primary/90 shadow-sm"
+                                            )}
+                                            onClick={() => onActionClick(action)}
+                                        >
+                                            {getActionIcon(action.type)}
+                                            {action.label}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
                         </CardFooter>
                     )}
                 </Card>

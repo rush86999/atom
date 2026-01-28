@@ -1,0 +1,23 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.1, pytest-7.4.4, pluggy-1.6.0
+rootdir: C:\Users\Mannan Bajaj\atom\backend
+plugins: anyio-4.9.0, langsmith-0.4.59, asyncio-0.23.8, cov-4.1.0
+asyncio: mode=Mode.STRICT
+collected 0 items / 1 error
+
+=================================== ERRORS ====================================
+______________ ERROR collecting tests/test_graphrag_enhanced.py _______________
+ImportError while importing test module 'C:\Users\Mannan Bajaj\atom\backend\tests\test_graphrag_enhanced.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests\test_graphrag_enhanced.py:11: in <module>
+    from core.graphrag_engine import (
+core\graphrag_engine.py:19: in <module>
+    from core.models import GraphNode, GraphEdge, GraphCommunity, CommunityMembership
+E   ImportError: cannot import name 'GraphNode' from 'core.models' (C:\Users\Mannan Bajaj\atom\backend\core\models.py)
+=========================== short test summary info ===========================
+ERROR tests/test_graphrag_enhanced.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+============================== 1 error in 1.35s ===============================

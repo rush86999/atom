@@ -559,3 +559,93 @@ class IntegrationMetric(Base):
     timeframe = Column(String, default="current") # "30d", "current"
     
     last_synced_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    conversation_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    role = Column(String, nullable=False)  # 'user', 'assistant', etc.
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(String, default="default", index=True)
+    title = Column(String, nullable=True) # First message summary or custom title
+    metadata_json = Column(JSON, default={}) # For storing 'source', 'context', etc.
+    
+    # Tracking
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    message_count = Column(Integer, default=0)
+
+    # Relationships (Optional explicit link, or logical via conversation_id)
+    # messages = relationship("ChatMessage", backref="session", cascade="all, delete-orphan")
+
+# ==================== GRAPHRAG MODELS ====================
+
+class GraphNode(Base):
+    __tablename__ = "graph_nodes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    name = Column(String, nullable=False, index=True)
+    type = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    properties = Column(JSON, default={})
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace", backref="graph_nodes")
+
+class GraphEdge(Base):
+    __tablename__ = "graph_edges"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    source_node_id = Column(String, ForeignKey("graph_nodes.id"), nullable=False, index=True)
+    target_node_id = Column(String, ForeignKey("graph_nodes.id"), nullable=False, index=True)
+    relationship_type = Column(String, nullable=False)
+    properties = Column(JSON, default={})
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    source_node = relationship("GraphNode", foreign_keys=[source_node_id], backref="out_edges")
+    target_node = relationship("GraphNode", foreign_keys=[target_node_id], backref="in_edges")
+
+class GraphCommunity(Base):
+    __tablename__ = "graph_communities"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    name = Column(String, nullable=True)
+    summary = Column(Text, nullable=True)
+    keywords = Column(JSON, default=list) # List[str]
+    level = Column(Integer, default=0)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace", backref="graph_communities")
+
+class CommunityMembership(Base):
+    __tablename__ = "community_memberships"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    community_id = Column(String, ForeignKey("graph_communities.id"), nullable=False)
+    node_id = Column(String, ForeignKey("graph_nodes.id"), nullable=False)
+    rank = Column(Integer, default=0)
+
+    # Relationships
+    community = relationship("GraphCommunity", backref="members")
+    node = relationship("GraphNode", backref="communities")

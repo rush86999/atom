@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timezone
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_world_model import WorldModelService, AgentExperience
-from core.react_models import ReActStep, ToolCall
+from core.react_models import ReActStep, ToolCall, ReActObservation
 from core.models import AgentRegistry, AgentStatus, HITLActionStatus
 from core.database import SessionLocal
 from integrations.mcp_service import mcp_service
@@ -75,6 +75,17 @@ class GenericAgent:
             agent=self._get_registry_model(),
             current_task_description=task_input
         )
+        
+        # Emit initial 'starting' event for UI responsiveness
+        if step_callback:
+            await step_callback({
+                "step": 0,
+                "thought": "Initializing agent context and memory...",
+                "action": None,
+                "output": None,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "status": "starting"
+            })
         
         # 2. ReAct Loop with Timeout
         max_steps = self.config.get("max_steps", 5)

@@ -127,7 +127,19 @@ const nextConfig = {
       {
         source: "/api/agents/:path*",
         destination: "http://127.0.0.1:8000/api/agents/:path*",
+      },
+      // WebSocket Proxy - REMOVED to prevent ECONNRESET crashes
+      // Frontend now connects directly to port 8000 (see hooks/useWebSocket.ts)
+      /*
+      {
+        source: "/ws",
+        destination: "http://127.0.0.1:8000/ws",
+      },
+      {
+        source: "/ws/:path*",
+        destination: "http://127.0.0.1:8000/ws/:path*",
       }
+      */
     ];
   },
 };
