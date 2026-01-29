@@ -115,6 +115,8 @@ INTEGRATION_REGISTRY = {
     "discord": "integrations.discord_routes:router",
     "google_chat": "integrations.google_chat_enhanced_api_routes:router",
     "matrix": "integrations.matrix_routes:router",
+    "messenger": "integrations.messenger_routes:router",
+    "line": "integrations.line_routes:router",
     
     # AI & MCP
     "mcp": "integrations.mcp_routes:router",

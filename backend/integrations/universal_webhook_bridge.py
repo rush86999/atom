@@ -277,6 +277,31 @@ class UniversalWebhookBridge:
                 raw_payload=data
             )
             
+        elif platform == "messenger":
+            # Facebook Messenger mapping
+            message = data.get("message", {})
+            return UnifiedIncomingMessage(
+                platform="messenger",
+                sender_id=data.get("sender", {}).get("id", "unknown"),
+                recipient_id=data.get("recipient", {}).get("id", "unknown"),
+                text=message.get("text", ""),
+                metadata={"mid": message.get("mid")},
+                raw_payload=data
+            )
+            
+        elif platform == "line":
+            # Line message mapping
+            message = data.get("message", {})
+            source = data.get("source", {})
+            return UnifiedIncomingMessage(
+                platform="line",
+                sender_id=source.get("userId", "unknown"),
+                recipient_id=source.get("groupId") or source.get("roomId") or "direct",
+                text=message.get("text", ""),
+                metadata={"message_id": message.get("id"), "replyToken": data.get("replyToken")},
+                raw_payload=data
+            )
+            
         elif platform == "agent":
             # Direct messaging between agents
             return UnifiedIncomingMessage(

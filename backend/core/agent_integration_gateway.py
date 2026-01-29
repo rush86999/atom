@@ -188,6 +188,24 @@ class AgentIntegrationGateway:
             except ImportError:
                 return {"status": "failed", "error": "Matrix service not found"}
             
+        if platform == "messenger":
+            # Direct call to messenger service
+            try:
+                from integrations.messenger_service import messenger_service
+                result = await messenger_service.send_message(recipient_id=recipient_id, text=content)
+                return {"status": "success" if result else "failed"}
+            except ImportError:
+                return {"status": "failed", "error": "Messenger service not found"}
+                
+        if platform == "line":
+            # Direct call to line service
+            try:
+                from integrations.line_service import line_service
+                result = await line_service.send_message(to=recipient_id, text=content)
+                return {"status": "success" if result else "failed"}
+            except ImportError:
+                return {"status": "failed", "error": "Line service not found"}
+            
         # Fallback for other comm apps (Legacy Support)
         # This would link to existing slack_service, teams_service...
         return {"status": "success", "platform": platform, "note": "Action routed to legacy handler"}
