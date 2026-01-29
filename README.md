@@ -69,6 +69,12 @@ Atom provides a single plane of glass for your departmental operations.
 - **Hybrid Chat**: Discussion threads include both humans and specialty agents, allowing for seamless AI-assisted collaboration.
 - **Presence Tracking**: See exactly which dashboard your team members are viewing in real-time.
 
+### 🌐 **Universal Communication Bridge** (New)
+Seamlessly interact with your workforce from any platform.
+- **Unified Messaging**: One standard interface for Slack (`/run`), WhatsApp, and custom webhooks.
+- **Agent-to-Agent Loop**: Agents can now discover (`/agents`) and delegate tasks to each other directly via the bridge.
+- **Async Feedback**: Delegated tasks automatically route their results back to the requester, whether it's a user on Slack or another agent.
+
 ---
 
 ## 🎯 Example Use Cases
