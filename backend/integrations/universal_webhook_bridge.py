@@ -302,6 +302,23 @@ class UniversalWebhookBridge:
                 raw_payload=data
             )
             
+        elif platform == "signal":
+            # signal-cli-rest-api envelope mapping
+            envelope = data.get("envelope", {})
+            data_message = envelope.get("dataMessage", {})
+            if not data_message:
+                sync_message = envelope.get("syncMessage", {})
+                data_message = sync_message.get("sentMessage", {})
+            
+            return UnifiedIncomingMessage(
+                platform="signal",
+                sender_id=envelope.get("source", "unknown"),
+                recipient_id=os.getenv("SIGNAL_SENDER_NUMBER", "unknown_bot"),
+                text=data_message.get("message", "") if data_message else "",
+                metadata={"timestamp": envelope.get("timestamp")},
+                raw_payload=data
+            )
+            
         elif platform == "agent":
             # Direct messaging between agents
             return UnifiedIncomingMessage(

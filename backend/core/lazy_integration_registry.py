@@ -117,6 +117,7 @@ INTEGRATION_REGISTRY = {
     "matrix": "integrations.matrix_routes:router",
     "messenger": "integrations.messenger_routes:router",
     "line": "integrations.line_routes:router",
+    "signal": "integrations.signal_routes:router",
     
     # AI & MCP
     "mcp": "integrations.mcp_routes:router",
