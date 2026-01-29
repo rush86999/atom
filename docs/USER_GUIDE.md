@@ -69,24 +69,20 @@ Atom is your intelligent personal assistant that helps you manage your entire li
 - Focus mode for high-priority tasks
 - Daily task recommendations
 
-### 💬 Communication Hub
+### 🌐 Universal Communication Hub
+**Atom Anywhere**
+- **11+ Supported Platforms**: Connect with Atom via Slack, WhatsApp, Discord, Microsoft Teams, Telegram, Google Chat, Twilio (SMS), Matrix, Facebook Messenger, Line, and Signal.
+- **Standardized Messaging**: All platforms share a unified interface (`UnifiedIncomingMessage`), ensuring consistent agent behavior regardless of where you message from.
 
-**Unified Inbox**
-- View messages from all connected platforms in one place
-- Email (Gmail, Outlook), Slack, Teams, Discord integration
-- Smart categorization and filtering
-- Quick reply templates
+**Platform Native Commands**
+- `/run [workflow_name]`: Directly trigger a specific workflow.
+- `/workflow [query]`: Search for and list available workflows.
+- `/agents`: Discover specialized agents currently active in your workforce.
+- `/help`: Get a list of supported commands and capabilities.
 
-**Message Management**
-- Thread conversations for better context
-- Search across all communication platforms
-- Set follow-up reminders for important messages
-- Archive and organize conversations
-
-**Cross-Platform Coordination**
-- Send messages to multiple platforms simultaneously
-- Schedule messages for optimal delivery times
-- Track message engagement and responses
+**Async Feedback Loop**
+- Receive real-time updates and status reports directly in your chat thread.
+- Human-in-the-loop approvals can be processed directly via chat buttons or response keywords.
 
 ### 💰 Financial Dashboard
 
