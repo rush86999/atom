@@ -133,6 +133,11 @@ backend/
 ├── integrations/             # 88 integration route files (344 total files)
 │   ├── *_routes.py          # FastAPI route definitions
 │   └── *_service.py         # Business logic
+│   ├── universal_webhook_bridge.py # Standardized messaging bridge
+│   ├── signal_service.py     # Signal E2E integration
+│   ├── matrix_service.py     # Matrix protocol integration
+│   ├── messenger_service.py  # Facebook Messenger integration
+│   └── line_service.py       # Line messaging integration
 ├── ai/                       # AI services
 │   └── Multi-provider LLM support
 ├── migrations/               # Database schema migrations
@@ -167,7 +172,7 @@ backend/
 ### Supported Integrations (35-40 services)
 
 **Project Management:** Asana, Jira, Monday.com, Notion, Linear, Trello, Airtable, ClickUp
-**Communication:** Slack, Teams, Zoom, Discord, Gmail, Outlook, WhatsApp
+**Communication:** Slack, WhatsApp, Discord, Teams, Telegram, Google Chat, Twilio (SMS), Matrix, Messenger, Line, Signal, Zoom, Gmail, Outlook
 **Storage:** Google Drive, Dropbox, OneDrive, Box, SharePoint  
 **CRM:** Salesforce, HubSpot, Zendesk, Freshdesk, Intercom
 **Development:** GitHub, GitLab, Bitbucket, Figma

@@ -106,6 +106,11 @@
 - **social_media_service.py** - Social platform management
 
 #### Advanced Services
+- **universal_webhook_bridge.py** - Multi-platform message standardization
+- **agent_integration_gateway.py** - Centralized response routing hub
+- **messenger_service.py** - Facebook Messenger API interaction
+- **line_service.py** - Line Messaging API interaction
+- **signal_service.py** - signal-cli-rest-api interaction
 - **agent_service.py** - Multi-agent coordination
 - **workflow_service.py** - Automation execution
 - **voice_service.py** - Speech processing
