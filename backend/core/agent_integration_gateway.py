@@ -16,6 +16,11 @@ from integrations.document_logic_service import document_logic_service
 from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
 from integrations.shopify_service import ShopifyService
 from core.governance_engine import contact_governance
+from integrations.atom_discord_integration import atom_discord_integration
+from integrations.teams_enhanced_service import teams_enhanced_service
+from integrations.atom_telegram_integration import atom_telegram_integration
+from integrations.google_chat_enhanced_service import google_chat_enhanced_service
+from integrations.slack_enhanced_service import slack_enhanced_service
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +53,12 @@ class AgentIntegrationGateway:
             "marketing": marketing_service,
             "whatsapp": atom_whatsapp_integration,
             "docs": document_logic_service,
-            "shopify": ShopifyService()
+            "shopify": ShopifyService(),
+            "discord": atom_discord_integration,
+            "teams": teams_enhanced_service,
+            "telegram": atom_telegram_integration,
+            "google_chat": google_chat_enhanced_service,
+            "slack": slack_enhanced_service
         }
 
     async def execute_action(self, action_type: ActionType, platform: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -133,7 +143,37 @@ class AgentIntegrationGateway:
             }
             return await universal_webhook_bridge.process_incoming_message("agent", payload)
             
-        # Fallback for other comm apps (Slack, Teams, etc.)
+        if platform == "discord":
+            # Direct call to discord integration
+            success = await atom_discord_integration.send_message(recipient_id, content)
+            return {"status": "success" if success else "failed"}
+            
+        if platform == "teams":
+            # Direct call to teams enhanced service
+            result = await teams_enhanced_service.send_message(recipient_id, content, params.get("thread_ts"))
+            return {"status": "success" if result else "failed"}
+            
+        if platform == "telegram":
+            # Direct call to telegram integration
+            result = await atom_telegram_integration.send_intelligent_message(recipient_id, content)
+            return {"status": "success" if result.get("success") else "failed", "error": result.get("error")}
+            
+        if platform == "google_chat":
+            # Direct call to google chat enhanced service
+            result = await google_chat_enhanced_service.send_message(recipient_id, content, params.get("thread_ts"))
+            return {"status": "success" if result else "failed"}
+            
+        if platform == "slack":
+            # Direct call to slack enhanced service
+            result = await slack_enhanced_service.send_message(
+                workspace_id=params.get("workspace_id", "default"), 
+                channel_id=recipient_id, 
+                text=content, 
+                thread_ts=params.get("thread_ts")
+            )
+            return {"status": "success" if result.get("ok") else "failed", "error": result.get("error")}
+            
+        # Fallback for other comm apps (Legacy Support)
         # This would link to existing slack_service, teams_service...
         return {"status": "success", "platform": platform, "note": "Action routed to legacy handler"}
 
