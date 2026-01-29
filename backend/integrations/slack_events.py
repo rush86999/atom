@@ -190,6 +190,16 @@ class SlackEventHandler:
         # Log message details
         self.logger.info(f"Message in channel {event.get('channel')} from user {event.get('user')}")
         
+        # Phase 2: Route to Universal Webhook Bridge
+        try:
+            from integrations.universal_webhook_bridge import universal_webhook_bridge
+            # Handle in background or wait? Usually webhooks should respond fast, 
+            # but ChatOrchestrator can be slow. Slack requires response < 3s.
+            # However, for MVP let's await and see. Slack might retry if we are slow.
+            asyncio.create_task(universal_webhook_bridge.process_incoming_message("slack", event))
+        except Exception as e:
+            self.logger.error(f"Failed to route message to Universal Bridge: {e}")
+
         return {'status': 'processed', 'event': 'message', 'data': message_data}
     
     async def _handle_file_event(self, event: Dict[str, Any]) -> Dict[str, Any]:

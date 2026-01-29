@@ -317,6 +317,36 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
                 "result": result
             })
 
+            # --- [NEW] External Bridge Response Routing ---
+            source_platform = params.get("source_platform")
+            recipient_id = params.get("recipient_id") or params.get("channel_id")
+            
+            if source_platform and recipient_id:
+                try:
+                    from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                    final_output = result.get("final_output") if isinstance(result, dict) else str(result)
+                    
+                    if final_output:
+                        logger.info(f"Routing async agent result back to {source_platform}")
+                        routing_params = {
+                            "recipient_id": recipient_id,
+                            "channel": params.get("channel_id") or recipient_id,
+                            "content": f"✅ *{agent.name}* finished task:\n{final_output}",
+                            "thread_ts": params.get("thread_ts")
+                        }
+                        
+                        # Phase 105: Include original sender for Agent-to-Agent loopback
+                        if source_platform == "agent":
+                            routing_params["sender_agent_id"] = params.get("agent_id") or params.get("sender_id")
+                        
+                        await agent_integration_gateway.execute_action(
+                            ActionType.SEND_MESSAGE,
+                            source_platform,
+                            routing_params
+                        )
+                except Exception as route_err:
+                    logger.error(f"Failed to route async agent result back to {source_platform}: {route_err}")
+
             # 6. Record Experience happens inside GenericAgent.execute() now.
         
             

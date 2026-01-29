@@ -122,6 +122,17 @@ class AgentIntegrationGateway:
             result = await atom_whatsapp_integration.send_intelligent_message(recipient_id, content)
             return {"status": "success" if result.get("success") else "failed", "error": result.get("error")}
             
+        if platform == "agent":
+            # Route back to Universal Bridge for Agent-to-Agent feedback
+            from integrations.universal_webhook_bridge import universal_webhook_bridge
+            
+            payload = {
+                "agent_id": params.get("sender_agent_id", "atom_main"),
+                "target_id": recipient_id,
+                "message": content
+            }
+            return await universal_webhook_bridge.process_incoming_message("agent", payload)
+            
         # Fallback for other comm apps (Slack, Teams, etc.)
         # This would link to existing slack_service, teams_service...
         return {"status": "success", "platform": platform, "note": "Action routed to legacy handler"}

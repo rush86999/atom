@@ -524,8 +524,16 @@ class MCPService:
                 },
 
                 # --- Specialized Specialty Agent Tools ---
-                {"name": "list_agents", "description": "List all available specialty agent templates", "parameters": {}},
+                {"name": "list_agents", "description": "List all available specialty agents from the database and templates", "parameters": {}},
                 {"name": "spawn_agent", "description": "Spawn a specialty agent to handle a sub-task", "parameters": {"template": "string", "task": "string"}},
+                {
+                    "name": "bridge_agent_delegate",
+                    "description": "Send a task to another agent via the Universal Bridge. This is the preferred way for agents to collaborate asynchronously.",
+                    "parameters": {
+                        "target_agent": "string (name or ID of the agent)",
+                        "message": "string (the task or message to send)"
+                    }
+                },
                 {"name": "list_workflows", "description": "List all available automated workflows", "parameters": {}},
                 {"name": "trigger_workflow", "description": "Trigger a specific workflow automation", "parameters": {"workflow_id": "string", "input_data": "dict (optional)"}},
                 
@@ -1106,7 +1114,40 @@ class MCPService:
             # --- Specialty Agent & Workflow Tools ---
             elif tool_name == "list_agents":
                 from core.atom_meta_agent import SpecialtyAgentTemplate
-                return SpecialtyAgentTemplate.TEMPLATES
+                from core.models import AgentRegistry
+                from core.database import SessionLocal
+                
+                results = {"templates": SpecialtyAgentTemplate.TEMPLATES, "registered": []}
+                try:
+                    with SessionLocal() as db:
+                        agents = db.query(AgentRegistry).all()
+                        results["registered"] = [
+                            {"id": a.id, "name": a.name, "description": a.description, "category": a.category} 
+                            for a in agents
+                        ]
+                except Exception as e:
+                    logger.error(f"Failed to fetch registered agents: {e}")
+                return results
+
+            elif tool_name == "bridge_agent_delegate":
+                from integrations.universal_webhook_bridge import universal_webhook_bridge
+                
+                target_agent = arguments.get("target_agent")
+                message = arguments.get("message")
+                
+                if not target_agent or not message:
+                    return {"error": "target_agent and message are required"}
+                
+                # Create a platform="agent" message
+                # The bridge will handle fuzzy lookup of target_agent name to ID
+                payload = {
+                    "agent_id": context.get("agent_id", "atom_main"),
+                    "target_id": target_agent,
+                    "message": message
+                }
+                
+                result = await universal_webhook_bridge.process_incoming_message("agent", payload)
+                return result
 
             elif tool_name == "spawn_agent":
                 from core.atom_meta_agent import get_atom_agent
