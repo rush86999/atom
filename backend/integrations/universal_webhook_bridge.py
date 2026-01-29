@@ -176,7 +176,81 @@ class UniversalWebhookBridge:
                 metadata={"id": data.get("id")},
                 raw_payload=data
             )
-        
+            
+        elif platform == "discord":
+            # Discord message event mapping
+            author = data.get("author", {})
+            if author.get("bot"):
+                return None
+                
+            return UnifiedIncomingMessage(
+                platform="discord",
+                sender_id=author.get("id", "unknown"),
+                recipient_id=data.get("channel_id", "unknown"),
+                text=data.get("content", ""),
+                metadata={
+                    "id": data.get("id"),
+                    "guild_id": data.get("guild_id"),
+                    "author_name": author.get("username")
+                },
+                raw_payload=data
+            )
+            
+        elif platform == "teams":
+            # MS Teams message mapping
+            from_account = data.get("from", {})
+            if data.get("type") != "message":
+                return None
+                
+            return UnifiedIncomingMessage(
+                platform="teams",
+                sender_id=from_account.get("id", "unknown"),
+                recipient_id=data.get("channel_id", "unknown") or data.get("conversation", {}).get("id", "unknown"),
+                text=data.get("text", ""),
+                metadata={
+                    "id": data.get("id"),
+                    "team_id": data.get("channel_data", {}).get("team", {}).get("id"),
+                    "tenant_id": data.get("tenant_id")
+                },
+                raw_payload=data
+            )
+            
+        elif platform == "telegram":
+            # Telegram message mapping
+            from_user = data.get("from", {})
+            if not data.get("text"):
+                return None
+                
+            return UnifiedIncomingMessage(
+                platform="telegram",
+                sender_id=str(from_user.get("id", "unknown")),
+                recipient_id=str(data.get("chat", {}).get("id", "unknown")),
+                text=data.get("text", ""),
+                metadata={
+                    "message_id": data.get("message_id"),
+                    "username": from_user.get("username")
+                },
+                raw_payload=data
+            )
+            
+        elif platform == "google_chat":
+            # Google Chat mapping
+            sender = data.get("sender", {})
+            if data.get("type") != "MESSAGE":
+                return None
+                
+            return UnifiedIncomingMessage(
+                platform="google_chat",
+                sender_id=sender.get("name", "unknown"),
+                recipient_id=data.get("space", {}).get("name", "unknown"),
+                text=data.get("text", ""),
+                metadata={
+                    "name": data.get("name"),
+                    "thread": data.get("thread", {}).get("name")
+                },
+                raw_payload=data
+            )
+            
         elif platform == "agent":
             # Direct messaging between agents
             return UnifiedIncomingMessage(

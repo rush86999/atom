@@ -8,10 +8,26 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from integrations.atom_telegram_integration import atom_telegram_integration
+from integrations.universal_webhook_bridge import universal_webhook_bridge
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/telegram", tags=["Telegram"])
+
+@router.post("/webhook")
+async def telegram_webhook(update: Dict[str, Any]):
+    """Telegram webhook endpoint for incoming updates"""
+    logger.info(f"Received Telegram webhook update: {update.get('update_id')}")
+    
+    # Check if it's a message
+    message = update.get("message")
+    if message:
+        # Route to Universal Webhook Bridge
+        # Non-blocking call
+        import asyncio
+        asyncio.create_task(universal_webhook_bridge.process_incoming_message("telegram", message))
+        
+    return {"status": "ok"}
 
 class TelegramMessageRequest(BaseModel):
     channel_id: int

@@ -25,6 +25,7 @@ try:
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import atom_workflow_service
+    from universal_webhook_bridge import universal_webhook_bridge
 except ImportError as e:
     logger.warning(f"Enhanced Teams services not available: {e}")
     teams_enhanced_service = None
@@ -1020,6 +1021,11 @@ def enhanced_teams_webhook_handler():
         
         # Process event
         result = await teams_enhanced_service.handle_webhook_event(event_data)
+        
+        # Route to Universal Webhook Bridge if it's a message
+        if event_data.get('type') == 'message':
+            # Run in background to avoid blocking Teams
+            asyncio.create_task(universal_webhook_bridge.process_incoming_message("teams", event_data))
         
         # Store event for analytics
         if AtomMemoryService:
