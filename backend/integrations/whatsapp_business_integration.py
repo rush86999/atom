@@ -723,6 +723,24 @@ def _process_incoming_message(message: Dict[str, Any]):
 
         logger.info(f"Processed incoming message from {whatsapp_id}")
 
+        # Phase 2: Route to Universal Webhook Bridge
+        try:
+            from integrations.universal_webhook_bridge import universal_webhook_bridge
+            # Handle in background using asyncio if in an async context, 
+            # or just call if it's sync. WhatsApp BP is sync (Flask).
+            # We need to bridge to async.
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(universal_webhook_bridge.process_incoming_message("whatsapp", message))
+                else:
+                    asyncio.run(universal_webhook_bridge.process_incoming_message("whatsapp", message))
+            except RuntimeError:
+                # No event loop, start one
+                asyncio.run(universal_webhook_bridge.process_incoming_message("whatsapp", message))
+        except Exception as e:
+            logger.error(f"Failed to route WhatsApp message to Universal Bridge: {e}")
+
     except Exception as e:
         logger.error(f"Error processing incoming message: {str(e)}")
 
