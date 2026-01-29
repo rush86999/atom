@@ -71,9 +71,10 @@ Atom provides a single plane of glass for your departmental operations.
 
 ### 🌐 **Universal Communication Bridge** (New)
 Seamlessly interact with your workforce from any platform.
-- **Unified Messaging**: One standard interface for Slack (`/run`), WhatsApp, and custom webhooks.
-- **Agent-to-Agent Loop**: Agents can now discover (`/agents`) and delegate tasks to each other directly via the bridge.
-- **Async Feedback**: Delegated tasks automatically route their results back to the requester, whether it's a user on Slack or another agent.
+- **Unified Messaging**: One standard interface for **11+ platforms**, including Slack, WhatsApp, Discord, Microsoft Teams, Telegram, Google Chat, Twilio (SMS), Matrix, Facebook Messenger, Line, and Signal.
+- **Platform Native Commands**: Use `/run`, `/workflow`, and `/agents` directly from your favorite chat app to trigger tasks and discover fellow agents.
+- **Agent-to-Agent Loop**: Agents can now discover and delegate tasks to each other directly via the bridge.
+- **Async Feedback**: Delegated tasks automatically route their results back to the requester, whether it's a user or another agent.
 
 ---
 
