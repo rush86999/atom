@@ -206,6 +206,15 @@ class AgentIntegrationGateway:
             except ImportError:
                 return {"status": "failed", "error": "Line service not found"}
             
+        if platform == "signal":
+            # Direct call to signal service
+            try:
+                from integrations.signal_service import signal_service
+                result = await signal_service.send_message(recipient=recipient_id, text=content)
+                return {"status": "success" if result else "failed"}
+            except ImportError:
+                return {"status": "failed", "error": "Signal service not found"}
+            
         # Fallback for other comm apps (Legacy Support)
         # This would link to existing slack_service, teams_service...
         return {"status": "success", "platform": platform, "note": "Action routed to legacy handler"}
