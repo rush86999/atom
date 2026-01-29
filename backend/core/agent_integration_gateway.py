@@ -173,6 +173,21 @@ class AgentIntegrationGateway:
             )
             return {"status": "success" if result.get("ok") else "failed", "error": result.get("error")}
             
+        if platform == "twilio":
+            # Direct call to twilio service
+            from integrations.twilio_service import twilio_service
+            result = await twilio_service.send_sms(to=recipient_id, body=content)
+            return {"status": "success" if result else "failed"}
+            
+        if platform == "matrix":
+            # Direct call to matrix service (to be created)
+            try:
+                from integrations.matrix_service import matrix_service
+                result = await matrix_service.send_message(room_id=recipient_id, text=content)
+                return {"status": "success" if result else "failed"}
+            except ImportError:
+                return {"status": "failed", "error": "Matrix service not found"}
+            
         # Fallback for other comm apps (Legacy Support)
         # This would link to existing slack_service, teams_service...
         return {"status": "success", "platform": platform, "note": "Action routed to legacy handler"}

@@ -251,6 +251,32 @@ class UniversalWebhookBridge:
                 raw_payload=data
             )
             
+        elif platform == "twilio":
+            # Twilio SMS mapping
+            return UnifiedIncomingMessage(
+                platform="twilio",
+                sender_id=data.get("From", data.get("from", "unknown")),
+                recipient_id=data.get("To", data.get("to", "unknown")),
+                text=data.get("Body", data.get("body", "")),
+                metadata={"sms_sid": data.get("MessageSid", data.get("sid"))},
+                raw_payload=data
+            )
+            
+        elif platform == "matrix":
+            # Matrix message mapping
+            content = data.get("content", {})
+            return UnifiedIncomingMessage(
+                platform="matrix",
+                sender_id=data.get("sender", "unknown"),
+                recipient_id=data.get("room_id", "unknown"),
+                text=content.get("body", ""),
+                metadata={
+                    "event_id": data.get("event_id"),
+                    "msgtype": content.get("msgtype")
+                },
+                raw_payload=data
+            )
+            
         elif platform == "agent":
             # Direct messaging between agents
             return UnifiedIncomingMessage(

@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from .twilio_service import get_twilio_service
@@ -129,3 +129,27 @@ async def twilio_health():
         return health
     except Exception as e:
         return {"ok": False, "status": "unhealthy", "error": str(e), "timestamp": datetime.now().isoformat()}
+
+
+@router.post("/webhook")
+async def twilio_webhook(request: Request):
+    """Twilio webhook for incoming SMS"""
+    try:
+        # Twilio sends form-encoded data
+        form_data = await request.form()
+        data = dict(form_data)
+        
+        logger.info(f"Received Twilio webhook: {data.get('MessageSid')}")
+        
+        # Route to Universal Webhook Bridge
+        from .universal_webhook_bridge import universal_webhook_bridge
+        import asyncio
+        asyncio.create_task(universal_webhook_bridge.process_incoming_message("twilio", data))
+        
+        # Twilio expects a TwiML response (even if empty)
+        from fastapi.responses import Response
+        return Response(content='<?xml version="1.0" encoding="UTF-8"?><Response></Response>', media_type="application/xml")
+        
+    except Exception as e:
+        logger.error(f"Error handling Twilio webhook: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
