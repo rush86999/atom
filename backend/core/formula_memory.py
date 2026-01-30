@@ -116,8 +116,8 @@ class FormulaMemoryManager:
                 deps = db.query(Formula).filter(Formula.id.in_(dependencies)).all()
                 dep_names = [d.name for d in deps]
                 db.close()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not fetch dependency names: {e}")
 
         # 3. Create "Rich Formula Card" (Markdown)
         # This is optimized for Agent Reading/Learning
@@ -307,8 +307,8 @@ Output: {json.dumps(example_output)}
                     # For now just log it, as vector delete might be expensive or unsupported in simple mode
                     # Ideally: table.delete(f"metadata.formula_id = '{formula_id}'")
                     pass
-            except:
-                pass
+            except Exception:
+                pass  # LanceDB delete is best-effort
                 
         return success
 

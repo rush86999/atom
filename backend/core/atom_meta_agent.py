@@ -9,13 +9,13 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from enum import Enum
 
-from core.models import AgentRegistry, AgentStatus, User, HITLActionStatus
+from core.models import AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution, Workspace
 from core.database import SessionLocal
 from core.agent_world_model import WorldModelService, AgentExperience
 from core.agent_governance_service import AgentGovernanceService
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from integrations.mcp_service import mcp_service
-from ai.nlp_engine import NaturalLanguageEngine, CommandIntent, CommandType
+from ai.nlp_engine import NaturalLanguageEngine, CommandIntentResult, CommandType
 from typing import Literal
 
 logger = logging.getLogger(__name__)
@@ -141,14 +141,14 @@ class AtomMetaAgent:
     
     CORE_TOOLS_NAMES = [
         "mcp_tool_search", 
-        "query_memory", 
         "save_business_fact",
         "verify_citation",
         "ingest_knowledge_from_text",
-        "request_human_intervention",
-        "spawn_agent",
-        "list_workflows",
+        "ingest_knowledge_from_file",
+        "query_knowledge_graph",
         "trigger_workflow",
+        "delegate_task",
+        "request_human_intervention",
         "get_system_health",
         "list_integrations",
         "call_integration"  # Fallback
@@ -167,7 +167,8 @@ class AtomMetaAgent:
         
     async def execute(self, request: str, context: Dict[str, Any] = None, 
                       trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
-                      step_callback: Optional[callable] = None) -> Dict[str, Any]:
+                      step_callback: Optional[callable] = None,
+                      execution_id: str = None) -> Dict[str, Any]:
         """
         Main entry point for Atom. Uses Robust ReAct Loop with Pydantic validation.
         Based on 2025 Architecture: PydanticAI wraps each step in a validation layer.
@@ -177,6 +178,34 @@ class AtomMetaAgent:
             context["original_request"] = request
             
         logger.info(f"Atom executing request: {request[:50]}... (mode: {trigger_mode.value})")
+        
+        start_time = datetime.utcnow()
+        execution_id = execution_id or str(uuid.uuid4())
+        
+        # 0. Get Tenant ID and Create Execution Record
+        db = SessionLocal()
+        tenant_id = None
+        try:
+            workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
+            if workspace:
+                tenant_id = workspace.tenant_id
+            
+            # Create persistent execution record
+            execution = AgentExecution(
+                id=execution_id,
+                agent_id="atom_main",
+                tenant_id=tenant_id or "default",
+                status="running",
+                input_summary=request[:200],
+                triggered_by=trigger_mode.value,
+                started_at=start_time
+            )
+            db.add(execution)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to create AgentExecution: {e}")
+        finally:
+            db.close()
         
         # 1. Access Memory for relevant context
         memory_context = await self.world_model.recall_experiences(
@@ -210,7 +239,34 @@ class AtomMetaAgent:
         tool_descriptions = json.dumps([{"name": t["name"], "description": t["description"]} for t in unique_active_tools], indent=2)
 
         
-        # 3. ReAct Loop with Pydantic Validation
+        # 3. Planning & Specialty Delegation Phase (NEW)
+        # If the task is complex, we use a high-reasoning turn to plan subtasks
+        is_complex = len(request) > 100 or any(kw in request.lower() for kw in ["analyze", "create", "sync", "report", "manage"])
+        
+        if is_complex and trigger_mode == AgentTriggerMode.MANUAL:
+            plan_record = {
+                "execution_id": execution_id,
+                "step": 0,
+                "step_type": "planning",
+                "thought": "Decomposing complex request into specialized subtasks...",
+                "action": {"tool": "planner", "params": {"query": request}},
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            if step_callback: await step_callback(plan_record)
+            
+            try:
+                # Use orchestrator to identify specialized workflow or subtasks
+                plan = await self.orchestrator.generate_dynamic_workflow(request)
+                if plan and plan.get("nodes"):
+                    # Record the plan as an observation
+                    plan_summary = f"Identified plan with {len(plan['nodes'])} steps. Delegating to specialized components."
+                    plan_record["output"] = plan_summary
+                    execution_history += f"System Plan: {plan_summary}\n"
+                    if step_callback: await step_callback(plan_record)
+            except Exception as plan_error:
+                logger.warning(f"Planning phase failed: {plan_error}")
+
+        # 4. ReAct Loop with Pydantic Validation
         max_steps = 10
         steps = []
         final_answer = None
@@ -218,6 +274,7 @@ class AtomMetaAgent:
         execution_history = ""
         
         for current_step in range(1, max_steps + 1):
+            step_start = datetime.utcnow()
             # Generate next step using instructor for structured output
             react_step = await self._react_step(
                 request=request,
@@ -228,10 +285,14 @@ class AtomMetaAgent:
             )
             
             step_record = {
+                "execution_id": execution_id,
                 "step": current_step,
+                "step_type": "action" if react_step.action else "final_answer",
                 "thought": react_step.thought,
                 "action": react_step.action.model_dump() if react_step.action else None,
                 "output": None,
+                "confidence": getattr(react_step, 'confidence', 0.9),
+                "duration_ms": 0,
                 "timestamp": datetime.utcnow().isoformat()
             }
             
@@ -249,6 +310,16 @@ class AtomMetaAgent:
                 execution_history += f"Final Answer: {react_step.final_answer}\n"
                 break
             
+            # Safety: If no action and no final answer, we are stuck - convert thought to final answer
+            if not react_step.action:
+                final_answer = react_step.thought or "I'm sorry, I'm unable to proceed with that request."
+                step_record["final_answer"] = final_answer
+                step_record["step_type"] = "final_answer"
+                # Record it one last time to satisfy visibility
+                if step_callback: await step_callback(step_record)
+                steps.append(step_record)
+                break
+            
             # Execute action if provided
             if react_step.action:
                 tool_name = react_step.action.tool
@@ -257,13 +328,25 @@ class AtomMetaAgent:
                 execution_history += f"Action: {tool_name}({json.dumps(tool_args)})\n"
                 
                 if tool_name == "mcp_tool_search":
-                    # Special handling: Add found tools to session_tools for next turn
                     found_tools = await self.mcp.search_tools(tool_args.get("query", ""), limit=5)
                     self.session_tools.extend(found_tools)
                     observation = f"Found {len(found_tools)} tools. They have been added to your toolkit for the next step: {[t['name'] for t in found_tools]}"
                     
                     step_record["output"] = str(observation)
                     execution_history += f"Observation: {observation}\n"
+                    if step_callback: await step_callback(step_record)
+                
+                elif tool_name == "delegate_task":
+                    # Pass the main step_callback to the sub-agent for layered visibility!
+                    observation = await self._execute_delegation(
+                        tool_args.get("agent_name"), 
+                        tool_args.get("task"), 
+                        context,
+                        step_callback=step_callback,
+                        execution_id=execution_id
+                    )
+                    step_record["output"] = str(observation)
+                    execution_history += f"Observation: Delegated task completed.\n"
                     if step_callback: await step_callback(step_record)
                 
                 else:
@@ -274,9 +357,10 @@ class AtomMetaAgent:
                     
                     step_record["output"] = str(observation)[:500]
                     execution_history += f"Observation: {observation}\n"
-                    
-                    if step_callback:
-                        await step_callback(step_record)
+
+                # Update duration after tool execution
+                step_record["duration_ms"] = (datetime.utcnow() - step_start).total_seconds() * 1000
+                if step_callback: await step_callback(step_record)
             
             steps.append(step_record)
         
@@ -295,7 +379,52 @@ class AtomMetaAgent:
         
         await self._record_execution(request, result_payload, trigger_mode)
         
+        # Update Execution Record with duration
+        end_time = datetime.utcnow()
+        duration = (end_time - start_time).total_seconds()
+        
+        db = SessionLocal()
+        try:
+            execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
+            if execution:
+                execution.status = "completed" if status == "success" else status
+                execution.result_summary = str(final_answer)[:500]
+                execution.duration_seconds = duration
+                execution.completed_at = end_time
+                db.commit()
+        except Exception as e:
+            logger.error(f"Failed to update AgentExecution: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
         return result_payload
+
+    async def _execute_delegation(self, agent_name: str, task: str, context: Dict, 
+                                 step_callback: Optional[callable] = None,
+                                 execution_id: str = None) -> str:
+        """Delegate a task to a specialized agent."""
+        try:
+            from core.business_agents import get_specialized_agent
+            
+            agent = get_specialized_agent(agent_name, self.workspace_id)
+            if not agent:
+                return f"Error: Agent '{agent_name}' not found. Available agents: accounting, sales, marketing, logistics, tax, purchasing, planning, communications."
+                
+            logger.info(f"Delegating task to {agent.name}: {task[:50]}... (execution_id: {execution_id})")
+            
+            # Execute the sub-agent with the SAME callback for real-time visibility!
+            # We also pass the execution_id so steps are grouped in the DB
+            result = await agent.execute(task, context=context, step_callback=step_callback)
+            
+            final_output = result.get("final_output") or result.get("output") or str(result)
+            return f"Delegation Result from {agent.name}:\n{final_output}"
+            
+        except Exception as e:
+            logger.error(f"Delegation failed: {e}")
+            return f"Delegation failed: {str(e)}"
+
+
 
     async def _react_step(self, request: str, memory_context: Dict, 
                           tool_descriptions: str, execution_history: str, 
@@ -326,6 +455,19 @@ POWERS:
 - You can QUERY your Knowledge Graph for complex relationships.
 - **IMPORTANT**: Use `save_business_fact` to store "Truths" (policies, rules). If you see a Fact in memory, VERIFY its citations (`verify_citation`) if it's critical.
 - **IMPORTANT**: You have a large toolkit. If you don't see a tool you need, use `mcp_tool_search` to find it.
+
+SPECIALIZED AGENTS:
+You manage a team of experts. DELEGATE tasks using `delegate_task` if they match these domains:
+- "accounting": Bookkeeping, transactions, reconciliation
+- "sales": CRM, leads, pipeline, outreach
+- "marketing": Campaigns, social media, ROI
+- "logistics": Inventory, shipping, supply chain
+- "tax": Tax compliance, liabilities, deadlines
+- "purchasing": Procurement, vendors, purchase orders
+- "planning": Strategy, forecasting, hiring
+- "communications": Drafting emails, triaging messages
+
+{self._get_communication_instruction(context)}
 """
         
         # Build rich memory context for the prompt
@@ -382,16 +524,18 @@ What is your next step?"""
         )
         
         # Handle None, empty, or error responses
-        if not raw_response or "not initialized" in str(raw_response).lower() or "error" in str(raw_response).lower():
+        is_error = not raw_response or any(kw in str(raw_response).lower() for kw in ["not initialized", "error", "restriction", "budget", "expired", "failed", "no eligible"])
+        
+        if is_error:
             return ReActStep(
-                thought="LLM Client not initialized (No API Keys configured).",
-                final_answer=raw_response if raw_response else "Unable to process request - LLM not available. Please configure API keys."
+                thought="System encountered an issue or restriction.",
+                final_answer=raw_response if raw_response else "Unable to process request - AI provider unavailable."
             )
         
-        # Simple fallback parsing
+        # Simple fallback parsing: If it doesn't look like JSON and has no action, treat as final answer
         return ReActStep(
-            thought=raw_response[:200] if raw_response else "Unable to reason",
-            final_answer=raw_response if "answer" in raw_response.lower() else None
+            thought=raw_response[:200] if raw_response else "Reasoning generated",
+            final_answer=raw_response
         )
 
     async def _execute_tool_with_governance(self, tool_name: str, args: Dict, 
@@ -430,7 +574,16 @@ What is your next step?"""
             finally:
                 db.close()
             
-            # 2. Execute via MCP
+            # SPECIAL TOOLS (Internal)
+            if tool_name == "trigger_workflow":
+                result = await self._trigger_workflow(args.get("workflow_id"), args.get("params", {}), context)
+                return result
+                
+            elif tool_name == "delegate_task":
+                result = await self._execute_delegation(args.get("agent_name"), args.get("task"), context)
+                return result
+            
+            # 2. Execute via MCP with governance check
             result = await self.mcp.call_tool(tool_name, args, context=context)
             return str(result)
             
@@ -571,6 +724,26 @@ What is your next step?"""
             logger.error(f"Failed to record Atom governance outcome: {ge}")
         finally:
             db.close()
+            
+    def _get_communication_instruction(self, context: Dict) -> str:
+        """Helper to fetch user communication style"""
+        user_id = context.get("user_id") or (self.user.id if self.user else None)
+        if not user_id: return ""
+        
+        try:
+            db = SessionLocal()
+            user = db.query(User).filter(User.id == user_id).first()
+            if user and user.metadata_json:
+                c_style = user.metadata_json.get("communication_style", {})
+                if c_style.get("enable_personalization"):
+                    guide = c_style.get("style_guide", "")
+                    if guide:
+                        return f"\nCOMMUNICATION STYLE:\n{guide}\nPlease carefully mimic this style in your final answer."
+            return ""
+        except Exception:
+            return ""
+        finally:
+            db.close()
 
 
 # ==================== TRIGGER HANDLERS ====================
@@ -615,7 +788,9 @@ async def handle_data_event_trigger(event_type: str, data: Dict[str, Any],
 
 
 async def handle_manual_trigger(request: str, user: User, 
-                               workspace_id: str = "default") -> Dict[str, Any]:
+                               workspace_id: str = "default",
+                               additional_context: Dict = None,
+                               execution_id: str = None) -> Dict[str, Any]:
     """
     Handler for manual/user-initiated agent triggers.
     Called from Chat or API.
@@ -626,20 +801,55 @@ async def handle_manual_trigger(request: str, user: User,
     from core.websockets import manager as ws_manager
     async def streaming_callback(step_record):
         try:
-            # Broadcast to the specific workspace channel
+            # 1. Broadcast to the specific workspace channel
             await ws_manager.broadcast(f"workspace:{workspace_id}", {
                 "type": "agent_step_update",
                 "agent_id": "atom_main",
                 "step": step_record
             })
+            
+            # 2. Persist to DB for long-term visibility
+            from core.reasoning_chain import get_reasoning_tracker, ReasoningStep
+            tracker = get_reasoning_tracker()
+            
+            execution_id = step_record.get("execution_id")
+            if execution_id:
+                # Use standard ReasoningStepType if possible
+                from core.reasoning_chain import ReasoningStepType
+                stype_map = {
+                    "action": ReasoningStepType.ACTION,
+                    "final_answer": ReasoningStepType.FINAL_ANSWER,
+                    "planning": ReasoningStepType.INTENT_ANALYSIS,
+                    "hitl_paused": ReasoningStepType.DECISION
+                }
+                
+                step_obj = ReasoningStep(
+                    id=str(uuid.uuid4()),
+                    step_type=stype_map.get(step_record.get("step_type"), ReasoningStepType.ACTION),
+                    description=step_record.get("thought", step_record.get("reason", "")),
+                    inputs={"action": step_record.get("action")} if step_record.get("action") else {},
+                    outputs={"observation": step_record.get("output")} if step_record.get("output") else {},
+                    confidence=step_record.get("confidence", 0.9),
+                    duration_ms=step_record.get("duration_ms", 0.0),
+                    timestamp=datetime.utcnow(),
+                    metadata={"step_number": step_record.get("step")}
+                )
+                tracker.persist_step_to_db(step_obj, execution_id)
+                
         except Exception as e:
-            logger.warning(f"Failed to stream agent step: {e}")
+            logger.warning(f"Failed to stream/persist agent step: {e}")
+
+    # Merge contexts
+    exec_context = {"user_id": user.id, "user_email": user.email}
+    if additional_context:
+        exec_context.update(additional_context)
 
     result = await atom.execute(
         request=request,
-        context={"user_id": user.id, "user_email": user.email},
+        context=exec_context,
         trigger_mode=AgentTriggerMode.MANUAL,
-        step_callback=streaming_callback
+        step_callback=streaming_callback,
+        execution_id=execution_id
     )
     
     return result

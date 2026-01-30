@@ -580,7 +580,7 @@ class ChatMessage(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     conversation_id = Column(String, nullable=False, index=True)
-    tenant_id = Column(String, nullable=False, index=True)
+    workspace_id = Column(String, nullable=False, index=True) # Standardized for Upstream
     role = Column(String, nullable=False)  # 'user', 'assistant', etc.
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -591,7 +591,7 @@ class ChatSession(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, nullable=False, index=True)
-    tenant_id = Column(String, default="default", index=True)
+    workspace_id = Column(String, default="default", index=True) # Standardized for Upstream
     title = Column(String, nullable=True) # First message summary or custom title
     metadata_json = Column(JSON, default={}) # For storing 'source', 'context', etc.
     
@@ -677,3 +677,90 @@ class CommunityMembership(Base):
     community = relationship("GraphCommunity", backref="members")
     node = relationship("GraphNode", backref="communities")
 
+
+class SkillExecution(Base):
+    """
+    Execution record for skill runs with ACU billing tracking.
+
+    Container skills (cloud execution) track compute usage in ACUs.
+    Docker skills (local only) do NOT incur ACU charges.
+    """
+    __tablename__ = "skill_executions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    skill_id = Column(String, nullable=False, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True) # Standardized for Upstream
+
+    status = Column(String, default="pending")
+    input_params = Column(JSON, nullable=True)
+    output_result = Column(JSON, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # ACU Billing (1 ACU = 1 second of compute)
+    execution_seconds = Column(Float, default=0.0)
+    cpu_count = Column(Integer, nullable=True)
+    memory_mb = Column(Integer, nullable=True)
+    compute_billed = Column(Boolean, default=False)
+
+    # Infrastructure metadata
+    machine_id = Column(String, nullable=True)
+
+    # Legacy timing (ms for non-compute skills)
+    execution_time_ms = Column(Integer, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="skill_executions")
+    workspace = relationship("Workspace", backref="skill_executions")
+
+class AgentExecution(Base):
+    """
+    Detailed execution record for an Agent run (Phase 30).
+    Replaces simpler AgentJob for detailed tracing.
+    """
+    __tablename__ = "agent_executions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    workspace_id = Column(String, nullable=False, index=True)
+    
+    status = Column(String, default="running")
+    input_summary = Column(Text, nullable=True)
+    output_summary = Column(Text, nullable=True)
+    triggered_by = Column(String, default="manual") # manual, schedule, websocket, event
+    
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Float, default=0.0)
+    
+    result_summary = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    
+    # Relationships
+    agent = relationship("AgentRegistry")
+    workspace = relationship("Workspace")
+
+class AgentTraceStep(Base):
+    """
+    Persisted reasoning step for an agent execution (ReAct thought/action).
+    """
+    __tablename__ = "agent_trace_steps"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    execution_id = Column(String, ForeignKey("agent_executions.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    step_number = Column(Integer, nullable=False)
+    
+    thought = Column(Text, nullable=True)
+    action = Column(JSON, nullable=True) # {tool: str, params: dict}
+    observation = Column(Text, nullable=True)
+    final_answer = Column(Text, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    execution = relationship("AgentExecution", backref="trace_steps")
+>>>>>>> 3a73b3e7 (feat: port Moltbot dynamic skill creation features and standardize on workspace_id)
