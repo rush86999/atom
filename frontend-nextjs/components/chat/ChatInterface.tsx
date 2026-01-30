@@ -12,6 +12,8 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { CanvasHost } from "./CanvasHost";
+import { VoiceModeOverlay } from "@/components/Voice/VoiceModeOverlay";
+import { Mic } from "lucide-react";
 import { marked } from "marked";
 
 interface ChatInterfaceProps {
@@ -266,8 +268,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         }
     };
 
+    const [isVoiceModeOpen, setIsVoiceModeOpen] = useState(false);
+
     return (
         <div className="flex flex-col h-full bg-background relative">
+            <VoiceModeOverlay
+                isOpen={isVoiceModeOpen}
+                onClose={() => setIsVoiceModeOpen(false)}
+                onSend={async (text) => {
+                    // Simplified logic for upstream port
+                    setInput(text);
+                    // Use a temporary effect or direct call if refactored
+                    // For now, we assume handleSend processes 'input' state if button clicked
+                    // Ideally we should refactor handleSend here too, but to be minimal:
+                    const originalInput = input;
+                    setInput(text);
+                    setTimeout(() => handleSend(), 0);
+                }}
+                isProcessing={isProcessing}
+                lastAgentMessage={messages.filter(m => m.type === 'assistant').pop()?.content || null}
+            />
             <CanvasHost lastMessage={lastMessage} />
             {/* Chat Header */}
             <div className="p-4 border-b border-border flex justify-between items-center bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -367,10 +387,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
                         >
                             <Paperclip className="h-5 w-5 text-muted-foreground" />
                         </Button>
-                        <VoiceInput
-                            onTranscriptChange={(transcript) => setInput(transcript)}
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             className="shrink-0"
-                        />
+                            onClick={() => setIsVoiceModeOpen(true)}
+                            title="Voice Mode"
+                        >
+                            <Mic className="h-5 w-5 text-muted-foreground" />
+                        </Button>
                         <Input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
