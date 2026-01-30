@@ -81,9 +81,15 @@ python main_api_app.py
 # Terminal 2: Frontend
 cd frontend-nextjs
 npm run dev
+
+# Terminal 3: Desktop (Tauri)
+cd frontend-nextjs/src-tauri
+cargo tauri dev
 ```
 
-### Access
+### Desktop Features
+- **System Tray**: ATOM runs in the background. Close the window to minimize to the tray; right-click the tray icon to Show or Quit.
+- **Skill Runner**: Access via **Dev Studio > Skill Runner** to browse and execute agent skills with real-time streaming output.
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8000
 - **Sign In**: http://localhost:3000/auth/signin
