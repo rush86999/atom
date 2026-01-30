@@ -11,8 +11,14 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Manager, Emitter, Runtime, Window};
+use tauri::{AppHandle, Manager, Emitter, Runtime, Window, WindowEvent};
+use std::io::{BufRead, BufReader};
+use std::sync::atomic::{AtomicBool, Ordering};
 use notify::{Watcher, RecursiveMode, Config, Event};
+use tauri_plugin_tray_icon::{
+    menu::{Menu, MenuItem},
+    TrayIconBuilder, TrayIconEvent,
+};
 
 // Enhanced file dialog command using Tauri v2 plugin
 #[tauri::command]
@@ -266,6 +272,7 @@ async fn list_directory(path: String) -> Result<serde_json::Value, String> {
 // Development tools commands
 #[tauri::command]
 async fn execute_command(
+    app: AppHandle,
     command: String,
     args: Vec<String>,
     working_dir: Option<String>,
@@ -277,28 +284,81 @@ async fn execute_command(
     }
 
     cmd.args(&args);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
 
-    match cmd.output() {
-        Ok(output) => {
-            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    
+    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+    let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
 
-            Ok(json!({
-                "success": output.status.success(),
-                "exit_code": output.status.code().unwrap_or(-1),
-                "stdout": stdout,
-                "stderr": stderr,
-                "command": command,
-                "args": args
-            }))
+    let app_stdout = app.clone();
+    let app_stderr = app.clone();
+
+    // Spawn thread to handle stdout
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            if let Ok(l) = line {
+                let _ = app_stdout.emit("cli-stdout", l);
+            }
         }
-        Err(e) => Ok(json!({
-            "success": false,
-            "error": e.to_string(),
-            "command": command,
-            "args": args
-        })),
+    });
+
+    // Spawn thread to handle stderr
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            if let Ok(l) = line {
+                let _ = app_stderr.emit("cli-stderr", l);
+            }
+        }
+    });
+
+    let status = child.wait().map_err(|e| e.to_string())?;
+
+    Ok(json!({
+        "success": status.success(),
+        "exit_code": status.code().unwrap_or(-1),
+        "command": command,
+        "args": args
+    }))
+}
+
+#[tauri::command]
+async fn list_local_skills() -> Result<serde_json::Value, String> {
+    let skills_dir = Path::new("skills/local");
+    if !skills_dir.exists() {
+        return Ok(json!({ "skills": [] }));
     }
+
+    let mut skills = Vec::new();
+    if let Ok(entries) = fs::read_dir(skills_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let skill_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let manifest_path = path.join("skill.json");
+                let mut skill_info = json!({
+                    "id": skill_name,
+                    "name": skill_name,
+                    "description": "Local CLI Skill",
+                    "path": path.to_string_lossy().to_string()
+                });
+
+                if manifest_path.exists() {
+                    if let Ok(content) = fs::read_to_string(manifest_path) {
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
+                            skill_info = v;
+                        }
+                    }
+                }
+                skills.push(skill_info);
+            }
+        }
+    }
+
+    Ok(json!({ "skills": skills }))
 }
 
 // Main invoke handler with all commands
@@ -644,6 +704,7 @@ fn main() {
             // System operations
             get_system_info,
             execute_command,
+            list_local_skills,
         ])
         .setup(|app| {
             println!("🚀 ATOM Desktop Agent Starting...");
@@ -664,7 +725,45 @@ fn main() {
                 watchers: Mutex::new(HashMap::new()),
             });
 
+            // Setup System Tray
+            let show_item = MenuItem::with_id(app, "show", "Show ATOM", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .on_menu_event(move |app, event| match event.id.as_ref() {
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { .. } = event {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                // Minimize to tray instead of closing
+                window.hide().unwrap();
+                api.prevent_close();
+            }
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

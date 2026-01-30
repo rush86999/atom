@@ -27,6 +27,7 @@ import {
     Monitor,
 } from "lucide-react";
 import AgentConsole from "@/components/DevStudio/AgentConsole";
+import SkillRunner from "@/components/DevStudio/SkillRunner";
 
 // Tauri imports for desktop functionality
 const { invoke } =
@@ -261,7 +262,7 @@ const DevStudio = () => {
                         </TabsTrigger>
                         <TabsTrigger value="terminal" className="flex items-center gap-2">
                             <Terminal className="h-4 w-4" />
-                            Command Runner
+                            Skill Runner
                         </TabsTrigger>
                         <TabsTrigger value="editor" className="flex items-center gap-2">
                             <Code className="h-4 w-4" />
@@ -443,97 +444,9 @@ const DevStudio = () => {
                         )}
                     </TabsContent>
 
-                    {/* Command Runner Panel */}
+                    {/* Skill Runner Panel */}
                     <TabsContent value="terminal" className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Command Execution</CardTitle>
-                                <CardDescription>Execute shell commands directly from the app</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Command</label>
-                                    <Input
-                                        value={command}
-                                        onChange={(e) => setCommand(e.target.value)}
-                                        placeholder="Enter command (e.g., npm, git, ls)"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Arguments (space separated)</label>
-                                    <Input
-                                        value={commandArgs}
-                                        onChange={(e) => setCommandArgs(e.target.value)}
-                                        placeholder="install, status, -la, etc."
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Working Directory (optional)</label>
-                                    <Input
-                                        value={workingDir}
-                                        onChange={(e) => setWorkingDir(e.target.value)}
-                                        placeholder={
-                                            currentDirectory ||
-                                            "Leave empty for current directory"
-                                        }
-                                    />
-                                </div>
-
-                                <Button
-                                    onClick={executeCommand}
-                                    disabled={isExecuting}
-                                    className="gap-2"
-                                >
-                                    {isExecuting ? <StopCircle className="h-4 w-4 animate-pulse" /> : <Play className="h-4 w-4" />}
-                                    {isExecuting ? "Executing..." : "Execute Command"}
-                                </Button>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Common Commands</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {commonCommands.map((cmd, index) => (
-                                        <Button
-                                            key={index}
-                                            variant="outline"
-                                            className="h-auto py-3 justify-start text-left"
-                                            onClick={() => {
-                                                setCommand(cmd.name.split(" ")[0]);
-                                                setCommandArgs(
-                                                    cmd.name.split(" ").slice(1).join(" "),
-                                                );
-                                            }}
-                                        >
-                                            <div className="flex flex-col items-start gap-1">
-                                                <span className="font-medium">{cmd.name}</span>
-                                                <span className="text-xs text-muted-foreground font-normal">
-                                                    {cmd.description}
-                                                </span>
-                                            </div>
-                                        </Button>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {commandOutput && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Command Output</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <pre className="p-4 rounded-md bg-slate-950 text-slate-50 overflow-x-auto text-sm font-mono">
-                                        {commandOutput}
-                                    </pre>
-                                </CardContent>
-                            </Card>
-                        )}
+                        <SkillRunner />
                     </TabsContent>
 
                     {/* Code Editor Panel */}
