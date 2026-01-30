@@ -32,6 +32,7 @@ anyhow = "1.0"
 lazy_static = "1.4"
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-tray-icon = "2"
 notify = { version = "6", features = ["serde"] }
 
 [features]
