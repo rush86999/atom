@@ -225,7 +225,7 @@ class MCPService:
                 {
                     "name": "search_formulas",
                     "description": "Search for business logic, math definitions, and extracted Excel formulas in Atom's memory",
-                    }
+                    "parameters": {"query": "string"}
                 },
                 {
                     "name": "canvas_tool",
