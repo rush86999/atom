@@ -1048,10 +1048,12 @@ class BYOKHandler:
         model: str,
         provider_id: str,
         temperature: float = 0.7,
-        max_tokens: int = 1000
+        max_tokens: int = 1000,
+        agent_id: Optional[str] = None,
+        db = None
     ) -> AsyncGenerator[str, None]:
         """
-        Stream LLM responses token-by-token.
+        Stream LLM responses token-by-token with optional governance tracking.
 
         Args:
             messages: Chat messages in OpenAI format
@@ -1059,6 +1061,8 @@ class BYOKHandler:
             provider_id: Provider identifier (e.g., "openai", "deepseek")
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
+            agent_id: Optional agent ID for governance tracking
+            db: Optional database session for governance tracking
 
         Yields:
             Individual tokens as they arrive from the LLM
@@ -1073,7 +1077,28 @@ class BYOKHandler:
             if not client:
                 raise ValueError(f"No client available for provider: {provider_id}")
 
+        # Governance tracking
+        governance_enabled = os.getenv("STREAMING_GOVERNANCE_ENABLED", "true").lower() == "true"
+        agent_execution = None
+
         try:
+            # Create execution record if agent_id provided
+            if agent_id and governance_enabled and db:
+                from core.models import AgentExecution
+
+                agent_execution = AgentExecution(
+                    agent_id=agent_id,
+                    workspace_id=self.workspace_id,
+                    status="running",
+                    input_summary=f"LLM stream: {model} ({provider_id})",
+                    triggered_by="llm_stream"
+                )
+                db.add(agent_execution)
+                db.commit()
+                db.refresh(agent_execution)
+
+                logger.debug(f"Created agent execution {agent_execution.id} for LLM stream")
+
             # Use async streaming API
             stream = await client.chat.completions.create(
                 model=model,
@@ -1083,13 +1108,53 @@ class BYOKHandler:
                 stream=True
             )
 
+            token_count = 0
             async for chunk in stream:
                 if chunk.choices:
                     delta = chunk.choices[0].delta
                     if hasattr(delta, 'content') and delta.content:
+                        token_count += 1
                         yield delta.content
+
+            # Record successful completion
+            if agent_execution and governance_enabled and db:
+                try:
+                    from datetime import datetime
+
+                    agent_execution.status = "completed"
+                    agent_execution.output_summary = f"Generated {token_count} tokens via {model}"
+                    agent_execution.completed_at = datetime.now()
+                    db.commit()
+
+                    # Record outcome for confidence scoring
+                    from core.agent_governance_service import AgentGovernanceService
+                    governance = AgentGovernanceService(db)
+                    await governance.record_outcome(agent_id, success=True)
+
+                    logger.debug(f"Completed LLM stream execution {agent_execution.id}")
+                except Exception as tracking_error:
+                    logger.error(f"Failed to track LLM stream completion: {tracking_error}")
 
         except Exception as e:
             logger.error(f"Streaming error for {provider_id}/{model}: {e}")
+
+            # Mark execution as failed
+            if agent_execution and governance_enabled and db:
+                try:
+                    from datetime import datetime
+
+                    agent_execution.status = "failed"
+                    agent_execution.error_message = str(e)
+                    agent_execution.completed_at = datetime.now()
+                    db.commit()
+
+                    # Record failure for confidence scoring
+                    from core.agent_governance_service import AgentGovernanceService
+                    governance = AgentGovernanceService(db)
+                    await governance.record_outcome(agent_id, success=False)
+
+                except Exception as tracking_error:
+                    logger.error(f"Failed to track LLM stream failure: {tracking_error}")
+
             # If streaming fails, yield error message
             yield f"\n\n[Streaming error: {str(e)}]"

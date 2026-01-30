@@ -241,21 +241,27 @@ class AgentGovernanceService:
         "get": 1,
         "fetch": 1,
         "summarize": 1,
-        
+        "present_chart": 1,        # STUDENT+ (read-only visualization)
+        "present_markdown": 1,     # STUDENT+ (read-only content)
+
         # Medium-low - Intern level
         "analyze": 2,
         "suggest": 2,
         "draft": 2,
         "generate": 2,
         "recommend": 2,
-        
+        "stream_chat": 2,          # INTERN+ (LLM streaming)
+        "present_form": 2,         # INTERN+ (moderate - form presentation)
+        "llm_stream": 2,           # INTERN+ (cost implications)
+
         # Medium - Supervised level
         "create": 3,
         "update": 3,
         "send_email": 3,
         "post_message": 3,
         "schedule": 3,
-        
+        "submit_form": 3,          # SUPERVISED+ (state change - form submission)
+
         # High - Autonomous level only
         "delete": 4,
         "execute": 4,
