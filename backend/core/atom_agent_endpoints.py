@@ -58,7 +58,6 @@ class ChatRequest(BaseModel):
     message: str
     user_id: str
     session_id: Optional[str] = None
-    workspace_id: Optional[str] = None
     current_page: Optional[str] = None
     context: Optional[Dict[str, Any]] = None
     conversation_history: List[ChatMessage] = []
@@ -77,15 +76,14 @@ def save_chat_interaction(
     entities: Dict[str, Any] = None,
     result_data: Dict[str, Any] = None,
     chat_history_mgr = None,
-    session_mgr = None,
-    workspace_id: str = "default"
+    session_mgr = None
 ):
     """Helper to save both user and assistant messages"""
     # Instantiate if not provided
     if not chat_history_mgr:
-        chat_history_mgr = get_chat_history_manager(workspace_id)
+        chat_history_mgr = get_chat_history_manager("default")
     if not session_mgr:
-        session_mgr = get_chat_session_manager(workspace_id)
+        session_mgr = get_chat_session_manager("default")
 
     logger.info(f"save_chat_interaction called: session_id={session_id}, intent={intent}")
     try:
@@ -126,11 +124,10 @@ def save_chat_interaction(
         logger.error(f"Failed to save chat interaction: {e}")
 
 @router.get("/sessions")
-async def list_sessions(user_id: str = "default_user", limit: int = 50, workspace_id: Optional[str] = None):
+async def list_sessions(user_id: str = "default_user", limit: int = 50):
     """List all chat sessions for a user"""
     try:
-        ws_id = workspace_id or "default"
-        session_manager = get_chat_session_manager(ws_id)
+        session_manager = get_chat_session_manager("default")
         sessions = session_manager.list_user_sessions(user_id, limit=limit)
         return {
             "success": True,
@@ -149,11 +146,10 @@ async def list_sessions(user_id: str = "default_user", limit: int = 50, workspac
         return {"success": False, "error": str(e)}
 
 @router.post("/sessions")
-async def create_new_session(user_id: str = Body(..., embed=True), workspace_id: Optional[str] = Body(None, embed=True)):
+async def create_new_session(user_id: str = Body(..., embed=True)):
     """Create a new chat session"""
     try:
-        ws_id = workspace_id or "default"
-        session_manager = get_chat_session_manager(ws_id)
+        session_manager = get_chat_session_manager("default")
         session_id = session_manager.create_session(user_id=user_id)
         return {"success": True, "session_id": session_id}
     except Exception as e:
@@ -161,15 +157,14 @@ async def create_new_session(user_id: str = Body(..., embed=True), workspace_id:
         return {"success": False, "error": str(e)}
 
 @router.get("/sessions/{session_id}/history")
-async def get_session_history(session_id: str, workspace_id: Optional[str] = None):
+async def get_session_history(session_id: str):
     """
     Retrieve conversation history for a specific session.
     Returns all messages in chronological order.
     """
     try:
-        ws_id = workspace_id or "default"
-        session_manager = get_chat_session_manager(ws_id)
-        chat_history = get_chat_history_manager(ws_id)
+        session_manager = get_chat_session_manager("default")
+        chat_history = get_chat_history_manager("default")
 
         # Verify session exists
         session = session_manager.get_session(session_id)
@@ -226,11 +221,10 @@ async def chat_with_agent(request: ChatRequest):
     Uses LLM to interpret intent and interact with platform features.
     """
     try:
-        # Phase 19: Workspace Isolation - Instantiate managers per request
-        ws_id = request.workspace_id or "default"
-        chat_history = get_chat_history_manager(ws_id)
-        session_manager = get_chat_session_manager(ws_id)
-        context_manager = get_chat_context_manager(ws_id)
+        # Single-tenant: use default context
+        chat_history = get_chat_history_manager("default")
+        session_manager = get_chat_session_manager("default")
+        context_manager = get_chat_context_manager("default")
 
         # Session management: create or load session
         if not request.session_id:
@@ -264,9 +258,7 @@ async def chat_with_agent(request: ChatRequest):
              from core.database import SessionLocal
              with SessionLocal() as db_session:
                  intel_service = SystemIntelligenceService(db_session)
-                 # Use workspace_id from request or default
-                 ws_id = request.workspace_id or "default_workspace"
-                 system_context_str = intel_service.get_aggregated_context(ws_id)
+                 system_context_str = intel_service.get_aggregated_context("default")
         except Exception as ctx_error:
             logger.warning(f"Failed to fetch system intelligence context: {ctx_error}")
 
@@ -322,9 +314,6 @@ async def chat_with_agent(request: ChatRequest):
         logger.info(f"Classified intent: {intent}, entities: {entities}")
         
         # Route to appropriate handler based on intent
-        # Inject workspace_id into entities if present in request
-        if request.workspace_id:
-            entities["workspace_id"] = request.workspace_id
         
         if intent == "LIST_WORKFLOWS":
             result = await handle_list_workflows(request)

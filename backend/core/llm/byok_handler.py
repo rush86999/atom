@@ -102,7 +102,7 @@ class BYOKHandler:
     Automatically routes queries to the most cost-effective provider based on complexity.
     """
     def __init__(self, workspace_id: str = "default", provider_id: str = "auto"):
-        self.workspace_id = workspace_id
+        self.workspace_id = "default" # Single-tenant: always use default
         self.default_provider_id = provider_id if provider_id != "auto" else None
         self.clients: Dict[str, Any] = {}
         self.byok_manager = get_byok_manager()
@@ -495,8 +495,9 @@ class BYOKHandler:
             is_managed = True
             
             try:
-                workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
+                workspace = db.query(Workspace).filter(Workspace.id == "default").first()
                 if workspace and workspace.tenant_id:
+                    from core.models import Tenant
                     tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
                     if tenant:
                         # 1. Determine Plan level
@@ -515,7 +516,7 @@ class BYOKHandler:
                             is_managed_service=True, requires_tools=requires_tools
                         )
                         
-                        tenant_key = self.byok_manager.get_tenant_api_key(tenant.id, temp_provider_id)
+                        tenant_key = self.byok_manager.get_tenant_api_key("default", temp_provider_id)
                         if tenant_key:
                             is_managed = False  # Custom Key = BYOK
                         elif tenant_plan.lower() in [p.lower() for p in BYOK_ENABLED_PLANS]:

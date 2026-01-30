@@ -116,10 +116,9 @@ async def submit_form(
                         "governance_check": governance_check
                     }
 
-                # Create submission execution record for audit trail
                 submission_execution = AgentExecution(
                     agent_id=agent.id if hasattr(agent, 'id') else agent_id,
-                    workspace_id=current_user.workspace_id or "default",
+                    workspace_id="default",
                     status="running",
                     input_summary=f"Form submission for canvas {submission.canvas_id}",
                     triggered_by="form_submission",
@@ -134,10 +133,9 @@ async def submit_form(
                     f"for form submission"
                 )
 
-        # Create canvas audit entry
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id=current_user.workspace_id or "default",
+            workspace_id="default",
             agent_id=agent.id if agent and hasattr(agent, 'id') else (submission.agent_id if submission.agent_id else None),
             agent_execution_id=submission_execution.id if submission_execution else submission.agent_execution_id,
             user_id=current_user.id,

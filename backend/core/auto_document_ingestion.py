@@ -315,8 +315,8 @@ class AutoDocumentIngestionService:
     - Ingest to Atom Memory (LanceDB + GraphRAG)
     """
     
-    def __init__(self, workspace_id: str):
-        self.workspace_id = workspace_id
+    def __init__(self):
+        self.workspace_id = "default"
         self.settings: Dict[str, IngestionSettings] = {}
         self.ingested_docs: Dict[str, IngestedDocument] = {}  # key = external_id
         self.parser = DocumentParser()
@@ -325,7 +325,7 @@ class AutoDocumentIngestionService:
         # Initialize memory handler
         try:
             from core.lancedb_handler import get_lancedb_handler
-            self.memory_handler = get_lancedb_handler(workspace_id)
+            self.memory_handler = get_lancedb_handler("default")
         except ImportError:
             self.memory_handler = None
             logger.warning("LanceDB handler not available")
@@ -521,7 +521,7 @@ class AutoDocumentIngestionService:
                             "count": results["files_ingested"],
                             "files": results["newly_ingested_files"] 
                         },
-                        workspace_id=self.workspace_id
+                        workspace_id="default"
                     )
                 except Exception as trigger_err:
                     logger.warning(f"Failed to trigger agent after ingestion: {trigger_err}")
@@ -682,12 +682,13 @@ class AutoDocumentIngestionService:
         ]
 
 
-# Global instances per workspace
-_doc_ingestion_services: Dict[str, AutoDocumentIngestionService] = {}
+# Global internal instance for single-tenant
+_doc_ingestion_service: Optional[AutoDocumentIngestionService] = None
 
 
-def get_document_ingestion_service(workspace_id: str) -> AutoDocumentIngestionService:
-    """Get or create a document ingestion service for a workspace"""
-    if workspace_id not in _doc_ingestion_services:
-        _doc_ingestion_services[workspace_id] = AutoDocumentIngestionService(workspace_id)
-    return _doc_ingestion_services[workspace_id]
+def get_document_ingestion_service() -> AutoDocumentIngestionService:
+    """Get or create the document ingestion service"""
+    global _doc_ingestion_service
+    if _doc_ingestion_service is None:
+        _doc_ingestion_service = AutoDocumentIngestionService()
+    return _doc_ingestion_service

@@ -81,7 +81,6 @@ class TestAgentContextResolver:
             # Run async test
             result = asyncio.run(resolver.resolve_agent_for_request(
                 user_id="user-1",
-                workspace_id="workspace-1",
                 requested_agent_id="intern-agent-1",
                 action_type="chat"
             ))
@@ -102,7 +101,6 @@ class TestAgentContextResolver:
                 # But session has agent
                 result = asyncio.run(resolver.resolve_agent_for_request(
                     user_id="user-1",
-                    workspace_id="workspace-1",
                     session_id="session-1",
                     action_type="chat"
                 ))
@@ -111,8 +109,8 @@ class TestAgentContextResolver:
                 assert agent is not None
                 assert agent.id == "intern-agent-1"
 
-    def test_resolve_agent_fallback_to_workspace_default(self, mock_db, mock_agent_intern):
-        """Test agent resolution falls back to workspace default."""
+    def test_resolve_agent_fallback_to_system_default(self, mock_db, mock_agent_intern):
+        """Test agent resolution falls back to system default."""
         # Create resolver first
         resolver = AgentContextResolver(mock_db)
 
@@ -133,7 +131,6 @@ class TestAgentContextResolver:
 
                 result = asyncio.run(resolver.resolve_agent_for_request(
                     user_id="user-1",
-                    workspace_id="workspace-1",
                     action_type="chat"
                 ))
 
@@ -371,7 +368,6 @@ class TestCanvasAuditTrail:
 
         audit = CanvasAudit(
             id="audit-1",
-            workspace_id="workspace-1",
             agent_id="agent-1",
             agent_execution_id="execution-1",
             user_id="user-1",
@@ -393,14 +389,13 @@ class TestCanvasAuditTrail:
 
         audit = CanvasAudit(
             id="audit-2",
-            workspace_id="workspace-1",
             agent_id="agent-1",
             user_id="user-1",
             canvas_id="canvas-1",
             component_type="form",
             action="submit",
             governance_check_passed=True,
-            metadata={"field_count": 5}
+            audit_metadata={"field_count": 5}
         )
 
         assert audit.component_type == "form"

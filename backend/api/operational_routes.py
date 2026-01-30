@@ -12,14 +12,14 @@ router = APIRouter(prefix="/api/business-health", tags=["operational-intelligenc
 logger = logging.getLogger(__name__)
 
 @router.get("/priorities")
-async def get_daily_priorities(workspace_id: str = "default-workspace", db: Session = Depends(get_db)):
+async def get_daily_priorities(db: Session = Depends(get_db)):
     """
     Returns a curated list of high-impact tasks for the owner.
     """
     try:
         # Update service with current DB session if needed
         business_health_service._db = db
-        return await business_health_service.get_daily_priorities(workspace_id)
+        return await business_health_service.get_daily_priorities("default")
     except Exception as e:
         logger.error(f"Error fetching daily priorities: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -27,55 +27,54 @@ async def get_daily_priorities(workspace_id: str = "default-workspace", db: Sess
 @router.post("/simulate")
 async def simulate_business_decision(
     decision_type: str = Body(...),
-    data: Dict[str, Any] = Body(...),
-    workspace_id: str = "default-workspace"
+    data: Dict[str, Any] = Body(...)
 ):
     """
     Simulates the impact of a business decision (Hiring, Spend, etc.)
     """
     try:
-        return await business_health_service.simulate_decision(workspace_id, decision_type, data)
+        return await business_health_service.simulate_decision("default", decision_type, data)
     except Exception as e:
         logger.error(f"Error running simulation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/forensics/price-drift")
-async def get_price_drift(workspace_id: str = "default-workspace", db: Session = Depends(get_db)):
+async def get_price_drift(db: Session = Depends(get_db)):
     """
     Detects vendor and ad-spend price drift.
     """
     try:
         from core.financial_forensics import VendorIntelligence, MOCK_MODE
         service = VendorIntelligence(db)
-        data = await service.detect_price_drift(workspace_id)
+        data = await service.detect_price_drift("default")
         return {"data": data, "is_mock": MOCK_MODE}
     except Exception as e:
         logger.error(f"Error fetching price drift: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/forensics/pricing-advisor")
-async def get_pricing_advice(workspace_id: str = "default-workspace", db: Session = Depends(get_db)):
+async def get_pricing_advice(db: Session = Depends(get_db)):
     """
     Provides margin protection and underpricing recommendations.
     """
     try:
         from core.financial_forensics import PricingAdvisor, MOCK_MODE
         service = PricingAdvisor(db)
-        data = await service.get_pricing_recommendations(workspace_id)
+        data = await service.get_pricing_recommendations("default")
         return {"data": data, "is_mock": MOCK_MODE}
     except Exception as e:
         logger.error(f"Error fetching pricing advice: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/forensics/waste")
-async def get_subscription_waste(workspace_id: str = "default-workspace", db: Session = Depends(get_db)):
+async def get_subscription_waste(db: Session = Depends(get_db)):
     """
     Identifies SaaS waste and zombie subscriptions.
     """
     try:
         from core.financial_forensics import SubscriptionWasteService, MOCK_MODE
         service = SubscriptionWasteService(db)
-        data = await service.find_zombie_subscriptions(workspace_id)
+        data = await service.find_zombie_subscriptions("default")
         return {"data": data, "is_mock": MOCK_MODE}
     except Exception as e:
         # Graceful fallback if checking is_mock fails
@@ -85,14 +84,13 @@ async def get_subscription_waste(workspace_id: str = "default-workspace", db: Se
 
 @router.post("/interventions/generate")
 async def generate_interventions(
-    workspace_id: str = "default-workspace", 
     db: Session = Depends(get_db)
 ):
     """
     Triggers the Cross-System Reasoning Engine to find active interventions.
     """
     engine = CrossSystemReasoningEngine(db)
-    interventions = await engine.generate_interventions(workspace_id)
+    interventions = await engine.generate_interventions("default")
     return {"interventions": interventions}
 
 @router.post("/interventions/{id}/execute")

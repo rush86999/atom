@@ -99,7 +99,7 @@ class LanceDBHandler:
         
         # Determine DB path (S3 or local)
         self.db_path = db_path or os.getenv("LANCEDB_URI", "./data/atom_memory")
-        self.workspace_id = workspace_id or "default"
+        self.workspace_id = "default" # Single-tenant: always use default
         
         # Embedding configuration
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", embedding_provider)
@@ -470,8 +470,8 @@ class LanceDBHandler:
                     
                     if settings.is_extraction_enabled():
                         from core.knowledge_ingestion import get_knowledge_ingestion
-                        ingestor = get_knowledge_ingestion(self.workspace_id)
-                        asyncio.create_task(ingestor.process_document(text, doc_id, source, user_id=user_id, workspace_id=self.workspace_id))
+                        ingestor = get_knowledge_ingestion("default")
+                        asyncio.create_task(ingestor.process_document(text, doc_id, source, user_id=user_id, workspace_id="default"))
                     else:
                         logger.info(f"Automatic knowledge extraction skipped for {doc_id} (disabled in settings)")
                 
@@ -495,7 +495,7 @@ class LanceDBHandler:
                     asyncio.create_task(on_data_ingested(
                         data={"text": text, "doc_id": doc_id, "source": source, "metadata": metadata},
                         source=source or "document_upload",
-                        workspace_id=self.workspace_id,
+                        workspace_id="default",
                         user_id=user_id,
                         metadata=metadata
                     ))

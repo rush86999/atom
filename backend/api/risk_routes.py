@@ -12,7 +12,6 @@ MOCK_MODE = os.getenv("FINANCIAL_FORENSICS_MOCK", "false").lower() == "true"
 
 @router.get("/customer-protection")
 async def get_customer_protection_intel(
-    workspace_id: str = Query(..., description="Workspace ID"),
     db: Session = Depends(get_db)
 ):
     """
@@ -31,8 +30,8 @@ async def get_customer_protection_intel(
             "is_mock": True
         }
         
-    churn = await customer_protection.get_churn_risk(db, workspace_id)
-    vips = await customer_protection.get_vip_opportunities(db, workspace_id)
+    churn = await customer_protection.get_churn_risk(db, "default")
+    vips = await customer_protection.get_vip_opportunities(db, "default")
     
     return {
         "churn_risk": churn,
@@ -42,7 +41,6 @@ async def get_customer_protection_intel(
 
 @router.get("/early-warning")
 async def get_early_warning_alerts(
-    workspace_id: str = Query(..., description="Workspace ID"),
     db: Session = Depends(get_db)
 ):
     """
@@ -57,7 +55,7 @@ async def get_early_warning_alerts(
             "is_mock": True
         }
 
-    alerts = await early_warning.get_ar_alerts(db, workspace_id)
+    alerts = await early_warning.get_ar_alerts(db, "default")
     return {
         "ar_alerts": alerts,
         "is_mock": False
@@ -65,7 +63,6 @@ async def get_early_warning_alerts(
 
 @router.get("/fraud")
 async def get_fraud_alerts(
-    workspace_id: str = Query(..., description="Workspace ID"),
     db: Session = Depends(get_db)
 ):
     """
@@ -79,7 +76,7 @@ async def get_fraud_alerts(
             "is_mock": True
         }
 
-    anomalies = await fraud_detection.scan_for_anomalies(db, workspace_id)
+    anomalies = await fraud_detection.scan_for_anomalies(db, "default")
     return {
         "anomalies": anomalies,
         "is_mock": False

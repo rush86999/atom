@@ -14,7 +14,7 @@ class CustomerProtectionService:
     def __init__(self, db: Session):
         self.db = db
 
-    def predict_churn_risk(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def predict_churn_risk(self, workspace_id: str = "default") -> List[Dict[str, Any]]:
         """
         Identifies customers/leads with dropping engagement.
         Rule: No engagement for > 30 days on active deals or leads.
@@ -56,7 +56,7 @@ class CustomerProtectionService:
 
         return sorted(risks, key=lambda x: x['risk_score'], reverse=True)
 
-    def prioritize_vips(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def prioritize_vips(self, workspace_id: str = "default") -> List[Dict[str, Any]]:
         """
         Identifies High Value Customers needing attention.
         Rule: Top 10% by LTV or Deal Value.

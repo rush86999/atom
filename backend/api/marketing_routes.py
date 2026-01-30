@@ -18,7 +18,7 @@ reputation_manager = ReputationManager(ai_service=ai_enhanced_service)
 reporter = PlainEnglishReporter(ai_service=ai_enhanced_service)
 
 @router.get("/dashboard/summary")
-async def get_marketing_summary(workspace_id: str = "default-workspace", db: Session = Depends(get_db)):
+async def get_marketing_summary(db: Session = Depends(get_db)):
     """
     Returns a unified marketing intelligence summary for the business owner.
     """
@@ -30,7 +30,7 @@ async def get_marketing_summary(workspace_id: str = "default-workspace", db: Ses
         marketing_service = MarketingIntelligenceService(db)
         
         # Get channel performance data
-        channel_data = marketing_service.get_channel_performance(workspace_id)
+        channel_data = marketing_service.get_channel_performance("default")
         
         # Convert to metrics format expected by reporter
         metrics = {}
@@ -51,7 +51,7 @@ async def get_marketing_summary(workspace_id: str = "default-workspace", db: Ses
         
         # 3. Get high-intent leads
         high_intent_leads = db.query(Lead).filter(
-            Lead.workspace_id == workspace_id,
+            Lead.workspace_id == "default",
             Lead.ai_score > 70
         ).order_by(Lead.ai_score.desc()).limit(5).all()
         

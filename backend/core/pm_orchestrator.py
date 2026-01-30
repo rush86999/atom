@@ -17,7 +17,7 @@ class PMOrchestrator:
     Orchestrates the transition from Sales (Deals) to Delivery (Contracts/Projects).
     """
 
-    async def provision_from_deal(self, deal_id: str, user_id: str, workspace_id: str, external_platform: Optional[str] = None) -> Dict[str, Any]:
+    async def provision_from_deal(self, deal_id: str, user_id: str, workspace_id: str = "default", external_platform: Optional[str] = None) -> Dict[str, Any]:
         """
         Creates a Contract and launches an AI-managed Project from a Closed Won Deal.
         """
@@ -32,7 +32,7 @@ class PMOrchestrator:
             # 2. Create Contract
             contract = Contract(
                 id=f"cnt_{uuid.uuid4().hex[:8]}",
-                workspace_id=workspace_id,
+                workspace_id="default",
                 deal_id=deal_id,
                 name=f"Contract for {deal.name}",
                 total_amount=deal.value,
@@ -50,7 +50,7 @@ class PMOrchestrator:
             pm_result = await pm_engine.generate_project_from_nl(
                 prompt=prompt,
                 user_id=user_id,
-                workspace_id=workspace_id,
+                workspace_id="default",
                 contract_id=contract.id
             )
             
@@ -69,7 +69,7 @@ class PMOrchestrator:
                 sync_details = await external_pm_sync.sync_project_to_external(
                     project_id=project_id,
                     platform=external_platform,
-                    workspace_id=workspace_id
+                    workspace_id="default"
                 )
 
             db.commit()

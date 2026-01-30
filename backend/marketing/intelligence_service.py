@@ -13,7 +13,7 @@ class MarketingIntelligenceService:
     def __init__(self, db: Session):
         self.db = db
 
-    def calculate_cac(self, workspace_id: str, days: int = 30) -> Dict[str, Any]:
+    def calculate_cac(self, workspace_id: str = "default", days: int = 30) -> Dict[str, Any]:
         """
         Calculates Customer Acquisition Cost (CAC) for a given period.
         CAC = Total Marketing Spend / Total New Customers
@@ -43,7 +43,7 @@ class MarketingIntelligenceService:
             "period_days": days
         }
 
-    def get_channel_performance(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def get_channel_performance(self, workspace_id: str = "default") -> List[Dict[str, Any]]:
         """
         Ranks channels by conversion rate and ROI.
         """
@@ -79,7 +79,7 @@ class MarketingIntelligenceService:
 
         return sorted(results, key=lambda x: x["conversions"], reverse=True)
 
-    def record_touchpoint(self, lead_id: str, workspace_id: str, channel_name: str, utm_params: Dict[str, str] = None):
+    def record_touchpoint(self, lead_id: str, workspace_id: str = "default", channel_name: str = "direct", utm_params: Dict[str, str] = None):
         """
         Records a marketing touchpoint for a lead.
         """

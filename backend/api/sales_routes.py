@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/pipeline")
 @router.get("/pipeline")
-async def get_sales_pipeline(user_id: str = "default_user", workspace_id: str = "default"):
+async def get_sales_pipeline(user_id: str = "default_user"):
     """
     Fetch aggregated sales pipeline from Postgres Cache (Sync Strategy).
     Aggregates data from all connected CRMs (Salesforce, HubSpot, etc).
@@ -21,7 +21,7 @@ async def get_sales_pipeline(user_id: str = "default_user", workspace_id: str = 
         
         # Query cached metrics
         metrics = db.query(IntegrationMetric).filter(
-            IntegrationMetric.workspace_id == workspace_id,
+            IntegrationMetric.workspace_id == "default",
             IntegrationMetric.metric_key.in_(["pipeline_value", "active_opportunities_count", "active_deals_count"])
         ).all()
         
@@ -49,9 +49,9 @@ async def get_sales_pipeline(user_id: str = "default_user", workspace_id: str = 
 
 
 @router.get("/dashboard/summary")
-async def get_sales_dashboard_summary(user_id: str = "default_user", workspace_id: str = "default"):
+async def get_sales_dashboard_summary(user_id: str = "default_user"):
     """
     Alias for pipeline stats (Synced), matching Frontend expectations.
     """
-    return await get_sales_pipeline(user_id, workspace_id)
+    return await get_sales_pipeline(user_id)
 

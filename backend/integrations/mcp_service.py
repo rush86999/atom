@@ -915,8 +915,8 @@ class MCPService:
     async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool on a specific MCP server."""
         # Phase 41: Helper to check cloud access
-        async def _check_cloud_access(workspace_id: str) -> bool:
-            if workspace_id == "default": return True # Allow for easier testing
+        async def _check_cloud_access() -> bool:
+            workspace_id = "default"
             try:
                 from core.database import SessionLocal
                 from core.models import Workspace
@@ -945,7 +945,7 @@ class MCPService:
             
         # Local Internal Tools
         if server_id == "local-tools":
-            workspace_id = context.get("workspace_id") or arguments.get("workspace_id", "default")
+            workspace_id = "default"
             
             if tool_name == "finance_close_check":
                 from accounting.close_agent import CloseChecklistAgent
@@ -954,7 +954,7 @@ class MCPService:
                 with SessionLocal() as db:
                     agent = CloseChecklistAgent(db)
                     # Use a default workspace or passed one
-                    workspace_id = arguments.get("workspace_id", "default")
+                    workspace_id = "default"
                     period = arguments.get("period", datetime.now().strftime("%Y-%m"))
                     return await agent.run_close_check(workspace_id, period)
 
@@ -971,7 +971,7 @@ class MCPService:
                 with SessionLocal() as db:
                     service = B2BProcurementService(db)
                     return await service.create_draft_order_from_po(
-                        workspace_id=arguments.get("workspace_id", workspace_id),
+                        workspace_id="default",
                         customer_email=arguments.get("customer_email"),
                         po_data=arguments.get("po_data")
                     )
@@ -989,7 +989,7 @@ class MCPService:
                 action = arguments.get("action")
                 reason = arguments.get("reason")
                 params = arguments.get("params") or {}
-                workspace_id = context.get("workspace_id", "default")
+                workspace_id = "default"
                 
                 logger.warning(f"Agent requested HUMAN INTERVENTION: {action} due to {reason}")
                 
@@ -1048,9 +1048,9 @@ class MCPService:
                 manager = get_connection_manager()
                 
                 # Broadcast event to workspace channel
-                # Upstream uses workspace_id standard
-                workspace_id = context.get("workspace_id", "default")
-                channel = f"workspace:{workspace_id}"
+                # Internalize "default" channel
+                workspace_id = "default"
+                channel = "workspace:default"
                 
                 event_payload = {
                     "action": arguments.get("action"),
@@ -1066,7 +1066,7 @@ class MCPService:
                 from operations.automations.inventory_reconcile import InventoryReconciliationWorkflow
                 agent = InventoryReconciliationWorkflow()
                 return await agent.reconcile_inventory(
-                    arguments.get("workspace_id", "default")
+                    "default"
                 )
             
             # --- Communication Hub Tools ---

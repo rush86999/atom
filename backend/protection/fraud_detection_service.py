@@ -13,7 +13,7 @@ class FraudDetectionService:
     def __init__(self, db: Session):
         self.db = db
 
-    def detect_payment_anomalies(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def detect_payment_anomalies(self, workspace_id: str = "default") -> List[Dict[str, Any]]:
         """
         Scans for irregular payment patterns.
         1. Duplicate charges (same amount, same day).

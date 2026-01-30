@@ -15,7 +15,7 @@ class BusinessHealthService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_business_health_score(self, workspace_id: str) -> Dict[str, Any]:
+    def get_business_health_score(self, workspace_id: str = "default") -> Dict[str, Any]:
         """
         Calculates a 0-100 health score based on key operational metrics.
         """
@@ -83,7 +83,7 @@ class BusinessHealthService:
             }
         }
 
-    def get_daily_priorities(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def get_daily_priorities(self, workspace_id: str = "default") -> List[Dict[str, Any]]:
         """
         Returns a sorted list of actionable items for the business owner.
         """
@@ -145,7 +145,7 @@ class BusinessHealthService:
         
         return priorities
 
-    def calculate_cash_runway(self, workspace_id: str) -> Dict[str, Any]:
+    def calculate_cash_runway(self, workspace_id: str = "default") -> Dict[str, Any]:
         """
         Estimates runway days. 
         Note: This is a simplifed projection. Real implementation requires bank integration.

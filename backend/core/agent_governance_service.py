@@ -437,13 +437,12 @@ class AgentGovernanceService:
         agent_id: str, 
         action_type: str, 
         params: Dict, 
-        reason: str,
-        workspace_id: str = "default"
+        reason: str
     ) -> str:
         """Create a HITL action and return its ID"""
         hitl = HITLAction(
             id=str(uuid.uuid4()),
-            workspace_id=workspace_id,
+            workspace_id="default",
             agent_id=agent_id,
             action_type=action_type,
             platform="internal", # Generic internal platform

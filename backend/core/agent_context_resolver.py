@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from core.models import (
-    AgentRegistry, AgentStatus, User, ChatSession, Workspace
+    AgentRegistry, AgentStatus, User, ChatSession
 )
 from core.agent_governance_service import AgentGovernanceService
 
@@ -35,7 +35,6 @@ class AgentContextResolver:
     async def resolve_agent_for_request(
         self,
         user_id: str,
-        workspace_id: str = "default",
         session_id: Optional[str] = None,
         requested_agent_id: Optional[str] = None,
         action_type: str = "chat"
@@ -45,7 +44,6 @@ class AgentContextResolver:
 
         Args:
             user_id: User making the request
-            workspace_id: Workspace context
             session_id: Optional session ID for session-level agent
             requested_agent_id: Explicitly requested agent ID
             action_type: Type of action being performed
@@ -57,7 +55,6 @@ class AgentContextResolver:
         """
         resolution_context = {
             "user_id": user_id,
-            "workspace_id": workspace_id,
             "session_id": session_id,
             "requested_agent_id": requested_agent_id,
             "action_type": action_type,
@@ -88,16 +85,7 @@ class AgentContextResolver:
             else:
                 resolution_context["resolution_path"].append("no_session_agent")
 
-        # Level 3: Workspace default agent
-        agent = self._get_workspace_default_agent(workspace_id)
-        if agent:
-            resolution_context["resolution_path"].append("workspace_default")
-            logger.info(f"Resolved agent via workspace default: {agent.name}")
-            return agent, resolution_context
-        else:
-            resolution_context["resolution_path"].append("no_workspace_default")
-
-        # Level 4: System default "Chat Assistant"
+        # Level 3: System default "Chat Assistant"
         agent = self._get_or_create_system_default()
         if agent:
             resolution_context["resolution_path"].append("system_default")
@@ -148,34 +136,7 @@ class AgentContextResolver:
             logger.error(f"Error getting session agent: {e}")
             return None
 
-    def _get_workspace_default_agent(self, workspace_id: str) -> Optional[AgentRegistry]:
-        """
-        Get workspace's default agent.
 
-        Checks workspace metadata for default_agent_id.
-        """
-        try:
-            workspace = self.db.query(Workspace).filter(
-                Workspace.id == workspace_id
-            ).first()
-
-            if not workspace:
-                logger.debug(f"Workspace {workspace_id} not found")
-                return None
-
-            # Check metadata for default_agent_id
-            metadata = workspace.metadata_json or {}
-            agent_id = metadata.get("default_agent_id")
-
-            if agent_id:
-                agent = self._get_agent(agent_id)
-                if agent:
-                    return agent
-
-            return None
-        except Exception as e:
-            logger.error(f"Error getting workspace default agent: {e}")
-            return None
 
     def _get_or_create_system_default(self) -> Optional[AgentRegistry]:
         """
@@ -249,36 +210,7 @@ class AgentContextResolver:
             logger.error(f"Error setting session agent: {e}")
             return False
 
-    def set_workspace_default_agent(
-        self,
-        workspace_id: str,
-        agent_id: str
-    ) -> bool:
-        """
-        Set the default agent for a workspace.
 
-        This agent will be used when no explicit agent or session agent is available.
-        """
-        try:
-            workspace = self.db.query(Workspace).filter(
-                Workspace.id == workspace_id
-            ).first()
-
-            if not workspace:
-                logger.warning(f"Cannot set agent on non-existent workspace {workspace_id}")
-                return False
-
-            # Update metadata
-            metadata = workspace.metadata_json or {}
-            metadata["default_agent_id"] = agent_id
-            workspace.metadata_json = metadata
-
-            self.db.commit()
-            logger.info(f"Set default agent {agent_id} on workspace {workspace_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Error setting workspace default agent: {e}")
-            return False
 
     async def validate_agent_for_action(
         self,

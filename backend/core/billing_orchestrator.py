@@ -15,7 +15,7 @@ class BillingOrchestrator:
     Automates invoice generation from completed milestones.
     """
 
-    async def process_milestone_completion(self, milestone_id: str, workspace_id: str) -> Dict[str, Any]:
+    async def process_milestone_completion(self, milestone_id: str, workspace_id: str = "default") -> Dict[str, Any]:
         """
         Generates an invoice for a completed milestone if not already invoiced.
         """
@@ -80,7 +80,7 @@ class BillingOrchestrator:
                 "customer_name": customer.name
             }
 
-    def _get_or_create_customer(self, db: Session, contract: Contract, workspace_id: str) -> Entity:
+    def _get_or_create_customer(self, db: Session, contract: Contract, workspace_id: str = "default") -> Entity:
         """Finds or creates an accounting Entity for the client"""
         # Search by name first (simplified)
         customer_name = contract.name or "Unknown Customer"

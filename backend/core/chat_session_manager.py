@@ -33,7 +33,7 @@ class ChatSessionManager:
     """Manages chat session metadata with DB support"""
     
     def __init__(self, sessions_file: str = None, workspace_id: str = None):
-        self.workspace_id = workspace_id or "default"
+        self.workspace_id = "default" # Single-tenant: always use default
         self.sessions_file = sessions_file or SESSIONS_FILE
         
         # Determine if we should use DB
@@ -102,7 +102,6 @@ class ChatSessionManager:
                 new_session = ChatSession(
                     id=session_id,
                     user_id=user_id,
-                    tenant_id=self.workspace_id,
                     metadata_json=metadata or {},
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),

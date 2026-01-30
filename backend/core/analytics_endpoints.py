@@ -384,16 +384,16 @@ async def get_burnout_risk():
     return risk_assessment
 
 @router.get("/estimation-bias")
-async def get_estimation_bias(workspace_id: str, user_id: Optional[str] = None):
+async def get_estimation_bias(user_id: Optional[str] = None):
     """
     Get estimation bias metrics for a user or the entire workspace.
     """
     try:
         analytics_service = WorkforceAnalyticsService()
-        bias_data = analytics_service.calculate_estimation_bias(workspace_id, user_id)
+        bias_data = analytics_service.calculate_estimation_bias("default", user_id)
         return {
             "success": True,
-            "workspace_id": workspace_id,
+            "workspace_id": "default",
             "user_id": user_id,
             "data": bias_data
         }
@@ -401,16 +401,16 @@ async def get_estimation_bias(workspace_id: str, user_id: Optional[str] = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/skill-gaps")
-async def get_skill_gaps(workspace_id: str):
+async def get_skill_gaps():
     """
     Get skill gap analysis for a workspace.
     """
     try:
         analytics_service = WorkforceAnalyticsService()
-        gap_data = analytics_service.map_skill_gaps(workspace_id)
+        gap_data = analytics_service.map_skill_gaps("default")
         return {
             "success": True,
-            "workspace_id": workspace_id,
+            "workspace_id": "default",
             "data": gap_data
         }
     except Exception as e:

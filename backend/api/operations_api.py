@@ -15,7 +15,6 @@ class SimulationRequest(BaseModel):
 
 @router.get("/dashboard")
 async def get_dashboard_data(
-    workspace_id: str = "default",
     db: Session = Depends(get_db)
 ):
     """Get all data for the Owner Cockpit"""
@@ -25,8 +24,8 @@ async def get_dashboard_data(
         # Ideally we refactor service to accept DB in methods.
         # For now, using the singleton pattern as defined.
         
-        priorities = await business_health_service.get_daily_priorities(workspace_id)
-        metrics = business_health_service.get_health_metrics(workspace_id)
+        priorities = await business_health_service.get_daily_priorities("default")
+        metrics = business_health_service.get_health_metrics("default")
         
         return {
             "success": True,
@@ -38,13 +37,12 @@ async def get_dashboard_data(
 
 @router.post("/simulate")
 async def run_simulation(
-    request: SimulationRequest,
-    workspace_id: str = "default"
+    request: SimulationRequest
 ):
     """Run a business simulation"""
     try:
         result = await business_health_service.simulate_decision(
-            workspace_id, 
+            "default", 
             request.decision_type, 
             request.parameters
         )
