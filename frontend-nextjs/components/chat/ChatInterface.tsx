@@ -11,6 +11,7 @@ import { VoiceInput } from "@/components/Voice/VoiceInput";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
+import { CanvasHost } from "./CanvasHost";
 
 interface ChatInterfaceProps {
     sessionId: string | null;
@@ -245,7 +246,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-background">
+        <div className="flex flex-col h-full bg-background relative">
+            <CanvasHost lastMessage={lastMessage} />
             {/* Chat Header */}
             <div className="p-4 border-b border-border flex justify-between items-center bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div>
