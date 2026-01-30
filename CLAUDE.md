@@ -19,7 +19,7 @@
 - **Backend**: Python 3.11, FastAPI, SQLAlchemy 2.0
 - **Database**: SQLite (dev), PostgreSQL (production)
 - **AI/LLM**: Multi-provider (OpenAI, Anthropic, DeepSeek, Gemini)
-- **Architecture**: Modular, event-driven, workspace-based multi-tenancy
+- **Architecture**: Modular, event-driven, single-tenant
 
 **Key Directories**:
 - `backend/core/` - Core services (governance, agents, database models)
@@ -91,7 +91,6 @@ from core.agent_context_resolver import AgentContextResolver
 resolver = AgentContextResolver(db)
 agent, context = await resolver.resolve_agent_for_request(
     user_id="user-1",
-    workspace_id="workspace-1",
     action_type="stream_chat"
 )
 
@@ -120,7 +119,7 @@ if not check["allowed"]:
 ```python
 from core.llm.byok_handler import BYOKHandler
 
-handler = BYOKHandler(workspace_id="workspace-1", provider_id="auto")
+handler = BYOKHandler(provider_id="auto")
 
 async for token in handler.stream_completion(
     messages=messages,
@@ -157,8 +156,7 @@ await present_chart(
     chart_type="line_chart",
     data=[{"x": 1, "y": 2}],
     title="Sales Trend",
-    agent_id=agent_id,  # For governance
-    workspace_id="workspace-1"
+    agent_id=agent_id  # For governance
 )
 
 # Present a form
@@ -166,7 +164,7 @@ await present_form(
     user_id="user-1",
     form_schema={"fields": [...]},
     title="User Input",
-    agent_id=agent_id
+    agent_id=agent_id  # For governance
 )
 ```
 
@@ -181,7 +179,6 @@ await present_form(
 - `AgentExecution` - Execution records with audit trail
 - `CanvasAudit` - Canvas action audit log (NEW)
 - `ChatSession` - Chat session tracking
-- `Workspace` - Multi-tenant workspace isolation
 
 ---
 
@@ -369,7 +366,6 @@ import uuid
 execution = AgentExecution(
     id=str(uuid.uuid4()),
     agent_id=agent.id,
-    workspace_id=workspace_id,
     status="running",
     input_summary="User request: ...",
     triggered_by="api"
@@ -396,8 +392,7 @@ await present_chart(
     chart_type="line_chart",
     data=data,
     title=title,
-    agent_id=agent.id,  # Important for governance!
-    workspace_id=workspace_id
+    agent_id=agent.id  # Important for governance!
 )
 ```
 
@@ -600,7 +595,6 @@ Check database state:
 ```sql
 -- Agent executions
 SELECT * FROM agent_executions
-WHERE workspace_id = 'workspace-1'
 ORDER BY created_at DESC
 LIMIT 10;
 
@@ -745,9 +739,9 @@ Every AI action must be:
 - **Governable** - Checked against agent's maturity level
 - **Auditable** - Recorded in execution logs
 
-### 3. Workspace Isolation
+### 3. Single-Tenant Architecture
 
-All data is isolated by workspace. Always filter queries by `workspace_id`.
+Atom operates as a single-tenant system without workspace isolation. All queries operate on the global dataset.
 
 ### 4. Graceful Degradation
 
@@ -771,7 +765,7 @@ The governance cache provides sub-millisecond performance. Always cache governan
 
 ### Researching
 
-1. **Federated Learning** - Learn from multiple workspaces
+1. **Federated Learning** - Learn from user interactions across sessions
 2. **Transfer Learning** - Apply learnings across agents
 3. **Explainability** - Why was an action blocked/allowed?
 4. **Predictive Governance** - Predict agent success rates
