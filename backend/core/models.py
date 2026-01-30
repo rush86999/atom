@@ -726,22 +726,43 @@ class AgentExecution(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
     workspace_id = Column(String, nullable=False, index=True)
-    
+
     status = Column(String, default="running")
     input_summary = Column(Text, nullable=True)
     output_summary = Column(Text, nullable=True)
     triggered_by = Column(String, default="manual") # manual, schedule, websocket, event
-    
+
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
     duration_seconds = Column(Float, default=0.0)
-    
+
     result_summary = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
-    
+
     # Relationships
     agent = relationship("AgentRegistry")
-    workspace = relationship("Workspace")
+    # Note: workspace relationship removed - workspace_id is a string reference without FK constraint
+
+
+class CanvasAudit(Base):
+    """
+    Audit trail for canvas actions with governance tracking.
+    Records all presentations (charts, markdown, forms) and submissions.
+    """
+    __tablename__ = "canvas_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, nullable=True, index=True)
+    agent_execution_id = Column(String, nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    canvas_id = Column(String, nullable=True, index=True)
+    component_type = Column(String, nullable=False)  # 'chart', 'markdown', 'form', etc.
+    component_name = Column(String, nullable=True)  # 'line_chart', 'bar_chart', etc.
+    action = Column(String, nullable=False)  # 'present', 'close', 'submit'
+    audit_metadata = Column(JSON, default={})  # Renamed from 'metadata' (reserved)
+    governance_check_passed = Column(Boolean, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 class AgentTraceStep(Base):
     """

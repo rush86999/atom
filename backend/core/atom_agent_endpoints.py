@@ -62,6 +62,7 @@ class ChatRequest(BaseModel):
     current_page: Optional[str] = None
     context: Optional[Dict[str, Any]] = None
     conversation_history: List[ChatMessage] = []
+    agent_id: Optional[str] = None  # Explicit agent selection for governance
 
 class ExecuteGeneratedRequest(BaseModel):
     workflow_id: str
@@ -1475,14 +1476,85 @@ async def chat_stream_agent(request: ChatRequest):
     """
     Handle chat messages with streaming LLM responses.
     Tokens are broadcast via WebSocket as they arrive from the LLM.
+
+    Now includes agent governance integration with:
+    - Agent resolution and attribution
+    - Governance checks before streaming
+    - Agent execution tracking
+    - Performance-optimized caching
     """
+    # Feature flag for governance (can be disabled for emergencies)
+    import os
+    governance_enabled = os.getenv("STREAMING_GOVERNANCE_ENABLED", "true").lower() == "true"
+    emergency_bypass = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
+
+    agent = None
+    agent_execution = None
+    resolution_context = None
+    governance_check = None
+
     try:
         # Import streaming support
         from core.llm.byok_handler import BYOKHandler
         from core.websockets import manager as ws_manager
+        from core.database import SessionLocal
+        from core.agent_context_resolver import AgentContextResolver
+        from core.agent_governance_service import AgentGovernanceService
+        from core.models import AgentExecution
 
-        # Determine workspace and get BYOK handler
+        # Determine workspace
         ws_id = request.workspace_id or "default"
+
+        # ============================================
+        # GOVERNANCE: Agent Resolution & Validation
+        # ============================================
+        if governance_enabled and not emergency_bypass:
+            with SessionLocal() as db:
+                resolver = AgentContextResolver(db)
+                governance = AgentGovernanceService(db)
+
+                # Resolve agent for this request
+                agent, resolution_context = await resolver.resolve_agent_for_request(
+                    user_id=request.user_id,
+                    workspace_id=ws_id,
+                    session_id=request.session_id,
+                    requested_agent_id=request.agent_id,
+                    action_type="stream_chat"
+                )
+
+                if not agent:
+                    logger.warning("Agent resolution failed, using system default")
+
+                # Perform governance check
+                if agent:
+                    governance_check = governance.can_perform_action(
+                        agent_id=agent.id,
+                        action_type="stream_chat"
+                    )
+
+                    if not governance_check["allowed"]:
+                        logger.warning(f"Governance blocked: {governance_check['reason']}")
+                        return {
+                            "success": False,
+                            "error": f"Agent not permitted to stream chat: {governance_check['reason']}",
+                            "governance_check": governance_check
+                        }
+
+                    # Create AgentExecution record for audit trail
+                    agent_execution = AgentExecution(
+                        agent_id=agent.id,
+                        workspace_id=ws_id,
+                        status="running",
+                        input_summary=f"Stream chat: {request.message[:200]}...",
+                        triggered_by="websocket"
+                    )
+                    db.add(agent_execution)
+                    db.commit()
+                    db.refresh(agent_execution)
+
+                    logger.info(f"Agent execution {agent_execution.id} started for agent {agent.name}")
+
+        # Get BYOK handler
         byok_handler = BYOKHandler(workspace_id=ws_id, provider_id="auto")
 
         # Prepare messages for LLM
@@ -1490,7 +1562,6 @@ async def chat_stream_agent(request: ChatRequest):
 
         # Add system context if available
         try:
-            from core.database import SessionLocal
             from operations.system_intelligence_service import SystemIntelligenceService
 
             with SessionLocal() as db_session:
@@ -1540,7 +1611,8 @@ Provide helpful, concise responses. When you need to take actions, describe what
             requires_tools=False
         )
 
-        logger.info(f"Starting streaming chat with {provider_id}/{model}")
+        logger.info(f"Starting streaming chat with {provider_id}/{model}" +
+                   (f" (agent: {agent.name})" if agent else ""))
 
         # Create a unique message ID for this response
         message_id = str(uuid.uuid4())
@@ -1551,20 +1623,33 @@ Provide helpful, concise responses. When you need to take actions, describe what
             "type": "streaming:start",
             "id": message_id,
             "model": model,
-            "provider": provider_id
+            "provider": provider_id,
+            "agent_id": agent.id if agent else None,
+            "agent_name": agent.name if agent else None
         })
 
         # Stream tokens via WebSocket
         accumulated_content = ""
+        tokens_count = 0
+        start_time = datetime.now()
+
         try:
-            async for token in byok_handler.stream_completion(
-                messages=messages,
-                model=model,
-                provider_id=provider_id,
-                temperature=0.7,
-                max_tokens=2000
-            ):
+            # Stream with agent context if available
+            stream_kwargs = {
+                "messages": messages,
+                "model": model,
+                "provider_id": provider_id,
+                "temperature": 0.7,
+                "max_tokens": 2000
+            }
+
+            # Pass agent context for tracking
+            if agent and governance_enabled:
+                stream_kwargs["agent_id"] = agent.id
+
+            async for token in byok_handler.stream_completion(**stream_kwargs):
                 accumulated_content += token
+                tokens_count += 1
 
                 # Broadcast token to frontend
                 await ws_manager.broadcast(user_channel, {
@@ -1601,15 +1686,60 @@ Provide helpful, concise responses. When you need to take actions, describe what
             # Save assistant response
             chat_history.add_message(session_id, "assistant", accumulated_content)
 
+            # ============================================
+            # GOVERNANCE: Record execution outcome
+            # ============================================
+            if agent_execution and governance_enabled:
+                end_time = datetime.now()
+                duration_seconds = (end_time - start_time).total_seconds()
+
+                with SessionLocal() as db:
+                    execution = db.query(AgentExecution).filter(
+                        AgentExecution.id == agent_execution.id
+                    ).first()
+
+                    if execution:
+                        execution.status = "completed"
+                        execution.output_summary = f"Generated {tokens_count} tokens, {len(accumulated_content)} chars"
+                        execution.duration_seconds = duration_seconds
+                        execution.completed_at = end_time
+                        db.commit()
+
+                        # Record outcome for confidence scoring
+                        governance_service = AgentGovernanceService(db)
+                        await governance_service.record_outcome(agent.id, success=True)
+
+                        logger.info(f"Agent execution {execution.id} completed successfully")
+
             return {
                 "success": True,
                 "message_id": message_id,
                 "session_id": session_id,
-                "streamed": True
+                "streamed": True,
+                "agent_id": agent.id if agent else None,
+                "agent_name": agent.name if agent else None
             }
 
         except Exception as stream_error:
             logger.error(f"Streaming error: {stream_error}")
+
+            # Mark execution as failed
+            if agent_execution and governance_enabled:
+                with SessionLocal() as db:
+                    execution = db.query(AgentExecution).filter(
+                        AgentExecution.id == agent_execution.id
+                    ).first()
+
+                    if execution:
+                        execution.status = "failed"
+                        execution.error_message = str(stream_error)
+                        execution.completed_at = datetime.now()
+                        db.commit()
+
+                        # Record failure for confidence scoring
+                        governance_service = AgentGovernanceService(db)
+                        await governance_service.record_outcome(agent.id, success=False)
+
             # Send error via WebSocket
             await ws_manager.broadcast(user_channel, {
                 "type": ws_manager.STREAMING_ERROR,
