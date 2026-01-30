@@ -1,7 +1,7 @@
 <div align="center">
 
 # ATOM Platform
-### The AI Workforce for Your Entire Business
+### Open-Source AI Agent Platform for Self-Hosted Automation
 
 > **Developer Note:** For technical setup and architecture, please see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
@@ -16,9 +16,14 @@
 
 ## ✨ What is Atom?
 
-Atom is not just another automation tool; it is your **AI-powered digital workforce**. Atom combines the flexibility of visual workflow builders (like Zapier/Activepieces) with the intelligence of LLM-based agents.
+Atom is an **open-source, self-hosted AI agent platform** that combines the flexibility of visual workflow builders (like Zapier/Activepieces) with the intelligence of LLM-based agents.
 
 Just **speak** or **type** your request, and Atom's specialty agents — from Sales to Engineering — will plan, verify, and execute complex workflows across your entire tech stack.
+
+**🎓 Key Difference**: Unlike SaaS alternatives, Atom runs entirely in your own infrastructure. Your data never leaves your environment, and you maintain full control over:
+- Where your agents run (local, Docker, or your own cloud)
+- Which LLM providers to use (OpenAI, Anthropic, DeepSeek, Gemini, etc.)
+- How your data is stored and processed
 
 ---
 
@@ -26,59 +31,47 @@ Just **speak** or **type** your request, and Atom's specialty agents — from Sa
 
 ### 🎙️ **Voice Interface**
 **"Hey Atom, create a workflow to sync new Shopify orders to Slack."**
-- **Hands-Free Automation**: Build complex workflows using just your voice.
-- **Natural Language Understanding**: No need to learn propriety syntax; just speak naturally.
-- **Real-Time Feedback**: Watch as Atom visualizes its reasoning process step-by-step.
+- **Hands-Free Automation**: Build complex workflows using just your voice
+- **Natural Language Understanding**: No need to learn proprietary syntax
+- **Real-Time Feedback**: Watch as Atom visualizes its reasoning process step-by-step
 
 ### 🤖 **Specialty Agents**
 Why rely on generic AI when you can hire experts?
-- **Sales Agent**: Manages CRM pipelines, scores leads, and drafts outreach.
-- **Marketing Agent**: Automates campaigns, social posting, and analytics reports.
-- **Engineering Agent**: Handles PR notifications, deployments, and incident response.
-- **Governance**: Agents start as "Students" and earn "Autonomy" as they gain your trust.
+- **Sales Agent**: Manages CRM pipelines, scores leads, and drafts outreach
+- **Marketing Agent**: Automates campaigns, social posting, and analytics reports
+- **Engineering Agent**: Handles PR notifications, deployments, and incident response
+- **Governance**: Agents start as "Students" and earn "Autonomy" as they gain your trust
 
 ### 🛡️ **Agent Governance System**
-- **Maturity Levels**: Agents progress from 'Student' to 'Autonomous' based on performance.
-- **Approval Workflows**: Sensitive actions (like deployments) require human approval until confidence is high.
-- **Safety First**: "Computer Use" agents are strictly sandboxed and monitored.
+- **Maturity Levels**: Agents progress from 'Student' to 'Autonomous' based on performance
+- **Approval Workflows**: Sensitive actions (like deployments) require human approval until confidence is high
+- **Safety First**: All agent actions are logged, timestamped, and traceable
 
 ### 🧠 **Universal Memory & Context**
 Atom remembers everything so you don't have to repeat yourself.
-- **Capability Recall**: Agents use long-term memory to remember which services you've connected, allowing them to proactively suggest actions.
-- **Unified Index**: Emails, Notion docs, Jira tickets, and Slack threads are indexed for instant retrieval.
-- **Knowledge Graph**: Atom builds a graph of your people, projects, and tasks to understand *relationships*, not just keywords.
-- **Trusted Memory (New)**: Store critical business facts (policies, compliance rules) with **JIT Citations**. Agents must "Trust but Verify" these facts against the source document before acting, ensuring 100% adherence to your rules.
-- **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted (Fernet at-rest).
-- **Self-Evolving World Model**: Agents store and retrieve past "experiences" to learn from success and failure. See [docs/ai-world-model.md](docs/ai-world-model.md).
+- **Capability Recall**: Agents use long-term memory to remember which services you've connected, enabling proactive suggestions
+- **Unified Index**: Emails, Notion docs, Jira tickets, and Slack threads are indexed for instant retrieval
+- **Knowledge Graph**: Atom builds a graph of your people, projects, and tasks to understand *relationships*, not just keywords
+- **Trusted Memory**: Store critical business facts (policies, compliance rules) with **JIT Citations**. Agents must "Trust but Verify" these facts against source documents before acting
+- **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted (Fernet at-rest)
+- **Self-Evolving World Model**: Agents store and retrieve past "experiences" to learn from success and failure. See [docs/ai-world-model.md](docs/ai-world-model.md)
 
-### 🛠️ **Dynamic Skill Creation (Moltbot)**
-- **Runtime Tool Discovery**: Agents can now identify gaps in their toolset and "build" new tools on-the-fly.
-- **Support for Multi-Runtime**: Automated generation of Script, API, and Docker-based skills from natural language instructions.
-- **Cross-Environment Parity**: Skills created locally in the desktop app can be promoted to cloud-native container skills automatically.
+### 🛠️ **Dynamic Skill Creation**
+- **Runtime Tool Discovery**: Agents can identify gaps in their toolset and "build" new tools on-the-fly
+- **Multi-Runtime Support**: Automated generation of Script, API, and Docker-based skills from natural language
+- **Self-Hosted Execution**: All skills execute locally in your environment using Docker or Node.js VM
 
 ### 🔌 **Deep Integrations & Desktop Access**
-- **Hybrid Engine**: Python orchestration + Node.js Piece Engine for the full **ActivePieces** catalog.
-- **Desktop Memory Ingestion**: Restored local folder access for the Tauri application, enabling seamless indexing of `$DESKTOP` knowledge.
-- **Node-on-Demand**: Integrations are installed dynamically on-the-fly to ensure the catalog is always up-to-date.
+- **Hybrid Engine**: Python orchestration + Node.js Piece Engine for the full **ActivePieces** catalog
+- **Desktop Memory Ingestion**: Local folder access for the Tauri application, enabling seamless indexing of `$DESKTOP` knowledge
+- **Node-on-Demand**: Integrations are installed dynamically on-the-fly to ensure the catalog is always up-to-date
 
-### 🏢 **Unified Command Centers**
-Atom provides a single plane of glass for your departmental operations.
-- **Project Command Center**: Unified task view across Jira, Asana, Trello, and Monday.
-- **Sales Command Center**: Aggregated pipeline from Salesforce, HubSpot, and Zoho CRM.
-- **Support Command Center**: Unified inbox for Zendesk, Freshdesk, and Intercom tickets.
-- **Knowledge Command Center**: Global Intelligence Hub for searching across GDrive, OneDrive, Zoho WorkDrive, and Notion.
-
-### 🤝 **Real-time Collaboration**
-- **In-Context Discussion**: Every Command Center includes a real-time side-chat for team alignment.
-- **Hybrid Chat**: Discussion threads include both humans and specialty agents, allowing for seamless AI-assisted collaboration.
-- **Presence Tracking**: See exactly which dashboard your team members are viewing in real-time.
-
-### 🌐 **Universal Communication Bridge** (New)
+### 🌐 **Universal Communication Bridge**
 Seamlessly interact with your workforce from any platform.
-- **Unified Messaging**: One standard interface for **11+ platforms**, including Slack, WhatsApp, Discord, Microsoft Teams, Telegram, Google Chat, Twilio (SMS), Matrix, Facebook Messenger, Line, and Signal.
-- **Platform Native Commands**: Use `/run`, `/workflow`, and `/agents` directly from your favorite chat app to trigger tasks and discover fellow agents.
-- **Agent-to-Agent Loop**: Agents can now discover and delegate tasks to each other directly via the bridge.
-- **Async Feedback**: Delegated tasks automatically route their results back to the requester, whether it's a user or another agent.
+- **Unified Messaging**: One standard interface for **11+ platforms**, including Slack, WhatsApp, Discord, Microsoft Teams, Telegram, Google Chat, Twilio (SMS), Matrix, Facebook Messenger, Line, and Signal
+- **Platform Native Commands**: Use `/run`, `/workflow`, and `/agents` directly from your favorite chat app
+- **Agent-to-Agent Communication**: Agents can discover and delegate tasks to each other directly via the bridge
+- **Async Feedback**: Delegated tasks automatically route their results back to the requester
 
 ---
 
@@ -103,28 +96,132 @@ git clone https://github.com/rush86999/atom.git
 cd atom
 docker-compose up -d
 ```
+
 Access the dashboard at: **http://localhost:3000**
 
 > For detailed installation guides, configuration options, and architecture diagrams, please refer to our **[Development Guide](docs/DEVELOPMENT.md)**.
 
 ---
 
-## 🔒 Enterprise-Grade Security
-- **BYOK (Bring Your Own Key)**: Use your own OpenAI, Anthropic, or Gemini keys with strict budget limits.
-- **Human-in-the-Loop**: designated workflows require manual approval before execution.
-- **Audit Logs**: Every action taken by an agent is logged, timestamped, and traceable.
+## 🔒 Security & Privacy
+
+### Data Sovereignty
+- **Self-Hosted Only**: Atom is designed to run entirely in your own infrastructure
+- **No Data Egress**: Your data never leaves your environment
+- **Full Control**: You control where agents run, how data is stored, and who has access
+
+### BYOK (Bring Your Own Key)
+- Use your own OpenAI, Anthropic, Gemini, DeepSeek, or other LLM provider keys
+- Support for multiple LLM providers with intelligent cost-based routing
+- No vendor lock-in - switch providers anytime
+
+### Enterprise-Grade Security
+- **Human-in-the-Loop**: Designated workflows require manual approval before execution
+- **Audit Logs**: Every action taken by an agent is logged, timestamped, and traceable
+- **Encrypted Storage**: Sensitive data encrypted at-rest using Fernet
+- **Agent Governance**: Configurable approval policies based on agent maturity levels
+
+---
+
+## 🏗️ Architecture
+
+Atom is built with modern, scalable technologies:
+
+### Backend
+- **FastAPI** - High-performance Python API framework
+- **PostgreSQL** - Reliable relational database
+- **SQLAlchemy** - Powerful ORM for database operations
+- **Redis** - Caching and message queue
+- **WebSocket** - Real-time communication
+
+### Frontend
+- **Next.js 14** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first styling
+- **shadcn/ui** - Beautiful, accessible component library
+- **Tauri** - Desktop application framework
+
+### AI/ML
+- **Multi-LLM Support** - OpenAI, Anthropic, DeepSeek, Gemini, and more
+- **ReAct Framework** - Reasoning + Acting agent loop
+- **Vector Database** - Semantic search and memory retrieval
+- **Knowledge Graph** - Relationship-aware information storage
+
+---
+
+## 📦 What's Included
+
+- ✅ Complete backend API with FastAPI
+- ✅ Modern Next.js frontend with TypeScript
+- ✅ Desktop app support (Tauri)
+- ✅ 46+ pre-built integrations (Slack, Gmail, HubSpot, Salesforce, etc.)
+- ✅ Multi-platform communication bridge (11+ platforms)
+- ✅ Dynamic skill creation system
+- ✅ Agent governance and maturity system
+- ✅ Memory and knowledge graph systems
+- ✅ Voice interface support
+- ✅ Docker deployment configuration
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Development Setup
+```bash
+# Clone the repository
+git clone https://github.com/rush86999/atom.git
+cd atom
+
+# Install backend dependencies
+cd backend
+pip install -r requirements.txt
+
+# Install frontend dependencies
+cd ../src
+npm install
+
+# Start development servers
+# Backend (terminal 1):
+cd backend && uvicorn main:app --reload
+
+# Frontend (terminal 2):
+cd src && npm run dev
+```
+
+---
+
+## 📖 Documentation
+
+- [Development Guide](docs/DEVELOPMENT.md) - Technical setup and architecture
+- [Architecture Overview](docs/ARCHITECTURE.md) - System design and components
+- [Integration Guide](docs/INTEGRATIONS.md) - Adding new integrations
+- [Agent Governance](docs/AGENT_GOVERNANCE.md) - Understanding agent maturity and approval workflows
 
 ---
 
 ## 📞 Support & Community
 
-- **Documentation**: Check the `docs/` directory for in-depth guides.
+- **Documentation**: Check the `docs/` directory for in-depth guides
 - **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
 - **License**: AGPL v3 - See [LICENSE.md](LICENSE.md)
 
+---
+
+## 🙏 Acknowledgments
+
+Atom is built on top of amazing open-source projects:
+- [ActivePieces](https://www.activepieces.com/) - Workflow automation engine
+- [LangChain](https://langchain.com/) - LLM application framework
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [Next.js](https://nextjs.org/) - React framework
+- [Tauri](https://tauri.app/) - Desktop application framework
+
 <div align="center">
 
-**Experience the future of work.**
-[Get Started](#-getting-started)
+**Experience the future of self-hosted AI automation.**
+
+[Get Started](#-getting-started) | [Documentation](docs/) | [Contributing](CONTRIBUTING.md)
 
 </div>

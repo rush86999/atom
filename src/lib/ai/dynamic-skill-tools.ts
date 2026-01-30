@@ -85,44 +85,10 @@ export class DynamicSkillBuilder {
     }
 
     /**
-     * Register a new containerized skill (Fly.io Machine)
+     * Register a new Docker-based skill
+     * Note: Container skill type removed (was SaaS-specific Fly.io cloud execution)
      */
-    async registerContainerSkill(
-        workspaceId: string,
-        agentId: string,
-        params: {
-            name: string;
-            description: string;
-            image: string;
-            env?: Record<string, string>;
-            inputSchema: any;
-            outputSchema: any;
-        }
-    ): Promise<SkillDefinition> {
-        const skill = await this.skillRegistry.createSkill({
-            workspaceId,
-            name: params.name,
-            description: params.description,
-            version: '1.0.0',
-            type: 'container',
-            inputSchema: params.inputSchema,
-            outputSchema: params.outputSchema,
-            config: {
-                image: params.image,
-                env: params.env || {}
-            },
-            isPublic: false
-        });
-
-        // Automatically assign to the agent that created it
-        await this.skillRegistry.assignSkillToAgent(agentId, skill.id);
-
-        return skill;
-    }
-
-    /**
-     * Register a new local Docker skill (Desktop/Tauri only)
-     */
+    async registerDockerSkill(
     async registerDockerSkill(
         workspaceId: string,
         agentId: string,

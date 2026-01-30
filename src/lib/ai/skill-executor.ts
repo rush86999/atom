@@ -1,7 +1,6 @@
 import { DatabaseService, getDatabase } from '../database';
 import { SkillDefinition } from './skill-registry';
 import { parseArgsStringToArgv } from 'string-argv';
-import axios from 'axios';
 
 export interface SkillExecutionResult {
     executionId: string;
@@ -9,7 +8,6 @@ export interface SkillExecutionResult {
     result: any;
     error?: string;
     durationMs: number;
-    acus?: number; // SaaS specific: Compute units consumed
 }
 
 export class SkillExecutorService {
@@ -42,7 +40,6 @@ export class SkillExecutorService {
 
         try {
             let result: any;
-            let acus: number | undefined;
 
             // 2. Route execution based on type
             switch (skill.type) {
@@ -53,20 +50,7 @@ export class SkillExecutorService {
                     result = await this.executeScriptSkill(skill, params, configOverrides);
                     break;
                 case 'docker':
-                    // Map docker skills to container skills if running in cloud (SaaS mode with workspaceId)
-                    if (workspaceId && process.env.NODE_ENV === 'production') {
-                        console.log(`[SkillExecutor] Mapping local docker skill to cloud container for workspace ${workspaceId}`);
-                        const containerResult = await this.executeContainerSkill(skill, params, agentId, workspaceId, configOverrides);
-                        result = containerResult.result;
-                        acus = containerResult.acus;
-                    } else {
-                        result = await this.executeDockerSkill(skill, params, configOverrides);
-                    }
-                    break;
-                case 'container':
-                    const containerRes = await this.executeContainerSkill(skill, params, agentId, workspaceId, configOverrides);
-                    result = containerRes.result;
-                    acus = containerRes.acus;
+                    result = await this.executeDockerSkill(skill, params, configOverrides);
                     break;
                 default:
                     throw new Error(`Unsupported skill type: ${skill.type}`);
@@ -75,18 +59,17 @@ export class SkillExecutorService {
             // 3. Update execution record on success
             const duration = Date.now() - startTime;
             await this.db.query(
-                `UPDATE skill_executions 
-                 SET status = 'completed', output_result = $1, execution_time_ms = $2, execution_seconds = $3
-                 WHERE id = $4`,
-                [JSON.stringify(result), duration, acus ? Math.ceil(acus) : 0, executionId]
+                `UPDATE skill_executions
+                 SET status = 'completed', output_result = $1, execution_time_ms = $2
+                 WHERE id = $3`,
+                [JSON.stringify(result), duration, executionId]
             );
 
             return {
                 executionId,
                 status: 'completed',
                 result,
-                durationMs: duration,
-                acus
+                durationMs: duration
             };
 
         } catch (error: any) {
@@ -242,30 +225,6 @@ export class SkillExecutorService {
         }
     }
 
-    /**
-     * Execute a Container skill via Fly.io Machines (Cloud Environment)
-     */
-    private async executeContainerSkill(skill: SkillDefinition, params: any, agentId: string, workspaceId: string | null, overrides?: any): Promise<{ result: any, acus: number }> {
-        if (!workspaceId) throw new Error('Workspace context required for cloud execution');
-
-        const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:8000';
-
-        try {
-            const response = await axios.post(`${backendUrl}/api/v1/skills/execute`, {
-                skill_id: skill.id,
-                agent_id: agentId,
-                input_params: params
-            }, {
-                params: { workspace_id: workspaceId }
-            });
-
-            return {
-                result: response.data.result,
-                acus: response.data.acus_consumed || 0
-            };
-        } catch (error: any) {
-            const detail = error.response?.data?.detail || error.message;
-            throw new Error(`Cloud container execution failed: ${detail}`);
-        }
-    }
 }
+// Note: executeContainerSkill removed (was SaaS-specific Fly.io cloud execution)
+// executeDockerSkill remains for local/self-hosted Docker execution
