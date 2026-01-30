@@ -8,9 +8,9 @@ export const ACTION_COMPLEXITY: Record<string, number> = {
     // Medium-low
     "analyze": 2, "suggest": 2, "draft": 2, "generate": 2, "recommend": 2,
     // Medium
-    "create": 3, "update": 3, "send_email": 3, "post_message": 3, "schedule": 3,
+    "create": 3, "update": 3, "send_email": 3, "post_message": 3, "schedule": 3, "ingest": 3,
     // High
-    "delete": 4, "execute": 4, "deploy": 4, "transfer": 4, "payment": 4, "approve": 4,
+    "delete": 4, "execute": 4, "deploy": 4, "transfer": 4, "payment": 4, "approve": 4, "register": 4,
 }
 
 export const MATURITY_REQUIREMENTS: Record<number, MaturityLevel> = {

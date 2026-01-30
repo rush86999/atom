@@ -51,10 +51,14 @@ Atom remembers everything so you don't have to repeat yourself.
 - **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted (Fernet at-rest).
 - **Self-Evolving World Model**: Agents store and retrieve past "experiences" to learn from success and failure. See [docs/ai-world-model.md](docs/ai-world-model.md).
 
-### 🔌 **Deep Integrations (Hybrid Runtime)**
-Connect your entire business ecosystem with over **500+ apps**.
+### 🛠️ **Dynamic Skill Creation (Moltbot)**
+- **Runtime Tool Discovery**: Agents can now identify gaps in their toolset and "build" new tools on-the-fly.
+- **Support for Multi-Runtime**: Automated generation of Script, API, and Docker-based skills from natural language instructions.
+- **Cross-Environment Parity**: Skills created locally in the desktop app can be promoted to cloud-native container skills automatically.
+
+### 🔌 **Deep Integrations & Desktop Access**
 - **Hybrid Engine**: Python orchestration + Node.js Piece Engine for the full **ActivePieces** catalog.
-- **Swarm Discovery**: Every specialty agent now inherently "knows" how to list workflows, trigger automations, and call integrations.
+- **Desktop Memory Ingestion**: Restored local folder access for the Tauri application, enabling seamless indexing of `$DESKTOP` knowledge.
 - **Node-on-Demand**: Integrations are installed dynamically on-the-fly to ensure the catalog is always up-to-date.
 
 ### 🏢 **Unified Command Centers**
