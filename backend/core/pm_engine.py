@@ -26,7 +26,7 @@ class AIProjectManager:
         self.analytics = WorkforceAnalyticsService(db_session=db_session)
         self.reasoning = ResourceReasoningEngine(db_session=db_session)
 
-    async def generate_project_from_nl(self, prompt: str, user_id: str, workspace_id: str, contract_id: Optional[str] = None) -> Dict[str, Any]:
+    async def generate_project_from_nl(self, prompt: str, user_id: str, workspace_id: str = "default", contract_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Translates a natural language prompt into a structured Project -> Milestone -> Task hierarchy.
         """
@@ -229,7 +229,7 @@ class AIProjectManager:
             if not self.db_session:
                 db.close()
 
-    async def auto_assign_resources(self, project_id: str, workspace_id: str) -> Dict[str, Any]:
+    async def auto_assign_resources(self, project_id: str, workspace_id: str = "default") -> Dict[str, Any]:
         """
         Automatically assigns the best team members to all tasks in a project.
         """
@@ -262,7 +262,7 @@ class AIProjectManager:
             if not self.db_session:
                 db.close()
 
-    async def trigger_autonomous_correction(self, workspace_id: str, project_id: Optional[str] = None) -> Dict[str, Any]:
+    async def trigger_autonomous_correction(self, workspace_id: str = "default", project_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Invokes the PM Swarm to analyze the current state and apply autonomous corrections.
         """

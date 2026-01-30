@@ -16,7 +16,7 @@ class SystemIntelligenceService:
         self.forensics_service = FinancialForensicsService(db)
         self.protection_service = CustomerProtectionService(db)
 
-    def get_aggregated_context(self, workspace_id: str) -> str:
+    def get_aggregated_context(self, workspace_id: str = "default") -> str:
         """
         Aggregates critical business intelligence into a natural language summary
         for the Main Chat agent.

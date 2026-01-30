@@ -14,7 +14,7 @@ class FinancialForensicsService:
     def __init__(self, db: Session):
         self.db = db
 
-    def analyze_vendor_price_drift(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def analyze_vendor_price_drift(self, workspace_id: str = "default") -> List[Dict[str, Any]]:
         """
         Detects vendors whose average bill amount has increased by >15% over the last 90 days.
         """
@@ -60,7 +60,7 @@ class FinancialForensicsService:
                     
         return alerts
 
-    def detect_subscription_waste(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def detect_subscription_waste(self, workspace_id: str = "default") -> List[Dict[str, Any]]:
         """
         Identifies recurring monthly payments that might be unused.
         """
@@ -101,7 +101,7 @@ class FinancialForensicsService:
 
         return waste_candidates
 
-    def analyze_pricing_margins(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def analyze_pricing_margins(self, workspace_id: str = "default") -> List[Dict[str, Any]]:
         """
         Detects products sold with low margins (< 20%) based on Cost of Goods Sold estimates.
         """

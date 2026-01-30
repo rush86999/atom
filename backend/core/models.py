@@ -591,7 +591,6 @@ class ChatSession(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, nullable=False, index=True)
-    workspace_id = Column(String, default="default", index=True) # Standardized for Upstream
     title = Column(String, nullable=True) # First message summary or custom title
     metadata_json = Column(JSON, default={}) # For storing 'source', 'context', etc.
     
@@ -725,7 +724,7 @@ class AgentExecution(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
-    workspace_id = Column(String, nullable=False, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
 
     status = Column(String, default="running")
     input_summary = Column(Text, nullable=True)
@@ -752,7 +751,7 @@ class CanvasAudit(Base):
     __tablename__ = "canvas_audit"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workspace_id = Column(String, nullable=False, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
     agent_id = Column(String, nullable=True, index=True)
     agent_execution_id = Column(String, nullable=True, index=True)
     user_id = Column(String, nullable=False, index=True)

@@ -33,7 +33,6 @@ EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").
 
 async def _create_canvas_audit(
     db: Session,
-    workspace_id: str,
     agent_id: Optional[str],
     agent_execution_id: Optional[str],
     user_id: str,
@@ -52,7 +51,7 @@ async def _create_canvas_audit(
     try:
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id=workspace_id,
+            workspace_id="default",
             agent_id=agent_id,
             agent_execution_id=agent_execution_id,
             user_id=user_id,
@@ -78,7 +77,6 @@ async def present_chart(
     data: List[Dict[str, Any]],
     title: str = None,
     agent_id: Optional[str] = None,
-    workspace_id: str = "default",
     **kwargs
 ):
     """
@@ -109,7 +107,6 @@ async def present_chart(
                 # Resolve agent
                 agent, resolution_context = await resolver.resolve_agent_for_request(
                     user_id=user_id,
-                    workspace_id=workspace_id,
                     requested_agent_id=agent_id,
                     action_type="present_chart"
                 )
@@ -131,7 +128,7 @@ async def present_chart(
                     # Create agent execution record
                     agent_execution = AgentExecution(
                         agent_id=agent.id,
-                        workspace_id=workspace_id,
+                        workspace_id="default",
                         status="running",
                         input_summary=f"Present {chart_type}: {title or 'Untitled'}",
                         triggered_by="canvas"
@@ -164,7 +161,6 @@ async def present_chart(
             with SessionLocal() as db:
                 await _create_canvas_audit(
                     db=db,
-                    workspace_id=workspace_id,
                     agent_id=agent.id if agent else None,
                     agent_execution_id=agent_execution.id if agent_execution else None,
                     user_id=user_id,
@@ -232,8 +228,7 @@ async def present_status_panel(
     user_id: str,
     items: List[Dict[str, Any]],
     title: str = None,
-    agent_id: Optional[str] = None,
-    workspace_id: str = "default"
+    agent_id: Optional[str] = None
 ):
     """
     Send a status panel to the frontend canvas with governance integration.
@@ -259,7 +254,6 @@ async def present_status_panel(
 
                 agent, _ = await resolver.resolve_agent_for_request(
                     user_id=user_id,
-                    workspace_id=workspace_id,
                     requested_agent_id=agent_id,
                     action_type="present_chart"
                 )
@@ -304,8 +298,7 @@ async def present_markdown(
     user_id: str,
     content: str,
     title: str = None,
-    agent_id: Optional[str] = None,
-    workspace_id: str = "default"
+    agent_id: Optional[str] = None
 ):
     """
     Send markdown content to the frontend canvas with governance integration.
@@ -332,7 +325,6 @@ async def present_markdown(
 
                 agent, _ = await resolver.resolve_agent_for_request(
                     user_id=user_id,
-                    workspace_id=workspace_id,
                     requested_agent_id=agent_id,
                     action_type="present_markdown"
                 )
@@ -353,7 +345,7 @@ async def present_markdown(
                     # Create execution record
                     agent_execution = AgentExecution(
                         agent_id=agent.id,
-                        workspace_id=workspace_id,
+                        workspace_id="default",
                         status="running",
                         input_summary=f"Present markdown: {title or 'Untitled'}",
                         triggered_by="canvas"
@@ -384,7 +376,6 @@ async def present_markdown(
             with SessionLocal() as db:
                 await _create_canvas_audit(
                     db=db,
-                    workspace_id=workspace_id,
                     agent_id=agent.id if agent else None,
                     agent_execution_id=agent_execution.id if agent_execution else None,
                     user_id=user_id,
@@ -425,8 +416,7 @@ async def present_form(
     user_id: str,
     form_schema: Dict[str, Any],
     title: str = None,
-    agent_id: Optional[str] = None,
-    workspace_id: str = "default"
+    agent_id: Optional[str] = None
 ):
     """
     Present a form to the user with governance integration.
@@ -456,7 +446,6 @@ async def present_form(
 
                 agent, _ = await resolver.resolve_agent_for_request(
                     user_id=user_id,
-                    workspace_id=workspace_id,
                     requested_agent_id=agent_id,
                     action_type="present_form"
                 )
@@ -477,7 +466,7 @@ async def present_form(
                     # Create execution record
                     agent_execution = AgentExecution(
                         agent_id=agent.id,
-                        workspace_id=workspace_id,
+                        workspace_id="default",
                         status="running",
                         input_summary=f"Present form: {title or 'Untitled'}",
                         triggered_by="canvas"
@@ -508,7 +497,6 @@ async def present_form(
             with SessionLocal() as db:
                 await _create_canvas_audit(
                     db=db,
-                    workspace_id=workspace_id,
                     agent_id=agent.id if agent else None,
                     agent_execution_id=agent_execution.id if agent_execution else None,
                     user_id=user_id,

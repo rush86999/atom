@@ -46,16 +46,14 @@ def get_workspace_id() -> str:
 
 
 @router.get("/usage", response_model=UsageSummaryResponse)
-async def get_integration_usage(
-    workspace_id: str = Depends(get_workspace_id)
-):
+async def get_integration_usage():
     """
     Get usage summary for all integrations in workspace.
     Shows which integrations have auto-sync enabled and their sync status.
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
-        service = get_hybrid_ingestion_service(workspace_id)
+        service = get_hybrid_ingestion_service("default")
         summary = service.get_usage_summary()
         return UsageSummaryResponse(**summary)
     except Exception as e:
@@ -65,8 +63,7 @@ async def get_integration_usage(
 
 @router.post("/enable-sync")
 async def enable_auto_sync(
-    request: EnableSyncRequest,
-    workspace_id: str = Depends(get_workspace_id)
+    request: EnableSyncRequest
 ):
     """
     Enable automatic data sync for an integration.
@@ -78,7 +75,7 @@ async def enable_auto_sync(
             SyncConfiguration
         )
         
-        service = get_hybrid_ingestion_service(workspace_id)
+        service = get_hybrid_ingestion_service("default")
         
         config = None
         if request.entity_types:
@@ -108,15 +105,14 @@ async def enable_auto_sync(
 
 @router.post("/disable-sync/{integration_id}")
 async def disable_auto_sync(
-    integration_id: str,
-    workspace_id: str = Depends(get_workspace_id)
+    integration_id: str
 ):
     """
     Disable automatic data sync for an integration.
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
-        service = get_hybrid_ingestion_service(workspace_id)
+        service = get_hybrid_ingestion_service("default")
         service.disable_auto_sync(integration_id)
         
         return {
@@ -132,15 +128,14 @@ async def disable_auto_sync(
 @router.post("/sync/{integration_id}", response_model=SyncResponse)
 async def trigger_sync(
     integration_id: str,
-    force: bool = Query(False, description="Force sync even if recently synced"),
-    workspace_id: str = Depends(get_workspace_id)
+    force: bool = Query(False, description="Force sync even if recently synced")
 ):
     """
     Manually trigger a data sync for an integration.
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
-        service = get_hybrid_ingestion_service(workspace_id)
+        service = get_hybrid_ingestion_service("default")
         result = await service.sync_integration_data(integration_id, force=force)
         
         return SyncResponse(
@@ -159,15 +154,14 @@ async def trigger_sync(
 
 @router.get("/sync-status/{integration_id}")
 async def get_sync_status(
-    integration_id: str,
-    workspace_id: str = Depends(get_workspace_id)
+    integration_id: str
 ):
     """
     Get sync status for a specific integration.
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
-        service = get_hybrid_ingestion_service(workspace_id)
+        service = get_hybrid_ingestion_service("default")
         
         stats = service.usage_stats.get(integration_id)
         config = service.sync_configs.get(integration_id)

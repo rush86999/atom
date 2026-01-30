@@ -77,16 +77,14 @@ def get_workspace_id() -> str:
 # ==================== API Endpoints ====================
 
 @router.get("/settings", response_model=List[IngestionSettingsResponse])
-async def get_all_ingestion_settings(
-    workspace_id: str = Depends(get_workspace_id)
-):
+async def get_all_ingestion_settings():
     """
     Get document ingestion settings for all integrations.
     Shows which integrations have auto-sync enabled.
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service(workspace_id)
+        service = get_document_ingestion_service("default")
         settings_list = service.get_all_settings()
         return [IngestionSettingsResponse(**s) for s in settings_list]
     except Exception as e:
@@ -96,15 +94,14 @@ async def get_all_ingestion_settings(
 
 @router.get("/settings/{integration_id}", response_model=IngestionSettingsResponse)
 async def get_integration_settings(
-    integration_id: str,
-    workspace_id: str = Depends(get_workspace_id)
+    integration_id: str
 ):
     """
     Get document ingestion settings for a specific integration.
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service(workspace_id)
+        service = get_document_ingestion_service("default")
         settings = service.get_settings(integration_id)
         
         return IngestionSettingsResponse(
@@ -124,8 +121,7 @@ async def get_integration_settings(
 
 @router.put("/settings")
 async def update_ingestion_settings(
-    request: IngestionSettingsRequest,
-    workspace_id: str = Depends(get_workspace_id)
+    request: IngestionSettingsRequest
 ):
     """
     Update document ingestion settings for an integration.
@@ -133,7 +129,7 @@ async def update_ingestion_settings(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service(workspace_id)
+        service = get_document_ingestion_service("default")
         
         settings = service.update_settings(
             integration_id=request.integration_id,
@@ -160,8 +156,7 @@ async def update_ingestion_settings(
 @router.post("/sync/{integration_id}", response_model=SyncResultResponse)
 async def trigger_document_sync(
     integration_id: str,
-    force: bool = Query(False, description="Force sync even if recently synced"),
-    workspace_id: str = Depends(get_workspace_id)
+    force: bool = Query(False, description="Force sync even if recently synced")
 ):
     """
     Trigger a document sync for an integration.
@@ -169,7 +164,7 @@ async def trigger_document_sync(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service(workspace_id)
+        service = get_document_ingestion_service("default")
         result = await service.sync_integration(integration_id, force=force)
         
         return SyncResultResponse(
@@ -188,8 +183,7 @@ async def trigger_document_sync(
 
 @router.delete("/memory/{integration_id}", response_model=RemoveMemoryResponse)
 async def remove_integration_memory(
-    integration_id: str,
-    workspace_id: str = Depends(get_workspace_id)
+    integration_id: str
 ):
     """
     Remove all ingested documents from a specific integration.
@@ -198,7 +192,7 @@ async def remove_integration_memory(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service(workspace_id)
+        service = get_document_ingestion_service("default")
         result = await service.remove_integration_documents(integration_id)
         
         return RemoveMemoryResponse(
@@ -215,8 +209,7 @@ async def remove_integration_memory(
 @router.get("/documents")
 async def list_ingested_documents(
     integration_id: Optional[str] = Query(None, description="Filter by integration"),
-    file_type: Optional[str] = Query(None, description="Filter by file type"),
-    workspace_id: str = Depends(get_workspace_id)
+    file_type: Optional[str] = Query(None, description="Filter by file type")
 ):
     """
     List all ingested documents.
@@ -224,7 +217,7 @@ async def list_ingested_documents(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service(workspace_id)
+        service = get_document_ingestion_service("default")
         docs = service.get_ingested_documents(integration_id, file_type)
         
         return {
@@ -379,8 +372,7 @@ async def get_ocr_status():
 @router.post("/parse", response_model=ParseResultResponse)
 async def parse_document_file(
     file: UploadFile = File(...),
-    export_format: str = Query("markdown", description="Output format: markdown, text, json, html"),
-    workspace_id: str = Depends(get_workspace_id)
+    export_format: str = Query("markdown", description="Output format: markdown, text, json, html")
 ):
     """
     Directly parse a document file and return its content.

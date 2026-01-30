@@ -14,7 +14,7 @@ class EarlyWarningSystem:
     def __init__(self, db: Session):
         self.db = db
 
-    def monitor_financial_health(self, workspace_id: str) -> List[Dict[str, Any]]:
+    def monitor_financial_health(self, workspace_id: str = "default") -> List[Dict[str, Any]]:
         """
         Monitors valid leading indicators of trouble.
         1. AR Aging (invoices taking longer to pay).

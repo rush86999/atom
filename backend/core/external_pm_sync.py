@@ -13,7 +13,7 @@ class ExternalPMSyncService:
     Handles synchronization of projects and tasks with external PM tools.
     """
 
-    async def sync_project_to_external(self, project_id: str, platform: str, workspace_id: str) -> Dict[str, Any]:
+    async def sync_project_to_external(self, project_id: str, platform: str, workspace_id: str = "default") -> Dict[str, Any]:
         """
         Mirrors an Atom project and its tasks to an external platform.
         """

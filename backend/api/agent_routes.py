@@ -296,8 +296,7 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
             logger.info(f"Executing Agent {agent.name} with ReAct Loop. Input: {task_input}")
             
             async def streaming_callback(step_record):
-                workspace_id = params.get("workspace_id") or "default"
-                await ws_manager.broadcast(f"workspace:{workspace_id}", {
+                await ws_manager.broadcast("workspace:default", {
                     "type": "agent_step_update",
                     "agent_id": agent_id,
                     "step": step_record
@@ -309,8 +308,7 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
             result = result_obj
             
             # Success Notification
-            workspace_id = params.get("workspace_id") or "default"
-            await ws_manager.broadcast(f"workspace:{workspace_id}", {
+            await ws_manager.broadcast("workspace:default", {
                 "type": "agent_status_change",
                 "agent_id": agent_id,
                 "status": "success",
@@ -382,8 +380,7 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
         )
         
         # Notify UI Status
-        workspace_id = params.get("workspace_id") or "default"
-        await ws_manager.broadcast(f"workspace:{workspace_id}", {
+        await ws_manager.broadcast("workspace:default", {
             "type": "agent_status_change",
             "agent_id": agent_id,
             "status": "failed",
@@ -424,8 +421,6 @@ async def execute_atom(
     
     # Determine workspace from user context
     workspace_id = "default"
-    if hasattr(user, "workspaces") and user.workspaces:
-        workspace_id = user.workspaces[0].id
 
     result = await handle_manual_trigger(
         request=req.request,

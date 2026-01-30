@@ -11,28 +11,26 @@ router = APIRouter()
 
 @router.get("/churn")
 async def get_churn_risk(
-    workspace_id: str = "default",
     db: Session = Depends(get_db)
 ):
     """Predict customer churn risks"""
     try:
         services = get_risk_services(db)
-        data = await services["churn"].predict_churn_risk(workspace_id)
+        data = await services["churn"].predict_churn_risk("default")
         return {"success": True, "data": data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/financial")
 async def get_financial_risk(
-    workspace_id: str = "default",
     db: Session = Depends(get_db)
 ):
     """Get AR delays and Fraud alerts"""
     try:
         services = get_risk_services(db)
-        ar_risks = await services["warning"].detect_ar_delays(workspace_id)
-        booking_drops = await services["warning"].monitor_booking_drops(workspace_id)
-        fraud_alerts = await services["fraud"].detect_anomalies(workspace_id)
+        ar_risks = await services["warning"].detect_ar_delays("default")
+        booking_drops = await services["warning"].monitor_booking_drops("default")
+        fraud_alerts = await services["fraud"].detect_anomalies("default")
         
         return {
             "success": True,
@@ -47,13 +45,12 @@ async def get_financial_risk(
 
 @router.get("/growth")
 async def get_growth_readiness(
-    workspace_id: str = "default",
     db: Session = Depends(get_db)
 ):
     """Check scaling readiness"""
     try:
         services = get_risk_services(db)
-        readiness = await services["growth"].check_scaling_readiness(workspace_id)
+        readiness = await services["growth"].check_scaling_readiness("default")
         return {"success": True, "data": readiness}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

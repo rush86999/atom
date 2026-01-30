@@ -11,7 +11,6 @@ router = APIRouter(prefix="/pm", tags=["Project Management"])
 
 class ProjectLaunchRequest(BaseModel):
     prompt: str
-    workspace_id: str
     contract_id: Optional[str] = None
     user_id: str
 
@@ -23,7 +22,7 @@ async def launch_project(request: ProjectLaunchRequest):
     result = await pm_engine.generate_project_from_nl(
         prompt=request.prompt,
         user_id=request.user_id,
-        workspace_id=request.workspace_id,
+        workspace_id="default",
         contract_id=request.contract_id
     )
     if result["status"] == "failed":
@@ -90,11 +89,11 @@ async def get_project_details(project_id: str, db: Session = Depends(get_db)):
     }
 
 @router.post("/provision/{deal_id}")
-async def provision_project(deal_id: str, external_platform: Optional[str] = None, workspace_id: str = "default", user_id: str = "default"):
+async def provision_project(deal_id: str, external_platform: Optional[str] = None, user_id: str = "default"):
     """
     Manually trigger project provisioning from a deal and optionally sync to external PM tool.
     """
-    result = await pm_orchestrator.provision_from_deal(deal_id, user_id, workspace_id, external_platform)
+    result = await pm_orchestrator.provision_from_deal(deal_id, user_id, "default", external_platform)
     if result["status"] == "error":
         raise HTTPException(status_code=400, detail=result["message"])
     return result

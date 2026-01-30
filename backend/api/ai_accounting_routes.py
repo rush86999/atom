@@ -176,7 +176,7 @@ async def get_audit_log(transaction_id: Optional[str] = None):
 # ==================== DASHBOARD SYNC ====================
 
 @router.get("/dashboard/summary")
-async def get_accounting_dashboard_summary(workspace_id: str = "default"):
+async def get_accounting_dashboard_summary():
     """
     Fetch aggregated finance stats from Postgres Cache (Sync Strategy).
     Aggregates data from Stripe, Xero, etc.
@@ -189,7 +189,7 @@ async def get_accounting_dashboard_summary(workspace_id: str = "default"):
         
         # Query cached metrics
         metrics = db.query(IntegrationMetric).filter(
-            IntegrationMetric.workspace_id == workspace_id,
+            IntegrationMetric.workspace_id == "default",
             IntegrationMetric.metric_key.in_(["total_revenue", "pending_revenue", "gross_profit"])
         ).all()
         
