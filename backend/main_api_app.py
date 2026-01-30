@@ -276,6 +276,22 @@ try:
     except ImportError as e:
         logger.error(f"Failed to load Core API routes: {e}")
 
+    # Skill Builder Routes
+    try:
+        from api.admin.skill_routes import router as skill_router
+        app.include_router(skill_router, prefix="/api/admin/skills", tags=["Skill Management"])
+        logger.info("✓ Skill Builder Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Skill routes not found: {e}")
+
+    # Satellite Routes
+    try:
+        from api.satellite_routes import router as satellite_router
+        app.include_router(satellite_router, tags=["Satellite"])
+        logger.info("✓ Satellite Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Satellite routes not found: {e}")
+
     # 1.5 System Health (Safe Import)
     try:
         from api.admin.system_health_routes import router as health_router
