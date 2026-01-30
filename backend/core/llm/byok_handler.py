@@ -148,27 +148,6 @@ class BYOKHandler:
                     except Exception as e:
                         logger.error(f"Failed to initialize {provider_id} client: {e}")
 
-    def _is_trial_restricted(self) -> bool:
-        """Checks if AI access is restricted due to trial expiration."""
-        if not self.workspace_id or self.workspace_id == "default":
-            return False
-            
-        try:
-            from core.database import SessionLocal
-            from core.models import Workspace
-            from core.trial_service import TrialService
-            
-            with SessionLocal() as db:
-                ws = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
-                if not ws or not ws.tenant_id:
-                    return False
-                
-                service = TrialService(db)
-                return service.is_access_restricted(ws.tenant_id)
-        except Exception as e:
-            logger.error(f"Error checking trial restriction: {e}")
-            return False
-
     def get_context_window(self, model_name: str) -> int:
         """
         Get the context window size for a model from dynamic pricing data.

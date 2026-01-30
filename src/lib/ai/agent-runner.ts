@@ -111,14 +111,10 @@ export class AgentRunner {
             const systemToolsContext = `
 - register_script_skill (system): Create a new Node.js script tool. Args: { name, description, code, inputSchema, outputSchema }
 - register_api_skill (system): Create a new REST API tool. Args: { name, description, url, method, headers, inputSchema, outputSchema }
-- register_container_skill (system): Create a cloud-based container tool (Fly.io). Use this for SaaS/Cloud tasks.
-- register_docker_skill (system): Create a local Docker-based tool. Use this ONLY for local Desktop/Tauri tasks.
+- register_docker_skill (system): Create a local Docker-based tool. Args: { name, description, image, command, inputSchema, outputSchema }
             `;
 
-            const isCloud = !!workspaceId && process.env.NODE_ENV === 'production';
-            const environmentNote = isCloud
-                ? "ENVIRONMENT: SaaS/Cloud (Fly.io). Prefer 'register_container_skill' for containerized tasks."
-                : "ENVIRONMENT: Desktop/Local. Prefer 'register_docker_skill' for local containerized tasks.";
+            const environmentNote = "ENVIRONMENT: Self-hosted/Open-source. All skills execute locally.";
 
             // Build Context Prompt
             const contextPrompt = `
@@ -143,7 +139,7 @@ ${systemToolsContext}
 ${environmentNote}
 
 You are an autonomous agent. Reason step-by-step.
-If you identify a missing capability required to complete the task, use "register_script_skill", "register_api_skill", "register_docker_skill", or "register_container_skill" based on the environment above.
+If you identify a missing capability required to complete the task, use "register_script_skill", "register_api_skill", or "register_docker_skill" to create new tools.
 For each step, output a JSON object:
 {
   "thought": "analysis of situation",
@@ -207,7 +203,7 @@ For each step, output a JSON object:
                                 step.observation = `Error executing skill: ${skillErr.message}`;
                                 step.status = 'error';
                             }
-                        } else if (['register_script_skill', 'register_api_skill', 'register_container_skill', 'register_docker_skill'].includes(step.action.tool)) {
+                        } else if (['register_script_skill', 'register_api_skill', 'register_docker_skill'].includes(step.action.tool)) {
                             // Handle System Tools for Dynamic Creation
                             try {
                                 const builder = getDynamicSkillBuilder();
@@ -216,8 +212,6 @@ For each step, output a JSON object:
                                     skill = await builder.registerScriptSkill(workspaceId!, agentId, step.action.args as any);
                                 } else if (step.action.tool === 'register_api_skill') {
                                     skill = await builder.registerApiSkill(workspaceId!, agentId, step.action.args as any);
-                                } else if (step.action.tool === 'register_container_skill') {
-                                    skill = await builder.registerContainerSkill(workspaceId!, agentId, step.action.args as any);
                                 } else {
                                     skill = await builder.registerDockerSkill(workspaceId!, agentId, step.action.args as any);
                                 }

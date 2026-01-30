@@ -8,7 +8,6 @@ from fastapi import BackgroundTasks
 
 from core.database import SessionLocal
 from core.models import User, AgentExecution, UserIdentity
-from core.database import SessionLocal
 from core.agent_world_model import WorldModelService
 from core.notification_manager import notification_manager
 from core.atom_meta_agent import handle_manual_trigger, SpecialtyAgentTemplate
@@ -118,13 +117,9 @@ class CommunicationService:
                 if user.workspaces:
                     workspace_id = user.workspaces[0].id
             else:
-                # Fallback for dev/testing: Default Admin
-                logger.warning(f"No identity found for {source}:{sender_id}. Falling back to admin.")
-                user = db.query(User).filter(User.email == "admin@example.com").first()
-                if not user:
-                     user = db.query(User).first()
-                if user and user.workspaces:
-                    workspace_id = user.workspaces[0].id
+                # Security: Reject messages from unknown identities instead of falling back to admin
+                logger.error(f"No identity found for {source}:{sender_id}. Rejecting message for security.")
+                return {"status": "error", "message": "User identity not found. Please link your account."}
                 
         finally:
             db.close()
@@ -240,18 +235,22 @@ class CommunicationService:
             actual_request = request
             if metadata and metadata.get("media_id") and metadata.get("media_type") in ["audio", "voice"]:
                 logger.info(f"Detected voice input from {source}. Transcribing...")
-                adapter = self.get_adapter(source)
-                audio_bytes = await adapter.get_media(metadata["media_id"])
-                
-                if audio_bytes:
-                    from core.voice_service import get_voice_service
-                    voice_svc = get_voice_service(workspace_id)
-                    transcription = await voice_svc.transcribe_audio(
-                        audio_bytes=audio_bytes, 
-                        audio_format="ogg" if source == "telegram" else "m4a"
-                    )
-                    actual_request = transcription.text
-                    logger.info(f"Transcribed voice: {actual_request[:50]}...")
+                try:
+                    adapter = self.get_adapter(source)
+                    audio_bytes = await adapter.get_media(metadata["media_id"])
+
+                    if audio_bytes:
+                        from core.voice_service import get_voice_service
+                        voice_svc = get_voice_service(workspace_id)
+                        transcription = await voice_svc.transcribe_audio(
+                            audio_bytes=audio_bytes,
+                            audio_format="ogg" if source == "telegram" else "m4a"
+                        )
+                        actual_request = transcription.text
+                        logger.info(f"Transcribed voice: {actual_request[:50]}...")
+                except Exception as voice_err:
+                    logger.warning(f"Voice transcription failed: {voice_err}. Using original request text.")
+                    actual_request = request  # Fall back to text
             # ------------------------
 
             # Execute Atom Logic
@@ -262,7 +261,6 @@ class CommunicationService:
                 additional_context={"source": source, "channel_id": channel_id}
             )
             
-            # Extract final answer
             # Extract final answer
             reply_text = "I processed your request."
             if isinstance(response, dict):
