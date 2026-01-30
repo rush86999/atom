@@ -3,6 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { X, ExternalLink, RefreshCw, Check, AlertCircle } from "lucide-react";
 import { marked } from "marked";
+import { LineChartCanvas } from "../canvas/LineChart";
+import { BarChartCanvas } from "../canvas/BarChart";
+import { PieChartCanvas } from "../canvas/PieChart";
+import { InteractiveForm } from "../canvas/InteractiveForm";
 
 interface CanvasHostProps {
     lastMessage: any;
@@ -17,6 +21,7 @@ interface CanvasState {
 
 export function CanvasHost({ lastMessage }: CanvasHostProps) {
     const [state, setState] = useState<CanvasState | null>(null);
+    const [canvasId] = useState(() => `canvas_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -54,7 +59,7 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
             </div>
 
             <div className="flex-1 overflow-auto p-4">
-                <CanvasContent component={state.component} data={state.data} />
+                <CanvasContent component={state.component} data={state.data} canvasId={canvasId} />
             </div>
 
             <div className="p-2 border-t bg-muted/10 text-[10px] text-muted-foreground text-center">
@@ -64,7 +69,7 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
     );
 }
 
-function CanvasContent({ component, data }: { component: string; data: any }) {
+function CanvasContent({ component, data, canvasId }: { component: string; data: any; canvasId: string }) {
     if (!data) return <div className="text-muted-foreground p-4">No data to display</div>;
 
     switch (component) {
@@ -99,21 +104,38 @@ function CanvasContent({ component, data }: { component: string; data: any }) {
 
         case "form":
             return (
-                <div className="space-y-4">
-                    {data.fields?.map((field: any, i: number) => (
-                        <div key={i} className="space-y-2">
-                            <label className="text-xs font-medium">{field.label}</label>
-                            <input
-                                type={field.type || "text"}
-                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                placeholder={field.placeholder}
-                                defaultValue={field.defaultValue}
-                            />
-                        </div>
-                    ))}
-                    <Button className="w-full mt-2">Submit</Button>
-                </div>
+                <InteractiveForm
+                    fields={data.fields}
+                    title={data.title}
+                    submitLabel={data.submitLabel}
+                    canvasId={canvasId}
+                    onSubmit={async (formData) => {
+                        // Send submission to backend
+                        try {
+                            const { apiClient } = await import('../../lib/api-client');
+                            const response = await apiClient.post("/api/canvas/submit", {
+                                canvas_id: canvasId,
+                                form_data: formData
+                            });
+                            if (!(response as any).data.success) {
+                                throw new Error('Submission failed');
+                            }
+                        } catch (error) {
+                            console.error('Form submission error:', error);
+                            throw error;
+                        }
+                    }}
+                />
             );
+
+        case "line_chart":
+            return <LineChartCanvas data={data.data} title={data.title} color={data.color} />;
+
+        case "bar_chart":
+            return <BarChartCanvas data={data.data} title={data.title} color={data.color} />;
+
+        case "pie_chart":
+            return <PieChartCanvas data={data.data} title={data.title} />;
 
         default:
             return (

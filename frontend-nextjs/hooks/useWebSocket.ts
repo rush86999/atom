@@ -23,6 +23,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
     const [isConnected, setIsConnected] = useState(false);
     const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+    const [streamingContent, setStreamingContent] = useState<Map<string, string>>(new Map());
     const wsRef = useRef<WebSocket | null>(null);
 
     // Use deep comparison key for channels array to avoid ref instability
@@ -66,6 +67,26 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
+
+                // Handle streaming messages
+                if (message.type === "streaming:update" || message.type === "streaming:complete") {
+                    setStreamingContent(prev => {
+                        const newMap = new Map(prev);
+                        const currentContent = newMap.get(message.id) || "";
+                        const updatedContent = message.type === "streaming:complete"
+                            ? message.content
+                            : currentContent + (message.delta || "");
+
+                        if (message.complete) {
+                            // Don't store completed streams, they'll be in regular messages
+                            newMap.delete(message.id);
+                        } else {
+                            newMap.set(message.id, updatedContent);
+                        }
+                        return newMap;
+                    });
+                }
+
                 setLastMessage(message);
             } catch (e) {
                 // Silent catch
@@ -111,6 +132,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     return {
         isConnected,
         lastMessage,
+        streamingContent,
         subscribe,
         unsubscribe,
         sendMessage: (msg: any) => wsRef.current?.send(JSON.stringify(msg)),

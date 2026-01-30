@@ -12,6 +12,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { CanvasHost } from "./CanvasHost";
+import { marked } from "marked";
 
 interface ChatInterfaceProps {
     sessionId: string | null;
@@ -24,8 +25,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     const [statusMessage, setStatusMessage] = useState("Agent is thinking...");
     const [messages, setMessages] = useState<ChatMessageData[]>([]);
     const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
+    const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const { isConnected, lastMessage, subscribe } = useWebSocket();
+    const { isConnected, lastMessage, streamingContent, subscribe } = useWebSocket();
     const { toast } = useToast();
     const { uploadFile, isUploading } = useFileUpload();
 
@@ -101,7 +103,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
             setPendingApproval(null);
             setStatusMessage("Resuming execution...");
         }
-    }, [lastMessage]);
+
+        // Handle streaming completion
+        if (msg.type === "streaming:complete" && msg.id === currentStreamId) {
+            const agentMsg: ChatMessageData = {
+                id: msg.id,
+                type: "assistant",
+                content: msg.content,
+                timestamp: new Date(),
+                actions: [],
+            };
+            setMessages(prev => [...prev, agentMsg]);
+            setCurrentStreamId(null);
+            setIsProcessing(false);
+        }
+
+        // Handle streaming start
+        if (msg.type === "streaming:start") {
+            setCurrentStreamId(msg.id);
+        }
+    }, [lastMessage, currentStreamId]);
 
     const loadSessionHistory = async (sid: string) => {
         try {
@@ -267,7 +288,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
                             onFeedback={handleFeedback}
                         />
                     ))}
-                    {isProcessing && (
+
+                    {/* Show streaming message */}
+                    {currentStreamId && streamingContent.get(currentStreamId) && (
+                        <div className="flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            </div>
+                            <div className="flex-1 space-y-2 overflow-hidden">
+                                <div className="font-semibold text-sm">Atom Assistant</div>
+                                <div className="prose dark:prose-invert max-w-none text-sm prose-p:leading-relaxed">
+                                    <div dangerouslySetInnerHTML={{
+                                        __html: marked.parse(streamingContent.get(currentStreamId) || "")
+                                    }} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {isProcessing && !currentStreamId && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground ml-2 animate-in fade-in slide-in-from-bottom-2">
                             <Loader2 className="h-3 w-3 animate-spin" />
                             <span>{statusMessage}</span>
