@@ -57,10 +57,11 @@ atom/
 - Same UI as web app
 
 **Key Features:**
-- Local-first architecture  
-- Native system integration
-- File system access
-- Offline functionality
+- **Local-first architecture**: Optimized for local execution and low-latency interaction.
+- **System Tray & Background Mode**: Ability to minimize to the tray and continue agent tasks in the background.
+- **CLI Execution Layer**: Real-time streaming of shell commands (stdout/stderr) back to the UI.
+- **Native system integration**: Deep access to the local environment and file system.
+- **Offline functionality**: Core agent capabilities remain active without a persistent internet connection.
 
 ## Authentication & Security
 

@@ -9,6 +9,7 @@ Atom is a multi-agent system designed for workflow orchestration, task automatio
 *   **Global Intelligence Hub**: Cross-platform semantic search across storage, tasks, deals, and tickets.
 *   **Real-time Team Discussion**: Integrated collaboration suite in every departmental dashboard.
 *   **Wake Word Detection**: Instant activation with "Atom" for hands-free autonomous operation
+*   **System Tray for Background Operation**: Run ATOM as a persistent background process with quick access and visibility controls
 *   **Proactive Autopilot Assistant**: Daily automated schedule optimization without user intervention
 
 ## Integrations
@@ -100,8 +101,9 @@ Atom's multi-agent system is equipped with 30+ specialized skills across 12+ int
 *   **Information Gathering:** Web research and basic summarization
 *   **Simple Sales Tracking:** Monitor deals and opportunities in connected CRM platforms
 *   **Basic Social Media:** Monitor mentions and post scheduling where APIs allow
-*   **Cross-Platform Data Sync:** Basic automation between integrated systems
-*   **GitHub Integration:** Repository creation and basic issue management
+*   **Cross-Platform Data Sync**: Basic automation between integrated systems
+*   **GitHub Integration**: Repository creation and basic issue management
+*   **Dynamic Local Skill Execution**: Discover, test, and run local agent skills with real-time streaming console feedback (Desktop only)
 
 ## 🎯 Autonomous Workflow Capabilities
 

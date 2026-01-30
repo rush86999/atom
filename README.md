@@ -56,13 +56,16 @@ Atom remembers everything so you don't have to repeat yourself.
 - **Privacy First**: Sensitive data like API keys and PII are automatically redacted and encrypted (Fernet at-rest)
 - **Self-Evolving World Model**: Agents store and retrieve past "experiences" to learn from success and failure. See [docs/ai-world-model.md](docs/ai-world-model.md)
 
-### 🛠️ **Dynamic Skill Creation**
+### 🛠️ **Dynamic Skill Creation & Execution**
 - **Runtime Tool Discovery**: Agents can identify gaps in their toolset and "build" new tools on-the-fly
+- **Skill Runner UI**: A dedicated dashboard to browse, test, and execute local agent skills with real-time feedback
+- **Real-Time Streaming**: Watch skill execution line-by-line via the new streaming CLI backend
 - **Multi-Runtime Support**: Automated generation of Script, API, and Docker-based skills from natural language
 - **Self-Hosted Execution**: All skills execute locally in your environment using Docker or Node.js VM
 
 ### 🔌 **Deep Integrations & Desktop Access**
 - **Hybrid Engine**: Python orchestration + Node.js Piece Engine for the full **ActivePieces** catalog
+- **System Tray & Background Mode**: Run ATOM in the background with quick access from the system tray (macOS/Windows)
 - **Desktop Memory Ingestion**: Local folder access for the Tauri application, enabling seamless indexing of `$DESKTOP` knowledge
 - **Node-on-Demand**: Integrations are installed dynamically on-the-fly to ensure the catalog is always up-to-date
 
