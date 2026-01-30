@@ -225,9 +225,16 @@ class MCPService:
                 {
                     "name": "search_formulas",
                     "description": "Search for business logic, math definitions, and extracted Excel formulas in Atom's memory",
+                    }
+                },
+                {
+                    "name": "canvas_tool",
+                    "description": "Render custom UI widgets (Generative UI) to the user's dashboard. Use to present data visualization, forms, or status.",
                     "parameters": {
-                        "query": "string (semantic search term, e.g. 'how do we calculate gross margin')",
-                        "domain": "string (optional: 'finance', 'sales', 'ops')"
+                        "action": "string (present, update, close)",
+                        "component": "string (optional: 'chart', 'form', 'status_panel', 'markdown', 'custom')",
+                        "data": "object (payload for the component)",
+                        "title": "string (optional title for the widget)"
                     }
                 },
 
@@ -998,6 +1005,26 @@ class MCPService:
                     competitors=arguments.get("competitors", []),
                     target_product=arguments.get("product", "")
                 )
+
+            elif tool_name == "canvas_tool":
+                from core.websockets import get_connection_manager
+                manager = get_connection_manager()
+                
+                # Broadcast event to workspace channel
+                # Upstream uses workspace_id standard
+                workspace_id = context.get("workspace_id", "default")
+                channel = f"workspace:{workspace_id}"
+                
+                event_payload = {
+                    "action": arguments.get("action"),
+                    "component": arguments.get("component"),
+                    "data": arguments.get("data"),
+                    "title": arguments.get("title"),
+                    "agent_id": context.get("agent_id", "atom")
+                }
+                
+                await manager.broadcast_event(channel, "canvas:update", event_payload)
+                return "Canvas update event sent to user dashboard."
             elif tool_name == "reconcile_inventory":
                 from operations.automations.inventory_reconcile import InventoryReconciliationWorkflow
                 agent = InventoryReconciliationWorkflow()

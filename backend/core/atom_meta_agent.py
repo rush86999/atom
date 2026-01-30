@@ -152,7 +152,9 @@ class AtomMetaAgent:
         "request_human_intervention",
         "get_system_health",
         "list_integrations",
-        "call_integration"  # Fallback
+        "list_integrations",
+        "call_integration",  # Fallback
+        "canvas_tool"
     ]
 
     def __init__(self, workspace_id: str = "default", user: Optional[User] = None):
