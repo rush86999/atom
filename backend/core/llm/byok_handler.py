@@ -2,14 +2,17 @@ import logging
 import os
 import re
 import json
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, AsyncGenerator
 from enum import Enum
+import asyncio
 
 # Try imports
 try:
     from openai import OpenAI
+    from openai import AsyncOpenAI
 except ImportError:
     OpenAI = None
+    AsyncOpenAI = None
 
 from core.byok_endpoints import get_byok_manager
 
@@ -118,7 +121,10 @@ class BYOKHandler:
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
             "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
         }
-        
+
+        # Separate sync and async clients
+        self.async_clients: Dict[str, Any] = {}
+
         for provider_id, config in providers_config.items():
             # Check if BYOK is configured for this provider and workspace
             if self.byok_manager.is_configured(self.workspace_id, provider_id):
@@ -128,6 +134,11 @@ class BYOKHandler:
                         api_key=api_key,
                         base_url=config["base_url"] # base_url can be None for OpenAI
                     )
+                    if AsyncOpenAI:
+                        self.async_clients[provider_id] = AsyncOpenAI(
+                            api_key=api_key,
+                            base_url=config["base_url"]
+                        )
                     logger.info(f"Initialized BYOK client for {provider_id}")
                 except Exception as e:
                     logger.error(f"Failed to initialize {provider_id} client: {e}")
@@ -142,8 +153,15 @@ class BYOKHandler:
                                 api_key=api_key,
                                 base_url=config["base_url"]
                             )
+                            if AsyncOpenAI:
+                                self.async_clients[provider_id] = AsyncOpenAI(
+                                    api_key=api_key,
+                                    base_url=config["base_url"]
+                                )
                         else:
                             self.clients[provider_id] = OpenAI(api_key=api_key)
+                            if AsyncOpenAI:
+                                self.async_clients[provider_id] = AsyncOpenAI(api_key=api_key)
                         logger.info(f"Initialized BYOK client for {provider_id}")
                     except Exception as e:
                         logger.error(f"Failed to initialize {provider_id} client: {e}")
@@ -980,16 +998,16 @@ class BYOKHandler:
         else:
             provider = "openai"
             model = "gpt-4o-mini"
-            
+
         try:
             client = self.clients.get(provider)
             if not client: return None
-            
+
             logger.info(f"Extracting visual description using {model}...")
-            
+
             messages = [
                 {
-                    "role": "system", 
+                    "role": "system",
                     "content": "You are a visual analysis specialist. Your goal is to describe a browser screenshot for an AI agent that cannot see it. "
                                "For every interactive element (buttons, links, inputs, icons, etc.), you MUST provide: "
                                "1. A name or label. "
@@ -1011,15 +1029,67 @@ class BYOKHandler:
                     ]
                 }
             ]
-            
+
             response = client.chat.completions.create(
                 model=model,
                 messages=messages,
                 max_tokens=500
             )
-            
+
             desc = response.choices[0].message.content
             return desc
         except Exception as e:
             logger.error(f"Coordinated vision extraction failed: {e}")
             return None
+
+    async def stream_completion(
+        self,
+        messages: List[Dict],
+        model: str,
+        provider_id: str,
+        temperature: float = 0.7,
+        max_tokens: int = 1000
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream LLM responses token-by-token.
+
+        Args:
+            messages: Chat messages in OpenAI format
+            model: Model name
+            provider_id: Provider identifier (e.g., "openai", "deepseek")
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens to generate
+
+        Yields:
+            Individual tokens as they arrive from the LLM
+        """
+        if not self.async_clients:
+            raise ValueError("Async clients not initialized. Streaming unavailable.")
+
+        client = self.async_clients.get(provider_id)
+        if not client:
+            # Fallback to sync client wrapped in async (less ideal but works)
+            client = self.clients.get(provider_id)
+            if not client:
+                raise ValueError(f"No client available for provider: {provider_id}")
+
+        try:
+            # Use async streaming API
+            stream = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=True
+            )
+
+            async for chunk in stream:
+                if chunk.choices:
+                    delta = chunk.choices[0].delta
+                    if hasattr(delta, 'content') and delta.content:
+                        yield delta.content
+
+        except Exception as e:
+            logger.error(f"Streaming error for {provider_id}/{model}: {e}")
+            # If streaming fails, yield error message
+            yield f"\n\n[Streaming error: {str(e)}]"

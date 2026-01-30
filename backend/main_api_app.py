@@ -626,6 +626,14 @@ try:
     except ImportError as e:
         logger.warning(f"Integration Health Stubs not found: {e}")
 
+    # 15.1 Canvas Routes (Canvas system for charts and forms)
+    try:
+        from api.canvas_routes import router as canvas_router
+        app.include_router(canvas_router, tags=["Canvas"])
+        logger.info("✓ Canvas Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Canvas routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router

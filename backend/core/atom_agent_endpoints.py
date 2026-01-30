@@ -1466,3 +1466,158 @@ async def handle_platform_search(request: ChatRequest, entities: Dict[str, Any])
                 "actions": []
             }
         }
+
+
+# ==================== STREAMING CHAT ENDPOINT ====================
+
+@router.post("/chat/stream")
+async def chat_stream_agent(request: ChatRequest):
+    """
+    Handle chat messages with streaming LLM responses.
+    Tokens are broadcast via WebSocket as they arrive from the LLM.
+    """
+    try:
+        # Import streaming support
+        from core.llm.byok_handler import BYOKHandler
+        from core.websockets import manager as ws_manager
+
+        # Determine workspace and get BYOK handler
+        ws_id = request.workspace_id or "default"
+        byok_handler = BYOKHandler(workspace_id=ws_id, provider_id="auto")
+
+        # Prepare messages for LLM
+        messages = []
+
+        # Add system context if available
+        try:
+            from core.database import SessionLocal
+            from operations.system_intelligence_service import SystemIntelligenceService
+
+            with SessionLocal() as db_session:
+                intel_service = SystemIntelligenceService(db_session)
+                system_context_str = intel_service.get_aggregated_context(ws_id)
+                if system_context_str:
+                    messages.append({
+                        "role": "system",
+                        "content": f"""You are ATOM, an intelligent assistant helping with business automation and integrations.
+
+Current Business Context:
+{system_context_str}
+
+Provide helpful, concise responses. When you need to take actions, describe what you're doing clearly."""
+                    })
+        except Exception as ctx_error:
+            logger.warning(f"Failed to fetch system intelligence context: {ctx_error}")
+            messages.append({
+                "role": "system",
+                "content": "You are ATOM, an intelligent assistant helping with business automation and integrations."
+            })
+
+        # Add conversation history
+        if request.conversation_history:
+            for msg in request.conversation_history[-10:]:  # Last 10 messages for context
+                messages.append({
+                    "role": msg.get("role", "user"),
+                    "content": msg.get("content", "")
+                })
+
+        # Add current message
+        messages.append({
+            "role": "user",
+            "content": request.message
+        })
+
+        # Get optimal provider for streaming
+        from core.llm.byok_handler import QueryComplexity
+
+        complexity = byok_handler.analyze_query_complexity(request.message, task_type="chat")
+        provider_id, model = byok_handler.get_optimal_provider(
+            complexity,
+            task_type="chat",
+            prefer_cost=True,
+            tenant_plan="free",
+            is_managed_service=False,
+            requires_tools=False
+        )
+
+        logger.info(f"Starting streaming chat with {provider_id}/{model}")
+
+        # Create a unique message ID for this response
+        message_id = str(uuid.uuid4())
+
+        # Send initial message to WebSocket
+        user_channel = f"user:{request.user_id}"
+        await ws_manager.broadcast(user_channel, {
+            "type": "streaming:start",
+            "id": message_id,
+            "model": model,
+            "provider": provider_id
+        })
+
+        # Stream tokens via WebSocket
+        accumulated_content = ""
+        try:
+            async for token in byok_handler.stream_completion(
+                messages=messages,
+                model=model,
+                provider_id=provider_id,
+                temperature=0.7,
+                max_tokens=2000
+            ):
+                accumulated_content += token
+
+                # Broadcast token to frontend
+                await ws_manager.broadcast(user_channel, {
+                    "type": ws_manager.STREAMING_UPDATE,
+                    "id": message_id,
+                    "delta": token,
+                    "complete": False,
+                    "metadata": {
+                        "model": model,
+                        "tokens_so_far": len(accumulated_content)
+                    }
+                })
+
+            # Send completion message
+            await ws_manager.broadcast(user_channel, {
+                "type": ws_manager.STREAMING_COMPLETE,
+                "id": message_id,
+                "content": accumulated_content,
+                "complete": True
+            })
+
+            # Save to chat history
+            chat_history = get_chat_history_manager(ws_id)
+            session_manager = get_chat_session_manager(ws_id)
+
+            if not request.session_id:
+                session_id = session_manager.create_session(request.user_id)
+            else:
+                session_id = request.session_id
+
+            # Save user message
+            chat_history.add_message(session_id, "user", request.message)
+
+            # Save assistant response
+            chat_history.add_message(session_id, "assistant", accumulated_content)
+
+            return {
+                "success": True,
+                "message_id": message_id,
+                "session_id": session_id,
+                "streamed": True
+            }
+
+        except Exception as stream_error:
+            logger.error(f"Streaming error: {stream_error}")
+            # Send error via WebSocket
+            await ws_manager.broadcast(user_channel, {
+                "type": ws_manager.STREAMING_ERROR,
+                "id": message_id,
+                "error": str(stream_error)
+            })
+            raise
+
+    except Exception as e:
+        logger.error(f"Error in streaming chat: {str(e)}")
+        return {"success": False, "error": str(e)}

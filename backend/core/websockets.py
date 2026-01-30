@@ -17,6 +17,11 @@ class ConnectionManager:
         # Map user_id -> List of WebSockets (for direct user targeting)
         self.user_connections: Dict[str, List[WebSocket]] = {}
 
+        # Message types for streaming
+        self.STREAMING_UPDATE = "streaming:update"
+        self.STREAMING_ERROR = "streaming:error"
+        self.STREAMING_COMPLETE = "streaming:complete"
+
     async def connect(self, websocket: WebSocket, token: str):
         await websocket.accept()
         
