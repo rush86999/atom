@@ -11,7 +11,7 @@ lerna-debug.log*
 # Rust build artifacts
 **/target/
 **/*.rs.bk
-**/Cargo.lock
+# **/Cargo.lock
 
 # Build outputs
 dist/
