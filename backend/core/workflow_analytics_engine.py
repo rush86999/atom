@@ -424,7 +424,7 @@ class WorkflowAnalyticsEngine:
             self.metrics_buffer.append(network_metric)
 
     def track_user_activity(self, user_id: str, action: str, workflow_id: Optional[str] = None,
-                          metadata: Optional[Dict] = None):
+                          metadata: Optional[Dict] = None, workspace_id: Optional[str] = None):
         """Track user activity for analytics"""
         metric = WorkflowMetric(
             workflow_id=workflow_id or "system",
@@ -432,7 +432,7 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.COUNTER,
             value=1,
             timestamp=datetime.now(),
-            tags={"user_id": user_id, "action": action},
+            tags={"user_id": user_id, "action": action, "workspace_id": workspace_id or "default"},
             user_id=user_id
         )
         self.metrics_buffer.append(metric)
