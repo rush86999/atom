@@ -15,9 +15,9 @@ use tauri::{AppHandle, Manager, Emitter, Runtime, Window, WindowEvent};
 use std::io::{BufRead, BufReader};
 use std::sync::atomic::{AtomicBool, Ordering};
 use notify::{Watcher, RecursiveMode, Config, Event};
-use tauri_plugin_tray_icon::{
+use tauri::{
     menu::{Menu, MenuItem},
-    TrayIconBuilder, TrayIconEvent,
+    tray::{TrayIconBuilder, TrayIconEvent},
 };
 
 // Enhanced file dialog command using Tauri v2 plugin

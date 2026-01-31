@@ -16,7 +16,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
 open = "4.0"
 aes-gcm = "0.10.0"
@@ -32,7 +32,7 @@ anyhow = "1.0"
 lazy_static = "1.4"
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-tray-icon = "2"
+
 notify = { version = "6", features = ["serde"] }
 
 [features]
