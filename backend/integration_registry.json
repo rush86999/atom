@@ -27,6 +27,18 @@
       "status": "discovered",
       "category": "other"
     },
+    "openclaw_service": {
+      "name": "openclaw_service",
+      "file": "backend/integrations/openclaw_service.py",
+      "classes": [
+        "OpenClawService"
+      ],
+      "auth_type": "api_key",
+      "has_connect": true,
+      "has_health_check": true,
+      "status": "discovered",
+      "category": "communication"
+    },
     "zendesk_service": {
       "name": "zendesk_service",
       "file": "backend/integrations/zendesk_service.py",

@@ -21,6 +21,7 @@ from integrations.teams_enhanced_service import teams_enhanced_service
 from integrations.atom_telegram_integration import atom_telegram_integration
 from integrations.google_chat_enhanced_service import google_chat_enhanced_service
 from integrations.slack_enhanced_service import slack_enhanced_service
+from integrations.openclaw_service import openclaw_service
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,9 @@ class AgentIntegrationGateway:
             "teams": teams_enhanced_service,
             "telegram": atom_telegram_integration,
             "google_chat": google_chat_enhanced_service,
-            "slack": slack_enhanced_service
+            "google_chat": google_chat_enhanced_service,
+            "slack": slack_enhanced_service,
+            "openclaw": openclaw_service
         }
 
     async def execute_action(self, action_type: ActionType, platform: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -214,6 +217,15 @@ class AgentIntegrationGateway:
                 return {"status": "success" if result else "failed"}
             except ImportError:
                 return {"status": "failed", "error": "Signal service not found"}
+
+        if platform == "openclaw":
+             # Direct call to OpenClaw service
+             result = await openclaw_service.send_message(
+                 recipient_id=recipient_id,
+                 content=content,
+                 thread_ts=params.get("thread_ts")
+             )
+             return result
             
         # Fallback for other comm apps (Legacy Support)
         # This would link to existing slack_service, teams_service...

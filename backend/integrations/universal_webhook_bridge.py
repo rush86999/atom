@@ -331,6 +331,21 @@ class UniversalWebhookBridge:
                 raw_payload=data
             )
             
+        elif platform == "openclaw":
+            # OpenClaw webhook mapping
+            return UnifiedIncomingMessage(
+                platform="openclaw",
+                sender_id=data.get("sender_id", "openclaw_user"),
+                recipient_id=data.get("recipient_id", "atom_bot"),
+                text=data.get("content", "") or data.get("text", ""),
+                metadata={
+                    "id": data.get("message_id") or data.get("id"),
+                    "thread_ts": data.get("thread_ts")
+                },
+                thread_id=data.get("thread_ts"),
+                raw_payload=data
+            )
+            
         return None
 
     async def _handle_command(self, msg: UnifiedIncomingMessage) -> Dict[str, Any]:

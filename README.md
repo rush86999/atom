@@ -71,7 +71,7 @@ Atom remembers everything so you don't have to repeat yourself.
 
 ### 🌐 **Universal Communication Bridge**
 Seamlessly interact with your workforce from any platform.
-- **Unified Messaging**: One standard interface for **11+ platforms**, including Slack, WhatsApp, Discord, Microsoft Teams, Telegram, Google Chat, Twilio (SMS), Matrix, Facebook Messenger, Line, and Signal
+- **Unified Messaging**: One standard interface for **12+ platforms**, including OpenClaw, Slack, WhatsApp, Discord, Microsoft Teams, Telegram, Google Chat, Twilio (SMS), Matrix, Facebook Messenger, Line, and Signal
 - **Platform Native Commands**: Use `/run`, `/workflow`, and `/agents` directly from your favorite chat app
 - **Agent-to-Agent Communication**: Agents can discover and delegate tasks to each other directly via the bridge
 - **Async Feedback**: Delegated tasks automatically route their results back to the requester

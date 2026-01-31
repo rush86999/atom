@@ -131,6 +131,7 @@ INTEGRATION_REGISTRY = {
     # Other
     "deepgram": "integrations.deepgram_routes:router",
     "tableau": "integrations.tableau_routes:router",
+    "openclaw": "integrations.openclaw_routes:router",
     
     # PDF Processing
     "pdf_ocr": "integrations.pdf_processing:pdf_ocr_router",
