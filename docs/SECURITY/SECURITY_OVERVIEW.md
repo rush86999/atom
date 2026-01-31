@@ -185,6 +185,17 @@
   - PCI DSS (where applicable)
   - Industry best practices
 
+## 13. AI Security & Safety (Skill Scanner)
+
+### ✅ Multi-Layer Skill Audit
+- **Status**: SECURE
+- **Implementation**: `atom_security` module with hybrid analysis
+- **Security Controls**:
+  - **Static Analysis**: Pattern-based detection of malicious code and injection attempts
+  - **Semantic Analysis**: LLM-powered reasoning to detect complex exfiltration and logic flaws
+  - **Proactive Blocking**: Integration with `skill_routes.py` to prevent packaging of insecure skills
+  - **Local Auditing**: CLI (`atom scan`) and GUI tools for on-demand local code safety checks
+
 ## Critical Security Findings
 
 ### ✅ No Critical Vulnerabilities Found

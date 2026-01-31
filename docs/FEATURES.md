@@ -11,6 +11,7 @@ Atom is a multi-agent system designed for workflow orchestration, task automatio
 *   **Wake Word Detection**: Instant activation with "Atom" for hands-free autonomous operation
 *   **System Tray for Background Operation**: Run ATOM as a persistent background process with quick access and visibility controls
 *   **Proactive Autopilot Assistant**: Daily automated schedule optimization without user intervention
+*   **AI Security & Safety (Skill Scanner)**: Combined static and semantic analysis to block malicious AI behaviors (injection, exfiltration)
 
 ## Integrations
 
