@@ -97,7 +97,7 @@ const ForecastingSandbox = () => {
                         Scenario Sandbox
                     </CardTitle>
                     <CardDescription>
-                        Describe a potential scenario (e.g. "Hire a dev for $10k/mo" or "Lose our biggest client") to see the impact.
+                        Describe a potential scenario (e.g. &quot;Hire a dev for $10k/mo&quot; or &quot;Lose our biggest client&quot;) to see the impact.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -128,7 +128,7 @@ const ForecastingSandbox = () => {
                             </div>
                             <div className="mt-4 flex gap-2 items-start text-sm">
                                 <AlertCircle className="h-4 w-4 mt-0.5 text-blue-500" />
-                                <p className="text-muted-foreground italic">"{scenarioResult.analysis}"</p>
+                                <p className="text-muted-foreground italic">&quot;{scenarioResult.analysis}&quot;</p>
                             </div>
                         </div>
                     )}

@@ -94,7 +94,7 @@ const AccountantPortal = () => {
                     <div>
                         <CardTitle className="text-sm font-semibold">Regulatory Disclaimer</CardTitle>
                         <CardDescription className="text-xs text-amber-800 dark:text-amber-400">
-                            ATOM's accounting features are AI-driven and for strategic guidance. We are not a licensed CPA firm.
+                            ATOM&apos;s accounting features are AI-driven and for strategic guidance. We are not a licensed CPA firm.
                             Download your reports below for review by your qualified professional.
                         </CardDescription>
                     </div>

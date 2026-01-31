@@ -1411,7 +1411,7 @@ const WorkflowAutomation: React.FC = () => {
               <GitBranch className="h-4 w-4 text-purple-600" />
               <AlertTitle className="text-purple-800">Branching Timeline</AlertTitle>
               <AlertDescription className="text-purple-700 text-xs">
-                Original execution {activeExecution?.execution_id} will be preserved. A new execution will function as a "Clone".
+                Original execution {activeExecution?.execution_id} will be preserved. A new execution will function as a &quot;Clone&quot;.
               </AlertDescription>
             </Alert>
 

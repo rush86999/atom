@@ -1,3 +1,5 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -14,6 +16,7 @@ const nextConfig = {
   transpilePackages: ["@chakra-ui/react", "@chakra-ui/icons", "@ark-ui/react"],
   experimental: {
     externalDir: true,
+    outputFileTracingRoot: path.join(__dirname, "../../"),
   },
   async rewrites() {
     return [

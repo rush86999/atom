@@ -26,6 +26,7 @@ const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
                     onChange={handleChange}
                     className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-thumb"
                 />
+                {/* eslint-disable-next-line react/no-unknown-property */}
                 <style jsx>{`
           input[type="range"]::-webkit-slider-thumb {
             appearance: none;

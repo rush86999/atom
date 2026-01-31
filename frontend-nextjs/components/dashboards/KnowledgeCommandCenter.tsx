@@ -156,7 +156,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
             {showSearchResults ? (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-white">Knowledge Search Results for "{search}"</h2>
+                        <h2 className="text-xl font-semibold text-white">Knowledge Search Results for &quot;{search}&quot;</h2>
                         <button onClick={() => { setShowSearchResults(false); setSearch(''); clearSearch(); }} className="text-sm text-primary hover:underline">Clear Search</button>
                     </div>
                     {isSearching ? (
@@ -179,7 +179,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 rounded-xl">No historical intelligence found for "{search}".</div>
+                        <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 rounded-xl">No historical intelligence found for &quot;{search}&quot;.</div>
                     )}
                 </div>
             ) : (

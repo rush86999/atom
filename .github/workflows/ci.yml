@@ -91,6 +91,10 @@ jobs:
         working-directory: ./frontend-nextjs
         run: npm run type-check || true
 
+      - name: Lint
+        working-directory: ./frontend-nextjs
+        run: npm run lint || true
+
       - name: Build
         working-directory: ./frontend-nextjs
         env:

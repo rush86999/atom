@@ -94,7 +94,7 @@ export const SupportCommandCenter: React.FC = () => {
             {showSearchResults ? (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-white">Search Results for "{searchQuery}"</h2>
+                        <h2 className="text-xl font-semibold text-white">Search Results for &quot;{searchQuery}&quot;</h2>
                         <button onClick={() => { setShowSearchResults(false); setSearchQuery(''); clearSearch(); }} className="text-sm text-primary hover:underline">Clear Search</button>
                     </div>
                     {isSearching ? (
@@ -117,7 +117,7 @@ export const SupportCommandCenter: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 rounded-xl">No historical tickets found for "{searchQuery}".</div>
+                        <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 rounded-xl">No historical tickets found for &quot;{searchQuery}&quot;.</div>
                     )}
                 </div>
             ) : (
@@ -205,7 +205,7 @@ export const SupportCommandCenter: React.FC = () => {
                                                     <span className="text-xs text-muted-foreground">10:45 AM</span>
                                                 </div>
                                                 <div className="p-3 bg-white/5 rounded-lg text-sm max-w-xl text-muted-foreground">
-                                                    Hey team, we're seeing persistent sync failures on the main dashboard for organization #55. Can you take a look?
+                                                    Hey team, we&apos;re seeing persistent sync failures on the main dashboard for organization #55. Can you take a look?
                                                 </div>
                                             </div>
                                         </div>

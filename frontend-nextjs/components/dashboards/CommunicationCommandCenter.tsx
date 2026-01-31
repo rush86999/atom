@@ -187,7 +187,7 @@ export const CommunicationCommandCenter: React.FC = () => {
             {showSearchResults ? (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-white">Search Results for "{searchQuery}"</h2>
+                        <h2 className="text-xl font-semibold text-white">Search Results for &quot;{searchQuery}&quot;</h2>
                         <button onClick={() => setShowSearchResults(false)} className="text-sm text-primary hover:underline">Clear Search</button>
                     </div>
                     {isSearching ? (
@@ -291,6 +291,7 @@ export const CommunicationCommandCenter: React.FC = () => {
                                         <div key={contact.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
                                             <div className="flex items-center gap-3">
                                                 <div className="relative">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                                     <img src={contact.avatar} alt={contact.name} className="w-8 h-8 rounded-full border border-white/10" />
                                                     <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-black ${contact.status === 'online' ? 'bg-green-500' : 'bg-gray-500'}`} />
                                                 </div>
