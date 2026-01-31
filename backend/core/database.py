@@ -29,6 +29,13 @@ def get_database_url():
                 "⚠️ WARNING: Using SQLite file database (dev.db). "
                 "Set DATABASE_URL for production deployment."
             )
+    
+    # CI/Testing Override: Force in-memory SQLite if requested
+    # This prevents blocking connection attempts during import checks
+    if os.getenv("ATOM_MOCK_DATABASE", "false").lower() == "true":
+        database_url = "sqlite:///:memory:"
+        logger.warning("🛡️ ATOM_MOCK_DATABASE enabled: Using in-memory SQLite for CI/Testing")
+        return database_url
 
     # Security: Ensure SSL for PostgreSQL in production
     if env == "production" and "postgresql" in database_url:

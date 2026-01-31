@@ -65,6 +65,7 @@ jobs:
           BYOK_ENCRYPTION_KEY: test_key_for_ci_only
           ENVIRONMENT: test
           ATOM_DISABLE_LANCEDB: true
+          ATOM_MOCK_DATABASE: true
         run: |
           python -c "from main_api_app import app; print('Main API imports OK')"
           python -c "from core.generic_agent import GenericAgent; print('GenericAgent OK')"
