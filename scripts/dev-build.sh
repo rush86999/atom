@@ -94,8 +94,8 @@ clean_build() {
     fi
 
     # Clean Tauri target (if exists)
-    if [[ -d "src-tauri/target" ]]; then
-        rm -rf src-tauri/target
+    if [[ -d "frontend-nextjs/src-tauri/target" ]]; then
+        rm -rf frontend-nextjs/src-tauri/target
         log_success "Cleaned Rust build cache"
     fi
 
@@ -134,7 +134,7 @@ install_dependencies() {
 
     # Desktop dependencies (if building for desktop)
     if [[ "$PLATFORM" == "desktop" ]]; then
-        cd src-tauri
+        cd frontend-nextjs/src-tauri
 
         if [[ ! -d "node_modules" ]] || [[ "$CLEAN_BUILD" == "true" ]]; then
             log_info "Installing desktop dependencies..."
@@ -180,7 +180,7 @@ build_frontend() {
 build_desktop() {
     log_info "Building desktop application..."
 
-    cd src-tauri
+    cd frontend-nextjs/src-tauri
 
     # Set environment variables
     export TAURI_ENV="$ENVIRONMENT"
@@ -268,7 +268,7 @@ run_health_checks() {
     if [[ "$WATCH_MODE" == "false" ]]; then
         case "$PLATFORM" in
             "desktop")
-                if [[ -d "src-tauri/target/release" ]]; then
+                if [[ -d "frontend-nextjs/src-tauri/target/release" ]]; then
                     log_success "Desktop build artifacts created successfully"
                 fi
                 ;;
@@ -278,7 +278,7 @@ run_health_checks() {
                 fi
                 ;;
             "all")
-                if [[ -d "src-tauri/target/release" ]] && [[ -d "dist/web" ]]; then
+                if [[ -d "frontend-nextjs/src-tauri/target/release" ]] && [[ -d "dist/web" ]]; then
                     log_success "All build artifacts created successfully"
                 fi
                 ;;
@@ -302,7 +302,7 @@ print_completion() {
                 log_info "Press Ctrl+C to stop"
             else
                 log_info "Desktop app built successfully"
-                log_info "Output: src-tauri/target/release/"
+                log_info "Output: frontend-nextjs/src-tauri/target/release/"
             fi
             ;;
         "web")
@@ -317,7 +317,7 @@ print_completion() {
             ;;
         "all")
             log_info "All platforms built successfully"
-            log_info "Desktop output: src-tauri/target/release/"
+            log_info "Desktop output: frontend-nextjs/src-tauri/target/release/"
             log_info "Web output: dist/web/"
             ;;
     esac
@@ -327,7 +327,7 @@ print_completion() {
     case "$PLATFORM" in
         "desktop")
             if [[ "$WATCH_MODE" == "false" ]]; then
-                echo "  • Run: ./src-tauri/target/release/atom (Linux/Mac)"
+                echo "  • Run: ./frontend-nextjs/src-tauri/target/release/atom (Linux/Mac)"
                 echo "  • Run: .\\src-tauri\\target\\release\\atom.exe (Windows)"
             fi
             ;;
