@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { SecurityScanner } from '@/components/ui/SecurityScanner'
+import { useSecurityScanner } from '@/hooks/useSecurityScanner'
 
 export default function NewSkillPage() {
     const { data: session } = useSession() as any
@@ -62,13 +64,19 @@ export default function NewSkillPage() {
             }
 
             setSuccess(`Skill '${name}' created successfully`)
-            
+
         } catch (err: any) {
             setError(err.message)
         } finally {
             setLoading(false)
         }
     }
+
+    const { scanSkill, isScanning, results } = useSecurityScanner();
+
+    const handleSecurityScan = () => {
+        scanSkill(name || 'Untitled', instructions || '', { [scriptName]: scriptContent });
+    };
 
     return (
         <div className="bg-black min-h-screen p-6">
@@ -173,6 +181,12 @@ export default function NewSkillPage() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        <SecurityScanner
+                            isScanning={isScanning}
+                            results={results}
+                            onScan={handleSecurityScan}
+                        />
 
                         <Button type="submit" className="w-full" disabled={loading}>
                             {loading ? <span className="animate-spin mr-2">⏳</span> : <Save className="w-4 h-4 mr-2" />}

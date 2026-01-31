@@ -621,6 +621,21 @@ try:
     except ImportError as e:
         logger.warning(f"Core Agent routes not found: {e}")
 
+    # 14.7 Risk & Protection Routes
+    try:
+        from api.protection_api import router as protection_router
+        app.include_router(protection_router, prefix="/api/risk", tags=["Protection"])
+        logger.info("✓ Protection API Loaded at /api/risk")
+    except ImportError as e:
+        logger.warning(f"Protection API not found: {e}")
+
+    try:
+        from api.risk_routes import router as risk_router
+        app.include_router(risk_router, tags=["Risk"])
+        logger.info("✓ Risk Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Risk routes not found: {e}")
+
     # 14.6 Core Business Routes (Intelligence, Projects, Sales)
     try:
         from api.intelligence_routes import router as intelligence_router
