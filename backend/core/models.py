@@ -798,6 +798,52 @@ class BrowserSession(Base):
     workspace_id = Column(String, nullable=True, index=True)
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    
+    # Session Details
+    url = Column(String, nullable=True)
+    title = Column(String, nullable=True)
+    status = Column(String, default="active") # active, closed, error
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    agent = relationship("AgentRegistry")
+    execution = relationship("AgentExecution")
+
+class DeviceNode(Base):
+    """
+    Registry of compute nodes (Desktop, Mobile, Cloud) available for orchestration.
+    Backported from Atom SaaS for standard device targeting.
+    """
+    __tablename__ = "device_nodes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    
+    # Node Identity
+    name = Column(String, nullable=False)
+    device_id = Column(String, nullable=False, index=True) # Unique hardware/client ID
+    node_type = Column(String, nullable=False) # desktop_windows, desktop_mac, mobile_ios, etc.
+    
+    # Connectivity
+    status = Column(String, default="offline") # online, offline, busy
+    last_seen = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Capabilities (JSON list of strings)
+    capabilities = Column(JSON, default=[]) # e.g. ["browser", "terminal", "file_system"]
+    
+    # Metadata
+    metadata_json = Column(JSON, default={})
+    version = Column(String, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace", backref="device_nodes")
     user_id = Column(String, nullable=False, index=True)
 
     # Session configuration

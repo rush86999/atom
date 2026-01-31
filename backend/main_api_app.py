@@ -146,6 +146,20 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to start intelligence worker: {e}")
     else:
         logger.info("Skipping Scheduler startup (ENABLE_SCHEDULER=false)")
+
+    # 5. Start Redis Event Bridge (Real-Time Updates)
+    # Backported from SaaS for Atom-OpenClaw Bridge
+    try:
+        from redis_listener import RedisListener
+        redis_listener = RedisListener()
+        # Start in background task to not block startup
+        import asyncio
+        asyncio.create_task(redis_listener.start())
+        logger.info("✓ Redis Event Bridge running")
+    except ImportError:
+        logger.warning("Redis Listener module not found.")
+    except Exception as e:
+        logger.error(f"Failed to start Redis Bridge: {e}")
     
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
@@ -158,6 +172,12 @@ async def lifespan(app: FastAPI):
         from ai.workflow_scheduler import workflow_scheduler
         workflow_scheduler.shutdown()
         logger.info("✓ Workflow Scheduler stopped")
+    except:
+        pass
+
+    try:
+        redis_listener.stop()
+        logger.info("✓ Redis Event Bridge stopped")
     except:
         pass
 
@@ -641,11 +661,13 @@ try:
         from api.intelligence_routes import router as intelligence_router
         from api.project_routes import router as project_router
         from api.sales_routes import router as sales_router
+        from api.device_nodes import router as device_node_router
         
         app.include_router(intelligence_router) # Prefix defined in router
         app.include_router(project_router)      # Prefix defined in router
         app.include_router(sales_router)        # Prefix defined in router
-        logger.info("✓ Core Business Routes Loaded (Intelligence, Projects, Sales)")
+        app.include_router(device_node_router)  # Prefix defined in router
+        logger.info("✓ Core Business Routes Loaded (Intelligence, Projects, Sales, Device Nodes)")
     except ImportError as e:
         logger.warning(f"Core Business routes not found: {e}")
 
