@@ -71,6 +71,9 @@ class SatelliteService:
             if request_id in self.pending_requests:
                 del self.pending_requests[request_id]
 
+from core.database import SessionLocal
+from ai.device_node_service import device_node_service
+
     async def handle_message(self, tenant_id: str, message: Dict[str, Any]):
         """Process incoming messages from the satellite."""
         msg_type = message.get("type")
@@ -84,5 +87,23 @@ class SatelliteService:
         
         elif msg_type == "heartbeat":
             pass # Keep alive
+
+        elif msg_type == "identify":
+            # Register the device capabilities
+            logger.info(f"Received identity for tenant {tenant_id}: {message}")
+            try:
+                db = SessionLocal()
+                # Map message to node_data structure
+                node_data = {
+                    "deviceId": message.get("metadata", {}).get("hostname", f"node-{tenant_id}"),
+                    "name": message.get("metadata", {}).get("hostname", "Unknown Device"),
+                    "type": "satellite_bridge",
+                    "capabilities": message.get("capabilities", []),
+                    "metadata": message.get("metadata", {})
+                }
+                device_node_service.register_node(db, tenant_id, node_data)
+                db.close()
+            except Exception as e:
+                logger.error(f"Failed to register node identity: {e}")
 
 satellite_service = SatelliteService()
