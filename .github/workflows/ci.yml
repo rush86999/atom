@@ -61,7 +61,7 @@ jobs:
       - name: Verify backend imports
         working-directory: ./backend
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/atom_test
+          DATABASE_URL: "sqlite:///:memory:"
           BYOK_ENCRYPTION_KEY: test_key_for_ci_only
           ENVIRONMENT: test
           ATOM_DISABLE_LANCEDB: true
