@@ -663,6 +663,8 @@ api_service.pid
 *.db
 backend/atom_data.db
 data/
+atom_dev.db
+dev.db
 
 # Deployment and configuration
 deployment_info.txt
@@ -705,6 +707,16 @@ backend/scripts/test_*.py
 **/backend/scripts/test_*.py
 verify_*.py
 *.log.txt
+
+# Root directory debug and test scripts (archived)
+debug_*.py
+check_schema.py
+migrate_db.py
+verify_implementation.sh
+bad_trace_simulation.json
+results.json
+convert_log.py
+claude_code_zai_env.sh
 
 # Frontend build logs and debug scripts
 frontend-nextjs/*_log_*.txt
