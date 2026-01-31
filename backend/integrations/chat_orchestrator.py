@@ -254,28 +254,21 @@ class ChatOrchestrator:
         # Import AI engines
         try:
             from ai.nlp_engine import NaturalLanguageEngine
-<<<<<<< HEAD
-            from ai.data_intelligence import DataIntelligenceEngine
-            from ai.automation_engine import AutomationEngine
-=======
             self.ai_engines["nlp"] = NaturalLanguageEngine()
             logger.info("NLP Engine initialized successfully")
         except Exception as e:
             logger.warning(f"NLP Engine not available: {e}")
->>>>>>> 1a24040d (feat: Agent Workspace WebSocket integration + fix missing chats regression)
 
-            self.ai_engines = {
-                "nlp": NaturalLanguageEngine(),
-                "data_intelligence": DataIntelligenceEngine(),
-                "automation": AutomationEngine(),
-            }
-            logger.info("AI Engines initialized successfully")
+        try:
+            from ai.data_intelligence import DataIntelligenceEngine
+            from ai.automation_engine import AutomationEngine
+            self.ai_engines["data_intelligence"] = DataIntelligenceEngine()
+            self.ai_engines["automation"] = AutomationEngine()
+            logger.info("AI Engines (Data Intelligence, Automation) initialized successfully")
         except ImportError as e:
-            logger.warning(f"AI engines not available (ImportError): {e}")
-            self.ai_engines = {}
+            logger.warning(f"Additional AI engines not available (ImportError): {e}")
         except Exception as e:
             logger.error(f"Error initializing AI engines: {e}")
-            self.ai_engines = {}
 
     def _create_platform_connector(self, platform: PlatformType):
         """Create a mock platform connector (would connect to real APIs in production)"""

@@ -404,5 +404,100 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "45c7c9ee-631b-485f-a9e5-71db2419ef9c",
+    "user_id": "default",
+    "created_at": "2026-01-29T18:30:50.187597",
+    "last_active": "2026-01-30T15:41:29.041917",
+    "metadata": {
+      "source": "recovered"
+    },
+    "message_count": 2,
+    "history": [
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "45c7c9ee-631b-485f-a9e5-71db2419ef9c",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-30T00:00:50.167550"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-30T00:00:50.167602"
+      },
+      {
+        "message": "schedule a meeting for tomorrow",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "45c7c9ee-631b-485f-a9e5-71db2419ef9c",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-01-30T00:02:24.134057"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-01-30T00:02:24.134081"
+      }
+    ],
+    "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+    "title": "rename test"
   }
 ]
