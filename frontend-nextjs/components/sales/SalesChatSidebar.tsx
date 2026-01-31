@@ -159,7 +159,7 @@ const SalesChatSidebar: React.FC<SalesChatSidebarProps> = ({ workspaceId }) => {
                             </Button>
                         </div>
                         <p className="text-[9px] text-muted-foreground mt-2 text-center italic">
-                            Try: "How's my weighted pipeline?" or "At-risk deals?"
+                            Try: &quot;How&apos;s my weighted pipeline?&quot; or &quot;At-risk deals?&quot;
                         </p>
                     </div>
                 </>

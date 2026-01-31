@@ -49,7 +49,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId }) => {
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm text-slate-400 italic">
-                                "{sessionId ? "I am currently processing the conversation history to better assist you." : "I am standing by. Start a chat to see my execution plan."}"
+                                &quot;{sessionId ? "I am currently processing the conversation history to better assist you." : "I am standing by. Start a chat to see my execution plan."}&quot;
                             </p>
                         </CardContent>
                     </Card>

@@ -821,7 +821,7 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
 
         {!loading && filteredData.length === 0 && filters.searchQuery && (
           <div className="text-sm text-gray-500 text-center p-4">
-            No results found for "{filters.searchQuery}"
+            No results found for &quot;{filters.searchQuery}&quot;
           </div>
         )}
       </CardContent>

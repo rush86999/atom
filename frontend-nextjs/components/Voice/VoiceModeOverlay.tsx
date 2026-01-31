@@ -195,7 +195,7 @@ export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAg
                                             "Tap to speak"}
                             </h2>
                             <p className="text-4xl md:text-5xl font-bold text-white leading-tight min-h-[120px]">
-                                "{transcript || (mode === 'speaking' ? lastAgentMessage?.slice(0, 100) + "..." : "...")}"
+                                &quot;{transcript || (mode === 'speaking' ? lastAgentMessage?.slice(0, 100) + "..." : "...")}&quot;
                             </p>
                         </div>
 
@@ -205,8 +205,8 @@ export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAg
                             <Button
                                 size="lg"
                                 className={`h-20 w-20 rounded-full transition-all duration-300 ${mode === 'listening'
-                                        ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 scale-110'
-                                        : 'bg-white text-black hover:bg-zinc-200 shadow-lg shadow-white/20'
+                                    ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 scale-110'
+                                    : 'bg-white text-black hover:bg-zinc-200 shadow-lg shadow-white/20'
                                     }`}
                                 onClick={mode === 'listening' ? stopListening : startListening}
                             >

@@ -1,149 +1,150 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 interface VoiceInputProps {
-    onTranscript: (text: string) => void;
-    onCommand?: (result: any) => void;
-    className?: string;
+  onTranscript: (text: string) => void;
+  onCommand?: (result: any) => void;
+  className?: string;
 }
 
 const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, onCommand, className }) => {
-    const [isListening, setIsListening] = useState(false);
-    const [transcript, setTranscript] = useState('');
-    const [error, setError] = useState<string | null>(null);
-    const recognitionRef = useRef<any>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
 
-    useEffect(() => {
-        // Check browser support
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            setError('Voice input is not supported in this browser');
-            return;
-        }
+  useEffect(() => {
+    // Check browser support
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      setError('Voice input is not supported in this browser');
+      return;
+    }
 
-        // Initialize Web Speech API
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = true;
-        recognitionRef.current.lang = 'en-US';
+    // Initialize Web Speech API
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    recognitionRef.current = new SpeechRecognition();
+    recognitionRef.current.continuous = false;
+    recognitionRef.current.interimResults = true;
+    recognitionRef.current.lang = 'en-US';
 
-        recognitionRef.current.onresult = (event: any) => {
-            let interimTranscript = '';
-            let finalTranscript = '';
+    recognitionRef.current.onresult = (event: any) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
 
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const result = event.results[i];
-                if (result.isFinal) {
-                    finalTranscript += result[0].transcript;
-                } else {
-                    interimTranscript += result[0].transcript;
-                }
-            }
-
-            setTranscript(finalTranscript || interimTranscript);
-
-            if (finalTranscript) {
-                onTranscript(finalTranscript);
-            }
-        };
-
-        recognitionRef.current.onerror = (event: any) => {
-            setError(`Voice error: ${event.error}`);
-            setIsListening(false);
-        };
-
-        recognitionRef.current.onend = () => {
-            setIsListening(false);
-        };
-
-        return () => {
-            if (recognitionRef.current) {
-                recognitionRef.current.stop();
-            }
-        };
-    }, [onTranscript]);
-
-    const toggleListening = useCallback(() => {
-        if (!recognitionRef.current) return;
-
-        if (isListening) {
-            recognitionRef.current.stop();
-            setIsListening(false);
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
         } else {
-            setTranscript('');
-            setError(null);
-            recognitionRef.current.start();
-            setIsListening(true);
+          interimTranscript += result[0].transcript;
         }
-    }, [isListening]);
+      }
 
-    const submitCommand = async () => {
-        if (!transcript.trim()) return;
+      setTranscript(finalTranscript || interimTranscript);
 
-        try {
-            const response = await fetch('/api/v1/voice/command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: transcript, language: 'en' }),
-            });
-
-            const result = await response.json();
-            if (onCommand) {
-                onCommand(result);
-            }
-        } catch (err) {
-            setError('Failed to process voice command');
-        }
+      if (finalTranscript) {
+        onTranscript(finalTranscript);
+      }
     };
 
-    return (
-        <div className={`voice-input ${className || ''}`}>
-            <div className="voice-controls">
-                <button
-                    onClick={toggleListening}
-                    className={`voice-button ${isListening ? 'listening' : ''}`}
-                    title={isListening ? 'Stop listening' : 'Start voice input'}
-                >
-                    <svg
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                    >
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                        <line x1="12" y1="19" x2="12" y2="23" />
-                        <line x1="8" y1="23" x2="16" y2="23" />
-                    </svg>
-                    {isListening && <span className="pulse-ring" />}
-                </button>
+    recognitionRef.current.onerror = (event: any) => {
+      setError(`Voice error: ${event.error}`);
+      setIsListening(false);
+    };
 
-                {transcript && (
-                    <button onClick={submitCommand} className="submit-button">
-                        Send to Atom
-                    </button>
-                )}
-            </div>
+    recognitionRef.current.onend = () => {
+      setIsListening(false);
+    };
 
-            {isListening && (
-                <div className="listening-indicator">
-                    <span className="dot" />
-                    <span className="dot" />
-                    <span className="dot" />
-                    Listening...
-                </div>
-            )}
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, [onTranscript]);
 
-            {transcript && (
-                <div className="transcript-display">
-                    <p>{transcript}</p>
-                </div>
-            )}
+  const toggleListening = useCallback(() => {
+    if (!recognitionRef.current) return;
 
-            {error && <div className="voice-error">{error}</div>}
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setTranscript('');
+      setError(null);
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  }, [isListening]);
 
-            <style jsx>{`
+  const submitCommand = async () => {
+    if (!transcript.trim()) return;
+
+    try {
+      const response = await fetch('/api/v1/voice/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: transcript, language: 'en' }),
+      });
+
+      const result = await response.json();
+      if (onCommand) {
+        onCommand(result);
+      }
+    } catch (err) {
+      setError('Failed to process voice command');
+    }
+  };
+
+  return (
+    <div className={`voice-input ${className || ''}`}>
+      <div className="voice-controls">
+        <button
+          onClick={toggleListening}
+          className={`voice-button ${isListening ? 'listening' : ''}`}
+          title={isListening ? 'Stop listening' : 'Start voice input'}
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
+          </svg>
+          {isListening && <span className="pulse-ring" />}
+        </button>
+
+        {transcript && (
+          <button onClick={submitCommand} className="submit-button">
+            Send to Atom
+          </button>
+        )}
+      </div>
+
+      {isListening && (
+        <div className="listening-indicator">
+          <span className="dot" />
+          <span className="dot" />
+          <span className="dot" />
+          Listening...
+        </div>
+      )}
+
+      {transcript && (
+        <div className="transcript-display">
+          <p>{transcript}</p>
+        </div>
+      )}
+
+      {error && <div className="voice-error">{error}</div>}
+
+      {/* eslint-disable-next-line react/no-unknown-property */}
+      <style jsx>{`
         .voice-input {
           display: flex;
           flex-direction: column;
@@ -261,8 +262,8 @@ const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, onCommand, classN
           font-size: 14px;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 };
 
 export default VoiceInput;

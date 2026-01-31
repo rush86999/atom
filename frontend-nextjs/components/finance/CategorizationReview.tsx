@@ -101,7 +101,7 @@ const CategorizationReview = () => {
                                 </TableCell>
                                 <TableCell>
                                     <div className="text-xs italic text-muted-foreground max-w-[200px] truncate" title={prop.reasoning}>
-                                        "{prop.reasoning}"
+                                        &quot;{prop.reasoning}&quot;
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-right">
