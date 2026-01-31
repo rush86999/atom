@@ -100,6 +100,14 @@ jobs:
           SKIP_ENV_VALIDATION: true
         run: npm run build
 
+      - name: Upload Frontend Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-nextjs-build
+          path: frontend-nextjs/.next
+          retention-days: 7
+          if-no-files-found: warn
+
   docker-build:
     runs-on: ubuntu-latest
     needs: [backend-test, frontend-build]
@@ -186,10 +194,18 @@ jobs:
           mv next.config.tauri.js next.config.js
           
           npm run build
-          
+
           # Restore config
           rm next.config.js
           if [ -f next.config.js.bak ]; then mv next.config.js.bak next.config.js; fi
+
+      - name: Upload Static Export Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-static-export
+          path: frontend-nextjs/out
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Verify Tauri config
         working-directory: ./frontend-nextjs
@@ -201,3 +217,22 @@ jobs:
       - name: Build Tauri App (check only)
         working-directory: ./frontend-nextjs
         run: npm run tauri build -- --verbose
+
+      - name: Upload Tauri Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-linux-builds
+          path: |
+            frontend-nextjs/src-tauri/target/release/bundle/deb/*.deb
+            frontend-nextjs/src-tauri/target/release/bundle/appimage/*.AppImage
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: List Build Artifacts
+        working-directory: ./frontend-nextjs
+        run: |
+          echo "=== Tauri Build Artifacts ==="
+          find src-tauri/target/release/bundle -type f -name "*.deb" -o -name "*.AppImage" | head -20
+          echo ""
+          echo "=== File Sizes ==="
+          find src-tauri/target/release/bundle -type f -exec ls -lh {} \; | awk '{print $5, $9}'
