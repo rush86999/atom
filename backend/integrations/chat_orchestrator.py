@@ -18,11 +18,21 @@ import asyncio
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from core.automation_settings import get_automation_settings
-from core.automation_settings import get_automation_settings
 from api.agent_routes import execute_agent_task
 from core.chat_session_manager import get_chat_session_manager
+from core import unified_task_endpoints
+from core import unified_search_endpoints
+from core.unified_task_endpoints import CreateTaskRequest, Task
+from core.websockets import get_connection_manager
 
-# Legacy Agent Definitions for Chat Mapping
+class SimpleUser:
+    """Helper user class for internal calls"""
+    def __init__(self, user_id: str):
+        self.id = user_id
+        self.email = "internal@atom.ai"
+        self.username = "atom_internal"
+
+# ... (other imports)
 AGENTS = {
     "competitive_intel": {
         "name": "Competitive Intelligence Agent",
@@ -164,10 +174,37 @@ class ChatOrchestrator:
         # Load persisted sessions
         self._load_persisted_sessions()
 
+    def get_user_sessions(self, user_id: str, limit: int = 20) -> Dict[str, Any]:
+        """
+        Get all sessions for a user, delegating to the session manager (DB/File).
+        """
+        # Fetch from manager (which handles DB/File abstraction)
+        sessions_list = self.session_manager.list_user_sessions(user_id, limit)
+        
+        # Convert list to dict format expected by frontend (for consistency with current API)
+        sessions_dict = {}
+        for s in sessions_list:
+            sessions_dict[s["session_id"]] = {
+                "id": s["session_id"],
+                "user_id": s["user_id"],
+                "title": s.get("title"), # Added title field
+                "created_at": s.get("created_at"),
+                "last_updated": s.get("last_active"), 
+                "history": s.get("history", []),
+                "metadata": s.get("metadata", {})
+            }
+            
+            # Opportunistically cache in memory if missing
+            if s["session_id"] not in self.conversation_sessions:
+                self.conversation_sessions[s["session_id"]] = sessions_dict[s["session_id"]]
+                
+        return sessions_dict
+
     def _load_persisted_sessions(self):
-        """Load sessions from disk into memory"""
+        """Load sessions from disk into memory (Legacy File Support)"""
         try:
-            persisted = self.session_manager._load_sessions()
+             # NOTE: This only loads from file. DB sessions are loaded lazily via get_user_sessions.
+            persisted = self.session_manager._load_sessions_file()
             for s in persisted:
                 # Convert flat session structure to orchestrator structure
                 self.conversation_sessions[s["session_id"]] = {
@@ -177,7 +214,7 @@ class ChatOrchestrator:
                     "last_updated": s.get("last_active"), 
                     "history": s.get("history", [])
                 }
-            logger.info(f"Loaded {len(persisted)} persisted sessions.")
+            logger.info(f"Loaded {len(persisted)} persisted sessions from file.")
         except Exception as e:
             logger.error(f"Failed to load persisted sessions: {e}")
 
@@ -217,8 +254,15 @@ class ChatOrchestrator:
         # Import AI engines
         try:
             from ai.nlp_engine import NaturalLanguageEngine
+<<<<<<< HEAD
             from ai.data_intelligence import DataIntelligenceEngine
             from ai.automation_engine import AutomationEngine
+=======
+            self.ai_engines["nlp"] = NaturalLanguageEngine()
+            logger.info("NLP Engine initialized successfully")
+        except Exception as e:
+            logger.warning(f"NLP Engine not available: {e}")
+>>>>>>> 1a24040d (feat: Agent Workspace WebSocket integration + fix missing chats regression)
 
             self.ai_engines = {
                 "nlp": NaturalLanguageEngine(),
@@ -240,6 +284,26 @@ class ChatOrchestrator:
             "capabilities": ["search", "create", "update", "delete"],
             "metadata": {"platform": platform.value}
         }
+
+    async def _emit_agent_step(self, step: int, thought: str, action: str, observation: str):
+        """Emit an agent step update to the frontend via WebSockets"""
+        try:
+            manager = get_connection_manager()
+            # Broadcast to default workspace channel for now
+            # In production, this should be f"workspace:{self.current_user.workspace_id}"
+            await manager.broadcast_event("workspace:default", "agent_step_update", {
+                "step": {
+                    "step": step,
+                    "thought": thought,
+                    "action": action,
+                    "action_input": "",
+                    "observation": observation,
+                    "timestamp": datetime.now().isoformat()
+                },
+                "agent_id": "system_orchestrator"
+            })
+        except Exception as e:
+            logger.warning(f"Failed to emit agent step: {e}")
 
     async def process_chat_message(
         self,
@@ -309,7 +373,7 @@ class ChatOrchestrator:
 
     def _classify_intent(self, nlp_result) -> ChatIntent:
         """Classify intent from NLP results"""
-        from backend.ai.nlp_engine import CommandType
+        from ai.nlp_engine import CommandType
         command_type = nlp_result.command_type
         
         # Map command types to intents
@@ -322,10 +386,24 @@ class ChatOrchestrator:
             CommandType.BUSINESS_HEALTH: ChatIntent.BUSINESS_HEALTH,
             CommandType.TRIGGER: ChatIntent.AUTOMATION_TRIGGER,
             CommandType.NOTIFY: ChatIntent.MESSAGE_SEND,
-            CommandType.UNKNOWN: ChatIntent.HELP_REQUEST,
         }
 
-        return intent_mapping.get(command_type, ChatIntent.HELP_REQUEST)
+        if command_type in intent_mapping:
+            # Special case: "List tasks" often gets misclassified as SEARCH. override it.
+            if command_type == CommandType.SEARCH:
+                 msg = nlp_result.raw_command.lower()
+                 if "list" in msg and ("task" in msg or "todo" in msg):
+                     return ChatIntent.TASK_MANAGEMENT
+            return intent_mapping[command_type]
+
+        # Handle UNKNOWN with specific text heuristics
+        if command_type == CommandType.UNKNOWN:
+            msg = nlp_result.raw_command.lower()
+            if "list" in msg and ("task" in msg or "todo" in msg):
+                 return ChatIntent.TASK_MANAGEMENT
+            return ChatIntent.SEARCH_REQUEST # Fallback to search
+            
+        return ChatIntent.SEARCH_REQUEST
 
     def _fallback_intent_analysis(self, message: str) -> Dict[str, Any]:
         """Fallback intent analysis when NLP is unavailable"""
@@ -336,7 +414,7 @@ class ChatOrchestrator:
             intent = ChatIntent.SEARCH_REQUEST
         elif any(word in message_lower for word in ["message", "email", "send", "notify"]):
             intent = ChatIntent.MESSAGE_SEND
-        elif any(word in message_lower for word in ["task", "todo", "reminder", "due"]):
+        elif any(word in message_lower for word in ["task", "todo", "reminder", "due", "list"]):
             intent = ChatIntent.TASK_MANAGEMENT
         elif any(word in message_lower for word in ["workflow", "automate", "automation"]):
             intent = ChatIntent.WORKFLOW_CREATION
@@ -484,6 +562,9 @@ class ChatOrchestrator:
 
         elif intent == ChatIntent.TASK_MANAGEMENT:
             task_data = feature_responses.get(FeatureType.TASKS, {})
+            # Use specific message from task service if available (e.g. "Task created: Buy Milk")
+            if task_data.get("data") and task_data["data"].get("message"):
+                return task_data["data"]["message"]
             if task_data.get("data"):
                 return "I've updated your tasks across all platforms."
             return "I'll manage those tasks for you."
@@ -561,41 +642,60 @@ class ChatOrchestrator:
             "Explore automation opportunities",
             "Check your dashboard for insights"
         ])
-
         return next_steps[:3]  # Limit to 3 next steps
 
     # Feature handler implementations
     async def _handle_search_request(
-        self,
-        message: str,
-        intent_analysis: Dict[str, Any],
-        session: Dict,
-        context: Optional[Dict]
+        self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
         """Handle search requests across all platforms"""
         try:
-            # Use AI data intelligence for unified search
-            if "data_intelligence" in self.ai_engines:
-                search_results = self.ai_engines["data_intelligence"].search_unified_entities(
-                    message
-                )
+            logger.info(f"Handling search request: {message}")
+            
+            from core.unified_search_endpoints import SearchRequest
+            from core import unified_search_endpoints
+
+            # Clean up query
+            query = message
+            for prefix in ["find", "search for", "show me", "look for", "get"]:
+                 if message.lower().startswith(prefix):
+                     query = message[len(prefix):].strip()
+                     break
+            
+            user_id = session.get("user_id", "default_user")
+
+            # Call Unified Search
+            search_req = SearchRequest(
+                query=query,
+                user_id=user_id,
+                limit=5,
+                search_type="hybrid"
+            )
+            
+            
+            await self._emit_agent_step(1, f"Searching knowledge base for '{query}'", "search_documents", "Querying hybrid search index...")
+            result = await unified_search_endpoints.hybrid_search(search_req)
+            await self._emit_agent_step(2, "Search complete", "process_results", f"Found {len(result.results)} relevant documents")
+            
+            formatted_results = []
+            if result.results:
+                for r in result.results[:3]:
+                    formatted_results.append(f"- [{r.title}]({r.source_uri}) ({r.doc_type})")
+                
+                response_text = f"I found {len(result.results)} results for '**{query}**':\n" + "\n".join(formatted_results)
             else:
-                search_results = []
+                response_text = f"I couldn't find any documents matching '{query}'."
 
             return {
                 "success": True,
                 "data": {
-                    "results": search_results,
-                    "query": message,
-                    "platforms_searched": intent_analysis.get("platforms", [])
+                    "results": [r.dict() for r in result.results],
+                    "query": query,
+                    "message": response_text
                 },
                 "suggested_actions": [
-                    "Open Search UI for detailed results",
-                    "Save this search for later",
-                    "Set up alert for similar content"
-                ],
-                "ui_updates": [
-                    {"type": "search_results", "data": search_results}
+                    "Open Search UI for details",
+                    "Refine search terms"
                 ]
             }
         except Exception as e:
@@ -610,7 +710,85 @@ class ChatOrchestrator:
     async def _handle_task_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
-        return {"success": True, "data": {"message": "Task logic here"}}
+        """Handle task requests (Create, List, Update)"""
+        try:
+            logger.info(f"Handling task request: {intent_analysis}")
+            
+            # 1. Determine Action (Create vs List)
+            # Simple heuristic: if parameters has 'dates' or if intent is 'create', it's likely a create
+            action = "create" 
+            if "list" in message.lower() or "show" in message.lower() or "what" in message.lower():
+                action = "list"
+            
+            user_id = session.get("user_id", "default_user")
+            simple_user = SimpleUser(user_id)
+
+            if action == "create":
+                # Extract details
+                title = message
+                # Try to clean up title by removing trigger words
+                for prefix in ["create task", "add task", "remind me to", "new task"]:
+                    if message.lower().startswith(prefix):
+                        title = message[len(prefix):].strip()
+                        break
+                
+                await self._emit_agent_step(1, "Analyzed intent: Create Task", "create_task", f"Preparing to create task: {title}")
+                
+                # Check for entities
+                entities = intent_analysis.get("entities", [])
+                if entities:
+                    # If entities found, might use them as title or description
+                    pass
+                    
+                # Create Task Object
+                # Default to today if no date found
+                due_date = datetime.now() + timedelta(days=1)
+                
+                await self._emit_agent_step(2, "Defaulting platform based on availability", "check_availability", "Selected platform: Asana (or fallback to local)")
+
+                new_task_req = CreateTaskRequest(
+                    title=title,
+                    description=f"Created via Chat",
+                    dueDate=due_date,
+                    priority="medium",
+                    platform="asana" if unified_task_endpoints.ASANA_AVAILABLE else "local"
+                )
+                
+                # Call Unified Endpoint
+                result = await unified_task_endpoints.create_task(new_task_req, current_user=simple_user)
+                
+                await self._emit_agent_step(3, "Task created successfully", "finish", f"Task ID: {result['task'].id}")
+
+                return {
+                    "success": True, 
+                    "data": {
+                        "message": f"✅ Task created: **{result['task'].title}** (Due: {result['task'].dueDate.strftime('%Y-%m-%d')})",
+                        "task": result['task']
+                    }
+                }
+            
+            elif action == "list":
+                 # Call Unified Endpoint
+                 result = await unified_task_endpoints.get_tasks(platform="all")
+                 tasks = result.get("tasks", [])
+                 
+                 if not tasks:
+                     return {"success": True, "data": {"message": "You have no open tasks."}}
+                 
+                 # Format list
+                 task_list_str = "\n".join([f"- **{t.title}** ({t.status})" for t in tasks[:5]])
+                 return {
+                     "success": True,
+                     "data": {
+                         "message": f"Here are your tasks:\n{task_list_str}"
+                     }
+                 }
+
+            return {"success": False, "data": {"message": "I didn't understand the task command."}}
+            
+        except Exception as e:
+            logger.error(f"Task handler failed: {e}")
+            return {"success": False, "error": str(e)}
 
     async def _handle_workflow_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
@@ -1069,3 +1247,15 @@ class ChatOrchestrator:
                 "error": str(e),
                 "feature": "agent"
             }
+
+    def rename_session(self, session_id: str, new_title: str) -> bool:
+        """Rename a chat session"""
+        
+        # 1. Update Persistence
+        success = self.session_manager.rename_session(session_id, new_title)
+        
+        # 2. Update In-Memory Cache if present
+        if session_id in self.conversation_sessions:
+            self.conversation_sessions[session_id]["title"] = new_title
+            
+        return success
