@@ -42,9 +42,9 @@ CRITICAL_COMPONENTS=(
     "src/components/Chat/TauriChatInterface.tsx:Chat Interface"
     "src/components/Chat/MessageItem.tsx:Message Component"
     "src/types/nlu.ts:Type Definitions"
-    "src-tauri/src/atom_agent_commands.rs:Chat Commands"
-    "src-tauri/src/main.rs:Tauri Main"
-    "src-tauri/Cargo.toml:Build Config"
+    "frontend-nextjs/src-tauri/src/atom_agent_commands.rs:Chat Commands"
+    "frontend-nextjs/src-tauri/src/main.rs:Tauri Main"
+    "frontend-nextjs/src-tauri/Cargo.toml:Build Config"
 )
 
 production_ready=true
@@ -172,7 +172,7 @@ cd "$PROJECT_ROOT"
 echo "🔧 Testing Integration Command Structure:"
 
 # Test integration command analysis
-if [ -f "src-tauri/src/atom_agent_commands.rs" ]; then
+if [ -f "frontend-nextjs/src-tauri/src/atom_agent_commands.rs" ]; then
     echo "📋 Checking Integration Command Support:"
     
     # Check for integration commands

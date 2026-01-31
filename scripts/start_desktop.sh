@@ -7,8 +7,8 @@ echo "📁 Consolidated Architecture: Tauri + Next.js"
 echo ""
 
 # Check if we're in the right directory
-if [ ! -d "src-tauri" ]; then
-    echo "❌ Error: src-tauri directory not found"
+if [ ! -d "frontend-nextjs/src-tauri" ]; then
+    echo "❌ Error: frontend-nextjs/src-tauri directory not found"
     echo "   Please run this script from atom root directory"
     exit 1
 fi
@@ -103,11 +103,11 @@ cd ..
 # Check Tauri dependencies
 echo ""
 echo "🔍 Checking Tauri dependencies..."
-cd src-tauri
+cd frontend-nextjs/src-tauri
 
 # Check if Cargo.toml exists
 if [ ! -f "Cargo.toml" ]; then
-    echo "❌ Error: Cargo.toml not found in src-tauri"
+    echo "❌ Error: Cargo.toml not found in frontend-nextjs/src-tauri"
     echo "   Please ensure Tauri configuration is correct"
     exit 1
 fi
@@ -133,15 +133,15 @@ if [ $? -ne 0 ]; then
 fi
 echo "✅ Tauri compiles successfully"
 
-# Go back to root
-cd ..
+# Go back to root (need to go up two levels)
+cd ../..
 
 # Show configuration
 echo ""
 echo "⚙️  Configuration Summary:"
 echo "   Architecture: Consolidated Tauri + Next.js"
 echo "   Frontend: frontend-nextjs/"
-echo "   Backend: src-tauri/"
+echo "   Tauri: frontend-nextjs/src-tauri/"
 echo "   Node.js: $(node --version)"
 echo "   Rust: $(rustc --version)"
 echo "   Tauri: $(tauri --version 2>/dev/null || echo 'CLI installed')"
@@ -166,7 +166,7 @@ sleep 3
 
 # Start Tauri desktop app
 echo "🖥️  Starting Tauri desktop application..."
-cd src-tauri
+cd frontend-nextjs/src-tauri
 cargo tauri dev
 
 # Cleanup: kill frontend process when Tauri exits

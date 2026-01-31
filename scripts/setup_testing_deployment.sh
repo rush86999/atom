@@ -50,7 +50,7 @@ echo ""
 # Step 2: Test Build Configuration
 echo "⚙️ Step 2: Test Build Configuration"
 
-cd src-tauri
+cd frontend-nextjs/src-tauri
 
 # Check if Cargo.toml exists and is valid
 if [ ! -f "Cargo.toml" ]; then
@@ -216,7 +216,7 @@ echo "🧪 ATOM Chat Interface - Development Test"
 echo "======================================"
 
 PROJECT_ROOT="/home/developer/projects/atom/atom"
-cd "$PROJECT_ROOT/src-tauri"
+cd "$PROJECT_ROOT/frontend-nextjs/src-tauri"
 
 echo "🚀 Starting Tauri development server..."
 echo "📋 Test Instructions:"
@@ -266,7 +266,7 @@ PROJECT_ROOT="/home/developer/projects/atom/atom"
 cd "$PROJECT_ROOT"
 
 echo "🧹 Clean previous builds..."
-rm -rf src-tauri/target/release/bundle
+rm -rf frontend-nextjs/src-tauri/target/release/bundle
 rm -rf build
 
 echo ""
@@ -281,7 +281,7 @@ fi
 
 echo ""
 echo "🦀 Building Tauri app for production..."
-cd src-tauri
+cd frontend-nextjs/src-tauri
 
 # Build for production
 cargo build --release
@@ -401,7 +401,7 @@ cd /home/developer/projects/atom/atom
 ### Distribution Files
 After successful build, distribution packages will be available in:
 ```
-src-tauri/target/release/bundle/
+frontend-nextjs/src-tauri/target/release/bundle/
 ├── darwin/
 │   └── Atom AI Assistant.app (macOS)
 ├── win32/
@@ -434,22 +434,22 @@ src-tauri/target/release/bundle/
 #### macOS Deployment
 ```bash
 # Distribute the .app file
-cp -R "src-tauri/target/release/bundle/darwin/Atom AI Assistant.app" /Applications/
+cp -R "frontend-nextjs/src-tauri/target/release/bundle/darwin/Atom AI Assistant.app" /Applications/
 # Or create DMG installer
 ```
 
 #### Windows Deployment
 ```bash
 # Run the installer
-"src-tauri/target/release/bundle/win32/Atom AI Assistant Setup.exe"
+"frontend-nextjs/src-tauri/target/release/bundle/win32/Atom AI Assistant Setup.exe"
 ```
 
 #### Linux Deployment
 ```bash
 # Install .deb package
-sudo dpkg -i "src-tauri/target/release/bundle/linux/atom_1.1.0_amd64.deb"
+sudo dpkg -i "frontend-nextjs/src-tauri/target/release/bundle/linux/atom_1.1.0_amd64.deb"
 # Or run AppImage
-chmod +x "src-tauri/target/release/bundle/linux/atom_1.1.0_amd64.AppImage"
+chmod +x "frontend-nextjs/src-tauri/target/release/bundle/linux/atom_1.1.0_amd64.AppImage"
 ./atom_1.1.0_amd64.AppImage
 ```
 

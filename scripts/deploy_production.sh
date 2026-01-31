@@ -23,9 +23,9 @@ CRITICAL_FILES=(
     "src/components/Chat/TauriChatInterface.tsx"
     "src/components/Chat/MessageItem.tsx"
     "src/types/nlu.ts"
-    "src-tauri/src/atom_agent_commands.rs"
-    "src-tauri/src/main.rs"
-    "src-tauri/Cargo.toml"
+    "frontend-nextjs/src-tauri/src/atom_agent_commands.rs"
+    "frontend-nextjs/src-tauri/src/main.rs"
+    "frontend-nextjs/src-tauri/Cargo.toml"
 )
 
 all_ready=true

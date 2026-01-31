@@ -9,19 +9,17 @@ echo "🧹 ATOM Desktop Implementation Cleanup"
 echo "======================================"
 
 # Check if we're in the project root
-if [ ! -d "src-tauri" ]; then
+if [ ! -d "frontend-nextjs/src-tauri" ]; then
     echo "❌ Error: Must run from project root directory"
+    echo "   frontend-nextjs/src-tauri not found"
     exit 1
 fi
 
 echo ""
 echo "📋 Current desktop implementations found:"
-echo "   ✅ src-tauri/ (Primary Tauri)"
+echo "   ✅ frontend-nextjs/src-tauri/ (Primary Tauri - CONSOLIDATED)"
 if [ -d "desktop/tauri" ]; then
     echo "   ⚠️  desktop/tauri/ (Redundant Tauri)"
-fi
-if [ -d "frontend-nextjs/src-tauri" ]; then
-    echo "   ⚠️  frontend-nextjs/src-tauri/ (Minimal Tauri)"
 fi
 if [ -d "desktop" ] && [ ! -d "desktop/tauri" ]; then
     echo "   ⚠️  desktop/ (Electron)"
@@ -46,12 +44,8 @@ if [ -d "desktop/tauri" ]; then
     echo "   ✅ Removed desktop/tauri/"
 fi
 
-# Remove minimal Tauri implementation
-if [ -d "frontend-nextjs/src-tauri" ]; then
-    echo "   Removing frontend-nextjs/src-tauri/..."
-    rm -rf frontend-nextjs/src-tauri/
-    echo "   ✅ Removed frontend-nextjs/src-tauri/"
-fi
+# Note: frontend-nextjs/src-tauri is now the PRIMARY implementation
+# Do not remove it!
 
 # Archive Electron implementation (optional)
 if [ -d "desktop" ] && [ ! -d "desktop/tauri" ]; then
@@ -71,11 +65,11 @@ echo ""
 echo "✅ Cleanup completed!"
 echo ""
 echo "📋 Remaining implementation:"
-echo "   ✅ src-tauri/ (Primary Tauri implementation)"
+echo "   ✅ frontend-nextjs/src-tauri/ (Primary Tauri implementation)"
 echo ""
 echo "🔧 Next steps:"
-echo "   1. Test Tauri build: cd src-tauri && cargo check"
+echo "   1. Test Tauri build: cd frontend-nextjs/src-tauri && cargo check"
 echo "   2. Test frontend build: cd frontend-nextjs && npm run build"
-echo "   3. Build desktop app: cd src-tauri && cargo tauri build"
+echo "   3. Build desktop app: cd frontend-nextjs && npm run tauri build"
 echo ""
-echo "📚 See DESKTOP_APP_CONSOLIDATION.md for detailed migration plan"
+echo "📚 See .archive/tauri-root-dev-2025-01-30/README.md for consolidation details"

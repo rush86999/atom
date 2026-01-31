@@ -17,7 +17,7 @@ echo ""
 
 # Step 1: Update configuration
 echo "⚙️ Step 1: Update configuration"
-cd src-tauri
+cd frontend-nextjs/src-tauri
 
 # Copy updated files
 if [ -f "Cargo_with_chat.toml" ]; then

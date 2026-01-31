@@ -79,7 +79,7 @@ echo ""
 # Step 3: Test Tauri Commands
 echo "🔧 Step 3: Test Tauri Commands"
 
-cd "$PROJECT_ROOT/src-tauri/src"
+cd "$PROJECT_ROOT/frontend-nextjs/src-tauri/src"
 
 if [ -f "atom_agent_commands.rs" ]; then
     echo "✅ atom_agent_commands.rs exists"
@@ -196,7 +196,7 @@ Simulate chat messages by checking command structure:
 **Result**: [Pass/Fail]
 
 ### 4. Tauri Command Registration
-Open `/src-tauri/src/main.rs` and verify:
+Open `frontend-nextjs/src-tauri/src/main.rs` and verify:
 
 **Expected**:
 - ✅ `atom_invoke_command` function exists
@@ -344,7 +344,7 @@ npm run build
 4. Verify error handling: Try-catch around invoke calls
 
 #### Command Structure Check
-1. Open `src-tauri/src/atom_agent_commands.rs`
+1. Open `frontend-nextjs/src-tauri/src/atom_agent_commands.rs`
 2. Verify command decorator: `#[tauri::command]`
 3. Verify function signature: `async fn process_atom_agent_message()`
 4. Verify intent recognition: Slack/Notion/Asana commands
