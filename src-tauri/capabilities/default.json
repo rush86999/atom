@@ -1,6 +1,6 @@
 {
-  "identifier": "migrated",
-  "description": "permissions that were migrated from v1",
+  "identifier": "default",
+  "description": "Default capabilities for the ATOM desktop app",
   "local": true,
   "windows": [
     "main"
