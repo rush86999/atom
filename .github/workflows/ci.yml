@@ -147,10 +147,32 @@ jobs:
           build-args: |
              SKIP_ENV_VALIDATION=true
 
-  # Tauri build validation (Linux only for CI speed)
+  # Tauri build validation (multi-platform)
   tauri-build-check:
-    runs-on: ubuntu-22.04
     needs: frontend-build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            os: 'macos-13'
+            artifacts_name: 'tauri-macos-builds'
+            artifacts_path: |
+              frontend-nextjs/src-tauri/target/release/bundle/dmg/*.dmg
+              frontend-nextjs/src-tauri/target/release/bundle/macos/*.app
+          - platform: 'ubuntu-22.04'
+            os: 'linux'
+            artifacts_name: 'tauri-linux-builds'
+            artifacts_path: |
+              frontend-nextjs/src-tauri/target/release/bundle/deb/*.deb
+              frontend-nextjs/src-tauri/target/release/bundle/appimage/*.AppImage
+          - platform: 'windows-latest'
+            os: 'windows'
+            artifacts_name: 'tauri-windows-builds'
+            artifacts_path: |
+              frontend-nextjs/src-tauri/target/release/bundle/msi/*.msi
+
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
@@ -163,6 +185,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Tauri dependencies (Ubuntu)
+        if: matrix.os == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -173,6 +196,7 @@ jobs:
 
       - name: Build Next.js static export for Tauri
         working-directory: ./frontend-nextjs
+        shell: bash
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8001
           SKIP_ENV_VALIDATION: true
@@ -188,18 +212,19 @@ jobs:
           };
           module.exports = nextConfig;
           EOF
-          
+
           # Backup and replace config
           if [ -f next.config.js ]; then mv next.config.js next.config.js.bak; fi
           mv next.config.tauri.js next.config.js
-          
+
           npm run build
 
           # Restore config
           rm next.config.js
           if [ -f next.config.js.bak ]; then mv next.config.js.bak next.config.js; fi
 
-      - name: Upload Static Export Artifacts
+      - name: Upload Static Export Artifacts (Linux only)
+        if: matrix.os == 'linux'
         uses: actions/upload-artifact@v4
         with:
           name: frontend-static-export
@@ -214,25 +239,28 @@ jobs:
           cat src-tauri/tauri.conf.json | head -20
           echo "Tauri frontendDist: $(grep frontendDist src-tauri/tauri.conf.json)"
 
-      - name: Build Tauri App (check only)
+      - name: Build Tauri App
         working-directory: ./frontend-nextjs
         run: npm run tauri build -- --verbose
 
       - name: Upload Tauri Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-linux-builds
-          path: |
-            frontend-nextjs/src-tauri/target/release/bundle/deb/*.deb
-            frontend-nextjs/src-tauri/target/release/bundle/appimage/*.AppImage
+          name: ${{ matrix.artifacts_name }}
+          path: ${{ matrix.artifacts_path }}
           retention-days: 30
           if-no-files-found: warn
 
       - name: List Build Artifacts
         working-directory: ./frontend-nextjs
+        shell: bash
         run: |
-          echo "=== Tauri Build Artifacts ==="
-          find src-tauri/target/release/bundle -type f -name "*.deb" -o -name "*.AppImage" | head -20
+          echo "=== Tauri Build Artifacts (${{ matrix.os }}) ==="
+          find src-tauri/target/release/bundle -type f 2>/dev/null | head -20 || echo "No bundle files found"
           echo ""
           echo "=== File Sizes ==="
-          find src-tauri/target/release/bundle -type f -exec ls -lh {} \; | awk '{print $5, $9}'
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            find src-tauri/target/release/bundle -type f -exec ls -lh {} \; 2>/dev/null || true
+          else
+            find src-tauri/target/release/bundle -type f -exec ls -lh {} \; | awk '{print $5, $9}' 2>/dev/null || true
+          fi
