@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, Users, TrendingUp, AlertOctagon, Activity } from "lucide-react";
+import { DesktopSecurityAudit } from "@/components/desktop/DesktopSecurityAudit";
 
 export default function RiskDashboard() {
     const [churn, setChurn] = useState([]);
@@ -186,6 +187,8 @@ export default function RiskDashboard() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        <DesktopSecurityAudit />
                     </div>
                 </div>
             </div>

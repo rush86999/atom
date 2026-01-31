@@ -10,10 +10,13 @@ import "../styles/globals.css";
 import Layout from "../components/layout/Layout";
 import { useRouter } from "next/router";
 import { WakeWordProvider } from "../contexts/WakeWordContext";
+import { useCliHandler } from "../hooks/useCliHandler";
 
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+
+  useCliHandler();
 
   useEffect(() => {
     setMounted(true);

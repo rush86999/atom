@@ -40,6 +40,34 @@
         ],
         "security": {
             "csp": "default-src 'self' blob: data: filesystem: ws: wss: http://localhost:* ; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:"
+        },
+        "plugins": {
+            "shell": {
+                "scope": [
+                    {
+                        "name": "python-cli",
+                        "cmd": "python3",
+                        "args": true
+                    }
+                ],
+                "open": true
+            },
+            "cli": {
+                "description": "ATOM CLI",
+                "subcommands": {
+                    "scan": {
+                        "description": "Scan a file or directory for security vulnerabilities",
+                        "args": [
+                            {
+                                "name": "path",
+                                "description": "Path to the file or directory to scan",
+                                "index": 1,
+                                "required": true
+                            }
+                        ]
+                    }
+                }
+            }
         }
     }
 }
