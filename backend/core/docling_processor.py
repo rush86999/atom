@@ -188,6 +188,10 @@ class DoclingDocumentProcessor:
     ):
         """Convert document using docling."""
         try:
+            if self.converter is None:
+                logger.warning("Docling converter not initialized")
+                return None
+                
             # Handle different source types
             if isinstance(source, bytes):
                 # For bytes, write to temp file since docling works best with files

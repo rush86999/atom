@@ -64,6 +64,7 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/atom_test
           BYOK_ENCRYPTION_KEY: test_key_for_ci_only
           ENVIRONMENT: test
+          ATOM_DISABLE_LANCEDB: true
         run: |
           python -c "from main_api_app import app; print('Main API imports OK')"
           python -c "from core.generic_agent import GenericAgent; print('GenericAgent OK')"
