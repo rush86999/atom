@@ -67,7 +67,8 @@ jobs:
           ATOM_DISABLE_LANCEDB: true
           ATOM_MOCK_DATABASE: true
         run: |
-          python debug_ci_imports.py
+          python -c "print('sanity check: python matches runner', flush=True)"
+          python -u debug_ci_imports.py
 
   frontend-build:
     runs-on: ubuntu-latest

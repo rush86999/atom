@@ -5,15 +5,15 @@ import time
 import signal
 import importlib
 
-print("=" * 60)
-print("🔍 DEBUG CI IMPORTS: START")
-print("=" * 60)
+print("=" * 60, flush=True)
+print("🔍 DEBUG CI IMPORTS: START", flush=True)
+print("=" * 60, flush=True)
 
 # Environment Diagnostics
-print(f"ENV: ATOM_MOCK_DATABASE = {os.getenv('ATOM_MOCK_DATABASE')}")
-print(f"ENV: ATOM_DISABLE_LANCEDB = {os.getenv('ATOM_DISABLE_LANCEDB')}")
-print(f"ENV: DATABASE_URL = {os.getenv('DATABASE_URL')}")
-print(f"ENV: ENVIRONMENT = {os.getenv('ENVIRONMENT')}")
+print(f"ENV: ATOM_MOCK_DATABASE = {os.getenv('ATOM_MOCK_DATABASE')}", flush=True)
+print(f"ENV: ATOM_DISABLE_LANCEDB = {os.getenv('ATOM_DISABLE_LANCEDB')}", flush=True)
+print(f"ENV: DATABASE_URL = {os.getenv('DATABASE_URL')}", flush=True)
+print(f"ENV: ENVIRONMENT = {os.getenv('ENVIRONMENT')}", flush=True)
 
 def timeout_handler(signum, frame):
     raise TimeoutError("Import timed out!")
@@ -23,7 +23,7 @@ def timeout_handler(signum, frame):
 SIGNAL_TIMEOUT = 30 
 
 def debug_import(module_name):
-    print(f"\n⏳ Importing: {module_name} ...")
+    print(f"\n⏳ Importing: {module_name} ...", flush=True)
     start_time = time.time()
     
     # Set alarm
