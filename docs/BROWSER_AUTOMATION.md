@@ -8,7 +8,10 @@ Atom now includes comprehensive browser automation capabilities using Chrome Dev
 
 ### Core Capabilities
 
+### Core Capabilities
+
 - **Browser Session Management**: Create, manage, and close browser sessions with automatic cleanup
+- **Local Browser Control**: Control local headful browsers via the Satellite bridge (Tauri Desktop App)
 - **Navigation**: Navigate to URLs with configurable wait conditions (load, domcontentloaded, networkidle)
 - **Screenshots**: Capture full page or viewport screenshots as base64 or files
 - **Form Automation**: Fill forms by CSS selector, submit forms, handle various input types
