@@ -68,87 +68,6 @@ class ChatMemoryResponse(BaseModel):
     memory_context: dict
     timestamp: str
 
-class RenameSessionRequest(BaseModel):
-    title: str = Field(..., description="New title for the session")
-    user_id: str = Field(..., description="ID of the user performing the rename")
-
-
-@router.patch("/sessions/{session_id}")
-async def rename_session(session_id: str, request: RenameSessionRequest) -> Dict[str, Any]:
-    """
-    Rename a chat session
-    """
-    try:
-        # Check permissions first
-        session = chat_orchestrator.conversation_sessions.get(session_id)
-        if not session:
-            # Try lazy load check via manager
-            managed_session = chat_orchestrator.session_manager.get_session(session_id)
-            if managed_session:
-                session = managed_session
-        
-        if not session:
-             raise HTTPException(status_code=404, detail="Session not found")
-             
-        if session.get("user_id") != request.user_id:
-             logger.warning(f"Rename denied: Owner {session.get('user_id')} != Requestor {request.user_id}")
-             raise HTTPException(status_code=403, detail="Access denied")
-
-        success = chat_orchestrator.rename_session(session_id, request.title)
-        
-        if not success:
-             raise HTTPException(status_code=404, detail="Session not found or upgrade failed")
-             
-        return {
-            "success": True, 
-            "message": "Session renamed successfully",
-            "session_id": session_id,
-            "title": request.title
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to rename session: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to rename session: {str(e)}")
-
-@router.get("/sessions/{session_id}")
-async def get_session_details(session_id: str, user_id: str) -> Dict[str, Any]:
-    """
-    Get details for a specific session
-    """
-    try:
-        # We can use orchestrator's memory or fetch from session manager
-        # Since orchestrator has get_user_sessions, let's use a direct get_session
-        session = chat_orchestrator.conversation_sessions.get(session_id)
-        
-        if not session:
-             # Let's peek into manager
-             managed_session = chat_orchestrator.session_manager.get_session(session_id)
-             if managed_session:
-                 session = managed_session
-        
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-            
-        if session.get("user_id") != user_id:
-             raise HTTPException(status_code=403, detail="Access denied")
-
-        return {
-            "success": True,
-            "session_id": session.get("id") or session.get("session_id"),
-            "title": session.get("title"),
-            "created_at": session.get("created_at"),
-            "user_id": session.get("user_id")
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get session details: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get session details: {str(e)}")
-
-
 
 # API Routes
 @router.post("/message")
@@ -231,7 +150,6 @@ async def get_chat_history(session_id: str, user_id: str) -> ChatHistoryResponse
 
         # Verify user access (if we didn't just create it)
         if session.get("user_id") != user_id:
-            logger.warning(f"Access denied: Session owner {session.get('user_id')} != Request user {user_id}")
             raise HTTPException(status_code=403, detail="Access denied")
 
         return ChatHistoryResponse(
@@ -255,9 +173,11 @@ async def get_user_sessions(user_id: str) -> Dict[str, Any]:
     try:
         logger.info(f"Retrieving sessions for user {user_id}")
 
-        # Use orchestrator to get sessions (handles DB/File persistence)
-        # Note: This returns a Dict[session_id, session_data]
-        user_sessions = chat_orchestrator.get_user_sessions(user_id)
+        user_sessions = {
+            session_id: session_data
+            for session_id, session_data in chat_orchestrator.conversation_sessions.items()
+            if session_data.get("user_id") == user_id
+        }
 
         return {
             "user_id": user_id,
@@ -268,11 +188,6 @@ async def get_user_sessions(user_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to retrieve user sessions: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve user sessions: {str(e)}")
-
-
-
-
-
 
 
 @router.get("/health")
