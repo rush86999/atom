@@ -69,6 +69,11 @@ Atom remembers everything so you don't have to repeat yourself.
 - **Desktop Memory Ingestion**: Local folder access for the Tauri application, enabling seamless indexing of `$DESKTOP` knowledge
 - **Node-on-Demand**: Integrations are installed dynamically on-the-fly to ensure the catalog is always up-to-date
 
+### 🛡️ **AI Security & Safety (Skill Scanner)**
+- **Multi-Layer Audit**: Combined Static (heuristic) and Semantic (LLM) analysis for every agent skill
+- **Proactive Protection**: Automatically detects and blocks prompt injections, data exfiltration patterns, and insecure code before execution
+- **Local & CLI Auditing**: Run manual security scans on any local folder via the Desktop GUI or the `atom scan` CLI command
+
 ### 🌐 **Universal Communication Bridge**
 Seamlessly interact with your workforce from any platform.
 - **Unified Messaging**: One standard interface for **12+ platforms**, including OpenClaw, Slack, WhatsApp, Discord, Microsoft Teams, Telegram, Google Chat, Twilio (SMS), Matrix, Facebook Messenger, Line, and Signal
