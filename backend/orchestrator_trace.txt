@@ -1,6 +1,0 @@
-TRACE: execute_workflow customer_support_automation exec_id=exec_06e5fa6e in instance 2696176240688
-TRACE: Added context exec_06e5fa6e. Active count: 1
-TRACE: _create_snapshot exec_06e5fa6e step=categorize_ticket in 2696176240688
-TRACE: Saved memory snapshot exec_06e5fa6e:categorize_ticket. Total snapshots: 1
-TRACE: _create_snapshot exec_06e5fa6e step=analyze_ticket in 2696176240688
-TRACE: Saved memory snapshot exec_06e5fa6e:analyze_ticket. Total snapshots: 2
