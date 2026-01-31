@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from 'next/router';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, StopCircle, Paperclip, AlertCircle, Loader2 } from "lucide-react";
+import { Send, StopCircle, Paperclip, Mic, AlertCircle, Loader2, Edit2, Check, X } from "lucide-react";
 import { ChatMessage } from "../GlobalChat/ChatMessage";
 import { ChatMessageData, ReasoningStep } from "../GlobalChat/ChatMessage";
 import { VoiceInput } from "@/components/Voice/VoiceInput";
@@ -13,7 +14,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { CanvasHost } from "./CanvasHost";
 import { VoiceModeOverlay } from "@/components/Voice/VoiceModeOverlay";
-import { Mic } from "lucide-react";
 import { marked } from "marked";
 
 interface ChatInterfaceProps {
@@ -28,6 +28,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
     const [messages, setMessages] = useState<ChatMessageData[]>([]);
     const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
     const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
+    const [sessionTitle, setSessionTitle] = useState("Current Session");
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [tempTitle, setTempTitle] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { isConnected, lastMessage, streamingContent, subscribe } = useWebSocket();
     const { toast } = useToast();
@@ -37,9 +40,36 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    const handleTitleSave = async () => {
+        if (!sessionId || !tempTitle.trim()) {
+            setIsEditingTitle(false);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/chat/sessions/${sessionId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: tempTitle, user_id: "default_user" }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setSessionTitle(tempTitle);
+                toast({ title: "Renamed", description: "Session renamed successfully." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "Failed to rename session." });
+            }
+        } catch (error) {
+            console.error("Rename failed", error);
+            toast({ variant: "destructive", title: "Error", description: "Failed to rename session." });
+        } finally {
+            setIsEditingTitle(false);
+        }
+    };
+
     useEffect(() => {
         if (sessionId) {
-            loadSessionHistory(sessionId);
+            initialLoad(sessionId);
         } else {
             setMessages([
                 {
@@ -49,8 +79,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
                     timestamp: new Date(),
                 }
             ]);
+            setSessionTitle("Current Session");
         }
     }, [sessionId]);
+
+    const initialLoad = (sid: string) => {
+        loadSessionHistory(sid);
+        // Fetch session details directly
+        fetch(`/api/chat/sessions/${sid}?user_id=default_user`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.title) setSessionTitle(data.title);
+            }).catch(e => console.log("Bg fetch title error", e));
+    };
 
     useEffect(() => {
         scrollToBottom();
@@ -292,8 +333,48 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
             {/* Chat Header */}
             <div className="p-4 border-b border-border flex justify-between items-center bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div>
-                    <h2 className="font-semibold">Current Session</h2>
-                    <p className="text-xs text-muted-foreground">ID: {sessionId || "New Session"}</p>
+                    {isEditingTitle ? (
+                        <div className="flex items-center gap-1">
+                            <Input
+                                value={tempTitle}
+                                onChange={(e) => setTempTitle(e.target.value)}
+                                className="h-8 w-64"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleTitleSave();
+                                    if (e.key === "Escape") setIsEditingTitle(false);
+                                }}
+                            />
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-100/10" onClick={handleTitleSave}>
+                                <Check className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-100/10" onClick={() => setIsEditingTitle(false)}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="group flex items-center gap-2">
+                            <div>
+                                <h2 className="font-semibold">{sessionTitle}</h2>
+                                <p className="text-xs text-muted-foreground">ID: {sessionId || "New Session"}</p>
+                            </div>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-primary hover:bg-muted" // Removed opacity, added high contrast
+                                onClick={() => {
+                                    if (!sessionId) {
+                                        toast({ title: "New Session", description: "Send a message to start a session before renaming." });
+                                        return;
+                                    }
+                                    setTempTitle(sessionTitle);
+                                    setIsEditingTitle(true);
+                                }}
+                            >
+                                <Edit2 className="h-4 w-4" /> {/* Slightly larger icon */}
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
