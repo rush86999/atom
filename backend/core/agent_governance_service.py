@@ -471,3 +471,28 @@ class AgentGovernanceService:
             "user_feedback": hitl.user_feedback,
             "reviewed_at": hitl.reviewed_at
         }
+
+    def can_access_agent_data(self, user_id: str, agent_id: str) -> bool:
+        """
+        Check if a user can access data/sessions belonging to a specific agent.
+        Rules (Ported from SaaS):
+        1. Admins (super_admin, workspace_admin) -> ALLOW
+        2. Specialty Match (user.specialty == agent.category) -> ALLOW
+        3. Owners (context-dependent) -> ALLOW
+        """
+        user = self.db.query(User).filter(User.id == user_id).first()
+        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        
+        if not user or not agent:
+            return False
+            
+        # 1. Admin Override
+        if user.role in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:
+            return True
+            
+        # 2. Specialty Match
+        if user.specialty and agent.category:
+            if user.specialty.lower() == agent.category.lower():
+                return True
+                
+        return False

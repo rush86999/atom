@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { X, ExternalLink, RefreshCw, Check, AlertCircle } from "lucide-react";
+import { X, ExternalLink, RefreshCw, Check, AlertCircle, Code, Camera, Globe, Play, Layers } from "lucide-react";
 import { marked } from "marked";
 import { LineChartCanvas } from "../canvas/LineChart";
 import { BarChartCanvas } from "../canvas/BarChart";
@@ -14,7 +14,7 @@ interface CanvasHostProps {
 
 interface CanvasState {
     visible: boolean;
-    component: string;
+    component: "markdown" | "chart" | "form" | "status_panel" | "line_chart" | "bar_chart" | "pie_chart" | "eval" | "snapshot" | "browser_view" | "custom";
     title?: string;
     data: any;
 }
@@ -26,12 +26,10 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
     useEffect(() => {
         if (!lastMessage) return;
 
-        // Check for canvas event type (websocket message structure might vary)
-        // Upstream useWebSocket might return raw event or parsed data. 
-        // Assuming parsed JSON as per ChatInterface.tsx usage (msg.type)
         const msg = lastMessage;
 
-        if (msg.type === "canvas:update") {
+        // Support both message patterns
+        if (msg.type === "canvas:update" || msg.type === "canvas:present") {
             const { action, component, data, title } = msg.data || msg;
 
             if (action === "close") {
@@ -50,15 +48,18 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
     if (!state || !state.visible) return null;
 
     return (
-        <div className="absolute top-4 right-4 bottom-4 w-[400px] bg-background border shadow-xl z-50 rounded-lg flex flex-col animate-in slide-in-from-right-10 overflow-hidden">
+        <div className="absolute top-4 right-4 bottom-4 w-[450px] bg-background border shadow-xl z-50 rounded-lg flex flex-col animate-in slide-in-from-right-10 overflow-hidden ring-1 ring-border/50">
             <div className="flex items-center justify-between p-4 border-b bg-muted/40">
-                <h3 className="font-semibold text-sm truncate pr-2">{state.title || "Agent Canvas"}</h3>
+                <div className="flex items-center gap-2">
+                    <CanvasIcon component={state.component} />
+                    <h3 className="font-semibold text-sm truncate max-w-[300px]">{state.title || "Agent Canvas"}</h3>
+                </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setState(null)}>
                     <X className="h-4 w-4" />
                 </Button>
             </div>
 
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto p-4 custom-scrollbar">
                 <CanvasContent component={state.component} data={state.data} canvasId={canvasId} />
             </div>
 
@@ -67,6 +68,17 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
             </div>
         </div>
     );
+}
+
+function CanvasIcon({ component }: { component: string }) {
+    switch (component) {
+        case "eval": return <Code className="h-4 w-4 text-blue-500" />;
+        case "snapshot": return <Camera className="h-4 w-4 text-purple-500" />;
+        case "browser_view": return <Globe className="h-4 w-4 text-green-500" />;
+        case "markdown": return <ExternalLink className="h-4 w-4 text-primary" />;
+        case "status_panel": return <Check className="h-4 w-4 text-green-500" />;
+        default: return <Layers className="h-4 w-4 text-primary" />;
+    }
 }
 
 function CanvasContent({ component, data, canvasId }: { component: string; data: any; canvasId: string }) {
@@ -79,6 +91,80 @@ function CanvasContent({ component, data, canvasId }: { component: string; data:
                     className="prose dark:prose-invert max-w-none text-sm prose-p:leading-relaxed prose-pre:bg-muted"
                     dangerouslySetInnerHTML={{ __html: marked.parse(typeof data === 'string' ? data : data.content || '') }}
                 />
+            );
+
+        case "eval":
+            return (
+                <div className="space-y-4">
+                    <div className="bg-zinc-950 rounded-lg p-4 font-mono text-xs overflow-auto border border-zinc-800 shadow-inner">
+                        <div className="flex justify-between items-center mb-2 border-b border-zinc-800 pb-2">
+                            <span className="text-zinc-500">javascript</span>
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-zinc-400 hover:text-white">
+                                <Play className="h-3 w-3 mr-1" /> Run
+                            </Button>
+                        </div>
+                        <pre className="text-blue-400">{data.code || data}</pre>
+                    </div>
+                    {data.output && (
+                        <div className="bg-muted/50 rounded-lg p-3 border">
+                            <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Output</p>
+                            <pre className="text-xs">{typeof data.output === 'string' ? data.output : JSON.stringify(data.output, null, 2)}</pre>
+                        </div>
+                    )}
+                </div>
+            );
+
+        case "snapshot":
+            return (
+                <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {data.timestamp && (
+                            <span className="px-2 py-1 rounded-md bg-muted text-[10px] text-muted-foreground border">
+                                Captured: {new Date(data.timestamp).toLocaleTimeString()}
+                            </span>
+                        )}
+                        {data.source && (
+                            <span className="px-2 py-1 rounded-md bg-primary/10 text-[10px] text-primary border border-primary/20">
+                                Source: {data.source}
+                            </span>
+                        )}
+                    </div>
+                    <div className="border rounded-lg overflow-hidden bg-card">
+                        <div className="p-2 border-b bg-muted/20 flex justify-between items-center">
+                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">State Tree</span>
+                        </div>
+                        <pre className="p-4 text-[11px] overflow-auto max-h-[400px] bg-muted/5 font-mono">
+                            {JSON.stringify(data.state || data, null, 2)}
+                        </pre>
+                    </div>
+                </div>
+            );
+
+        case "browser_view":
+            return (
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg border text-xs">
+                        <Globe className="h-3 w-3 text-muted-foreground" />
+                        <span className="truncate flex-1 text-muted-foreground italic">{data.url || "about:blank"}</span>
+                    </div>
+                    {data.screenshot ? (
+                        <div className="border rounded-lg overflow-hidden shadow-sm relative group">
+                            <img
+                                src={data.screenshot.startsWith('data:') ? data.screenshot : `data:image/png;base64,${data.screenshot}`}
+                                alt="Browser Snapshot"
+                                className="w-full h-auto cursor-zoom-in"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-sm p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <p className="text-[10px] text-white text-center">Interactive remote control disabled in preview</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-[300px] border border-dashed rounded-lg flex flex-col items-center justify-center text-muted-foreground">
+                            <Globe className="h-8 w-8 mb-2 opacity-20" />
+                            <p className="text-xs">Connecting to remote browser...</p>
+                        </div>
+                    )}
+                </div>
             );
 
         case "status_panel":
@@ -110,7 +196,6 @@ function CanvasContent({ component, data, canvasId }: { component: string; data:
                     submitLabel={data.submitLabel}
                     canvasId={canvasId}
                     onSubmit={async (formData) => {
-                        // Send submission to backend
                         try {
                             const { apiClient } = await import('../../lib/api-client');
                             const response = await apiClient.post("/api/canvas/submit", {
