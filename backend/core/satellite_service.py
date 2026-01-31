@@ -71,11 +71,11 @@ class SatelliteService:
             if request_id in self.pending_requests:
                 del self.pending_requests[request_id]
 
-from core.database import SessionLocal
-from ai.device_node_service import device_node_service
-
     async def handle_message(self, tenant_id: str, message: Dict[str, Any]):
         """Process incoming messages from the satellite."""
+        from core.database import SessionLocal
+        from ai.device_node_service import device_node_service
+
         msg_type = message.get("type")
         
         if msg_type == "tool_result":

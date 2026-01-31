@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
 import os
+import sys
 import logging
 from dotenv import load_dotenv
 
@@ -10,6 +11,7 @@ load_dotenv()
 
 # CRITICAL: Production database configuration
 logger = logging.getLogger(__name__)
+print(f"DEBUG: Loading core.database module. ENV: MOCK={os.getenv('ATOM_MOCK_DATABASE')}", file=sys.stderr)
 
 def get_database_url():
     """Get database URL with production safety checks"""
