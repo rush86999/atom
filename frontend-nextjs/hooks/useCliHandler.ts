@@ -5,7 +5,8 @@ import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 
 export const useCliHandler = () => {
-    const { data: session } = useSession() as any;
+    const sessionContext = useSession();
+    const session = sessionContext?.data;
 
     useEffect(() => {
         const checkCli = async () => {

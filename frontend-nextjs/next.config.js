@@ -14,9 +14,9 @@ const nextConfig = {
     unoptimized: true,
   },
   transpilePackages: ["@chakra-ui/react", "@chakra-ui/icons", "@ark-ui/react"],
+  outputFileTracingRoot: path.join(__dirname, "../../"),
   experimental: {
     externalDir: true,
-    outputFileTracingRoot: path.join(__dirname, "../../"),
   },
   async rewrites() {
     return [

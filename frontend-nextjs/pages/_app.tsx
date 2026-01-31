@@ -12,11 +12,15 @@ import { useRouter } from "next/router";
 import { WakeWordProvider } from "../contexts/WakeWordContext";
 import { useCliHandler } from "../hooks/useCliHandler";
 
+const TauriHooks = () => {
+  useCliHandler();
+  return null;
+};
+
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
-  useCliHandler();
 
   useEffect(() => {
     setMounted(true);
@@ -28,6 +32,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
 
   return (
     <SessionProvider session={session}>
+      <TauriHooks />
       <ChakraProvider value={defaultSystem}>
         <ToastProvider>
           <WakeWordProvider>
