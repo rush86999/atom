@@ -784,3 +784,78 @@ class AgentTraceStep(Base):
     # Relationships
     execution = relationship("AgentExecution", backref="trace_steps")
 
+
+class BrowserSession(Base):
+    """
+    Browser session tracking for browser automation.
+
+    Records all browser sessions created by agents with full audit trail.
+    """
+    __tablename__ = "browser_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, nullable=False, unique=True, index=True)  # External session ID
+    workspace_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+
+    # Session configuration
+    browser_type = Column(String, default="chromium")  # chromium, firefox, webkit
+    headless = Column(Boolean, default=True)
+
+    # Session state
+    status = Column(String, default="active")  # active, closed, error
+    current_url = Column(Text, nullable=True)
+    page_title = Column(Text, nullable=True)
+
+    # Metadata
+    metadata_json = Column(JSON, default={})
+    governance_check_passed = Column(Boolean, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="browser_sessions")
+    agent_execution = relationship("AgentExecution", backref="browser_sessions")
+
+
+class BrowserAudit(Base):
+    """
+    Audit trail for browser automation actions.
+
+    Records all browser operations (navigate, click, fill, screenshot, etc.)
+    with full governance tracking and attribution.
+    """
+    __tablename__ = "browser_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, nullable=True, index=True)
+    agent_execution_id = Column(String, nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    session_id = Column(String, ForeignKey("browser_sessions.session_id"), nullable=False, index=True)
+
+    # Action details
+    action_type = Column(String, nullable=False)  # navigate, click, fill, screenshot, extract, execute
+    action_target = Column(Text, nullable=True)  # URL, selector, script, etc.
+    action_params = Column(JSON, default={})  # Full parameters for reproducibility
+
+    # Results
+    success = Column(Boolean, nullable=False)
+    result_summary = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    result_data = Column(JSON, default={})  # Structured result data
+
+    # Metadata
+    duration_ms = Column(Integer, nullable=True)
+    governance_check_passed = Column(Boolean, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    session = relationship("BrowserSession", backref="actions")
+

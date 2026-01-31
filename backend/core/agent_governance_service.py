@@ -253,6 +253,9 @@ class AgentGovernanceService:
         "stream_chat": 2,          # INTERN+ (LLM streaming)
         "present_form": 2,         # INTERN+ (moderate - form presentation)
         "llm_stream": 2,           # INTERN+ (cost implications)
+        "browser_navigate": 2,     # INTERN+ (web navigation)
+        "browser_screenshot": 2,   # INTERN+ (screenshot capture)
+        "browser_extract": 2,      # INTERN+ (text extraction)
 
         # Medium - Supervised level
         "create": 3,
