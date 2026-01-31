@@ -665,6 +665,14 @@ try:
     except ImportError as e:
         logger.warning(f"Canvas routes not found: {e}")
 
+    # 15.2 Browser Automation Routes (CDP via Playwright)
+    try:
+        from api.browser_routes import router as browser_router
+        app.include_router(browser_router, tags=["Browser Automation"])
+        logger.info("✓ Browser Automation Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Browser automation routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router
