@@ -15,7 +15,9 @@ RUN apt-get update && apt-get install -y \
 
 # Install core dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
+# Optimization: Install CPU-only torch first to avoid downloading huge CUDA binaries
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Optionally install Docling for advanced OCR
