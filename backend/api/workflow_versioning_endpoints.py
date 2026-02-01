@@ -11,6 +11,7 @@ Provides comprehensive version control capabilities including:
 - Conflict resolution
 """
 
+import os
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from fastapi.responses import JSONResponse
 from typing import List, Optional, Dict, Any
@@ -110,14 +111,83 @@ class MergeRequest(BaseModel):
 
 
 async def get_workflow_data(workflow_id: str) -> Dict[str, Any]:
-    """Get current workflow data (placeholder - integrate with workflow system)"""
-    # TODO: Integrate with actual workflow system to get current data
-    return {
-        "steps": [],
-        "parameters": {},
-        "dependencies": [],
-        "metadata": {}
-    }
+    """Get current workflow data from workflows.json"""
+    try:
+        # Load workflows from JSON file
+        workflows_file = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "workflows.json"
+        )
+
+        if not os.path.exists(workflows_file):
+            logger.warning(f"Workflows file not found: {workflows_file}")
+            return {
+                "steps": [],
+                "parameters": {},
+                "dependencies": [],
+                "metadata": {}
+            }
+
+        import json
+        with open(workflows_file, 'r') as f:
+            workflows = json.load(f)
+
+        # Find the workflow by ID
+        workflow = next((w for w in workflows if w.get('id') == workflow_id), None)
+
+        if not workflow:
+            logger.warning(f"Workflow {workflow_id} not found in workflows.json")
+            return {
+                "steps": [],
+                "parameters": {},
+                "dependencies": [],
+                "metadata": {}
+            }
+
+        # Extract workflow data
+        steps = workflow.get("steps", [])
+        nodes = workflow.get("nodes", [])
+        connections = workflow.get("connections", [])
+
+        # Convert nodes to steps if needed
+        if not steps and nodes:
+            steps = []
+            for i, node in enumerate(nodes):
+                config = node.get("config", {})
+                step = {
+                    "id": node["id"],
+                    "name": node.get("title", node["id"]),
+                    "sequence_order": i + 1,
+                    "service": config.get("service", "default"),
+                    "action": config.get("action", "default"),
+                    "parameters": config.get("parameters", {}),
+                    "type": node.get("type", "action")
+                }
+                steps.append(step)
+
+        return {
+            "steps": steps,
+            "parameters": workflow.get("parameters", {}),
+            "dependencies": [],
+            "metadata": {
+                "name": workflow.get("name", ""),
+                "description": workflow.get("description", ""),
+                "category": workflow.get("category", ""),
+                "nodes": nodes,
+                "connections": connections,
+                "created_at": workflow.get("created_at", ""),
+                "updated_at": workflow.get("updated_at", "")
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error loading workflow data for {workflow_id}: {e}")
+        return {
+            "steps": [],
+            "parameters": {},
+            "dependencies": [],
+            "metadata": {}
+        }
 
 # Version Management Endpoints
 

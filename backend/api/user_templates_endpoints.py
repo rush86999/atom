@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import WorkflowTemplate, TemplateVersion, TemplateExecution, User
+from core.models import WorkflowTemplate, TemplateVersion, TemplateExecution, User, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -522,7 +522,13 @@ async def publish_template(
 
         # Only admins can set featured
         if request.featured:
-            # TODO: Add admin check
+            # Check if user is an admin
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user or user.role not in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only administrators can mark templates as featured"
+                )
             template.is_featured = True
 
         template.updated_at = datetime.now()
