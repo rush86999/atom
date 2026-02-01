@@ -12,9 +12,13 @@
 - AI-powered workflow automation platform
 - Multi-agent system with governance
 - Real-time streaming LLM responses
-- Canvas-based visual presentations
+- Canvas-based visual presentations with custom components
+- Multi-agent canvas collaboration (sequential, parallel, locked modes)
 - Browser automation with CDP
-- Device capabilities (Camera, Screen Recording, Location, Notifications, Command Execution) (NEW)
+- Device capabilities (Camera, Screen Recording, Location, Notifications, Command Execution)
+- Enhanced feedback system with A/B testing
+- Deep linking via atom:// URL scheme
+- Mobile support architecture (React Native)
 - Comprehensive audit trails
 
 **Tech Stack**:
@@ -22,14 +26,17 @@
 - **Database**: SQLite (dev), PostgreSQL (production)
 - **AI/LLM**: Multi-provider (OpenAI, Anthropic, DeepSeek, Gemini)
 - **Browser Automation**: Playwright (CDP)
+- **Mobile**: React Native 0.73+ (iOS 13+, Android 8+)
 - **Architecture**: Modular, event-driven, single-tenant
 
 **Key Directories**:
-- `backend/core/` - Core services (governance, agents, database models)
+- `backend/core/` - Core services (governance, agents, database models, custom components, collaboration)
 - `backend/api/` - FastAPI route handlers
 - `backend/tools/` - Agent tools (canvas, browser, integrations)
 - `backend/alembic/versions/` - Database migrations
 - `backend/tests/` - Test suite (unit, integration, performance)
+- `mobile/` - React Native mobile app (architecture complete)
+- `docs/` - Documentation (including React Native architecture)
 
 ---
 
@@ -531,6 +538,125 @@ new_confidence = learning.adjust_confidence_with_feedback(
 ---
 
 ## Recent Major Changes
+
+### Custom Canvas Components (February 1, 2026)
+
+**What Changed**:
+- Implemented user-created HTML/CSS/JS components for canvas presentations
+- Added 3 database models (CustomComponent, ComponentVersion, ComponentUsage)
+- Created CustomComponentsService with security validation and governance enforcement
+- Created 11 REST API endpoints for component management (create, read, update, delete, versions, rollback, stats)
+- Implemented comprehensive security features:
+  - HTML sanitization (blocks `<script>`, `javascript:`, `onclick=`, `onerror=`)
+  - CSS sanitization (blocks `expression()`, `-ms-binding`, `behavior:url()`)
+  - JS validation (blocks `eval()`, `Function()`, `innerHTML=`, `document.write`)
+  - Dependency whitelist (only jsDelivr, cdnjs, unpkg CDNs)
+- Implemented version control with full history and rollback support
+- Added usage tracking with performance metrics and analytics
+- Created comprehensive test suite (23 tests, 100% pass rate)
+
+**Why**: Enable users to create reusable custom components for canvas presentations with enterprise-grade security and governance
+
+**Migration Required**:
+```bash
+alembic upgrade head  # Migration 69a4bf86ff15
+```
+
+**Documentation**:
+- `docs/REACT_NATIVE_ARCHITECTURE.md` - Mobile architecture (newly added)
+
+**Governance**:
+- AUTONOMOUS agents required for creating components with JavaScript
+- SUPERVISED+ agents can create HTML/CSS-only components
+- All components tracked with usage audit trail
+
+### Multi-Agent Canvas Coordination (February 1, 2026)
+
+**What Changed**:
+- Implemented multi-agent collaboration framework for shared canvases
+- Added 3 database models (CanvasCollaborationSession, CanvasAgentParticipant, CanvasConflict)
+- Created CanvasCollaborationService with session/permission/conflict management
+- Created 11 REST API endpoints for collaboration management
+- Implemented three collaboration modes:
+  - **Sequential**: Turn-based with 5-second activity window
+  - **Parallel**: Concurrent with component locking via held_locks
+  - **Locked**: First-come-first-served with lock tracking
+- Implemented role-based permissions (owner, contributor, reviewer, viewer)
+- Implemented conflict resolution strategies (first_come_first_served, priority, merge)
+- Added activity tracking with SQLAlchemy JSON mutation tracking
+- Created comprehensive test suite (22 tests, 100% pass rate)
+
+**Why**: Enable multiple agents to collaborate on shared canvases with proper coordination, conflict resolution, and permission management
+
+**Migration Required**:
+```bash
+alembic upgrade head  # Migration bcfaa9f4c376
+```
+
+**Usage**:
+```python
+from core.canvas_collaboration_service import CanvasCollaborationService
+
+# Create collaborative session
+service.create_collaboration_session(
+    canvas_id="canvas-123",
+    session_id="session-456",
+    user_id=user_id,
+    collaboration_mode="parallel",  # or "sequential", "locked"
+    max_agents=5
+)
+
+# Add agents with roles
+service.add_agent_to_session(
+    collaboration_session_id=session_id,
+    agent_id="agent-1",
+    user_id=user_id,
+    role="owner"  # or "contributor", "reviewer", "viewer"
+)
+```
+
+### Enhanced Feedback System (February 1, 2026)
+
+**What Changed**:
+- Implemented comprehensive A/B testing framework for agent optimization
+- Added feedback analytics with aggregation and insights
+- Created batch feedback approval and agent promotion suggestions
+- Implemented feedback export/import functionality
+- Added 7 database models (ABTest, ABTestParticipant, FeedbackBatch, etc.)
+- Created multiple REST API endpoints for feedback and A/B testing
+- Created comprehensive test suites (17 tests for Phase 2, 21 tests for A/B testing)
+
+**Why**: Enable data-driven agent optimization with statistical analysis, feedback aggregation, and automated promotion suggestions
+
+**Migration Required**:
+```bash
+alembic upgrade head  # Migrations 6e792c493b60 and others
+```
+
+### Mobile Support Architecture (February 1, 2026)
+
+**What Changed**:
+- Designed comprehensive React Native mobile app architecture (iOS 13+, Android 8+)
+- Created detailed architecture documentation with code examples
+- Defined project structure for cross-platform mobile development
+- Planned features: real-time agent chat, canvas presentations, device-native capabilities
+- Integrated governance for mobile agent actions with device tracking
+
+**Why**: Enable Atom platform access via native mobile apps with full feature parity and optimized mobile experience
+
+**Status**: Architecture complete. Full implementation requires additional development.
+
+**Documentation**:
+- `docs/REACT_NATIVE_ARCHITECTURE.md` - Comprehensive architecture guide
+- `mobile/` - Project structure and configuration files
+
+**Planned Features**:
+- Real-time agent chat with WebSocket streaming
+- Interactive canvas presentations via WebView
+- Biometric authentication (Face ID / Touch ID)
+- Device-native features (Camera, Location, Push Notifications)
+- Offline mode with data synchronization
+- Governance integration with device tracking
 
 ### Device Capabilities (February 1, 2026)
 
