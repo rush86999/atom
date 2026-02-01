@@ -499,5 +499,861 @@
     ],
     "last_message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
     "title": "rename test"
+  },
+  {
+    "session_id": "474e6fcf-a6d8-4782-a562-8a720343ddd0",
+    "user_id": "default_user",
+    "created_at": "2026-02-01T08:21:07.913517",
+    "last_active": "2026-02-01T08:21:07.967829",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 1,
+    "history": [
+      {
+        "message": "find \"failed\"",
+        "response": {
+          "success": true,
+          "message": "I found 0 results for your search.",
+          "session_id": "474e6fcf-a6d8-4782-a562-8a720343ddd0",
+          "intent": "search_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "\"failed\"",
+              "message": "I couldn't find any documents matching '\"failed\"'."
+            },
+            "ai_analytics": {
+              "message": "AI Analytics logic here"
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for details",
+            "Refine search terms"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Refine your search with more specific terms",
+            "Check the search results in the Search UI",
+            "Save important results for quick access"
+          ],
+          "timestamp": "2026-02-01T13:51:07.939015"
+        },
+        "intent": {
+          "primary_intent": "search_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T13:51:07.939036"
+      }
+    ],
+    "last_message": "I found 0 results for your search."
+  },
+  {
+    "session_id": "67cb3dff-74e7-4070-89bd-750263d2ed71",
+    "user_id": "default_user",
+    "created_at": "2026-02-01T08:21:20.285127",
+    "last_active": "2026-02-01T14:30:03.098513",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 5,
+    "history": [
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "67cb3dff-74e7-4070-89bd-750263d2ed71",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T13:51:20.335452"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T13:51:20.335472"
+      },
+      {
+        "message": "find a girl",
+        "response": {
+          "success": true,
+          "message": "I found 0 results for your search.",
+          "session_id": "67cb3dff-74e7-4070-89bd-750263d2ed71",
+          "intent": "search_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "a girl",
+              "message": "I couldn't find any documents matching 'a girl'."
+            },
+            "ai_analytics": {
+              "message": "AI Analytics logic here"
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for details",
+            "Refine search terms"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Refine your search with more specific terms",
+            "Check the search results in the Search UI",
+            "Save important results for quick access"
+          ],
+          "timestamp": "2026-02-01T14:17:08.416912"
+        },
+        "intent": {
+          "primary_intent": "search_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:17:08.417160"
+      },
+      {
+        "message": "schedule a meeting",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "67cb3dff-74e7-4070-89bd-750263d2ed71",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:17:37.282042"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:17:37.282080"
+      },
+      {
+        "message": "take the permission",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "67cb3dff-74e7-4070-89bd-750263d2ed71",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "take the permission",
+              "message": "I couldn't find any documents matching 'take the permission'."
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for details",
+            "Refine search terms"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T16:18:03.896461"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T16:18:03.896491"
+      },
+      {
+        "message": "Create data processing workflow",
+        "response": {
+          "success": true,
+          "message": "\u2705 **Workflow Created!**\n\nI've generated **My ETL Data Processing Pipeline** from the *ETL Data Processing Pipeline* template.\n\nIt has **3 steps** and is ready to configure.\n\n[Edit in Builder](/workflows/builder?template_id=data_processing_etl)",
+          "session_id": "67cb3dff-74e7-4070-89bd-750263d2ed71",
+          "intent": "workflow_creation",
+          "confidence": 0.6,
+          "data": {
+            "workflows": {
+              "workflow_id": "workflow_0cded52ac029",
+              "workflow_definition": {
+                "workflow_id": "workflow_d68e35a2208f",
+                "name": "My ETL Data Processing Pipeline",
+                "description": "Created from template: ETL Data Processing Pipeline",
+                "category": "data_processing",
+                "tags": [
+                  "etl",
+                  "data",
+                  "processing",
+                  "pipeline"
+                ],
+                "version": "1.0",
+                "created_from_template": "data_processing_etl",
+                "input_schema": [
+                  {
+                    "name": "data_source",
+                    "type": "select",
+                    "label": "Data Source",
+                    "description": "Source of data to process",
+                    "required": true,
+                    "default_value": null,
+                    "options": [
+                      "database",
+                      "file",
+                      "api",
+                      "stream"
+                    ],
+                    "validation_rules": {}
+                  },
+                  {
+                    "name": "connection_string",
+                    "type": "string",
+                    "label": "Connection String",
+                    "description": "Database connection or file path",
+                    "required": true,
+                    "default_value": null,
+                    "options": [],
+                    "validation_rules": {}
+                  },
+                  {
+                    "name": "transformation_rules",
+                    "type": "object",
+                    "label": "Transformation Rules",
+                    "description": "JSON configuration for data transformations",
+                    "required": false,
+                    "default_value": {
+                      "operations": []
+                    },
+                    "options": [],
+                    "validation_rules": {}
+                  },
+                  {
+                    "name": "output_format",
+                    "type": "select",
+                    "label": "Output Format",
+                    "description": "Format for processed data",
+                    "required": true,
+                    "default_value": null,
+                    "options": [
+                      "json",
+                      "csv",
+                      "parquet",
+                      "database"
+                    ],
+                    "validation_rules": {}
+                  }
+                ],
+                "steps": [
+                  {
+                    "step_id": "extract_data",
+                    "name": "Extract Data",
+                    "description": "Extract data from source",
+                    "step_type": "action",
+                    "input_parameters": [],
+                    "depends_on": [],
+                    "condition": null,
+                    "retry_config": {},
+                    "timeout_seconds": 60,
+                    "can_pause": true,
+                    "is_parallel": false
+                  },
+                  {
+                    "step_id": "transform_data",
+                    "name": "Transform Data",
+                    "description": "Apply transformation rules",
+                    "step_type": "action",
+                    "input_parameters": [],
+                    "depends_on": [
+                      "extract_data"
+                    ],
+                    "condition": null,
+                    "retry_config": {},
+                    "timeout_seconds": 60,
+                    "can_pause": true,
+                    "is_parallel": false
+                  },
+                  {
+                    "step_id": "load_data",
+                    "name": "Load Data",
+                    "description": "Load processed data to destination",
+                    "step_type": "action",
+                    "input_parameters": [],
+                    "depends_on": [
+                      "transform_data"
+                    ],
+                    "condition": null,
+                    "retry_config": {},
+                    "timeout_seconds": 60,
+                    "can_pause": true,
+                    "is_parallel": false
+                  }
+                ],
+                "output_config": {},
+                "user_inputs": {
+                  "data_source": "user_input_required",
+                  "connection_string": "user_input_required",
+                  "transformation_rules": {
+                    "operations": []
+                  },
+                  "output_format": "user_input_required"
+                },
+                "customizations": {}
+              },
+              "template_used": "data_processing_etl",
+              "template_name": "ETL Data Processing Pipeline",
+              "parameters_applied": {
+                "data_source": "user_input_required",
+                "connection_string": "user_input_required",
+                "transformation_rules": {
+                  "operations": []
+                },
+                "output_format": "user_input_required"
+              }
+            }
+          },
+          "suggested_actions": [
+            "Run workflow",
+            "View details",
+            "Create another"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Review the workflow steps",
+            "Test the workflow execution",
+            "Schedule the workflow for automatic runs"
+          ],
+          "timestamp": "2026-02-01T20:00:03.093405"
+        },
+        "intent": {
+          "primary_intent": "workflow_creation",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T20:00:03.093426"
+      }
+    ],
+    "last_message": "\u2705 **Workflow Created!**\n\nI've generated **My ETL Data Processing Pipeline** from the *ETL Data Processing Pipeline* template.\n\nIt has **3 steps** and is ready to configure.\n\n[Edit in Builder](/workflows/builder?template_id=data_processing_etl)",
+    "title": "test chat"
+  },
+  {
+    "session_id": "new",
+    "user_id": "default_user",
+    "created_at": "2026-02-01T08:22:39.952528",
+    "last_active": "2026-02-01T08:59:57.049255",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 12,
+    "history": [
+      {
+        "message": "schedule a meeting",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "new",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T13:53:21.263056"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T13:53:21.263714"
+      },
+      {
+        "message": "hello",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "new",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "hello",
+              "message": "I couldn't find any documents matching 'hello'."
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for details",
+            "Refine search terms"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T13:56:59.484188"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T13:56:59.484254"
+      },
+      {
+        "message": " run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "new",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:03:30.643713"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:03:30.644136"
+      },
+      {
+        "message": "why isnt it loading anything?",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "new",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "why isnt it loading anything?",
+              "message": "I couldn't find any documents matching 'why isnt it loading anything?'."
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for details",
+            "Refine search terms"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:14:18.064890"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:14:18.068274"
+      },
+      {
+        "message": "this is a test chat",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "new",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "this is a test chat",
+              "message": "I couldn't find any documents matching 'this is a test chat'."
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for details",
+            "Refine search terms"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:18:04.174615"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:18:04.174635"
+      },
+      {
+        "message": "start a chat",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "new",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "start a chat",
+              "message": "I couldn't find any documents matching 'start a chat'."
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for details",
+            "Refine search terms"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:18:10.996219"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:18:10.996238"
+      },
+      {
+        "message": "schedule a meeting for a test chat",
+        "response": {
+          "success": true,
+          "message": "I need permission to access your Google Calendar to schedule this. Please connect your account by clicking the link below:\n\n[Connect Google Calendar](http://localhost:8000/api/auth/google/initiate)",
+          "session_id": "new",
+          "intent": "scheduling",
+          "confidence": 0.6,
+          "data": {
+            "scheduling": {
+              "actions": [
+                {
+                  "type": "view_calendar",
+                  "label": "Connect Google Calendar",
+                  "data": {
+                    "url": "http://localhost:8000/api/auth/google/initiate"
+                  }
+                }
+              ]
+            }
+          },
+          "suggested_actions": [
+            "Connect Google Calendar"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:21:45.982652"
+        },
+        "intent": {
+          "primary_intent": "scheduling",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:21:45.983282"
+      },
+      {
+        "message": "can you automate workflows?",
+        "response": {
+          "success": true,
+          "message": "Workflow created successfully. Ready to execute?",
+          "session_id": "new",
+          "intent": "workflow_creation",
+          "confidence": 0.6,
+          "data": {
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Review the workflow steps",
+            "Test the workflow execution",
+            "Schedule the workflow for automatic runs"
+          ],
+          "timestamp": "2026-02-01T14:21:55.637823"
+        },
+        "intent": {
+          "primary_intent": "workflow_creation",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:21:55.637885"
+      },
+      {
+        "message": "execute",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "new",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:22:05.780960"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:22:05.780970"
+      },
+      {
+        "message": "run inventory check",
+        "response": {
+          "success": true,
+          "message": "I've processed your request across all connected platforms.",
+          "session_id": "new",
+          "intent": "automation_trigger",
+          "confidence": 0.6,
+          "data": {
+            "automation": {
+              "agent_id": "inventory_reconcile",
+              "status": "started"
+            },
+            "workflows": {
+              "message": "Workflow logic here"
+            }
+          },
+          "suggested_actions": [
+            "Check Agent Status",
+            "View Live Logs"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:22:17.530685"
+        },
+        "intent": {
+          "primary_intent": "automation_trigger",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:22:17.530708"
+      },
+      {
+        "message": "hiiii",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "new",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "hiiii",
+              "message": "I couldn't find any documents matching 'hiiii'."
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for details",
+            "Refine search terms"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:29:41.060892"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:29:41.060916"
+      },
+      {
+        "message": "hiiii",
+        "response": {
+          "success": true,
+          "message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+          "session_id": "new",
+          "intent": "help_request",
+          "confidence": 0.6,
+          "data": {
+            "search": {
+              "results": [],
+              "query": "hiiii",
+              "message": "I couldn't find any documents matching 'hiiii'."
+            }
+          },
+          "suggested_actions": [
+            "Open Search UI for details",
+            "Refine search terms"
+          ],
+          "ui_updates": [],
+          "requires_confirmation": false,
+          "next_steps": [
+            "Ask me to connect more services",
+            "Explore automation opportunities",
+            "Check your dashboard for insights"
+          ],
+          "timestamp": "2026-02-01T14:29:57.046040"
+        },
+        "intent": {
+          "primary_intent": "help_request",
+          "confidence": 0.6,
+          "entities": [],
+          "platforms": [],
+          "command_type": "search"
+        },
+        "timestamp": "2026-02-01T14:29:57.046063"
+      }
+    ],
+    "last_message": "Hello! I'm Atom. I can help you manage tasks, schedule meetings, search your data, and more. What would you like to do?",
+    "title": "test chat"
   }
 ]

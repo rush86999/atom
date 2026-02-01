@@ -1,0 +1,28 @@
+{
+  "template_id": "template_26d1a8bb11d0",
+  "name": "My Agent Pipeline",
+  "description": "Visual workflow: My Agent Pipeline",
+  "category": "automation",
+  "complexity": "intermediate",
+  "tags": [
+    "visual",
+    "agent-pipeline"
+  ],
+  "version": "1.0.0",
+  "author": "System",
+  "created_at": "2026-02-01 20:12:21.434727",
+  "updated_at": "2026-02-01 20:12:26.518290",
+  "inputs": [],
+  "steps": [],
+  "output_schema": {},
+  "usage_count": 1,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 0,
+  "prerequisites": [],
+  "dependencies": [],
+  "permissions": [],
+  "is_public": false,
+  "is_featured": false,
+  "license": "MIT"
+}

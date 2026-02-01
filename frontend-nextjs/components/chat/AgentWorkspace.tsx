@@ -1,33 +1,95 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, ListTodo, Globe, AlertTriangle } from "lucide-react";
+import { Brain, ListTodo, Globe, AlertTriangle, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useWebSocket } from "@/hooks/useWebSocket";
+
+interface AgentStep {
+    step: number;
+    thought?: string;
+    action?: string;
+    action_input?: string;
+    observation?: string;
+    timestamp?: string;
+}
 
 interface AgentWorkspaceProps {
     sessionId: string | null;
 }
 
 const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId }) => {
-    // In a real implementation, this would fetch data based on sessionId
-    const [tasks] = useState([
-        { id: 1, text: "Analyze user request", status: "completed" },
-        { id: 2, text: "Search documentation for API endpoints", status: "in-progress" },
-        { id: 3, text: "Generate authentication code", status: "pending" },
-        { id: 4, text: "Verify implementation", status: "pending" },
-    ]);
+    const [steps, setSteps] = useState<AgentStep[]>([]);
+    const [agentStatus, setAgentStatus] = useState<string>("idle");
+    const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Subscribe to workspace events
+    const { lastMessage, isConnected } = useWebSocket({
+        initialChannels: ["workspace:default"]
+    });
+
+    // Handle incoming events
+    useEffect(() => {
+        if (!lastMessage) return;
+
+        if (lastMessage.type === "agent_step_update") {
+            // Handle various payload shapes (flat or nested in data)
+            const newStep = lastMessage.step || lastMessage.data?.step || lastMessage.data;
+            if (newStep) {
+                setSteps(prev => {
+                    // If step is 1, this is a NEW agent run - clear previous steps
+                    if (newStep.step === 1) {
+                        return [newStep];
+                    }
+                    // Avoid duplicates if step number exists
+                    if (prev.some(s => s.step === newStep.step)) return prev;
+                    return [...prev, newStep];
+                });
+                setAgentStatus("running");
+                if (lastMessage.data?.agent_id) setActiveAgentId(lastMessage.data.agent_id);
+            }
+        } else if (lastMessage.type === "agent_status_change") {
+            // Handle flat or nested status
+            const status = lastMessage.status || lastMessage.data?.status || "unknown";
+            setAgentStatus(status);
+
+            const agentId = lastMessage.agent_id || lastMessage.data?.agent_id;
+            if (agentId) setActiveAgentId(agentId);
+        }
+
+    }, [lastMessage]);
+
+    // Auto-scroll to bottom of steps
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [steps]);
+
+    const handleClear = () => {
+        setSteps([]);
+        setAgentStatus("idle");
+        setActiveAgentId(null);
+    };
 
     return (
         <div className="h-full flex flex-col border-l border-slate-800 bg-[#0F172A]">
-            <div className="p-4 border-b border-slate-800">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
                 <h2 className="font-semibold flex items-center gap-2 text-slate-100">
                     <Brain className="h-4 w-4 text-indigo-400" />
                     Agent Workspace
+                    {isConnected && <Badge variant="outline" className="text-green-400 border-green-400 text-[10px]">Live</Badge>}
                 </h2>
+                {steps.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={handleClear} className="text-slate-400 hover:text-slate-200">
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                )}
             </div>
 
             <Tabs defaultValue="tasks" className="flex-1 flex flex-col">
@@ -44,48 +106,44 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId }) => {
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium flex items-center gap-2 text-indigo-300">
                                 <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                                Agent Reflection
+                                Agent Status: {agentStatus}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm text-slate-400 italic">
-                                &quot;{sessionId ? "I am currently processing the conversation history to better assist you." : "I am standing by. Start a chat to see my execution plan."}&quot;
+                                &quot;{steps.length > 0 ? `Processing step ${steps.length}...` : "I am standing by. Start a chat to see my execution plan."}&quot;
                             </p>
                         </CardContent>
                     </Card>
 
-                    {/* Task List */}
+                    {/* Execution Steps */}
                     <Card className="flex-1 flex flex-col overflow-hidden bg-slate-900/50 border-slate-800">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-200">
                                 <ListTodo className="h-4 w-4" />
-                                Execution Plan
+                                Execution Steps ({steps.length})
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="flex-1 overflow-auto">
+                        <CardContent className="flex-1 overflow-auto" ref={scrollRef}>
                             <div className="space-y-3">
-                                {tasks.map((task) => (
-                                    <div key={task.id} className="flex items-start gap-2 group">
-                                        <Checkbox
-                                            checked={task.status === "completed"}
-                                            className="mt-1 border-slate-600 data-[state=checked]:bg-indigo-600"
-                                            disabled
-                                        />
-                                        <div className="flex-1">
-                                            <p className={`text-sm ${task.status === "completed" ? "text-slate-500 line-through" : "text-slate-300"}`}>
-                                                {task.text}
-                                            </p>
-                                            <div className="flex gap-2 mt-1">
-                                                <Badge variant={
-                                                    task.status === "completed" ? "secondary" :
-                                                        task.status === "in-progress" ? "default" : "outline"
-                                                } className={`text-[10px] h-5 ${task.status === 'in-progress' ? 'bg-indigo-600' : ''}`}>
-                                                    {task.status}
-                                                </Badge>
+                                {steps.length === 0 ? (
+                                    <p className="text-sm text-slate-500 italic">No execution steps yet. Send a message to see the agent's reasoning.</p>
+                                ) : (
+                                    steps.map((step, idx) => (
+                                        <div key={idx} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Badge variant="outline" className="text-indigo-400 border-indigo-400">Step {step.step}</Badge>
+                                                {step.action && <Badge variant="secondary" className="bg-indigo-600 text-white">{step.action}</Badge>}
                                             </div>
+                                            {step.thought && (
+                                                <p className="text-sm text-slate-300 mb-1"><strong>Thinking:</strong> {step.thought}</p>
+                                            )}
+                                            {step.observation && (
+                                                <p className="text-sm text-slate-400"><strong>Result:</strong> {step.observation}</p>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                )}
                             </div>
                         </CardContent>
                     </Card>

@@ -1,0 +1,65 @@
+﻿backend/core/generic_agent.py:7: leftover conflict marker
+backend/core/generic_agent.py:9: leftover conflict marker
+backend/core/generic_agent.py:11: leftover conflict marker
+backend/integrations/chat_orchestrator.py:183: trailing whitespace.
++        
+backend/integrations/chat_orchestrator.py:192: trailing whitespace.
++                "last_updated": s.get("last_active"), 
+backend/integrations/chat_orchestrator.py:196: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:200: trailing whitespace.
++                
+backend/integrations/chat_orchestrator.py:398: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:647: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:657: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:667: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:668: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:672: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:677: trailing whitespace.
++                
+backend/integrations/chat_orchestrator.py:709: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:712: trailing whitespace.
++            action = "create" 
+backend/integrations/chat_orchestrator.py:715: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:727: trailing whitespace.
++                
+backend/integrations/chat_orchestrator.py:729: trailing whitespace.
++                
+backend/integrations/chat_orchestrator.py:735: trailing whitespace.
++                    
+backend/integrations/chat_orchestrator.py:739: trailing whitespace.
++                
+backend/integrations/chat_orchestrator.py:749: trailing whitespace.
++                
+backend/integrations/chat_orchestrator.py:752: trailing whitespace.
++                
+backend/integrations/chat_orchestrator.py:756: trailing whitespace.
++                    "success": True, 
+backend/integrations/chat_orchestrator.py:762: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:767: trailing whitespace.
++                 
+backend/integrations/chat_orchestrator.py:770: trailing whitespace.
++                 
+backend/integrations/chat_orchestrator.py:781: trailing whitespace.
++            
+backend/integrations/chat_orchestrator.py:1246: trailing whitespace.
++        
+backend/integrations/chat_orchestrator.py:1249: trailing whitespace.
++        
+backend/integrations/chat_orchestrator.py:1253: trailing whitespace.
++            
+frontend-nextjs/components/chat/ChatInterface.tsx:4: leftover conflict marker
+frontend-nextjs/components/chat/ChatInterface.tsx:9: leftover conflict marker
+frontend-nextjs/components/chat/ChatInterface.tsx:15: leftover conflict marker
+frontend-nextjs/components/chat/ChatInterface.tsx:38: leftover conflict marker
+frontend-nextjs/components/chat/ChatInterface.tsx:40: leftover conflict marker
+frontend-nextjs/components/chat/ChatInterface.tsx:45: leftover conflict marker

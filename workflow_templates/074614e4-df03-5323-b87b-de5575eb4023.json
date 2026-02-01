@@ -1,7 +1,7 @@
 {
   "template_id": "074614e4-df03-5323-b87b-de5575eb4023",
   "name": "AI Email Follow-up Automation",
-  "description": "Updated via Visual Editor",
+  "description": "Automatically detect sent emails with no replies and draft polite follow-up nudges.",
   "category": "automation",
   "complexity": "intermediate",
   "tags": [
@@ -11,8 +11,8 @@
   ],
   "version": "1.0.0",
   "author": "System",
-  "created_at": "2026-01-16 22:53:44.575884",
-  "updated_at": "2026-01-17 19:53:06.557186",
+  "created_at": "2026-02-01 19:36:47.307429",
+  "updated_at": "2026-02-01 19:47:18.800959",
   "inputs": [
     {
       "name": "days_threshold",
@@ -29,10 +29,12 @@
   ],
   "steps": [
     {
-      "id": "detect_candidates",
+      "step_id": "detect_candidates",
       "name": "Detect Cold Threads",
       "description": "Identify sent emails needing follow-up",
       "step_type": "action",
+      "service": null,
+      "action": null,
       "parameters": [
         {
           "name": "service",
@@ -71,14 +73,19 @@
           "example_value": null
         }
       ],
+      "condition": null,
       "depends_on": [],
-      "condition": null
+      "estimated_duration": 60,
+      "is_optional": false,
+      "retry_config": {}
     },
     {
-      "id": "draft_followups",
+      "step_id": "draft_followups",
       "name": "Draft Follow-ups",
       "description": "Use AI to draft polite follow-up messages",
       "step_type": "action",
+      "service": null,
+      "action": null,
       "parameters": [
         {
           "name": "service",
@@ -105,17 +112,20 @@
           "example_value": null
         }
       ],
+      "condition": null,
       "depends_on": [
         "detect_candidates"
       ],
-      "condition": null
+      "estimated_duration": 60,
+      "is_optional": false,
+      "retry_config": {}
     }
   ],
   "output_schema": {},
-  "usage_count": 0,
+  "usage_count": 2,
   "rating": 0.0,
   "review_count": 0,
-  "estimated_total_duration": 120,
+  "estimated_total_duration": 0,
   "prerequisites": [],
   "dependencies": [],
   "permissions": [],

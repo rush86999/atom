@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from 'next/router';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, StopCircle, Paperclip, AlertCircle, Loader2 } from "lucide-react";
+import { Send, StopCircle, Paperclip, Mic, AlertCircle, Loader2, Edit2, Check, X } from "lucide-react";
 import { ChatMessage } from "../GlobalChat/ChatMessage";
 import { ChatMessageData, ReasoningStep } from "../GlobalChat/ChatMessage";
 import { VoiceInput } from "@/components/Voice/VoiceInput";
@@ -13,7 +14,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { CanvasHost } from "./CanvasHost";
 import { VoiceModeOverlay } from "@/components/Voice/VoiceModeOverlay";
-import { Mic } from "lucide-react";
 import { marked } from "marked";
 
 interface ChatInterfaceProps {
@@ -21,13 +21,16 @@ interface ChatInterfaceProps {
     onSessionCreated?: (sessionId: string) => void;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreated }) => {
     const [input, setInput] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("Agent is thinking...");
     const [messages, setMessages] = useState<ChatMessageData[]>([]);
     const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
     const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
+    const [sessionTitle, setSessionTitle] = useState("Current Session");
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [tempTitle, setTempTitle] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { isConnected, lastMessage, streamingContent, subscribe } = useWebSocket();
     const { toast } = useToast();
@@ -37,10 +40,39 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    const handleTitleSave = async () => {
+        if (!sessionId || !tempTitle.trim()) {
+            setIsEditingTitle(false);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/chat/sessions/${sessionId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: tempTitle, user_id: "default_user" }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setSessionTitle(tempTitle);
+                toast({ title: "Renamed", description: "Session renamed successfully." });
+            } else {
+                toast({ variant: "destructive", title: "Error", description: "Failed to rename session." });
+            }
+        } catch (error) {
+            console.error("Rename failed", error);
+            toast({ variant: "destructive", title: "Error", description: "Failed to rename session." });
+        } finally {
+            setIsEditingTitle(false);
+        }
+    };
+
     useEffect(() => {
-        if (sessionId) {
-            loadSessionHistory(sessionId);
+        // "new" is a sentinel value meaning "start fresh chat" - don't load any existing session
+        if (sessionId && sessionId !== "new") {
+            initialLoad(sessionId);
         } else {
+            // Fresh chat - show welcome message
             setMessages([
                 {
                     id: "welcome",
@@ -49,8 +81,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
                     timestamp: new Date(),
                 }
             ]);
+            setSessionTitle("New Chat");
         }
     }, [sessionId]);
+
+    const initialLoad = (sid: string) => {
+        loadSessionHistory(sid);
+        // Fetch session details directly
+        fetch(`/api/chat/sessions/${sid}?user_id=default_user`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.title) setSessionTitle(data.title);
+            }).catch(e => console.log("Bg fetch title error", e));
+    };
 
     useEffect(() => {
         scrollToBottom();
@@ -131,17 +174,48 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
             setIsProcessing(true);
             setStatusMessage("Loading history...");
             const { apiClient } = await import('../../lib/api-client');
-            const response = await apiClient.get(`/api/atom-agent/sessions/${sid}/history`) as any;
+            // Use correct backend endpoint: /api/chat/history/{session_id}?user_id=...
+            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=default_user`) as any;
             if (response.status === 200) {
                 const data = response.data;
-                if (data.success && data.messages) {
-                    const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
-                        id: msg.id || `msg_${Date.now()}_${Math.random()}`,
-                        type: msg.role === 'user' ? 'user' : 'assistant',
-                        content: msg.content || '',
-                        timestamp: new Date(msg.timestamp),
-                        actions: msg.metadata?.actions || [],
-                    }));
+                // Backend history format: [{ message: string, response: { message: string }, timestamp: string }]
+                if (data.messages && Array.isArray(data.messages)) {
+                    const chatMessages: ChatMessageData[] = [];
+
+                    data.messages.forEach((historyItem: any, idx: number) => {
+                        // Each history item contains user message AND assistant response
+                        // Add user message
+                        if (historyItem.message) {
+                            chatMessages.push({
+                                id: `msg_user_${idx}`,
+                                type: "user",
+                                content: historyItem.message,
+                                timestamp: new Date(historyItem.timestamp || Date.now()),
+                                actions: [],
+                            });
+                        }
+
+                        // Add assistant response
+                        const assistantContent = historyItem.response?.message || historyItem.response;
+                        if (assistantContent && typeof assistantContent === 'string') {
+                            chatMessages.push({
+                                id: `msg_assistant_${idx}`,
+                                type: "assistant",
+                                content: assistantContent,
+                                timestamp: new Date(historyItem.timestamp || Date.now()),
+                                actions: historyItem.response?.suggested_actions || [],
+                            });
+                        } else if (assistantContent && typeof assistantContent === 'object' && assistantContent.message) {
+                            chatMessages.push({
+                                id: `msg_assistant_${idx}`,
+                                type: "assistant",
+                                content: assistantContent.message,
+                                timestamp: new Date(historyItem.timestamp || Date.now()),
+                                actions: assistantContent.suggested_actions || [],
+                            });
+                        }
+                    });
+
                     setMessages(chatMessages);
                 }
             }
@@ -169,25 +243,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
 
         try {
             const { apiClient } = await import('../../lib/api-client');
-            const response = await apiClient.post("/api/atom-agent/chat", {
+            // Use correct backend endpoint /api/chat/message
+            const response = await apiClient.post("/api/chat/message", {
                 message: input,
                 session_id: sessionId,
                 user_id: "default_user",
-                current_page: "/chat",
-                conversation_history: messages.slice(-5).map(m => ({
-                    role: m.type === "user" ? "user" : "assistant",
-                    content: m.content
-                }))
+                context: {
+                    current_page: "/chat",
+                    conversation_history: messages.slice(-5).map(m => ({
+                        role: m.type === "user" ? "user" : "assistant",
+                        content: m.content
+                    }))
+                }
             }) as any;
             const data = response.data;
 
-            if (data.success && data.response) {
+            // Response format: { success, message, session_id, intent, metadata, ... }
+            if (data.success && data.message) {
+                // If backend returned a new session_id, notify parent to update URL/state
+                if (data.session_id && data.session_id !== sessionId && data.session_id !== "new") {
+                    onSessionCreated?.(data.session_id);
+                }
+
                 const agentMsg: ChatMessageData = {
                     id: (Date.now() + 1).toString(),
                     type: "assistant",
-                    content: data.response.message,
+                    content: data.message,
                     timestamp: new Date(),
-                    actions: data.response.actions || [],
+                    actions: data.metadata?.actions || data.suggested_actions || [],
                 };
                 setMessages(prev => [...prev, agentMsg]);
             } else {
@@ -292,8 +375,48 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId }) => {
             {/* Chat Header */}
             <div className="p-4 border-b border-border flex justify-between items-center bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div>
-                    <h2 className="font-semibold">Current Session</h2>
-                    <p className="text-xs text-muted-foreground">ID: {sessionId || "New Session"}</p>
+                    {isEditingTitle ? (
+                        <div className="flex items-center gap-1">
+                            <Input
+                                value={tempTitle}
+                                onChange={(e) => setTempTitle(e.target.value)}
+                                className="h-8 w-64"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleTitleSave();
+                                    if (e.key === "Escape") setIsEditingTitle(false);
+                                }}
+                            />
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-100/10" onClick={handleTitleSave}>
+                                <Check className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-100/10" onClick={() => setIsEditingTitle(false)}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="group flex items-center gap-2">
+                            <div>
+                                <h2 className="font-semibold">{sessionTitle}</h2>
+                                <p className="text-xs text-muted-foreground">ID: {sessionId || "New Session"}</p>
+                            </div>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-primary hover:bg-muted" // Removed opacity, added high contrast
+                                onClick={() => {
+                                    if (!sessionId) {
+                                        toast({ title: "New Session", description: "Send a message to start a session before renaming." });
+                                        return;
+                                    }
+                                    setTempTitle(sessionTitle);
+                                    setIsEditingTitle(true);
+                                }}
+                            >
+                                <Edit2 className="h-4 w-4" /> {/* Slightly larger icon */}
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
