@@ -638,6 +638,7 @@ class WorkflowTemplateManager:
                     "description": "Source of data to process",
                     "type": "select",
                     "required": True,
+                    "default_value": "file",
                     "options": ["database", "file", "api", "stream"],
                     "help_text": "Select where your input data comes from"
                 },
@@ -646,7 +647,8 @@ class WorkflowTemplateManager:
                     "label": "Connection String",
                     "description": "Database connection or file path",
                     "type": "string",
-                    "required": True,
+                    "required": False,
+                    "default_value": "demo_data.csv",
                     "show_when": {"data_source": ["database", "api"]},
                     "example_value": "postgresql://user:pass@localhost/db"
                 },
@@ -664,6 +666,7 @@ class WorkflowTemplateManager:
                     "description": "Format for processed data",
                     "type": "select",
                     "required": True,
+                    "default_value": "json",
                     "options": ["json", "csv", "parquet", "database"]
                 }
             ],

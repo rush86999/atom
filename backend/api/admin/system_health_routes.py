@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from core.database import SessionLocal
-from core.cache import RedisCacheService
+from core.cache import cache
 from core.admin_endpoints import get_super_admin
 from core.models import User
 import logging
 import time
 
-# Initialize cache service
-cache_service = RedisCacheService()
+# Initialize cache service (use global)
+# cache_service = RedisCacheService() # Removed
 
 # Safe import for LanceDB
 try:
@@ -47,14 +47,18 @@ def get_system_health(admin: User = Depends(get_super_admin)):
     # 2. Redis Check
     redis_status = "unknown"
     try:
-        if cache_service.enabled and cache_service.client:
-             if cache_service.client.ping():
+        # Check if we have a redis client
+        if cache.redis_client:
+             if cache.redis_client.ping():
                  redis_status = "operational"
              else:
                  redis_status = "degraded"
         else:
-             if not cache_service.enabled:
-                 redis_status = "unknown" 
+             # Just check if it was supposed to be enabled
+             if hasattr(cache, 'config') and cache.config.redis.enabled:
+                  redis_status = "degraded" # Enabled but no client
+             else:
+                  redis_status = "unknown" # Not enabled
     except Exception as e:
         logger.error(f"Health Check Redis Error: {e}")
         redis_status = "degraded"
