@@ -4,14 +4,23 @@ Workflow Debugger Service
 Provides step-through debugging capabilities for workflows including:
 - Breakpoint management (add, remove, enable, disable)
 - Step execution control (step over, step into, step out, continue, pause)
-- Variable inspection and watch expressions
+- Variable inspection and modification
 - Execution trace recording
 - Debug session management
+- Call stack tracking for nested workflows
+- Session persistence (save/restore)
+- Performance profiling
+- Collaborative debugging
+- Real-time trace streaming
 """
 
 import logging
+import json
+import uuid
+import time
+import copy
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Union
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
@@ -22,6 +31,7 @@ from core.models import (
     DebugVariable,
     WorkflowExecution,
 )
+from core.expression_parser import get_expression_evaluator
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +51,7 @@ class WorkflowDebugger:
 
     def __init__(self, db: Session):
         self.db = db
+        self.expression_evaluator = get_expression_evaluator()
 
     # ==================== Debug Session Management ====================
 
@@ -327,13 +338,15 @@ class WorkflowDebugger:
             return False, None
 
     def _evaluate_condition(self, condition: str, variables: Dict[str, Any]) -> bool:
-        """Evaluate a conditional breakpoint expression."""
+        """
+        Evaluate a conditional breakpoint expression using safe expression parser.
+
+        Uses the ExpressionParser instead of eval() for security.
+        """
         try:
-            # Simple variable substitution
-            # For production, use a safer eval approach
-            safe_vars = {k.replace("-", "_"): v for k, v in variables.items()}
-            return eval(condition, {"__builtins__": {}}, safe_vars)
-        except Exception:
+            return self.expression_evaluator.evaluate(condition, variables)
+        except Exception as e:
+            logger.warning(f"Failed to evaluate condition '{condition}': {e}")
             return False
 
     # ==================== Step Execution Control ====================
@@ -355,39 +368,75 @@ class WorkflowDebugger:
             "action": "step_over",
         }
 
-    def step_into(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """Step into a nested workflow or function."""
+    def step_into(self, session_id: str, node_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Step into a nested workflow or function.
+
+        Pushes current frame onto call stack and enters nested context.
+        """
         session = self.get_debug_session(session_id)
         if not session:
             return None
 
+        # Push current frame onto call stack
+        call_stack = session.call_stack or []
+        current_frame = {
+            "step_number": session.current_step,
+            "node_id": session.current_node_id,
+            "workflow_id": session.workflow_id,
+        }
+        call_stack.append(current_frame)
+        session.call_stack = call_stack
+
         # Move into child workflow
         session.current_step += 1
-        # TODO: Implement nested workflow tracking
+        if node_id:
+            session.current_node_id = node_id
         session.updated_at = datetime.now()
         self.db.commit()
+
+        logger.info(f"Stepped into node {node_id}, call stack depth: {len(call_stack)}")
 
         return {
             "session_id": session_id,
             "current_step": session.current_step,
+            "current_node_id": session.current_node_id,
+            "call_stack_depth": len(call_stack),
             "action": "step_into",
         }
 
     def step_out(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """Step out of current nested workflow to parent."""
+        """
+        Step out of current nested workflow to parent.
+
+        Pops current frame from call stack and returns to parent context.
+        """
         session = self.get_debug_session(session_id)
         if not session:
             return None
 
-        # Move to parent level
-        # TODO: Implement call stack tracking
-        session.current_step += 1
+        call_stack = session.call_stack or []
+
+        if not call_stack:
+            logger.warning(f"Cannot step out: call stack is empty for session {session_id}")
+            return None
+
+        # Pop current frame and restore parent
+        parent_frame = call_stack.pop()
+        session.call_stack = call_stack
+        session.current_step = parent_frame["step_number"] + 1
+        session.current_node_id = parent_frame["node_id"]
         session.updated_at = datetime.now()
         self.db.commit()
+
+        logger.info(f"Stepped out to node {session.current_node_id}, call stack depth: {len(call_stack)}")
 
         return {
             "session_id": session_id,
             "current_step": session.current_step,
+            "current_node_id": session.current_node_id,
+            "call_stack_depth": len(call_stack),
+            "parent_frame": parent_frame,
             "action": "step_out",
         }
 
@@ -637,3 +686,550 @@ class WorkflowDebugger:
             return f"set({len(value)} items)"
 
         return str(value)[:max_length]
+
+    # ==================== Variable Modification ====================
+
+    def modify_variable(
+        self,
+        session_id: str,
+        variable_name: str,
+        new_value: Any,
+        scope: str = "local",
+        trace_id: Optional[str] = None,
+    ) -> Optional[DebugVariable]:
+        """
+        Modify a variable value during debugging.
+
+        Allows developers to change variable values at runtime to test different scenarios.
+        """
+        try:
+            session = self.get_debug_session(session_id)
+            if not session:
+                return None
+
+            # Update variable in session state
+            variables = session.variables or {}
+            old_value = variables.get(variable_name)
+
+            # Create variable snapshot for audit trail
+            variable = DebugVariable(
+                trace_id=trace_id or "",
+                debug_session_id=session_id,
+                variable_name=variable_name,
+                variable_path=variable_name,
+                variable_type=type(new_value).__name__,
+                value=new_value,
+                value_preview=self._generate_value_preview(new_value),
+                scope=scope,
+                is_mutable=True,
+                is_changed=True,
+                previous_value=old_value,
+            )
+
+            self.db.add(variable)
+
+            # Update session variable state
+            variables[variable_name] = new_value
+            session.variables = variables
+            session.updated_at = datetime.now()
+            self.db.commit()
+            self.db.refresh(variable)
+
+            logger.info(f"Modified variable {variable_name} in session {session_id}")
+            return variable
+
+        except Exception as e:
+            logger.error(f"Error modifying variable: {e}")
+            self.db.rollback()
+            return None
+
+    def bulk_modify_variables(
+        self,
+        session_id: str,
+        modifications: List[Dict[str, Any]],
+        scope: str = "local",
+    ) -> List[DebugVariable]:
+        """
+        Modify multiple variables at once.
+
+        Args:
+            session_id: Debug session ID
+            modifications: List of {variable_name, new_value} dictionaries
+            scope: Variable scope
+
+        Returns:
+            List of modified variable snapshots
+        """
+        results = []
+        for mod in modifications:
+            variable_name = mod.get("variable_name")
+            new_value = mod.get("new_value")
+            if variable_name is not None:
+                result = self.modify_variable(session_id, variable_name, new_value, scope)
+                if result:
+                    results.append(result)
+        return results
+
+    # ==================== Session Persistence ====================
+
+    def export_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Export debug session to JSON for persistence.
+
+        Allows saving debug sessions for later analysis or sharing.
+        """
+        try:
+            session = self.get_debug_session(session_id)
+            if not session:
+                return None
+
+            # Get session data
+            breakpoints = self.get_breakpoints(session.workflow_id, session.user_id)
+            traces = self.get_execution_traces(session.execution_id or "", session_id) if session.execution_id else []
+
+            export_data = {
+                "session": {
+                    "id": session.id,
+                    "workflow_id": session.workflow_id,
+                    "execution_id": session.execution_id,
+                    "user_id": session.user_id,
+                    "session_name": session.session_name,
+                    "status": session.status,
+                    "current_step": session.current_step,
+                    "current_node_id": session.current_node_id,
+                    "variables": session.variables,
+                    "call_stack": session.call_stack,
+                    "stop_on_entry": session.stop_on_entry,
+                    "stop_on_exceptions": session.stop_on_exceptions,
+                    "stop_on_error": session.stop_on_error,
+                    "created_at": session.created_at.isoformat() if session.created_at else None,
+                    "updated_at": session.updated_at.isoformat() if session.updated_at else None,
+                    "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+                },
+                "breakpoints": [
+                    {
+                        "id": bp.id,
+                        "node_id": bp.node_id,
+                        "edge_id": bp.edge_id,
+                        "breakpoint_type": bp.breakpoint_type,
+                        "condition": bp.condition,
+                        "hit_count": bp.hit_count,
+                        "hit_limit": bp.hit_limit,
+                        "is_disabled": bp.is_disabled,
+                        "log_message": bp.log_message,
+                    }
+                    for bp in breakpoints
+                ],
+                "traces": [
+                    {
+                        "id": trace.id,
+                        "step_number": trace.step_number,
+                        "node_id": trace.node_id,
+                        "node_type": trace.node_type,
+                        "status": trace.status,
+                        "input_data": trace.input_data,
+                        "output_data": trace.output_data,
+                        "error_message": trace.error_message,
+                        "duration_ms": trace.duration_ms,
+                        "started_at": trace.started_at.isoformat() if trace.started_at else None,
+                        "completed_at": trace.completed_at.isoformat() if trace.completed_at else None,
+                    }
+                    for trace in traces
+                ],
+                "exported_at": datetime.now().isoformat(),
+            }
+
+            logger.info(f"Exported debug session {session_id}")
+            return export_data
+
+        except Exception as e:
+            logger.error(f"Error exporting session: {e}")
+            return None
+
+    def import_session(
+        self,
+        export_data: Dict[str, Any],
+        restore_breakpoints: bool = True,
+        restore_variables: bool = True,
+    ) -> Optional[WorkflowDebugSession]:
+        """
+        Import a previously exported debug session.
+
+        Args:
+            export_data: Exported session data from export_session()
+            restore_breakpoints: Whether to restore breakpoints
+            restore_variables: Whether to restore variable state
+
+        Returns:
+            New debug session with imported data
+        """
+        try:
+            session_data = export_data.get("session", {})
+            breakpoints_data = export_data.get("breakpoints", [])
+            traces_data = export_data.get("traces", [])
+
+            # Create new session from imported data
+            new_session = self.create_debug_session(
+                workflow_id=session_data["workflow_id"],
+                user_id=session_data["user_id"],
+                session_name=f"{session_data['session_name']} (Imported)",
+                stop_on_entry=session_data.get("stop_on_entry", False),
+                stop_on_exceptions=session_data.get("stop_on_exceptions", True),
+                stop_on_error=session_data.get("stop_on_error", True),
+            )
+
+            # Restore variables
+            if restore_variables and session_data.get("variables"):
+                new_session.variables = session_data["variables"]
+                new_session.call_stack = session_data.get("call_stack", [])
+                self.db.commit()
+
+            # Restore breakpoints
+            if restore_breakpoints:
+                for bp_data in breakpoints_data:
+                    self.add_breakpoint(
+                        workflow_id=session_data["workflow_id"],
+                        node_id=bp_data["node_id"],
+                        user_id=session_data["user_id"],
+                        debug_session_id=new_session.id,
+                        edge_id=bp_data.get("edge_id"),
+                        breakpoint_type=bp_data.get("breakpoint_type", "node"),
+                        condition=bp_data.get("condition"),
+                        hit_limit=bp_data.get("hit_limit"),
+                        log_message=bp_data.get("log_message"),
+                    )
+
+            logger.info(f"Imported debug session as {new_session.id}")
+            return new_session
+
+        except Exception as e:
+            logger.error(f"Error importing session: {e}")
+            self.db.rollback()
+            return None
+
+    # ==================== Performance Profiling ====================
+
+    def start_performance_profiling(self, session_id: str) -> bool:
+        """
+        Start performance profiling for a debug session.
+
+        Records execution time for each step to identify bottlenecks.
+        """
+        try:
+            session = self.get_debug_session(session_id)
+            if not session:
+                return False
+
+            # Initialize performance metrics
+            session.performance_metrics = {
+                "enabled": True,
+                "started_at": datetime.now().isoformat(),
+                "step_times": [],
+                "node_times": {},
+                "total_duration_ms": 0,
+            }
+            session.updated_at = datetime.now()
+            self.db.commit()
+
+            logger.info(f"Started performance profiling for session {session_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error starting performance profiling: {e}")
+            self.db.rollback()
+            return False
+
+    def record_step_timing(
+        self,
+        session_id: str,
+        node_id: str,
+        node_type: str,
+        duration_ms: int,
+    ) -> bool:
+        """
+        Record timing data for a workflow step.
+
+        Called by the workflow engine during execution when profiling is enabled.
+        """
+        try:
+            session = self.get_debug_session(session_id)
+            if not session or not session.performance_metrics:
+                return False
+
+            metrics = session.performance_metrics
+            metrics["step_times"].append({
+                "node_id": node_id,
+                "node_type": node_type,
+                "duration_ms": duration_ms,
+                "timestamp": datetime.now().isoformat(),
+            })
+
+            # Aggregate by node
+            if node_id not in metrics["node_times"]:
+                metrics["node_times"][node_id] = {
+                    "count": 0,
+                    "total_ms": 0,
+                    "avg_ms": 0,
+                    "min_ms": float('inf'),
+                    "max_ms": 0,
+                }
+
+            node_metrics = metrics["node_times"][node_id]
+            node_metrics["count"] += 1
+            node_metrics["total_ms"] += duration_ms
+            node_metrics["avg_ms"] = node_metrics["total_ms"] / node_metrics["count"]
+            node_metrics["min_ms"] = min(node_metrics["min_ms"], duration_ms)
+            node_metrics["max_ms"] = max(node_metrics["max_ms"], duration_ms)
+
+            # Update total duration
+            metrics["total_duration_ms"] += duration_ms
+
+            session.updated_at = datetime.now()
+            self.db.commit()
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error recording step timing: {e}")
+            return False
+
+    def get_performance_report(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Generate a performance report for a debug session.
+
+        Returns aggregated timing data and bottleneck identification.
+        """
+        try:
+            session = self.get_debug_session(session_id)
+            if not session or not session.performance_metrics:
+                return None
+
+            metrics = session.performance_metrics
+
+            # Find bottlenecks (slowest steps)
+            sorted_steps = sorted(
+                metrics["step_times"],
+                key=lambda x: x["duration_ms"],
+                reverse=True,
+            )
+
+            # Find slowest nodes by average time
+            sorted_nodes = sorted(
+                [
+                    {"node_id": node_id, **data}
+                    for node_id, data in metrics["node_times"].items()
+                ],
+                key=lambda x: x["avg_ms"],
+                reverse=True,
+            )
+
+            report = {
+                "session_id": session_id,
+                "total_duration_ms": metrics["total_duration_ms"],
+                "total_steps": len(metrics["step_times"]),
+                "average_step_duration_ms": metrics["total_duration_ms"] / len(metrics["step_times"]) if metrics["step_times"] else 0,
+                "slowest_steps": sorted_steps[:10],  # Top 10 slowest steps
+                "slowest_nodes": sorted_nodes[:10],  # Top 10 slowest nodes by average
+                "profiling_started_at": metrics.get("started_at"),
+                "generated_at": datetime.now().isoformat(),
+            }
+
+            return report
+
+        except Exception as e:
+            logger.error(f"Error generating performance report: {e}")
+            return None
+
+    # ==================== Collaborative Debugging ====================
+
+    def add_collaborator(
+        self,
+        session_id: str,
+        user_id: str,
+        permission: str = "viewer",
+    ) -> bool:
+        """
+        Add a collaborator to a debug session.
+
+        Permissions:
+        - viewer: Can view session state and traces
+        - operator: Can control execution (step, pause, continue)
+        - owner: Full control including modifying breakpoints and variables
+        """
+        try:
+            session = self.get_debug_session(session_id)
+            if not session:
+                return False
+
+            collaborators = session.collaborators or {}
+
+            collaborators[user_id] = {
+                "permission": permission,
+                "added_at": datetime.now().isoformat(),
+            }
+
+            session.collaborators = collaborators
+            session.updated_at = datetime.now()
+            self.db.commit()
+
+            logger.info(f"Added collaborator {user_id} with permission {permission} to session {session_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error adding collaborator: {e}")
+            self.db.rollback()
+            return False
+
+    def remove_collaborator(self, session_id: str, user_id: str) -> bool:
+        """Remove a collaborator from a debug session."""
+        try:
+            session = self.get_debug_session(session_id)
+            if not session:
+                return False
+
+            collaborators = session.collaborators or {}
+
+            if user_id in collaborators:
+                del collaborators[user_id]
+                session.collaborators = collaborators
+                session.updated_at = datetime.now()
+                self.db.commit()
+
+                logger.info(f"Removed collaborator {user_id} from session {session_id}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Error removing collaborator: {e}")
+            self.db.rollback()
+            return False
+
+    def check_collaborator_permission(
+        self,
+        session_id: str,
+        user_id: str,
+        required_permission: str,
+    ) -> bool:
+        """
+        Check if a collaborator has the required permission.
+
+        Permission hierarchy: viewer < operator < owner
+        """
+        try:
+            session = self.get_debug_session(session_id)
+            if not session:
+                return False
+
+            # Session owner has all permissions
+            if session.user_id == user_id:
+                return True
+
+            collaborators = session.collaborators or {}
+            collaborator = collaborators.get(user_id)
+
+            if not collaborator:
+                return False
+
+            permission_hierarchy = {"viewer": 1, "operator": 2, "owner": 3}
+            user_level = permission_hierarchy.get(collaborator["permission"], 0)
+            required_level = permission_hierarchy.get(required_permission, 0)
+
+            return user_level >= required_level
+
+        except Exception as e:
+            logger.error(f"Error checking collaborator permission: {e}")
+            return False
+
+    def get_session_collaborators(self, session_id: str) -> List[Dict[str, Any]]:
+        """Get all collaborators for a debug session."""
+        try:
+            session = self.get_debug_session(session_id)
+            if not session:
+                return []
+
+            collaborators = session.collaborators or {}
+
+            return [
+                {
+                    "user_id": user_id,
+                    "permission": data["permission"],
+                    "added_at": data["added_at"],
+                }
+                for user_id, data in collaborators.items()
+            ]
+
+        except Exception as e:
+            logger.error(f"Error getting collaborators: {e}")
+            return []
+
+    # ==================== Real-time Trace Streaming ====================
+
+    def create_trace_stream(
+        self,
+        session_id: str,
+        execution_id: str,
+    ) -> str:
+        """
+        Create a unique stream ID for real-time trace updates.
+
+        Returns a stream ID that can be used with WebSocket connections.
+        """
+        stream_id = f"trace_{execution_id}_{session_id}_{uuid.uuid4().hex[:8]}"
+
+        logger.info(f"Created trace stream {stream_id} for execution {execution_id}")
+        return stream_id
+
+    def stream_trace_update(
+        self,
+        stream_id: str,
+        trace_data: Dict[str, Any],
+        websocket_manager=None,
+    ) -> bool:
+        """
+        Stream a trace update via WebSocket.
+
+        Args:
+            stream_id: Stream identifier from create_trace_stream()
+            trace_data: Trace data to stream
+            websocket_manager: WebSocket manager instance (optional)
+
+        Returns:
+            True if streamed successfully, False otherwise
+        """
+        try:
+            if websocket_manager:
+                # Broadcast trace update to all subscribers
+                websocket_manager.broadcast(stream_id, {
+                    "type": "trace_update",
+                    "data": trace_data,
+                    "timestamp": datetime.now().isoformat(),
+                })
+                logger.debug(f"Streamed trace update for stream {stream_id}")
+                return True
+
+            # Fallback: Log the trace data
+            logger.info(f"Trace stream update (no WebSocket): {stream_id}")
+            return False
+
+        except Exception as e:
+            logger.error(f"Error streaming trace update: {e}")
+            return False
+
+    def close_trace_stream(self, stream_id: str, websocket_manager=None) -> bool:
+        """Close a trace stream and clean up resources."""
+        try:
+            if websocket_manager:
+                # Notify subscribers that stream is closing
+                websocket_manager.broadcast(stream_id, {
+                    "type": "stream_closed",
+                    "stream_id": stream_id,
+                    "timestamp": datetime.now().isoformat(),
+                })
+
+            logger.info(f"Closed trace stream {stream_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error closing trace stream: {e}")
+            return False
