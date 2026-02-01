@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import Workflow, WorkflowExecution, WorkflowExecutionLog
+from core.models import WorkflowExecution, WorkflowExecutionLog
 
 logger = logging.getLogger(__name__)
 
@@ -81,41 +81,51 @@ async def get_mobile_workflows(
     Returns simplified workflow list with essential information only.
     """
     try:
-        query = db.query(Workflow)
+        # Load workflows from JSON file
+        import os
+        import json
 
-        # Apply filters
+        workflows_file = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "workflows.json"
+        )
+
+        if not os.path.exists(workflows_file):
+            return []
+
+        with open(workflows_file, 'r') as f:
+            workflows_json = json.load(f)
+
+        # Filter workflows
+        workflows = workflows_json
         if status:
-            query = query.filter(Workflow.status == status)
-
+            workflows = [w for w in workflows if w.get("status") == status]
         if category:
-            query = query.filter(Workflow.category == category)
-
+            workflows = [w for w in workflows if w.get("category") == category]
         if search:
-            search_term = f"%{search}%"
-            query = query.filter(
-                (Workflow.name.ilike(search_term)) |
-                (Workflow.description.ilike(search_term))
-            )
-
-        # Get total count before pagination
-        total = query.count()
+            search_lower = search.lower()
+            workflows = [
+                w for w in workflows
+                if search_lower in w.get("name", "").lower() or
+                   search_lower in w.get("description", "").lower()
+            ]
 
         # Apply sorting
-        sort_column = getattr(Workflow, sort_by, Workflow.created_at)
         if sort_order == "desc":
-            query = query.order_by(sort_column.desc())
+            workflows.sort(key=lambda x: x.get(sort_by, ""), reverse=True)
         else:
-            query = query.order_by(sort_column.asc())
+            workflows.sort(key=lambda x: x.get(sort_by, ""))
 
         # Apply pagination
-        workflows = query.offset(offset).limit(limit).all()
+        workflows = workflows[offset:offset + limit]
 
         # Transform to mobile format
         mobile_workflows = []
         for wf in workflows:
+            workflow_id = wf.get('id', '')
             # Calculate execution stats
             executions = db.query(WorkflowExecution).filter(
-                WorkflowExecution.workflow_id == wf.id
+                WorkflowExecution.workflow_id == workflow_id
             ).all()
 
             total_execs = len(executions)
@@ -127,16 +137,16 @@ async def get_mobile_workflows(
             last_execution = last_exec.started_at.isoformat() if last_exec else None
 
             mobile_workflows.append(MobileWorkflowSummary(
-                id=wf.id,
-                name=wf.name,
-                description=wf.description,
-                category=wf.category,
-                status=wf.status,
-                created_at=wf.created_at.isoformat(),
+                id=workflow_id,
+                name=wf.get("name", ""),
+                description=wf.get("description", ""),
+                category=wf.get("category", ""),
+                status=wf.get("status", "unknown"),
+                created_at=wf.get("created_at", ""),
                 last_execution=last_execution,
                 execution_count=total_execs,
                 success_rate=round(success_rate, 1),
-                tags=wf.tags or []
+                tags=wf.get("tags", [])
             ))
 
         return mobile_workflows
@@ -157,9 +167,10 @@ async def get_mobile_workflow_details(
     Returns simplified workflow information suitable for mobile screens.
     """
     try:
-        workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()
+        # Load workflow from JSON file
+        workflow_dict = _load_workflow_definition(db, workflow_id)
 
-        if not workflow:
+        if not workflow_dict:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
         # Get recent executions (last 10)
@@ -168,14 +179,14 @@ async def get_mobile_workflow_details(
         ).order_by(WorkflowExecution.started_at.desc()).limit(10).all()
 
         return {
-            "id": workflow.id,
-            "name": workflow.name,
-            "description": workflow.description,
-            "category": workflow.category,
-            "status": workflow.status,
-            "tags": workflow.tags or [],
-            "created_at": workflow.created_at.isoformat(),
-            "updated_at": workflow.updated_at.isoformat(),
+            "id": workflow_dict.get("id"),
+            "name": workflow_dict.get("name", ""),
+            "description": workflow_dict.get("description", ""),
+            "category": workflow_dict.get("category", ""),
+            "status": workflow_dict.get("status", "unknown"),
+            "tags": workflow_dict.get("tags", []),
+            "created_at": workflow_dict.get("created_at", ""),
+            "updated_at": workflow_dict.get("updated_at", ""),
             "execution_count": len(recent_executions),
             "recent_executions": [
                 {
@@ -199,6 +210,7 @@ async def get_mobile_workflow_details(
 @router.post("/trigger", response_model=TriggerResponse)
 async def trigger_workflow_mobile(
     request: TriggerRequest,
+    background_tasks: BackgroundTasks,
     user_id: str = Query(..., description="User ID triggering the workflow"),
     db: Session = Depends(get_db)
 ):
@@ -209,25 +221,24 @@ async def trigger_workflow_mobile(
     """
     try:
         # Verify workflow exists
-        workflow = db.query(Workflow).filter(Workflow.id == request.workflow_id).first()
-
-        if not workflow:
+        workflow_dict = _load_workflow_definition(db, request.workflow_id)
+        if not workflow_dict:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
-        if workflow.status != 'active':
+        if workflow_dict.get("status") != 'active':
             raise HTTPException(
                 status_code=400,
-                detail=f"Cannot trigger workflow with status: {workflow.status}"
+                detail=f"Cannot trigger workflow with status: {workflow_dict.get('status')}"
             )
 
         # Create execution record
         execution = WorkflowExecution(
-            id=f"exec_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            execution_id=f"exec_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}",
             workflow_id=request.workflow_id,
             triggered_by=user_id,
             status='running',
             started_at=datetime.now(),
-            input_data=request.parameters
+            input_data=str(request.parameters) if request.parameters else None
         )
 
         db.add(execution)
@@ -237,17 +248,62 @@ async def trigger_workflow_mobile(
         # Start workflow in background (non-blocking)
         if request.synchronous:
             # Run synchronously (wait for completion)
-            # TODO: Implement actual workflow execution logic
-            pass
+            from core.workflow_engine import get_workflow_engine
+            import asyncio
+
+            engine = get_workflow_engine()
+
+            if not workflow_dict:
+                raise HTTPException(status_code=404, detail="Workflow definition not found")
+
+            # Create completion event
+            completion_event = asyncio.Event()
+
+            async def run_with_completion():
+                try:
+                    await engine._run_execution(execution.execution_id, workflow_dict)
+                finally:
+                    completion_event.set()
+
+            # Start execution
+            asyncio.create_task(run_with_completion())
+
+            # Wait for completion (5 min timeout)
+            try:
+                await asyncio.wait_for(completion_event.wait(), timeout=300.0)
+                db.refresh(execution)
+                return TriggerResponse(
+                    execution_id=execution.execution_id,
+                    status="completed" if execution.status == "completed" else execution.status,
+                    message="Workflow completed",
+                    workflow_id=request.workflow_id
+                )
+            except asyncio.TimeoutError:
+                return TriggerResponse(
+                    execution_id=execution.execution_id,
+                    status="timeout",
+                    message="Workflow execution timed out",
+                    workflow_id=request.workflow_id
+                )
         else:
             # Run asynchronously using background task
-            # TODO: Submit to background task queue
-            pass
+            from core.workflow_engine import get_workflow_engine
 
-        logger.info(f"Mobile trigger: workflow={request.workflow_id}, execution={execution.id}")
+            engine = get_workflow_engine()
+
+            if workflow_dict:
+                background_tasks.add_task(
+                    engine._run_execution,
+                    execution.execution_id,
+                    workflow_dict
+                )
+            else:
+                raise HTTPException(status_code=404, detail="Workflow definition not found")
+
+        logger.info(f"Mobile trigger: workflow={request.workflow_id}, execution={execution.execution_id}")
 
         return TriggerResponse(
-            execution_id=execution.id,
+            execution_id=execution.execution_id,
             status="started",
             message="Workflow execution started",
             workflow_id=request.workflow_id
@@ -273,14 +329,15 @@ async def get_mobile_execution_details(
     """
     try:
         execution = db.query(WorkflowExecution).filter(
-            WorkflowExecution.id == execution_id
+            WorkflowExecution.execution_id == execution_id
         ).first()
 
         if not execution:
             raise HTTPException(status_code=404, detail="Execution not found")
 
         # Get workflow name
-        workflow = db.query(Workflow).filter(Workflow.id == execution.workflow_id).first()
+        workflow_dict = _load_workflow_definition(db, execution.workflow_id)
+        workflow_name = workflow_dict.get("name", "Unknown") if workflow_dict else "Unknown"
 
         # Get recent logs (last 20)
         logs = db.query(WorkflowExecutionLog).filter(
@@ -289,22 +346,20 @@ async def get_mobile_execution_details(
 
         # Calculate progress percentage
         progress_percentage = 0
-        if execution.total_steps and execution.current_step:
-            progress_percentage = int((execution.current_step / execution.total_steps) * 100)
 
         return {
-            "id": execution.id,
+            "id": execution.execution_id,
             "workflow_id": execution.workflow_id,
-            "workflow_name": workflow.name if workflow else "Unknown",
+            "workflow_name": workflow_name,
             "status": execution.status,
-            "started_at": execution.started_at.isoformat(),
-            "completed_at": execution.completed_at.isoformat() if execution.completed_at else None,
-            "duration_seconds": execution.duration_seconds,
+            "started_at": execution.created_at.isoformat(),
+            "completed_at": execution.updated_at.isoformat() if execution.updated_at else None,
+            "duration_seconds": None,
             "triggered_by": execution.triggered_by,
-            "current_step": execution.current_step,
-            "total_steps": execution.total_steps,
+            "current_step": None,
+            "total_steps": None,
             "progress_percentage": progress_percentage,
-            "error_message": execution.error_message,
+            "error_message": execution.error,
             "recent_logs": [
                 {
                     "id": log.id,
@@ -337,25 +392,25 @@ async def get_workflow_executions_mobile(
     """
     try:
         # Verify workflow exists
-        workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()
+        workflow_dict = _load_workflow_definition(db, workflow_id)
 
-        if not workflow:
+        if not workflow_dict:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
         # Get executions
         executions = db.query(WorkflowExecution).filter(
             WorkflowExecution.workflow_id == workflow_id
-        ).order_by(WorkflowExecution.started_at.desc()).limit(limit).all()
+        ).order_by(WorkflowExecution.created_at.desc()).limit(limit).all()
 
         return [
             {
-                "id": exec.id,
+                "id": exec.execution_id,
                 "workflow_id": exec.workflow_id,
                 "status": exec.status,
-                "started_at": exec.started_at.isoformat(),
-                "completed_at": exec.completed_at.isoformat() if exec.completed_at else None,
-                "duration_seconds": exec.duration_seconds,
-                "error_message": exec.error_message,
+                "started_at": exec.created_at.isoformat(),
+                "completed_at": exec.updated_at.isoformat() if exec.updated_at else None,
+                "duration_seconds": None,
+                "error_message": exec.error,
             }
             for exec in executions
         ]
@@ -420,29 +475,38 @@ async def get_execution_steps_mobile(
     Returns step-by-step execution progress.
     """
     try:
-        # This would query the workflow steps and their execution status
-        # For now, return a placeholder response
+        # Query step executions
+        from core.models import WorkflowStepExecution
 
-        # Get execution to see current step
-        execution = db.query(WorkflowExecution).filter(
-            WorkflowExecution.id == execution_id
-        ).first()
+        step_executions = db.query(WorkflowStepExecution).filter(
+            WorkflowStepExecution.execution_id == execution_id
+        ).order_by(WorkflowStepExecution.sequence_order).all()
 
-        if not execution:
-            raise HTTPException(status_code=404, detail="Execution not found")
+        steps_data = [
+            {
+                "step_id": s.step_id,
+                "step_name": s.step_name,
+                "step_type": s.step_type,
+                "sequence_order": s.sequence_order,
+                "status": s.status,
+                "started_at": s.started_at.isoformat() if s.started_at else None,
+                "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+                "duration_ms": s.duration_ms,
+                "error_message": s.error_message
+            }
+            for s in step_executions
+        ]
 
-        # TODO: Query actual step execution data from workflow_steps table
-        # This would require a WorkflowStepExecution model
+        total = len(step_executions)
+        completed = len([s for s in step_executions if s.status == "completed"])
+        progress = int((completed / total) * 100) if total > 0 else 0
 
         return {
             "execution_id": execution_id,
-            "current_step": execution.current_step,
-            "total_steps": execution.total_steps,
-            "progress_percentage": execution.current_step and execution.total_steps
-                ? int((execution.current_step / execution.total_steps) * 100)
-                : 0,
-            "steps": []
-            # TODO: Add actual step data
+            "current_step": completed,
+            "total_steps": total,
+            "progress_percentage": progress,
+            "steps": steps_data
         }
 
     except HTTPException:
@@ -465,7 +529,7 @@ async def cancel_execution_mobile(
     """
     try:
         execution = db.query(WorkflowExecution).filter(
-            WorkflowExecution.id == execution_id
+            WorkflowExecution.execution_id == execution_id
         ).first()
 
         if not execution:
@@ -485,11 +549,15 @@ async def cancel_execution_mobile(
 
         # Update execution status
         execution.status = 'cancelled'
-        execution.completed_at = datetime.now()
+        execution.updated_at = datetime.now()
 
         db.commit()
 
-        # TODO: Send cancellation signal to workflow engine
+        # Send cancellation signal to workflow engine
+        from core.workflow_engine import get_workflow_engine
+
+        engine = get_workflow_engine()
+        await engine.cancel_execution(execution_id)
 
         logger.info(f"Cancelled execution {execution_id}")
 
@@ -540,3 +608,26 @@ async def search_workflows_mobile(
     except Exception as e:
         logger.error(f"Error searching workflows: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _load_workflow_definition(db: Session, workflow_id: str) -> Optional[Dict[str, Any]]:
+    """Load workflow definition from workflows.json"""
+    import os
+    import json
+
+    workflows_file = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "workflows.json"
+    )
+
+    if not os.path.exists(workflows_file):
+        return None
+
+    try:
+        with open(workflows_file, 'r') as f:
+            workflows = json.load(f)
+        return next((w for w in workflows if w.get('id') == workflow_id), None)
+    except Exception as e:
+        logger.error(f"Error loading workflow {workflow_id}: {e}")
+        return None
+
