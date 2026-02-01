@@ -695,6 +695,14 @@ try:
     except ImportError as e:
         logger.warning(f"Browser automation routes not found: {e}")
 
+    # 15.3 Device Capabilities Routes (Hardware Access)
+    try:
+        from api.device_capabilities import router as device_router
+        app.include_router(device_router, tags=["Device Capabilities"])
+        logger.info("✓ Device Capabilities Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Device capabilities routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router
