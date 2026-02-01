@@ -759,6 +759,14 @@ try:
     except ImportError as e:
         logger.warning(f"Feedback Phase 2 routes not found: {e}")
 
+    # 15.9 A/B Testing Routes (Phase 3)
+    try:
+        from api.ab_testing import router as ab_testing_router
+        app.include_router(ab_testing_router, prefix="/api/ab-tests", tags=["A/B Testing"])
+        logger.info("✓ A/B Testing Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"A/B testing routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router

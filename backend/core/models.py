@@ -1,5 +1,5 @@
 
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Table, JSON, Enum as SQLEnum
+from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Table, JSON, Enum as SQLEnum, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -1061,3 +1061,90 @@ class DeepLinkAudit(Base):
     # Relationships
     agent = relationship("AgentRegistry")
     execution = relationship("AgentExecution")
+
+
+class ABTest(Base):
+    """
+    A/B Test for comparing agent configurations, prompts, or strategies.
+
+    Enables controlled experiments to measure the impact of changes
+    on agent performance, user satisfaction, and key metrics.
+    """
+    __tablename__ = "ab_tests"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Test configuration
+    status = Column(String, default="draft")  # draft, running, paused, completed
+    test_type = Column(String, nullable=False)  # agent_config, prompt, strategy, tool
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+
+    # Traffic allocation
+    traffic_percentage = Column(Float, default=0.5)  # 0.0 to 1.0 (e.g., 0.5 = 50% to variant B)
+    variant_a_name = Column(String, default="Control")
+    variant_b_name = Column(String, default="Treatment")
+
+    # Configuration for each variant
+    variant_a_config = Column(JSON, nullable=True)  # Control configuration
+    variant_b_config = Column(JSON, nullable=True)  # Treatment configuration
+
+    # Success metrics
+    primary_metric = Column(String, nullable=False)  # satisfaction_rate, success_rate, response_time, etc.
+    secondary_metrics = Column(JSON, nullable=True)  # List of additional metrics to track
+
+    # Statistical parameters
+    min_sample_size = Column(Integer, default=100)
+    confidence_level = Column(Float, default=0.95)  # 95% confidence
+    statistical_significance_threshold = Column(Float, default=0.05)  # p-value threshold
+
+    # Results
+    variant_a_metrics = Column(JSON, nullable=True)  # Aggregated metrics for variant A
+    variant_b_metrics = Column(JSON, nullable=True)  # Aggregated metrics for variant B
+    statistical_significance = Column(Float, nullable=True)  # p-value
+    winner = Column(String, nullable=True)  # 'A', 'B', or 'inconclusive'
+
+    # Timestamps
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="ab_tests")
+    test_participants = relationship("ABTestParticipant", backref="test", cascade="all, delete-orphan")
+
+
+class ABTestParticipant(Base):
+    """
+    Individual participants in an A/B test.
+
+    Tracks which variant each user was assigned to and their outcomes.
+    """
+    __tablename__ = "ab_test_participants"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    test_id = Column(String, ForeignKey("ab_tests.id"), nullable=False, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    session_id = Column(String, nullable=True, index=True)
+
+    # Assignment
+    assigned_variant = Column(String, nullable=False)  # 'A' or 'B'
+    assigned_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Outcomes (tracked based on primary_metric)
+    success = Column(Boolean, nullable=True)
+    metric_value = Column(Float, nullable=True)  # Numerical value (e.g., satisfaction score, response time)
+    recorded_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Additional metadata
+    meta_data = Column(JSON, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Index for querying active participants
+    __table_args__ = (
+        Index('ix_ab_test_participants_test_variant', 'test_id', 'assigned_variant'),
+    )
