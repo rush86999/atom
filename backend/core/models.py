@@ -1148,3 +1148,108 @@ class ABTestParticipant(Base):
     __table_args__ = (
         Index('ix_ab_test_participants_test_variant', 'test_id', 'assigned_variant'),
     )
+
+
+class CanvasCollaborationSession(Base):
+    """
+    Multi-agent collaboration session for shared canvases.
+
+    Enables multiple agents to work together on a single canvas with
+    defined roles, permissions, and conflict resolution.
+    """
+    __tablename__ = "canvas_collaboration_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    canvas_id = Column(String, nullable=False, index=True)  # Links to canvas
+    session_id = Column(String, nullable=False, index=True)  # Links to canvas session
+    user_id = Column(String, nullable=False, index=True)  # Owner user
+
+    # Session configuration
+    status = Column(String, default="active")  # active, paused, completed
+    collaboration_mode = Column(String, default="sequential")  # sequential, parallel, locked
+    max_agents = Column(Integer, default=5)  # Maximum agents in session
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    participants = relationship("CanvasAgentParticipant", back_populates="collaboration_session", cascade="all, delete-orphan")
+
+
+class CanvasAgentParticipant(Base):
+    """
+    Individual agent participant in a canvas collaboration session.
+
+    Tracks agent role, permissions, and activity within the session.
+    """
+    __tablename__ = "canvas_agent_participants"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    user_id = Column(String, nullable=False, index=True)  # User who initiated this agent
+
+    # Agent role and permissions
+    role = Column(String, default="contributor")  # owner, contributor, reviewer, viewer
+    permissions = Column(JSON, default={})  # Can read, write, delete specific components
+
+    # Activity tracking
+    status = Column(String, default="active")  # active, idle, completed
+    last_activity_at = Column(DateTime(timezone=True), server_default=func.now())
+    actions_count = Column(Integer, default=0)  # Number of actions performed
+
+    # Lock management for parallel mode
+    held_locks = Column(JSON, default=list)  # List of component_ids locked by this agent
+
+    # Timing
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+    left_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    collaboration_session = relationship("CanvasCollaborationSession", back_populates="participants")
+    agent = relationship("AgentRegistry")
+
+    # Index for querying active agents in a session
+    __table_args__ = (
+        Index('ix_canvas_agent_participants_session_agent', 'collaboration_session_id', 'agent_id'),
+        Index('ix_canvas_agent_participants_session_status', 'collaboration_session_id', 'status'),
+    )
+
+
+class CanvasConflict(Base):
+    """
+    Conflict resolution log for multi-agent canvas updates.
+
+    Tracks when multiple agents try to modify the same canvas element
+    simultaneously and how the conflict was resolved.
+    """
+    __tablename__ = "canvas_conflicts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id"), nullable=False, index=True)
+    canvas_id = Column(String, nullable=False, index=True)
+    component_id = Column(String, nullable=False)  # ID of the contested component
+
+    # Conflicting agents
+    agent_a_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_b_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+
+    # Actions
+    agent_a_action = Column(JSON, nullable=True)  # What agent A tried to do
+    agent_b_action = Column(JSON, nullable=True)  # What agent B tried to do
+
+    # Resolution
+    resolution = Column(String, nullable=False)  # agent_a_wins, agent_b_wins, merged, queued
+    resolved_by = Column(String, nullable=True)  # 'system' or agent_id if manual resolution
+    resolved_action = Column(JSON, nullable=True)  # Final action taken
+
+    # Timing
+    conflict_time = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    collaboration_session = relationship("CanvasCollaborationSession")
+    agent_a = relationship("AgentRegistry", foreign_keys=[agent_a_id])
+    agent_b = relationship("AgentRegistry", foreign_keys=[agent_b_id])

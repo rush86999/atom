@@ -767,6 +767,14 @@ try:
     except ImportError as e:
         logger.warning(f"A/B testing routes not found: {e}")
 
+    # 15.10 Canvas Collaboration Routes (Multi-Agent Coordination)
+    try:
+        from api.canvas_collaboration import router as collab_router
+        app.include_router(collab_router, prefix="/api/canvas-collab", tags=["Canvas Collaboration"])
+        logger.info("✓ Canvas Collaboration Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Canvas collaboration routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router
