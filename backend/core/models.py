@@ -799,6 +799,56 @@ class BrowserSession(Base):
     workspace_id = Column(String, nullable=True, index=True)
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    # ... rest of BrowserSession if exists in file ...
+
+class Artifact(Base):
+    """
+    Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
+    """
+    __tablename__ = "artifacts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    session_id = Column(String, nullable=True, index=True) # Logical link to chat session
+    
+    name = Column(String, nullable=False)
+    type = Column(String, nullable=False) # 'code', 'markdown', etc.
+    content = Column(Text, nullable=False)
+    metadata_json = Column(JSON, default={})
+    
+    version = Column(Integer, default=1)
+    is_locked = Column(Boolean, default=False)
+    locked_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    author_id = Column(String, ForeignKey("users.id"), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+
+    # Relationships
+    author = relationship("User", foreign_keys=[author_id])
+    locked_by = relationship("User", foreign_keys=[locked_by_user_id])
+    workspace = relationship("Workspace")
+
+class ArtifactVersion(Base):
+    """
+    Immutable snapshots of artifact states for time-travel/versioning.
+    """
+    __tablename__ = "artifact_versions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    artifact_id = Column(String, ForeignKey("artifacts.id", ondelete="CASCADE"), nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    
+    content = Column(Text, nullable=False)
+    metadata_json = Column(JSON, default={})
+    
+    author_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    artifact = relationship("Artifact", backref="versions")
+    author = relationship("User")
     
     # Session Details
     url = Column(String, nullable=True)

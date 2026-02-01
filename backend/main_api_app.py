@@ -687,6 +687,14 @@ try:
     except ImportError as e:
         logger.warning(f"Canvas routes not found: {e}")
 
+    # 15.1.a Artifact Routes (Persistent Workbench)
+    try:
+        from api.artifact_routes import router as artifact_router
+        app.include_router(artifact_router, tags=["Artifacts"])
+        logger.info("✓ Artifact Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Artifact routes not found: {e}")
+
     # 15.2 Browser Automation Routes (CDP via Playwright)
     try:
         from api.browser_routes import router as browser_router
