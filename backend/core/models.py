@@ -1253,3 +1253,145 @@ class CanvasConflict(Base):
     collaboration_session = relationship("CanvasCollaborationSession")
     agent_a = relationship("AgentRegistry", foreign_keys=[agent_a_id])
     agent_b = relationship("AgentRegistry", foreign_keys=[agent_b_id])
+
+
+class CustomComponent(Base):
+    """
+    Custom HTML/CSS/JS components for canvas presentations.
+
+    Allows users to create reusable custom components with:
+    - HTML structure
+    - CSS styling
+    - JavaScript behavior
+    - Version tracking
+    - Governance requirements
+    """
+    __tablename__ = "custom_components"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Component identification
+    name = Column(String, nullable=False)
+    slug = Column(String, nullable=False, unique=True, index=True)  # URL-friendly identifier
+    description = Column(Text, nullable=True)
+    category = Column(String, default="custom")  # 'chart', 'form', 'widget', 'custom'
+
+    # Component code
+    html_content = Column(Text, nullable=True)
+    css_content = Column(Text, nullable=True)
+    js_content = Column(Text, nullable=True)
+
+    # Component metadata
+    props_schema = Column(JSON, nullable=True)  # JSON schema for component properties
+    default_props = Column(JSON, nullable=True)  # Default property values
+    dependencies = Column(JSON, nullable=True)  # External dependencies (libraries, etc.)
+
+    # Governance
+    requires_governance = Column(Boolean, default=True)
+    min_maturity_level = Column(String, default="AUTONOMOUS")  # Only AUTONOMOUS agents can create JS components
+    is_public = Column(Boolean, default=False)  # Share with other users
+    is_active = Column(Boolean, default=True)
+
+    # Usage tracking
+    usage_count = Column(Integer, default=0)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Version control
+    current_version = Column(Integer, default=1)
+    parent_component_id = Column(String, ForeignKey("custom_components.id"), nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User")
+    versions = relationship("ComponentVersion", back_populates="component", cascade="all, delete-orphan")
+    usage_logs = relationship("ComponentUsage", back_populates="component", cascade="all, delete-orphan")
+    parent = relationship("CustomComponent", remote_side=[id])
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_custom_components_workspace_user', 'workspace_id', 'user_id'),
+        Index('ix_custom_components_category', 'category'),
+        Index('ix_custom_components_is_active', 'is_active'),
+        Index('ix_custom_components_is_public', 'is_public'),
+    )
+
+
+class ComponentVersion(Base):
+    """
+    Version history for custom components.
+
+    Tracks all changes to components with ability to rollback.
+    """
+    __tablename__ = "component_versions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    component_id = Column(String, ForeignKey("custom_components.id"), nullable=False, index=True)
+    version_number = Column(Integer, nullable=False)
+
+    # Version code snapshot
+    html_content = Column(Text, nullable=True)
+    css_content = Column(Text, nullable=True)
+    js_content = Column(Text, nullable=True)
+    props_schema = Column(JSON, nullable=True)
+    default_props = Column(JSON, nullable=True)
+    dependencies = Column(JSON, nullable=True)
+
+    # Change metadata
+    change_description = Column(Text, nullable=True)
+    changed_by = Column(String, ForeignKey("users.id"), nullable=True)
+    change_type = Column(String, default="update")  # 'create', 'update', 'rollback'
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    component = relationship("CustomComponent", back_populates="versions")
+    changer = relationship("User")
+
+    # Unique constraint
+    __table_args__ = (
+        Index('ix_component_versions_component_version', 'component_id', 'version_number', unique=True),
+    )
+
+
+class ComponentUsage(Base):
+    """
+    Usage audit log for custom components.
+
+    Tracks when and where components are used on canvases.
+    """
+    __tablename__ = "component_usage"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    component_id = Column(String, ForeignKey("custom_components.id"), nullable=False, index=True)
+    canvas_id = Column(String, nullable=False, index=True)
+    session_id = Column(String, nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+
+    # Usage context
+    props_passed = Column(JSON, nullable=True)  # Properties passed to component
+    rendering_time_ms = Column(Integer, nullable=True)  # Performance tracking
+    error_message = Column(Text, nullable=True)  # Any rendering errors
+
+    # Governance
+    governance_check_passed = Column(Boolean, nullable=True)
+    agent_maturity_level = Column(String, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    component = relationship("CustomComponent", back_populates="usage_logs")
+    agent = relationship("AgentRegistry")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_component_usage_component_canvas', 'component_id', 'canvas_id'),
+        Index('ix_component_usage_session', 'session_id'),
+    )
