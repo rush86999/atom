@@ -1395,3 +1395,576 @@ class ComponentUsage(Base):
         Index('ix_component_usage_component_canvas', 'component_id', 'canvas_id'),
         Index('ix_component_usage_session', 'session_id'),
     )
+
+
+class WorkflowTemplate(Base):
+    """
+    User-created workflow templates for reusable workflow patterns.
+
+    Templates allow users to save workflows as reusable patterns with
+    parameterization for customization.
+    """
+    __tablename__ = "workflow_templates"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    template_id = Column(String, unique=True, nullable=False, index=True)
+
+    # Metadata
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    category = Column(String, nullable=False)  # automation, data_processing, ai_ml, etc.
+    complexity = Column(String, nullable=False)  # beginner, intermediate, advanced, expert
+    tags = Column(JSON, default=list)
+
+    # Authorship and visibility
+    author_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    is_public = Column(Boolean, default=False, index=True)
+    is_featured = Column(Boolean, default=False, index=True)
+
+    # Template content (full workflow definition)
+    template_json = Column(JSON, nullable=False)
+    inputs_schema = Column(JSON, default=list)  # Input parameters with validation
+    steps_schema = Column(JSON, default=list)  # Workflow steps with dependencies
+    output_schema = Column(JSON, default=dict)  # Expected output structure
+
+    # Usage tracking
+    usage_count = Column(Integer, default=0)
+    rating_sum = Column(Integer, default=0)
+    rating_count = Column(Integer, default=0)
+
+    # Calculated rating (0-5)
+    @property
+    def rating(self) -> float:
+        if self.rating_count == 0:
+            return 0.0
+        return round(self.rating_sum / self.rating_count, 2)
+
+    # Version control
+    version = Column(String, default="1.0.0")
+    parent_template_id = Column(String, ForeignKey("workflow_templates.template_id"), nullable=True)
+
+    # Metadata
+    estimated_duration_seconds = Column(Integer, default=0)
+    prerequisites = Column(JSON, default=list)
+    dependencies = Column(JSON, default=list)  # External services/APIs required
+    permissions = Column(JSON, default=list)  # Required permissions
+    license = Column(String, default="MIT")
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    author = relationship("User", backref="templates")
+    children = relationship("WorkflowTemplate",
+                           remote_side=[template_id],
+                           foreign_keys=[parent_template_id],
+                           back_populates="parent")
+    parent = relationship("WorkflowTemplate",
+                         remote_side=[template_id],
+                         foreign_keys=[parent_template_id],
+                         back_populates="children")
+    executions = relationship("TemplateExecution", back_populates="template")
+    versions = relationship("TemplateVersion", back_populates="template")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_workflow_templates_category_complexity', 'category', 'complexity'),
+        Index('ix_workflow_templates_public_featured', 'is_public', 'is_featured'),
+        Index('ix_workflow_templates_author_public', 'author_id', 'is_public'),
+    )
+
+
+class TemplateVersion(Base):
+    """
+    Version history for workflow templates.
+
+    Tracks all changes to templates with ability to rollback.
+    """
+    __tablename__ = "template_versions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    template_id = Column(String, ForeignKey("workflow_templates.template_id"), nullable=False, index=True)
+    version = Column(String, nullable=False)  # Semantic version (1.0.0, 1.1.0, etc.)
+
+    # Snapshot of template at this version
+    template_snapshot = Column(JSON, nullable=False)
+    change_description = Column(Text)
+    changed_by_id = Column(String, ForeignKey("users.id"), nullable=True)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    template = relationship("WorkflowTemplate", back_populates="versions")
+    changed_by = relationship("User")
+
+    # Unique constraint
+    __table_args__ = (
+        Index('ix_template_versions_template_version', 'template_id', 'version', unique=True),
+    )
+
+
+class TemplateExecution(Base):
+    """
+    Execution log for template instantiations.
+
+    Tracks when templates are used to create workflows and their results.
+    """
+    __tablename__ = "template_executions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    template_id = Column(String, ForeignKey("workflow_templates.template_id"), nullable=False, index=True)
+    workflow_id = Column(String, nullable=False, index=True)  # Created workflow ID
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Execution parameters
+    parameters_used = Column(JSON, nullable=False)  # Input values provided
+    template_version = Column(String, nullable=False)  # Template version used
+
+    # Execution results
+    status = Column(String, nullable=False)  # started, completed, failed
+    error_message = Column(Text, nullable=True)
+
+    # Timing
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    template = relationship("WorkflowTemplate", back_populates="executions")
+    user = relationship("User")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_template_executions_template_status', 'template_id', 'status'),
+        Index('ix_template_executions_user_status', 'user_id', 'status'),
+    )
+
+
+class WorkflowCollaborationSession(Base):
+    """
+    Real-time collaboration session for workflow editing.
+
+    Tracks multiple users editing the same workflow simultaneously.
+    """
+    __tablename__ = "workflow_collaboration_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, unique=True, nullable=False, index=True)
+    workflow_id = Column(String, nullable=False, index=True)
+
+    # Session metadata
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Active users tracking
+    active_users = Column(JSON, default=list)  # List of user_ids currently in session
+    last_activity = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Session settings
+    collaboration_mode = Column(String, default="parallel")  # "parallel", "sequential", "locked"
+    max_users = Column(Integer, default=10)
+
+    # Relationships
+    participants = relationship("CollaborationSessionParticipant", back_populates="session", cascade="all, delete-orphan")
+    locks = relationship("EditLock", back_populates="session", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_workflow_collaboration_sessions_workflow', 'workflow_id'),
+        Index('ix_workflow_collaboration_sessions_created_by', 'created_by'),
+        Index('ix_workflow_collaboration_sessions_active', 'last_activity'),
+    )
+
+
+class CollaborationSessionParticipant(Base):
+    """
+    Participant in a collaboration session.
+
+    Tracks individual user presence and cursor position.
+    """
+    __tablename__ = "collaboration_session_participants"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, ForeignKey("workflow_collaboration_sessions.session_id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Presence tracking
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_heartbeat = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Cursor position (for canvas)
+    cursor_position = Column(JSON)  # {x, y, node_id, viewport}
+    selected_node = Column(String)  # Currently selected node ID
+
+    # User info snapshot
+    user_name = Column(String)  # Denormalized for performance
+    user_color = Column(String, default="#2196F3")  # Unique color for cursor
+
+    # Permissions
+    role = Column(String, default="editor")  # "owner", "editor", "viewer", "commenter"
+    can_edit = Column(Boolean, default=True)
+
+    # Relationships
+    session = relationship("WorkflowCollaborationSession", back_populates="participants")
+    user = relationship("User")
+
+    # Unique constraint
+    __table_args__ = (
+        Index('ix_collaboration_participants_session_user', 'session_id', 'user_id', unique=True),
+        Index('ix_collaboration_participants_heartbeat', 'last_heartbeat'),
+    )
+
+
+class EditLock(Base):
+    """
+    Edit lock for workflow nodes or sections.
+
+    Prevents conflicting edits when multiple users are editing.
+    """
+    __tablename__ = "edit_locks"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, ForeignKey("workflow_collaboration_sessions.session_id"), nullable=False, index=True)
+
+    # Lock target
+    workflow_id = Column(String, nullable=False, index=True)
+    resource_type = Column(String, nullable=False)  # "node", "edge", "workflow"
+    resource_id = Column(String, nullable=False, index=True)  # node_id, edge_id, or "workflow"
+
+    # Lock owner
+    locked_by = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    locked_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Lock metadata
+    lock_reason = Column(String)  # Optional reason for lock
+    is_active = Column(Boolean, default=True, index=True)
+
+    # Relationships
+    session = relationship("WorkflowCollaborationSession", back_populates="locks")
+    locker = relationship("User")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_edit_locks_workflow', 'workflow_id', 'is_active'),
+        Index('ix_edit_locks_resource', 'resource_type', 'resource_id', 'is_active'),
+        Index('ix_edit_locks_expiry', 'expires_at', 'is_active'),
+    )
+
+
+class WorkflowShare(Base):
+    """
+    Workflow sharing records.
+
+    Manages workflow access via share links or direct invitations.
+    """
+    __tablename__ = "workflow_shares"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    share_id = Column(String, unique=True, nullable=False, index=True)
+    workflow_id = Column(String, nullable=False, index=True)
+
+    # Share metadata
+    created_by = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    share_link = Column(String, unique=True, nullable=False)  # Public share URL
+
+    # Access control
+    share_type = Column(String, default="link")  # "link", "email", "workspace"
+    permissions = Column(JSON)  # {can_view: true, can_edit: false, can_comment: true}
+    expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    max_uses = Column(Integer, nullable=True)  # Null for unlimited
+    use_count = Column(Integer, default=0)
+
+    # Active status
+    is_active = Column(Boolean, default=True, index=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_by = Column(String, ForeignKey("users.id"), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_accessed = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    creator = relationship("User", foreign_keys=[created_by])
+    revoker = relationship("User", foreign_keys=[revoked_by])
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_workflow_shares_workflow', 'workflow_id', 'is_active'),
+        Index('ix_workflow_shares_expires', 'expires_at', 'is_active'),
+    )
+
+
+class CollaborationComment(Base):
+    """
+    Comments and discussions on workflows.
+
+    Enables threaded conversations about workflows.
+    """
+    __tablename__ = "collaboration_comments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, nullable=False, index=True)
+
+    # Comment content
+    author_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+
+    # Thread support
+    parent_comment_id = Column(String, ForeignKey("collaboration_comments.id"), nullable=True, index=True)
+
+    # Context
+    context_type = Column(String)  # "workflow", "node", "edge"
+    context_id = Column(String)  # node_id or edge_id for targeted comments
+
+    # Status
+    is_resolved = Column(Boolean, default=False, index=True)
+    resolved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    author = relationship("User", foreign_keys=[author_id])
+    resolver = relationship("User", foreign_keys=[resolved_by])
+    parent = relationship("CollaborationComment", remote_side=[id], backref="replies")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_collaboration_comments_workflow', 'workflow_id'),
+        Index('ix_collaboration_comments_context', 'context_type', 'context_id'),
+        Index('ix_collaboration_comments_thread', 'parent_comment_id'),
+        Index('ix_collaboration_comments_resolved', 'is_resolved'),
+    )
+
+
+class CollaborationAudit(Base):
+    """
+    Audit log for collaboration activities.
+
+    Tracks all collaborative actions for accountability.
+    """
+    __tablename__ = "collaboration_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, nullable=False, index=True)
+
+    # Action details
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    action_type = Column(String, nullable=False, index=True)  # "share", "comment", "lock", "unlock", "join_session"
+    action_details = Column(JSON)  # Additional context about the action
+
+    # Target resource
+    resource_type = Column(String)  # "workflow", "node", "comment", "share"
+    resource_id = Column(String)
+
+    # Session tracking
+    session_id = Column(String, ForeignKey("workflow_collaboration_sessions.session_id"), nullable=True, index=True)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    user = relationship("User")
+    session = relationship("WorkflowCollaborationSession")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_collaboration_audit_workflow', 'workflow_id'),
+        Index('ix_collaboration_audit_user', 'user_id', 'created_at'),
+        Index('ix_collaboration_audit_action', 'action_type', 'created_at'),
+    )
+
+
+# ============================================================================
+# WORKFLOW DEBUGGING MODELS
+# ============================================================================
+
+class WorkflowDebugSession(Base):
+    """
+    Debug session for workflow step-through debugging.
+    
+    Manages active debugging sessions with breakpoints and execution state.
+    """
+    __tablename__ = "workflow_debug_sessions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, nullable=False, index=True)
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=True, index=True)
+    
+    # Session management
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    session_name = Column(String, nullable=True)
+    status = Column(String, default="active")  # active, paused, completed, cancelled
+    current_step = Column(Integer, default=0)
+    current_node_id = Column(String, nullable=True)
+    
+    # Debug state
+    breakpoints = Column(JSON)  # List of breakpoint configurations
+    variables = Column(JSON)  # Current variable state at each step
+    call_stack = Column(JSON)  # Execution call stack
+    
+    # Settings
+    stop_on_entry = Column(Boolean, default=False)
+    stop_on_exceptions = Column(Boolean, default=True)
+    stop_on_error = Column(Boolean, default=True)
+    
+    # Conditional breakpoints
+    conditional_breakpoints = Column(JSON)  # {node_id: condition_expression}
+    
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    user = relationship("User")
+    execution = relationship("WorkflowExecution")
+    
+    # Indexes
+    __table_args__ = (
+        Index('ix_debug_sessions_workflow', 'workflow_id'),
+        Index('ix_debug_sessions_user', 'user_id', 'created_at'),
+        Index('ix_debug_sessions_status', 'status'),
+    )
+
+
+class WorkflowBreakpoint(Base):
+    """
+    Breakpoint configuration for workflow debugging.
+    
+    Defines where execution should pause during debugging.
+    """
+    __tablename__ = "workflow_breakpoints"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, nullable=False, index=True)
+    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True, index=True)
+    
+    # Breakpoint target
+    node_id = Column(String, nullable=False, index=True)  # ID of the node to break at
+    edge_id = Column(String, nullable=True, index=True)  # ID of the edge (for connection breakpoints)
+    
+    # Breakpoint configuration
+    breakpoint_type = Column(String, default="node")  # node, edge, conditional, exception
+    condition = Column(Text, nullable=True)  # Conditional expression
+    hit_count = Column(Integer, default=0)  # Number of times breakpoint was hit
+    hit_limit = Column(Integer, nullable=True)  # Stop after N hits (null = unlimited)
+    
+    # State
+    is_active = Column(Boolean, default=True, index=True)
+    is_disabled = Column(Boolean, default=False)
+    log_message = Column(Text, nullable=True)  # Optional log message instead of stopping
+    
+    # Metadata
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    debug_session = relationship("WorkflowDebugSession")
+    creator = relationship("User", foreign_keys=[created_by])
+    
+    # Indexes
+    __table_args__ = (
+        Index('ix_breakpoints_workflow', 'workflow_id', 'is_active'),
+        Index('ix_breakpoints_session', 'debug_session_id'),
+        Index('ix_breakpoints_node', 'node_id'),
+    )
+
+
+class ExecutionTrace(Base):
+    """
+    Detailed execution trace for workflow debugging.
+    
+    Records each step of workflow execution for inspection.
+    """
+    __tablename__ = "execution_traces"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, nullable=False, index=True)
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True, index=True)
+    
+    # Step information
+    step_number = Column(Integer, nullable=False, index=True)
+    node_id = Column(String, nullable=False, index=True)
+    node_type = Column(String, nullable=False)  # trigger, action, condition, loop, etc.
+    
+    # Execution details
+    status = Column(String, nullable=False)  # started, completed, failed, paused
+    input_data = Column(JSON)  # Input data for this step
+    output_data = Column(JSON)  # Output data from this step
+    error_message = Column(Text, nullable=True)
+    
+    # Variable state
+    variables_before = Column(JSON)  # Variable snapshot before execution
+    variables_after = Column(JSON)  # Variable snapshot after execution
+    variable_changes = Column(JSON)  # List of changed variables
+    
+    # Timing
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    
+    # Metadata
+    parent_step_id = Column(String, nullable=True)  # For nested workflows
+    thread_id = Column(String, nullable=True)  # For parallel executions
+    
+    # Relationships
+    execution = relationship("WorkflowExecution")
+    debug_session = relationship("WorkflowDebugSession")
+    
+    # Indexes
+    __table_args__ = (
+        Index('ix_traces_execution', 'execution_id', 'step_number'),
+        Index('ix_traces_workflow', 'workflow_id'),
+        Index('ix_traces_debug_session', 'debug_session_id'),
+        Index('ix_traces_node', 'node_id'),
+    )
+
+
+class DebugVariable(Base):
+    """
+    Variable inspection data for workflow debugging.
+    
+    Stores variable values and metadata at specific execution points.
+    """
+    __tablename__ = "debug_variables"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    trace_id = Column(String, ForeignKey("execution_traces.id"), nullable=False, index=True)
+    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True, index=True)
+    
+    # Variable identification
+    variable_name = Column(String, nullable=False, index=True)
+    variable_path = Column(String, nullable=False)  # Dot-notation path for nested variables (e.g., "user.profile.name")
+    variable_type = Column(String, nullable=False)  # string, number, boolean, object, array, null
+    
+    # Variable value and metadata
+    value = Column(JSON, nullable=True)
+    value_preview = Column(Text, nullable=True)  # String preview for complex objects
+    is_mutable = Column(Boolean, default=True)
+    scope = Column(String, default="local")  # local, global, workflow, context
+    
+    # Change tracking
+    is_changed = Column(Boolean, default=False)
+    previous_value = Column(JSON, nullable=True)
+    
+    # Watch expressions
+    is_watch = Column(Boolean, default=False)  # True if this is a watch expression
+    watch_expression = Column(Text, nullable=True)  # The expression being watched
+    
+    # Relationships
+    trace = relationship("ExecutionTrace")
+    debug_session = relationship("WorkflowDebugSession")
+    
+    # Indexes
+    __table_args__ = (
+        Index('ix_debug_variables_trace', 'trace_id'),
+        Index('ix_debug_variables_session', 'debug_session_id'),
+        Index('ix_debug_variables_name', 'variable_name'),
+    )
