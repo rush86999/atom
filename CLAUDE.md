@@ -254,9 +254,9 @@ await browser_close_session(
 - `GET /api/browser/audit` - Get audit log
 
 **Documentation**:
-- `BROWSER_AUTOMATION.md` - Full documentation
-- `BROWSER_QUICK_START.md` - 5-minute quick start guide
-- `BROWSER_IMPLEMENTATION_SUMMARY.md` - Implementation details
+- `docs/BROWSER_AUTOMATION.md` - Full documentation
+- `docs/BROWSER_QUICK_START.md` - 5-minute quick start guide
+- `docs/BROWSER_IMPLEMENTATION_SUMMARY.md` - Implementation details
 
 ### 5. Database Models
 
@@ -294,9 +294,9 @@ alembic upgrade head  # Migration f1a2b3c4d5e6
 ```
 
 **Documentation**:
-- `BROWSER_AUTOMATION.md` - Full documentation
-- `BROWSER_QUICK_START.md` - 5-minute quick start guide
-- `BROWSER_IMPLEMENTATION_SUMMARY.md` - Implementation details
+- `docs/BROWSER_AUTOMATION.md` - Full documentation
+- `docs/BROWSER_QUICK_START.md` - 5-minute quick start guide
+- `docs/BROWSER_IMPLEMENTATION_SUMMARY.md` - Implementation details
 
 ### Governance Integration (January 2026)
 
