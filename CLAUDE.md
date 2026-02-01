@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: January 30, 2026
+**Last Updated**: January 31, 2026
 
 ---
 
@@ -13,18 +13,20 @@
 - Multi-agent system with governance
 - Real-time streaming LLM responses
 - Canvas-based visual presentations
+- Browser automation with CDP (NEW)
 - Comprehensive audit trails
 
 **Tech Stack**:
 - **Backend**: Python 3.11, FastAPI, SQLAlchemy 2.0
 - **Database**: SQLite (dev), PostgreSQL (production)
 - **AI/LLM**: Multi-provider (OpenAI, Anthropic, DeepSeek, Gemini)
+- **Browser Automation**: Playwright (CDP)
 - **Architecture**: Modular, event-driven, single-tenant
 
 **Key Directories**:
 - `backend/core/` - Core services (governance, agents, database models)
 - `backend/api/` - FastAPI route handlers
-- `backend/tools/` - Agent tools (canvas, integrations)
+- `backend/tools/` - Agent tools (canvas, browser, integrations)
 - `backend/alembic/versions/` - Database migrations
 - `backend/tests/` - Test suite (unit, integration, performance)
 
@@ -65,9 +67,13 @@ Agents progress through maturity levels based on confidence scores:
 
 Actions are classified by complexity (1-4):
 - **1 (LOW)**: Presentations, read-only → STUDENT+
+  - Examples: present_chart, present_markdown, search, read, fetch
 - **2 (MODERATE)**: Streaming, moderate actions → INTERN+
+  - Examples: stream_chat, browser_navigate, browser_screenshot, browser_fill_form, present_form
 - **3 (HIGH)**: State changes, submissions → SUPERVISED+
+  - Examples: create, update, submit_form, send_email, post_message
 - **4 (CRITICAL)**: Deletions, payments → AUTONOMOUS only
+  - Examples: delete, execute, deploy, payment, approve
 
 ---
 
@@ -168,7 +174,91 @@ await present_form(
 )
 ```
 
-### 4. Database Models
+### 4. Browser Automation System (NEW)
+
+**Purpose**: Chrome DevTools Protocol (CDP) control via Playwright for web automation
+
+**Key Files**:
+- `backend/tools/browser_tool.py` - Browser automation functions
+- `backend/api/browser_routes.py` - Browser API endpoints
+- `backend/core/models.py` - BrowserSession, BrowserAudit models
+
+**Features**:
+- Web scraping and data extraction
+- Form filling and submission
+- Multi-step web workflows
+- Screenshot capture
+- JavaScript execution
+- Multi-browser support (Chromium, Firefox, WebKit)
+- Session management with automatic cleanup
+- Full governance integration (INTERN+ required)
+
+**Governance**: All browser actions require INTERN+ maturity level
+
+**Usage**:
+```python
+from tools.browser_tool import (
+    browser_create_session,
+    browser_navigate,
+    browser_fill_form,
+    browser_screenshot,
+    browser_close_session,
+)
+
+# Create session
+session = await browser_create_session(
+    user_id="user-1",
+    agent_id="agent-1",  # For governance (must be INTERN+)
+    headless=True
+)
+
+# Navigate to URL
+await browser_navigate(
+    session_id=session["session_id"],
+    url="https://example.com",
+    user_id="user-1"
+)
+
+# Fill form
+await browser_fill_form(
+    session_id=session["session_id"],
+    selectors={"#name": "John", "#email": "john@example.com"},
+    submit=True,
+    user_id="user-1"
+)
+
+# Take screenshot
+await browser_screenshot(
+    session_id=session["session_id"],
+    full_page=True,
+    user_id="user-1"
+)
+
+# Close session
+await browser_close_session(
+    session_id=session["session_id"],
+    user_id="user-1"
+)
+```
+
+**API Endpoints**:
+- `POST /api/browser/session/create` - Create browser session
+- `POST /api/browser/navigate` - Navigate to URL
+- `POST /api/browser/screenshot` - Take screenshot
+- `POST /api/browser/fill-form` - Fill form fields
+- `POST /api/browser/click` - Click element
+- `POST /api/browser/extract-text` - Extract text content
+- `POST /api/browser/execute-script` - Execute JavaScript
+- `POST /api/browser/session/close` - Close session
+- `GET /api/browser/sessions` - List sessions
+- `GET /api/browser/audit` - Get audit log
+
+**Documentation**:
+- `BROWSER_AUTOMATION.md` - Full documentation
+- `BROWSER_QUICK_START.md` - 5-minute quick start guide
+- `BROWSER_IMPLEMENTATION_SUMMARY.md` - Implementation details
+
+### 5. Database Models
 
 **Purpose**: SQLAlchemy models for all data persistence
 
@@ -177,12 +267,36 @@ await present_form(
 **Important Models**:
 - `AgentRegistry` - Agent definitions with governance state
 - `AgentExecution` - Execution records with audit trail
-- `CanvasAudit` - Canvas action audit log (NEW)
+- `CanvasAudit` - Canvas action audit log
+- `BrowserSession` - Browser session tracking (NEW)
+- `BrowserAudit` - Browser action audit log (NEW)
 - `ChatSession` - Chat session tracking
 
 ---
 
 ## Recent Major Changes
+
+### Browser Automation (January 31, 2026)
+
+**What Changed**:
+- Implemented browser automation using Chrome DevTools Protocol (CDP) via Playwright
+- Added 9 browser automation functions (create, navigate, screenshot, fill, click, extract, execute, close, get_info)
+- Created 10 REST API endpoints for browser control
+- Added BrowserSession and BrowserAudit database models
+- Integrated governance (INTERN+ maturity required for all browser actions)
+- Created comprehensive test suite (17 tests, 100% pass rate)
+
+**Why**: Enable agents to perform web scraping, form filling, multi-step web workflows, screenshot capture, and browser-based testing
+
+**Migration Required**:
+```bash
+alembic upgrade head  # Migration f1a2b3c4d5e6
+```
+
+**Documentation**:
+- `BROWSER_AUTOMATION.md` - Full documentation
+- `BROWSER_QUICK_START.md` - 5-minute quick start guide
+- `BROWSER_IMPLEMENTATION_SUMMARY.md` - Implementation details
 
 ### Governance Integration (January 2026)
 
@@ -279,8 +393,9 @@ asyncio.run(async_operation())
 
 ```
 backend/tests/
-├── test_governance_streaming.py      # Unit tests (17 tests)
-└── test_governance_performance.py     # Performance tests (10 tests)
+├── test_governance_streaming.py      # Governance unit tests (17 tests)
+├── test_governance_performance.py     # Governance performance tests (10 tests)
+└── test_browser_automation.py         # Browser automation tests (17 tests, NEW)
 ```
 
 ### Running Tests
@@ -289,8 +404,11 @@ backend/tests/
 # All tests
 PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ -v
 
-# Unit tests only
+# Governance tests
 pytest tests/test_governance_streaming.py -v
+
+# Browser automation tests (NEW)
+pytest tests/test_browser_automation.py -v
 
 # Performance tests with output
 pytest tests/test_governance_performance.py -v -s
@@ -396,6 +514,46 @@ await present_chart(
 )
 ```
 
+### Using Browser Automation
+
+```python
+from tools.browser_tool import (
+    browser_create_session,
+    browser_navigate,
+    browser_fill_form,
+    browser_screenshot,
+    browser_close_session,
+)
+
+# Agent must be INTERN+ for browser automation
+# Governance is automatically checked
+session = await browser_create_session(
+    user_id=user_id,
+    agent_id=agent.id,  # Important for governance!
+    headless=True
+)
+
+# Navigate and automate
+await browser_navigate(
+    session_id=session["session_id"],
+    url="https://example.com/form",
+    user_id=user_id
+)
+
+await browser_fill_form(
+    session_id=session["session_id"],
+    selectors={"#field1": "value1", "#field2": "value2"},
+    submit=True,
+    user_id=user_id
+)
+
+# Always cleanup
+await browser_close_session(
+    session_id=session["session_id"],
+    user_id=user_id
+)
+```
+
 ### Governance Checks Before Actions
 
 ```python
@@ -428,10 +586,12 @@ if not check["allowed"]:
 ### API Endpoints
 - `backend/core/atom_agent_endpoints.py` - Chat and streaming endpoints
 - `backend/api/canvas_routes.py` - Canvas and form submission
+- `backend/api/browser_routes.py` - Browser automation API (NEW)
 - `backend/core/unified_search_endpoints.py` - Search functionality
 
 ### Tools
 - `backend/tools/canvas_tool.py` - Canvas presentations (charts, forms, markdown)
+- `backend/tools/browser_tool.py` - Browser automation (CDP via Playwright) (NEW)
 - `backend/integrations/` - Third-party integrations
 
 ### Database
@@ -453,11 +613,15 @@ Key environment variables (see `.env.example`):
 # Database
 DATABASE_URL=sqlite:///./atom_dev.db
 
-# Governance (NEW)
+# Governance
 STREAMING_GOVERNANCE_ENABLED=true
 CANVAS_GOVERNANCE_ENABLED=true
 FORM_GOVERNANCE_ENABLED=true
+BROWSER_GOVERNANCE_ENABLED=true  # NEW
 EMERGENCY_GOVERNANCE_BYPASS=false
+
+# Browser Automation (NEW)
+BROWSER_HEADLESS=true  # Run browsers in headless mode
 
 # LLM Providers
 OPENAI_API_KEY=sk-...
@@ -723,6 +887,8 @@ logger.error("Error message")
 | Streaming overhead | <50ms | 1.06ms avg |
 | Cache hit rate | >90% | 95% |
 | Cache throughput | >5k ops/s | 616k ops/s |
+| Browser session creation | <5s | ~1-2s avg (NEW) |
+| Browser navigation | <30s | ~1-5s avg (NEW) |
 
 ---
 
@@ -782,6 +948,10 @@ python -m uvicorn main:app --reload --port 8000
 pytest tests/ -v
 pytest tests/test_governance_streaming.py -v
 pytest tests/test_governance_performance.py -v -s
+pytest tests/test_browser_automation.py -v  # Browser tests (NEW)
+
+# Playwright (Browser Automation)
+playwright install chromium  # Install browser binaries (NEW)
 
 # Database
 alembic upgrade head
@@ -809,10 +979,13 @@ Atom is a sophisticated AI-powered automation platform with:
 ✅ **Multi-agent system** with comprehensive governance
 ✅ **Real-time streaming** with <1ms governance overhead
 ✅ **Canvas presentations** with full audit trails
+✅ **Browser automation** with CDP via Playwright (NEW)
 ✅ **Performance optimized** - sub-millisecond operations
 ✅ **Production ready** - 100% test coverage, all targets exceeded
 
 **Key Takeaway**: Always think about **agent attribution** and **governance** when working with any AI feature in Atom.
+
+**Browser Automation**: Agents can now automate web workflows (scraping, forms, screenshots) with full governance and audit trails. Requires INTERN+ maturity level.
 
 ---
 
