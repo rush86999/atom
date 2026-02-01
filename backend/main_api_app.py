@@ -775,6 +775,14 @@ try:
     except ImportError as e:
         logger.warning(f"Canvas collaboration routes not found: {e}")
 
+    # 15.11 Custom Canvas Components Routes
+    try:
+        from api.custom_components import router as components_router
+        app.include_router(components_router, prefix="/api/components", tags=["Custom Components"])
+        logger.info("✓ Custom Components Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Custom components routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router
