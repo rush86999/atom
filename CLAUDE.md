@@ -423,7 +423,62 @@ url = generate_deep_link('agent', 'agent-1', message='Hello')
 **Documentation**:
 - `docs/DEEPLINK_IMPLEMENTATION.md` - Full deep linking documentation
 
-### 7. Database Models
+### 7. Enhanced Feedback System (NEW)
+
+**Purpose**: Collect user feedback and improve agent performance through confidence adjustments
+
+**Key Files**:
+- `backend/core/models.py` - AgentFeedback model (enhanced with ratings)
+- `backend/api/feedback_enhanced.py` - Enhanced feedback API endpoints
+- `backend/api/feedback_analytics.py` - Analytics dashboard endpoints
+- `backend/core/feedback_analytics.py` - Feedback aggregation service
+- `backend/core/agent_learning_enhanced.py` - Confidence adjustment logic
+- `backend/core/agent_world_model.py` - World model integration (enhanced)
+
+**Features**:
+- **Thumbs Up/Down** - Quick positive/negative feedback
+- **Star Ratings** - 1-5 star scale for nuanced feedback
+- **Detailed Corrections** - Specific corrections for learning
+- **Feedback Types** - Auto-detected (correction, rating, approval, comment)
+- **Analytics Dashboard** - Comprehensive statistics and trends
+- **Confidence Adjustments** - Automatic score updates based on feedback
+- **Learning Signals** - Identifies agent strengths and weaknesses
+
+**Usage**:
+```python
+from core.feedback_analytics import FeedbackAnalytics
+from core.agent_learning_enhanced import AgentLearningEnhanced
+
+# Get feedback summary
+analytics = FeedbackAnalytics(db)
+summary = analytics.get_agent_feedback_summary("agent-1", days=30)
+print(summary["positive_ratio"])  # 0.8
+print(summary["average_rating"])  # 4.5
+
+# Adjust confidence
+learning = AgentLearningEnhanced(db)
+new_confidence = learning.adjust_confidence_with_feedback(
+    agent_id="agent-1",
+    feedback=feedback_obj,
+    current_confidence=0.7
+)
+```
+
+**API Endpoints**:
+- `POST /api/feedback/submit` - Submit enhanced feedback
+- `GET /api/feedback/agent/{agent_id}` - Get agent feedback summary
+- `GET /api/feedback/analytics` - Overall analytics dashboard
+- `GET /api/feedback/trends` - Feedback trends over time
+
+**Confidence Weights**:
+- Thumbs up: +0.05, Thumbs down: -0.05
+- 5-star: +0.10, 4-star: +0.05, 3-star: 0.00, 2-star: -0.05, 1-star: -0.10
+- Correction: -0.03
+
+**Documentation**:
+- `docs/FEEDBACK_SYSTEM_ENHANCED.md` - Full feedback system documentation
+
+### 8. Database Models
 
 **Purpose**: SQLAlchemy models for all data persistence
 
@@ -432,13 +487,14 @@ url = generate_deep_link('agent', 'agent-1', message='Hello')
 **Important Models**:
 - `AgentRegistry` - Agent definitions with governance state
 - `AgentExecution` - Execution records with audit trail
+- `AgentFeedback` - User feedback with ratings, thumbs up/down, corrections (ENHANCED)
 - `CanvasAudit` - Canvas action audit log
 - `BrowserSession` - Browser session tracking
 - `BrowserAudit` - Browser action audit log
 - `DeviceSession` - Device session tracking
 - `DeviceAudit` - Device action audit log
 - `DeviceNode` - Device registry with platform info
-- `DeepLinkAudit` - Deep link execution audit log (NEW)
+- `DeepLinkAudit` - Deep link execution audit log
 - `ChatSession` - Chat session tracking
 
 ---

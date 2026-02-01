@@ -24,11 +24,17 @@ class AgentExperience(BaseModel):
     confidence_score: float = 0.5 # 0.0 to 1.0 (How confident are we this was a good run?)
     feedback_score: Optional[float] = None # -1.0 to 1.0 (Human feedback)
     artifacts: List[str] = []
-    
+
     # TRACE Framework Metrics (Phase 6.6)
     step_efficiency: float = 1.0  # (Steps Taken / Expected Steps) - lower is better
     metadata_trace: Dict[str, Any] = {} # Detailed execution trace, plan adherence, etc.
-    
+
+    # Enhanced Rating Fields (NEW)
+    thumbs_up_down: Optional[bool] = None  # Quick thumbs up/down feedback
+    rating: Optional[int] = None  # Star rating (1-5)
+    agent_execution_id: Optional[str] = None  # Link to agent execution
+    feedback_type: Optional[str] = None  # Type of feedback (correction, rating, approval, comment)
+
     # Context for Scoping
     agent_role: str       # e.g. "Finance", "Operations"
     specialty: Optional[str] = None
@@ -82,7 +88,7 @@ class WorldModelService:
             f"Outcome: {experience.outcome}\n"
             f"Learnings: {experience.learnings}"
         )
-        
+
         metadata = {
             "agent_id": experience.agent_id,
             "task_type": experience.task_type,
@@ -94,9 +100,14 @@ class WorldModelService:
             "feedback_score": experience.feedback_score,
             "step_efficiency": experience.step_efficiency,
             "trace": experience.metadata_trace,
-            "type": "experience"
+            "type": "experience",
+            # Enhanced rating fields (NEW)
+            "thumbs_up_down": experience.thumbs_up_down if hasattr(experience, 'thumbs_up_down') else None,
+            "rating": experience.rating if hasattr(experience, 'rating') else None,
+            "agent_execution_id": experience.agent_execution_id if hasattr(experience, 'agent_execution_id') else None,
+            "feedback_type": experience.feedback_type if hasattr(experience, 'feedback_type') else None
         }
-        
+
         return self.db.add_document(
             table_name=self.table_name,
             text=text_representation,
