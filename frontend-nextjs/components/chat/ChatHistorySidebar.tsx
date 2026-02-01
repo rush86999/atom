@@ -32,33 +32,57 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
         try {
             setLoading(true);
             const { apiClient } = await import('../../lib/api-client');
-            // In SaaS, we use the standard chat API
-            const response = await apiClient.get("/api/chat") as any;
+            // Use correct backend endpoint for sessions
+            const response = await apiClient.get("/api/chat/sessions?user_id=default_user") as any;
             if (response.status !== 200) {
                 throw new Error("Failed to fetch chat history");
             }
             const data = response.data;
-            // Data format might differ, but assuming standard for now or using dummy for parity demo
-            if (data.conversations) {
-                setHistory(data.conversations.map((c: any) => ({
-                    id: c.id,
-                    title: c.title || "Untitled Chat",
-                    date: new Date(c.updatedAt).toLocaleDateString(),
-                    preview: c.lastMessage || "No messages yet"
-                })));
+            // Backend can return sessions as array OR dict
+            let sessionsArray: any[] = [];
+            if (data.sessions) {
+                if (Array.isArray(data.sessions)) {
+                    sessionsArray = data.sessions;
+                } else if (typeof data.sessions === 'object') {
+                    // Convert dict {session_id: {...}} to array
+                    sessionsArray = Object.keys(data.sessions).map(key => ({
+                        session_id: key,
+                        ...data.sessions[key]
+                    }));
+                }
+            }
+
+            if (sessionsArray.length > 0) {
+                // Filter out sessions with ID "new" - it conflicts with the new chat sentinel value
+                const validSessions = sessionsArray.filter((s: any) => {
+                    const id = s.session_id || s.id;
+                    return id && id !== "new";
+                });
+
+                setHistory(validSessions.map((s: any) => {
+                    // Get last message from history array if available
+                    const lastHistoryItem = s.history && s.history.length > 0
+                        ? s.history[s.history.length - 1]
+                        : null;
+                    const lastMessage = lastHistoryItem?.message || lastHistoryItem?.response?.message || "";
+                    const messageCount = s.history?.length || s.message_count || 0;
+
+                    // Handle different date field names
+                    const dateStr = s.last_updated || s.last_active || s.created_at;
+
+                    return {
+                        id: s.session_id || s.id,
+                        title: s.title || (lastMessage ? lastMessage.substring(0, 40) + "..." : "Untitled Chat"),
+                        date: dateStr ? new Date(dateStr).toLocaleDateString() : "Unknown",
+                        preview: lastMessage ? lastMessage.substring(0, 50) : `${messageCount} messages`
+                    };
+                }));
             } else {
-                // Dummy data if API doesn't return list yet
-                setHistory([
-                    { id: "1", title: "Business Strategy Plan", date: "Oct 24", preview: "I've analyzed the market trends..." },
-                    { id: "2", title: "Workflow Automation Demo", date: "Oct 23", preview: "Creating a new Zapier integration..." }
-                ]);
+                setHistory([]);
             }
         } catch (error) {
             console.error("Error fetching chat history:", error);
-            setHistory([
-                { id: "1", title: "Business Strategy Plan", date: "Oct 24", preview: "I've analyzed the market trends..." },
-                { id: "2", title: "Workflow Automation Demo", date: "Oct 23", preview: "Creating a new Zapier integration..." }
-            ]);
+            setHistory([]);
         } finally {
             setLoading(false);
         }

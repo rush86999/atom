@@ -1,0 +1,20 @@
+﻿c76bb188 revert: restore chat files to upstream/main working version
+224fb636 fix: resolve all merge conflicts (chat_orchestrator, AgentWorkspace, generic_agent)
+26e6854d fix: resolve merge conflicts and remove debug files
+fbb5b7cd feat: Agent Workspace WebSocket integration + fix missing chats regression
+31627e59 fix(frontend): resolve build failure and prerendering errors
+f5766768 fix(frontend): resolve lint errors and ci build configuration issues
+1bb5b303 docs: update readme and features with AI security details
+dd5ebe04 feat: port security scanner features and integrate proactive audits
+32162eea refactor: archive additional validation reports and debug files
+e92b562c refactor: archive legacy documentation across codebase
+a73dff86 refactor: archive legacy documentation to docs/archive
+6c112b14 refactor: organize root markdown files into docs subdirectories
+dea411e6 chore: ignore sensitive credential and prompt files
+597fbbf1 refactor: remove old src-tauri directory and update dependencies
+6cfda88f chore: add .archive to .gitignore after root directory cleanup
+6a7acf94 chore: organize root directory for minimal structure
+c32cd050 feat: add macOS and Windows builds to CI workflow
+62d94a6a feat: add artifact uploads to CI workflow
+c1dca914 fix: resolve GitHub release workflow failures
+8c2a5ac8 refactor: consolidate to single Tauri project

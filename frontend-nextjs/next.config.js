@@ -30,7 +30,7 @@ const nextConfig = {
       },
       {
         source: "/api/integrations/:path*",
-        destination: "http://127.0.0.1:5059/api/integrations/:path*",
+        destination: "http://127.0.0.1:8000/api/integrations/:path*",
       },
       {
         source: "/api/workflows/:path*",
@@ -47,6 +47,10 @@ const nextConfig = {
       {
         source: "/api/analytics/:path*",
         destination: "http://127.0.0.1:8000/api/v1/analytics/:path*",
+      },
+      {
+        source: "/api/workflow-templates/:path*",
+        destination: "http://127.0.0.1:8000/api/workflow-templates/:path*",
       },
       {
         source: "/api/workflow-agent/:path*",

@@ -13,7 +13,7 @@ import ReactFlow, {
     Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import Link from 'next/link';
+import { useRouter } from 'next/router';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -78,6 +78,7 @@ interface Template {
 }
 
 export default function WorkflowBuilder() {
+    const router = useRouter();
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
     const [workflowName, setWorkflowName] = useState('My Agent Pipeline');
@@ -91,9 +92,18 @@ export default function WorkflowBuilder() {
         fetchTemplates();
     }, []);
 
+    // Auto-load template from URL
+    useEffect(() => {
+        if (router.isReady && router.query.template_id) {
+            const tid = router.query.template_id as string;
+            loadTemplate(tid);
+        }
+    }, [router.isReady, router.query.template_id]);
+
     const fetchTemplates = async () => {
         try {
-            const res = await fetch('http://localhost:8000/api/workflow-templates');
+            // Use relative path to leverage next.config.js proxy
+            const res = await fetch('/api/workflow-templates');
             if (res.ok) {
                 const data = await res.json();
                 setTemplates(data);
@@ -138,7 +148,7 @@ export default function WorkflowBuilder() {
         };
 
         try {
-            const res = await fetch('http://localhost:8000/api/workflow-templates', {
+            const res = await fetch('/api/workflow-templates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(templateData)
@@ -167,7 +177,7 @@ export default function WorkflowBuilder() {
         toast({ title: 'Executing...', description: `Running template: ${workflowName}` });
 
         try {
-            const res = await fetch(`http://localhost:8000/api/workflow-templates/${currentTemplateId}/execute`, {
+            const res = await fetch(`/api/workflow-templates/${currentTemplateId}/execute`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
@@ -188,7 +198,7 @@ export default function WorkflowBuilder() {
 
     const loadTemplate = async (templateId: string) => {
         try {
-            const res = await fetch(`http://localhost:8000/api/workflow-templates/${templateId}`);
+            const res = await fetch(`/api/workflow-templates/${templateId}`);
             if (!res.ok) throw new Error('Failed to load');
 
             const template = await res.json();
@@ -257,7 +267,7 @@ export default function WorkflowBuilder() {
                         <select
                             className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
                             onChange={(e) => e.target.value && loadTemplate(e.target.value)}
-                            defaultValue=""
+                            value={currentTemplateId || ""}
                         >
                             <option value="" disabled>Select template...</option>
                             {templates.map((t) => (

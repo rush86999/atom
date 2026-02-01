@@ -234,7 +234,9 @@ async def execute_template(template_id: str, parameters: Dict[str, Any] = {}):
         }
         
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        if "not found" in str(e).lower() and "template" in str(e).lower():
+            raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to execute template: {e}")
         raise HTTPException(status_code=500, detail=str(e))
