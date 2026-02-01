@@ -256,6 +256,9 @@ class AgentGovernanceService:
         "browser_navigate": 2,     # INTERN+ (web navigation)
         "browser_screenshot": 2,   # INTERN+ (screenshot capture)
         "browser_extract": 2,      # INTERN+ (text extraction)
+        "device_camera_snap": 2,   # INTERN+ (camera capture)
+        "device_get_location": 2,  # INTERN+ (location services)
+        "device_send_notification": 2,  # INTERN+ (system notifications)
 
         # Medium - Supervised level
         "create": 3,
@@ -264,6 +267,9 @@ class AgentGovernanceService:
         "post_message": 3,
         "schedule": 3,
         "submit_form": 3,          # SUPERVISED+ (state change - form submission)
+        "device_screen_record": 3, # SUPERVISED+ (screen recording - privacy concern)
+        "device_screen_record_start": 3,  # SUPERVISED+ (screen recording start)
+        "device_screen_record_stop": 3,   # SUPERVISED+ (screen recording stop)
 
         # High - Autonomous level only
         "delete": 4,
@@ -272,6 +278,7 @@ class AgentGovernanceService:
         "transfer": 4,
         "payment": 4,
         "approve": 4,
+        "device_execute_command": 4,  # AUTONOMOUS only (command execution - security critical)
     }
     
     # Minimum maturity level for each action complexity
