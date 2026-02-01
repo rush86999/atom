@@ -427,7 +427,7 @@ url = generate_deep_link('agent', 'agent-1', message='Hello')
 
 **Purpose**: Collect user feedback and improve agent performance through confidence adjustments
 
-**Key Files**:
+**Key Files** (Phase 1):
 - `backend/core/models.py` - AgentFeedback model (enhanced with ratings)
 - `backend/api/feedback_enhanced.py` - Enhanced feedback API endpoints
 - `backend/api/feedback_analytics.py` - Analytics dashboard endpoints
@@ -435,7 +435,14 @@ url = generate_deep_link('agent', 'agent-1', message='Hello')
 - `backend/core/agent_learning_enhanced.py` - Confidence adjustment logic
 - `backend/core/agent_world_model.py` - World model integration (enhanced)
 
-**Features**:
+**Key Files** (Phase 2):
+- `backend/api/feedback_batch.py` - Batch operations API
+- `backend/api/feedback_phase2.py` - Phase 2 integrated API
+- `backend/core/agent_promotion_service.py` - Promotion service
+- `backend/core/feedback_export_service.py` - Export service
+- `backend/core/feedback_advanced_analytics.py` - Advanced analytics
+
+**Features** (Phase 1):
 - **Thumbs Up/Down** - Quick positive/negative feedback
 - **Star Ratings** - 1-5 star scale for nuanced feedback
 - **Detailed Corrections** - Specific corrections for learning
@@ -443,6 +450,14 @@ url = generate_deep_link('agent', 'agent-1', message='Hello')
 - **Analytics Dashboard** - Comprehensive statistics and trends
 - **Confidence Adjustments** - Automatic score updates based on feedback
 - **Learning Signals** - Identifies agent strengths and weaknesses
+
+**Features** (Phase 2):
+- **Batch Operations** - Approve/reject/update multiple feedback at once
+- **Promotion Suggestions** - Auto-evaluate agents for maturity promotion
+- **Feedback Export** - JSON/CSV export with filtering options
+- **Advanced Analytics** - Correlation, cohorts, predictions, velocity
+- **Promotion Paths** - Complete path to AUTONOMOUS with progress tracking
+- **Performance Predictions** - Trend-based future performance forecasting
 
 **Usage**:
 ```python
@@ -464,11 +479,27 @@ new_confidence = learning.adjust_confidence_with_feedback(
 )
 ```
 
-**API Endpoints**:
+**API Endpoints** (Phase 1):
 - `POST /api/feedback/submit` - Submit enhanced feedback
 - `GET /api/feedback/agent/{agent_id}` - Get agent feedback summary
 - `GET /api/feedback/analytics` - Overall analytics dashboard
 - `GET /api/feedback/trends` - Feedback trends over time
+
+**API Endpoints** (Phase 2):
+- `POST /api/feedback/batch/approve` - Batch approve feedback
+- `POST /api/feedback/batch/reject` - Batch reject feedback
+- `POST /api/feedback/batch/update-status` - Bulk status update
+- `GET /api/feedback/batch/pending` - Get pending feedback
+- `GET /api/feedback/batch/stats` - Batch operation statistics
+- `GET /api/feedback/phase2/promotion-suggestions` - Get promotion candidates
+- `GET /api/feedback/phase2/promotion-path/{agent_id}` - Detailed promotion path
+- `GET /api/feedback/phase2/promotion-check/{agent_id}` - Check readiness
+- `GET /api/feedback/phase2/export` - Export feedback (JSON/CSV)
+- `GET /api/feedback/phase2/export/summary` - Export summary statistics
+- `GET /api/feedback/phase2/analytics/advanced/correlation/{agent_id}` - Correlation analysis
+- `GET /api/feedback/phase2/analytics/advanced/cohorts` - Cohort analysis
+- `GET /api/feedback/phase2/analytics/advanced/prediction/{agent_id}` - Performance prediction
+- `GET /api/feedback/phase2/analytics/advanced/velocity/{agent_id}` - Velocity analysis
 
 **Confidence Weights**:
 - Thumbs up: +0.05, Thumbs down: -0.05
