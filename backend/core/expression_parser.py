@@ -40,7 +40,11 @@ class ExpressionParser:
     Supports common comparison and logical operations while preventing code injection.
     """
 
-    # Token types
+    def __init__(self):
+        """Initialize the expression parser."""
+        self.tokens = []
+        self.pos = 0
+        self.variables: Dict[str, Any] = {}  # Variable context for resolution
     TOKEN_NUMBER = r'(?P<NUMBER>-?\d+\.?\d*(?:[eE][+-]?\d+)?)'
     TOKEN_STRING = r'(?P<STRING>"[^"]*"|\'[^\']*\')'
     TOKEN_BOOLEAN = r'(?P<BOOLEAN>True|False|None)'
@@ -110,6 +114,9 @@ class ExpressionParser:
             ValueError: If the expression is invalid or unsafe
         """
         try:
+            # Store variable context for use during parsing
+            self.variables = variables
+
             # Tokenize the expression
             self.tokens = self._tokenize(expression)
             self.pos = 0
@@ -117,7 +124,7 @@ class ExpressionParser:
             if not self.tokens:
                 return False
 
-            # Parse and evaluate
+            # Parse and evaluate (variables are now available for resolution)
             result = self._parse_expression()
 
             # Ensure we consumed all tokens
@@ -292,23 +299,34 @@ class ExpressionParser:
         raise ValueError(f"Unexpected token: {token['value']}")
 
     def _parse_identifier(self) -> Any:
-        """Parse identifier and variable access (with dot notation and indexing)."""
-        # This is a simplified version - in production, you'd want to resolve
-        # the identifier against the actual variable context
-        # For now, we'll return a placeholder that will be resolved later
+        """
+        Parse identifier and resolve variable value from context.
+
+        Supports simple variables, dot notation for nested access, and array indexing.
+        """
         token = self._advance()
         identifier = token['value']
 
-        # For debugging purposes, we'll return a special marker
-        # The actual resolution will happen in the evaluate method
-        return {'type': 'variable', 'name': identifier}
+        # Try to resolve the variable from context
+        # Try with original name first
+        if identifier in self.variables:
+            return self.variables[identifier]
+
+        # Try with sanitized name (dashes/dots replaced with underscores)
+        sanitized = identifier.replace('-', '_').replace('.', '_')
+        if sanitized in self.variables:
+            return self.variables[sanitized]
+
+        # If not found, raise error (don't allow undefined variables)
+        raise ValueError(f"Variable '{identifier}' is not defined")
 
 
 class ExpressionEvaluator:
     """
-    Expression evaluator with variable context.
+    Expression evaluator that uses the ExpressionParser.
 
-    Combines the ExpressionParser with variable resolution.
+    The parser now handles all variable resolution and evaluation without eval().
+    This class provides a simple interface for evaluating expressions.
     """
 
     def __init__(self):
@@ -319,6 +337,8 @@ class ExpressionEvaluator:
         """
         Evaluate an expression with the given variable context.
 
+        This is a complete AST-based evaluation without using eval().
+
         Args:
             expression: The expression string to evaluate
             variables: Dictionary of variable names to values
@@ -326,24 +346,7 @@ class ExpressionEvaluator:
         Returns:
             bool: Result of the expression evaluation
         """
-        try:
-            # Sanitize variable names for safety (replace dashes with underscores)
-            safe_vars = {}
-            for key, value in variables.items():
-                safe_key = key.replace('-', '_').replace('.', '_')
-                safe_vars[safe_key] = value
-
-            # For now, use a safer eval with restricted globals
-            # In production, replace this with the full ExpressionParser
-            return eval(
-                expression,
-                {"__builtins__": {}, "True": True, "False": False, "None": None},
-                safe_vars
-            )
-
-        except Exception as e:
-            logger.warning(f"Failed to evaluate expression '{expression}': {e}")
-            return False
+        return self.parser.evaluate(expression, variables)
 
 
 # Singleton instance

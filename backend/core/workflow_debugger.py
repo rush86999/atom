@@ -19,6 +19,7 @@ import json
 import uuid
 import time
 import copy
+import asyncio
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple, Union
 from sqlalchemy.orm import Session
@@ -32,6 +33,7 @@ from core.models import (
     WorkflowExecution,
 )
 from core.expression_parser import get_expression_evaluator
+from core.websocket_manager import get_debugging_websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -1233,3 +1235,161 @@ class WorkflowDebugger:
         except Exception as e:
             logger.error(f"Error closing trace stream: {e}")
             return False
+
+    # ==================== WebSocket Integration Helpers ====================
+
+    def _run_async_websocket(self, coro) -> int:
+        """
+        Run an async WebSocket method in a fire-and-forget manner.
+
+        Args:
+            coro: Async coroutine to run
+
+        Returns:
+            Number of subscribers notified (0 if failed or no event loop)
+        """
+        try:
+            # Try to get running event loop
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Create task in running loop
+                    asyncio.create_task(coro)
+                    return 0  # Can't get result from fire-and-forget
+                else:
+                    # Run in new loop
+                    return asyncio.run(coro)
+            except RuntimeError:
+                # No event loop, run in new one
+                return asyncio.run(coro)
+        except Exception as e:
+            logger.debug(f"WebSocket notification skipped: {e}")
+            return 0
+
+    def stream_trace_with_manager(
+        self,
+        execution_id: str,
+        session_id: str,
+        trace_data: Dict[str, Any],
+    ) -> None:
+        """
+        Stream a trace update using the debugging WebSocket manager.
+
+        Convenience method that integrates with the DebuggingWebSocketManager.
+        Runs asynchronously in fire-and-forget mode.
+
+        Args:
+            execution_id: Execution identifier
+            session_id: Debug session identifier
+            trace_data: Trace data to stream
+        """
+        async def _stream():
+            debug_manager = get_debugging_websocket_manager()
+            await debug_manager.stream_trace(execution_id, session_id, trace_data)
+
+        self._run_async_websocket(_stream())
+
+    def notify_variable_changed(
+        self,
+        session_id: str,
+        variable_name: str,
+        new_value: Any,
+        previous_value: Any = None,
+    ) -> None:
+        """
+        Notify subscribers that a variable was modified.
+
+        Args:
+            session_id: Debug session identifier
+            variable_name: Name of the variable
+            new_value: New value
+            previous_value: Previous value (optional)
+        """
+        async def _notify():
+            debug_manager = get_debugging_websocket_manager()
+            await debug_manager.notify_variable_changed(
+                session_id, variable_name, new_value, previous_value
+            )
+
+        self._run_async_websocket(_notify())
+
+    def notify_breakpoint_hit(
+        self,
+        session_id: str,
+        breakpoint_id: str,
+        node_id: str,
+        hit_count: int,
+    ) -> None:
+        """
+        Notify subscribers that a breakpoint was hit.
+
+        Args:
+            session_id: Debug session identifier
+            breakpoint_id: Breakpoint identifier
+            node_id: Node where breakpoint was hit
+            hit_count: Current hit count
+        """
+        async def _notify():
+            debug_manager = get_debugging_websocket_manager()
+            await debug_manager.notify_breakpoint_hit(
+                session_id, breakpoint_id, node_id, hit_count
+            )
+
+        self._run_async_websocket(_notify())
+
+    def notify_session_paused(
+        self,
+        session_id: str,
+        reason: str = "user_action",
+        node_id: Optional[str] = None,
+    ) -> None:
+        """
+        Notify subscribers that a session was paused.
+
+        Args:
+            session_id: Debug session identifier
+            reason: Reason for pausing
+            node_id: Current node ID (optional)
+        """
+        async def _notify():
+            debug_manager = get_debugging_websocket_manager()
+            await debug_manager.notify_session_paused(session_id, reason, node_id)
+
+        self._run_async_websocket(_notify())
+
+    def notify_session_resumed(self, session_id: str) -> None:
+        """
+        Notify subscribers that a session was resumed.
+
+        Args:
+            session_id: Debug session identifier
+        """
+        async def _notify():
+            debug_manager = get_debugging_websocket_manager()
+            await debug_manager.notify_session_resumed(session_id)
+
+        self._run_async_websocket(_notify())
+
+    def notify_step_completed(
+        self,
+        session_id: str,
+        action: str,
+        step_number: int,
+        node_id: Optional[str] = None,
+    ) -> None:
+        """
+        Notify subscribers that a step action completed.
+
+        Args:
+            session_id: Debug session identifier
+            action: Action performed (step_over, step_into, step_out)
+            step_number: New step number
+            node_id: Current node ID (optional)
+        """
+        async def _notify():
+            debug_manager = get_debugging_websocket_manager()
+            await debug_manager.notify_step_completed(
+                session_id, action, step_number, node_id
+            )
+
+        self._run_async_websocket(_notify())
