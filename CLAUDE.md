@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: January 31, 2026
+**Last Updated**: February 1, 2026
 
 ---
 
@@ -13,7 +13,8 @@
 - Multi-agent system with governance
 - Real-time streaming LLM responses
 - Canvas-based visual presentations
-- Browser automation with CDP (NEW)
+- Browser automation with CDP
+- Device capabilities (Camera, Screen Recording, Location, Notifications, Command Execution) (NEW)
 - Comprehensive audit trails
 
 **Tech Stack**:
@@ -70,10 +71,13 @@ Actions are classified by complexity (1-4):
   - Examples: present_chart, present_markdown, search, read, fetch
 - **2 (MODERATE)**: Streaming, moderate actions → INTERN+
   - Examples: stream_chat, browser_navigate, browser_screenshot, browser_fill_form, present_form
+  - Device: camera_snap, get_location, send_notification
 - **3 (HIGH)**: State changes, submissions → SUPERVISED+
   - Examples: create, update, submit_form, send_email, post_message
+  - Device: screen_record_start, screen_record_stop
 - **4 (CRITICAL)**: Deletions, payments → AUTONOMOUS only
   - Examples: delete, execute, deploy, payment, approve
+  - Device: execute_command
 
 ---
 
@@ -258,7 +262,110 @@ await browser_close_session(
 - `docs/BROWSER_QUICK_START.md` - 5-minute quick start guide
 - `docs/BROWSER_IMPLEMENTATION_SUMMARY.md` - Implementation details
 
-### 5. Database Models
+### 5. Device Capabilities System (NEW)
+
+**Purpose**: Hardware access and device automation for AI agents
+
+**Key Files**:
+- `backend/tools/device_tool.py` - Device automation functions
+- `backend/api/device_capabilities.py` - Device API endpoints
+- `backend/core/models.py` - DeviceSession, DeviceAudit models
+- `frontend-nextjs/src-tauri/src/main.rs` - Tauri commands
+
+**Features**:
+- **Camera Capture** (INTERN+) - Device camera image capture
+- **Screen Recording** (SUPERVISED+) - Screen recording with audio
+- **Location Services** (INTERN+) - Device location retrieval
+- **System Notifications** (INTERN+) - System notification delivery
+- **Command Execution** (AUTONOMOUS only) - Secure shell command execution
+- Session management with automatic cleanup
+- Full governance integration with maturity requirements
+
+**Governance**:
+- Camera/Location/Notifications: INTERN+ maturity
+- Screen Recording: SUPERVISED+ maturity
+- Command Execution: AUTONOMOUS only (security critical)
+
+**Usage**:
+```python
+from tools.device_tool import (
+    device_camera_snap,
+    device_screen_record_start,
+    device_get_location,
+    device_send_notification,
+    device_execute_command,
+)
+
+# Camera capture (INTERN+)
+await device_camera_snap(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    agent_id="agent-1",
+    resolution="1920x1080"
+)
+
+# Screen recording (SUPERVISED+)
+session = await device_screen_record_start(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    agent_id="agent-2",
+    duration_seconds=60
+)
+
+# Location (INTERN+)
+await device_get_location(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    agent_id="agent-1",
+    accuracy="high"
+)
+
+# Notification (INTERN+)
+await device_send_notification(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    title="Workflow Complete",
+    body="Your workflow has completed.",
+    agent_id="agent-1"
+)
+
+# Command execution (AUTONOMOUS only)
+await device_execute_command(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    command="ls",
+    agent_id="agent-3"  # Must be AUTONOMOUS
+)
+```
+
+**API Endpoints**:
+- `POST /api/devices/camera/snap` - Capture camera
+- `POST /api/devices/screen/record/start` - Start recording
+- `POST /api/devices/screen/record/stop` - Stop recording
+- `POST /api/devices/location` - Get location
+- `POST /api/devices/notification` - Send notification
+- `POST /api/devices/execute` - Execute command
+- `GET /api/devices/{device_id}` - Get device info
+- `GET /api/devices` - List devices
+- `GET /api/devices/{device_id}/audit` - Get audit log
+
+**Security**:
+- Command whitelist enforced (ls, pwd, cat, grep, etc.)
+- Timeout enforcement (default: 30s, max: 300s)
+- Screen recording duration limits (default max: 1 hour)
+- Working directory restrictions
+- No interactive shells
+- Full audit trail for all actions
+
+**Documentation**:
+- `docs/DEVICE_CAPABILITIES.md` - Full documentation
+
+### 6. Database Models
 
 **Purpose**: SQLAlchemy models for all data persistence
 
@@ -268,13 +375,39 @@ await browser_close_session(
 - `AgentRegistry` - Agent definitions with governance state
 - `AgentExecution` - Execution records with audit trail
 - `CanvasAudit` - Canvas action audit log
-- `BrowserSession` - Browser session tracking (NEW)
-- `BrowserAudit` - Browser action audit log (NEW)
+- `BrowserSession` - Browser session tracking
+- `BrowserAudit` - Browser action audit log
+- `DeviceSession` - Device session tracking (NEW)
+- `DeviceAudit` - Device action audit log (NEW)
+- `DeviceNode` - Device registry with platform info (EXTENDED)
 - `ChatSession` - Chat session tracking
 
 ---
 
 ## Recent Major Changes
+
+### Device Capabilities (February 1, 2026)
+
+**What Changed**:
+- Implemented device hardware access for AI agents (Camera, Screen Recording, Location, Notifications, Command Execution)
+- Added 7 device automation functions (camera_snap, screen_record_start/stop, get_location, send_notification, execute_command)
+- Created 9 REST API endpoints for device control
+- Added DeviceSession and DeviceAudit database models
+- Extended DeviceNode model with platform info and detailed capabilities
+- Integrated governance (INTERN+ for camera/location/notifications, SUPERVISED+ for screen recording, AUTONOMOUS only for command execution)
+- Created comprehensive test suite (32 tests, 100% pass rate)
+- Added 6 Tauri commands for platform-specific hardware access
+- Extended WebSocket events for device operations
+
+**Why**: Enable AI agents to interact with device hardware and perform local actions, bringing parity with OpenClaw's device capabilities while maintaining Atom's superior governance framework
+
+**Migration Required**:
+```bash
+alembic upgrade head  # Migration g1h2i3j4k5l6
+```
+
+**Documentation**:
+- `docs/DEVICE_CAPABILITIES.md` - Full documentation
 
 ### Browser Automation (January 31, 2026)
 
@@ -979,13 +1112,16 @@ Atom is a sophisticated AI-powered automation platform with:
 ✅ **Multi-agent system** with comprehensive governance
 ✅ **Real-time streaming** with <1ms governance overhead
 ✅ **Canvas presentations** with full audit trails
-✅ **Browser automation** with CDP via Playwright (NEW)
+✅ **Browser automation** with CDP via Playwright
+✅ **Device capabilities** with full hardware access (Camera, Screen Recording, Location, Notifications, Command Execution) (NEW)
 ✅ **Performance optimized** - sub-millisecond operations
 ✅ **Production ready** - 100% test coverage, all targets exceeded
 
 **Key Takeaway**: Always think about **agent attribution** and **governance** when working with any AI feature in Atom.
 
 **Browser Automation**: Agents can now automate web workflows (scraping, forms, screenshots) with full governance and audit trails. Requires INTERN+ maturity level.
+
+**Device Capabilities**: Agents can now interact with device hardware (camera, screen recording, location, notifications, command execution) with full governance and audit trails. Requires INTERN+ (camera/location/notifications), SUPERVISED+ (screen recording), or AUTONOMOUS (command execution) maturity levels.
 
 ---
 
