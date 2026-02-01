@@ -743,6 +743,22 @@ try:
     except ImportError as e:
         logger.warning(f"Feedback analytics routes not found: {e}")
 
+    # 15.7 Feedback Batch Operations Routes (Phase 2)
+    try:
+        from api.feedback_batch import router as feedback_batch_router
+        app.include_router(feedback_batch_router, prefix="/api/feedback/batch", tags=["Feedback Batch"])
+        logger.info("✓ Feedback Batch Operations Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Feedback batch operations routes not found: {e}")
+
+    # 15.8 Feedback Phase 2 Routes (Promotions, Export, Advanced Analytics)
+    try:
+        from api.feedback_phase2 import router as feedback_phase2_router
+        app.include_router(feedback_phase2_router, prefix="/api/feedback/phase2", tags=["Feedback Phase 2"])
+        logger.info("✓ Feedback Phase 2 Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Feedback Phase 2 routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router
