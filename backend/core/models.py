@@ -869,10 +869,6 @@ class ArtifactVersion(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     closed_at = Column(DateTime(timezone=True), nullable=True)
-    
-    # Relationships
-    agent = relationship("AgentRegistry")
-    execution = relationship("AgentExecution")
 
 class DeviceNode(Base):
     """

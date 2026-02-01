@@ -48,86 +48,88 @@ def db():
 @pytest.fixture
 def test_user(db):
     """Create a test user."""
+    user_id = f"user-{uuid.uuid4()}"
     user = User(
-        id=f"user-{uuid.uuid4()}",
-        email="test@example.com",
-        username="testuser",
-        full_name="Test User"
+        id=user_id,
+        email=f"test-{uuid.uuid4()}@example.com",
+        first_name="Test",
+        last_name="User"
     )
     db.add(user)
     db.commit()
-    db.refresh(user)
+    db.expunge(user)  # Detach from session to avoid lazy loading issues
     yield user
-    db.delete(user)
+    # Cleanup - use user_id directly to avoid lazy loading
+    db.query(User).filter(User.id == user_id).delete(synchronize_session=False)
     db.commit()
 
 
 @pytest.fixture
 def intern_agent(db):
     """Create an INTERN agent for testing."""
+    agent_id = f"intern-agent-{uuid.uuid4()}"
     agent = AgentRegistry(
-        id=f"intern-agent-{uuid.uuid4()}",
+        id=agent_id,
         name="Intern Agent",
         category="Sales",
         module_path="agents.intern_agent",
         class_name="InternAgent",
         status="INTERN",
-        confidence_score=0.6,
-        capabilities=["stream_chat"]
+        confidence_score=0.6
     )
     db.add(agent)
     db.commit()
-    db.refresh(agent)
+    db.expunge(agent)  # Detach from session to avoid lazy loading issues
     yield agent
-    # Cleanup
-    db.query(AgentFeedback).filter(AgentFeedback.agent_id == agent.id).delete()
-    db.delete(agent)
+    # Cleanup - use agent_id directly to avoid lazy loading
+    db.query(AgentFeedback).filter(AgentFeedback.agent_id == agent_id).delete(synchronize_session=False)
+    db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).delete(synchronize_session=False)
     db.commit()
 
 
 @pytest.fixture
 def supervised_agent(db):
     """Create a SUPERVISED agent for testing."""
+    agent_id = f"supervised-agent-{uuid.uuid4()}"
     agent = AgentRegistry(
-        id=f"supervised-agent-{uuid.uuid4()}",
+        id=agent_id,
         name="Supervised Agent",
         category="Finance",
         module_path="agents.supervised_agent",
         class_name="SupervisedAgent",
         status="SUPERVISED",
-        confidence_score=0.8,
-        capabilities=["stream_chat", "create"]
+        confidence_score=0.8
     )
     db.add(agent)
     db.commit()
-    db.refresh(agent)
+    db.expunge(agent)  # Detach from session to avoid lazy loading issues
     yield agent
-    # Cleanup
-    db.query(AgentFeedback).filter(AgentFeedback.agent_id == agent.id).delete()
-    db.delete(agent)
+    # Cleanup - use agent_id directly
+    db.query(AgentFeedback).filter(AgentFeedback.agent_id == agent_id).delete(synchronize_session=False)
+    db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).delete(synchronize_session=False)
     db.commit()
 
 
 @pytest.fixture
 def autonomous_agent(db):
     """Create an AUTONOMOUS agent for testing."""
+    agent_id = f"autonomous-agent-{uuid.uuid4()}"
     agent = AgentRegistry(
-        id=f"autonomous-agent-{uuid.uuid4()}",
+        id=agent_id,
         name="Autonomous Agent",
         category="Operations",
         module_path="agents.autonomous_agent",
         class_name="AutonomousAgent",
         status="AUTONOMOUS",
-        confidence_score=0.95,
-        capabilities=["stream_chat", "create", "delete"]
+        confidence_score=0.95
     )
     db.add(agent)
     db.commit()
-    db.refresh(agent)
+    db.expunge(agent)  # Detach from session to avoid lazy loading issues
     yield agent
-    # Cleanup
-    db.query(AgentFeedback).filter(AgentFeedback.agent_id == agent.id).delete()
-    db.delete(agent)
+    # Cleanup - use agent_id directly
+    db.query(AgentFeedback).filter(AgentFeedback.agent_id == agent_id).delete(synchronize_session=False)
+    db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).delete(synchronize_session=False)
     db.commit()
 
 
@@ -385,7 +387,7 @@ class TestAgentPromotionService:
                 original_output=f"Output {i}",
                 user_correction="",
                 thumbs_up_down=(i < 7),  # 70% positive (needs 90% for AUTONOMOUS)
-                rating=4,
+                rating=4 if i < 7 else 2,  # Low rating for negative feedback
                 feedback_type="rating"
             )
             db.add(feedback)
@@ -399,7 +401,7 @@ class TestAgentPromotionService:
 
         assert evaluation["ready_for_promotion"] is False
         assert evaluation["target_status"] == "AUTONOMOUS"
-        # Should fail positive ratio criteria
+        # Should fail positive ratio criteria (70% < 90%)
         assert "positive_ratio" in evaluation["criteria_failed"]
 
         # Cleanup
