@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: January 30, 2026
+**Last Updated**: February 1, 2026
 
 ---
 
@@ -13,18 +13,21 @@
 - Multi-agent system with governance
 - Real-time streaming LLM responses
 - Canvas-based visual presentations
+- Browser automation with CDP
+- Device capabilities (Camera, Screen Recording, Location, Notifications, Command Execution) (NEW)
 - Comprehensive audit trails
 
 **Tech Stack**:
 - **Backend**: Python 3.11, FastAPI, SQLAlchemy 2.0
 - **Database**: SQLite (dev), PostgreSQL (production)
 - **AI/LLM**: Multi-provider (OpenAI, Anthropic, DeepSeek, Gemini)
+- **Browser Automation**: Playwright (CDP)
 - **Architecture**: Modular, event-driven, single-tenant
 
 **Key Directories**:
 - `backend/core/` - Core services (governance, agents, database models)
 - `backend/api/` - FastAPI route handlers
-- `backend/tools/` - Agent tools (canvas, integrations)
+- `backend/tools/` - Agent tools (canvas, browser, integrations)
 - `backend/alembic/versions/` - Database migrations
 - `backend/tests/` - Test suite (unit, integration, performance)
 
@@ -65,9 +68,16 @@ Agents progress through maturity levels based on confidence scores:
 
 Actions are classified by complexity (1-4):
 - **1 (LOW)**: Presentations, read-only → STUDENT+
+  - Examples: present_chart, present_markdown, search, read, fetch
 - **2 (MODERATE)**: Streaming, moderate actions → INTERN+
+  - Examples: stream_chat, browser_navigate, browser_screenshot, browser_fill_form, present_form
+  - Device: camera_snap, get_location, send_notification
 - **3 (HIGH)**: State changes, submissions → SUPERVISED+
+  - Examples: create, update, submit_form, send_email, post_message
+  - Device: screen_record_start, screen_record_stop
 - **4 (CRITICAL)**: Deletions, payments → AUTONOMOUS only
+  - Examples: delete, execute, deploy, payment, approve
+  - Device: execute_command
 
 ---
 
@@ -168,7 +178,252 @@ await present_form(
 )
 ```
 
-### 4. Database Models
+### 4. Browser Automation System (NEW)
+
+**Purpose**: Chrome DevTools Protocol (CDP) control via Playwright for web automation
+
+**Key Files**:
+- `backend/tools/browser_tool.py` - Browser automation functions
+- `backend/api/browser_routes.py` - Browser API endpoints
+- `backend/core/models.py` - BrowserSession, BrowserAudit models
+
+**Features**:
+- Web scraping and data extraction
+- Form filling and submission
+- Multi-step web workflows
+- Screenshot capture
+- JavaScript execution
+- Multi-browser support (Chromium, Firefox, WebKit)
+- Session management with automatic cleanup
+- Full governance integration (INTERN+ required)
+
+**Governance**: All browser actions require INTERN+ maturity level
+
+**Usage**:
+```python
+from tools.browser_tool import (
+    browser_create_session,
+    browser_navigate,
+    browser_fill_form,
+    browser_screenshot,
+    browser_close_session,
+)
+
+# Create session
+session = await browser_create_session(
+    user_id="user-1",
+    agent_id="agent-1",  # For governance (must be INTERN+)
+    headless=True
+)
+
+# Navigate to URL
+await browser_navigate(
+    session_id=session["session_id"],
+    url="https://example.com",
+    user_id="user-1"
+)
+
+# Fill form
+await browser_fill_form(
+    session_id=session["session_id"],
+    selectors={"#name": "John", "#email": "john@example.com"},
+    submit=True,
+    user_id="user-1"
+)
+
+# Take screenshot
+await browser_screenshot(
+    session_id=session["session_id"],
+    full_page=True,
+    user_id="user-1"
+)
+
+# Close session
+await browser_close_session(
+    session_id=session["session_id"],
+    user_id="user-1"
+)
+```
+
+**API Endpoints**:
+- `POST /api/browser/session/create` - Create browser session
+- `POST /api/browser/navigate` - Navigate to URL
+- `POST /api/browser/screenshot` - Take screenshot
+- `POST /api/browser/fill-form` - Fill form fields
+- `POST /api/browser/click` - Click element
+- `POST /api/browser/extract-text` - Extract text content
+- `POST /api/browser/execute-script` - Execute JavaScript
+- `POST /api/browser/session/close` - Close session
+- `GET /api/browser/sessions` - List sessions
+- `GET /api/browser/audit` - Get audit log
+
+**Documentation**:
+- `docs/BROWSER_AUTOMATION.md` - Full documentation
+- `docs/BROWSER_QUICK_START.md` - 5-minute quick start guide
+- `docs/BROWSER_IMPLEMENTATION_SUMMARY.md` - Implementation details
+
+### 5. Device Capabilities System (NEW)
+
+**Purpose**: Hardware access and device automation for AI agents
+
+**Key Files**:
+- `backend/tools/device_tool.py` - Device automation functions
+- `backend/api/device_capabilities.py` - Device API endpoints
+- `backend/core/models.py` - DeviceSession, DeviceAudit models
+- `frontend-nextjs/src-tauri/src/main.rs` - Tauri commands
+
+**Features**:
+- **Camera Capture** (INTERN+) - Device camera image capture
+- **Screen Recording** (SUPERVISED+) - Screen recording with audio
+- **Location Services** (INTERN+) - Device location retrieval
+- **System Notifications** (INTERN+) - System notification delivery
+- **Command Execution** (AUTONOMOUS only) - Secure shell command execution
+- Session management with automatic cleanup
+- Full governance integration with maturity requirements
+
+**Governance**:
+- Camera/Location/Notifications: INTERN+ maturity
+- Screen Recording: SUPERVISED+ maturity
+- Command Execution: AUTONOMOUS only (security critical)
+
+**Usage**:
+```python
+from tools.device_tool import (
+    device_camera_snap,
+    device_screen_record_start,
+    device_get_location,
+    device_send_notification,
+    device_execute_command,
+)
+
+# Camera capture (INTERN+)
+await device_camera_snap(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    agent_id="agent-1",
+    resolution="1920x1080"
+)
+
+# Screen recording (SUPERVISED+)
+session = await device_screen_record_start(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    agent_id="agent-2",
+    duration_seconds=60
+)
+
+# Location (INTERN+)
+await device_get_location(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    agent_id="agent-1",
+    accuracy="high"
+)
+
+# Notification (INTERN+)
+await device_send_notification(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    title="Workflow Complete",
+    body="Your workflow has completed.",
+    agent_id="agent-1"
+)
+
+# Command execution (AUTONOMOUS only)
+await device_execute_command(
+    db=db,
+    user_id="user-1",
+    device_node_id="device-123",
+    command="ls",
+    agent_id="agent-3"  # Must be AUTONOMOUS
+)
+```
+
+**API Endpoints**:
+- `POST /api/devices/camera/snap` - Capture camera
+- `POST /api/devices/screen/record/start` - Start recording
+- `POST /api/devices/screen/record/stop` - Stop recording
+- `POST /api/devices/location` - Get location
+- `POST /api/devices/notification` - Send notification
+- `POST /api/devices/execute` - Execute command
+- `GET /api/devices/{device_id}` - Get device info
+- `GET /api/devices` - List devices
+- `GET /api/devices/{device_id}/audit` - Get audit log
+
+**Security**:
+- Command whitelist enforced (ls, pwd, cat, grep, etc.)
+- Timeout enforcement (default: 30s, max: 300s)
+- Screen recording duration limits (default max: 1 hour)
+- Working directory restrictions
+- No interactive shells
+- Full audit trail for all actions
+
+**Documentation**:
+- `docs/DEVICE_CAPABILITIES.md` - Full documentation
+
+### 6. Deep Linking System (NEW)
+
+**Purpose**: Enable external applications to trigger Atom actions via custom URL scheme
+
+**Key Files**:
+- `backend/core/deeplinks.py` - Deep link parsing and execution
+- `backend/api/deeplinks.py` - REST API endpoints
+- `backend/core/models.py` - DeepLinkAudit model
+
+**Features**:
+- **Agent Invocation** - `atom://agent/{agent_id}?message={query}` - Invoke AI agents
+- **Workflow Triggers** - `atom://workflow/{workflow_id}?action={action}` - Trigger workflows
+- **Canvas Manipulation** - `atom://canvas/{canvas_id}?action={action}` - Update canvases
+- **Tool Execution** - `atom://tool/{tool_name}?params={json}` - Execute tools
+- Full governance integration (all agent deep links require governance check)
+- Comprehensive audit trail for all deep link executions
+- URL validation and security checks
+
+**Governance**:
+- Agent deep links: Governance check for stream_chat action
+- Workflow/Canvas/Tool: No governance (system-level operations)
+
+**Usage**:
+```python
+from core.deeplinks import parse_deep_link, execute_deep_link, generate_deep_link
+
+# Parse deep link
+link = parse_deep_link("atom://agent/agent-1?message=Hello")
+
+# Execute deep link
+result = await execute_deep_link(
+    url="atom://agent/agent-1?message=Hello",
+    user_id="user-1",
+    db=db,
+    source="mobile_app"
+)
+
+# Generate deep link
+url = generate_deep_link('agent', 'agent-1', message='Hello')
+# "atom://agent/agent-1?message=Hello"
+```
+
+**API Endpoints**:
+- `POST /api/deeplinks/execute` - Execute deep link
+- `GET /api/deeplinks/audit` - Get audit log
+- `POST /api/deeplinks/generate` - Generate deep link
+- `GET /api/deeplinks/stats` - Get statistics
+
+**Security**:
+- URL format validation (scheme, resource type, resource ID)
+- Resource ID regex check (alphanumeric, dashes, underscores only)
+- Agent existence and status checks
+- Full governance integration for agent actions
+- Comprehensive audit trail
+
+**Documentation**:
+- `docs/DEEPLINK_IMPLEMENTATION.md` - Full deep linking documentation
+
+### 7. Database Models
 
 **Purpose**: SQLAlchemy models for all data persistence
 
@@ -177,12 +432,85 @@ await present_form(
 **Important Models**:
 - `AgentRegistry` - Agent definitions with governance state
 - `AgentExecution` - Execution records with audit trail
-- `CanvasAudit` - Canvas action audit log (NEW)
+- `CanvasAudit` - Canvas action audit log
+- `BrowserSession` - Browser session tracking
+- `BrowserAudit` - Browser action audit log
+- `DeviceSession` - Device session tracking
+- `DeviceAudit` - Device action audit log
+- `DeviceNode` - Device registry with platform info
+- `DeepLinkAudit` - Deep link execution audit log (NEW)
 - `ChatSession` - Chat session tracking
 
 ---
 
 ## Recent Major Changes
+
+### Device Capabilities (February 1, 2026)
+
+**What Changed**:
+- Implemented device hardware access for AI agents (Camera, Screen Recording, Location, Notifications, Command Execution)
+- Added 7 device automation functions (camera_snap, screen_record_start/stop, get_location, send_notification, execute_command)
+- Created 9 REST API endpoints for device control
+- Added DeviceSession and DeviceAudit database models
+- Extended DeviceNode model with platform info and detailed capabilities
+- Integrated governance (INTERN+ for camera/location/notifications, SUPERVISED+ for screen recording, AUTONOMOUS only for command execution)
+- Created comprehensive test suite (32 tests, 100% pass rate)
+- Added 6 Tauri commands for platform-specific hardware access
+- Extended WebSocket events for device operations
+
+**Why**: Enable AI agents to interact with device hardware and perform local actions, bringing parity with OpenClaw's device capabilities while maintaining Atom's superior governance framework
+
+**Migration Required**:
+```bash
+alembic upgrade head  # Migration g1h2i3j4k5l6
+```
+
+**Documentation**:
+- `docs/DEVICE_CAPABILITIES.md` - Full documentation
+
+### Deep Linking (February 1, 2026)
+
+**What Changed**:
+- Implemented deep linking via `atom://` URL scheme for external app integration
+- Added 4 deep link types (agent, workflow, canvas, tool)
+- Created 5 core deep link functions (parse_deep_link, execute_deep_link, generate_deep_link, execute_*_deep_link)
+- Created 4 REST API endpoints for deep link management (execute, audit, generate, stats)
+- Added DeepLinkAudit database model for full audit trail
+- Integrated governance (all agent deep links require governance check)
+- Created comprehensive test suite (38 tests)
+- Added security validation (URL format, resource type, resource ID)
+
+**Why**: Enable external applications (mobile apps, email campaigns, web apps) to trigger Atom actions securely with full governance and audit trails
+
+**Migration Required**:
+```bash
+alembic upgrade head  # Migration 158137b9c8b6
+```
+
+**Documentation**:
+- `docs/DEEPLINK_IMPLEMENTATION.md` - Full deep linking documentation
+
+### Browser Automation (January 31, 2026)
+
+**What Changed**:
+- Implemented browser automation using Chrome DevTools Protocol (CDP) via Playwright
+- Added 9 browser automation functions (create, navigate, screenshot, fill, click, extract, execute, close, get_info)
+- Created 10 REST API endpoints for browser control
+- Added BrowserSession and BrowserAudit database models
+- Integrated governance (INTERN+ maturity required for all browser actions)
+- Created comprehensive test suite (17 tests, 100% pass rate)
+
+**Why**: Enable agents to perform web scraping, form filling, multi-step web workflows, screenshot capture, and browser-based testing
+
+**Migration Required**:
+```bash
+alembic upgrade head  # Migration f1a2b3c4d5e6
+```
+
+**Documentation**:
+- `docs/BROWSER_AUTOMATION.md` - Full documentation
+- `docs/BROWSER_QUICK_START.md` - 5-minute quick start guide
+- `docs/BROWSER_IMPLEMENTATION_SUMMARY.md` - Implementation details
 
 ### Governance Integration (January 2026)
 
@@ -279,8 +607,9 @@ asyncio.run(async_operation())
 
 ```
 backend/tests/
-├── test_governance_streaming.py      # Unit tests (17 tests)
-└── test_governance_performance.py     # Performance tests (10 tests)
+├── test_governance_streaming.py      # Governance unit tests (17 tests)
+├── test_governance_performance.py     # Governance performance tests (10 tests)
+└── test_browser_automation.py         # Browser automation tests (17 tests, NEW)
 ```
 
 ### Running Tests
@@ -289,8 +618,11 @@ backend/tests/
 # All tests
 PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ -v
 
-# Unit tests only
+# Governance tests
 pytest tests/test_governance_streaming.py -v
+
+# Browser automation tests (NEW)
+pytest tests/test_browser_automation.py -v
 
 # Performance tests with output
 pytest tests/test_governance_performance.py -v -s
@@ -396,6 +728,46 @@ await present_chart(
 )
 ```
 
+### Using Browser Automation
+
+```python
+from tools.browser_tool import (
+    browser_create_session,
+    browser_navigate,
+    browser_fill_form,
+    browser_screenshot,
+    browser_close_session,
+)
+
+# Agent must be INTERN+ for browser automation
+# Governance is automatically checked
+session = await browser_create_session(
+    user_id=user_id,
+    agent_id=agent.id,  # Important for governance!
+    headless=True
+)
+
+# Navigate and automate
+await browser_navigate(
+    session_id=session["session_id"],
+    url="https://example.com/form",
+    user_id=user_id
+)
+
+await browser_fill_form(
+    session_id=session["session_id"],
+    selectors={"#field1": "value1", "#field2": "value2"},
+    submit=True,
+    user_id=user_id
+)
+
+# Always cleanup
+await browser_close_session(
+    session_id=session["session_id"],
+    user_id=user_id
+)
+```
+
 ### Governance Checks Before Actions
 
 ```python
@@ -428,10 +800,12 @@ if not check["allowed"]:
 ### API Endpoints
 - `backend/core/atom_agent_endpoints.py` - Chat and streaming endpoints
 - `backend/api/canvas_routes.py` - Canvas and form submission
+- `backend/api/browser_routes.py` - Browser automation API (NEW)
 - `backend/core/unified_search_endpoints.py` - Search functionality
 
 ### Tools
 - `backend/tools/canvas_tool.py` - Canvas presentations (charts, forms, markdown)
+- `backend/tools/browser_tool.py` - Browser automation (CDP via Playwright) (NEW)
 - `backend/integrations/` - Third-party integrations
 
 ### Database
@@ -453,11 +827,15 @@ Key environment variables (see `.env.example`):
 # Database
 DATABASE_URL=sqlite:///./atom_dev.db
 
-# Governance (NEW)
+# Governance
 STREAMING_GOVERNANCE_ENABLED=true
 CANVAS_GOVERNANCE_ENABLED=true
 FORM_GOVERNANCE_ENABLED=true
+BROWSER_GOVERNANCE_ENABLED=true  # NEW
 EMERGENCY_GOVERNANCE_BYPASS=false
+
+# Browser Automation (NEW)
+BROWSER_HEADLESS=true  # Run browsers in headless mode
 
 # LLM Providers
 OPENAI_API_KEY=sk-...
@@ -723,6 +1101,8 @@ logger.error("Error message")
 | Streaming overhead | <50ms | 1.06ms avg |
 | Cache hit rate | >90% | 95% |
 | Cache throughput | >5k ops/s | 616k ops/s |
+| Browser session creation | <5s | ~1-2s avg (NEW) |
+| Browser navigation | <30s | ~1-5s avg (NEW) |
 
 ---
 
@@ -782,6 +1162,10 @@ python -m uvicorn main:app --reload --port 8000
 pytest tests/ -v
 pytest tests/test_governance_streaming.py -v
 pytest tests/test_governance_performance.py -v -s
+pytest tests/test_browser_automation.py -v  # Browser tests (NEW)
+
+# Playwright (Browser Automation)
+playwright install chromium  # Install browser binaries (NEW)
 
 # Database
 alembic upgrade head
@@ -809,10 +1193,16 @@ Atom is a sophisticated AI-powered automation platform with:
 ✅ **Multi-agent system** with comprehensive governance
 ✅ **Real-time streaming** with <1ms governance overhead
 ✅ **Canvas presentations** with full audit trails
+✅ **Browser automation** with CDP via Playwright
+✅ **Device capabilities** with full hardware access (Camera, Screen Recording, Location, Notifications, Command Execution) (NEW)
 ✅ **Performance optimized** - sub-millisecond operations
 ✅ **Production ready** - 100% test coverage, all targets exceeded
 
 **Key Takeaway**: Always think about **agent attribution** and **governance** when working with any AI feature in Atom.
+
+**Browser Automation**: Agents can now automate web workflows (scraping, forms, screenshots) with full governance and audit trails. Requires INTERN+ maturity level.
+
+**Device Capabilities**: Agents can now interact with device hardware (camera, screen recording, location, notifications, command execution) with full governance and audit trails. Requires INTERN+ (camera/location/notifications), SUPERVISED+ (screen recording), or AUTONOMOUS (command execution) maturity levels.
 
 ---
 

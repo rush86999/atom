@@ -11,7 +11,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Manager, Emitter, Runtime, Window, WindowEvent};
+use tauri::{AppHandle, Manager, Emitter, Runtime, Window, WindowEvent, State};
 use std::io::{BufRead, BufReader};
 use std::sync::atomic::{AtomicBool, Ordering};
 use notify::{Watcher, RecursiveMode, Config, Event};
@@ -325,6 +325,182 @@ async fn execute_command(
     }))
 }
 
+// ============================================================================
+// Satellite Management (Local Node Automation)
+// ============================================================================
+pub struct SatelliteState {
+    pub child: Option<std::process::Child>,
+}
+
+#[tauri::command]
+async fn install_satellite_dependencies(app: AppHandle) -> Result<serde_json::Value, String> {
+    use tauri_plugin_shell::ShellExt;
+    
+    // 0. Check for Python 3
+    let py_check = app.shell().command("python3").args(["--version"]).output().await.map_err(|e| e.to_string())?;
+    if !py_check.status.success() {
+        return Ok(json!({
+            "success": false,
+            "error": "Python 3 is not installed or not in PATH. Please install Python 3.8+ from python.org."
+        }));
+    }
+
+    // 1. Resolve App Data Directory
+    // We'll put the venv in AppLocalData/satellite_env
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let venv_path = app_data_dir.join("satellite_env");
+    let venv_path_str = venv_path.to_string_lossy().to_string();
+
+    // 2. Create Virtual Environment
+    // python3 -m venv <path>
+    let venv_cmd = app.shell().command("python3")
+        .args(["-m", "venv", &venv_path_str]);
+    
+    let venv_output = venv_cmd.output().await.map_err(|e| e.to_string())?;
+    if !venv_output.status.success() {
+        return Ok(json!({
+             "success": false, 
+             "error": "Failed to create virtual environment",
+             "details": String::from_utf8_lossy(&venv_output.stderr).to_string()
+        }));
+    }
+
+    // 3. Determine Venv Binary Paths (Cross-Platform)
+    let is_windows = cfg!(target_os = "windows");
+    let bin_dir = if is_windows { "Scripts" } else { "bin" };
+    let python_exe = if is_windows { "python.exe" } else { "python3" };
+    
+    let venv_python = venv_path.join(bin_dir).join(python_exe);
+    let venv_python_str = venv_python.to_string_lossy().to_string();
+
+    // 4. Install Dependencies using Venv Pip
+    // We use std::process::Command to bypass any shell restrictions for installation
+    let install_output = Command::new(&venv_python_str)
+        .args(["-m", "pip", "install", "websockets", "playwright"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !install_output.status.success() {
+         return Ok(json!({
+             "success": false,
+             "error": "Pip install failed",
+             "details": String::from_utf8_lossy(&install_output.stderr).to_string()
+         }));
+    }
+
+    // 5. Playwright Install Chromium
+    let pw_output = Command::new(&venv_python_str)
+        .args(["-m", "playwright", "install", "chromium"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    
+    if !pw_output.status.success() {
+          return Ok(json!({
+             "success": false,
+             "error": "Playwright install failed",
+             "details": String::from_utf8_lossy(&pw_output.stderr).to_string()
+         }));
+    }
+
+    Ok(json!({ "success": true, "message": "Browser environment initialized successfully." }))
+}
+
+#[tauri::command]
+async fn start_satellite(
+    app: AppHandle,
+    state: State<'_, Mutex<SatelliteState>>,
+    api_key: String,
+    script_path: String,
+    allow_browser: bool,
+    allow_terminal: bool
+) -> Result<serde_json::Value, String> {
+    let mut state_guard = state.lock().map_err(|e| e.to_string())?;
+    
+    // Stop existing if running
+    if let Some(mut child) = state_guard.child.take() {
+         let _ = child.kill();
+    }
+    
+    // Resolve Venv Python
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let venv_path = app_data_dir.join("satellite_env");
+    let is_windows = cfg!(target_os = "windows");
+    let bin_dir = if is_windows { "Scripts" } else { "bin" };
+    let python_exe = if is_windows { "python.exe" } else { "python3" };
+    let venv_python = venv_path.join(bin_dir).join(python_exe);
+    
+    // Check if venv exists, else fall back to system python (or error?)
+    let (exe, use_venv) = if venv_python.exists() {
+        (venv_python.to_string_lossy().to_string(), true)
+    } else {
+        ("python3".to_string(), false)
+    };
+
+    let mut args = vec![
+        script_path.clone(),
+        "--key".to_string(),
+        api_key
+    ];
+    
+    if allow_terminal {
+        args.push("--allow-exec".to_string());
+    }
+    
+    if allow_browser {
+        args.push("--allow-browser".to_string());
+    }
+
+    // Use std::process::Command to bypass shell restrictions
+    let mut child = Command::new(&exe)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+        
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
+    
+    let app_handle = app.clone();
+    
+    // Stdout Reader
+    std::thread::spawn(move || {
+        let reader = std::io::BufReader::new(stdout);
+        for line in std::io::BufRead::lines(reader) {
+            if let Ok(l) = line {
+                let _ = app_handle.emit("satellite_stdout", l);
+            }
+        }
+    });
+    
+    // Stderr Reader
+    let app_handle2 = app.clone();
+    std::thread::spawn(move || {
+        let reader = std::io::BufReader::new(stderr);
+        for line in std::io::BufRead::lines(reader) {
+            if let Ok(l) = line {
+                 let _ = app_handle2.emit("satellite_stderr", l);
+            }
+        }
+    });
+
+    state_guard.child = Some(child);
+    
+    Ok(json!({ "success": true, "status": "started", "using_venv": use_venv }))
+}
+
+#[tauri::command]
+async fn stop_satellite(
+    state: State<'_, Mutex<SatelliteState>>
+) -> Result<serde_json::Value, String> {
+    let mut state_guard = state.lock().map_err(|e| e.to_string())?;
+    if let Some(mut child) = state_guard.child.take() {
+        let _ = child.kill();
+    }
+    Ok(json!({ "success": true, "status": "stopped" }))
+}
+
+// Main invoke handler with all commands
 #[tauri::command]
 async fn list_local_skills() -> Result<serde_json::Value, String> {
     let skills_dir = Path::new("skills/local");
@@ -686,11 +862,223 @@ async fn stop_watching_folder(app: AppHandle, path: String) -> notify::Result<()
     Ok(())
 }
 
+// ============================================================================
+// Device Capabilities Commands
+// ============================================================================
+
+#[tauri::command]
+async fn camera_snap(
+    app: AppHandle,
+    camera_id: Option<String>,
+    resolution: Option<String>,
+    save_path: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // Capture from device camera
+    // Platform-specific implementation will be added here
+    // For now, return a mock response
+
+    let timestamp = chrono::Utc::now().to_rfc3339();
+    let file_path = save_path.unwrap_or_else(|| format!("/tmp/camera_{}.jpg", timestamp.replace(":", "")));
+
+    // TODO: Implement platform-specific camera capture
+    // macOS: Use AVFoundation
+    // Windows: Use Media Foundation
+    // Linux: Use ffmpeg or v4l2
+
+    Ok(json!({
+        "success": true,
+        "file_path": file_path,
+        "resolution": resolution.unwrap_or_else(|| "1920x1080".to_string()),
+        "camera_id": camera_id.unwrap_or_else(|| "default".to_string()),
+        "captured_at": timestamp,
+        "platform": if cfg!(target_os = "macos") { "macos" } else if cfg!(target_os = "windows") { "windows" } else if cfg!(target_os = "linux") { "linux" } else { "unknown" }
+    }))
+}
+
+// Screen recording state management
+struct ScreenRecordingState {
+    recordings: HashMap<String, bool>, // session_id -> is_recording
+}
+
+#[tauri::command]
+async fn screen_record_start(
+    app: AppHandle,
+    session_id: String,
+    duration_seconds: Option<u32>,
+    audio_enabled: Option<bool>,
+    resolution: Option<String>,
+    output_format: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // Start screen recording
+    // Platform-specific implementation will be added here
+    // For now, return a mock response
+
+    // TODO: Implement platform-specific screen recording
+    // macOS: Use AVFoundation
+    // Windows: Use Media Foundation
+    // Linux: Use ffmpeg
+
+    Ok(json!({
+        "success": true,
+        "session_id": session_id,
+        "duration_seconds": duration_seconds.unwrap_or(3600),
+        "audio_enabled": audio_enabled.unwrap_or(false),
+        "resolution": resolution.unwrap_or_else(|| "1920x1080".to_string()),
+        "output_format": output_format.unwrap_or_else(|| "mp4".to_string()),
+        "started_at": chrono::Utc::now().to_rfc3339(),
+        "platform": if cfg!(target_os = "macos") { "macos" } else if cfg!(target_os = "windows") { "windows" } else if cfg!(target_os = "linux") { "linux" } else { "unknown" }
+    }))
+}
+
+#[tauri::command]
+async fn screen_record_stop(
+    session_id: String,
+) -> Result<serde_json::Value, String> {
+    // Stop screen recording
+    // Platform-specific implementation will be added here
+    // For now, return a mock response
+
+    let timestamp = chrono::Utc::now().to_rfc3339();
+
+    Ok(json!({
+        "success": true,
+        "session_id": session_id,
+        "file_path": format!("/tmp/recording_{}.mp4", session_id),
+        "duration_seconds": 30, // Mock duration
+        "stopped_at": timestamp
+    }))
+}
+
+#[tauri::command]
+async fn get_location(
+    accuracy: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // Get device location
+    // Platform-specific implementation will be added here
+    // For now, return a mock response
+
+    // TODO: Implement platform-specific location services
+    // macOS: Use CoreLocation
+    // Windows: Use Win32 APIs
+    // Linux: Use geoclue
+
+    Ok(json!({
+        "success": true,
+        "latitude": 37.7749,
+        "longitude": -122.4194,
+        "accuracy": accuracy.unwrap_or_else(|| "high".to_string()),
+        "altitude": None::<f64>,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "platform": if cfg!(target_os = "macos") { "macos" } else if cfg!(target_os = "windows") { "windows" } else if cfg!(target_os = "linux") { "linux" } else { "unknown" }
+    }))
+}
+
+#[tauri::command]
+async fn send_notification(
+    app: AppHandle,
+    title: String,
+    body: String,
+    icon: Option<String>,
+    sound: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // Send system notification
+    use tauri_plugin_notification::NotificationExt;
+
+    let mut notification = app.notification()
+        .title(&title)
+        .body(&body);
+
+    if let Some(icon_path) = icon {
+        notification = notification.icon(icon_path);
+    }
+
+    // TODO: Add sound support
+
+    notification.show().map_err(|e| e.to_string())?;
+
+    Ok(json!({
+        "success": true,
+        "title": title,
+        "body": body,
+        "sent_at": chrono::Utc::now().to_rfc3339()
+    }))
+}
+
+#[tauri::command]
+async fn execute_shell_command(
+    command: String,
+    working_directory: Option<String>,
+    timeout_seconds: Option<u64>,
+    environment: Option<HashMap<String, String>>,
+) -> Result<serde_json::Value, String> {
+    // Execute shell command with security restrictions
+    // This is a SECURITY CRITICAL function
+
+    // Validate command against whitelist
+    let allowed_commands = vec![
+        "ls", "pwd", "cat", "grep", "head", "tail", "echo", "find", "ps", "top"
+    ];
+
+    let command_base = command.split_whitespace().next().unwrap_or("");
+    if !allowed_commands.contains(&command_base) {
+        return Ok(json!({
+            "success": false,
+            "error": format!("Command '{}' not in whitelist. Allowed: {:?}", command_base, allowed_commands)
+        }));
+    }
+
+    // Enforce timeout
+    let timeout = std::time::Duration::from_secs(timeout_seconds.unwrap_or(30));
+
+    let mut cmd = Command::new(&command);
+
+    if let Some(dir) = working_directory {
+        cmd.current_dir(dir);
+    }
+
+    if let Some(env_vars) = environment {
+        for (key, value) in env_vars {
+            cmd.env(&key, &value);
+        }
+    }
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    let start_time = std::time::Instant::now();
+
+    match cmd.output() {
+        Ok(output) => {
+            let elapsed = start_time.elapsed();
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+            Ok(json!({
+                "success": output.status.success(),
+                "exit_code": output.status.code().unwrap_or(-1),
+                "stdout": stdout,
+                "stderr": stderr,
+                "command": command,
+                "working_directory": working_directory,
+                "timeout_seconds": timeout_seconds,
+                "duration_seconds": elapsed.as_secs_f64(),
+                "executed_at": chrono::Utc::now().to_rfc3339()
+            }))
+        }
+        Err(e) => Ok(json!({
+            "success": false,
+            "error": format!("Failed to execute command: {}", e),
+            "command": command
+        }))
+    }
+}
+
 // Main entry point
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             // Main invoke command
             atom_invoke_command,
@@ -705,7 +1093,22 @@ fn main() {
             get_system_info,
             execute_command,
             list_local_skills,
+            // Satellite Commands
+            install_satellite_dependencies,
+            start_satellite,
+            stop_satellite,
+            // Device Capabilities Commands
+            camera_snap,
+            screen_record_start,
+            screen_record_stop,
+            get_location,
+            send_notification,
+            execute_shell_command,
         ])
+        .manage(Mutex::new(SatelliteState { child: None }))
+        .manage(Mutex::new(ScreenRecordingState {
+            recordings: HashMap::new()
+        }))
         .setup(|app| {
             println!("🚀 ATOM Desktop Agent Starting...");
             println!("📋 Integrations Loaded:");

@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, ListTodo, Globe, AlertTriangle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { ArtifactSidebar } from "./ArtifactSidebar";
 
 interface AgentStep {
     step: number;
@@ -94,9 +95,10 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId }) => {
 
             <Tabs defaultValue="tasks" className="flex-1 flex flex-col">
                 <div className="px-4 pt-2">
-                    <TabsList className="w-full grid grid-cols-2 bg-slate-800">
-                        <TabsTrigger value="tasks" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">Tasks & Plan</TabsTrigger>
-                        <TabsTrigger value="browser" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">Browser View</TabsTrigger>
+                    <TabsList className="w-full grid grid-cols-3 bg-slate-800">
+                        <TabsTrigger value="tasks" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Tasks</TabsTrigger>
+                        <TabsTrigger value="artifacts" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Artifacts</TabsTrigger>
+                        <TabsTrigger value="browser" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Browser View</TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -147,6 +149,15 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId }) => {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="artifacts" className="flex-1 p-0 overflow-hidden">
+                    <ArtifactSidebar
+                        sessionId={sessionId}
+                        onSelectArtifact={(id: string) => {
+                            console.log("Selected artifact:", id);
+                        }}
+                    />
                 </TabsContent>
 
                 <TabsContent value="browser" className="flex-1 p-4 h-full">

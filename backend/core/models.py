@@ -54,6 +54,7 @@ class Workspace(Base):
     description = Column(Text, nullable=True)
     status = Column(String, default=WorkspaceStatus.ACTIVE.value)
     plan_tier = Column(String, default="standard")
+    satellite_api_key = Column(String, nullable=True, unique=True, index=True)
     
     # Autonomous Agent Guardrails
     is_startup = Column(Boolean, default=False)
@@ -747,6 +748,8 @@ class CanvasAudit(Base):
     """
     Audit trail for canvas actions with governance tracking.
     Records all presentations (charts, markdown, forms) and submissions.
+
+    Extended with session_id for session isolation (February 2026).
     """
     __tablename__ = "canvas_audit"
 
@@ -756,9 +759,10 @@ class CanvasAudit(Base):
     agent_execution_id = Column(String, nullable=True, index=True)
     user_id = Column(String, nullable=False, index=True)
     canvas_id = Column(String, nullable=True, index=True)
+    session_id = Column(String, nullable=True, index=True)  # Session isolation (NEW)
     component_type = Column(String, nullable=False)  # 'chart', 'markdown', 'form', etc.
     component_name = Column(String, nullable=True)  # 'line_chart', 'bar_chart', etc.
-    action = Column(String, nullable=False)  # 'present', 'close', 'submit'
+    action = Column(String, nullable=False)  # 'present', 'close', 'submit', 'update'
     audit_metadata = Column(JSON, default={})  # Renamed from 'metadata' (reserved)
     governance_check_passed = Column(Boolean, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
@@ -784,3 +788,273 @@ class AgentTraceStep(Base):
     # Relationships
     execution = relationship("AgentExecution", backref="trace_steps")
 
+
+class BrowserSession(Base):
+    """
+    Browser session tracking for browser automation.
+
+    Records all browser sessions created by agents with full audit trail.
+    """
+    __tablename__ = "browser_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, nullable=False, unique=True, index=True)  # External session ID
+    workspace_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    # ... rest of BrowserSession if exists in file ...
+
+class Artifact(Base):
+    """
+    Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
+    """
+    __tablename__ = "artifacts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    session_id = Column(String, nullable=True, index=True) # Logical link to chat session
+    
+    name = Column(String, nullable=False)
+    type = Column(String, nullable=False) # 'code', 'markdown', etc.
+    content = Column(Text, nullable=False)
+    metadata_json = Column(JSON, default={})
+    
+    version = Column(Integer, default=1)
+    is_locked = Column(Boolean, default=False)
+    locked_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    author_id = Column(String, ForeignKey("users.id"), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+
+    # Relationships
+    author = relationship("User", foreign_keys=[author_id])
+    locked_by = relationship("User", foreign_keys=[locked_by_user_id])
+    workspace = relationship("Workspace")
+
+class ArtifactVersion(Base):
+    """
+    Immutable snapshots of artifact states for time-travel/versioning.
+    """
+    __tablename__ = "artifact_versions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    artifact_id = Column(String, ForeignKey("artifacts.id", ondelete="CASCADE"), nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    
+    content = Column(Text, nullable=False)
+    metadata_json = Column(JSON, default={})
+    
+    author_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    artifact = relationship("Artifact", backref="versions")
+    author = relationship("User")
+    
+    # Session Details
+    url = Column(String, nullable=True)
+    title = Column(String, nullable=True)
+    status = Column(String, default="active") # active, closed, error
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    agent = relationship("AgentRegistry")
+    execution = relationship("AgentExecution")
+
+class DeviceNode(Base):
+    """
+    Registry of compute nodes (Desktop, Mobile, Cloud) available for orchestration.
+    Backported from Atom SaaS for standard device targeting.
+    """
+    __tablename__ = "device_nodes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+
+    # Node Identity
+    name = Column(String, nullable=False)
+    device_id = Column(String, nullable=False, index=True) # Unique hardware/client ID
+    node_type = Column(String, nullable=False) # desktop_windows, desktop_mac, mobile_ios, etc.
+
+    # Connectivity
+    status = Column(String, default="offline") # online, offline, busy
+    last_seen = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Capabilities (JSON list of strings)
+    capabilities = Column(JSON, default=[]) # e.g. ["browser", "terminal", "file_system"]
+    capabilities_detailed = Column(JSON, nullable=True)  # Detailed capability info
+
+    # Platform information
+    platform = Column(String, nullable=True)  # darwin, windows, linux
+    platform_version = Column(String, nullable=True)
+    architecture = Column(String, nullable=True)  # x86_64, arm64, etc.
+
+    # Version information
+    tauri_version = Column(String, nullable=True)
+    app_version = Column(String, nullable=True)
+    version = Column(String, nullable=True)  # Legacy, keep for compatibility
+
+    # Hardware information
+    hardware_info = Column(JSON, nullable=True)  # CPU, RAM, GPU, etc.
+
+    # Metadata
+    metadata_json = Column(JSON, default={})
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace", backref="device_nodes")
+    user_id = Column(String, nullable=False, index=True)
+
+class DeviceSession(Base):
+    """
+    Device session tracking for device operations.
+
+    Records ongoing device sessions (camera, screen recording, command execution)
+    with full audit trail and governance tracking.
+    """
+    __tablename__ = "device_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, nullable=False, unique=True, index=True)  # External session ID
+    workspace_id = Column(String, nullable=True, index=True)
+    device_node_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+
+    # Session details
+    session_type = Column(String, nullable=False)  # camera, screen_record, command, location, notification
+    status = Column(String, default="active")  # active, closed, error
+    configuration = Column(JSON, nullable=True)  # Session-specific configuration
+
+    # Metadata
+    metadata_json = Column(JSON, nullable=True)
+    governance_check_passed = Column(Boolean, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry")
+    execution = relationship("AgentExecution")
+
+class DeviceAudit(Base):
+    """
+    Audit trail for device automation actions.
+
+    Records all device operations (camera, screen recording, location, notifications,
+    command execution) with full governance tracking and attribution.
+    """
+    __tablename__ = "device_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, nullable=True, index=True)
+    agent_execution_id = Column(String, nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    device_node_id = Column(String, nullable=False, index=True)
+    session_id = Column(String, nullable=True, index=True)
+
+    # Action details
+    action_type = Column(String, nullable=False)  # camera_snap, screen_record_start, location, etc.
+    action_params = Column(JSON, nullable=True)  # Full parameters for reproducibility
+
+    # Results
+    success = Column(Boolean, nullable=False)
+    result_summary = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    result_data = Column(JSON, nullable=True)  # Structured result data
+    file_path = Column(Text, nullable=True)  # For camera/screen recordings
+
+    # Metadata
+    duration_ms = Column(Integer, nullable=True)
+    governance_check_passed = Column(Boolean, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class BrowserAudit(Base):
+    """
+    Audit trail for browser automation actions.
+
+    Records all browser operations (navigate, click, fill, screenshot, etc.)
+    with full governance tracking and attribution.
+    """
+    __tablename__ = "browser_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, nullable=True, index=True)
+    agent_execution_id = Column(String, nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    session_id = Column(String, ForeignKey("browser_sessions.session_id"), nullable=False, index=True)
+
+    # Action details
+    action_type = Column(String, nullable=False)  # navigate, click, fill, screenshot, extract, execute
+    action_target = Column(Text, nullable=True)  # URL, selector, script, etc.
+    action_params = Column(JSON, default={})  # Full parameters for reproducibility
+
+    # Results
+    success = Column(Boolean, nullable=False)
+    result_summary = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    result_data = Column(JSON, default={})  # Structured result data
+
+    # Metadata
+    duration_ms = Column(Integer, nullable=True)
+    governance_check_passed = Column(Boolean, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    session = relationship("BrowserSession", backref="actions")
+
+
+class DeepLinkAudit(Base):
+    """
+    Audit trail for deep link invocations.
+
+    Records all deep link executions (agent, workflow, canvas, tool)
+    with full governance tracking and attribution.
+    """
+    __tablename__ = "deep_link_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+
+    # Deep link details
+    resource_type = Column(String, nullable=False)  # 'agent', 'workflow', 'canvas', 'tool'
+    resource_id = Column(String, nullable=False)
+    action = Column(String, nullable=False)
+    source = Column(String, default="external")  # external_app, browser, etc.
+
+    # Full context
+    deeplink_url = Column(Text, nullable=False)
+    parameters = Column(JSON, nullable=True)
+
+    # Results
+    status = Column(String, default="success")  # success, failed, error
+    error_message = Column(Text, nullable=True)
+    governance_check_passed = Column(Boolean, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry")
+    execution = relationship("AgentExecution")
