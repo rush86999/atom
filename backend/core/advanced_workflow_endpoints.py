@@ -15,6 +15,7 @@ from .advanced_workflow_system import (
     ParameterType, InputParameter, StateManager,
     ParameterValidator, ExecutionEngine
 )
+from .workflow_template_manager import WorkflowTemplateManager, get_workflow_template_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -22,6 +23,7 @@ router = APIRouter()
 # Initialize global instances
 state_manager = StateManager()
 execution_engine = ExecutionEngine(state_manager)
+template_manager = get_workflow_template_manager()
 
 # Request/Response Models
 class CreateWorkflowRequest(BaseModel):
@@ -372,29 +374,39 @@ async def get_required_inputs(workflow_id: str):
 
 # Template Management
 @router.get("/workflows/templates", response_model=List[Dict[str, Any]])
-async def list_workflow_templates(category: Optional[str] = None):
+async def list_workflow_templates(
+    category: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    active_only: bool = True
+):
     """List available workflow templates"""
     try:
-        # TODO: Implement template listing from file storage
-        templates = []
+        templates = template_manager.list_templates(
+            category=category,
+            tags=tags,
+            active_only=active_only
+        )
 
-        return templates
+        return [template.dict() for template in templates]
 
     except Exception as e:
         logger.error(f"Failed to list workflow templates: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/workflows/templates", response_model=Dict[str, Any])
-async def create_workflow_template(template: WorkflowTemplate):
+async def create_workflow_template(template: Dict[str, Any]):
     """Create a workflow template"""
     try:
-        # TODO: Implement template creation and storage
+        created_template = template_manager.create_template(template)
+
         return {
             "status": "success",
-            "template_id": template.template_id,
-            "message": "Template created"
+            "template_id": created_template.template_id,
+            "template": created_template.dict()
         }
 
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to create workflow template: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -406,12 +418,24 @@ async def create_workflow_from_template(
 ):
     """Create a new workflow from a template"""
     try:
-        # TODO: Implement template-based workflow creation
+        # Get workflow definition from template
+        workflow_definition = template_manager.create_workflow_from_template(
+            template_id=template_id,
+            workflow_data=workflow_data
+        )
+
+        # Create the workflow
+        workflow = await execution_engine.create_workflow(workflow_definition)
+
         return {
             "status": "success",
-            "message": f"Workflow created from template {template_id}"
+            "workflow_id": workflow.workflow_id,
+            "template_id": template_id,
+            "workflow": serialize_workflow(workflow)
         }
 
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to create workflow from template {template_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

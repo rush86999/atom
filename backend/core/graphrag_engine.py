@@ -8,6 +8,7 @@ import logging
 import os
 import json
 import uuid
+import re
 from typing import Dict, Any, List, Optional, Set
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -144,19 +145,182 @@ JSON Schema:
             logger.error(f"LLM extraction failed: {e}")
             return [], []
 
+    # ==================== PATTERN-BASED EXTRACTION FALLBACK ====================
+
+    def _pattern_extract_entities_and_relationships(
+        self, text: str, doc_id: str, source: str
+    ) -> tuple[List[Entity], List[Relationship]]:
+        """
+        Extract entities using regex patterns when LLM is unavailable.
+        Falls back to pattern matching for common entity types.
+        """
+        entities = []
+        relationships = []
+        entity_names = set()
+
+        try:
+            # 1. Email addresses
+            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            for match in re.finditer(email_pattern, text):
+                email = match.group()
+                if email not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=email,
+                        entity_type="email",
+                        description=f"Email address found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(email)
+
+            # 2. URLs / Web addresses
+            url_pattern = r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))[^\s]*'
+            for match in re.finditer(url_pattern, text):
+                url = match.group()
+                if url not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=url,
+                        entity_type="url",
+                        description=f"URL found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(url)
+
+            # 3. Phone numbers (US format)
+            phone_pattern = r'\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b'
+            for match in re.finditer(phone_pattern, text):
+                phone = match.group()
+                if phone not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=phone,
+                        entity_type="phone",
+                        description=f"Phone number found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(phone)
+
+            # 4. Dates (multiple formats)
+            date_patterns = [
+                r'\b\d{4}-\d{2}-\d{2}\b',  # ISO format: 2024-01-15
+                r'\b\d{2}/\d{2}/\d{4}\b',  # US format: 01/15/2024
+                r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s,]+\d{1,2}[,\\s]+\d{4}\b',  # Jan 15, 2024
+            ]
+            for date_pattern in date_patterns:
+                for match in re.finditer(date_pattern, text, re.IGNORECASE):
+                    date_str = match.group()
+                    if date_str not in entity_names:
+                        entities.append(Entity(
+                            id=str(uuid.uuid4()),
+                            name=date_str,
+                            entity_type="date",
+                            description=f"Date found in document",
+                            properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                        ))
+                        entity_names.add(date_str)
+
+            # 5. Currency amounts
+            currency_pattern = r'\$[\d,]+(?:\.\d{2})?|\b\d+\.?\d*\s?(?:USD|EUR|GBP|dollars?|euros?|pounds?)\b'
+            for match in re.finditer(currency_pattern, text, re.IGNORECASE):
+                amount = match.group()
+                if amount not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=amount,
+                        entity_type="currency",
+                        description=f"Currency amount found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(amount)
+
+            # 6. File paths
+            file_path_pattern = r'[/\\][\w\-._/\\]*\.[\w]{2,4}\b'
+            for match in re.finditer(file_path_pattern, text):
+                path = match.group()
+                if path not in entity_names and len(path) > 5:  # Avoid false positives
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=path,
+                        entity_type="file_path",
+                        description=f"File path found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(path)
+
+            # 7. IP addresses
+            ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+            for match in re.finditer(ip_pattern, text):
+                ip = match.group()
+                # Validate IP range
+                if all(0 <= int(octet) <= 255 for octet in ip.split('.')):
+                    if ip not in entity_names:
+                        entities.append(Entity(
+                            id=str(uuid.uuid4()),
+                            name=ip,
+                            entity_type="ip_address",
+                            description=f"IP address found in document",
+                            properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                        ))
+                        entity_names.add(ip)
+
+            # 8. Hash/UUID patterns
+            uuid_pattern = r'\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b'
+            for match in re.finditer(uuid_pattern, text):
+                uuid_str = match.group()
+                if uuid_str not in entity_names:
+                    entities.append(Entity(
+                        id=str(uuid.uuid4()),
+                        name=uuid_str,
+                        entity_type="uuid",
+                        description=f"UUID found in document",
+                        properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
+                    ))
+                    entity_names.add(uuid_str)
+
+            # 9. Simple relationships (e.g., "X is Y", "X works at Y")
+            relationship_patterns = [
+                (r'(\w+(?:\s+\w+)*)\s+(?:is|works at|employed by|belongs to)\s+(\w+(?:\s+\w+)*)', "affiliated_with"),
+                (r'(\w+(?:\s+\w+)*)\s+(?:reports to|managed by)\s+(\w+(?:\s+\w+)*)', "reports_to"),
+                (r'(\w+(?:\s+\w+)*)\s+(?:located in|based in|at)\s+(\w+(?:\s+\w+)*)', "located_in"),
+            ]
+
+            for pattern, rel_type in relationship_patterns:
+                for match in re.finditer(pattern, text, re.IGNORECASE):
+                    from_entity = match.group(1).strip()
+                    to_entity = match.group(2).strip()
+
+                    # Only create relationship if both entities were found
+                    if from_entity in entity_names and to_entity in entity_names:
+                        relationships.append(Relationship(
+                            id=str(uuid.uuid4()),
+                            from_entity=from_entity,
+                            to_entity=to_entity,
+                            rel_type=rel_type,
+                            description=f"Relationship extracted via pattern matching",
+                            properties={"pattern_extracted": True}
+                        ))
+
+            logger.info(f"Pattern extraction found {len(entities)} entities and {len(relationships)} relationships")
+
+        except Exception as e:
+            logger.error(f"Pattern extraction failed: {e}")
+
+        return entities, relationships
+
     # ==================== INGESTION ORCHESTRATOR ====================
 
     def ingest_document(self, workspace_id: str, doc_id: str, text: str, source: str = "unknown"):
         """Ingest raw text -> Extract -> Store in Postgres"""
-        
+
         # 1. Extract
         if self._is_llm_available(workspace_id):
+            logger.info(f"Using LLM-based extraction for document {doc_id}")
             entities, relationships = self._llm_extract_entities_and_relationships(text, doc_id, source, workspace_id)
         else:
-            # Fallback to simple patterns (simplified for V2)
-            entities, relationships = [], []
-            # TODO: Add pattern fallback if needed
-            
+            logger.warning(f"LLM unavailable for workspace {workspace_id}, using pattern-based fallback")
+            entities, relationships = self._pattern_extract_entities_and_relationships(text, doc_id, source)
+
         if not entities and not relationships:
             logger.info("No entities extracted.")
             return
@@ -165,7 +329,7 @@ JSON Schema:
         # Convert dataclasses to dicts for ingest_structured_data
         e_dicts = [{"name": e.name, "type": e.entity_type, "description": e.description, "properties": e.properties} for e in entities]
         r_dicts = [{"from": r.from_entity, "to": r.to_entity, "type": r.rel_type, "properties": r.properties} for r in relationships]
-        
+
         self.ingest_structured_data(workspace_id, e_dicts, r_dicts)
 
     # ==================== WRITE OPERATIONS (SQL) ====================

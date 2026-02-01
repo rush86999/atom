@@ -89,35 +89,59 @@ class TeamsAdapter(PlatformAdapter):
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Bearer "):
             return False
-            
+
         token = auth_header.split(" ")[1]
-        
+
         try:
-            # In a full implementation, we need to decode header to find 'kid', 
-            # match with keys, and verify signature.
-            # Doing a full manual verification here is complex. 
-            # We rely on 'python-jose' or skipping strict check in MVP if needed.
-            
-            # For this implementation, we will fetch keys but wrap the verify in try/except 
-            # assuming standard claims check.
-            
-            keys = await self._get_jwks_keys()
-            
-            # python-jose verify might need the exact key structure.
-            # Simplified: Decode without verification if in DEV, or try best effort.
-            # Warning: Production requires strict verification.
-            
-            # Start with unverified decode to check audience
-            claims = jwt.get_unverified_claims(token)
-            if claims.get("aud") != self.app_id:
+            # Decode JWT header to get key ID (kid)
+            header = jwt.get_unverified_header(token)
+            kid = header.get("kid")
+
+            if not kid:
+                logger.error("JWT header missing 'kid' parameter")
                 return False
-                
-            # If we are here, at least audience matches. 
-            # Real signature verification requires matching `kid` to the JWK.
-            # Leaving strict signature check as a TODO/Upgrade for production scaling
-            # unless we use the heavy BotBuilder SDK.
+
+            # Fetch JWKS keys from Microsoft
+            keys = await self._get_jwks_keys()
+            if not keys:
+                logger.error("Failed to fetch JWKS keys from Microsoft")
+                return False
+
+            # Find matching key by kid
+            public_key = None
+            for key in keys:
+                if key.get("kid") == kid:
+                    try:
+                        # Construct public key from JWK
+                        public_key = jwk.construct(key).to_pem()
+                        break
+                    except Exception as e:
+                        logger.error(f"Failed to construct public key from JWK: {e}")
+                        return False
+
+            if not public_key:
+                logger.error(f"No matching JWK found for kid: {kid}")
+                return False
+
+            # Verify signature AND claims
+            # Use RS256 algorithm (Microsoft's standard)
+            claims = jwt.decode(
+                token,
+                public_key,
+                algorithms=["RS256"],
+                audience=self.app_id,
+                issuer=["https://api.botframework.com", "https://sts.windows.net/"]
+            )
+
+            logger.info(f"JWT verified successfully for app: {claims.get('aud')}")
             return True
-            
+
+        except jwt.ExpiredSignatureError:
+            logger.error("Teams Token Verification Failed: Token expired")
+            return False
+        except jwt.JWTError as e:
+            logger.error(f"Teams Token Verification Failed: {e}")
+            return False
         except Exception as e:
             logger.error(f"Teams Token Verification Failed: {e}")
             return False

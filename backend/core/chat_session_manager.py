@@ -17,11 +17,12 @@ from sqlalchemy import desc
 # Conditional Import to avoid circular dependencies if simple script
 try:
     from core.database import SessionLocal
-    from core.models import ChatSession
+    from core.models import ChatSession, ChatMessage
     DB_AVAILABLE = True
 except ImportError:
     SessionLocal = None
     ChatSession = None
+    ChatMessage = None
     DB_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -190,6 +191,22 @@ class ChatSessionManager:
             try:
                 session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
                 if session:
+                    # Fetch chat history from ChatMessage table
+                    messages = db.query(ChatMessage)\
+                        .filter(ChatMessage.conversation_id == session_id)\
+                        .order_by(desc(ChatMessage.created_at))\
+                        .limit(100)\
+                        .all()
+
+                    history = [
+                        {
+                            "role": msg.role,
+                            "content": msg.content,
+                            "created_at": msg.created_at.isoformat() if msg.created_at else None
+                        }
+                        for msg in messages
+                    ]
+
                     return {
                         "session_id": session.id,
                         "user_id": session.user_id,
@@ -197,7 +214,7 @@ class ChatSessionManager:
                         "last_active": session.updated_at.isoformat() if session.updated_at else None,
                         "metadata": session.metadata_json or {},
                         "message_count": session.message_count,
-                        "history": [] # TODO: Fetch history from ChatMessage table if needed here
+                        "history": history
                     }
             except Exception as e:
                  if self.persistence_mode == "STRICT_DB":
@@ -206,9 +223,12 @@ class ChatSessionManager:
                  logger.warning(f"DB Get Session failed: {e}")
             finally:
                 db.close()
-        
+
         if self.persistence_mode == "STRICT_DB":
             return None # Do not fall back to file implementation
+
+        # File fallback
+        sessions = self._load_sessions_file()
         return next((s for s in sessions if s['session_id'] == session_id), None)
     
     def update_session_activity(self, session_id: str, history: List[Dict] = None, last_message: str = None):
