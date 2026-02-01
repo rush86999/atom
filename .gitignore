@@ -747,3 +747,4 @@ unresolved.txt
 # Test results
 test-results/
 playwright-report/
+.archive/
