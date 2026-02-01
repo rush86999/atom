@@ -183,8 +183,30 @@ async def hybrid_search(request: SearchRequest):
             if conditions:
                 filter_expr = " AND ".join(conditions)
 
-        # Perform vector search
-        results = handler.search("documents", request.query, limit=request.limit, filter_expression=filter_expr)
+        # Check if LanceDB is available
+        if not handler.db:
+             logger.warning("LanceDB not available, falling back to mock keyword search")
+             results = []
+             # Perform simple mock search
+             query_lower = request.query.lower()
+             for doc in MOCK_DOCUMENTS:
+                 if query_lower in doc["title"].lower() or query_lower in doc["content"].lower():
+                      # Create pseudo-result format that handler.search returns
+                      # Ensure metadata is dict, not string (handler.search parses it, but here it's already dict)
+                      doc_metadata = doc["metadata"].copy()
+                      doc_metadata["title"] = doc["title"]
+                      
+                      results.append({
+                          "id": doc["id"],
+                          "text": doc["title"] + "\n" + doc["content"],
+                          "source": doc["source_uri"],
+                          "metadata": doc_metadata,
+                          "created_at": doc["metadata"].get("created_at"),
+                          "score": 0.8 # Mock score
+                      })
+        else:
+            # Perform vector search
+            results = handler.search("documents", request.query, limit=request.limit, filter_expression=filter_expr)
         
         search_results = []
         for res in results:

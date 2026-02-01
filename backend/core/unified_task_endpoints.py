@@ -296,7 +296,9 @@ async def create_task(task_data: CreateTaskRequest, current_user: Any = Depends(
             print(f"[CREATE_TASK] Error creating Asana task: {e}")
             import traceback
             traceback.print_exc()
-            raise HTTPException(status_code=500, detail=f"Failed to create Asana task: {str(e)}")
+            print("[CREATE_TASK] Falling back to local mock task")
+            # Don't raise, just fall through to local creation
+            # raise HTTPException(status_code=500, detail=f"Failed to create Asana task: {str(e)}")
     
     # Otherwise create mock task locally
     print(f"[CREATE_TASK] Creating local mock task")

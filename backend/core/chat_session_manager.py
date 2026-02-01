@@ -36,9 +36,27 @@ class ChatSessionManager:
         self.workspace_id = "default" # Single-tenant: always use default
         self.sessions_file = sessions_file or SESSIONS_FILE
         
+        # Determine persistence mode
+        self.persistence_mode = os.getenv("CHAT_PERSISTENCE_MODE", "HYBRID").upper()
+        
         # Determine if we should use DB
         self.use_db = False
-        if DB_AVAILABLE and SessionLocal:
+        
+        if self.persistence_mode == "STRICT_DB":
+            if not (DB_AVAILABLE and SessionLocal):
+                raise RuntimeError("CHAT_PERSISTENCE_MODE is STRICT_DB but database dependencies are missing!")
+            
+            # Verify connection
+            try:
+                db = SessionLocal()
+                db.execute("SELECT 1")
+                db.close()
+                self.use_db = True
+                logger.info("ChatSessionManager initialized in STRICT_DB mode.")
+            except Exception as e:
+                raise RuntimeError(f"CHAT_PERSISTENCE_MODE is STRICT_DB but database connection failed: {e}")
+                
+        elif DB_AVAILABLE and SessionLocal:
              # Check if we can actually connect (simple check)
              try:
                  # Optional: Add logic to force file mode via env var if needed
@@ -47,8 +65,12 @@ class ChatSessionManager:
              except Exception:
                  logger.warning("DB available but configuration check failed. Defaulting to file.")
         
-        if not self.use_db:
+        # Initialize file fallback ONLY if not in strict mode
+        if not self.use_db and self.persistence_mode != "STRICT_DB":
              self._ensure_file()
+        elif not self.use_db and self.persistence_mode == "STRICT_DB":
+             # Should be unreachable due to exception above, but safety check
+             raise RuntimeError("Failed to initialize DB in STRICT_DB mode")
 
     def _ensure_file(self):
         """Ensure sessions file exists"""
@@ -67,7 +89,26 @@ class ChatSessionManager:
             return []
             
     def _load_sessions(self) -> List[Dict[str, Any]]:
-        """Backward compatibility alias for _load_sessions_file"""
+        """Load sessions from DB if available, else file"""
+        if self.use_db:
+             # Warning: This loads ALL sessions. Use carefully.
+            db = SessionLocal()
+            try:
+                sessions = db.query(ChatSession).all()
+                return [{
+                    "session_id": s.id,
+                    "user_id": s.user_id,
+                    "title": s.title, # Added title
+                    "created_at": s.created_at.isoformat() if s.created_at else None,
+                    "last_active": s.updated_at.isoformat() if s.updated_at else None,
+                    "history": [], # Heavy payload skipped
+                    "metadata": s.metadata_json or {}
+                } for s in sessions]
+            except Exception as e:
+                 logger.error(f"DB Load All Sessions failed: {e}")
+            finally:
+                db.close()
+                
         return self._load_sessions_file()
     
     def _save_sessions_file(self, sessions: List[Dict[str, Any]]):
@@ -112,11 +153,19 @@ class ChatSessionManager:
                 logger.info(f"Created DB session: {session_id}")
                 return session_id
             except Exception as e:
+                if self.persistence_mode == "STRICT_DB":
+                    logger.error(f"DB Create Session failed in STRICT_DB mode: {e}")
+                    db.rollback()
+                    raise RuntimeError(f"Database write failed in STRICT_DB mode: {e}")
+                
                 logger.error(f"DB Create Session failed: {e}. Falling back to file.")
                 db.rollback()
                 # Fallthrough to file
             finally:
                 db.close()
+
+        if self.persistence_mode == "STRICT_DB":
+             raise RuntimeError("Critical Error: DB flow passed but no session returned")
 
         # 2. File Path (Fallback or Primary)
         sessions = self._load_sessions_file()
@@ -151,12 +200,15 @@ class ChatSessionManager:
                         "history": [] # TODO: Fetch history from ChatMessage table if needed here
                     }
             except Exception as e:
+                 if self.persistence_mode == "STRICT_DB":
+                    logger.error(f"DB Get Session failed in STRICT_DB mode: {e}")
+                    raise RuntimeError(f"Database read failed in STRICT_DB mode: {e}")
                  logger.warning(f"DB Get Session failed: {e}")
             finally:
                 db.close()
-
-        # 2. File Path
-        sessions = self._load_sessions_file()
+        
+        if self.persistence_mode == "STRICT_DB":
+            return None # Do not fall back to file implementation
         return next((s for s in sessions if s['session_id'] == session_id), None)
     
     def update_session_activity(self, session_id: str, history: List[Dict] = None, last_message: str = None):
@@ -175,9 +227,15 @@ class ChatSessionManager:
                     db.commit()
                     return # Success
             except Exception as e:
+                if self.persistence_mode == "STRICT_DB":
+                    logger.error(f"DB Update Session failed in STRICT_DB mode: {e}")
+                    raise RuntimeError(f"Database update failed in STRICT_DB mode: {e}")
                 logger.error(f"DB Update Session failed: {e}")
             finally:
                 db.close()
+        
+        if self.persistence_mode == "STRICT_DB":
+            return # Do not fall back to file implementation
 
         # 2. File Path
         sessions = self._load_sessions_file()
@@ -225,15 +283,51 @@ class ChatSessionManager:
                              .limit(limit)\
                              .all()
                 
-                return [{
+                # Convert DB sessions to dicts
+                results = [{
                     "session_id": s.id,
                     "user_id": s.user_id,
+                    "title": s.title,
                     "created_at": s.created_at.isoformat() if s.created_at else None,
                     "last_active": s.updated_at.isoformat() if s.updated_at else None,
                     "metadata": s.metadata_json or {},
                     "message_count": s.message_count,
                     "history": [] # Lightweight list
                 } for s in sessions]
+
+
+
+                # STRICT_DB: Return only DB results
+                if self.persistence_mode == "STRICT_DB":
+                    return results
+
+                # HYBRID MERGE: Also load from file and append any missing ones
+                # This handles the case where we switched to DB mode but have old file sessions
+                try:
+                    file_sessions = self._load_sessions_file()
+                    db_ids = {r["session_id"] for r in results}
+                    
+                    # Filter for this user and not in DB
+                    legacy_sessions = [
+                        s for s in file_sessions 
+                        if s.get("user_id") == user_id and s.get("session_id") not in db_ids
+                    ]
+                    
+                    # Sort legacy sessions
+                    legacy_sessions.sort(key=lambda x: x.get('last_active', ''), reverse=True)
+                    
+                    # Append (respecting limit if needed, though we might go over)
+                    results.extend(legacy_sessions)
+                    
+                    # Re-sort combined results
+                    results.sort(key=lambda x: x.get('last_active', '') or '', reverse=True)
+                    
+                    return results[:limit]
+                    
+                except Exception as e:
+                    logger.warning(f"Hybrid merge failed: {e}")
+                    return results # Return at least DB results
+
             except Exception as e:
                 logger.error(f"DB List Sessions failed: {e}")
             finally:
@@ -271,7 +365,45 @@ class ChatSessionManager:
             self._save_sessions_file(sessions)
             deleted = True
             
+            
         return deleted
+
+    def rename_session(self, session_id: str, new_title: str) -> bool:
+        """Rename a session"""
+        
+        # 1. Database Path
+        if self.use_db:
+            db = SessionLocal()
+            try:
+                session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+                if session:
+                    session.title = new_title
+                    session.updated_at = datetime.utcnow()
+                    db.commit()
+                    # We continue to file sync for hybrid safety if desired,
+                    # but usually for true hybrid we just rely on DB if active.
+                    # For now, let's keep them in sync if file exists.
+            except Exception as e:
+                logger.error(f"DB Rename Session failed: {e}")
+                return False
+            finally:
+                db.close()
+
+        # 2. File Path (Always try to sync file for consistency in hybrid mode)
+        sessions = self._load_sessions_file()
+        updated = False
+        for session in sessions:
+            if session['session_id'] == session_id:
+                session['title'] = new_title
+                session['last_active'] = datetime.utcnow().isoformat()
+                updated = True
+                break
+        
+        if updated:
+            self._save_sessions_file(sessions)
+            
+        return updated or self.use_db # Return true if either DB or File updated successfully
+
 
 # Global instance
 chat_session_manager = ChatSessionManager()
