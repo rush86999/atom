@@ -105,7 +105,7 @@ async def create_workflow(request: CreateWorkflowRequest):
         logger.error(f"Failed to create workflow: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/workflows", response_model=List[Dict[str, Any]])
+@router.get("/workflows")
 async def list_workflows(
     state: Optional[WorkflowState] = None,
     category: Optional[str] = None,
@@ -114,14 +114,30 @@ async def list_workflows(
 ):
     """List workflows with optional filtering"""
     try:
-        # For MVP, load from memory (in production, use database)
-        # This is a simplified implementation
-        workflows = []
+        # Use state manager to list all workflows
+        # Map WorkflowState enum to status string if provided
+        status_filter = None
+        if state is not None:
+            # Convert enum to string (e.g., WorkflowState.ACTIVE -> "active")
+            status_filter = state.name.lower() if isinstance(state, WorkflowState) else state
 
-        # TODO: Implement proper workflow listing from state manager
-        # For now, return empty list with proper structure
+        workflows = state_manager.list_workflows(status=status_filter)
 
-        return workflows
+        # Apply additional category filter if provided
+        if category:
+            workflows = [w for w in workflows if w.get("category") == category]
+
+        # Apply pagination
+        total_count = len(workflows)
+        workflows = workflows[offset:offset + limit]
+
+        # Return workflows with pagination metadata
+        return {
+            "workflows": workflows,
+            "total": total_count,
+            "offset": offset,
+            "limit": limit
+        }
 
     except Exception as e:
         logger.error(f"Failed to list workflows: {e}")

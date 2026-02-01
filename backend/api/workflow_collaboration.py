@@ -406,7 +406,7 @@ async def get_active_locks(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/shares", response_model=WorkflowShare)
+@router.post("/shares")
 async def create_workflow_share(
     request: CreateShareRequest,
     user_id: str = Query(..., description="User ID creating share"),
@@ -478,7 +478,7 @@ async def revoke_workflow_share(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/comments", response_model=CollaborationComment)
+@router.post("/comments")
 async def add_comment(
     request: CreateCommentRequest,
     user_id: str = Query(..., description="User ID adding comment"),
