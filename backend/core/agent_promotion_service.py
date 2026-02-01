@@ -315,7 +315,7 @@ class AgentPromotionService:
         total_criteria += 1
         executions = self.db.query(AgentExecution).filter(
             AgentExecution.agent_id == agent.id,
-            AgentExecution.created_at >= datetime.now() - timedelta(days=30)
+            AgentExecution.started_at >= datetime.now() - timedelta(days=30)
         ).all()
 
         if executions:
