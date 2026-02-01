@@ -758,3 +758,225 @@ async def close_canvas(user_id: str, session_id: Optional[str] = None):
     except Exception as e:
         logger.error(f"Failed to close canvas: {e}")
         return {"success": False, "error": str(e)}
+
+
+async def canvas_execute_javascript(
+    user_id: str,
+    canvas_id: str,
+    javascript: str,
+    agent_id: str,  # Required - must be AUTONOMOUS
+    session_id: Optional[str] = None,
+    timeout_ms: int = 5000
+):
+    """
+    Execute JavaScript in a canvas context (AUTONOMOUS agents only).
+
+    WARNING: This function requires AUTONOMOUS maturity level due to security risks.
+    JavaScript execution can manipulate the DOM, access browser APIs, and perform
+    arbitrary client-side actions.
+
+    Args:
+        user_id: User ID to execute JavaScript for
+        canvas_id: Canvas ID to execute JavaScript in
+        javascript: JavaScript code to execute
+        agent_id: Agent ID performing the execution (must be AUTONOMOUS)
+        session_id: Optional session ID for session isolation
+        timeout_ms: Execution timeout in milliseconds (default: 5000)
+
+    Returns:
+        Dict with success status and execution details
+
+    Example:
+        # Update document title
+        await canvas_execute_javascript(
+            user_id="user-1",
+            canvas_id="canvas-123",
+            javascript="document.title = 'Updated Title';",
+            agent_id="agent-autonomous-1"
+        )
+
+        # Manipulate DOM
+        await canvas_execute_javascript(
+            user_id="user-1",
+            canvas_id="canvas-123",
+            javascript="document.getElementById('chart').style.height = '500px';",
+            agent_id="agent-autonomous-1"
+        )
+    """
+    from core.database import SessionLocal
+
+    agent = None
+    agent_execution = None
+    governance_check = None
+
+    try:
+        # Security: Require agent_id (no anonymous execution)
+        if not agent_id:
+            logger.warning("JavaScript execution blocked: No agent_id provided")
+            return {
+                "success": False,
+                "error": "JavaScript execution requires an explicit agent_id (AUTONOMOUS only)"
+            }
+
+        # Governance: Resolve agent and check permissions
+        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+            with SessionLocal() as db:
+                resolver = AgentContextResolver(db)
+                governance = AgentGovernanceService(db)
+
+                # Resolve agent
+                agent, resolution_context = await resolver.resolve_agent_for_request(
+                    user_id=user_id,
+                    requested_agent_id=agent_id,
+                    action_type="canvas_execute_javascript"
+                )
+
+                # Check governance (AUTONOMOUS required)
+                if agent:
+                    governance_check = governance.can_perform_action(
+                        agent_id=agent.id,
+                        action_type="canvas_execute_javascript"
+                    )
+
+                    if not governance_check["allowed"]:
+                        logger.warning(f"Governance blocked JavaScript execution: {governance_check['reason']}")
+                        return {
+                            "success": False,
+                            "error": f"Agent not permitted to execute JavaScript: {governance_check['reason']}"
+                        }
+
+                    # Verify agent is AUTONOMOUS (double-check for security)
+                    if agent.status != "AUTONOMOUS":
+                        logger.warning(f"JavaScript execution blocked: Agent {agent.name} is {agent.status}, not AUTONOMOUS")
+                        return {
+                            "success": False,
+                            "error": f"JavaScript execution requires AUTONOMOUS maturity level. Agent {agent.name} is {agent.status}"
+                        }
+
+                    # Create agent execution record
+                    agent_execution = AgentExecution(
+                        agent_id=agent.id,
+                        workspace_id="default",
+                        status="running",
+                        input_summary=f"Execute JavaScript in canvas {canvas_id}: {javascript[:100]}...",
+                        triggered_by="canvas"
+                    )
+                    db.add(agent_execution)
+                    db.commit()
+                    db.refresh(agent_execution)
+
+                    logger.info(f"Agent execution {agent_execution.id} for canvas JavaScript execution")
+
+        # Basic JavaScript validation (security)
+        if not javascript or not javascript.strip():
+            return {
+                "success": False,
+                "error": "JavaScript code cannot be empty"
+            }
+
+        # Check for obviously dangerous patterns (basic security)
+        dangerous_patterns = [
+            "eval(", "Function(", "setTimeout(", "setInterval(",
+            "document.cookie", "localStorage.", "sessionStorage.",
+            "window.location", "window.top", "window.parent"
+        ]
+
+        javascript_lower = javascript.lower()
+        for pattern in dangerous_patterns:
+            if pattern in javascript:
+                logger.warning(f"JavaScript execution blocked: Dangerous pattern '{pattern}' detected")
+                return {
+                    "success": False,
+                    "error": f"JavaScript contains potentially dangerous pattern: {pattern}. Use of {pattern} is not allowed."
+                }
+
+        # Send JavaScript execution request via WebSocket
+        user_channel = f"user:{user_id}"
+        if session_id:
+            user_channel = f"user:{user_id}:session:{session_id}"
+
+        await ws_manager.broadcast(
+            user_channel,
+            {
+                "type": "canvas:execute",
+                "data": {
+                    "action": "execute_javascript",
+                    "canvas_id": canvas_id,
+                    "javascript": javascript,
+                    "timeout_ms": timeout_ms
+                }
+            }
+        )
+
+        # Create audit entry with JavaScript content
+        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+            with SessionLocal() as db:
+                await _create_canvas_audit(
+                    db=db,
+                    agent_id=agent.id if agent else None,
+                    agent_execution_id=agent_execution.id if agent_execution else None,
+                    user_id=user_id,
+                    canvas_id=canvas_id,
+                    session_id=session_id,
+                    component_type="javascript_execution",
+                    component_name=None,
+                    action="execute",
+                    governance_check_passed=governance_check["allowed"] if governance_check else None,
+                    metadata={
+                        "javascript": javascript,
+                        "javascript_length": len(javascript),
+                        "timeout_ms": timeout_ms,
+                        "session_id": session_id
+                    }
+                )
+
+                # Mark execution as completed
+                if agent_execution:
+                    execution = db.query(AgentExecution).filter(
+                        AgentExecution.id == agent_execution.id
+                    ).first()
+                    if execution:
+                        execution.status = "completed"
+                        execution.output_summary = f"Executed JavaScript in canvas {canvas_id} ({len(javascript)} chars)"
+                        execution.completed_at = datetime.now()
+                        db.commit()
+
+                        # Record outcome for confidence
+                        governance_service = AgentGovernanceService(db)
+                        await governance_service.record_outcome(agent.id, success=True)
+
+        logger.info(
+            f"Executed JavaScript in canvas {canvas_id} for user {user_id} "
+            f"({len(javascript)} chars)" + (f" (agent: {agent.name})" if agent else "")
+        )
+        return {
+            "success": True,
+            "canvas_id": canvas_id,
+            "javascript_length": len(javascript),
+            "agent_id": agent.id if agent else None,
+            "session_id": session_id
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to execute JavaScript: {e}")
+
+        # Mark execution as failed
+        if agent_execution and CANVAS_GOVERNANCE_ENABLED:
+            try:
+                with SessionLocal() as db:
+                    execution = db.query(AgentExecution).filter(
+                        AgentExecution.id == agent_execution.id
+                    ).first()
+                    if execution:
+                        execution.status = "failed"
+                        execution.error_message = str(e)
+                        execution.completed_at = datetime.now()
+                        db.commit()
+
+                        if agent:
+                            governance_service = AgentGovernanceService(db)
+                            await governance_service.record_outcome(agent.id, success=False)
+            except Exception as inner_e:
+                logger.error(f"Failed to record execution failure: {inner_e}")
+
+        return {"success": False, "error": str(e)}

@@ -27,6 +27,7 @@ class ConnectionManager:
         self.CANVAS_UPDATE = "canvas:update"
         self.CANVAS_CLOSE = "canvas:close"
         self.CANVAS_DELETE = "canvas:delete"
+        self.CANVAS_EXECUTE = "canvas:execute"
 
         # Device event types
         self.DEVICE_REGISTERED = "device:registered"

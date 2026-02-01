@@ -280,6 +280,7 @@ class AgentGovernanceService:
         "payment": 4,
         "approve": 4,
         "device_execute_command": 4,  # AUTONOMOUS only (command execution - security critical)
+        "canvas_execute_javascript": 4,  # AUTONOMOUS only (JavaScript execution - security critical)
     }
     
     # Minimum maturity level for each action complexity
