@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2 } from "lucide-react";
+import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText } from "lucide-react";
 import { marked } from "marked";
 import Editor from "@monaco-editor/react";
 
@@ -429,4 +429,3 @@ function CanvasContent({
     }
 }
 
-import { FileText } from "lucide-react";
