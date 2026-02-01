@@ -733,3 +733,17 @@ playwright-report/
 blob-report/
 playwright-report/
 test-results/
+.archive/
+
+# Temporary and debug files
+*.txt
+atom_dev.db
+session_debug.json
+unresolved.txt
+
+# Lock files (keep in respective directories)
+*.lock
+
+# Test results
+test-results/
+playwright-report/

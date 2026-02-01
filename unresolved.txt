@@ -1,2 +1,0 @@
-﻿backend/debug_output.txt
-backend/verification_debug.txt
