@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, ListTodo, Globe, AlertTriangle } from "lucide-react";
+import { ArtifactSidebar } from "./ArtifactSidebar";
 
 interface AgentWorkspaceProps {
     sessionId: string | null;
@@ -32,9 +33,10 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId }) => {
 
             <Tabs defaultValue="tasks" className="flex-1 flex flex-col">
                 <div className="px-4 pt-2">
-                    <TabsList className="w-full grid grid-cols-2 bg-slate-800">
-                        <TabsTrigger value="tasks" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">Tasks & Plan</TabsTrigger>
-                        <TabsTrigger value="browser" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">Browser View</TabsTrigger>
+                    <TabsList className="w-full grid grid-cols-3 bg-slate-800">
+                        <TabsTrigger value="tasks" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Tasks</TabsTrigger>
+                        <TabsTrigger value="artifacts" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Artifacts</TabsTrigger>
+                        <TabsTrigger value="browser" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Browser View</TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -42,9 +44,9 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId }) => {
                     {/* Self Reflection / Status */}
                     <Card className="bg-indigo-900/10 border-indigo-500/20">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2 text-indigo-300">
-                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                                Agent Reflection
+                            <CardTitle className="text-[10px] font-bold uppercase flex items-center gap-2 text-indigo-300">
+                                <AlertTriangle className="h-3.5 w-3.5 text-yellow-500" />
+                                Agent Strategy
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -89,6 +91,15 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId }) => {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="artifacts" className="flex-1 p-0 overflow-hidden">
+                    <ArtifactSidebar
+                        sessionId={sessionId}
+                        onSelectArtifact={(id: string) => {
+                            console.log("Selected artifact:", id);
+                        }}
+                    />
                 </TabsContent>
 
                 <TabsContent value="browser" className="flex-1 p-4 h-full">
