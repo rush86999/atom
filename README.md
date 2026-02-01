@@ -207,6 +207,29 @@ cd src && npm run dev
 - [Architecture Overview](docs/ARCHITECTURE.md) - System design and components
 - [Integration Guide](docs/INTEGRATIONS.md) - Adding new integrations
 - [Agent Governance](docs/AGENT_GOVERNANCE.md) - Understanding agent maturity and approval workflows
+- [Deep Linking](docs/DEEPLINK_IMPLEMENTATION.md) - Deep linking with atom:// URL scheme (NEW)
+- [Device Capabilities](docs/DEVICE_CAPABILITIES.md) - Hardware access for AI agents (NEW)
+- [Browser Automation](docs/BROWSER_AUTOMATION.md) - Web automation with CDP (NEW)
+
+---
+
+## ✨ Recent Features (February 2026)
+
+### 🎨 Canvas Enhancements (Phase 1 - Complete)
+- **Bidirectional Updates**: Real-time canvas updates via WebSocket
+- **Session Isolation**: Multiple users can interact with separate canvas instances
+- **Tool Registry**: Central registry for canvas tools with REST API
+- **JavaScript Execution**: AUTONOMOUS agents can execute JavaScript on canvases
+
+### 🔗 Deep Linking
+- **atom:// URL Scheme**: External apps can trigger Atom actions
+  - `atom://agent/{agent_id}?message={query}` - Invoke AI agents
+  - `atom://workflow/{workflow_id}?action={action}` - Trigger workflows
+  - `atom://canvas/{canvas_id}?action={action}` - Manipulate canvases
+  - `atom://tool/{tool_name}?params={json}` - Execute tools
+- **Security**: Full validation, governance checks, and audit trail
+- **REST API**: Execute, audit, generate, and get statistics
+- **Mobile & Web Integration**: Trigger actions from iOS, Android, or web apps
 
 ---
 

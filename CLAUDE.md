@@ -365,7 +365,65 @@ await device_execute_command(
 **Documentation**:
 - `docs/DEVICE_CAPABILITIES.md` - Full documentation
 
-### 6. Database Models
+### 6. Deep Linking System (NEW)
+
+**Purpose**: Enable external applications to trigger Atom actions via custom URL scheme
+
+**Key Files**:
+- `backend/core/deeplinks.py` - Deep link parsing and execution
+- `backend/api/deeplinks.py` - REST API endpoints
+- `backend/core/models.py` - DeepLinkAudit model
+
+**Features**:
+- **Agent Invocation** - `atom://agent/{agent_id}?message={query}` - Invoke AI agents
+- **Workflow Triggers** - `atom://workflow/{workflow_id}?action={action}` - Trigger workflows
+- **Canvas Manipulation** - `atom://canvas/{canvas_id}?action={action}` - Update canvases
+- **Tool Execution** - `atom://tool/{tool_name}?params={json}` - Execute tools
+- Full governance integration (all agent deep links require governance check)
+- Comprehensive audit trail for all deep link executions
+- URL validation and security checks
+
+**Governance**:
+- Agent deep links: Governance check for stream_chat action
+- Workflow/Canvas/Tool: No governance (system-level operations)
+
+**Usage**:
+```python
+from core.deeplinks import parse_deep_link, execute_deep_link, generate_deep_link
+
+# Parse deep link
+link = parse_deep_link("atom://agent/agent-1?message=Hello")
+
+# Execute deep link
+result = await execute_deep_link(
+    url="atom://agent/agent-1?message=Hello",
+    user_id="user-1",
+    db=db,
+    source="mobile_app"
+)
+
+# Generate deep link
+url = generate_deep_link('agent', 'agent-1', message='Hello')
+# "atom://agent/agent-1?message=Hello"
+```
+
+**API Endpoints**:
+- `POST /api/deeplinks/execute` - Execute deep link
+- `GET /api/deeplinks/audit` - Get audit log
+- `POST /api/deeplinks/generate` - Generate deep link
+- `GET /api/deeplinks/stats` - Get statistics
+
+**Security**:
+- URL format validation (scheme, resource type, resource ID)
+- Resource ID regex check (alphanumeric, dashes, underscores only)
+- Agent existence and status checks
+- Full governance integration for agent actions
+- Comprehensive audit trail
+
+**Documentation**:
+- `docs/DEEPLINK_IMPLEMENTATION.md` - Full deep linking documentation
+
+### 7. Database Models
 
 **Purpose**: SQLAlchemy models for all data persistence
 
@@ -377,9 +435,10 @@ await device_execute_command(
 - `CanvasAudit` - Canvas action audit log
 - `BrowserSession` - Browser session tracking
 - `BrowserAudit` - Browser action audit log
-- `DeviceSession` - Device session tracking (NEW)
-- `DeviceAudit` - Device action audit log (NEW)
-- `DeviceNode` - Device registry with platform info (EXTENDED)
+- `DeviceSession` - Device session tracking
+- `DeviceAudit` - Device action audit log
+- `DeviceNode` - Device registry with platform info
+- `DeepLinkAudit` - Deep link execution audit log (NEW)
 - `ChatSession` - Chat session tracking
 
 ---
@@ -408,6 +467,28 @@ alembic upgrade head  # Migration g1h2i3j4k5l6
 
 **Documentation**:
 - `docs/DEVICE_CAPABILITIES.md` - Full documentation
+
+### Deep Linking (February 1, 2026)
+
+**What Changed**:
+- Implemented deep linking via `atom://` URL scheme for external app integration
+- Added 4 deep link types (agent, workflow, canvas, tool)
+- Created 5 core deep link functions (parse_deep_link, execute_deep_link, generate_deep_link, execute_*_deep_link)
+- Created 4 REST API endpoints for deep link management (execute, audit, generate, stats)
+- Added DeepLinkAudit database model for full audit trail
+- Integrated governance (all agent deep links require governance check)
+- Created comprehensive test suite (38 tests)
+- Added security validation (URL format, resource type, resource ID)
+
+**Why**: Enable external applications (mobile apps, email campaigns, web apps) to trigger Atom actions securely with full governance and audit trails
+
+**Migration Required**:
+```bash
+alembic upgrade head  # Migration 158137b9c8b6
+```
+
+**Documentation**:
+- `docs/DEEPLINK_IMPLEMENTATION.md` - Full deep linking documentation
 
 ### Browser Automation (January 31, 2026)
 
