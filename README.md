@@ -52,7 +52,7 @@ Why rely on generic AI when you can hire experts?
 ### 🔍 **Browser & Device Automation**
 - **Browser Automation**: Control Chrome/Edge via CDP for web scraping, form filling, screenshots
 - **Device Control**: Access camera, location, notifications, screen recording, and shell commands
-- **Local Bridge (Satellite)**: Securely control your local terminal and browser from the SaaS platform
+- **Local Bridge (Satellite)**: Securely control your local terminal and browser from the Atom platform
 - **Governance-First**: All device and browser actions require appropriate maturity level
 
 ### 🔗 **Deep Linking & Mobile Support**
@@ -91,7 +91,7 @@ Atom remembers everything so you don't have to repeat yourself.
 ### 🔌 **Deep Integrations & Desktop Access**
 - **Hybrid Engine**: Python orchestration + Node.js Piece Engine for the full **ActivePieces** catalog
 - **System Tray & Background Mode**: Run ATOM in the background with quick access from the system tray (macOS/Windows)
-- **Local Bridge (Satellite)**: Securely control your local terminal and browser from the SaaS platform with granular permission toggles
+- **Local Bridge (Satellite)**: Securely control your local terminal and browser from the Atom platform with granular permission toggles
 - **Desktop Memory Ingestion**: Local folder access for the Tauri application, enabling seamless indexing of `$DESKTOP` knowledge
 - **Node-on-Demand**: Integrations are installed dynamically on-the-fly to ensure the catalog is always up-to-date
 

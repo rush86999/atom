@@ -783,6 +783,46 @@ try:
     except ImportError as e:
         logger.warning(f"Custom components routes not found: {e}")
 
+    # 15.12 Analytics Dashboard Routes (NEW - Phase 1)
+    try:
+        from api.analytics_dashboard_endpoints import router as analytics_dashboard_router
+        app.include_router(analytics_dashboard_router, tags=["Analytics Dashboard"])
+        logger.info("✓ Analytics Dashboard Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Analytics dashboard routes not found: {e}")
+
+    # 15.13 User Workflow Templates Routes (NEW - Phase 2)
+    try:
+        from api.user_templates_endpoints import router as user_templates_router
+        app.include_router(user_templates_router)
+        logger.info("✓ User Workflow Templates Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"User workflow templates routes not found: {e}")
+
+    # 15.14 Collaboration Routes (NEW - Phase 4)
+    try:
+        from api.workflow_collaboration import router as collaboration_router
+        app.include_router(collaboration_router)
+        logger.info("✓ Collaboration Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Collaboration routes not found: {e}")
+
+    # 15.15 Mobile Workflows Routes (NEW - Mobile Support)
+    try:
+        from api.mobile_workflows import router as mobile_workflows_router
+        app.include_router(mobile_workflows_router)
+        logger.info("✓ Mobile Workflows Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Mobile workflows routes not found: {e}")
+
+    # 15.16 Workflow Debugging Routes (NEW - Phase 6)
+    try:
+        from api.workflow_debugging import router as debugging_router
+        app.include_router(debugging_router)
+        logger.info("✓ Workflow Debugging Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Workflow debugging routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router

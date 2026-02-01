@@ -235,14 +235,19 @@ class ToolRegistry:
         """Export all tools as dictionaries."""
         return [metadata.to_dict() for metadata in self._tools.values()]
 
-    def discover_tools(self, tool_modules: List[str] = None):
+    def discover_tools(self, tool_modules: List[str] = None) -> int:
         """
         Automatically discover and register tools from modules.
 
         Args:
             tool_modules: List of module names to scan (e.g., ['tools.canvas_tool'])
                          If None, scans all tools in backend/tools/
+
+        Returns:
+            Number of tools discovered and registered
         """
+        discovered_count = 0
+
         if tool_modules is None:
             # Default to scanning all tool modules
             tools_dir = Path(__file__).parent
@@ -302,13 +307,16 @@ class ToolRegistry:
                         tags=[category, "auto-discovered"]
                     )
 
+                    discovered_count += 1
                     logger.debug(f"Auto-registered tool: {name} from {module_name}")
 
             except Exception as e:
                 logger.error(f"Failed to discover tools from {module_name}: {e}")
 
         self._initialized = True
-        logger.info(f"Tool discovery complete. Total tools: {len(self._tools)}")
+        logger.info(f"Tool discovery complete. Discovered {discovered_count} new tools. Total tools: {len(self._tools)}")
+
+        return discovered_count
 
     def initialize(self):
         """Initialize the tool registry with default tools."""
