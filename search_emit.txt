@@ -1,2 +1,0 @@
-﻿c76bb188 revert: restore chat files to upstream/main working version
-fbb5b7cd feat: Agent Workspace WebSocket integration + fix missing chats regression
