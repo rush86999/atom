@@ -831,6 +831,14 @@ try:
     except ImportError as e:
         logger.warning(f"Advanced debugging routes not found: {e}")
 
+    # 15.18 WebSocket Debugging Routes (NEW - Phase 6 Enhanced)
+    try:
+        from api.websocket_debugging import router as websocket_debugging_router
+        app.include_router(websocket_debugging_router)
+        logger.info("✓ WebSocket Debugging Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"WebSocket debugging routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router
