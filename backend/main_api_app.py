@@ -719,6 +719,14 @@ try:
     except ImportError as e:
         logger.warning(f"Device capabilities routes not found: {e}")
 
+    # 15.4 Deep Link Routes (atom:// URL Scheme)
+    try:
+        from api.deeplinks import router as deeplinks_router
+        app.include_router(deeplinks_router, prefix="/api/deeplinks", tags=["Deep Links"])
+        logger.info("✓ Deep Link Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Deep link routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router

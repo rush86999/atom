@@ -1021,3 +1021,40 @@ class BrowserAudit(Base):
     # Relationships
     session = relationship("BrowserSession", backref="actions")
 
+
+class DeepLinkAudit(Base):
+    """
+    Audit trail for deep link invocations.
+
+    Records all deep link executions (agent, workflow, canvas, tool)
+    with full governance tracking and attribution.
+    """
+    __tablename__ = "deep_link_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+
+    # Deep link details
+    resource_type = Column(String, nullable=False)  # 'agent', 'workflow', 'canvas', 'tool'
+    resource_id = Column(String, nullable=False)
+    action = Column(String, nullable=False)
+    source = Column(String, default="external")  # external_app, browser, etc.
+
+    # Full context
+    deeplink_url = Column(Text, nullable=False)
+    parameters = Column(JSON, nullable=True)
+
+    # Results
+    status = Column(String, default="success")  # success, failed, error
+    error_message = Column(Text, nullable=True)
+    governance_check_passed = Column(Boolean, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry")
+    execution = relationship("AgentExecution")
