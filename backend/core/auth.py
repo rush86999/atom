@@ -128,3 +128,7 @@ async def get_current_user_ws(token: str, db: Session):
         return db.query(User).filter(User.id == user_id).first()
     except JWTError:
         return None
+
+def generate_satellite_key() -> str:
+    """Generate a secure Satellite API Key (sk-...)"""
+    return f"sk-{secrets.token_hex(24)}"
