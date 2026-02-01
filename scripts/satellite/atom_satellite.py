@@ -46,17 +46,31 @@ class BrowserManager:
             if not self.playwright:
                 self.playwright = await async_playwright().start()
             
-            if not self.browser:
-                # Launch headful so the user can see/interact ("Chrome Relay" style)
-                # Attempt to connect to existing Chrome? For now, launch a new instance.
-                self.browser = await self.playwright.chromium.launch(headless=False)
-                logger.info("Browser launched.")
-
             if not self.context:
-                self.context = await self.browser.new_context()
-            
+                # OPTION C: Agent Identity Persistence
+                # Use a dedicated profile directory for the agent's browser sessions.
+                # This allows the agent to stay logged in to sites across restarts.
+                profile_dir = os.path.join(os.getcwd(), ".atom_agent_profile")
+                os.makedirs(profile_dir, exist_ok=True)
+                
+                logger.info(f"Launching persistent browser context at {profile_dir}")
+                
+                # launch_persistent_context returns a context, and the browser is implicit.
+                self.context = await self.playwright.chromium.launch_persistent_context(
+                    user_data_dir=profile_dir,
+                    headless=False,
+                    args=['--no-sandbox', '--disable-setuid-sandbox']
+                )
+                
+                self.browser = self.context.browser # Note: In persistent context, browser is accessible via context
+                logger.info("Persistent browser launched.")
+
             if not self.page:
-                self.page = await self.context.new_page()
+                # If there are already pages open in the persistent context, reuse the first one
+                if len(self.context.pages) > 0:
+                    self.page = self.context.pages[0]
+                else:
+                    self.page = await self.context.new_page()
 
     async def perform_action(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         if not self.page:

@@ -49,13 +49,48 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [showKeyInput, setShowKeyInput] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    loadUserAPIKeyStatus();
-  }, [userId, baseApiUrl]);
+  // Satellite Key State
+  const [satelliteKey, setSatelliteKey] = useState<string | null>(null);
+  const [showSatelliteKey, setShowSatelliteKey] = useState(false);
+  const [rotatingKey, setRotatingKey] = useState(false);
 
   useEffect(() => {
     loadUserAPIKeyStatus();
+    loadSatelliteKey();
   }, [userId, baseApiUrl]);
+
+  const loadSatelliteKey = async () => {
+    try {
+      const response = await fetch(`${baseApiUrl}/satellite/key`);
+      if (response.ok) {
+        const data = await response.json();
+        setSatelliteKey(data.api_key);
+      }
+    } catch (err) {
+      console.error("Failed to load satellite key:", err);
+    }
+  };
+
+  const rotateSatelliteKey = async () => {
+    if (!window.confirm("Are you sure you want to rotate your Satellite Key? Existing local connections will be disconnected.")) {
+      return;
+    }
+
+    try {
+      setRotatingKey(true);
+      const response = await fetch(`${baseApiUrl}/satellite/rotate`, { method: "POST" });
+      if (response.ok) {
+        const data = await response.json();
+        setSatelliteKey(data.api_key);
+      } else {
+        alert("Failed to rotate key");
+      }
+    } catch (err) {
+      alert("Error rotating key");
+    } finally {
+      setRotatingKey(false);
+    }
+  };
 
   const loadUserAPIKeyStatus = async () => {
     try {
@@ -254,6 +289,55 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
         their own keys.
       </p>
 
+      {/* Satellite Key Section */}
+      <div className="satellite-key-section">
+        <div className="summary-card">
+          <div className="provider-header">
+            <div>
+              <h3>Satellite Platform Key</h3>
+              <p className="detail">Connect your local machine using the Atom Satellite bridge.</p>
+            </div>
+          </div>
+          <div className="key-input-section" style={{ marginTop: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type={showSatelliteKey ? "text" : "password"}
+                value={satelliteKey || "Loading..."}
+                readOnly
+                className="key-input"
+                style={{ flex: 1 }}
+              />
+              <button
+                onClick={() => setShowSatelliteKey(!showSatelliteKey)}
+                className="update-btn"
+                style={{ width: '100px' }}
+              >
+                {showSatelliteKey ? "Hide" : "Show"}
+              </button>
+              <button
+                onClick={rotateSatelliteKey}
+                disabled={rotatingKey}
+                className="delete-btn"
+                style={{ width: '100px' }}
+              >
+                {rotatingKey ? "..." : "Rotate"}
+              </button>
+            </div>
+            <div style={{ marginTop: '10px', background: 'rgba(49, 130, 206, 0.1)', border: '1px solid rgba(49, 130, 206, 0.2)', borderRadius: '8px', padding: '10px' }}>
+              <p style={{ fontSize: '11px', color: '#63B3ED', fontWeight: 'bold' }}>
+                💡 Human-in-the-loop:
+              </p>
+              <p style={{ fontSize: '11px', color: '#A0AEC0' }}>
+                The agent's browser window is visible locally so you can assist with MFA or initial logins. Results are saved to a persistent profile.
+              </p>
+            </div>
+            <p style={{ fontSize: '10px', color: '#666', marginTop: '5px' }}>
+              Use this key with the <code>--key</code> flag when running <code>atom_satellite.py</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {userStatus && (
         <div className="status-summary">
           <div className="summary-card">
@@ -411,6 +495,10 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
           max-width: 1200px;
           margin: 0 auto;
           padding: 20px;
+        }
+
+        .satellite-key-section {
+          margin-bottom: 30px;
         }
 
         .description {

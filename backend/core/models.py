@@ -54,6 +54,7 @@ class Workspace(Base):
     description = Column(Text, nullable=True)
     status = Column(String, default=WorkspaceStatus.ACTIVE.value)
     plan_tier = Column(String, default="standard")
+    satellite_api_key = Column(String, nullable=True, unique=True, index=True)
     
     # Autonomous Agent Guardrails
     is_startup = Column(Boolean, default=False)
