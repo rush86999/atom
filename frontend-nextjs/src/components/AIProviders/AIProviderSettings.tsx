@@ -54,6 +54,39 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   const [showSatelliteKey, setShowSatelliteKey] = useState(false);
   const [rotatingKey, setRotatingKey] = useState(false);
 
+  // Satellite Setup State
+  const [installStatus, setInstallStatus] = useState<'idle' | 'installing' | 'success' | 'error'>('idle');
+  const [installLogs, setInstallLogs] = useState("");
+
+  const handleInitializeBrowser = async () => {
+    // Check if we are in Tauri
+    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
+
+    if (!isTauri) {
+      alert("Browser automation initialization is only available in the Desktop App.");
+      return;
+    }
+
+    try {
+      setInstallStatus('installing');
+      setInstallLogs("Starting initialization...\n> Checking Python 3\n> Creating virtual environment\n> Installing playwright & websockets\n> Downloading Chromium...");
+
+      const { invoke } = await import('@tauri-apps/api/core');
+      const res = await invoke('install_satellite_dependencies') as any;
+
+      if (res.success) {
+        setInstallStatus('success');
+        setInstallLogs(prev => prev + "\n\n✅ " + res.message);
+      } else {
+        setInstallStatus('error');
+        setInstallLogs(prev => prev + "\n\n❌ Error: " + res.error + (res.details ? "\n" + res.details : ""));
+      }
+    } catch (err) {
+      setInstallStatus('error');
+      setInstallLogs(prev => prev + "\n\n❌ Exception: " + String(err));
+    }
+  };
+
   useEffect(() => {
     loadUserAPIKeyStatus();
     loadSatelliteKey();
@@ -323,7 +356,50 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
                 {rotatingKey ? "..." : "Rotate"}
               </button>
             </div>
-            <div style={{ marginTop: '10px', background: 'rgba(49, 130, 206, 0.1)', border: '1px solid rgba(49, 130, 206, 0.2)', borderRadius: '8px', padding: '10px' }}>
+
+            {/* Browser Automation Setup */}
+            <div style={{ marginTop: '15px', borderTop: '1px solid #e9ecef', paddingTop: '15px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <h4 style={{ margin: 0, fontSize: '14px', color: '#2d3748' }}>Browser Automation</h4>
+                  <p style={{ fontSize: '11px', color: '#718096', margin: '2px 0 0 0' }}>
+                    Setup Chromium and required libraries for local web exploration.
+                  </p>
+                </div>
+                <button
+                  onClick={handleInitializeBrowser}
+                  disabled={installStatus === 'installing' || installStatus === 'success'}
+                  className={installStatus === 'success' ? "test-btn" : "save-btn"}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    minWidth: '120px'
+                  }}
+                >
+                  {installStatus === 'installing' ? "Initializing..." : installStatus === 'success' ? "Ready" : "Setup Browser"}
+                </button>
+              </div>
+
+              {installStatus !== 'idle' && (
+                <div style={{
+                  background: '#1a202c',
+                  color: '#68d391',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  fontFamily: '\'Courier New\', Courier, monospace',
+                  fontSize: '10px',
+                  maxHeight: '120px',
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  border: '1px solid #2d3748',
+                  marginTop: '10px'
+                }}>
+                  {installLogs}
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginTop: '15px', background: 'rgba(49, 130, 206, 0.1)', border: '1px solid rgba(49, 130, 206, 0.2)', borderRadius: '8px', padding: '10px' }}>
               <p style={{ fontSize: '11px', color: '#63B3ED', fontWeight: 'bold' }}>
                 💡 Human-in-the-loop:
               </p>
