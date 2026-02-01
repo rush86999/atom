@@ -210,6 +210,7 @@ cd src && npm run dev
 - [Deep Linking](docs/DEEPLINK_IMPLEMENTATION.md) - Deep linking with atom:// URL scheme (NEW)
 - [Device Capabilities](docs/DEVICE_CAPABILITIES.md) - Hardware access for AI agents (NEW)
 - [Browser Automation](docs/BROWSER_AUTOMATION.md) - Web automation with CDP (NEW)
+- [Enhanced Feedback System](docs/FEEDBACK_SYSTEM_ENHANCED.md) - User feedback and learning (NEW)
 
 ---
 
@@ -230,6 +231,19 @@ cd src && npm run dev
 - **Security**: Full validation, governance checks, and audit trail
 - **REST API**: Execute, audit, generate, and get statistics
 - **Mobile & Web Integration**: Trigger actions from iOS, Android, or web apps
+
+### ⭐ Enhanced Feedback System
+- **Quick Feedback**: Thumbs up/down for instant user feedback
+- **Star Ratings**: 1-5 star scale for nuanced feedback
+- **Detailed Corrections**: Users can provide specific corrections for agent mistakes
+- **Auto-Classification**: Feedback types detected automatically (correction, rating, approval, comment)
+- **Analytics Dashboard**: Comprehensive statistics, trends, and insights
+- **Confidence Adjustments**: Automatic agent confidence updates based on feedback
+  - Thumbs up: +0.05, Thumbs down: -0.05
+  - 5-star: +0.10, 4-star: +0.05, 3-star: 0.00, 2-star: -0.05, 1-star: -0.10
+  - Corrections: -0.03
+- **Learning Signals**: Identifies agent strengths and weaknesses from feedback patterns
+- **World Model Integration**: Feedback stored as experiences for long-term learning
 
 ---
 

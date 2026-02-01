@@ -425,22 +425,29 @@ class AgentFeedback(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    
+
     # The Interaction
     input_context = Column(Text, nullable=True) # What triggered the agent
     original_output = Column(Text, nullable=False) # What the agent did/said
     user_correction = Column(Text, nullable=False) # What the user said it should be
-    
+
+    # Enhanced Feedback (NEW)
+    feedback_type = Column(String, nullable=True, index=True) # correction, rating, approval, comment
+    thumbs_up_down = Column(Boolean, nullable=True) # Quick feedback (true=up, false=down)
+    rating = Column(Integer, nullable=True, index=True) # 1-5 stars
+
     # Adjudication
     status = Column(String, default=FeedbackStatus.PENDING.value)
     ai_reasoning = Column(Text, nullable=True) # AI judge's explanation
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     adjudicated_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     agent = relationship("AgentRegistry", backref="feedback_history")
+    execution = relationship("AgentExecution", backref="feedback")
     user = relationship("User", backref="submitted_feedback")
 
 class IntegrationCatalog(Base):

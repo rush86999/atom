@@ -727,6 +727,22 @@ try:
     except ImportError as e:
         logger.warning(f"Deep link routes not found: {e}")
 
+    # 15.5 Enhanced Feedback Routes (NEW)
+    try:
+        from api.feedback_enhanced import router as feedback_enhanced_router
+        app.include_router(feedback_enhanced_router, prefix="/api/feedback", tags=["Feedback"])
+        logger.info("✓ Enhanced Feedback Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Enhanced feedback routes not found: {e}")
+
+    # 15.6 Feedback Analytics Routes (NEW)
+    try:
+        from api.feedback_analytics import router as feedback_analytics_router
+        app.include_router(feedback_analytics_router, prefix="/api/feedback/analytics", tags=["Feedback Analytics"])
+        logger.info("✓ Feedback Analytics Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Feedback analytics routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router
