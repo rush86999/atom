@@ -438,13 +438,17 @@ class CommunicationIngestionPipeline:
         self.memory_manager = memory_manager
         self.ingestion_configs = {}
         self.active_streams = {}
+        self.fetch_timestamps = {}  # Track last fetch time for each app
+        self.app_configs = {}  # Store app-specific configurations
         
     def configure_app(self, app_type: CommunicationAppType, config: IngestionConfig):
         """Configure ingestion for specific app"""
-        self.ingestion_configs[app_type.value] = {
+        config_dict = {
             **asdict(config),
             "app_type": app_type.value
         }
+        self.ingestion_configs[app_type.value] = config_dict
+        self.app_configs[app_type.value] = config_dict
         logger.info(f"Configured ingestion for {app_type.value}")
     
     async def ingest_message(self, app_type: str, message_data: Dict[str, Any]) -> bool:
@@ -530,18 +534,200 @@ class CommunicationIngestionPipeline:
     
     async def _real_time_ingestion(self, app_type: str):
         """Async real-time ingestion for specific app"""
+        config = self.app_configs.get(app_type, {})
+        polling_interval = config.get('polling_interval_seconds', 30)
+
+        logger.info(f"Starting real-time ingestion for {app_type} (polling every {polling_interval}s)")
+
         while True:
             try:
-                # This would connect to the actual app's webhook/API
-                # For now, simulate real-time ingestion
-                await asyncio.sleep(30)  # Check every 30 seconds
-                
-                # TODO: Implement actual app-specific real-time ingestion
-                logger.debug(f"Real-time check for {app_type}")
-                
+                # Fetch new messages from the app's API
+                new_messages = await self._fetch_new_messages(app_type)
+
+                if new_messages:
+                    logger.info(f"Fetched {len(new_messages)} new messages from {app_type}")
+
+                    # Ingest each message
+                    for message in new_messages:
+                        try:
+                            await self.ingest_message(app_type, message)
+                        except Exception as e:
+                            logger.error(f"Failed to ingest message from {app_type}: {e}")
+
+                # Wait before next poll
+                await asyncio.sleep(polling_interval)
+
             except Exception as e:
                 logger.error(f"Error in real-time ingestion for {app_type}: {str(e)}")
                 await asyncio.sleep(60)  # Wait longer on error
+
+    async def _fetch_new_messages(self, app_type: str) -> List[Dict[str, Any]]:
+        """
+        Fetch new messages from the app's API.
+        This method implements app-specific polling logic.
+
+        Args:
+            app_type: The communication app type
+
+        Returns:
+            List of new message data dictionaries
+        """
+        # Get the last fetch timestamp for this app
+        last_fetch_key = f"last_fetch_{app_type}"
+        last_fetch = self.fetch_timestamps.get(last_fetch_key)
+
+        try:
+            # Fetch messages based on app type
+            messages = []
+            if app_type == CommunicationAppType.WHATSAPP.value:
+                messages = await self._fetch_whatsapp_messages(last_fetch)
+            elif app_type == CommunicationAppType.SLACK.value:
+                messages = await self._fetch_slack_messages(last_fetch)
+            elif app_type == CommunicationAppType.MICROSOFT_TEAMS.value:
+                messages = await self._fetch_teams_messages(last_fetch)
+            elif app_type == CommunicationAppType.EMAIL.value:
+                messages = await self._fetch_email_messages(last_fetch)
+            elif app_type == CommunicationAppType.GMAIL.value:
+                messages = await self._fetch_gmail_messages(last_fetch)
+            elif app_type == CommunicationAppType.OUTLOOK.value:
+                messages = await self._fetch_outlook_messages(last_fetch)
+            else:
+                logger.warning(f"No polling implementation for {app_type}")
+
+            # Update last fetch timestamp (only on success)
+            self.fetch_timestamps[last_fetch_key] = datetime.now()
+
+            return messages
+
+        except Exception as e:
+            logger.error(f"Error fetching messages from {app_type}: {e}")
+            # Note: Don't update timestamp on error, so we can retry the same time range
+            return []
+
+    async def _fetch_whatsapp_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new WhatsApp messages via Business API or webhook buffer.
+
+        For production, this should use the WhatsApp Business API for polling
+        or integrate with a webhook receiver that buffers messages.
+        """
+        # TODO: Implement actual WhatsApp API polling
+        # For now, return empty list - webhooks should be used instead
+        logger.debug("WhatsApp polling not implemented - use webhooks")
+        return []
+
+    async def _fetch_slack_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new Slack messages via Slack API.
+
+        Requires SLACK_BOT_TOKEN environment variable with channels:history scope.
+        """
+        try:
+            import os
+            from integrations.slack_enhanced_service import slack_enhanced_service
+
+            bot_token = os.getenv("SLACK_BOT_TOKEN")
+            if not bot_token:
+                logger.warning("SLACK_BOT_TOKEN not configured for Slack polling")
+                return []
+
+            # Get list of channels to monitor
+            channels = self.app_configs.get(CommunicationAppType.SLACK.value, {}).get("monitored_channels", [])
+
+            if not channels:
+                logger.info("No Slack channels configured for monitoring")
+                return []
+
+            all_messages = []
+
+            # Fetch messages from each channel
+            for channel_id in channels:
+                try:
+                    # Use SlackService to fetch channel history
+                    # Note: This requires the SlackService to have a get_conversations_history method
+                    # For now, we'll implement a basic version
+                    logger.debug(f"Fetching messages from Slack channel {channel_id}")
+
+                    # TODO: Implement actual Slack API call using WebClient
+                    # async with slack_enhanced_service as slack:
+                    #     result = await slack.client.conversations_history(
+                    #         channel=channel_id,
+                    #         oldest=last_fetch.timestamp() if last_fetch else 0,
+                    #         limit=100
+                    #     )
+                    #     messages = result.get("messages", [])
+
+                except Exception as e:
+                    logger.error(f"Error fetching from Slack channel {channel_id}: {e}")
+
+            return all_messages
+
+        except ImportError:
+            logger.warning("Slack service not available")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching Slack messages: {e}")
+            return []
+
+    async def _fetch_teams_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new Microsoft Teams messages via Microsoft Graph API.
+
+        Requires Microsoft Teams OAuth access token.
+        """
+        try:
+            import os
+
+            # TODO: Implement Microsoft Graph API polling
+            # Requires: Microsoft Teams OAuth token with ChannelMessage.Read.All scope
+            logger.debug("Teams polling not yet implemented - requires Microsoft Graph API integration")
+            return []
+
+        except Exception as e:
+            logger.error(f"Error fetching Teams messages: {e}")
+            return []
+
+    async def _fetch_email_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """Fetch new email messages via IMAP"""
+        # TODO: Implement IMAP email polling
+        logger.debug("Email polling not yet implemented")
+        return []
+
+    async def _fetch_gmail_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new Gmail messages via Gmail API.
+
+        Requires Gmail OAuth access token.
+        """
+        try:
+            import os
+
+            # TODO: Implement Gmail API polling
+            # Requires: Gmail OAuth token with gmail.readonly scope
+            logger.debug("Gmail polling not yet implemented - requires Gmail API integration")
+            return []
+
+        except Exception as e:
+            logger.error(f"Error fetching Gmail messages: {e}")
+            return []
+
+    async def _fetch_outlook_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new Outlook messages via Microsoft Graph API.
+
+        Requires Outlook OAuth access token.
+        """
+        try:
+            import os
+
+            # TODO: Implement Microsoft Graph API for Outlook
+            # Requires: Outlook OAuth token with Mail.Read scope
+            logger.debug("Outlook polling not yet implemented - requires Microsoft Graph API integration")
+            return []
+
+        except Exception as e:
+            logger.error(f"Error fetching Outlook messages: {e}")
+            return []
     
     def _normalize_message(self, app_type: str, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize message data from different apps to unified format"""

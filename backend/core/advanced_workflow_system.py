@@ -230,6 +230,92 @@ class StateManager:
         except Exception:
             return None
 
+    def list_workflows(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        List all workflows with optional status filtering.
+
+        Args:
+            status: Optional status filter (e.g., "active", "completed", "failed", "paused")
+
+        Returns:
+            List of workflow summaries with id, name, status, and metadata
+        """
+        try:
+            import os
+            workflows = []
+
+            # Scan workflow_states directory for all workflow JSON files
+            state_dir = "workflow_states"
+            if not os.path.exists(state_dir):
+                logger.info("Workflow states directory does not exist")
+                return workflows
+
+            # Load all workflow files
+            for filename in os.listdir(state_dir):
+                if filename.endswith(".json"):
+                    workflow_id = filename[:-5]  # Remove .json extension
+                    state = self._load_from_file(workflow_id)
+
+                    if state:
+                        # Create workflow summary
+                        summary = {
+                            "workflow_id": workflow_id,
+                            "name": state.get("name", "Unnamed Workflow"),
+                            "description": state.get("description", ""),
+                            "status": state.get("status", "unknown"),
+                            "created_at": state.get("created_at"),
+                            "updated_at": state.get("updated_at"),
+                            "saved_at": state.get("saved_at"),
+                            "current_step": state.get("current_step"),
+                            "total_steps": state.get("total_steps", len(state.get("steps", []))),
+                            "category": state.get("category", "general"),
+                            "tags": state.get("tags", []),
+                        }
+
+                        # Apply status filter if provided
+                        if status is None or summary["status"] == status:
+                            workflows.append(summary)
+
+            # Sort by updated_at descending (most recent first)
+            workflows.sort(key=lambda w: w.get("updated_at") or w.get("created_at") or "", reverse=True)
+
+            logger.info(f"Found {len(workflows)} workflows" + (f" with status '{status}'" if status else ""))
+            return workflows
+
+        except Exception as e:
+            logger.error(f"Failed to list workflows: {e}")
+            return []
+
+    def delete_state(self, workflow_id: str) -> bool:
+        """
+        Delete workflow state from memory and file storage.
+
+        Args:
+            workflow_id: ID of workflow to delete
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            import os
+
+            # Remove from memory
+            if workflow_id in self.state_store:
+                del self.state_store[workflow_id]
+
+            # Remove from file storage
+            filename = f"workflow_states/{workflow_id}.json"
+            if os.path.exists(filename):
+                os.remove(filename)
+                logger.info(f"Deleted workflow state for {workflow_id}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Failed to delete state for {workflow_id}: {e}")
+            return False
+
 class ParameterValidator:
     """Validates workflow input parameters"""
 
