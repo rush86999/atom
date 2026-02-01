@@ -42,6 +42,31 @@ Why rely on generic AI when you can hire experts?
 - **Engineering Agent**: Handles PR notifications, deployments, and incident response
 - **Governance**: Agents start as "Students" and earn "Autonomy" as they gain your trust
 
+### 🎨 **Canvas Presentations & Custom Components**
+- **Visual Dashboards**: Agents can create rich, interactive canvas presentations (charts, forms, markdown)
+- **Custom Components**: Create reusable HTML/CSS/JS components with enterprise-grade security
+- **Multi-Agent Collaboration**: Multiple agents work together on shared canvases with conflict resolution
+- **Real-Time Updates**: Bidirectional canvas updates with session isolation
+- **JavaScript Execution**: AUTONOMOUS agents can execute custom JavaScript (with sandboxing)
+
+### 🔍 **Browser & Device Automation**
+- **Browser Automation**: Control Chrome/Edge via CDP for web scraping, form filling, screenshots
+- **Device Control**: Access camera, location, notifications, screen recording, and shell commands
+- **Local Bridge (Satellite)**: Securely control your local terminal and browser from the SaaS platform
+- **Governance-First**: All device and browser actions require appropriate maturity level
+
+### 🔗 **Deep Linking & Mobile Support**
+- **atom:// URL Scheme**: Trigger agents, workflows, and canvas actions from external apps
+- **Mobile Architecture**: React Native app design for iOS and Android (architecture complete)
+- **Push Notifications**: Get notified when agents complete tasks or need approval
+- **Offline Mode**: Queue requests when offline, sync when reconnected
+
+### 📊 **A/B Testing & Analytics**
+- **Agent Optimization**: Test different agent configurations with statistical analysis
+- **Feedback Analytics**: Aggregate user feedback with insights and trends
+- **Agent Promotion**: Data-driven suggestions for promoting agents to higher maturity levels
+- **Batch Operations**: Bulk feedback approval and export capabilities
+
 ### 🛡️ **Agent Governance System**
 - **Maturity Levels**: Agents progress from 'Student' to 'Autonomous' based on performance
 - **Approval Workflows**: Sensitive actions (like deployments) require human approval until confidence is high
