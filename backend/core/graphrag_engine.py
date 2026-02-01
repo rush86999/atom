@@ -188,7 +188,9 @@ JSON Schema:
                     entity_names.add(url)
 
             # 3. Phone numbers (US format)
-            phone_pattern = r'\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b'
+            # Matches: 555-123-4567, (555) 123-4567, 555.123.4567, etc.
+            # Must not be preceded by digit (to avoid matching UUIDs)
+            phone_pattern = r'(?<!\d)(?:\+?1[-.\s]?)?\(?:?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b'
             for match in re.finditer(phone_pattern, text):
                 phone = match.group()
                 if phone not in entity_names:
@@ -234,10 +236,13 @@ JSON Schema:
                     ))
                     entity_names.add(amount)
 
-            # 6. File paths
-            file_path_pattern = r'[/\\][\w\-._/\\]*\.[\w]{2,4}\b'
+            # 6. File paths (avoid matching URLs by excluding //)
+            file_path_pattern = r'(?<![a-zA-Z])[/\\][\w\-._/\\]*\.[\w]{2,4}\b(?![^\s])'
             for match in re.finditer(file_path_pattern, text):
                 path = match.group()
+                # Skip if looks like part of a URL (starts with //)
+                if path.startswith('//'):
+                    continue
                 if path not in entity_names and len(path) > 5:  # Avoid false positives
                     entities.append(Entity(
                         id=str(uuid.uuid4()),
