@@ -23,14 +23,27 @@ class BrowserAgent:
         self.mcp = mcp_service  # MCP access for web search and web access
         self.lux = LuxModel() # Vision-based brain
 
-    async def execute_task(self, url: str, goal: str, safe_mode: bool = True) -> Dict[str, Any]:
+    async def execute_task(
+        self, 
+        url: str, 
+        goal: str, 
+        safe_mode: bool = True,
+        user_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        db_session: Optional[Any] = None # SQLAlchemy Session
+    ) -> Dict[str, Any]:
         """
         Main execution loop.
-        1. Context Injection: Fetch relevant info from memory.
-        2. Navigate to URL.
-        3. Loop: Capture State -> Lux Predict -> Perform Action.
-        4. Knowledge Extraction: Save findings to memory.
+        Includes RBAC checks if db_session is provided.
         """
+        # 0. Governance / Access Check
+        if db_session and user_id and agent_id:
+            from core.agent_governance_service import AgentGovernanceService
+            gov = AgentGovernanceService(db_session)
+            if not gov.can_access_agent_data(user_id, agent_id):
+                logger.error(f"Access Denied: User {user_id} cannot access Agent {agent_id}")
+                return {"status": "failed", "error": "Access Denied: Role/Specialty mismatch"}
+
         # 1. Context Injection
         context_data = await self._fetch_context(goal)
         logger.info(f"Context injected for goal '{goal}': {context_data}")

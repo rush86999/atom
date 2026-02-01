@@ -146,6 +146,20 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to start intelligence worker: {e}")
     else:
         logger.info("Skipping Scheduler startup (ENABLE_SCHEDULER=false)")
+
+    # 5. Start Redis Event Bridge (Real-Time Updates)
+    # Backported from SaaS for Atom-OpenClaw Bridge
+    try:
+        from redis_listener import RedisListener
+        redis_listener = RedisListener()
+        # Start in background task to not block startup
+        import asyncio
+        asyncio.create_task(redis_listener.start())
+        logger.info("✓ Redis Event Bridge running")
+    except ImportError:
+        logger.warning("Redis Listener module not found.")
+    except Exception as e:
+        logger.error(f"Failed to start Redis Bridge: {e}")
     
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
@@ -158,6 +172,12 @@ async def lifespan(app: FastAPI):
         from ai.workflow_scheduler import workflow_scheduler
         workflow_scheduler.shutdown()
         logger.info("✓ Workflow Scheduler stopped")
+    except:
+        pass
+
+    try:
+        redis_listener.stop()
+        logger.info("✓ Redis Event Bridge stopped")
     except:
         pass
 
@@ -317,6 +337,14 @@ try:
         app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
     except ImportError as e:
         logger.warning(f"Failed to load reports routes (skipping): {e}")
+
+    # Tool Discovery Routes (NEW)
+    try:
+        from api.tools import router as tools_router
+        app.include_router(tools_router)
+        logger.info("✓ Tool Discovery Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load tool discovery routes (skipping): {e}")
 
     try:
         from api.agent_routes import router as agent_router
@@ -641,11 +669,13 @@ try:
         from api.intelligence_routes import router as intelligence_router
         from api.project_routes import router as project_router
         from api.sales_routes import router as sales_router
+        from api.device_nodes import router as device_node_router
         
         app.include_router(intelligence_router) # Prefix defined in router
         app.include_router(project_router)      # Prefix defined in router
         app.include_router(sales_router)        # Prefix defined in router
-        logger.info("✓ Core Business Routes Loaded (Intelligence, Projects, Sales)")
+        app.include_router(device_node_router)  # Prefix defined in router
+        logger.info("✓ Core Business Routes Loaded (Intelligence, Projects, Sales, Device Nodes)")
     except ImportError as e:
         logger.warning(f"Core Business routes not found: {e}")
 
@@ -664,6 +694,38 @@ try:
         logger.info("✓ Canvas Routes Loaded")
     except ImportError as e:
         logger.warning(f"Canvas routes not found: {e}")
+
+    # 15.1.a Artifact Routes (Persistent Workbench)
+    try:
+        from api.artifact_routes import router as artifact_router
+        app.include_router(artifact_router, tags=["Artifacts"])
+        logger.info("✓ Artifact Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Artifact routes not found: {e}")
+
+    # 15.2 Browser Automation Routes (CDP via Playwright)
+    try:
+        from api.browser_routes import router as browser_router
+        app.include_router(browser_router, tags=["Browser Automation"])
+        logger.info("✓ Browser Automation Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Browser automation routes not found: {e}")
+
+    # 15.3 Device Capabilities Routes (Hardware Access)
+    try:
+        from api.device_capabilities import router as device_router
+        app.include_router(device_router, tags=["Device Capabilities"])
+        logger.info("✓ Device Capabilities Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Device capabilities routes not found: {e}")
+
+    # 15.4 Deep Link Routes (atom:// URL Scheme)
+    try:
+        from api.deeplinks import router as deeplinks_router
+        app.include_router(deeplinks_router, prefix="/api/deeplinks", tags=["Deep Links"])
+        logger.info("✓ Deep Link Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Deep link routes not found: {e}")
 
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:

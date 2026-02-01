@@ -253,6 +253,13 @@ class AgentGovernanceService:
         "stream_chat": 2,          # INTERN+ (LLM streaming)
         "present_form": 2,         # INTERN+ (moderate - form presentation)
         "llm_stream": 2,           # INTERN+ (cost implications)
+        "browser_navigate": 2,     # INTERN+ (web navigation)
+        "browser_screenshot": 2,   # INTERN+ (screenshot capture)
+        "browser_extract": 2,      # INTERN+ (text extraction)
+        "device_camera_snap": 2,   # INTERN+ (camera capture)
+        "device_get_location": 2,  # INTERN+ (location services)
+        "device_send_notification": 2,  # INTERN+ (system notifications)
+        "update_canvas": 2,        # INTERN+ (bidirectional canvas update)
 
         # Medium - Supervised level
         "create": 3,
@@ -261,6 +268,9 @@ class AgentGovernanceService:
         "post_message": 3,
         "schedule": 3,
         "submit_form": 3,          # SUPERVISED+ (state change - form submission)
+        "device_screen_record": 3, # SUPERVISED+ (screen recording - privacy concern)
+        "device_screen_record_start": 3,  # SUPERVISED+ (screen recording start)
+        "device_screen_record_stop": 3,   # SUPERVISED+ (screen recording stop)
 
         # High - Autonomous level only
         "delete": 4,
@@ -269,6 +279,8 @@ class AgentGovernanceService:
         "transfer": 4,
         "payment": 4,
         "approve": 4,
+        "device_execute_command": 4,  # AUTONOMOUS only (command execution - security critical)
+        "canvas_execute_javascript": 4,  # AUTONOMOUS only (JavaScript execution - security critical)
     }
     
     # Minimum maturity level for each action complexity
@@ -468,3 +480,28 @@ class AgentGovernanceService:
             "user_feedback": hitl.user_feedback,
             "reviewed_at": hitl.reviewed_at
         }
+
+    def can_access_agent_data(self, user_id: str, agent_id: str) -> bool:
+        """
+        Check if a user can access data/sessions belonging to a specific agent.
+        Rules (Ported from SaaS):
+        1. Admins (super_admin, workspace_admin) -> ALLOW
+        2. Specialty Match (user.specialty == agent.category) -> ALLOW
+        3. Owners (context-dependent) -> ALLOW
+        """
+        user = self.db.query(User).filter(User.id == user_id).first()
+        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        
+        if not user or not agent:
+            return False
+            
+        # 1. Admin Override
+        if user.role in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:
+            return True
+            
+        # 2. Specialty Match
+        if user.specialty and agent.category:
+            if user.specialty.lower() == agent.category.lower():
+                return True
+                
+        return False

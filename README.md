@@ -66,6 +66,7 @@ Atom remembers everything so you don't have to repeat yourself.
 ### 🔌 **Deep Integrations & Desktop Access**
 - **Hybrid Engine**: Python orchestration + Node.js Piece Engine for the full **ActivePieces** catalog
 - **System Tray & Background Mode**: Run ATOM in the background with quick access from the system tray (macOS/Windows)
+- **Local Bridge (Satellite)**: Securely control your local terminal and browser from the SaaS platform with granular permission toggles
 - **Desktop Memory Ingestion**: Local folder access for the Tauri application, enabling seamless indexing of `$DESKTOP` knowledge
 - **Node-on-Demand**: Integrations are installed dynamically on-the-fly to ensure the catalog is always up-to-date
 
@@ -206,6 +207,29 @@ cd src && npm run dev
 - [Architecture Overview](docs/ARCHITECTURE.md) - System design and components
 - [Integration Guide](docs/INTEGRATIONS.md) - Adding new integrations
 - [Agent Governance](docs/AGENT_GOVERNANCE.md) - Understanding agent maturity and approval workflows
+- [Deep Linking](docs/DEEPLINK_IMPLEMENTATION.md) - Deep linking with atom:// URL scheme (NEW)
+- [Device Capabilities](docs/DEVICE_CAPABILITIES.md) - Hardware access for AI agents (NEW)
+- [Browser Automation](docs/BROWSER_AUTOMATION.md) - Web automation with CDP (NEW)
+
+---
+
+## ✨ Recent Features (February 2026)
+
+### 🎨 Canvas Enhancements (Phase 1 - Complete)
+- **Bidirectional Updates**: Real-time canvas updates via WebSocket
+- **Session Isolation**: Multiple users can interact with separate canvas instances
+- **Tool Registry**: Central registry for canvas tools with REST API
+- **JavaScript Execution**: AUTONOMOUS agents can execute JavaScript on canvases
+
+### 🔗 Deep Linking
+- **atom:// URL Scheme**: External apps can trigger Atom actions
+  - `atom://agent/{agent_id}?message={query}` - Invoke AI agents
+  - `atom://workflow/{workflow_id}?action={action}` - Trigger workflows
+  - `atom://canvas/{canvas_id}?action={action}` - Manipulate canvases
+  - `atom://tool/{tool_name}?params={json}` - Execute tools
+- **Security**: Full validation, governance checks, and audit trail
+- **REST API**: Execute, audit, generate, and get statistics
+- **Mobile & Web Integration**: Trigger actions from iOS, Android, or web apps
 
 ---
 

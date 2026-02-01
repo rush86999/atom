@@ -22,6 +22,25 @@ class ConnectionManager:
         self.STREAMING_ERROR = "streaming:error"
         self.STREAMING_COMPLETE = "streaming:complete"
 
+        # Canvas event types
+        self.CANVAS_PRESENT = "canvas:present"
+        self.CANVAS_UPDATE = "canvas:update"
+        self.CANVAS_CLOSE = "canvas:close"
+        self.CANVAS_DELETE = "canvas:delete"
+        self.CANVAS_EXECUTE = "canvas:execute"
+
+        # Device event types
+        self.DEVICE_REGISTERED = "device:registered"
+        self.DEVICE_COMMAND = "device:command"
+        self.DEVICE_CAMERA_READY = "device:camera:ready"
+        self.DEVICE_RECORDING_COMPLETE = "device:recording:complete"
+        self.DEVICE_LOCATION_UPDATE = "device:location:update"
+        self.DEVICE_NOTIFICATION_SENT = "device:notification:sent"
+        self.DEVICE_COMMAND_OUTPUT = "device:command:output"
+        self.DEVICE_SESSION_CREATED = "device:session:created"
+        self.DEVICE_SESSION_CLOSED = "device:session:closed"
+        self.DEVICE_AUDIT_LOG = "device:audit:log"
+
     async def connect(self, websocket: WebSocket, token: str):
         await websocket.accept()
         
@@ -136,6 +155,90 @@ class ConnectionManager:
             "connected_users": len(self.user_connections),
             "channels": {k: len(v) for k, v in self.active_connections.items()}
         }
+
+    # ========================================================================
+    # Device Event Broadcasting Methods
+    # ========================================================================
+
+    async def broadcast_device_registered(self, user_id: str, device_data: Dict[str, Any]):
+        """Broadcast when a device is registered"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_REGISTERED,
+            device_data
+        )
+
+    async def broadcast_device_command(self, user_id: str, command_data: Dict[str, Any]):
+        """Broadcast when a command is sent to a device"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_COMMAND,
+            command_data
+        )
+
+    async def broadcast_device_camera_ready(self, user_id: str, camera_data: Dict[str, Any]):
+        """Broadcast when camera capture is ready"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_CAMERA_READY,
+            camera_data
+        )
+
+    async def broadcast_device_recording_complete(self, user_id: str, recording_data: Dict[str, Any]):
+        """Broadcast when screen recording is complete"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_RECORDING_COMPLETE,
+            recording_data
+        )
+
+    async def broadcast_device_location_update(self, user_id: str, location_data: Dict[str, Any]):
+        """Broadcast when location is retrieved"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_LOCATION_UPDATE,
+            location_data
+        )
+
+    async def broadcast_device_notification_sent(self, user_id: str, notification_data: Dict[str, Any]):
+        """Broadcast when notification is sent"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_NOTIFICATION_SENT,
+            notification_data
+        )
+
+    async def broadcast_device_command_output(self, user_id: str, output_data: Dict[str, Any]):
+        """Broadcast when command output is available"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_COMMAND_OUTPUT,
+            output_data
+        )
+
+    async def broadcast_device_session_created(self, user_id: str, session_data: Dict[str, Any]):
+        """Broadcast when a device session is created"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_SESSION_CREATED,
+            session_data
+        )
+
+    async def broadcast_device_session_closed(self, user_id: str, session_data: Dict[str, Any]):
+        """Broadcast when a device session is closed"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_SESSION_CLOSED,
+            session_data
+        )
+
+    async def broadcast_device_audit_log(self, user_id: str, audit_data: Dict[str, Any]):
+        """Broadcast when a device audit log is created"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            self.DEVICE_AUDIT_LOG,
+            audit_data
+        )
 
 manager = ConnectionManager()
 

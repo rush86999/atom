@@ -25,13 +25,18 @@ except (ImportError, BaseException) as e:
     print(f"Pandas not available: {e}")
 
 try:
-    # import lancedb
-    # from lancedb.db import LanceDBConnection
-    # from lancedb.table import Table
-    # from lancedb.pydantic import LanceModel, Vector
-    # import pyarrow as pa
-    # FORCE DISABLE LanceDB to prevent crash
-    LANCEDB_AVAILABLE = False # True
+    import lancedb
+    from lancedb.db import LanceDBConnection
+    from lancedb.table import Table
+    from lancedb.pydantic import LanceModel, Vector
+    import pyarrow as pa
+    
+    # Allow disabling via env var (crucial for CI reliability)
+    if os.getenv("ATOM_DISABLE_LANCEDB", "false").lower() == "true":
+        LANCEDB_AVAILABLE = False
+        print("LanceDB disabled via ATOM_DISABLE_LANCEDB env var")
+    else:
+        LANCEDB_AVAILABLE = True
 except (ImportError, BaseException) as e:
     LANCEDB_AVAILABLE = False
     print(f"LanceDB not available: {e}")
