@@ -748,6 +748,8 @@ class CanvasAudit(Base):
     """
     Audit trail for canvas actions with governance tracking.
     Records all presentations (charts, markdown, forms) and submissions.
+
+    Extended with session_id for session isolation (February 2026).
     """
     __tablename__ = "canvas_audit"
 
@@ -757,9 +759,10 @@ class CanvasAudit(Base):
     agent_execution_id = Column(String, nullable=True, index=True)
     user_id = Column(String, nullable=False, index=True)
     canvas_id = Column(String, nullable=True, index=True)
+    session_id = Column(String, nullable=True, index=True)  # Session isolation (NEW)
     component_type = Column(String, nullable=False)  # 'chart', 'markdown', 'form', etc.
     component_name = Column(String, nullable=True)  # 'line_chart', 'bar_chart', etc.
-    action = Column(String, nullable=False)  # 'present', 'close', 'submit'
+    action = Column(String, nullable=False)  # 'present', 'close', 'submit', 'update'
     audit_metadata = Column(JSON, default={})  # Renamed from 'metadata' (reserved)
     governance_check_passed = Column(Boolean, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)

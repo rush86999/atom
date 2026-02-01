@@ -22,6 +22,12 @@ class ConnectionManager:
         self.STREAMING_ERROR = "streaming:error"
         self.STREAMING_COMPLETE = "streaming:complete"
 
+        # Canvas event types
+        self.CANVAS_PRESENT = "canvas:present"
+        self.CANVAS_UPDATE = "canvas:update"
+        self.CANVAS_CLOSE = "canvas:close"
+        self.CANVAS_DELETE = "canvas:delete"
+
         # Device event types
         self.DEVICE_REGISTERED = "device:registered"
         self.DEVICE_COMMAND = "device:command"

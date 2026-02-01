@@ -259,6 +259,7 @@ class AgentGovernanceService:
         "device_camera_snap": 2,   # INTERN+ (camera capture)
         "device_get_location": 2,  # INTERN+ (location services)
         "device_send_notification": 2,  # INTERN+ (system notifications)
+        "update_canvas": 2,        # INTERN+ (bidirectional canvas update)
 
         # Medium - Supervised level
         "create": 3,

@@ -338,6 +338,14 @@ try:
     except ImportError as e:
         logger.warning(f"Failed to load reports routes (skipping): {e}")
 
+    # Tool Discovery Routes (NEW)
+    try:
+        from api.tools import router as tools_router
+        app.include_router(tools_router)
+        logger.info("✓ Tool Discovery Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load tool discovery routes (skipping): {e}")
+
     try:
         from api.agent_routes import router as agent_router
         app.include_router(agent_router, prefix="/api/agents", tags=["agents"])
