@@ -823,6 +823,14 @@ try:
     except ImportError as e:
         logger.warning(f"Workflow debugging routes not found: {e}")
 
+    # 15.17 Advanced Workflow Debugging Routes (NEW - Phase 6 Enhanced)
+    try:
+        from api.workflow_debugging_advanced import router as debugging_advanced_router
+        app.include_router(debugging_advanced_router)
+        logger.info("✓ Advanced Workflow Debugging Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Advanced debugging routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router

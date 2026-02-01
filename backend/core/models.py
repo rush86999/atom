@@ -1814,7 +1814,13 @@ class WorkflowDebugSession(Base):
     
     # Conditional breakpoints
     conditional_breakpoints = Column(JSON)  # {node_id: condition_expression}
-    
+
+    # Collaborative debugging (NEW - Phase 6 Enhanced)
+    collaborators = Column(JSON)  # {user_id: {permission, added_at}}
+
+    # Performance profiling (NEW - Phase 6 Enhanced)
+    performance_metrics = Column(JSON)  # {enabled, started_at, step_times, node_times, total_duration_ms}
+
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
