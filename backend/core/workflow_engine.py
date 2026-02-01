@@ -22,7 +22,7 @@ from core.auto_healing import async_retry_with_backoff
 from core.websockets import get_connection_manager
 from core.token_storage import token_storage
 import httpx
-from core.models import IntegrationCatalog
+from core.models import IntegrationCatalog, WorkflowStepExecution
 from core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ class WorkflowEngine:
         self.var_pattern = re.compile(r'\${([^}]+)}')
         self.max_concurrent_steps = max_concurrent_steps
         self.semaphore = asyncio.Semaphore(max_concurrent_steps)
+        self.cancellation_requests = set()
 
     async def start_workflow(self, workflow: Dict[str, Any], input_data: Dict[str, Any], background_tasks: Any = None) -> str:
         """Start a new workflow execution"""
@@ -426,17 +427,28 @@ class WorkflowEngine:
         state = await self.state_manager.get_execution_state(execution_id)
         if not state:
             raise ValueError(f"Execution {execution_id} not found")
-            
+
         if state["status"] != "PAUSED":
             logger.warning(f"Cannot resume execution {execution_id} in state {state['status']}")
             return False
-            
+
         # Update state with new inputs
         await self.state_manager.update_execution_inputs(execution_id, new_inputs)
         await self.state_manager.update_execution_status(execution_id, "RUNNING")
-        
+
         # Resume execution
         asyncio.create_task(self._run_execution(execution_id, workflow))
+        return True
+
+    async def cancel_execution(self, execution_id: str) -> bool:
+        """Request cancellation of a running workflow execution."""
+        self.cancellation_requests.add(execution_id)
+        logger.info(f"Cancellation requested for execution {execution_id}")
+
+        # Notify via WebSocket
+        ws_manager = get_connection_manager()
+        await self.state_manager.update_execution_status(execution_id, "CANCELLED")
+        await ws_manager.notify_workflow_status("default", execution_id, "CANCELLED")
         return True
 
     async def _run_execution(self, execution_id: str, workflow: Dict[str, Any]):
@@ -469,7 +481,15 @@ class WorkflowEngine:
             
             for step in steps:
                 step_id = step["id"]
-                
+
+                # Check for cancellation
+                if execution_id in self.cancellation_requests:
+                    logger.info(f"Execution {execution_id} cancelled")
+                    await self.state_manager.update_execution_status(execution_id, "CANCELLED")
+                    await ws_manager.notify_workflow_status(user_id, execution_id, "CANCELLED")
+                    self.cancellation_requests.discard(execution_id)
+                    return
+
                 # Check if step already completed (for resume scenarios)
                 step_state = state["steps"].get(step_id, {})
                 if step_state.get("status") == "COMPLETED":
@@ -527,12 +547,47 @@ class WorkflowEngine:
                 # Execute step
                 await self.state_manager.update_step_status(execution_id, step_id, "RUNNING")
                 await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_RUNNING", {"step_id": step_id})
+
+                # Create step execution record
+                db = SessionLocal()
+                try:
+                    step_exec = WorkflowStepExecution(
+                        execution_id=execution_id,
+                        workflow_id=workflow.get("id", "unknown"),
+                        step_id=step["id"],
+                        step_name=step.get("name", step["id"]),
+                        step_type=step.get("type", "action"),
+                        sequence_order=step.get("sequence_order", 0),
+                        status="running",
+                        started_at=datetime.utcnow(),
+                        input_data=resolved_params
+                    )
+                    db.add(step_exec)
+                    db.commit()
+                finally:
+                    db.close()
                 
                 try:
                     output = await self._execute_step(step, resolved_params)
                     self._validate_output_schema(step, output)
                     await self.state_manager.update_step_status(execution_id, step_id, "COMPLETED", output=output)
                     await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_COMPLETED", {"step_id": step_id})
+
+                    # Update step execution record
+                    db = SessionLocal()
+                    try:
+                        step_exec = db.query(WorkflowStepExecution).filter(
+                            WorkflowStepExecution.execution_id == execution_id,
+                            WorkflowStepExecution.step_id == step_id
+                        ).first()
+                        if step_exec:
+                            step_exec.status = "completed"
+                            step_exec.completed_at = datetime.utcnow()
+                            step_exec.duration_ms = int((datetime.utcnow() - step_exec.started_at).total_seconds() * 1000)
+                            step_exec.output_data = output
+                            db.commit()
+                    finally:
+                        db.close()
                     
                     # Update in-memory state for next steps
                     state = await self.state_manager.get_execution_state(execution_id)

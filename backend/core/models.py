@@ -191,7 +191,7 @@ class WorkflowExecution(Base):
     error = Column(Text, nullable=True)
     # Add user_id foreign key for user binding
     user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
-    
+
     # Visibility scoping
     visibility = Column(String, default=DataVisibility.WORKSPACE.value, nullable=False, index=True)
     owner_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
@@ -201,6 +201,62 @@ class WorkflowExecution(Base):
     user = relationship("User", foreign_keys=[user_id], backref="workflow_executions")
     owner = relationship("User", foreign_keys=[owner_id])
     team = relationship("Team")
+
+
+class WorkflowExecutionLog(Base):
+    """Execution logs for workflow runs"""
+    __tablename__ = "workflow_execution_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+
+    level = Column(String, default="INFO")  # DEBUG, INFO, WARNING, ERROR
+    message = Column(Text, nullable=False)
+    step_id = Column(String, nullable=True)
+    context = Column(JSON, nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    execution = relationship("WorkflowExecution", backref="logs")
+
+    __table_args__ = (
+        Index('ix_workflow_execution_logs_execution', 'execution_id'),
+        Index('ix_workflow_execution_logs_timestamp', 'timestamp'),
+    )
+
+
+class WorkflowStepExecution(Base):
+    """Step-level execution tracking for workflows"""
+    __tablename__ = "workflow_step_executions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    workflow_id = Column(String, nullable=False, index=True)
+
+    step_id = Column(String, nullable=False, index=True)
+    step_name = Column(String, nullable=False)
+    step_type = Column(String, nullable=False)  # trigger, action, condition
+    sequence_order = Column(Integer, nullable=False)
+
+    status = Column(String, default="pending")  # pending, running, completed, failed, skipped
+
+    input_data = Column(JSON, nullable=True)
+    output_data = Column(JSON, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+
+    retry_count = Column(Integer, default=0)
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    execution = relationship("WorkflowExecution", backref="step_executions")
+
+    __table_args__ = (
+        Index('ix_workflow_step_executions_execution', 'execution_id'),
+        Index('ix_workflow_step_executions_step', 'step_id'),
+    )
 
 class ChatProcess(Base):
     __tablename__ = "chat_processes"
