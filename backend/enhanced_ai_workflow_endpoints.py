@@ -17,7 +17,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 import openai
 import anthropic
-import instructor
+
+try:
+    import instructor
+except ImportError:
+    instructor = None
+    logger = logging.getLogger(__name__)
+    logger.warning("instructor package not available, some features may be limited")
+
 from dotenv import load_dotenv
 
 # Configure logging
