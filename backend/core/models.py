@@ -249,7 +249,6 @@ class WorkflowExecutionLog(Base):
 
     __table_args__ = (
         Index('ix_workflow_execution_logs_execution', 'execution_id'),
-        Index('ix_workflow_execution_logs_timestamp', 'timestamp'),
     )
 
 
@@ -1546,7 +1545,6 @@ class WorkflowTemplate(Base):
                            foreign_keys=[parent_template_id],
                            back_populates="parent")
     parent = relationship("WorkflowTemplate",
-                         remote_side=[template_id],
                          foreign_keys=[parent_template_id],
                          back_populates="children")
     executions = relationship("TemplateExecution", back_populates="template")
