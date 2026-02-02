@@ -290,18 +290,6 @@ class SlackConfigManager:
             if "user_token" in updates:
                 self.config.api.user_token = updates["user_token"]
 
-            # Update feature flags
-            if "enable_events" in updates:
-                self.config.features.enable_events = updates["enable_events"]
-            if "enable_commands" in updates:
-                self.config.features.enable_commands = updates["enable_commands"]
-            if "enable_interactions" in updates:
-                self.config.features.enable_interactions = updates["enable_interactions"]
-            if "enable_workflows" in updates:
-                self.config.features.enable_workflows = updates["enable_workflows"]
-            if "enable_realtime" in updates:
-                self.config.features.enable_realtime = updates["enable_realtime"]
-
             # Update rate limits
             if "tier_1_limit" in updates:
                 self.config.rate_limits.tier_1_limit = updates["tier_1_limit"]
