@@ -59,8 +59,11 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ### 🛡️ Agent Governance System
 - Agents progress from 'Student' → 'Autonomous' based on performance
+- **Maturity-based routing**: Student agents blocked from automated triggers
+- **AI-powered training**: Personalized learning scenarios with duration estimation
 - Sensitive actions require approval until confidence is high
 - Every action logged, timestamped, and traceable
+- Real-time supervision for learning agents
 
 ### 🔌 Deep Integrations
 - **46+ pre-built integrations**: Slack, Gmail, HubSpot, Salesforce, etc.
@@ -124,6 +127,14 @@ Access at: **http://localhost:3000**
 
 ## Recent Features (February 2026)
 
+### Student Agent Training System ✨ NEW
+- **Maturity-based routing**: Prevents STUDENT agents from automated triggers
+- **AI training proposals**: Personalized learning with duration estimation
+- **Real-time supervision**: Monitor SUPERVISED agents with intervention controls
+- **Action proposals**: INTERN agents require human approval before execution
+- **Confidence boosting**: Performance-based maturity progression
+- [Full Documentation →](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)
+
 ### Canvas & Agent Guidance System
 - Real-time operation tracking with plain English explanations
 - Multi-view orchestration (browser, terminal, canvas)
@@ -142,6 +153,7 @@ Access at: **http://localhost:3000**
 ## Documentation
 
 - [Development Guide](docs/DEVELOPMENT.md) - Technical setup and architecture
+- [Student Agent Training](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Maturity-based routing system
 - [Canvas Implementation](docs/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system details
 - [Agent Governance](docs/AGENT_GOVERNANCE.md) - Maturity levels and approvals
 - [Recording System](docs/CANVAS_RECORDING_IMPLEMENTATION.md) - Recording and playback
