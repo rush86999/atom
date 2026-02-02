@@ -29,7 +29,10 @@ class AsanaService:
             "ASANA_REDIRECT_URI", "http://localhost:8000/api/auth/asana/callback"
         )
 
-        logger.info(f"AsanaService initialized with client_id: {self.client_id[:8]}...")
+        if self.client_id:
+            logger.info(f"AsanaService initialized with client_id: {self.client_id[:8]}...")
+        else:
+            logger.info("AsanaService initialized (no client_id configured)")
 
     def _make_request(
         self,
