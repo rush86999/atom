@@ -704,6 +704,14 @@ try:
     except ImportError as e:
         logger.warning(f"Canvas recording routes not found: {e}")
 
+    # 15.1.c Recording Review Routes (Governance & Learning integration)
+    try:
+        from api.recording_review_routes import router as recording_review_router
+        app.include_router(recording_review_router, tags=["Recording Review"])
+        logger.info("✓ Recording Review Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Recording review routes not found: {e}")
+
     # 15.1.a Artifact Routes (Persistent Workbench)
     try:
         from api.artifact_routes import router as artifact_router

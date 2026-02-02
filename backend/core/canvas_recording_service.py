@@ -266,6 +266,9 @@ class CanvasRecordingService:
                 action="stop_recording"
             )
 
+            # Trigger auto-review for governance and learning integration
+            await self._trigger_auto_review(recording_id)
+
             logger.info(
                 f"Stopped recording {recording_id} after {duration_seconds:.1f}s, "
                 f"{len(recording.events)} events"
@@ -517,6 +520,30 @@ class CanvasRecordingService:
             self.db.commit()
         except Exception as e:
             logger.error(f"Failed to create audit: {e}")
+
+    async def _trigger_auto_review(self, recording_id: str):
+        """
+        Trigger automatic review of completed recording.
+
+        Integrates with RecordingReviewService to analyze the recording
+        and update agent confidence based on performance.
+        """
+        try:
+            # Import here to avoid circular dependency
+            from core.recording_review_service import RecordingReviewService
+
+            review_service = RecordingReviewService(self.db)
+
+            # Trigger auto-review (will skip if not enabled or if low confidence)
+            review_id = await review_service.auto_review_recording(recording_id)
+
+            if review_id:
+                logger.info(f"Auto-review {review_id} triggered for recording {recording_id}")
+            else:
+                logger.debug(f"Auto-review skipped for recording {recording_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to trigger auto-review for recording {recording_id}: {e}")
 
 
 # Singleton instance helper
