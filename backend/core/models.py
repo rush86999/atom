@@ -847,6 +847,7 @@ class CanvasAudit(Base):
     Records all presentations (charts, markdown, forms) and submissions.
 
     Extended with session_id for session isolation (February 2026).
+    Extended with canvas_type for specialized canvas support (February 2026).
     """
     __tablename__ = "canvas_audit"
 
@@ -857,6 +858,7 @@ class CanvasAudit(Base):
     user_id = Column(String, nullable=False, index=True)
     canvas_id = Column(String, nullable=True, index=True)
     session_id = Column(String, nullable=True, index=True)  # Session isolation (NEW)
+    canvas_type = Column(String, default="generic", nullable=False, index=True)  # 'generic', 'docs', 'email', 'sheets', 'orchestration', 'terminal', 'coding' (NEW)
     component_type = Column(String, nullable=False)  # 'chart', 'markdown', 'form', etc.
     component_name = Column(String, nullable=True)  # 'line_chart', 'bar_chart', etc.
     action = Column(String, nullable=False)  # 'present', 'close', 'submit', 'update'
