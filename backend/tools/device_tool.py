@@ -1,6 +1,18 @@
 """
 Device Automation Tool
 
+**⚠️ MOCK IMPLEMENTATION NOTICE ⚠️**
+
+All device functions in this module are currently MOCK implementations.
+Real device communication via WebSocket/Tauri backend is NOT yet implemented.
+
+TODO: Implement Tauri/WebSocket Integration
+1. Install and configure Tauri backend service
+2. Implement WebSocket communication with device agents
+3. Replace all mock returns with actual device calls
+4. Add proper error handling for device disconnection
+5. Test with real devices (mobile, desktop, IoT)
+
 Provides device hardware access for AI agents:
 - Camera capture (snap/clip)
 - Screen recording (start/stop)
@@ -31,6 +43,15 @@ from core.agent_governance_service import AgentGovernanceService
 from core.agent_context_resolver import AgentContextResolver
 
 logger = logging.getLogger(__name__)
+
+# Mock implementation warning
+_DEVICE_MOCK_MODE = True
+if _DEVICE_MOCK_MODE:
+    logger.warning("=" * 70)
+    logger.warning("DEVICE TOOL IS IN MOCK MODE - All functions return simulated data")
+    logger.warning("Real device communication via Tauri/WebSocket is NOT implemented")
+    logger.warning("See device_tool.py module docstring for implementation TODOs")
+    logger.warning("=" * 70)
 
 # Feature flags
 import os
