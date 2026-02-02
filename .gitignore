@@ -748,3 +748,7 @@ unresolved.txt
 test-results/
 playwright-report/
 .archive/
+
+# Archive directory (old test results and debug files)
+archive/
+tests/archive/
