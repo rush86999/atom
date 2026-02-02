@@ -1,7 +1,9 @@
 """
-Comprehensive Workspace Permission Tests
+Global Permission Tests for Single-Tenant Atom Platform
 
-Tests the consolidated UserRole system and workspace-specific permissions.
+Tests the consolidated UserRole system and global permissions.
+Atom is a single-tenant, single-workspace system - permissions are based
+solely on the user's global role, not workspace membership.
 """
 
 import pytest
@@ -104,7 +106,6 @@ class TestSecurityAdminPermissions:
 
         expected_permissions = [
             "manage_users",
-            "manage_workspaces",
             "manage_security",
             "view_audit_logs",
             "manage_workflows",
@@ -139,7 +140,6 @@ class TestWorkspaceAdminPermissions:
 
         expected_permissions = [
             "manage_users",
-            "manage_workspaces",
             "manage_security",
             "view_audit_logs",
             "manage_workflows",
@@ -245,125 +245,6 @@ class TestStandardRolePermissions:
         assert "manage_workflows" not in permissions
 
 
-class TestWorkspaceSpecificPermissions:
-    """Test workspace-specific permission resolution"""
-
-    def test_workspace_owner_permissions(self, mock_db, auth_service):
-        """Test workspace owner has full permissions"""
-        user = Mock()
-        user.id = "user_123"
-        user.role = UserRole.MEMBER.value  # Base role is member
-
-        # Mock workspace query result
-        mock_result = Mock()
-        mock_result.role = "owner"
-
-        mock_db.execute.return_value.first.return_value = mock_result
-
-        permissions = auth_service._get_user_permissions(
-            mock_db,
-            user,
-            workspace_id="workspace_456"
-        )
-
-        expected_permissions = [
-            "manage_workflows",
-            "manage_teams",
-            "manage_integrations",
-            "view_analytics",
-            "execute_workflows",
-            "manage_billing"
-        ]
-
-        for perm in expected_permissions:
-            assert perm in permissions
-
-    def test_workspace_admin_role_permissions(self, mock_db, auth_service):
-        """Test workspace admin role permissions"""
-        user = Mock()
-        user.id = "user_123"
-        user.role = UserRole.MEMBER.value
-
-        mock_result = Mock()
-        mock_result.role = "admin"
-
-        mock_db.execute.return_value.first.return_value = mock_result
-
-        permissions = auth_service._get_user_permissions(
-            mock_db,
-            user,
-            workspace_id="workspace_456"
-        )
-
-        assert "manage_workflows" in permissions
-        assert "manage_teams" in permissions
-        assert "view_analytics" in permissions
-        assert "execute_workflows" in permissions
-        assert "manage_billing" not in permissions  # Owner only
-
-    def test_workspace_member_permissions(self, mock_db, auth_service):
-        """Test workspace member permissions"""
-        user = Mock()
-        user.id = "user_123"
-        user.role = UserRole.MEMBER.value
-
-        mock_result = Mock()
-        mock_result.role = "member"
-
-        mock_db.execute.return_value.first.return_value = mock_result
-
-        permissions = auth_service._get_user_permissions(
-            mock_db,
-            user,
-            workspace_id="workspace_456"
-        )
-
-        assert "read_workflows" in permissions
-        assert "execute_workflows" in permissions
-        assert "view_analytics" in permissions
-        assert "manage_workflows" not in permissions
-
-    def test_workspace_guest_permissions(self, mock_db, auth_service):
-        """Test workspace guest permissions (read-only)"""
-        user = Mock()
-        user.id = "user_123"
-        user.role = UserRole.GUEST.value
-
-        mock_result = Mock()
-        mock_result.role = "guest"
-
-        mock_db.execute.return_value.first.return_value = mock_result
-
-        permissions = auth_service._get_user_permissions(
-            mock_db,
-            user,
-            workspace_id="workspace_456"
-        )
-
-        assert "read_workflows" in permissions
-        assert "view_analytics" in permissions
-        assert "execute_workflows" not in permissions
-
-    def test_no_workspace_membership(self, mock_db, auth_service):
-        """Test permissions when user is not workspace member"""
-        user = Mock()
-        user.id = "user_123"
-        user.role = UserRole.MEMBER.value
-
-        # No workspace membership
-        mock_db.execute.return_value.first.return_value = None
-
-        permissions = auth_service._get_user_permissions(
-            mock_db,
-            user,
-            workspace_id="workspace_456"
-        )
-
-        # Should fall back to base role permissions
-        assert "read_workflows" in permissions
-        assert "execute_workflows" in permissions
-
-
 class TestPermissionEdgeCases:
     """Test edge cases and error handling"""
 
@@ -378,20 +259,27 @@ class TestPermissionEdgeCases:
         assert "read_workflows" in permissions
         assert len(permissions) == 1
 
-    def test_none_workspace_id_uses_base_role(self, mock_db, auth_service):
-        """Test that None workspace_id uses base role permissions"""
+    def test_workspace_id_parameter_is_ignored(self, mock_db, auth_service):
+        """Test that workspace_id parameter is ignored (single-tenant system)"""
         user = Mock()
         user.role = UserRole.MEMBER.value
 
-        permissions = auth_service._get_user_permissions(
+        # workspace_id should be ignored
+        permissions_with_workspace = auth_service._get_user_permissions(
+            mock_db,
+            user,
+            workspace_id="some_workspace_id"
+        )
+        permissions_without_workspace = auth_service._get_user_permissions(
             mock_db,
             user,
             workspace_id=None
         )
 
-        # Should use base role, not workspace-specific
-        assert "read_workflows" in permissions
-        assert "execute_workflows" in permissions
+        # Both should return the same permissions
+        assert permissions_with_workspace == permissions_without_workspace
+        assert "read_workflows" in permissions_with_workspace
+        assert "execute_workflows" in permissions_with_workspace
 
 
 class TestSAMLRoleMapping:
@@ -429,43 +317,18 @@ class TestSAMLRoleMapping:
 
 
 class TestPermissionIntegration:
-    """Integration tests for permission system"""
+    """Integration tests for single-tenant permission system"""
 
-    def test_workspace_owner_overrides_base_role(self, mock_db, auth_service):
-        """Test that workspace role overrides base role"""
-        user = Mock()
-        user.id = "user_123"
-        user.role = UserRole.GUEST.value  # Base role is guest (read-only)
-
-        # But in workspace, user is owner
-        mock_result = Mock()
-        mock_result.role = "owner"
-
-        mock_db.execute.return_value.first.return_value = mock_result
-
-        permissions = auth_service._get_user_permissions(
-            mock_db,
-            user,
-            workspace_id="workspace_456"
-        )
-
-        # Should have owner permissions, not guest permissions
-        assert "manage_workflows" in permissions
-        assert "manage_billing" in permissions
-        assert "execute_workflows" in permissions
-
-    def test_system_admin_overrides_workspace_restrictions(self, mock_db, auth_service):
-        """Test that system admins bypass workspace restrictions"""
+    def test_super_admin_has_all_permissions(self, mock_db, auth_service):
+        """Test that SUPER_ADMIN has all permissions regardless of other parameters"""
         user = Mock()
         user.role = UserRole.SUPER_ADMIN.value
 
-        # Even if not in workspace, should have all permissions
-        mock_db.execute.return_value.first.return_value = None
-
+        # Should have all permissions
         permissions = auth_service._get_user_permissions(
             mock_db,
             user,
-            workspace_id="workspace_456"
+            workspace_id="ignored_parameter"
         )
 
         assert "all" in permissions
