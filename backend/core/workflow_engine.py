@@ -21,6 +21,12 @@ from core.execution_state_manager import get_state_manager, ExecutionStateManage
 from core.auto_healing import async_retry_with_backoff
 from core.websockets import get_connection_manager
 from core.token_storage import token_storage
+from core.exceptions import (
+    AuthenticationError,
+    ExternalServiceError,
+    ValidationError as AtomValidationError,
+    AgentExecutionError
+)
 import httpx
 from core.models import IntegrationCatalog, WorkflowStepExecution
 from core.database import SessionLocal
@@ -975,7 +981,7 @@ class WorkflowEngine:
                 channel = params.get("channel")
                 text = params.get("text")
                 if not token:
-                    raise Exception("Slack authentication required (no token found)")
+                    raise AuthenticationError("Slack authentication required (no token found)")
                 result = await slack_unified_service.post_message(token=token, channel_id=channel, text=text)
             else:
                  # Generic fallback or other actions
@@ -1007,7 +1013,7 @@ class WorkflowEngine:
         try:
             result = None
             if not token:
-                 raise Exception("Asana authentication required")
+                 raise AuthenticationError("Asana authentication required")
 
             if action == "create_task":
                  task_data = {
@@ -1047,7 +1053,7 @@ class WorkflowEngine:
         
         try:
             if not token and not discord_service.bot_token:
-                 raise Exception("Discord authentication required")
+                 raise AuthenticationError("Discord authentication required")
 
             if action == "send_message":
                  channel_id = params.get("channel_id")
@@ -1076,7 +1082,7 @@ class WorkflowEngine:
         
         try:
             if not token and not hubspot_service.access_token:
-                 raise Exception("HubSpot authentication required")
+                 raise AuthenticationError("HubSpot authentication required")
 
             if action == "create_contact":
                  email = params.get("email")
@@ -1123,7 +1129,7 @@ class WorkflowEngine:
             
             # If no dynamic client, validation fails unless we have some other fallback (which SF service doesn't really have easily)
             if not sf:
-                 raise Exception("Salesforce authentication required (token + instance_url)")
+                 raise AuthenticationError("Salesforce authentication required (token + instance_url)")
 
             if action == "create_lead":
                  last_name = params.get("lastname")
@@ -1258,20 +1264,20 @@ class WorkflowEngine:
                 body = params.get("body")
                 
                 if not token:
-                     raise Exception("Gmail authentication required (no token found)")
-                
+                     raise AuthenticationError("Gmail authentication required (no token found)")
+
                 # Use refactored send_message with token
                 result = gmail_service.send_message(to=to, subject=subject, body=body, token=token)
-                
+
                 if not result:
-                    raise Exception("Failed to send email")
+                    raise ExternalServiceError("Gmail", "Failed to send email")
             
             elif action == "create_draft":
                  to = params.get("to")
                  subject = params.get("subject")
                  body = params.get("body")
                  if not token:
-                     raise Exception("Gmail authentication required")
+                     raise AuthenticationError("Gmail authentication required")
                  result = gmail_service.draft_message(to=to, subject=subject, body=body, token=token)
 
             else:
@@ -1437,7 +1443,11 @@ class WorkflowEngine:
             }
 
         except Exception as e:
-            raise Exception(f"Agent execution failed: {e}")
+            raise AgentExecutionError(
+                agent_id=params.get("agent_id", "unknown"),
+                reason=str(e),
+                cause=e
+            )
 
     async def _execute_email_automation_action(self, action: str, params: dict) -> dict:
         """Execute email automation service actions (Follow-ups, etc.)"""
