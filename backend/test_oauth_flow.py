@@ -145,15 +145,8 @@ def test_slack_config():
     assert manager.config.api.client_id == original_client_id
     print("   ✅ Client ID restored")
 
-    # Test feature flag updates
-    print("\n2. Testing feature flag updates...")
-    original_events = manager.config.features.enable_events
-    manager.update_config({'enable_events': not original_events})
-    assert manager.config.features.enable_events != original_events
-    print("   ✅ Feature flags updated")
-
     # Test rate limit updates
-    print("\n3. Testing rate limit updates...")
+    print("\n2. Testing rate limit updates...")
     original_limit = manager.config.rate_limits.tier_1_limit
     manager.update_config({'tier_1_limit': 999})
     assert manager.config.rate_limits.tier_1_limit == 999
@@ -162,6 +155,17 @@ def test_slack_config():
     manager.update_config({'tier_1_limit': original_limit})
     assert manager.config.rate_limits.tier_1_limit == original_limit
     print("   ✅ Rate limits restored")
+
+    # Test cache config updates
+    print("\n3. Testing cache config updates...")
+    original_enabled = manager.config.cache.enabled
+    manager.update_config({'cache_enabled': not original_enabled})
+    assert manager.config.cache.enabled != original_enabled
+    print("   ✅ Cache config updated")
+
+    manager.update_config({'cache_enabled': original_enabled})
+    assert manager.config.cache.enabled == original_enabled
+    print("   ✅ Cache config restored")
 
     print("\n" + "=" * 70)
     print("✅ ALL SLACK CONFIGURATION TESTS PASSED")
