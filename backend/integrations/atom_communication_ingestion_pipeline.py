@@ -799,7 +799,12 @@ class CommunicationIngestionPipeline:
         """
         Fetch new Microsoft Teams messages via Microsoft Graph API.
 
-        Requires Microsoft Teams OAuth access token.
+        Fetches from:
+        - 1:1 chats
+        - Group chats
+        - Channel messages (from joined teams)
+
+        Requires Microsoft Teams OAuth access token with Chat.Read, ChannelMessage.Read.All scopes.
         """
         try:
             from core.token_storage import token_storage
@@ -814,34 +819,65 @@ class CommunicationIngestionPipeline:
 
             all_messages = []
 
-            async with httpx.AsyncClient() as client:
-                # Get chats (channels and direct messages)
-                chats_response = await client.get(
-                    "https://graph.microsoft.com/v1.0/me/chats",
-                    headers=headers
-                )
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # 1. Fetch 1:1 and group chats
+                all_messages.extend(await self._fetch_teams_chat_messages(client, headers, last_fetch))
 
-                if chats_response.status_code != 200:
-                    logger.error(f"Failed to fetch Teams chats: {chats_response.status_code}")
-                    return []
+                # 2. Fetch channel messages from teams
+                all_messages.extend(await self._fetch_teams_channel_messages(client, headers, last_fetch))
 
-                chats = chats_response.json().get("value", [])
+                # Sort by timestamp
+                all_messages.sort(key=lambda m: m.get("timestamp", datetime.min))
 
-                for chat in chats:
-                    chat_id = chat.get("id")
-                    if not chat_id:
-                        continue
+                logger.info(f"Fetched {len(all_messages)} total messages from Microsoft Teams")
+                return all_messages
 
-                    # Build filter for messages since last fetch
-                    filter_str = None
-                    if last_fetch:
-                        filter_str = f"createdDateTime gt {last_fetch.isoformat()}"
+        except ImportError:
+            logger.warning("token_storage module not available for Teams polling")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching Teams messages: {e}")
+            return []
 
-                    # Get messages from each chat
-                    params = {"$top": 100}
-                    if filter_str:
-                        params["$filter"] = filter_str
+    async def _fetch_teams_chat_messages(
+        self,
+        client: httpx.AsyncClient,
+        headers: Dict[str, str],
+        last_fetch: Optional[datetime]
+    ) -> List[Dict[str, Any]]:
+        """Fetch messages from Teams chats (1:1 and group chats)"""
+        all_messages = []
 
+        try:
+            # Get all chats
+            chats_response = await client.get(
+                "https://graph.microsoft.com/v1.0/me/chats",
+                headers=headers
+            )
+
+            if chats_response.status_code != 200:
+                logger.warning(f"Failed to fetch Teams chats: {chats_response.status_code}")
+                return []
+
+            chats = chats_response.json().get("value", [])
+            logger.debug(f"Found {len(chats)} Teams chats")
+
+            for chat in chats:
+                chat_id = chat.get("id")
+                if not chat_id:
+                    continue
+
+                # Build filter for messages since last fetch
+                filter_str = None
+                if last_fetch:
+                    filter_str = f"createdDateTime gt {last_fetch.isoformat()}"
+
+                # Get messages from each chat
+                params = {"$top": 50}  # Reduced batch size for better performance
+                if filter_str:
+                    params["$filter"] = filter_str
+
+                try:
                     msgs_response = await client.get(
                         f"https://graph.microsoft.com/v1.0/me/chats/{chat_id}/messages",
                         headers=headers,
@@ -853,38 +889,195 @@ class CommunicationIngestionPipeline:
 
                         # Normalize messages
                         for msg in messages:
+                            # Extract sender info
+                            from_user = msg.get("from", {}).get("user", {})
+                            sender_display_name = from_user.get("displayName", "UNKNOWN")
+                            sender_email = from_user.get("email", "")
+
+                            # Extract content (handle different formats)
+                            body_content = msg.get("body", {})
+                            content = body_content.get("content", "")
+                            content_type = body_content.get("contentType", "text")
+
+                            # Handle Adaptive Cards
+                            attachments = msg.get("attachments", [])
+                            adaptive_card_data = None
+                            for attachment in attachments:
+                                if attachment.get("contentType") == "application/vnd.microsoft.card.adaptive":
+                                    adaptive_card_data = attachment.get("content", {})
+
                             normalized_msg = {
                                 "id": msg.get("id"),
                                 "app_type": CommunicationAppType.MICROSOFT_TEAMS.value,
-                                "timestamp": datetime.fromisoformat(msg.get("createdDateTime", datetime.now().isoformat())),
+                                "timestamp": datetime.fromisoformat(
+                                    msg.get("createdDateTime", datetime.now().isoformat())
+                                ).replace(tzinfo=None),
                                 "direction": "inbound",
-                                "sender": msg.get("from", {}).get("user", {}).get("displayName", "UNKNOWN"),
+                                "sender": sender_display_name,
+                                "sender_email": sender_email,
                                 "recipient": chat_id,
-                                "subject": None,
-                                "content": msg.get("body", {}).get("content", ""),
-                                "attachments": msg.get("attachments", []),
+                                "subject": msg.get("subject"),
+                                "content": content,
+                                "content_type": content_type,
+                                "attachments": attachments,
                                 "metadata": {
                                     "chat_id": chat_id,
                                     "chat_type": chat.get("chatType"),
-                                    "subject": msg.get("subject"),
+                                    "chat_title": chat.get("topic"),
                                     "web_url": msg.get("webUrl"),
+                                    "message_type": msg.get("messageType"),
+                                    "created_datetime": msg.get("createdDateTime"),
+                                    "last_modified_datetime": msg.get("lastModifiedDateTime"),
+                                    "adaptive_card": adaptive_card_data,
                                     "teams_metadata": msg
                                 },
                                 "status": "active",
                                 "priority": "normal",
-                                "tags": []
+                                "tags": ["teams", "chat"]
                             }
                             all_messages.append(normalized_msg)
 
-                logger.info(f"Fetched {len(all_messages)} messages from Microsoft Teams")
-                return all_messages
+                    elif msgs_response.status_code == 429:
+                        # Rate limited - wait and retry
+                        retry_after = int(msgs_response.headers.get("Retry-After", 30))
+                        logger.warning(f"Teams API rate limited, waiting {retry_after}s")
+                        await asyncio.sleep(retry_after)
 
-        except ImportError:
-            logger.warning("token_storage module not available for Teams polling")
-            return []
+                except Exception as e:
+                    logger.error(f"Error fetching messages from chat {chat_id}: {e}")
+                    continue
+
         except Exception as e:
-            logger.error(f"Error fetching Teams messages: {e}")
-            return []
+            logger.error(f"Error in _fetch_teams_chat_messages: {e}")
+
+        return all_messages
+
+    async def _fetch_teams_channel_messages(
+        self,
+        client: httpx.AsyncClient,
+        headers: Dict[str, str],
+        last_fetch: Optional[datetime]
+    ) -> List[Dict[str, Any]]:
+        """Fetch messages from Teams channels (requires ChannelMessage.Read.All permission)"""
+        all_messages = []
+
+        try:
+            # Get joined teams
+            teams_response = await client.get(
+                "https://graph.microsoft.com/v1.0/me/joinedTeams",
+                headers=headers
+            )
+
+            if teams_response.status_code != 200:
+                logger.debug(f"Could not fetch Teams (may need ChannelMessage.Read.All permission): {teams_response.status_code}")
+                return []
+
+            teams = teams_response.json().get("value", [])
+            logger.debug(f"Found {len(teams)} joined Teams")
+
+            for team in teams:
+                team_id = team.get("id")
+                team_name = team.get("displayName", "Unknown Team")
+
+                if not team_id:
+                    continue
+
+                # Get channels for this team
+                channels_response = await client.get(
+                    f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels",
+                    headers=headers
+                )
+
+                if channels_response.status_code != 200:
+                    logger.debug(f"Could not fetch channels for team {team_id}")
+                    continue
+
+                channels = channels_response.json().get("value", [])
+
+                for channel in channels:
+                    channel_id = channel.get("id")
+                    channel_name = channel.get("displayName", "General")
+
+                    if not channel_id:
+                        continue
+
+                    # Build filter for messages since last fetch
+                    filter_str = None
+                    if last_fetch:
+                        filter_str = f"createdDateTime gt {last_fetch.isoformat()}"
+
+                    # Get messages from channel
+                    params = {"$top": 50}
+                    if filter_str:
+                        params["$filter"] = filter_str
+
+                    try:
+                        msgs_response = await client.get(
+                            f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels/{channel_id}/messages",
+                            headers=headers,
+                            params=params
+                        )
+
+                        if msgs_response.status_code == 200:
+                            messages = msgs_response.json().get("value", [])
+
+                            for msg in messages:
+                                from_user = msg.get("from", {}).get("user", {})
+                                sender_display_name = from_user.get("displayName", "UNKNOWN")
+                                sender_email = from_user.get("email", "")
+
+                                body_content = msg.get("body", {})
+                                content = body_content.get("content", "")
+                                content_type = body_content.get("contentType", "text")
+
+                                attachments = msg.get("attachments", [])
+
+                                normalized_msg = {
+                                    "id": msg.get("id"),
+                                    "app_type": CommunicationAppType.MICROSOFT_TEAMS.value,
+                                    "timestamp": datetime.fromisoformat(
+                                        msg.get("createdDateTime", datetime.now().isoformat())
+                                    ).replace(tzinfo=None),
+                                    "direction": "inbound",
+                                    "sender": sender_display_name,
+                                    "sender_email": sender_email,
+                                    "recipient": f"{team_name}/{channel_name}",
+                                    "subject": msg.get("subject"),
+                                    "content": content,
+                                    "content_type": content_type,
+                                    "attachments": attachments,
+                                    "metadata": {
+                                        "team_id": team_id,
+                                        "team_name": team_name,
+                                        "channel_id": channel_id,
+                                        "channel_name": channel_name,
+                                        "web_url": msg.get("webUrl"),
+                                        "message_type": msg.get("messageType"),
+                                        "reply_to_id": msg.get("replyToId"),
+                                        "created_datetime": msg.get("createdDateTime"),
+                                        "last_modified_datetime": msg.get("lastModifiedDateTime"),
+                                        "teams_metadata": msg
+                                    },
+                                    "status": "active",
+                                    "priority": "normal",
+                                    "tags": ["teams", "channel"]
+                                }
+                                all_messages.append(normalized_msg)
+
+                        elif msgs_response.status_code == 429:
+                            # Rate limited
+                            retry_after = int(msgs_response.headers.get("Retry-After", 30))
+                            logger.warning(f"Teams channel API rate limited, waiting {retry_after}s")
+                            await asyncio.sleep(retry_after)
+
+                    except Exception as e:
+                        logger.error(f"Error fetching messages from channel {channel_id}: {e}")
+                        continue
+
+        except Exception as e:
+            logger.error(f"Error in _fetch_teams_channel_messages: {e}")
+
+        return all_messages
 
     async def _fetch_email_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """Fetch new email messages via IMAP"""
