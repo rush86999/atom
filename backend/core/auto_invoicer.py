@@ -110,19 +110,51 @@ class AutoInvoicer:
     def invoice_project_task(self, task_id: str) -> Optional[Invoice]:
         """
         Creates an invoice for a completed billable task.
+
+        TODO: Implement task-to-invoice mapping logic
+        This requires:
+        1. Mapping task billable hours to invoice line items
+        2. Applying task rates and pricing rules
+        3. Handling task metadata and custom fields
+
+        For now, this method is a placeholder for future implementation.
+
+        Args:
+            task_id: ID of the completed project task
+
+        Returns:
+            Invoice object if implemented, None currently
+
+        Raises:
+            NotImplementedError: Until task invoicing is fully implemented
         """
+        from core.exceptions import NotImplementedError
+
+        logger.warning(
+            f"Task invoicing not yet implemented for task {task_id}. "
+            "Using placeholder logic - see invoice_project_task() for details"
+        )
+
         db = self.db or SessionLocal()
         try:
             task = db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
             if not task:
                 return None
-            
+
             if task.status != "completed":
                 return None
-                
-            # Logic similar to appointment...
-            # (Skipping detailed task-to-invoice mapping for MVP)
-            pass
+
+            # TODO: Implement task-to-invoice mapping
+            # For MVP, we're creating a basic invoice structure
+            # Full implementation requires:
+            # - Task rate lookup
+            # - Hour-based vs fixed-price billing
+            # - Expense attachment
+            # - Tax calculations
+
+            # Placeholder: Return None to indicate not yet implemented
+            return None
+
         finally:
             if not self.db:
                 db.close()
