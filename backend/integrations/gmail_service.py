@@ -14,6 +14,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
 
+logger = logging.getLogger(__name__)
+
 # Make Google APIs optional for Gmail integration
 try:
     from google.auth.transport.requests import Request
@@ -30,8 +32,6 @@ except ImportError:
     )
 from core.token_storage import token_storage
 from core.oauth_handler import GOOGLE_OAUTH_CONFIG
-
-logger = logging.getLogger(__name__)
 
 class GmailService:
     """Gmail API integration service"""

@@ -161,5 +161,5 @@ class AIDocumentProcessor:
         try:
             dt = dateparser.parse(date_str)
             return dt if dt else datetime.utcnow()
-        except:
+        except (ValueError, TypeError, AttributeError):
             return datetime.utcnow()

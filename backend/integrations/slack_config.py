@@ -4,9 +4,12 @@ Complete configuration management for Slack integration
 """
 
 import os
+import logging
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 
 class SyncFrequency(Enum):
