@@ -109,34 +109,64 @@ async def create_workflow(request: CreateWorkflowRequest):
 async def list_workflows(
     state: Optional[WorkflowState] = None,
     category: Optional[str] = None,
-    limit: int = 50,
+    tags: Optional[str] = None,  # Comma-separated tags
+    sort_by: str = "updated_at",
+    sort_order: str = "desc",
+    limit: Optional[int] = None,
     offset: int = 0
 ):
-    """List workflows with optional filtering"""
+    """
+    List workflows with comprehensive filtering and sorting.
+
+    Query Parameters:
+    - state: Filter by workflow state (draft, running, completed, etc.)
+    - category: Filter by category
+    - tags: Comma-separated list of tags (workflows must have ALL specified tags)
+    - sort_by: Field to sort by (updated_at, created_at, name)
+    - sort_order: Sort order (asc or desc)
+    - limit: Maximum number of workflows to return
+    - offset: Number of workflows to skip
+    """
     try:
-        # Use state manager to list all workflows
-        # Map WorkflowState enum to status string if provided
+        # Convert state enum to status string if provided
         status_filter = None
         if state is not None:
-            # Convert enum to string (e.g., WorkflowState.ACTIVE -> "active")
-            status_filter = state.name.lower() if isinstance(state, WorkflowState) else state
+            status_filter = state.value if isinstance(state, WorkflowState) else state
 
-        workflows = state_manager.list_workflows(status=status_filter)
+        # Parse tags from comma-separated string
+        tags_list = None
+        if tags:
+            tags_list = [t.strip() for t in tags.split(",") if t.strip()]
 
-        # Apply additional category filter if provided
-        if category:
-            workflows = [w for w in workflows if w.get("category") == category]
+        # Get workflows from state manager with all filters
+        workflows = state_manager.list_workflows(
+            status=status_filter,
+            category=category,
+            tags=tags_list,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            limit=limit,
+            offset=offset
+        )
 
-        # Apply pagination
-        total_count = len(workflows)
-        workflows = workflows[offset:offset + limit]
+        # Get total count (without pagination for accurate total)
+        total_workflows = len(state_manager.list_workflows(
+            status=status_filter,
+            category=category,
+            tags=tags_list
+        ))
 
         # Return workflows with pagination metadata
         return {
             "workflows": workflows,
-            "total": total_count,
+            "total": total_workflows,
             "offset": offset,
-            "limit": limit
+            "limit": limit if limit is not None else len(workflows),
+            "filters": {
+                "state": status_filter,
+                "category": category,
+                "tags": tags_list
+            }
         }
 
     except Exception as e:

@@ -230,12 +230,27 @@ class StateManager:
         except Exception:
             return None
 
-    def list_workflows(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_workflows(
+        self,
+        status: Optional[str] = None,
+        category: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        sort_by: str = "updated_at",
+        sort_order: str = "desc",
+        limit: Optional[int] = None,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
         """
-        List all workflows with optional status filtering.
+        List all workflows with comprehensive filtering and sorting.
 
         Args:
-            status: Optional status filter (e.g., "active", "completed", "failed", "paused")
+            status: Optional status filter (e.g., "draft", "running", "completed", "failed")
+            category: Optional category filter
+            tags: Optional list of tags to filter (workflows must have ALL specified tags)
+            sort_by: Field to sort by (updated_at, created_at, name)
+            sort_order: Sort order ("asc" or "desc")
+            limit: Optional maximum number of workflows to return
+            offset: Number of workflows to skip (for pagination)
 
         Returns:
             List of workflow summaries with id, name, status, and metadata
@@ -243,48 +258,98 @@ class StateManager:
         try:
             import os
             workflows = []
+            seen_workflow_ids = set()
 
-            # Scan workflow_states directory for all workflow JSON files
+            # First, collect in-memory workflows (might not be persisted yet)
+            for workflow_id, state in self.state_store.items():
+                if state:
+                    summary = self._create_workflow_summary(workflow_id, state)
+                    if self._matches_filters(summary, status, category, tags):
+                        workflows.append(summary)
+                        seen_workflow_ids.add(workflow_id)
+
+            # Then, scan workflow_states directory for persisted workflows
             state_dir = "workflow_states"
-            if not os.path.exists(state_dir):
-                logger.info("Workflow states directory does not exist")
-                return workflows
+            if os.path.exists(state_dir):
+                # Load all workflow files
+                for filename in os.listdir(state_dir):
+                    if filename.endswith(".json"):
+                        workflow_id = filename[:-5]  # Remove .json extension
 
-            # Load all workflow files
-            for filename in os.listdir(state_dir):
-                if filename.endswith(".json"):
-                    workflow_id = filename[:-5]  # Remove .json extension
-                    state = self._load_from_file(workflow_id)
+                        # Skip if we already have this workflow from memory
+                        if workflow_id in seen_workflow_ids:
+                            continue
 
-                    if state:
-                        # Create workflow summary
-                        summary = {
-                            "workflow_id": workflow_id,
-                            "name": state.get("name", "Unnamed Workflow"),
-                            "description": state.get("description", ""),
-                            "status": state.get("status", "unknown"),
-                            "created_at": state.get("created_at"),
-                            "updated_at": state.get("updated_at"),
-                            "saved_at": state.get("saved_at"),
-                            "current_step": state.get("current_step"),
-                            "total_steps": state.get("total_steps", len(state.get("steps", []))),
-                            "category": state.get("category", "general"),
-                            "tags": state.get("tags", []),
-                        }
+                        state = self._load_from_file(workflow_id)
 
-                        # Apply status filter if provided
-                        if status is None or summary["status"] == status:
-                            workflows.append(summary)
+                        if state:
+                            summary = self._create_workflow_summary(workflow_id, state)
+                            if self._matches_filters(summary, status, category, tags):
+                                workflows.append(summary)
 
-            # Sort by updated_at descending (most recent first)
-            workflows.sort(key=lambda w: w.get("updated_at") or w.get("created_at") or "", reverse=True)
+            # Sort workflows
+            reverse = (sort_order.lower() == "desc")
+            if sort_by in ["updated_at", "created_at", "name"]:
+                workflows.sort(key=lambda w: (w.get(sort_by) or "") if sort_by != "name" else w.get("name", "").lower(), reverse=reverse)
+            else:
+                # Default sort by updated_at
+                workflows.sort(key=lambda w: w.get("updated_at") or w.get("created_at") or "", reverse=True)
 
-            logger.info(f"Found {len(workflows)} workflows" + (f" with status '{status}'" if status else ""))
+            # Apply pagination (offset and limit)
+            if offset > 0:
+                workflows = workflows[offset:]
+            if limit is not None:
+                workflows = workflows[:limit]
+
+            logger.info(f"Found {len(workflows)} workflows" + (f" matching filters" if any([status, category, tags]) else ""))
             return workflows
 
         except Exception as e:
             logger.error(f"Failed to list workflows: {e}")
             return []
+
+    def _create_workflow_summary(self, workflow_id: str, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a workflow summary from state data"""
+        steps = state.get("steps", [])
+        return {
+            "workflow_id": workflow_id,
+            "name": state.get("name", "Unnamed Workflow"),
+            "description": state.get("description", ""),
+            "status": state.get("state", state.get("status", "unknown")),
+            "created_at": state.get("created_at"),
+            "updated_at": state.get("updated_at"),
+            "saved_at": state.get("saved_at"),
+            "current_step": state.get("current_step"),
+            "total_steps": len(steps),
+            "category": state.get("category", "general"),
+            "tags": state.get("tags", []),
+            "version": state.get("version", "1.0"),
+            "created_by": state.get("created_by"),
+        }
+
+    def _matches_filters(
+        self,
+        summary: Dict[str, Any],
+        status: Optional[str] = None,
+        category: Optional[str] = None,
+        tags: Optional[List[str]] = None
+    ) -> bool:
+        """Check if workflow summary matches all specified filters"""
+        # Status filter
+        if status is not None and summary.get("status") != status:
+            return False
+
+        # Category filter
+        if category is not None and summary.get("category") != category:
+            return False
+
+        # Tags filter (workflow must have ALL specified tags)
+        if tags:
+            workflow_tags = set(summary.get("tags", []))
+            if not set(tags).issubset(workflow_tags):
+                return False
+
+        return True
 
     def delete_state(self, workflow_id: str) -> bool:
         """

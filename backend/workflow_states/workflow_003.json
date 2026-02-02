@@ -1,0 +1,25 @@
+{
+  "workflow_id": "workflow_003",
+  "name": "Report Generator",
+  "description": "Daily report generation",
+  "state": "draft",
+  "category": "reporting",
+  "tags": [
+    "reports",
+    "daily"
+  ],
+  "created_at": "2026-02-02T02:40:39.465026+00:00",
+  "updated_at": "2026-02-02T02:40:39.465026+00:00",
+  "steps": [
+    {
+      "step_id": "step1"
+    },
+    {
+      "step_id": "step2"
+    },
+    {
+      "step_id": "step3"
+    }
+  ],
+  "saved_at": "2026-02-01T21:40:39.465512"
+}
