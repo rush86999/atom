@@ -5,9 +5,12 @@ Centralized configuration with environment variables and defaults
 
 import os
 import json
+import logging
 from typing import Any, Dict, Optional, Union
-from dataclasses import dataclass, asdict
+from dataclass  dataclass, asdict
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class DatabaseConfig:
@@ -53,11 +56,11 @@ class RedisConfig:
                 if url.path:
                     try:
                         self.db = int(url.path.lstrip('/'))
-                    except:
-                        pass
+                    except ValueError as e:
+                        logger.warning(f"Invalid Redis DB path in URL, using default: {e}")
                 self.ssl = url.scheme == 'rediss'
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to parse Redis URL, using defaults: {e}")
         
         # Override with specific env vars if present
         if os.getenv('REDIS_HOST'):
