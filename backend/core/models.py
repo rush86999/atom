@@ -2330,3 +2330,55 @@ class NetWorthSnapshot(Base):
     __table_args__ = (
         Index('ix_net_worth_user_date', 'user_id', 'snapshot_date'),
     )
+
+
+class CanvasRecording(Base):
+    """Canvas session recording for governance and audit"""
+    __tablename__ = "canvas_recordings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    recording_id = Column(String, unique=True, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    canvas_id = Column(String, nullable=True)
+    session_id = Column(String, nullable=True, index=True)
+
+    # Recording metadata
+    reason = Column(String, nullable=False)  # Why was this recorded?
+    status = Column(String, default="recording")  # recording, completed, failed
+    tags = Column(JSON, default=list)  # ["autonomous", "governance", "integration_connect"]
+
+    # Events and timeline
+    events = Column(JSON, default=list)  # [{timestamp, event_type, data}]
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    stopped_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Float, nullable=True)
+
+    # Summary and review
+    summary = Column(Text, nullable=True)
+    event_count = Column(Integer, default=0)
+    recording_metadata = Column(JSON, default=dict)  # Renamed from 'metadata' (reserved in SQLAlchemy)
+
+    # Governance
+    flagged_for_review = Column(Boolean, default=False)
+    flag_reason = Column(Text, nullable=True)
+    flagged_by = Column(String, nullable=True)
+    flagged_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Retention
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    storage_url = Column(String, nullable=True)  # S3/blob storage if needed
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="canvas_recordings")
+    user = relationship("User", backref="canvas_recordings")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_canvas_recordings_agent_user', 'agent_id', 'user_id'),
+        Index('ix_canvas_recordings_session', 'session_id', 'status'),
+        Index('ix_canvas_recordings_started', 'started_at'),
+    )
