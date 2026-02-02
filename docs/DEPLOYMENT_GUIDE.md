@@ -1,571 +1,292 @@
-# ATOM Platform Deployment Guide
-
-**Version:** 1.0.0
-**Last Updated:** December 14, 2025
+# Frontend to Backend Migration - Deployment Guide
 
 ## Overview
 
-This guide provides comprehensive instructions for deploying the ATOM platform in production environments with the enhanced AI E2E testing framework.
+This guide provides step-by-step instructions for deploying the frontend-to-backend database migration across environments (staging and production).
 
-## System Requirements
+**Migration Date**: February 2, 2026
+**Feature Flag**: `NEXT_PUBLIC_USE_BACKEND_API`
+**Rollout Strategy**: Gradual (10% → 50% → 100%)
 
-### Minimum Requirements
-- **CPU**: 4 cores
-- **RAM**: 8GB
-- **Storage**: 50GB SSD
-- **OS**: Ubuntu 20.04+ / CentOS 8+ / Windows 10+
+---
 
-### Recommended Requirements
-- **CPU**: 8 cores
-- **RAM**: 16GB
-- **Storage**: 100GB SSD
-- **Load Balancer**: Nginx or similar
-- **Database**: PostgreSQL 13+
-- **Cache**: Redis 6+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Pre-Deployment Checklist](#pre-deployment-checklist)
+- [Staging Deployment](#staging-deployment)
+- [Production Deployment](#production-deployment)
+- [Gradual Rollout Process](#gradual-rollout-process)
+- [Post-Deployment Verification](#post-deployment-verification)
+- [Emergency Rollback](#emergency-rollback)
+
+---
 
 ## Prerequisites
 
-1. **Node.js** (v18+)
-2. **Python** (v3.11+)
-3. **PostgreSQL** (optional for production)
-4. **Redis** (optional for production)
-5. **Nginx** (recommended for production)
+### Backend Requirements
 
-## Installation Steps
+- Python 3.11+
+- FastAPI 0.104.0+
+- SQLAlchemy 2.0+
+- PostgreSQL 14+ (or SQLite for development)
+- Alembic for database migrations
 
-### 1. Clone Repository
+### Frontend Requirements
+
+- Node.js 18+
+- Next.js 15.5.0+
+- Environment variables configured
+
+### Access Requirements
+
+- Backend server access (port 8000)
+- Frontend server access (port 3000)
+- Database access for migrations
+- Monitoring tools access (Sentry, logs, metrics)
+
+---
+
+## Pre-Deployment Checklist
+
+### 1. Backend Verification
 
 ```bash
-git clone https://github.com/rush86999/atom.git
-cd atom
+# Run all backend tests
+cd backend
+pytest tests/test_user_management_api.py -v
+
+# Verify database models
+python -c "from core.models import User, EmailVerificationToken, Tenant; print('Models OK')"
+
+# Check API endpoints
+curl http://localhost:8000/docs | grep "api/users"
 ```
 
-### 2. Backend Setup
+**Expected Results**:
+- ✅ All 40+ tests pass
+- ✅ All models import successfully
+- ✅ All endpoints visible in Swagger UI
+
+### 2. Frontend Verification
 
 ```bash
-# Navigate to backend
+# Check TypeScript compilation
+cd frontend-nextjs
+npm run build
+
+# Verify feature flag
+grep NEXT_PUBLIC_USE_BACKEND_API .env.local
+
+# Test API client
+npm run test -- lib/__tests__/api-client.test.ts
+```
+
+**Expected Results**:
+- ✅ No TypeScript errors
+- ✅ Feature flag set to `false` (initial state)
+- ✅ API client tests pass
+
+### 3. Database Migration Verification
+
+```bash
 cd backend
 
-# Create virtual environment
-python -m venv venv
+# Check current migration version
+alembic current
 
-# Activate virtual environment
-# Linux/Mac:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
+# Verify all migrations applied
+alembic history | grep "Add user management models"
 
-# Install dependencies
-pip install -r requirements.txt
+# Check tables exist
+python -c "
+from core.database import engine
+from sqlalchemy import inspect
+inspector = inspect(engine)
+tables = inspector.get_table_names()
+print('Tables:', tables)
+assert 'email_verification_tokens' in tables
+assert 'tenants' in tables
+assert 'admin_users' in tables
+assert 'meeting_attendance_status' in tables
+assert 'financial_accounts' in tables
+assert 'net_worth_snapshots' in tables
+print('✅ All tables exist')
+"
+```
 
-# Configure environment variables
-cp .env.example .env
-# Edit .env with your configuration
+**Expected Results**:
+- ✅ Migration "Add user management models" applied
+- ✅ All 6 new tables exist
 
-# Run database migrations (if using PostgreSQL)
+---
+
+## Staging Deployment
+
+### Step 1: Deploy Backend to Staging
+
+```bash
+# 1. Create staging branch
+git checkout -b release/backend-migration-staging
+
+# 2. Ensure all migrations are applied
+cd backend
 alembic upgrade head
 
-# Fix any existing workflow data
-python scripts/fix_workflow_data.py
+# 3. Deploy backend to staging
+./deploy-backend.sh staging
+
+# 4. Verify backend is running
+curl https://staging-api.atom.com/api/users/me
+# Expected: 401 Unauthorized (requires auth token)
 ```
 
-### 3. Frontend Setup
+**Verification**:
+- [ ] Backend responds on staging URL
+- [ ] All 6 route groups loaded in logs
+- [ ] Database migrations successful
+- [ ] No errors in backend logs
+
+### Step 2: Deploy Frontend to Staging
 
 ```bash
-# Navigate to frontend
-cd ../frontend-nextjs
-
-# Install dependencies
-npm install
-
-# Configure environment variables
-cp .env.example .env.local
-# Edit .env.local with your configuration
-
-# Build for production
+# 1. Build frontend with feature flag DISABLED (initial state)
+cd frontend-nextjs
+echo "NEXT_PUBLIC_USE_BACKEND_API=false" >> .env.staging
 npm run build
+
+# 2. Deploy to staging
+./deploy-frontend.sh staging
+
+# 3. Verify frontend is running
+curl https://staging.atom.com
+# Expected: 200 OK
 ```
 
-### 4. Testing
-
-Run the comprehensive test suite before deployment:
+### Step 3: Test with Feature Flag Enabled
 
 ```bash
-# Simple bug identification tests
-python ../testing/simple_test_runner.py
-
-# Enhanced AI E2E tests (requires MCP server)
-python ../testing/enhanced_ai_e2e_integration.py
+# Update staging environment to enable backend API
+ssh staging-server
+cd /var/www/frontend-nextjs
+echo "NEXT_PUBLIC_USE_BACKEND_API=true" >> .env.local
+pm2 restart frontend
 ```
+
+### Step 4: Staging Testing Suite
+
+Run comprehensive tests:
+- User registration
+- Email verification
+- User login
+- Password reset
+- Session management
+
+---
 
 ## Production Deployment
 
-### Option 1: Docker Deployment (Recommended)
-
-#### Create Dockerfile for Backend
-
-```dockerfile
-# backend/Dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-
-# Create logs directory
-RUN mkdir -p logs
-
-# Expose port
-EXPOSE 8000
-
-# Run application
-CMD ["uvicorn", "main_api_app.py:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-#### Create Dockerfile for Frontend
-
-```dockerfile
-# frontend-nextjs/Dockerfile
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-
-# Install dependencies
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Copy source code and build
-COPY . .
-RUN npm run build
-
-# Production stage
-FROM node:18-alpine AS runner
-
-WORKDIR /app
-
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy built application
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-USER nextjs
-
-EXPOSE 3000
-
-CMD ["node", "server.js"]
-```
-
-#### Docker Compose
-
-```yaml
-# docker-compose.yml
-version: '3.8'
-
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=false
-      - DATABASE_URL=postgresql://user:pass@db:5432/atom
-      - REDIS_URL=redis://redis:6379
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    depends_on:
-      - db
-      - redis
-    restart: unless-stopped
-
-  frontend:
-    build: ./frontend-nextjs
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  db:
-    image: postgres:13
-    environment:
-      - POSTGRES_DB=atom
-      - POSTGRES_USER=atom
-      - POSTGRES_PASSWORD=atom_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-
-  redis:
-    image: redis:6-alpine
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
-    depends_on:
-      - frontend
-      - backend
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-```
-
-#### Deploy with Docker
+### Step 1: Deploy Backend to Production
 
 ```bash
-# Build and start all services
-docker-compose up -d
+# Deploy backend (zero-downtime deployment)
+./deploy-backend.sh production
 
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
+# Verify backend health
+curl https://api.atom.com/health
+# Expected: {"status": "healthy"}
 ```
 
-### Option 2: Manual Deployment
-
-#### Backend Service
+### Step 2: Deploy Frontend to Production (Feature Flag Disabled)
 
 ```bash
-# Using systemd (Linux)
-sudo tee /etc/systemd/system/atom-backend.service > /dev/null <<EOF
-[Unit]
-Description=ATOM Backend API
-After=network.target
-
-[Service]
-Type=simple
-User=atom
-WorkingDirectory=/opt/atom/backend
-Environment=PATH=/opt/atom/backend/venv/bin
-ExecStart=/opt/atom/backend/venv/bin/python main_api_app.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Enable and start service
-sudo systemctl enable atom-backend
-sudo systemctl start atom-backend
-```
-
-#### Frontend Service
-
-```bash
-# Using PM2
+# IMPORTANT: Start with feature flag DISABLED
 cd frontend-nextjs
-npm install -g pm2
-
-# Start application
-pm2 start npm --name "atom-frontend" -- start
-
-# Save PM2 configuration
-pm2 save
-pm2 startup
-```
-
-#### Nginx Configuration
-
-```nginx
-# /etc/nginx/sites-available/atom
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    # Frontend
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Backend API
-    location /api/ {
-        proxy_pass http://localhost:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # WebSocket support
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-}
-```
-
-## Environment Configuration
-
-### Backend (.env)
-
-```env
-# Application
-DEBUG=false
-SECRET_KEY=your-secret-key-here
-API_KEY=your-api-key-here
-
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/atom
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# AI Services
-OPENAI_API_KEY=sk-...
-GOOGLE_API_KEY=your-google-key
-
-# OAuth (Configure all required OAuth providers)
-SLACK_BOT_TOKEN=xoxb-
-SLACK_CLIENT_ID=your-client-id
-SLACK_CLIENT_SECRET=your-client-secret
-
-# Microsoft
-MICROSOFT_CLIENT_ID=your-client-id
-MICROSOFT_CLIENT_SECRET=your-client-secret
-
-# Google
-GOOGLE_CLIENT_ID=your-client-id
-GOOGLE_CLIENT_SECRET=your-client-secret
-
-# Add other OAuth providers as needed
-```
-
-### Frontend (.env.local)
-
-```env
-NEXT_PUBLIC_API_URL=https://your-domain.com/api
-NEXT_PUBLIC_WS_URL=wss://your-domain.com
-NEXT_PUBLIC_APP_NAME=ATOM Platform
-NEXT_PUBLIC_APP_VERSION=1.0.0
-```
-
-## Security Considerations
-
-### 1. HTTPS/SSL
-
-```bash
-# Using Let's Encrypt
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
-```
-
-### 2. Firewall
-
-```bash
-# UFW (Ubuntu)
-sudo ufw allow ssh
-sudo ufw allow 80
-sudo ufw allow 443
-sudo ufw enable
-```
-
-### 3. Database Security
-
-- Use strong passwords
-- Enable SSL connections
-- Restrict database access to application servers
-- Regular backups
-
-### 4. API Security
-
-- All endpoints are rate-limited by default (120 req/min)
-- Input validation is enabled
-- Security headers are automatically added
-- CORS is configured properly
-
-## Monitoring and Logging
-
-### Application Logs
-
-```bash
-# Backend logs
-tail -f backend/logs/errors.log
-tail -f backend/logs/performance.log
-
-# Frontend logs (if using PM2)
-pm2 logs atom-frontend
-```
-
-### Health Checks
-
-```bash
-# Backend health
-curl https://your-domain.com/health
-
-# Frontend health
-curl https://your-domain.com/api/health
-```
-
-### Performance Monitoring
-
-The application includes built-in performance metrics:
-
-- Response time tracking
-- Request count by endpoint
-- Error rate monitoring
-- Success rate calculation
-
-Access metrics via: `/api/agent/metrics` (protected endpoint)
-
-## Testing in Production
-
-### Run Tests
-
-```bash
-# Deploy with test mode
-DEBUG=false python testing/simple_test_runner.py
-
-# Full AI E2E tests (requires configuration)
-python testing/enhanced_ai_e2e_integration.py
-```
-
-### Expected Results
-
-After proper deployment, you should see:
-- **Frontend**: 100% pages accessible
-- **Backend**: 80%+ endpoints responding
-- **Integration**: Frontend-backend communication working
-- **Performance**: <2s average response time
-- **Security**: All security headers present
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Workflow Validation Errors**
-   ```bash
-   python backend/scripts/fix_workflow_data.py
-   ```
-
-2. **Database Connection Issues**
-   - Check DATABASE_URL in .env
-   - Ensure database is running
-   - Verify credentials
-
-3. **Frontend Build Failures**
-   - Clear node_modules: `rm -rf node_modules && npm install`
-   - Check environment variables
-   - Verify API endpoint configuration
-
-4. **CORS Issues**
-   - Update CORS origins in backend
-   - Check nginx proxy configuration
-
-5. **OAuth Callbacks**
-   - Ensure callback URLs match OAuth app configuration
-   - Check HTTPS requirements (some providers require HTTPS)
-
-### Support
-
-For issues:
-1. Check logs: `backend/logs/errors.log`
-2. Run health checks: `/health` endpoint
-3. Review test results: `test_results/` directory
-4. Check network configuration
-
-## Scaling Recommendations
-
-### Horizontal Scaling
-
-- Use load balancer (Nginx/HAProxy)
-- Deploy multiple backend instances
-- Use Redis for session storage
-- Implement database read replicas
-
-### Performance Optimization
-
-- Enable gzip compression (included)
-- Use CDN for static assets
-- Implement database connection pooling
-- Cache frequent API responses
-- Use async processing for long tasks
-
-### High Availability
-
-- Database replication
-- Multi-region deployment
-- Health check monitoring
-- Automated failover
-- Regular backups and disaster recovery
-
-## Maintenance
-
-### Regular Tasks
-
-1. **Daily**: Monitor error logs and performance metrics
-2. **Weekly**: Review security updates and dependencies
-3. **Monthly**: Run full test suite and security scan
-4. **Quarterly**: Update dependencies and review architecture
-
-### Backup Strategy
-
-```bash
-# Database backup
-pg_dump atom > backup_$(date +%Y%m%d).sql
-
-# Application data backup
-tar -czf data_backup_$(date +%Y%m%d).tar.gz \
-    backend/workflows.json \
-    backend/agent_status.json \
-    backend/data/
+echo "NEXT_PUBLIC_USE_BACKEND_API=false" > .env.production
+npm run build
+
+# Deploy frontend
+./deploy-frontend.sh production
 ```
 
 ---
 
-## Quick Start Checklist
+## Gradual Rollout Process
 
-- [ ] Install dependencies (Node.js, Python, PostgreSQL, Redis)
-- [ ] Configure environment variables
-- [ ] Run database migrations
-- [ ] Fix workflow data: `python scripts/fix_workflow_data.py`
-- [ ] Run tests: `python testing/simple_test_runner.py`
-- [ ] Build frontend: `npm run build`
-- [ ] Configure reverse proxy (Nginx)
-- [ ] Set up SSL certificates
-- [ ] Configure monitoring
-- [ ] Deploy to production
-- [ ] Run final smoke tests
+### Week 1: 10% Rollout
 
----
+**Objective**: Validate stability with small user segment
+
+**Monitoring Dashboard**:
+- API response time (p50, p95, p99)
+- Error rate by endpoint
+- Database connection pool usage
+- Frontend error rate (Sentry)
+
+**Alerting Thresholds**:
+- API p95 latency > 1s → WARNING
+- API p95 latency > 2s → CRITICAL
+- Error rate > 0.5% → WARNING
+- Error rate > 1% → CRITICAL
 
 **Success Criteria**:
-- ✅ All frontend pages accessible (100%)
-- ✅ Backend API responding (80%+)
-- ✅ Integration tests passing
-- ✅ Security headers present
-- ✅ Performance <2s average response
-- ✅ Error monitoring active
-- ✅ Backup strategy in place
+- ✅ 24 hours stable
+- ✅ Error rate < 0.1%
+- ✅ API p95 < 500ms
+- ✅ No user complaints
+
+### Week 2: 50% Rollout
+
+**Success Criteria**:
+- ✅ 24 hours stable
+- ✅ Error rate < 0.1%
+- ✅ API p95 < 500ms
+
+### Week 3: 100% Rollout
+
+**Success Criteria**:
+- ✅ 7 days stable
+- ✅ Error rate < 0.05%
+- ✅ All metrics improved vs baseline
+
+---
+
+## Emergency Rollback
+
+### Immediate Rollback (< 5 minutes)
+
+```bash
+# Disable backend API feature flag
+ssh production-frontend-server
+cd /var/www/frontend-nextjs
+sed -i 's/NEXT_PUBLIC_USE_BACKEND_API=true/NEXT_PUBLIC_USE_BACKEND_API=false/' .env.local
+pm2 restart frontend
+```
+
+### Verification After Rollback
+
+```bash
+# Verify direct DB queries resume
+tail -f /var/log/postgresql/postgresql.log
+
+# Verify frontend works
+curl -X POST https://atom.com/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password"}'
+```
+
+---
+
+## Rollback Decision Matrix
+
+| Severity | Symptoms | Action | Timeline |
+|----------|----------|--------|----------|
+| **CRITICAL** | 5xx errors > 5%, API down | Immediate rollback to 0% | < 5 min |
+| **HIGH** | 5xx errors > 1%, API p95 > 2s | Rollback to previous level | < 15 min |
+| **MEDIUM** | Error rate > 0.5% | Pause rollout, investigate | < 1 hour |
+| **LOW** | Error rate > 0.1% | Monitor, continue | Continue |
+
+---
+
+**Last Updated**: February 2, 2026
+**Version**: 1.0.0
