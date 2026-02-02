@@ -226,7 +226,7 @@ class TestTeamsAPIIntegration:
 
                 filter_params = None
 
-                async def check_filter(*args, **kwargs):
+                def check_filter(*args, **kwargs):
                     nonlocal filter_params
                     filter_params = kwargs.get('params', {})
                     return Mock(
