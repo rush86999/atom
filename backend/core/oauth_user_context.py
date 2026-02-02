@@ -83,9 +83,11 @@ class OAuthUserContext:
                 # If no expiry, assume token is valid
                 return False
 
-            # Parse expiry timestamp
+            # Parse expiry timestamp - handle string, datetime, or float timestamp
             if isinstance(expires_at, str):
                 expires_at = datetime.fromisoformat(expires_at)
+            elif isinstance(expires_at, (int, float)):
+                expires_at = datetime.fromtimestamp(expires_at)
 
             # Check if expired or will expire within 5 minutes (300 seconds)
             now = datetime.now()

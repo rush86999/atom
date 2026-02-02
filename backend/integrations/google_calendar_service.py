@@ -9,6 +9,8 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta, timezone
 
+logger = logging.getLogger(__name__)
+
 # Make Google APIs optional for calendar integration
 try:
     from google.oauth2.credentials import Credentials
@@ -24,8 +26,6 @@ except ImportError as e:
     )
 
 from core.token_storage import token_storage
-
-logger = logging.getLogger(__name__)
 
 # If modifying these scopes, delete the token file
 SCOPES = ['https://www.googleapis.com/auth/calendar']

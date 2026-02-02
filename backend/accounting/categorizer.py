@@ -91,7 +91,7 @@ class AICategorizer:
             if isinstance(result, str):
                 try:
                     result = json.loads(result)
-                except:
+                except (json.JSONDecodeError, ValueError, TypeError):
                     logger.error("Failed to parse AI response as JSON")
                     return None
 

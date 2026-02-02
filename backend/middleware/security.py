@@ -176,8 +176,9 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                 # to properly reconstruct the request
                 request._body = body
 
-            except Exception:
-                pass  # If we can't read body, continue
+            except Exception as e:
+                logger.warning(f"Could not read request body for security check: {e}")
+                # If we can't read body, continue
 
         return await call_next(request)
 
