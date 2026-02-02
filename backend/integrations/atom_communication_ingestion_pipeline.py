@@ -1208,18 +1208,120 @@ class CommunicationIngestionPipeline:
         """
         Fetch new Gmail messages via Gmail API.
 
-        Requires Gmail OAuth access token.
+        Requires Gmail OAuth access token with gmail.readonly scope.
+        Supports incremental fetching and proper message normalization.
         """
         try:
             from integrations.gmail_service import GmailService
+            import asyncio
 
             gmail_service = GmailService()
-            if not await gmail_service.authenticate():
-                logger.warning("Gmail authentication failed")
+
+            # Check if authenticated
+            if not gmail_service.service:
+                # Try to authenticate
+                try:
+                    gmail_service._authenticate()
+                except Exception as e:
+                    logger.warning(f"Gmail authentication failed: {e}")
+                    return []
+
+            if not gmail_service.service:
+                logger.warning("Gmail service not available after authentication attempt")
                 return []
 
-            messages = await gmail_service.get_messages(since=last_fetch)
-            return messages
+            # Build query for incremental fetching
+            query = ""
+            if last_fetch:
+                # Gmail search query for messages after a date
+                # Format: after:YYYY/MM/DD
+                date_str = last_fetch.strftime("%Y/%m/%d")
+                query = f"after:{date_str}"
+
+            # Run in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            messages = await loop.run_in_executor(
+                None,
+                lambda: gmail_service.get_messages(query=query, max_results=100)
+            )
+
+            # Normalize to unified message format
+            normalized_messages = []
+            for msg in messages:
+                try:
+                    # Parse timestamp from Gmail message
+                    timestamp_str = msg.get("timestamp")
+                    if timestamp_str:
+                        try:
+                            timestamp = datetime.fromisoformat(timestamp_str)
+                        except (ValueError, TypeError):
+                            timestamp = datetime.fromtimestamp(int(timestamp_str))
+                    else:
+                        timestamp = datetime.now()
+
+                    # Extract sender name and email
+                    sender = msg.get("sender", "")
+                    sender_name = sender
+                    sender_email = sender
+
+                    # Parse email from "Name <email@domain.com>" format
+                    if "<" in sender and ">" in sender:
+                        parts = sender.rsplit("<", 1)
+                        sender_name = parts[0].strip()
+                        sender_email = parts[1].rstrip(">")
+                    elif "@" in sender:
+                        sender_email = sender
+                        sender_name = sender.split("@")[0]
+
+                    # Extract recipients
+                    recipient = msg.get("recipient", "")
+                    recipients_list = recipient.split(",") if recipient else []
+
+                    # Parse attachments
+                    attachments_data = msg.get("attachments", [])
+                    attachments = []
+                    for att in attachments_data:
+                        attachments.append({
+                            "id": att.get("id"),
+                            "filename": att.get("filename"),
+                            "size": att.get("size"),
+                            "content_type": att.get("contentType")
+                        })
+
+                    normalized_msg = {
+                        "id": msg.get("id"),
+                        "app_type": CommunicationAppType.GMAIL.value,
+                        "timestamp": timestamp,
+                        "direction": "inbound",
+                        "sender": sender_name,
+                        "sender_email": sender_email,
+                        "recipient": recipient,
+                        "subject": msg.get("subject", ""),
+                        "content": msg.get("body", ""),
+                        "content_type": "text",
+                        "attachments": attachments,
+                        "metadata": {
+                            "thread_id": msg.get("threadId"),
+                            "label_ids": msg.get("labelIds", []),
+                            "snippet": msg.get("snippet", ""),
+                            "history_id": msg.get("historyId"),
+                            "internal_date": msg.get("internalDate"),
+                            "size_estimate": msg.get("sizeEstimate"),
+                            "gmail_metadata": msg
+                        },
+                        "status": "active",
+                        "priority": "high" if "IMPORTANT" in msg.get("labelIds", []) else "normal",
+                        "tags": ["gmail"] + msg.get("labelIds", [])
+                    }
+                    normalized_messages.append(normalized_msg)
+
+                except Exception as e:
+                    logger.error(f"Error normalizing Gmail message {msg.get('id')}: {e}")
+                    continue
+
+            logger.info(f"Fetched {len(normalized_messages)} messages from Gmail")
+            return normalized_messages
+
         except ImportError:
             logger.warning("Gmail service not available")
             return []
@@ -1231,7 +1333,8 @@ class CommunicationIngestionPipeline:
         """
         Fetch new Outlook messages via Microsoft Graph API.
 
-        Requires Outlook OAuth access token.
+        Requires Outlook OAuth access token with Mail.Read permission.
+        Supports incremental fetching and rate limiting.
         """
         try:
             from core.token_storage import token_storage
@@ -1244,63 +1347,135 @@ class CommunicationIngestionPipeline:
             access_token = token_data.get("access_token")
             headers = {"Authorization": f"Bearer {access_token}"}
 
-            async with httpx.AsyncClient() as client:
+            all_messages = []
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 # Build filter for messages since last fetch
-                params = {"$top": 100}
+                params = {"$top": 50}
                 if last_fetch:
                     params["$filter"] = f"receivedDateTime gt {last_fetch.isoformat()}"
 
-                response = await client.get(
-                    "https://graph.microsoft.com/v1.0/me/messages",
-                    headers=headers,
-                    params=params
-                )
+                # Pagination support
+                next_link = None
+                fetch_count = 0
+                max_fetches = 5  # Prevent infinite loops
 
-                if response.status_code != 200:
-                    logger.error(f"Failed to fetch Outlook messages: {response.status_code}")
-                    return []
+                while fetch_count < max_fetches:
+                    try:
+                        if next_link:
+                            response = await client.get(next_link, headers=headers)
+                        else:
+                            response = await client.get(
+                                "https://graph.microsoft.com/v1.0/me/messages",
+                                headers=headers,
+                                params=params
+                            )
 
-                messages = response.json().get("value", [])
+                        if response.status_code == 429:
+                            # Rate limited
+                            retry_after = int(response.headers.get("Retry-After", 30))
+                            logger.warning(f"Outlook API rate limited, waiting {retry_after}s")
+                            await asyncio.sleep(retry_after)
+                            continue
 
-                # Normalize messages
-                normalized_messages = []
-                for msg in messages:
-                    normalized_msg = {
-                        "id": msg.get("id"),
-                        "app_type": CommunicationAppType.OUTLOOK.value,
-                        "timestamp": datetime.fromisoformat(msg.get("receivedDateTime", datetime.now().isoformat())),
-                        "direction": "inbound",
-                        "sender": msg.get("from", {}).get("emailAddress", {}).get("address", "UNKNOWN"),
-                        "recipient": ", ".join([
-                            recipient.get("emailAddress", {}).get("address", "")
-                            for recipient in msg.get("toRecipients", [])
-                        ]),
-                        "subject": msg.get("subject"),
-                        "content": msg.get("body", {}).get("content", ""),
-                        "attachments": [
-                            {
-                                "id": att.get("id"),
-                                "name": att.get("name"),
-                                "size": att.get("size"),
-                                "content_type": att.get("contentType")
-                            }
-                            for att in msg.get("attachments", [])
-                        ],
-                        "metadata": {
-                            "conversation_id": msg.get("conversationId"),
-                            "importance": msg.get("importance"),
-                            "is_read": msg.get("isRead"),
-                            "flag": msg.get("flag"),
-                            "outlook_metadata": msg
-                        },
-                        "status": "active",
-                        "priority": "high" if msg.get("importance") == "High" else "normal",
-                        "tags": []
-                    }
-                    normalized_messages.append(normalized_msg)
+                        elif response.status_code != 200:
+                            logger.error(f"Failed to fetch Outlook messages: {response.status_code}")
+                            break
 
-                logger.info(f"Fetched {len(normalized_messages)} messages from Outlook")
-                return normalized_messages
+                        data = response.json()
+                        messages = data.get("value", [])
+
+                        # Normalize messages
+                        for msg in messages:
+                            try:
+                                # Parse timestamp
+                                received_datetime = msg.get("receivedDateTime")
+                                if received_datetime:
+                                    timestamp = datetime.fromisoformat(received_datetime)
+                                else:
+                                    timestamp = datetime.now()
+
+                                # Extract sender
+                                from_data = msg.get("from", {})
+                                sender_email = from_data.get("emailAddress", {}).get("address", "UNKNOWN")
+                                sender_name = from_data.get("emailAddress", {}).get("name", sender_email)
+
+                                # Extract recipients
+                                to_recipients = msg.get("toRecipients", [])
+                                recipients_list = [
+                                    recipient.get("emailAddress", {}).get("address", "")
+                                    for recipient in to_recipients
+                                ]
+                                recipient = ", ".join(filter(None, recipients_list))
+
+                                # Extract body content (prefer HTML, fallback to text)
+                                body_data = msg.get("body", {})
+                                body_content = body_data.get("content", "")
+                                body_type = body_data.get("contentType", "text")
+
+                                # Parse attachments
+                                attachments_data = msg.get("attachments", [])
+                                attachments = []
+                                for att in attachments_data:
+                                    attachments.append({
+                                        "id": att.get("id"),
+                                        "name": att.get("name"),
+                                        "size": att.get("size"),
+                                        "content_type": att.get("contentType"),
+                                        "is_inline": att.get("isInline", False)
+                                    })
+
+                                normalized_msg = {
+                                    "id": msg.get("id"),
+                                    "app_type": CommunicationAppType.OUTLOOK.value,
+                                    "timestamp": timestamp,
+                                    "direction": "inbound",
+                                    "sender": sender_name,
+                                    "sender_email": sender_email,
+                                    "recipient": recipient,
+                                    "subject": msg.get("subject", ""),
+                                    "content": body_content,
+                                    "content_type": body_type,
+                                    "attachments": attachments,
+                                    "metadata": {
+                                        "conversation_id": msg.get("conversationId"),
+                                        "parent_folder_id": msg.get("parentFolderId"),
+                                        "importance": msg.get("importance"),
+                                        "is_read": msg.get("isRead"),
+                                        "is_draft": msg.get("isRead", False),
+                                        "flag": msg.get("flag"),
+                                        "web_link": msg.get("webLink"),
+                                        "outlook_metadata": msg
+                                    },
+                                    "status": "read" if msg.get("isRead") else "unread",
+                                    "priority": "high" if msg.get("importance") == "High" else "normal",
+                                    "tags": ["outlook"]
+                                }
+
+                                # Add category tags if present
+                                categories = msg.get("categories", [])
+                                if categories:
+                                    normalized_msg["tags"].extend(categories)
+
+                                all_messages.append(normalized_msg)
+
+                            except Exception as e:
+                                logger.error(f"Error normalizing Outlook message {msg.get('id')}: {e}")
+                                continue
+
+                        # Check for next page
+                        next_link = data.get("@odata.nextLink")
+                        if not next_link:
+                            break
+
+                        fetch_count += 1
+
+                    except Exception as e:
+                        logger.error(f"Error fetching Outlook messages page: {e}")
+                        break
+
+            logger.info(f"Fetched {len(all_messages)} messages from Outlook")
+            return all_messages
 
         except ImportError:
             logger.warning("token_storage module not available for Outlook polling")
