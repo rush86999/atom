@@ -1,7 +1,10 @@
 
 import re
 import json
+import logging
 from typing import Dict, Any, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 def parse_react_response(llm_output: str) -> Tuple[Optional[str], Optional[Dict[str, Any]], Optional[str]]:
     """
@@ -56,21 +59,24 @@ def parse_react_response(llm_output: str) -> Tuple[Optional[str], Optional[Dict[
     action_match = re.search(r"Action:\s*(.*)", text, re.DOTALL | re.IGNORECASE)
     if action_match:
         action_text = action_match.group(1).strip()
-        
+
         # Try to find JSON blob in action text
         # Simple heuristic: find first { and last }
         try:
             json_start = action_text.find("{")
             json_end = action_text.rfind("}")
-            
+
             if json_start != -1 and json_end != -1:
                 json_str = action_text[json_start:json_end+1]
                 action = json.loads(json_str)
             else:
-                # Maybe it wasn't valid JSON, return as is or error?
-                # For now, if we can't parse JSON, we treat it as an invalid action
-                pass
-        except json.JSONDecodeError:
-            pass
+                # No valid JSON structure found
+                logger.warning(f"Action found but no valid JSON structure: {action_text[:200]}")
+                raise ValueError(f"Invalid action format: no JSON structure found in '{action_text[:100]}...'")
+
+        except json.JSONDecodeError as e:
+            # JSON parsing failed - log error and raise
+            logger.error(f"Failed to parse agent action JSON: {e}\nAction text: {action_text[:500]}")
+            raise ValueError(f"Invalid JSON in agent action: {e}") from e
 
     return thought, action, final_answer
