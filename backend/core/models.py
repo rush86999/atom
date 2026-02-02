@@ -9,11 +9,40 @@ from core.data_visibility import DataVisibility
 
 # Enums
 class UserRole(str, enum.Enum):
+    """
+    Consolidated user roles for access control.
+
+    Combines both workspace and enterprise roles into a single enum.
+    Roles are hierarchical in terms of permissions:
+    - SUPER_ADMIN: Full system access
+    - SECURITY_ADMIN: Security settings and user management
+    - WORKSPACE_ADMIN: Workspace management and billing
+    - WORKFLOW_ADMIN: Workflow creation and management
+    - AUTOMATION_ADMIN: Automation rule management
+    - INTEGRATION_ADMIN: Third-party integrations
+    - COMPLIANCE_ADMIN: Compliance and audit logs
+    - TEAM_LEAD: Team management and reporting
+    - MEMBER: Standard user with execution permissions
+    - GUEST: Read-only access
+    """
+    # System-wide roles
     SUPER_ADMIN = "super_admin"
+
+    # Enterprise admin roles
+    SECURITY_ADMIN = "security_admin"
     WORKSPACE_ADMIN = "workspace_admin"
+    WORKFLOW_ADMIN = "workflow_admin"
+    AUTOMATION_ADMIN = "automation_admin"
+    INTEGRATION_ADMIN = "integration_admin"
+    COMPLIANCE_ADMIN = "compliance_admin"
+
+    # Workspace roles
     TEAM_LEAD = "team_lead"
     MEMBER = "member"
     GUEST = "guest"
+
+    # Legacy alias for backwards compatibility
+    ADMIN = "workspace_admin"  # Maps to WORKSPACE_ADMIN
 
 class UserStatus(str, enum.Enum):
     ACTIVE = "active"
