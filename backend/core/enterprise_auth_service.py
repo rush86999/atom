@@ -354,12 +354,15 @@ class EnterpriseAuthService:
 
     def _get_user_permissions(self, db: Session, user, workspace_id: Optional[str] = None) -> List[str]:
         """
-        Get user permissions based on role and workspace membership.
+        Get user permissions based on global role.
+
+        Atom is a single-tenant, single-workspace system. Permissions are based
+        solely on the user's global role, not workspace membership.
 
         Args:
-            db: Database session
+            db: Database session (unused, kept for interface compatibility)
             user: User object
-            workspace_id: Optional workspace ID for workspace-specific permissions
+            workspace_id: Ignored (kept for backwards compatibility)
 
         Returns:
             List of permission strings
@@ -375,7 +378,6 @@ class EnterpriseAuthService:
         ]:
             return [
                 "manage_users",
-                "manage_workspaces",
                 "manage_security",
                 "view_audit_logs",
                 "manage_workflows",
@@ -384,7 +386,7 @@ class EnterpriseAuthService:
                 "execute_workflows"
             ]
 
-        # Other admin roles
+        # Specialized admin roles
         if user.role == UserRole.WORKFLOW_ADMIN.value:
             return [
                 "manage_workflows",
@@ -410,50 +412,7 @@ class EnterpriseAuthService:
                 "manage_compliance"
             ]
 
-        # Workspace-specific permissions
-        if workspace_id:
-            from core.models import user_workspaces
-
-            # Query user's role in this workspace
-            result = db.execute(
-                user_workspaces.select()
-                .where(
-                    user_workspaces.c.user_id == user.id,
-                    user_workspaces.c.workspace_id == workspace_id
-                )
-            ).first()
-
-            if result:
-                workspace_role = result.role
-                if workspace_role == "owner":
-                    return [
-                        "manage_workflows",
-                        "manage_teams",
-                        "manage_integrations",
-                        "view_analytics",
-                        "execute_workflows",
-                        "manage_billing"
-                    ]
-                elif workspace_role == "admin":
-                    return [
-                        "manage_workflows",
-                        "manage_teams",
-                        "view_analytics",
-                        "execute_workflows"
-                    ]
-                elif workspace_role == "member":
-                    return [
-                        "read_workflows",
-                        "execute_workflows",
-                        "view_analytics"
-                    ]
-                elif workspace_role == "guest":
-                    return [
-                        "read_workflows",
-                        "view_analytics"
-                    ]
-
-        # Default permissions for basic roles
+        # Standard roles (no workspace context needed)
         if user.role == UserRole.TEAM_LEAD.value:
             return [
                 "read_workflows",
