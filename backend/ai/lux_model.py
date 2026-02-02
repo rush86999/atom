@@ -223,8 +223,18 @@ class LuxModel:
             logger.error(f"Screen analysis failed: {e}")
             return []
 
-    async def interpret_command(self, command: str, screenshot: Optional[Image.Image] = None) -> List[ComputerAction]:
-        """Interpret natural language command into computer actions"""
+    async def interpret_command(self, command: str, screenshot: Optional[Image.Image] = None, retry_count: int = 0) -> List[ComputerAction]:
+        """
+        Interpret natural language command into computer actions with enhanced prompting and retry logic.
+
+        Args:
+            command: Natural language command to execute
+            screenshot: Optional screenshot for visual context
+            retry_count: Current retry attempt (for internal use)
+
+        Returns:
+            List of ComputerAction objects
+        """
         if not self.client:
              # Basic fallback logic for testing without API key
              if "calculator" in command.lower():
@@ -232,34 +242,51 @@ class LuxModel:
              return []
 
         try:
-            content_parts = [{"type": "text", "text": f"""
-You are a computer automation AI. Convert this natural language command into specific computer actions.
+            # Enhanced prompt with better instructions
+            prompt = f"""You are an advanced computer automation AI with visual understanding capabilities.
+Your task is to convert natural language commands into precise, executable computer actions.
 
-Command: {command}
+COMMAND: {command}
 
-Available actions:
-- click: Click at coordinates or on element
-- type: Type text at current cursor location
-- keyboard: Press keyboard shortcuts
-- scroll: Scroll in direction
-- open_app: Open application
-- screenshot: Take screenshot
-- wait: Wait for specified time
-- ocr: Extract text from screen region
-- find_element: Locate specific element
+AVAILABLE ACTIONS:
+1. click - Click at coordinates (x, y) or on element
+2. type - Type text at current cursor location or into a field
+3. keyboard - Press keyboard shortcuts (e.g., ["cmd", "c"] for copy)
+4. scroll - Scroll in direction ("up", "down", "left", "right")
+5. drag - Drag from coordinates to coordinates
+6. wait - Wait for specified time (seconds)
+7. ocr - Extract text from screen region
+8. find_element - Locate specific UI element
 
-Return as JSON:
+ACTION GENERATION RULES:
+- Break complex commands into multiple simple actions
+- Use specific coordinates when UI elements are visible
+- Include reasonable waiting for UI responses
+- Add descriptions for each action explaining what it does
+- Set confidence scores (0.0 to 1.0) based on certainty
+- Use coordinates: [x, y] format (0,0 is top-left)
+- For typing, always focus element first (click) then type
+
+RESPONSE FORMAT (JSON only):
 {{
     "actions": [
         {{
             "action_type": "click",
-            "parameters": {{"coordinates": [x, y], "element_id": "optional"}},
+            "parameters": {{"coordinates": [x, y], "selector": "#optional-css-selector"}},
             "confidence": 0.95,
-            "description": "Click on button"
+            "description": "Click on the login button"
         }}
-    ]
+    ],
+    "reasoning": "Brief explanation of the action plan"
 }}
-"""}]
+
+IMPORTANT:
+- Return ONLY valid JSON, no markdown formatting
+- Be specific with coordinates based on what you see
+- If screenshot provided, use visual information to locate elements
+- If unsure, set confidence lower and describe what you see"""
+
+            content_parts = [{"type": "text", "text": prompt}]
 
             if screenshot:
                 encoded_image = self.encode_screenshot(screenshot)
@@ -276,33 +303,73 @@ Return as JSON:
 
             response = self.client.messages.create(
                 messages=[message],
-                **self.model_config
+                **self.model_config,
+                timeout=30.0  # Add timeout
             )
 
-            # Parse actions
+            # Parse actions with better error handling
             result_text = response.content[0].text
+            logger.debug(f"Lux response: {result_text[:200]}...")  # Log first 200 chars
+
             try:
+                # Try multiple parsing strategies
+                json_str = None
+
+                # Strategy 1: Extract from markdown code blocks
                 if "```json" in result_text:
-                    json_str = result_text.split('```json')[1].split('```')[0]
+                    json_str = result_text.split('```json')[1].split('```')[0].strip()
                 elif "```" in result_text:
-                     json_str = result_text.split('```')[1].split('```')[0]
+                    json_str = result_text.split('```')[1].split('```')[0].strip()
                 else:
-                    json_str = result_text
-                    
-                result_data = json.loads(json_str)
-                actions = []
-                for action_data in result_data.get('actions', []):
-                    action_type = ComputerActionType(action_data.get('action_type', 'click'))
-                    actions.append(ComputerAction(
-                        action_type=action_type,
-                        parameters=action_data.get('parameters', {}),
-                        confidence=action_data.get('confidence', 1.0),
-                        description=action_data.get('description', '')
-                    ))
-                return actions
-            except Exception as e:
-                logger.error(f"Failed to parse command: {e}")
+                    # Strategy 2: Try to parse entire response as JSON
+                    json_str = result_text.strip()
+
+                # Remove any non-JSON content before/after
+                json_str = json_str.strip()
+                if json_str.startswith('{'):
+                    result_data = json.loads(json_str)
+
+                    actions = []
+                    for action_data in result_data.get('actions', []):
+                        try:
+                            action_type_str = action_data.get('action_type', 'click')
+                            action_type = ComputerActionType(action_type_str)
+                            actions.append(ComputerAction(
+                                action_type=action_type,
+                                parameters=action_data.get('parameters', {}),
+                                confidence=action_data.get('confidence', 1.0),
+                                description=action_data.get('description', '')
+                            ))
+                        except ValueError as e:
+                            logger.warning(f"Unknown action type '{action_type_str}': {e}")
+                            continue
+
+                    logger.info(f"Successfully parsed {len(actions)} actions from Lux response")
+                    return actions
+                else:
+                    logger.error("Response does not appear to be JSON")
+                    return []
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON from Lux response: {e}")
+                logger.debug(f"Problematic response: {result_text}")
+
+                # Retry logic for parsing failures
+                if retry_count < 2:
+                    logger.info(f"Retrying command interpretation (attempt {retry_count + 1}/2)")
+                    await asyncio.sleep(1)  # Brief wait before retry
+                    return await self.interpret_command(command, screenshot, retry_count + 1)
+
                 return []
+
+        except anthropic.APIConnectionError as e:
+            logger.error(f"API connection error: {e}")
+            # Retry for connection errors
+            if retry_count < 3:
+                logger.info(f"Retrying due to connection error (attempt {retry_count + 1}/3)")
+                await asyncio.sleep(2 ** retry_count)  # Exponential backoff
+                return await self.interpret_command(command, screenshot, retry_count + 1)
+            return []
 
         except Exception as e:
             logger.error(f"Command interpretation failed: {e}")

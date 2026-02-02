@@ -63,21 +63,29 @@ class BrowserAgent:
                 # 3. Capture State (Visual)
                 screenshot_bytes = await page.screenshot(type="png")
                 screenshot_img = Image.open(io.BytesIO(screenshot_bytes))
-                
+
                 # 4. Lux Predict (Visual Reasoning)
                 # We ask Lux to interpret the current state vs the goal
                 state_desc = f"Current URL: {page.url}. I am on step {i+1} of '{goal}'."
-                
+
                 # Context integration
                 prompt_context = ""
                 if context_data.get("business_facts"):
                     prompt_context += f"\nCONSTRAINT/FACTS: {'; '.join(context_data['business_facts'])}"
                 if context_data.get("credentials_hint"):
                     prompt_context += f"\nHINT: {context_data['credentials_hint']}"
-                
+
                 full_prompt = f"{goal}. {state_desc} {prompt_context}"
+
+                # Track action planning performance
+                import time
+                plan_start = time.time()
+
                 actions = await self.lux.interpret_command(full_prompt, screenshot_img)
-                
+
+                plan_time = time.time() - plan_start
+                logger.info(f"Lux action planning took {plan_time:.2f}s, generated {len(actions)} actions")
+
                 if not actions:
                     logger.info("No more actions predicted by Lux. Goal might be reached.")
                     break
@@ -186,39 +194,15 @@ class BrowserAgent:
 
     def _get_lux_action_plan(self, goal: str, context: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """
-        Placeholder for `oagi.lux.predict(state, goal)`.
-        Now context-aware!
+        Legacy method - kept for backward compatibility.
+        This method is no longer used; the main execution loop uses lux.interpret_command() directly.
+
+        The real AI action planning happens in execute_task() at line 79:
+            actions = await self.lux.interpret_command(full_prompt, screenshot_img)
+
+        This Lux integration uses Claude 3.5 Sonnet for visual reasoning and action planning.
         """
-        context = context or {}
-        
-        # MVP Logic
-        if "Login" in goal:
-            # Use context if available, else default
-            username = "admin"
-            if "admin@atom.ai" in str(context):
-                username = "admin@atom.ai"
-                
-            return [
-                {"action": "fill", "selector": "#username", "value": username},
-                {"action": "fill", "selector": "#password", "value": "1234"},
-                {"action": "click", "selector": "#login-btn"},
-                {"action": "wait", "state": "networkidle"}
-            ]
-        elif "Download" in goal:
-             return [
-                 {"action": "click", "selector": "#download-btn"},
-                 {"action": "wait_download", "timeout": 5000}
-             ]
-        elif "Find CEO" in goal:
-            return [
-                {"action": "wait", "state": "networkidle"} # Simulates looking
-            ]
-        elif "Tax" in goal or "Pay" in goal:
-            # Generate a risky plan to test guardrails
-            return [
-                 {"action": "click", "selector": "#submit-tax-payment-btn"}
-            ]
-            
+        logger.warning("_get_lux_action_plan() called but is deprecated. Use lux.interpret_command() instead.")
         return []
 
     async def _perform_lux_action(self, page: Page, action: Any):
