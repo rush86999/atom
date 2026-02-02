@@ -2382,3 +2382,59 @@ class CanvasRecording(Base):
         Index('ix_canvas_recordings_session', 'session_id', 'status'),
         Index('ix_canvas_recordings_started', 'started_at'),
     )
+
+
+class CanvasRecordingReview(Base):
+    """Recording review linking canvas recordings to governance and learning outcomes"""
+    __tablename__ = "canvas_recording_reviews"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    recording_id = Column(String, ForeignKey("canvas_recordings.recording_id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Review outcomes
+    review_status = Column(String, nullable=False)  # approved, rejected, needs_changes, pending
+    overall_rating = Column(Integer, nullable=True)  # 1-5 stars
+    performance_rating = Column(Integer, nullable=True)  # 1-5 stars
+    safety_rating = Column(Integer, nullable=True)  # 1-5 stars (governance compliance)
+
+    # Feedback and learning
+    feedback = Column(Text, nullable=True)
+    identified_issues = Column(JSON, default=list)  # ["unsafe_action", "error_recovery", "user_intervention"]
+    positive_patterns = Column(JSON, default=list)  # ["efficient_workflow", "good_error_handling"]
+    lessons_learned = Column(Text, nullable=True)
+
+    # Governance impact
+    confidence_delta = Column(Float, default=0.0)  # Change to agent confidence score
+    promoted = Column(Boolean, default=False)  # Did this contribute to promotion?
+    demoted = Column(Boolean, default=False)  # Did this contribute to demotion?
+    governance_notes = Column(Text, nullable=True)
+
+    # Review metadata
+    reviewed_by = Column(String, ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    auto_reviewed = Column(Boolean, default=False)  # True if AI-reviewed
+    auto_review_confidence = Column(Float, nullable=True)  # AI's confidence in its review
+
+    # Learning integration
+    used_for_training = Column(Boolean, default=False)
+    training_value = Column(String, nullable=True)  # high, medium, low
+    world_model_updated = Column(Boolean, default=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    recording = relationship("CanvasRecording", backref="reviews")
+    agent = relationship("AgentRegistry", backref="recording_reviews")
+    user = relationship("User", foreign_keys=[user_id], backref="submitted_reviews")
+    reviewer = relationship("User", foreign_keys=[reviewed_by], backref="conducted_reviews")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_recording_reviews_recording', 'recording_id'),
+        Index('ix_recording_reviews_agent', 'agent_id'),
+        Index('ix_recording_reviews_status', 'review_status'),
+        Index('ix_recording_reviews_reviewed', 'reviewed_at'),
+    )
