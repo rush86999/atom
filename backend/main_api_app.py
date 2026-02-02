@@ -719,6 +719,14 @@ try:
     except ImportError as e:
         logger.warning(f"Device capabilities routes not found: {e}")
 
+    # 15.3.1 Device WebSocket Routes (Real-time Device Communication)
+    try:
+        from api.device_websocket import websocket_device_endpoint
+        app.websocket("/api/devices/ws")(websocket_device_endpoint)
+        logger.info("✓ Device WebSocket Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Device WebSocket routes not found: {e}")
+
     # 15.4 Deep Link Routes (atom:// URL Scheme)
     try:
         from api.deeplinks import router as deeplinks_router

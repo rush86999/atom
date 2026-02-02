@@ -48,6 +48,21 @@ class ProductionDeploymentWithOAuth:
         """Validate current OAuth system status"""
         self.log_step("oauth_status_validation", "running", "Validating current OAuth system status")
 
+        # First, check environment variables
+        missing_credentials = self._check_oauth_credentials()
+
+        if missing_credentials:
+            self.log_step(
+                "oauth_status_validation",
+                "warning",
+                f"Missing OAuth credentials: {', '.join(missing_credentials)}"
+            )
+            return {
+                "success": False,
+                "error": "Missing OAuth credentials",
+                "missing_credentials": missing_credentials
+            }
+
         try:
             response = requests.get(
                 f"{self.base_url}/api/auth/oauth-status?user_id=production_deploy",
@@ -88,6 +103,24 @@ class ProductionDeploymentWithOAuth:
             )
             return {"success": False, "error": str(e)}
 
+    def _check_oauth_credentials(self) -> List[str]:
+        """Check for missing OAuth credentials in environment"""
+        required_credentials = {
+            "OUTLOOK_CLIENT_ID": "Microsoft Outlook",
+            "OUTLOOK_CLIENT_SECRET": "Microsoft Outlook",
+            "TEAMS_CLIENT_ID": "Microsoft Teams",
+            "TEAMS_CLIENT_SECRET": "Microsoft Teams",
+            "GITHUB_CLIENT_ID": "GitHub",
+            "GITHUB_CLIENT_SECRET": "GitHub"
+        }
+
+        missing = []
+        for env_var, service in required_credentials.items():
+            if not os.getenv(env_var):
+                missing.append(f"{env_var} ({service})")
+
+        return missing
+
     def configure_remaining_oauth_services(self) -> bool:
         """Configure remaining OAuth services with placeholder credentials"""
         self.log_step(
@@ -97,24 +130,30 @@ class ProductionDeploymentWithOAuth:
         )
 
         # Create configuration template for remaining services
+        # Now reads from environment variables instead of TODO placeholders
+        production_domain = os.getenv("PRODUCTION_DOMAIN", "your-production-domain.com")
+
         oauth_config = {
             "outlook": {
-                "client_id": "TODO_ADD_MICROSOFT_CLIENT_ID",
-                "client_secret": "TODO_ADD_MICROSOFT_CLIENT_SECRET",
-                "redirect_uri": "https://your-production-domain.com/api/auth/outlook/oauth2callback",
-                "scopes": ["https://graph.microsoft.com/Mail.Read", "https://graph.microsoft.com/Calendars.Read"]
+                "client_id": os.getenv("OUTLOOK_CLIENT_ID", ""),
+                "client_secret": os.getenv("OUTLOOK_CLIENT_SECRET", ""),
+                "redirect_uri": f"https://{production_domain}/api/auth/outlook/oauth2callback",
+                "scopes": ["https://graph.microsoft.com/Mail.Read", "https://graph.microsoft.com/Calendars.Read"],
+                "configured": bool(os.getenv("OUTLOOK_CLIENT_ID") and os.getenv("OUTLOOK_CLIENT_SECRET"))
             },
             "teams": {
-                "client_id": "TODO_ADD_MICROSOFT_TEAMS_CLIENT_ID",
-                "client_secret": "TODO_ADD_MICROSOFT_TEAMS_CLIENT_SECRET",
-                "redirect_uri": "https://your-production-domain.com/api/auth/teams/oauth2callback",
-                "scopes": ["https://graph.microsoft.com/Team.ReadBasic.All"]
+                "client_id": os.getenv("TEAMS_CLIENT_ID", ""),
+                "client_secret": os.getenv("TEAMS_CLIENT_SECRET", ""),
+                "redirect_uri": f"https://{production_domain}/api/auth/teams/oauth2callback",
+                "scopes": ["https://graph.microsoft.com/Team.ReadBasic.All"],
+                "configured": bool(os.getenv("TEAMS_CLIENT_ID") and os.getenv("TEAMS_CLIENT_SECRET"))
             },
             "github": {
-                "client_id": "TODO_ADD_GITHUB_CLIENT_ID",
-                "client_secret": "TODO_ADD_GITHUB_CLIENT_SECRET",
-                "redirect_uri": "https://your-production-domain.com/api/auth/github/oauth2callback",
-                "scopes": ["repo", "user", "read:org"]
+                "client_id": os.getenv("GITHUB_CLIENT_ID", ""),
+                "client_secret": os.getenv("GITHUB_CLIENT_SECRET", ""),
+                "redirect_uri": f"https://{production_domain}/api/auth/github/oauth2callback",
+                "scopes": ["repo", "user", "read:org"],
+                "configured": bool(os.getenv("GITHUB_CLIENT_ID") and os.getenv("GITHUB_CLIENT_SECRET"))
             }
         }
 
@@ -279,13 +318,18 @@ NOTION_CLIENT_SECRET=your_notion_client_secret
 DROPBOX_CLIENT_ID=your_dropbox_client_id
 DROPBOX_CLIENT_SECRET=your_dropbox_client_secret
 
-# Remaining OAuth Services - TODO: Configure
-OUTLOOK_CLIENT_ID=TODO_ADD_MICROSOFT_CLIENT_ID
-OUTLOOK_CLIENT_SECRET=TODO_ADD_MICROSOFT_CLIENT_SECRET
-TEAMS_CLIENT_ID=TODO_ADD_MICROSOFT_TEAMS_CLIENT_ID
-TEAMS_CLIENT_SECRET=TODO_ADD_MICROSOFT_TEAMS_CLIENT_SECRET
-GITHUB_CLIENT_ID=TODO_ADD_GITHUB_CLIENT_ID
-GITHUB_CLIENT_SECRET=TODO_ADD_GITHUB_CLIENT_SECRET
+# Remaining OAuth Services - Configure with real credentials
+# Microsoft Outlook (Calendar & Email integration)
+OUTLOOK_CLIENT_ID=
+OUTLOOK_CLIENT_SECRET=
+
+# Microsoft Teams (Chat & Collaboration integration)
+TEAMS_CLIENT_ID=
+TEAMS_CLIENT_SECRET=
+
+# GitHub (Repository & Issue integration)
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
 
 # AI Provider Configuration
 OPENAI_API_KEY=your_openai_api_key
