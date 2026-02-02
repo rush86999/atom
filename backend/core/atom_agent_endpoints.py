@@ -890,16 +890,15 @@ async def handle_get_status(request: ChatRequest, entities: Dict[str, Any]) -> D
 async def handle_crm_intent(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle sales and CRM queries via SalesAssistant"""
     try:
-        from core.database import SessionLocal
+        from core.database import get_db_session
         from sales.assistant import SalesAssistant
-        
-        db = SessionLocal()
-        try:
+
+        with get_db_session() as db:
             # Get workspace_id from entities or default to temp_ws for now
             workspace_id = entities.get("workspace_id") or "temp_ws"
             assistant = SalesAssistant(db)
             answer = await assistant.answer_sales_query(workspace_id, request.message)
-            
+
             return {
                 "success": True,
                 "response": {
@@ -910,8 +909,6 @@ async def handle_crm_intent(request: ChatRequest, entities: Dict[str, Any]) -> D
                     ]
                 }
             }
-        finally:
-            db.close()
     except Exception as e:
         logger.error(f"CRM handler failed: {e}")
         return {
