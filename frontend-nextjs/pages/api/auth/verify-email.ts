@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '../../../lib/db';
+import { USE_BACKEND_API, emailVerificationAPI } from '../../../lib/api';
 
 export default async function handler(
     req: NextApiRequest,
@@ -16,7 +17,27 @@ export default async function handler(
             return res.status(400).json({ error: 'Email and verification code are required' });
         }
 
-        // Get user
+        // Use backend API if feature flag is enabled
+        if (USE_BACKEND_API) {
+            try {
+                const result = await emailVerificationAPI.verifyEmail(email, code);
+                return res.status(200).json({
+                    message: 'Email verified successfully! You can now sign in.',
+                });
+            } catch (error: any) {
+                // Handle backend API errors
+                if (error.response?.status === 400) {
+                    return res.status(400).json({ error: error.response?.data?.detail || 'Invalid or expired code' });
+                }
+                if (error.response?.status === 404) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
+                // Log error but fall back to direct DB query
+                console.error('Backend API error, falling back to direct DB:', error.message);
+            }
+        }
+
+        // Direct DB query (original implementation)
         const userResult = await query(
             'SELECT id, email_verified FROM users WHERE email = $1',
             [email]
@@ -52,7 +73,7 @@ export default async function handler(
 
         // Mark email as verified
         await query(
-            'UPDATE users SET email_verified = NOW() WHERE id = $1',
+            'UPDATE users SET email_verified = true WHERE id = $1',
             [user.id]
         );
 

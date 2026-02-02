@@ -1,6 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '../../../lib/db';
+import { USE_BACKEND_API } from '../../../lib/api';
 import bcrypt from 'bcryptjs';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default async function handler(
     req: NextApiRequest,
@@ -28,9 +31,32 @@ export default async function handler(
             });
         }
 
+        // Use backend API if feature flag is enabled
+        if (USE_BACKEND_API) {
+            try {
+                const resetResponse = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, password })
+                });
+
+                if (resetResponse.ok) {
+                    const data = await resetResponse.json();
+                    return res.status(200).json(data);
+                } else if (resetResponse.status === 400) {
+                    const error = await resetResponse.json();
+                    return res.status(400).json(error);
+                }
+            } catch (error: any) {
+                // Log error but fall back to direct DB query
+                console.error('Backend API error, falling back to direct DB:', error.message);
+            }
+        }
+
+        // Direct DB query (original implementation)
         // Validate token
         const tokenResult = await query(
-            'SELECT user_id, expires_at, used FROM password_reset_tokens WHERE token = $1',
+            'SELECT user_id, expires_at, is_used FROM password_reset_tokens WHERE token_hash = $1',
             [token]
         );
 
@@ -46,7 +72,7 @@ export default async function handler(
         }
 
         // Check if token was already used
-        if (resetToken.used) {
+        if (resetToken.is_used) {
             return res.status(400).json({ error: 'Reset token has already been used' });
         }
 
@@ -61,7 +87,7 @@ export default async function handler(
 
         // Mark token as used
         await query(
-            'UPDATE password_reset_tokens SET used = TRUE WHERE token = $1',
+            'UPDATE password_reset_tokens SET is_used = TRUE WHERE token_hash = $1',
             [token]
         );
 

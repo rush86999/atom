@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '../../../lib/db';
+import { USE_BACKEND_API, emailVerificationAPI } from '../../../lib/api';
 import { sendEmail, generateVerificationEmailHTML } from '../../../lib/email';
 import crypto from 'crypto';
 
@@ -18,6 +19,21 @@ export default async function handler(
             return res.status(400).json({ error: 'Email is required' });
         }
 
+        // Use backend API if feature flag is enabled
+        if (USE_BACKEND_API) {
+            try {
+                const result = await emailVerificationAPI.sendVerificationEmail(email);
+                return res.status(200).json({
+                    message: 'Verification email sent successfully',
+                    email: email,
+                });
+            } catch (error: any) {
+                // Log error but fall back to direct DB query
+                console.error('Backend API error, falling back to direct DB:', error.message);
+            }
+        }
+
+        // Direct DB query (original implementation)
         // Check if user exists
         const userResult = await query(
             'SELECT id, name, email_verified FROM users WHERE email = $1',

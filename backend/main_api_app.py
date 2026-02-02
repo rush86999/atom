@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 from unittest.mock import MagicMock
@@ -948,6 +949,51 @@ except ImportError:
     logger.info("WhatsApp integration module not present, skipping.")
 except Exception as e:
     logger.warning(f"WhatsApp setup error: {e}")
+
+# ============================================================================
+# USER MANAGEMENT API ROUTES (Frontend to Backend Migration)
+# ============================================================================
+try:
+    from api.user_management_routes import router as user_management_router
+    app.include_router(user_management_router)
+    logger.info("✓ User Management Routes Loaded")
+except ImportError as e:
+    logger.warning(f"User Management routes not found: {e}")
+
+try:
+    from api.email_verification_routes import router as email_verification_router
+    app.include_router(email_verification_router)
+    logger.info("✓ Email Verification Routes Loaded")
+except ImportError as e:
+    logger.warning(f"Email Verification routes not found: {e}")
+
+try:
+    from api.tenant_routes import router as tenant_router
+    app.include_router(tenant_router)
+    logger.info("✓ Tenant Routes Loaded")
+except ImportError as e:
+    logger.warning(f"Tenant routes not found: {e}")
+
+try:
+    from api.admin_routes import router as admin_router
+    app.include_router(admin_router)
+    logger.info("✓ Admin User Management Routes Loaded")
+except ImportError as e:
+    logger.warning(f"Admin routes not found: {e}")
+
+try:
+    from api.meeting_routes import router as meeting_router
+    app.include_router(meeting_router)
+    logger.info("✓ Meeting Attendance Routes Loaded")
+except ImportError as e:
+    logger.warning(f"Meeting routes not found: {e}")
+
+try:
+    from api.financial_routes import router as financial_router
+    app.include_router(financial_router)
+    logger.info("✓ Financial Data Routes Loaded")
+except ImportError as e:
+    logger.warning(f"Financial routes not found: {e}")
 
 # ============================================================================
 # 4. SYSTEM ENDPOINTS
