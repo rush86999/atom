@@ -752,3 +752,4 @@ playwright-report/
 # Archive directory (old test results and debug files)
 archive/
 tests/archive/
+.secrets.json
