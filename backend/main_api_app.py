@@ -712,6 +712,14 @@ try:
     except ImportError as e:
         logger.warning(f"Recording review routes not found: {e}")
 
+    # 15.1.d Health Monitoring Routes (System health and alerts)
+    try:
+        from api.health_monitoring_routes import router as health_monitoring_router
+        app.include_router(health_monitoring_router, tags=["Health Monitoring"])
+        logger.info("✓ Health Monitoring Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Health monitoring routes not found: {e}")
+
     # 15.1.a Artifact Routes (Persistent Workbench)
     try:
         from api.artifact_routes import router as artifact_router
