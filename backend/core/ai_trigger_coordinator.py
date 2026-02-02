@@ -343,8 +343,8 @@ class AITriggerCoordinator:
         )
     
     async def _trigger_agent(
-        self, 
-        agent_template: str, 
+        self,
+        agent_template: str,
         data: Dict[str, Any],
         metadata: Optional[Dict],
         memory_insights: Dict[str, Any] = None
@@ -355,16 +355,79 @@ class AITriggerCoordinator:
         """
         try:
             from core.atom_meta_agent import get_atom_agent, AgentTriggerMode
-            
+            from core.trigger_interceptor import TriggerInterceptor, TriggerSource
+
             atom = get_atom_agent(self.workspace_id)
-            
+
             # Spawn the agent
             agent = await atom.spawn_agent(agent_template, persist=False)
-            
+
+            # ========================================================================
+            # NEW: Maturity-Based Trigger Interception
+            # ========================================================================
+            # Check agent maturity and route appropriately before execution
+            interceptor = TriggerInterceptor(self.db, self.workspace_id)
+
+            trigger_context = {
+                "action_type": "agent_message",
+                "agent_template": agent_template,
+                "data": data,
+                "metadata": metadata,
+                "source": "ai_coordinator"
+            }
+
+            decision = await interceptor.intercept_trigger(
+                agent_id=agent.id,
+                trigger_source=TriggerSource.AI_COORDINATOR,
+                trigger_context=trigger_context
+            )
+
+            # Log routing decision
+            logger.info(
+                f"AI Coordinator routing decision for agent {agent.name}: "
+                f"{decision.routing_decision.value} (maturity: {decision.agent_maturity}, "
+                f"confidence: {decision.confidence_score:.2f})"
+            )
+
+            # Handle blocked/routed triggers
+            if not decision.execute:
+                # Agent was blocked or requires approval
+                if decision.routing_decision.value == "training":
+                    logger.info(
+                        f"STUDENT agent {agent.name} blocked from AI Coordinator trigger. "
+                        f"Training proposal {decision.proposal.id if decision.proposal else 'pending'} created."
+                    )
+                    return {
+                        "blocked": True,
+                        "reason": decision.reason,
+                        "routing_decision": "training",
+                        "proposal_id": decision.proposal.id if decision.proposal else None
+                    }
+
+                elif decision.routing_decision.value == "proposal":
+                    logger.info(
+                        f"INTERN agent {agent.name} requires proposal approval "
+                        f"before AI Coordinator trigger."
+                    )
+                    return {
+                        "blocked": True,
+                        "reason": decision.reason,
+                        "routing_decision": "proposal",
+                        "blocked_context_id": decision.blocked_context.id if decision.blocked_context else None
+                    }
+
+                elif decision.routing_decision.value == "supervision":
+                    # Proceed with execution under supervision
+                    logger.info(
+                        f"SUPERVISED agent {agent.name} will execute with monitoring."
+                    )
+                    # Continue to execution below
+            # ========================================================================
+
             # Build request from data
             text_content = self._extract_text(data)[:500]
             request = f"Auto-triggered by data ingestion. Process: {text_content}"
-            
+
             # Execute
             result = await atom.execute(
                 request=request,
@@ -375,7 +438,7 @@ class AITriggerCoordinator:
                 },
                 trigger_mode=AgentTriggerMode.DATA_EVENT
             )
-            
+
             logger.info(f"AI Coordinator triggered agent {agent_template}: {result.get('final_output', 'OK')}")
             
         except Exception as e:

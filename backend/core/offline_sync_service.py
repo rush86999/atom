@@ -199,6 +199,63 @@ class OfflineSyncService:
             True if successful
         """
         try:
+            # ========================================================================
+            # NEW: Maturity-Based Trigger Interception for Agent Actions
+            # ========================================================================
+            agent_id = None
+
+            # Extract agent_id from action_data for agent-related actions
+            if action.action_type in ["agent_message", "workflow_trigger", "approval_request"]:
+                agent_id = action.action_data.get("agent_id")
+
+                if agent_id:
+                    from core.trigger_interceptor import TriggerInterceptor, TriggerSource
+
+                    interceptor = TriggerInterceptor(self.db, self.workspace_id)
+
+                    trigger_context = {
+                        "action_type": action.action_type,
+                        "action_data": action.action_data,
+                        "offline_action_id": action.id
+                    }
+
+                    try:
+                        decision = await interceptor.intercept_trigger(
+                            agent_id=agent_id,
+                            trigger_source=TriggerSource.DATA_SYNC,
+                            trigger_context=trigger_context,
+                            user_id=action.user_id
+                        )
+
+                        # Log routing decision
+                        logger.info(
+                            f"Offline sync routing decision for agent {agent_id}: "
+                            f"{decision.routing_decision.value} (maturity: {decision.agent_maturity}, "
+                            f"confidence: {decision.confidence_score:.2f})"
+                        )
+
+                        # Handle blocked triggers
+                        if not decision.execute:
+                            # Agent was blocked - mark action as blocked
+                            action.status = "failed"
+                            action.last_sync_error = (
+                                f"Agent blocked by maturity guard: {decision.reason}"
+                            )
+                            self.db.commit()
+
+                            logger.warning(
+                                f"Offline action {action.id} blocked: {decision.reason}"
+                            )
+                            return False
+
+                    except ValueError as e:
+                        # Agent not found or other error - log and continue
+                        logger.warning(
+                            f"Could not check maturity for agent {agent_id}: {e}"
+                        )
+                        # Continue with processing for backward compatibility
+            # ========================================================================
+
             if action.action_type == "agent_message":
                 # Send agent message via WebSocket
                 await ws_manager.broadcast(

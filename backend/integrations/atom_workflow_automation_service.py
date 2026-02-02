@@ -383,7 +383,73 @@ class AtomWorkflowAutomationService:
                     'error': execution.error,
                     'compliance_violation': compliance_check
                 }
-            
+
+            # ========================================================================
+            # NEW: Maturity-Based Trigger Interception for Agent Actions
+            # ========================================================================
+            # Pre-check all actions for agent triggers that require maturity checks
+            for action in automation.actions:
+                if action.get('type') == 'workflow_execution' or action.get('type') == 'agent_trigger':
+                    agent_id = action.get('config', {}).get('agent_id')
+
+                    if agent_id:
+                        from core.trigger_interceptor import TriggerInterceptor, TriggerSource
+
+                        interceptor = TriggerInterceptor(self.db, self.workspace_id)
+
+                        trigger_context = {
+                            "action_type": action.get('type'),
+                            "action_config": action.get('config'),
+                            "automation_id": automation_id,
+                            "trigger_context": trigger_context
+                        }
+
+                        try:
+                            decision = await interceptor.intercept_trigger(
+                                agent_id=agent_id,
+                                trigger_source=TriggerSource.WORKFLOW_ENGINE,
+                                trigger_context=trigger_context
+                            )
+
+                            # Log routing decision
+                            logger.info(
+                                f"Workflow automation routing decision for agent {agent_id}: "
+                                f"{decision.routing_decision.value} (maturity: {decision.agent_maturity}, "
+                                f"confidence: {decision.confidence_score:.2f})"
+                            )
+
+                            # Handle blocked triggers
+                            if not decision.execute:
+                                execution.status = AutomationStatus.FAILED
+                                execution.error = (
+                                    f"Agent action blocked by maturity guard: {decision.reason}"
+                                )
+                                execution.metadata['maturity_check'] = {
+                                    'agent_id': agent_id,
+                                    'blocked': True,
+                                    'reason': decision.reason,
+                                    'routing_decision': decision.routing_decision.value
+                                }
+
+                                self.db.commit()
+
+                                logger.warning(
+                                    f"Workflow automation {automation_id} action blocked: {decision.reason}"
+                                )
+                                return {
+                                    'ok': False,
+                                    'error': execution.error,
+                                    'maturity_check': execution.metadata['maturity_check']
+                                }
+
+                        except ValueError as e:
+                            # Agent not found or other error
+                            logger.warning(
+                                f"Could not check maturity for agent {agent_id} in automation: {e}"
+                            )
+                            # Continue with execution for backward compatibility
+            # ========================================================================
+
             # Execute automation actions
             execution_results = []
             for action in automation.actions:
