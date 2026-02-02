@@ -893,7 +893,7 @@ class AgentOperationTracker(Base):
     next_steps = Column(Text, nullable=True)        # What happens next
 
     # Operation metadata
-    metadata = Column(JSON, default=dict)
+    operation_metadata = Column(JSON, default=dict)
     logs = Column(JSON, default=list)  # [{timestamp, level, message}]
 
     # Timing
