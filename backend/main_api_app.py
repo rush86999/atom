@@ -720,6 +720,14 @@ try:
     except ImportError as e:
         logger.warning(f"Health monitoring routes not found: {e}")
 
+    # 15.1.e Mobile Canvas Routes (Mobile-optimized canvas access and offline sync)
+    try:
+        from api.mobile_canvas_routes import router as mobile_router
+        app.include_router(mobile_router, tags=["Mobile Canvas"])
+        logger.info("✓ Mobile Canvas Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Mobile canvas routes not found: {e}")
+
     # 15.1.a Artifact Routes (Persistent Workbench)
     try:
         from api.artifact_routes import router as artifact_router

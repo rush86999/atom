@@ -1,6 +1,6 @@
 
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Table, JSON, Enum as SQLEnum, Index
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 import uuid
 import enum
@@ -2437,4 +2437,113 @@ class CanvasRecordingReview(Base):
         Index('ix_recording_reviews_agent', 'agent_id'),
         Index('ix_recording_reviews_status', 'review_status'),
         Index('ix_recording_reviews_reviewed', 'reviewed_at'),
+    )
+
+
+class MobileDevice(Base):
+    """Mobile device registration for push notifications and mobile access"""
+    __tablename__ = "mobile_devices"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_token = Column(String, nullable=False, unique=True, index=True)
+    platform = Column(String, nullable=False)  # ios, android, web
+    status = Column(String, default="active")  # active, inactive, disabled
+
+    # Device information
+    device_info = Column(JSON, default=dict)  # {model, os_version, app_version, etc.}
+
+    # Notification preferences
+    notification_enabled = Column(Boolean, default=True)
+    notification_preferences = Column(JSON, default=dict)  # {agent_alerts, system_alerts, etc.}
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_active = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="mobile_devices")
+    offline_actions = relationship("OfflineAction", backref="device", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_mobile_devices_user', 'user_id'),
+        Index('ix_mobile_devices_token', 'device_token'),
+        Index('ix_mobile_devices_platform', 'platform'),
+        Index('ix_mobile_devices_status', 'status'),
+    )
+
+
+class OfflineAction(Base):
+    """Actions queued while device is offline for later sync"""
+    __tablename__ = "offline_actions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    device_id = Column(String, ForeignKey("mobile_devices.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Action details
+    action_type = Column(String, nullable=False)  # agent_message, workflow_trigger, form_submit, etc.
+    action_data = Column(JSON, nullable=False)  # Full action payload
+    priority = Column(Integer, default=0)  # Higher = more important
+
+    # Sync status
+    status = Column(String, default="pending")  # pending, syncing, completed, failed
+    sync_attempts = Column(Integer, default=0)
+    last_sync_error = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    synced_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="offline_actions")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_offline_actions_device', 'device_id'),
+        Index('ix_offline_actions_user', 'user_id'),
+        Index('ix_offline_actions_status', 'status'),
+        Index('ix_offline_actions_priority', 'priority'),
+        Index('ix_offline_actions_created', 'created_at'),
+    )
+
+
+class SyncState(Base):
+    """Track synchronization state for mobile devices"""
+    __tablename__ = "sync_states"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    device_id = Column(String, ForeignKey("mobile_devices.id"), nullable=False, unique=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Last sync timestamps
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    last_successful_sync_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Sync statistics
+    total_syncs = Column(Integer, default=0)
+    successful_syncs = Column(Integer, default=0)
+    failed_syncs = Column(Integer, default=0)
+
+    # Pending actions count
+    pending_actions_count = Column(Integer, default=0)
+
+    # Sync configuration
+    auto_sync_enabled = Column(Boolean, default=True)
+    sync_interval_seconds = Column(Integer, default=300)  # 5 minutes default
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    device = relationship("MobileDevice", backref=backref("sync_state", uselist=False))
+    user = relationship("User", backref="sync_states")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_sync_states_device', 'device_id'),
+        Index('ix_sync_states_user', 'user_id'),
+        Index('ix_sync_states_last_sync', 'last_sync_at'),
     )
