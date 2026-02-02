@@ -7,7 +7,7 @@ import os
 import json
 import logging
 from typing import Any, Dict, Optional, Union
-from dataclass  dataclass, asdict
+from dataclasses import dataclass, asdict
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
