@@ -18,11 +18,10 @@ try:
     GOOGLE_APIS_AVAILABLE = True
 except ImportError as e:
     GOOGLE_APIS_AVAILABLE = False
-    # Create dummy classes to prevent type errors
-    class Credentials: pass
-    class Request: pass
-    class HttpError(Exception): pass
-    def build(*args, **kwargs): return None
+    logger.warning(
+        f"Google APIs not available: {e}. "
+        "Install with: pip install google-api-python-client google-auth-oauthlib"
+    )
 
 from core.token_storage import token_storage
 
