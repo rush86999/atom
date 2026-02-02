@@ -16,9 +16,16 @@
 - Enhanced feedback system with A/B testing
 - Mobile support architecture (React Native)
 
-**Tech Stack**: Python 3.11, FastAPI, SQLAlchemy 2.0, SQLite/PostgreSQL, Multi-provider LLM, Playwright
+**Tech Stack**: Python 3.11, FastAPI, SQLAlchemy 2.0, SQLite/PostgreSQL, Multi-provider LLM, Playwright, Redis (WebSocket), Alembic
 
 **Key Directories**: `backend/core/`, `backend/api/`, `backend/tools/`, `backend/tests/`, `mobile/`, `docs/`
+
+**Key Services**:
+- `agent_governance_service.py` - Agent lifecycle and permissions
+- `trigger_interceptor.py` - Maturity-based trigger routing
+- `student_training_service.py` - Training proposals and sessions
+- `supervision_service.py` - Real-time supervision monitoring
+- `governance_cache.py` - High-performance caching (<1ms lookups)
 
 ---
 
@@ -32,12 +39,14 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ### Maturity Levels
 
-| Level | Confidence | Capabilities |
-|-------|-----------|--------------|
-| STUDENT | <0.5 | Read-only (charts, markdown) |
-| INTERN | 0.5-0.7 | Streaming, form presentation |
-| SUPERVISED | 0.7-0.9 | Form submissions, state changes |
-| AUTONOMOUS | >0.9 | Full autonomy, all actions |
+| Level | Confidence | Automated Triggers | Capabilities |
+|-------|-----------|-------------------|--------------|
+| STUDENT | <0.5 | **BLOCKED** → Route to Training | Read-only (charts, markdown) |
+| INTERN | 0.5-0.7 | **PROPOSAL ONLY** → Human Approval Required | Streaming, form presentation |
+| SUPERVISED | 0.7-0.9 | **RUN UNDER SUPERVISION** → Real-time Monitoring | Form submissions, state changes |
+| AUTONOMOUS | >0.9 | **FULL EXECUTION** → No Oversight | Full autonomy, all actions |
+
+**Key**: STUDENT agents learn through guided training scenarios before gaining autonomy.
 
 ### Action Complexity
 
@@ -100,14 +109,40 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Thumbs up/down, star ratings, corrections, analytics dashboard
 - Batch operations, promotion suggestions, A/B testing
 
-### 8. Database Models
+### 8. Student Agent Training System ✨ NEW
+- **Files**: `core/trigger_interceptor.py`, `core/student_training_service.py`, `core/meta_agent_training_orchestrator.py`, `core/proposal_service.py`, `core/supervision_service.py`, `api/maturity_routes.py`
+- **Purpose**: Prevent STUDENT agents from automated triggers and route through graduated learning pathway
+- **Features**:
+  - Four-tier maturity routing: STUDENT → INTERN → SUPERVISED → AUTONOMOUS
+  - AI-based training duration estimation with historical data analysis
+  - Real-time supervision for SUPERVISED agents with intervention support
+  - Action proposal workflow for INTERN agents (human approval required)
+  - Comprehensive audit trail for all routing decisions
+- **Performance**: <5ms routing decisions using GovernanceCache, <500ms proposal generation
+- **Database**: 4 new models (BlockedTriggerContext, AgentProposal, SupervisionSession, TrainingSession)
+- **API**: 20+ REST endpoints covering training, proposals, and supervision
+- **Tests**: `tests/test_trigger_interceptor.py` (11 tests, all passing)
+- **Docs**: `docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md`
+
+### 9. Database Models
 - **File**: `core/models.py`
 - Key models: AgentRegistry, AgentExecution, AgentFeedback, CanvasAudit, BrowserSession, DeviceSession, DeepLinkAudit, ChatSession
 - **NEW**: AgentOperationTracker, AgentRequestLog, ViewOrchestrationState, OperationErrorResolution
+- **NEW**: BlockedTriggerContext, AgentProposal, SupervisionSession, TrainingSession
 
 ---
 
 ## Recent Major Changes
+
+### Student Agent Training System (Feb 2, 2026) ✨ NEW
+- Four-tier maturity-based routing prevents STUDENT agents from automated triggers
+- AI-powered training duration estimation with user override capability
+- Real-time supervision for SUPERVISED agents with pause/correct/terminate controls
+- Action proposal workflow for INTERN agents requires human approval before execution
+- Centralized TriggerInterceptor with <5ms routing decisions
+- Comprehensive audit trail tracks all blocked triggers, proposals, and sessions
+- 6 core services, 4 database models, 20+ API endpoints, 11 tests
+- **See**: `docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md`
 
 ### Real-Time Agent Guidance System (Feb 2, 2026) ✨ NEW
 - Complete agent operation visibility with live progress tracking
