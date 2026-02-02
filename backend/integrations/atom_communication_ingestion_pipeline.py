@@ -441,6 +441,18 @@ class CommunicationIngestionPipeline:
         self.active_streams = {}
         self.fetch_timestamps = {}  # Track last fetch time for each app
         self.app_configs = {}  # Store app-specific configurations
+        self.webhook_enabled = {}  # Track which apps have webhooks enabled
+
+        # Import webhook processor (lazy import to avoid circular dependency)
+        try:
+            from core.webhook_handlers import get_webhook_processor
+            self.webhook_processor = get_webhook_processor()
+            # Register callback for webhook messages
+            self.webhook_processor.register_message_callback(self._handle_webhook_message)
+            logger.info("Webhook processor initialized and callback registered")
+        except ImportError:
+            self.webhook_processor = None
+            logger.warning("Webhook handlers not available, real-time ingestion disabled")
         
     def configure_app(self, app_type: CommunicationAppType, config: IngestionConfig):
         """Configure ingestion for specific app"""
@@ -451,6 +463,71 @@ class CommunicationIngestionPipeline:
         self.ingestion_configs[app_type.value] = config_dict
         self.app_configs[app_type.value] = config_dict
         logger.info(f"Configured ingestion for {app_type.value}")
+
+    def enable_webhook_ingestion(self, app_type: str, enabled: bool = True):
+        """
+        Enable or disable webhook-based real-time ingestion for an app.
+
+        Args:
+            app_type: App type (slack, teams, gmail, outlook)
+            enabled: Whether to enable webhook ingestion
+        """
+        self.webhook_enabled[app_type] = enabled
+        status = "enabled" if enabled else "disabled"
+        logger.info(f"Webhook ingestion {status} for {app_type}")
+
+    def is_webhook_enabled(self, app_type: str) -> bool:
+        """Check if webhook ingestion is enabled for an app"""
+        return self.webhook_enabled.get(app_type, False)
+
+    async def _handle_webhook_message(self, message_data: Dict[str, Any]):
+        """
+        Handle incoming webhook message from real-time sources.
+
+        This is called by the webhook processor when a new message arrives
+        via Slack/Teams/Gmail webhooks.
+
+        Args:
+            message_data: Normalized message data from webhook
+        """
+        try:
+            app_type = message_data.get("app_type", "")
+            if not app_type:
+                logger.warning("Webhook message missing app_type")
+                return
+
+            # Only process if webhook is enabled for this app
+            if not self.is_webhook_enabled(app_type):
+                logger.debug(f"Webhook ingestion disabled for {app_type}, skipping")
+                return
+
+            # Ingest the message
+            logger.info(f"Processing webhook message from {app_type}")
+            success = await self.ingest_message(app_type, message_data)
+
+            if success:
+                logger.info(f"Successfully ingested webhook message from {app_type}")
+            else:
+                logger.error(f"Failed to ingest webhook message from {app_type}")
+
+        except Exception as e:
+            logger.error(f"Error handling webhook message: {e}")
+
+    def get_webhook_status(self) -> Dict[str, Any]:
+        """
+        Get webhook ingestion status for all apps.
+
+        Returns:
+            Dictionary with webhook status for each app
+        """
+        return {
+            app_type: {
+                "enabled": self.is_webhook_enabled(app_type),
+                "processor_available": self.webhook_processor is not None
+            }
+            for app_type in ["slack", "teams", "gmail", "outlook"]
+        }
+
     
     async def ingest_message(self, app_type: str, message_data: Dict[str, Any]) -> bool:
         """Ingest single message from any communication app"""
