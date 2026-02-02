@@ -1,0 +1,19 @@
+{
+  "workflow_id": "workflow_004",
+  "name": "Backup Process",
+  "description": "Automated backup system",
+  "state": "running",
+  "category": "data",
+  "tags": [
+    "automation",
+    "backup"
+  ],
+  "created_at": "2026-01-31T02:40:39.465026+00:00",
+  "updated_at": "2026-02-02T02:40:39.465026+00:00",
+  "steps": [
+    {
+      "step_id": "step1"
+    }
+  ],
+  "saved_at": "2026-02-01T21:40:39.465751"
+}
