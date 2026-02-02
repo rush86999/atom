@@ -7,10 +7,11 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass, asdict
 from enum import Enum
+import httpx
 try:
     import lancedb
     import pyarrow as pa
@@ -611,20 +612,37 @@ class CommunicationIngestionPipeline:
         For production, this should use the WhatsApp Business API for polling
         or integrate with a webhook receiver that buffers messages.
         """
-        # TODO: Implement actual WhatsApp API polling
-        # For now, return empty list - webhooks should be used instead
-        logger.debug("WhatsApp polling not implemented - use webhooks")
-        return []
+        try:
+            from integrations.atom_whatsapp_integration import whatsapp_integration_service
+
+            messages = await whatsapp_integration_service.get_messages(
+                since=last_fetch,
+                limit=100
+            )
+            return messages
+        except ImportError:
+            logger.warning("WhatsApp integration service not available")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching WhatsApp messages: {e}")
+            return []
 
     async def _fetch_slack_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """
         Fetch new Slack messages via Slack API.
 
-        Requires SLACK_BOT_TOKEN environment variable with channels:history scope.
+        Uses the AsyncWebClient from slack_sdk to fetch message history.
+        Implements cursor-based pagination and handles rate limiting.
+
+        Requires:
+        - SLACK_BOT_TOKEN environment variable
+        - channels:history OAuth scope
+        - Configured monitored_channels in app config
         """
         try:
             import os
-            from integrations.slack_enhanced_service import slack_enhanced_service
+            from slack_sdk.web.async_client import AsyncWebClient
+            from slack_sdk.errors import SlackApiError
 
             bot_token = os.getenv("SLACK_BOT_TOKEN")
             if not bot_token:
@@ -632,42 +650,150 @@ class CommunicationIngestionPipeline:
                 return []
 
             # Get list of channels to monitor
-            channels = self.app_configs.get(CommunicationAppType.SLACK.value, {}).get("monitored_channels", [])
+            config = self.app_configs.get(CommunicationAppType.SLACK.value, {})
+            channels = config.get("monitored_channels", [])
 
             if not channels:
                 logger.info("No Slack channels configured for monitoring")
                 return []
 
+            # Calculate oldest timestamp
+            oldest_ts = None
+            if last_fetch:
+                oldest_ts = str(last_fetch.timestamp())
+                logger.debug(f"Fetching Slack messages since {oldest_ts}")
+            else:
+                logger.debug("Fetching recent Slack messages (no timestamp provided)")
+
             all_messages = []
+            client = AsyncWebClient(token=bot_token)
 
             # Fetch messages from each channel
             for channel_id in channels:
                 try:
-                    # Use SlackService to fetch channel history
-                    # Note: This requires the SlackService to have a get_conversations_history method
-                    # For now, we'll implement a basic version
                     logger.debug(f"Fetching messages from Slack channel {channel_id}")
 
-                    # TODO: Implement actual Slack API call using WebClient
-                    # async with slack_enhanced_service as slack:
-                    #     result = await slack.client.conversations_history(
-                    #         channel=channel_id,
-                    #         oldest=last_fetch.timestamp() if last_fetch else 0,
-                    #         limit=100
-                    #     )
-                    #     messages = result.get("messages", [])
+                    # Fetch conversations history with pagination
+                    cursor = None
+                    messages_count = 0
+
+                    while True:
+                        # API call to fetch messages
+                        response = await client.conversations_history(
+                            channel=channel_id,
+                            oldest=oldest_ts,
+                            limit=100,  # Max messages per request
+                            cursor=cursor,
+                            inclusive=False  # Exclude the message with oldest_ts
+                        )
+
+                        if not response.get("ok"):
+                            error_msg = response.get("error", "Unknown error")
+                            logger.error(f"Slack API error for channel {channel_id}: {error_msg}")
+                            break
+
+                        messages = response.get("messages", [])
+                        if not messages:
+                            logger.debug(f"No more messages in channel {channel_id}")
+                            break
+
+                        # Process and normalize messages
+                        for msg in messages:
+                            # Skip messages from bots (unless configured to include)
+                            msg_type = msg.get("type", "")
+                            subtype = msg.get("subtype", "")
+                            bot_id = msg.get("bot_id", "")
+
+                            if msg_type != "message":
+                                continue
+
+                            # Skip bot messages unless configured
+                            if bot_id and not config.get("include_bot_messages", False):
+                                continue
+
+                            # Skip message changed/deleted events
+                            if subtype in ["message_changed", "message_deleted"]:
+                                continue
+
+                            # Normalize message
+                            normalized_msg = {
+                                "id": msg.get("ts"),  # Use timestamp as ID
+                                "app_type": CommunicationAppType.SLACK.value,
+                                "timestamp": datetime.fromtimestamp(float(msg.get("ts")), tz=timezone.utc),
+                                "direction": "inbound",
+                                "sender": msg.get("user", "UNKNOWN"),
+                                "recipient": channel_id,  # Channel ID
+                                "subject": None,  # Slack messages don't have subjects
+                                "content": msg.get("text", ""),
+                                "attachments": msg.get("files", []),
+                                "metadata": {
+                                    "channel_id": channel_id,
+                                    "channel_name": await self._get_channel_name(client, channel_id),
+                                    "thread_ts": msg.get("thread_ts"),
+                                    "parent_user_id": msg.get("parent_user_id"),
+                                    "subtype": subtype,
+                                    "reactions": msg.get("reactions", []),
+                                    "slack_metadata": msg
+                                },
+                                "status": "active",
+                                "priority": "normal",
+                                "tags": []
+                            }
+
+                            all_messages.append(normalized_msg)
+                            messages_count += 1
+
+                        # Check for pagination
+                        cursor = response.get("response_metadata", {}).get("next_cursor")
+                        if not cursor:
+                            logger.debug(f"Fetched {messages_count} messages from channel {channel_id}")
+                            break
+
+                        # Rate limiting: small delay between pagination requests
+                        await asyncio.sleep(0.5)
+
+                    logger.info(f"Successfully fetched {messages_count} messages from Slack channel {channel_id}")
+
+                except SlackApiError as e:
+                    if e.response.get("error") == "ratelimited":
+                        # Handle rate limiting
+                        retry_after = int(e.response.headers.get("Retry-After", 60))
+                        logger.warning(f"Slack API rate limited. Retry after {retry_after}s")
+                        # Don't block other channels, just skip this one for now
+                        continue
+                    else:
+                        logger.error(f"Slack API error for channel {channel_id}: {e}")
+                        continue
 
                 except Exception as e:
                     logger.error(f"Error fetching from Slack channel {channel_id}: {e}")
+                    continue
 
+            # Close the client
+            await client.close()
+
+            # Sort by timestamp (oldest first)
+            all_messages.sort(key=lambda m: m["timestamp"])
+
+            logger.info(f"Total Slack messages fetched: {len(all_messages)}")
             return all_messages
 
         except ImportError:
-            logger.warning("Slack service not available")
+            logger.error("slack_sdk not available. Install with: pip install slack_sdk")
             return []
         except Exception as e:
-            logger.error(f"Error fetching Slack messages: {e}")
+            logger.error(f"Failed to fetch Slack messages: {e}")
             return []
+
+    async def _get_channel_name(self, client, channel_id: str) -> Optional[str]:
+        """Get channel name from channel ID"""
+        try:
+            response = await client.conversations_info(channel=channel_id)
+            if response.get("ok"):
+                return response.get("channel", {}).get("name")
+        except Exception as e:
+            logger.debug(f"Could not get channel name for {channel_id}: {e}")
+        return None
 
     async def _fetch_teams_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """
@@ -676,22 +802,214 @@ class CommunicationIngestionPipeline:
         Requires Microsoft Teams OAuth access token.
         """
         try:
-            import os
+            from core.token_storage import token_storage
 
-            # TODO: Implement Microsoft Graph API polling
-            # Requires: Microsoft Teams OAuth token with ChannelMessage.Read.All scope
-            logger.debug("Teams polling not yet implemented - requires Microsoft Graph API integration")
+            token_data = token_storage.get_token("microsoft")
+            if not token_data:
+                logger.warning("No Microsoft OAuth token found for Teams polling")
+                return []
+
+            access_token = token_data.get("access_token")
+            headers = {"Authorization": f"Bearer {access_token}"}
+
+            all_messages = []
+
+            async with httpx.AsyncClient() as client:
+                # Get chats (channels and direct messages)
+                chats_response = await client.get(
+                    "https://graph.microsoft.com/v1.0/me/chats",
+                    headers=headers
+                )
+
+                if chats_response.status_code != 200:
+                    logger.error(f"Failed to fetch Teams chats: {chats_response.status_code}")
+                    return []
+
+                chats = chats_response.json().get("value", [])
+
+                for chat in chats:
+                    chat_id = chat.get("id")
+                    if not chat_id:
+                        continue
+
+                    # Build filter for messages since last fetch
+                    filter_str = None
+                    if last_fetch:
+                        filter_str = f"createdDateTime gt {last_fetch.isoformat()}"
+
+                    # Get messages from each chat
+                    params = {"$top": 100}
+                    if filter_str:
+                        params["$filter"] = filter_str
+
+                    msgs_response = await client.get(
+                        f"https://graph.microsoft.com/v1.0/me/chats/{chat_id}/messages",
+                        headers=headers,
+                        params=params
+                    )
+
+                    if msgs_response.status_code == 200:
+                        messages = msgs_response.json().get("value", [])
+
+                        # Normalize messages
+                        for msg in messages:
+                            normalized_msg = {
+                                "id": msg.get("id"),
+                                "app_type": CommunicationAppType.MICROSOFT_TEAMS.value,
+                                "timestamp": datetime.fromisoformat(msg.get("createdDateTime", datetime.now().isoformat())),
+                                "direction": "inbound",
+                                "sender": msg.get("from", {}).get("user", {}).get("displayName", "UNKNOWN"),
+                                "recipient": chat_id,
+                                "subject": None,
+                                "content": msg.get("body", {}).get("content", ""),
+                                "attachments": msg.get("attachments", []),
+                                "metadata": {
+                                    "chat_id": chat_id,
+                                    "chat_type": chat.get("chatType"),
+                                    "subject": msg.get("subject"),
+                                    "web_url": msg.get("webUrl"),
+                                    "teams_metadata": msg
+                                },
+                                "status": "active",
+                                "priority": "normal",
+                                "tags": []
+                            }
+                            all_messages.append(normalized_msg)
+
+                logger.info(f"Fetched {len(all_messages)} messages from Microsoft Teams")
+                return all_messages
+
+        except ImportError:
+            logger.warning("token_storage module not available for Teams polling")
             return []
-
         except Exception as e:
             logger.error(f"Error fetching Teams messages: {e}")
             return []
 
     async def _fetch_email_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """Fetch new email messages via IMAP"""
-        # TODO: Implement IMAP email polling
-        logger.debug("Email polling not yet implemented")
-        return []
+        try:
+            import imaplib
+            import email
+            from email.header import decode_header
+
+            imap_server = os.getenv("IMAP_SERVER")
+            imap_user = os.getenv("IMAP_USER")
+            imap_password = os.getenv("IMAP_PASSWORD")
+
+            if not all([imap_server, imap_user, imap_password]):
+                logger.warning("IMAP credentials not configured - set IMAP_SERVER, IMAP_USER, IMAP_PASSWORD")
+                return []
+
+            # Run IMAP operations in executor to avoid blocking
+            loop = asyncio.get_running_loop()
+            messages = await loop.run_in_executor(None, self._fetch_imap_messages, imap_server, imap_user, imap_password, last_fetch)
+
+            return messages
+
+        except Exception as e:
+            logger.error(f"Error fetching email via IMAP: {e}")
+            return []
+
+    def _fetch_imap_messages(self, imap_server: str, imap_user: str, imap_password: str, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """Synchronous IMAP fetching - runs in executor"""
+        try:
+            import imaplib
+            import email
+            from email.header import decode_header
+
+            # Connect to IMAP server
+            mail = imaplib.IMAP4_SSL(imap_server)
+            mail.login(imap_user, imap_password)
+            mail.select("INBOX")
+
+            # Search for new messages
+            since_date = last_fetch.strftime("%d-%b-%Y") if last_fetch else "01-Jan-1970"
+            status, messages = mail.search(None, f'(SINCE "{since_date}")')
+
+            messages_data = []
+
+            if status == "OK":
+                for msg_id in messages[0].split()[-100:]:  # Limit to last 100 messages
+                    _, msg_data = mail.fetch(msg_id, "(RFC822)")
+
+                    for response_part in msg_data:
+                        if isinstance(response_part, tuple):
+                            msg = email.message_from_bytes(response_part[1])
+
+                            # Decode subject
+                            subject = msg.get("Subject", "")
+                            if subject:
+                                decoded_parts = decode_header(subject)
+                                subject = ""
+                                for content, encoding in decoded_parts:
+                                    if isinstance(content, bytes):
+                                        subject += content.decode(encoding or "utf-8", errors="ignore")
+                                    else:
+                                        subject += content
+
+                            # Get email body
+                            body = ""
+                            if msg.is_multipart():
+                                for part in msg.walk():
+                                    content_type = part.get_content_type()
+                                    content_disposition = str(part.get("Content-Disposition", ""))
+
+                                    if content_type == "text/plain" and "attachment" not in content_disposition:
+                                        try:
+                                            body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                                            break
+                                        except:
+                                            pass
+                            else:
+                                try:
+                                    body = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
+                                except:
+                                    body = msg.get_payload()
+
+                            # Extract attachments
+                            attachments = []
+                            for part in msg.walk():
+                                if part.get_filename():
+                                    attachments.append({
+                                        "filename": part.get_filename(),
+                                        "size": part.get("Content-Length"),
+                                        "content_type": part.get_content_type()
+                                    })
+
+                            messages_data.append({
+                                "id": msg_id.decode(),
+                                "app_type": CommunicationAppType.EMAIL.value,
+                                "timestamp": datetime.fromtimestamp(email.utils.mktime_tz(email.utils.parsedate_tz(msg.get("Date")))),
+                                "direction": "inbound",
+                                "sender": msg.get("From"),
+                                "recipient": msg.get("To"),
+                                "subject": subject,
+                                "content": body,
+                                "attachments": attachments,
+                                "metadata": {
+                                    "message_id": msg.get("Message-ID"),
+                                    "thread_id": msg.get("Thread-Index"),
+                                    "email_metadata": {
+                                        "cc": msg.get("CC"),
+                                        "reply_to": msg.get("Reply-To"),
+                                        "in_reply_to": msg.get("In-Reply-To")
+                                    }
+                                },
+                                "status": "active",
+                                "priority": "normal",
+                                "tags": []
+                            })
+
+            mail.close()
+            mail.logout()
+
+            logger.info(f"Fetched {len(messages_data)} messages via IMAP")
+            return messages_data
+
+        except Exception as e:
+            logger.error(f"IMAP fetch error: {e}")
+            return []
 
     async def _fetch_gmail_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """
@@ -700,13 +1018,18 @@ class CommunicationIngestionPipeline:
         Requires Gmail OAuth access token.
         """
         try:
-            import os
+            from integrations.gmail_service import GmailService
 
-            # TODO: Implement Gmail API polling
-            # Requires: Gmail OAuth token with gmail.readonly scope
-            logger.debug("Gmail polling not yet implemented - requires Gmail API integration")
+            gmail_service = GmailService()
+            if not await gmail_service.authenticate():
+                logger.warning("Gmail authentication failed")
+                return []
+
+            messages = await gmail_service.get_messages(since=last_fetch)
+            return messages
+        except ImportError:
+            logger.warning("Gmail service not available")
             return []
-
         except Exception as e:
             logger.error(f"Error fetching Gmail messages: {e}")
             return []
@@ -718,13 +1041,77 @@ class CommunicationIngestionPipeline:
         Requires Outlook OAuth access token.
         """
         try:
-            import os
+            from core.token_storage import token_storage
 
-            # TODO: Implement Microsoft Graph API for Outlook
-            # Requires: Outlook OAuth token with Mail.Read scope
-            logger.debug("Outlook polling not yet implemented - requires Microsoft Graph API integration")
+            token_data = token_storage.get_token("microsoft")
+            if not token_data:
+                logger.warning("No Microsoft OAuth token found for Outlook polling")
+                return []
+
+            access_token = token_data.get("access_token")
+            headers = {"Authorization": f"Bearer {access_token}"}
+
+            async with httpx.AsyncClient() as client:
+                # Build filter for messages since last fetch
+                params = {"$top": 100}
+                if last_fetch:
+                    params["$filter"] = f"receivedDateTime gt {last_fetch.isoformat()}"
+
+                response = await client.get(
+                    "https://graph.microsoft.com/v1.0/me/messages",
+                    headers=headers,
+                    params=params
+                )
+
+                if response.status_code != 200:
+                    logger.error(f"Failed to fetch Outlook messages: {response.status_code}")
+                    return []
+
+                messages = response.json().get("value", [])
+
+                # Normalize messages
+                normalized_messages = []
+                for msg in messages:
+                    normalized_msg = {
+                        "id": msg.get("id"),
+                        "app_type": CommunicationAppType.OUTLOOK.value,
+                        "timestamp": datetime.fromisoformat(msg.get("receivedDateTime", datetime.now().isoformat())),
+                        "direction": "inbound",
+                        "sender": msg.get("from", {}).get("emailAddress", {}).get("address", "UNKNOWN"),
+                        "recipient": ", ".join([
+                            recipient.get("emailAddress", {}).get("address", "")
+                            for recipient in msg.get("toRecipients", [])
+                        ]),
+                        "subject": msg.get("subject"),
+                        "content": msg.get("body", {}).get("content", ""),
+                        "attachments": [
+                            {
+                                "id": att.get("id"),
+                                "name": att.get("name"),
+                                "size": att.get("size"),
+                                "content_type": att.get("contentType")
+                            }
+                            for att in msg.get("attachments", [])
+                        ],
+                        "metadata": {
+                            "conversation_id": msg.get("conversationId"),
+                            "importance": msg.get("importance"),
+                            "is_read": msg.get("isRead"),
+                            "flag": msg.get("flag"),
+                            "outlook_metadata": msg
+                        },
+                        "status": "active",
+                        "priority": "high" if msg.get("importance") == "High" else "normal",
+                        "tags": []
+                    }
+                    normalized_messages.append(normalized_msg)
+
+                logger.info(f"Fetched {len(normalized_messages)} messages from Outlook")
+                return normalized_messages
+
+        except ImportError:
+            logger.warning("token_storage module not available for Outlook polling")
             return []
-
         except Exception as e:
             logger.error(f"Error fetching Outlook messages: {e}")
             return []
