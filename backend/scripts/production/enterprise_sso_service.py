@@ -80,7 +80,11 @@ class UserIdentity(BaseModel):
 
 
 class SSOProvider:
-    """Base SSO Provider Class"""
+    """
+    Base SSO Provider Class (Abstract)
+
+    This is an abstract base class. Use SAMLProvider or OIDCProvider instead.
+    """
 
     def __init__(self, config: SSOConfig):
         self.config = config
@@ -93,15 +97,27 @@ class SSOProvider:
 
     async def initiate_login(self, request: Request) -> Dict[str, Any]:
         """Initiate SSO login flow"""
-        raise NotImplementedError
+        raise HTTPException(
+            status_code=501,
+            detail=f"SSO provider '{self.config.provider}' not properly configured. "
+                   f"Please use SAMLProvider or OIDCProvider instead of the base SSOProvider class."
+        )
 
     async def process_response(self, response_data: Dict[str, Any]) -> UserIdentity:
         """Process SSO response and extract user identity"""
-        raise NotImplementedError
+        raise HTTPException(
+            status_code=501,
+            detail=f"SSO provider '{self.config.provider}' not properly configured. "
+                   f"Please use SAMLProvider or OIDCProvider instead of the base SSOProvider class."
+        )
 
     async def validate_response(self, response_data: Dict[str, Any]) -> bool:
         """Validate SSO response"""
-        raise NotImplementedError
+        raise HTTPException(
+            status_code=501,
+            detail=f"SSO provider '{self.config.provider}' not properly configured. "
+                   f"Please use SAMLProvider or OIDCProvider instead of the base SSOProvider class."
+        )
 
 
 class SAMLProvider(SSOProvider):
