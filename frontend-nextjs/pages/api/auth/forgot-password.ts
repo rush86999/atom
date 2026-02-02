@@ -1,7 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '../../../lib/db';
+import { USE_BACKEND_API } from '../../../lib/api';
 import { sendEmail } from '../../../lib/email';
 import crypto from 'crypto';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default async function handler(
     req: NextApiRequest,
@@ -18,6 +21,26 @@ export default async function handler(
             return res.status(400).json({ error: 'Email is required' });
         }
 
+        // Use backend API if feature flag is enabled
+        if (USE_BACKEND_API) {
+            try {
+                const forgotResponse = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                if (forgotResponse.ok) {
+                    const data = await forgotResponse.json();
+                    return res.status(200).json(data);
+                }
+            } catch (error: any) {
+                // Log error but fall back to direct DB query
+                console.error('Backend API error, falling back to direct DB:', error.message);
+            }
+        }
+
+        // Direct DB query (original implementation)
         // Check if user exists
         const userResult = await query(
             'SELECT id FROM users WHERE email = $1',
@@ -42,7 +65,7 @@ export default async function handler(
 
         // Store token in database
         await query(
-            'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+            'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
             [user.id, token, expiresAt]
         );
 

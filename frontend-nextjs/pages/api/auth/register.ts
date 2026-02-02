@@ -1,6 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '../../../lib/db';
+import { USE_BACKEND_API } from '../../../lib/api';
 import bcrypt from 'bcryptjs';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default async function handler(
     req: NextApiRequest,
@@ -29,6 +32,33 @@ export default async function handler(
             });
         }
 
+        // Use backend API if feature flag is enabled
+        if (USE_BACKEND_API) {
+            try {
+                // Check if backend has a registration endpoint
+                const registerResponse = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, name })
+                });
+
+                if (registerResponse.ok) {
+                    const data = await registerResponse.json();
+                    return res.status(201).json(data);
+                } else if (registerResponse.status === 400) {
+                    const error = await registerResponse.json();
+                    return res.status(400).json(error);
+                } else {
+                    // If endpoint doesn't exist or fails, fall back to direct DB
+                    console.log('Backend registration endpoint not available, falling back to direct DB');
+                }
+            } catch (error: any) {
+                // Log error but fall back to direct DB query
+                console.error('Backend API error, falling back to direct DB:', error.message);
+            }
+        }
+
+        // Direct DB query (original implementation)
         // Check if user already exists
         const existingUser = await query(
             'SELECT id FROM users WHERE email = $1',

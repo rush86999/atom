@@ -177,6 +177,55 @@ export const dashboardAPI = {
   getIntegrationStatus: () => apiClient.get("/api/dashboard/integrations"),
 };
 
+// ============================================================================
+// USER MANAGEMENT API (Frontend to Backend Migration)
+// Feature flag: Use backend API or direct DB
+// ============================================================================
+export const USE_BACKEND_API = process.env.NEXT_PUBLIC_USE_BACKEND_API === 'true';
+
+// User Management API
+export const userManagementAPI = {
+  getCurrentUser: () => apiClient.get("/api/users/me"),
+  getUserSessions: () => apiClient.get("/api/users/sessions"),
+  revokeSession: (sessionId: string) =>
+    apiClient.delete(`/api/users/sessions/${sessionId}`),
+  revokeAllSessions: () => apiClient.delete("/api/users/sessions"),
+};
+
+// Email Verification API
+export const emailVerificationAPI = {
+  verifyEmail: (email: string, code: string) =>
+    apiClient.post("/api/email-verification/verify", { email, code }),
+  sendVerificationEmail: (email: string) =>
+    apiClient.post("/api/email-verification/send", { email }),
+};
+
+// Tenant API
+export const tenantAPI = {
+  getTenantBySubdomain: (subdomain: string) =>
+    apiClient.get(`/api/tenants/by-subdomain/${subdomain}`),
+  getTenantContext: () => apiClient.get("/api/tenants/context"),
+};
+
+// Admin API
+export const adminAPI = {
+  getAdminUsers: () => apiClient.get("/api/admin/users"),
+  updateAdminLastLogin: (adminId: string) =>
+    apiClient.patch(`/api/admin/users/${adminId}/last-login`),
+};
+
+// Meeting API
+export const meetingAPI = {
+  getMeetingAttendance: (taskId: string) =>
+    apiClient.get(`/api/meetings/attendance/${taskId}`),
+};
+
+// Financial API
+export const financialAPI = {
+  getNetWorthSummary: () => apiClient.get("/api/financial/net-worth/summary"),
+  listFinancialAccounts: () => apiClient.get("/api/financial/accounts"),
+};
+
 // Utility functions
 export const apiUtils = {
   // Generate unique request ID
