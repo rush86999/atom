@@ -249,21 +249,51 @@ class HealthMonitoringService:
             # Get alert counts
             alerts = await self.get_active_alerts_summary()
 
-            # System metrics (placeholder - in production would use psutil)
-            import psutil
-            cpu_usage = psutil.cpu_percent(interval=1)
-            memory_usage = psutil.virtual_memory().percent
+            # System metrics using psutil
+            cpu_usage = 0
+            memory_usage = 0
+            disk_usage = 0
+
+            try:
+                import psutil
+
+                # CPU usage (0-100%)
+                cpu_usage = psutil.cpu_percent(interval=0.1)
+
+                # Memory usage (0-100%)
+                memory = psutil.virtual_memory()
+                memory_usage = memory.percent
+
+                # Disk usage (0-100%)
+                disk = psutil.disk_usage('/')
+                disk_usage = disk.percent
+
+                # Additional metrics
+                process_count = len(psutil.pids())
+
+            except ImportError:
+                logger.warning("psutil not installed - system metrics unavailable")
+                cpu_usage = 0
+                memory_usage = 0
+                disk_usage = 0
+            except Exception as e:
+                logger.error(f"Failed to get system metrics from psutil: {e}")
+                cpu_usage = 0
+                memory_usage = 0
+                disk_usage = 0
 
             return {
                 "cpu_usage": round(cpu_usage, 2),
                 "memory_usage": round(memory_usage, 2),
+                "disk_usage": round(disk_usage, 2),
                 "active_operations": active_operations,
                 "queue_depth": queue_depth,
                 "total_agents": total_agents,
                 "active_agents": active_agents,
                 "total_integrations": total_integrations,
                 "healthy_integrations": healthy_integrations,
-                "alerts": alerts
+                "alerts": alerts,
+                "timestamp": datetime.utcnow().isoformat()
             }
 
         except Exception as e:
@@ -271,13 +301,16 @@ class HealthMonitoringService:
             return {
                 "cpu_usage": 0,
                 "memory_usage": 0,
+                "disk_usage": 0,
                 "active_operations": 0,
                 "queue_depth": 0,
                 "total_agents": 0,
                 "active_agents": 0,
                 "total_integrations": 0,
                 "healthy_integrations": 0,
-                "alerts": {"critical": 0, "warning": 0, "info": 0}
+                "alerts": {"critical": 0, "warning": 0, "info": 0},
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": str(e)
             }
 
     async def get_active_alerts(
