@@ -704,7 +704,58 @@ try:
     except ImportError as e:
         logger.warning(f"Canvas recording routes not found: {e}")
 
-    # 15.1.c Recording Review Routes (Governance & Learning integration)
+    # 15.1.c Canvas Type Routes (Specialized canvas types: docs, email, sheets, etc.)
+    try:
+        from api.canvas_type_routes import router as canvas_type_router
+        app.include_router(canvas_type_router, tags=["Canvas Types"])
+        logger.info("✓ Canvas Type Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Canvas type routes not found: {e}")
+
+    # 15.1.d Specialized Canvas Routes (docs, email, sheets, orchestration, terminal, coding)
+    try:
+        from api.canvas_docs_routes import router as canvas_docs_router
+        app.include_router(canvas_docs_router, tags=["Canvas Docs"])
+        logger.info("✓ Canvas Docs Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Canvas docs routes not found: {e}")
+
+    try:
+        from api.canvas_email_routes import router as canvas_email_router
+        app.include_router(canvas_email_router, tags=["Canvas Email"])
+        logger.info("✓ Canvas Email Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Canvas email routes not found: {e}")
+
+    try:
+        from api.canvas_sheets_routes import router as canvas_sheets_router
+        app.include_router(canvas_sheets_router, tags=["Canvas Sheets"])
+        logger.info("✓ Canvas Sheets Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Canvas sheets routes not found: {e}")
+
+    try:
+        from api.canvas_orchestration_routes import router as canvas_orchestration_router
+        app.include_router(canvas_orchestration_router, tags=["Canvas Orchestration"])
+        logger.info("✓ Canvas Orchestration Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Canvas orchestration routes not found: {e}")
+
+    try:
+        from api.canvas_terminal_routes import router as canvas_terminal_router
+        app.include_router(canvas_terminal_router, tags=["Canvas Terminal"])
+        logger.info("✓ Canvas Terminal Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Canvas terminal routes not found: {e}")
+
+    try:
+        from api.canvas_coding_routes import router as canvas_coding_router
+        app.include_router(canvas_coding_router, tags=["Canvas Coding"])
+        logger.info("✓ Canvas Coding Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Canvas coding routes not found: {e}")
+
+    # 15.1.e Recording Review Routes (Governance & Learning integration)
     try:
         from api.recording_review_routes import router as recording_review_router
         app.include_router(recording_review_router, tags=["Recording Review"])
