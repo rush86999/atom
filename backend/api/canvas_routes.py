@@ -88,16 +88,11 @@ async def submit_form(
                 agent_id = originating_execution.agent_id
 
             if agent_id:
-                agent = db.query(AgentExecution).filter(
-                    AgentExecution.id == agent_id
+                # Query AgentRegistry (not AgentExecution) for agent details
+                from core.models import AgentRegistry
+                agent = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == agent_id
                 ).first()
-
-                if not agent:
-                    # Try to get agent from registry
-                    from core.models import AgentRegistry
-                    agent = db.query(AgentRegistry).filter(
-                        AgentRegistry.id == agent_id
-                    ).first()
 
             # Perform governance check (submit_form = complexity 3, SUPERVISED+)
             if agent:

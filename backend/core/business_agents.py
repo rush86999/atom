@@ -8,6 +8,7 @@ import json
 import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from abc import ABC, abstractmethod
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from core.models import Workspace, AgentJob, AgentJobStatus
@@ -16,18 +17,19 @@ from integrations.mcp_service import mcp_service
 
 logger = logging.getLogger(__name__)
 
-class BusinessAgent:
+class BusinessAgent(ABC):
     """Base class for specialized business agents."""
-    
+
     def __init__(self, agent_id: str, name: str, domain: str):
         self.agent_id = agent_id
         self.name = name
         self.domain = domain
         self.mcp = mcp_service
 
+    @abstractmethod
     async def run(self, workspace_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Executes the agent's logic for a specific workspace."""
-        raise NotImplementedError("Subclasses must implement run()")
+        """Executes the agent's logic for a specific workspace. Subclasses must implement this method."""
+        pass
 
 class AccountingAgent(BusinessAgent):
     """
