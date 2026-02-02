@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: February 1, 2026
+**Last Updated**: February 2, 2026
 
 ---
 
@@ -64,6 +64,21 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Files**: `tools/canvas_tool.py`, `api/canvas_routes.py`
 - Charts (line, bar, pie), markdown, forms with governance
 
+### 3.5 Real-Time Agent Guidance System ✨ NEW
+- **Files**: `tools/agent_guidance_canvas_tool.py`, `core/view_coordinator.py`, `core/error_guidance_engine.py`, `core/agent_request_manager.py`, `api/agent_guidance_routes.py`
+- **Purpose**: Real-time agent operation visibility with learning integration
+- **Features**:
+  - Live operation tracking with progress bars and step-by-step updates
+  - Contextual explanations (what/why/next) in plain English
+  - Multi-view orchestration (browser/terminal/canvas) with layout management
+  - Smart error resolution with 7 error categories and learning feedback
+  - Interactive permission/decision requests with full audit trail
+  - Integration guidance for OAuth flows with real-time status
+  - Complete governance integration and bidirectional learning
+- **Frontend**: `frontend-nextjs/components/canvas/` (5 React components)
+- **Docs**: `docs/CANVAS_IMPLEMENTATION_COMPLETE.md`, `docs/AGENT_GUIDANCE_IMPLEMENTATION.md`
+- **Tests**: `tests/test_agent_guidance_canvas.py`, `tests/test_view_coordinator.py`, `tests/test_error_guidance.py`
+
 ### 4. Browser Automation System
 - **Files**: `tools/browser_tool.py`, `api/browser_routes.py`
 - Web scraping, form filling, screenshots via Playwright CDP
@@ -88,10 +103,20 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ### 8. Database Models
 - **File**: `core/models.py`
 - Key models: AgentRegistry, AgentExecution, AgentFeedback, CanvasAudit, BrowserSession, DeviceSession, DeepLinkAudit, ChatSession
+- **NEW**: AgentOperationTracker, AgentRequestLog, ViewOrchestrationState, OperationErrorResolution
 
 ---
 
 ## Recent Major Changes
+
+### Real-Time Agent Guidance System (Feb 2, 2026) ✨ NEW
+- Complete agent operation visibility with live progress tracking
+- Multi-view orchestration (browser/terminal/canvas) with layout management
+- Smart error resolution with 7 error categories and learning feedback
+- Interactive permission/decision requests with full audit trail
+- Integration guidance for OAuth flows
+- 5 React components, 4 core services, 25+ tests, comprehensive documentation
+- **See**: `docs/CANVAS_IMPLEMENTATION_COMPLETE.md`
 
 ### Custom Canvas Components (Feb 1, 2026)
 - User-created HTML/CSS/JS components with security validation

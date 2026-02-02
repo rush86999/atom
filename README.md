@@ -49,6 +49,18 @@ Why rely on generic AI when you can hire experts?
 - **Real-Time Updates**: Bidirectional canvas updates with session isolation
 - **JavaScript Execution**: AUTONOMOUS agents can execute custom JavaScript (with sandboxing)
 
+### 👁️ **Real-Time Agent Guidance & Operation Visibility** ✨ NEW
+- **Live Operation Tracking**: See exactly what agents are doing in plain English with step-by-step progress
+- **Contextual Explanations**: Every operation includes "what I'm doing", "why I'm doing this", and "what's next"
+- **Multi-View Orchestration**: Agent-coordinated browser, terminal, and canvas views with layout management
+- **Smart Error Resolution**: Categorized errors with actionable resolution suggestions and learning feedback
+- **Interactive Requests**: Agents ask for permissions or decisions with clear consequences explained
+- **Integration Guides**: Step-by-step OAuth guidance with permission explanations and real-time status
+- **Complete Transparency**: Full audit trail, attribution tracking, and governance integration
+- **Bidirectional Learning**: User interactions feed back into agent confidence scoring and personalization
+
+**See [docs/CANVAS_IMPLEMENTATION_COMPLETE.md](docs/CANVAS_IMPLEMENTATION_COMPLETE.md) for details**
+
 ### 🔍 **Browser & Device Automation**
 - **Browser Automation**: Control Chrome/Edge via CDP for web scraping, form filling, screenshots
 - **Device Control**: Access camera, location, notifications, screen recording, and shell commands
