@@ -1,0 +1,261 @@
+"""
+Standardized Logging Configuration for Atom Platform
+
+Provides consistent logging format across all modules.
+"""
+
+import logging
+import sys
+import os
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+
+# ANSI color codes for terminal output
+class LogColors:
+    """ANSI color codes for log levels"""
+
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    GREY = "\033[90m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    RED_BOLD = "\033[1;91m"
+    CYAN = "\033[96m"
+
+
+class ColoredFormatter(logging.Formatter):
+    """
+    Custom log formatter with colors for console output.
+
+    Format: [TIMESTAMP] [LEVEL] [LOGGER_NAME] MESSAGE
+    """
+
+    COLORS = {
+        logging.DEBUG: LogColors.GREY,
+        logging.INFO: LogColors.GREEN,
+        logging.WARNING: LogColors.YELLOW,
+        logging.ERROR: LogColors.RED,
+        logging.CRITICAL: LogColors.RED_BOLD,
+    }
+
+    def __init__(self, use_colors: bool = True, show_logger_name: bool = True):
+        """
+        Args:
+            use_colors: Enable ANSI color codes (default: True)
+            show_logger_name: Include logger name in output (default: True)
+        """
+        super().__init__()
+        self.use_colors = use_colors
+        self.show_logger_name = show_logger_name
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format log record with colors and structured information"""
+
+        # Color the level name
+        levelname = record.levelname
+        if self.use_colors and record.levelno in self.COLORS:
+            levelname = f"{self.COLORS[record.levelno]}{levelname}{LogColors.RESET}"
+
+        # Format timestamp
+        timestamp = datetime.fromtimestamp(record.created).strftime("%Y-%m-%d %H:%M:%S")
+
+        # Build the log message
+        parts = [
+            f"[{timestamp}]",
+            f"[{levelname}]"
+        ]
+
+        if self.show_logger_name:
+            parts.append(f"[{record.name}]")
+
+        # Add the message
+        message = record.getMessage()
+
+        # Add exception info if present
+        if record.exc_info:
+            if not message.endswith('\n'):
+                message += '\n'
+            message += self.formatException(record.exc_info)
+
+        parts.append(message)
+
+        return " ".join(parts)
+
+
+def setup_logging(
+    level: Optional[str] = None,
+    log_file: Optional[str] = None,
+    enable_colors: bool = True,
+    show_logger_name: bool = True
+) -> None:
+    """
+    Setup application-wide logging configuration.
+
+    This should be called once at application startup in main.py:
+    ```python
+    from core.logging_config import setup_logging
+    setup_logging(
+        level=os.getenv("LOG_LEVEL", "INFO"),
+        log_file=os.getenv("LOG_FILE", "logs/atom.log")
+    )
+    ```
+
+    Args:
+        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+               Defaults to LOG_LEVEL environment variable or INFO
+        log_file: Path to log file. If provided, logs will be written to file
+                  in addition to console. Defaults to LOG_FILE environment variable
+        enable_colors: Enable ANSI colors in console output (default: True)
+        show_logger_name: Include logger name in output (default: True)
+
+    Environment Variables:
+        LOG_LEVEL: Logging level (default: INFO)
+        LOG_FILE: Path to log file (default: None)
+        LOG_FORMAT: json or text (default: text)
+
+    Examples:
+        # Basic setup
+        setup_logging()
+
+        # With custom level and file
+        setup_logging(level="DEBUG", log_file="logs/debug.log")
+
+        # Without colors (for production logs)
+        setup_logging(enable_colors=False)
+    """
+    # Determine log level
+    log_level_str = level or os.getenv("LOG_LEVEL", "INFO")
+    log_level = getattr(logging, log_level_str.upper(), logging.INFO)
+
+    # Get root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+
+    # Remove any existing handlers
+    root_logger.handlers.clear()
+
+    # Console handler with colors
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(log_level)
+    console_formatter = ColoredFormatter(
+        use_colors=enable_colors,
+        show_logger_name=show_logger_name
+    )
+    console_handler.setFormatter(console_formatter)
+    root_logger.addHandler(console_handler)
+
+    # File handler (if log file specified)
+    if log_file or os.getenv("LOG_FILE"):
+        file_path = Path(log_file or os.getenv("LOG_FILE"))
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        file_handler = logging.FileHandler(file_path, encoding='utf-8')
+        file_handler.setLevel(log_level)
+
+        # Use plain text format for files (no colors)
+        file_formatter = logging.Formatter(
+            '[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(file_formatter)
+        root_logger.addHandler(file_handler)
+
+    # Suppress noisy library logs
+    _configure_library_loggers()
+
+    # Log startup
+    logger = logging.getLogger(__name__)
+    logger.info(f"Logging initialized at {log_level_str} level")
+    if log_file:
+        logger.info(f"Logging to file: {file_path}")
+
+
+def _configure_library_loggers() -> None:
+    """
+    Configure log levels for third-party libraries to reduce noise.
+
+    Most libraries are too chatty at INFO level, so we set them to WARNING.
+    """
+    # Uvicorn/FastAPI
+    logging.getLogger("uvicorn").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("fastapi").setLevel(logging.WARNING)
+
+    # SQLAlchemy
+    logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+
+    # HTTP libraries
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+    # Other common libraries
+    logging.getLogger("websockets").setLevel(logging.WARNING)
+    logging.getLogger("aiohttp").setLevel(logging.WARNING)
+
+
+def get_logger(name: str) -> logging.Logger:
+    """
+    Get a logger instance with the specified name.
+
+    This is the preferred way to get loggers in modules:
+    ```python
+    from core.logging_config import get_logger
+    logger = get_logger(__name__)
+    ```
+
+    Args:
+        name: Logger name (typically use __name__)
+
+    Returns:
+        Logger instance
+
+    Examples:
+        # In your modules
+        from core.logging_config import get_logger
+        logger = get_logger(__name__)
+
+        # Use the logger
+        logger.info("Processing started")
+        logger.error("Processing failed", exc_info=True)
+    """
+    return logging.getLogger(name)
+
+
+class LoggerContext:
+    """
+    Context manager for temporary logging level changes.
+
+    Useful for debugging specific sections of code:
+
+    ```python
+    with LoggerContext("sqlalchemy.engine", logging.DEBUG):
+        # This section will log SQL queries
+        result = db.query(Model).all()
+    # Logging level restored automatically
+    ```
+
+    Args:
+        logger_name: Name of the logger to modify
+        level: Temporary log level
+    """
+
+    def __init__(self, logger_name: str, level: int):
+        self.logger_name = logger_name
+        self.new_level = level
+        self.old_level = None
+
+    def __enter__(self):
+        logger = logging.getLogger(self.logger_name)
+        self.old_level = logger.level
+        logger.setLevel(self.new_level)
+        return logger
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        logger = logging.getLogger(self.logger_name)
+        logger.setLevel(self.old_level)
