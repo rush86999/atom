@@ -878,17 +878,48 @@ def enterprise_internal_error(error):
 
 # Helper functions
 async def _verify_enterprise_credentials(username: str, password: str) -> Dict[str, Any]:
-    """Verify enterprise credentials"""
-    # Mock implementation - would use actual user database
-    if username == 'admin' and password == 'EnterpriseAdmin123!':
-        return {
-            'user_id': 'enterprise_admin_001',
-            'username': 'admin',
-            'roles': ['admin', 'security_admin', 'workflow_admin', 'compliance_admin', 'automation_admin', 'integration_admin'],
-            'security_level': 'enterprise',
-            'permissions': ['all']
-        }
-    return None
+    """
+    Verify enterprise credentials using the enterprise auth service.
+
+    Args:
+        username: Username or email
+        password: Plain text password
+
+    Returns:
+        User credentials dict if valid, None if invalid
+    """
+    try:
+        from core.enterprise_auth_service import EnterpriseAuthService
+        from core.database import get_db
+
+        auth_service = EnterpriseAuthService()
+
+        # Get database session
+        db = next(get_db())
+
+        try:
+            # Verify credentials
+            user_creds = auth_service.verify_credentials(db, username, password)
+
+            if not user_creds:
+                return None
+
+            # Convert to expected format
+            return {
+                'user_id': user_creds.user_id,
+                'username': user_creds.username,
+                'email': user_creds.email,
+                'roles': user_creds.roles,
+                'security_level': user_creds.security_level,
+                'permissions': user_creds.permissions
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Enterprise credential verification error: {e}")
+        return None
 
 # Register blueprint
 def register_enterprise_api(app):
