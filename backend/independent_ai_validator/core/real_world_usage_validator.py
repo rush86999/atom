@@ -540,7 +540,8 @@ class RealWorldUsageValidator:
                         result = await response.json()
                         result["real_api_used"] = False
                         return result
-            except:
+            except Exception as e:
+                logger.debug(f"Task creation failed for endpoint {endpoint}: {e}")
                 continue
                 
         return {"success": True, "task_id": "task_fallback", "assigned_agent": "agent_fallback", "timeline": "2025-12-01"}
@@ -549,14 +550,16 @@ class RealWorldUsageValidator:
         try:
             async with self.session.get(f"{self.backend_url}/api/v1/ai/providers") as resp:
                 if resp.status == 200: return await resp.json()
-        except: pass
+        except Exception as e:
+            logger.debug(f"Failed to check AI providers: {e}")
         return {"providers": ["openai"], "multi_provider_support": True, "active_providers": 1}
 
     async def _execute_ai_workflow(self, input_data):
         try:
             async with self.session.post(f"{self.backend_url}/api/v1/ai/execute", json=input_data) as resp:
                 if resp.status == 200: return await resp.json()
-        except: pass
+        except Exception as e:
+            logger.debug(f"Failed to execute AI workflow: {e}")
         return {"success": True, "tasks_created": 1, "ai_generated_tasks": ["task_1"], "confidence_score": 0.9}
 
     async def _create_calendar_event(self, event_data: Dict[str, Any]) -> Any:
@@ -773,14 +776,16 @@ class RealWorldUsageValidator:
         try:
             async with self.session.post(f"{self.backend_url}/api/lancedb-search/hybrid", json=input_data) as resp:
                 if resp.status == 200: return await resp.json()
-        except: pass
+        except Exception as e:
+            logger.debug(f"Failed to perform hybrid search: {e}")
         return {"success": True, "results": [], "total_count": 0}
 
     async def _get_search_suggestions(self, input_data):
         try:
             async with self.session.get(f"{self.backend_url}/api/lancedb-search/suggestions", params=input_data) as resp:
                 if resp.status == 200: return await resp.json()
-        except: pass
+        except Exception as e:
+            logger.debug(f"Failed to get search suggestions: {e}")
         return {"success": True, "suggestions": []}
     
     def _calculate_functionality_assessment(self, results):

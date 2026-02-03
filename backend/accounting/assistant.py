@@ -48,8 +48,10 @@ class AccountingAssistant:
             # For brevity in MVP, we handle some intents directly or via AI result
             result = ai_response.output_data
             if isinstance(result, str):
-                try: result = json.loads(result)
-                except: pass
+                try:
+                    result = json.loads(result)
+                except json.JSONDecodeError as e:
+                    logger.debug(f"Failed to parse AI response as JSON: {e}")
             
             intent = result.get("intent", "unknown")
             params = result.get("params", {})

@@ -133,10 +133,10 @@ def get_db():
     This is the RECOMMENDED pattern for API routes.
     """
     with get_db_session() as db:
-    try:
-        yield db
-    finally:
-        db.close()
+        try:
+            yield db
+        finally:
+            db.close()
 
 
 # ============================================================================
@@ -168,14 +168,14 @@ def get_db_session():
     Preferred over manual `with get_db_session() as db:` pattern.
     """
     with get_db_session() as db:
-    try:
-        yield db
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
 
 # Legacy alias for backwards compatibility

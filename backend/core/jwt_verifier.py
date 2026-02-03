@@ -24,6 +24,9 @@ from typing import Any, Dict, List, Optional
 import jwt
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
+
+from core.models import RevokedToken
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +147,7 @@ class JWTVerifier:
         credentials: HTTPAuthorizationCredentials,
         client_ip: Optional[str] = None,
         check_revocation: bool = False,
+        db: Optional[Session] = None,
     ) -> Dict[str, Any]:
         """
         Verify and decode JWT token with comprehensive validation.
@@ -152,6 +156,7 @@ class JWTVerifier:
             credentials: HTTPAuthorizationCredentials from FastAPI Security
             client_ip: Client IP address for DEBUG whitelist validation
             check_revocation: Whether to check token revocation status
+            db: Database session for revocation checking (required if check_revocation=True)
 
         Returns:
             Decoded JWT payload as dictionary
@@ -239,7 +244,7 @@ class JWTVerifier:
 
             # Check revocation if enabled (implement in your application)
             if check_revocation:
-                if self._is_token_revoked(payload):
+                if self._is_token_revoked(payload, db):
                     logger.warning(f"JWT_VERIFICATION: Token has been revoked: {payload.get('sub')}")
                     raise HTTPException(status_code=401, detail="Token has been revoked")
 
@@ -262,33 +267,55 @@ class JWTVerifier:
             logger.error(f"JWT_VERIFICATION: Unexpected error: {e}")
             raise HTTPException(status_code=401, detail="Could not validate credentials")
 
-    def _is_token_revoked(self, payload: Dict[str, Any]) -> bool:
+    def _is_token_revoked(self, payload: Dict[str, Any], db: Optional[Session] = None) -> bool:
         """
         Check if token has been revoked.
 
-        Override this method to implement token revocation checking.
-        Examples:
-        - Check against a Redis blacklist
-        - Query a database for revoked tokens
-        - Check a token version in user record
+        Queries the database for revoked tokens using the JWT ID (jti).
+        Requires a database session to check revocation status.
 
         Args:
-            payload: Decoded JWT payload
+            payload: Decoded JWT payload (must contain 'jti' claim)
+            db: Database session for checking revocation status
 
         Returns:
             True if token is revoked, False otherwise
+
+        Note:
+            If db is None or 'jti' is not in payload, returns False (allows token).
+            This is a security-first graceful degradation - prefer providing db.
         """
-        # TODO: Implement token revocation checking
-        # Example implementations:
-        # 1. Redis: return redis_client.get(f"revoked:{payload['jti']}") is not None
-        # 2. Database: return db.query(RevokedToken).filter_by(jti=payload['jti']).first()
-        return False
+        # Cannot check revocation without database session or JTI
+        if not db or 'jti' not in payload:
+            if 'jti' not in payload:
+                logger.warning("JWT_VERIFICATION: Token missing 'jti' claim - cannot check revocation")
+            return False
+
+        try:
+            revoked_token = db.query(RevokedToken).filter_by(jti=payload['jti']).first()
+            is_revoked = revoked_token is not None
+
+            if is_revoked:
+                logger.warning(
+                    f"JWT_VERIFICATION: Token revoked (jti={payload['jti']}, "
+                    f"reason={revoked_token.revocation_reason}, "
+                    f"revoked_at={revoked_token.revoked_at})"
+                )
+
+            return is_revoked
+
+        except Exception as e:
+            # Security-first: Log error but allow token if revocation check fails
+            # This prevents authentication system from going down due to revocation issues
+            logger.error(f"JWT_VERIFICATION: Error checking token revocation: {e}")
+            return False
 
     def create_token(
         self,
         subject: str,
         expires_delta: Optional[timedelta] = None,
         additional_claims: Optional[Dict[str, Any]] = None,
+        jti: Optional[str] = None,
     ) -> str:
         """
         Create a JWT token (for testing or internal use).
@@ -297,6 +324,7 @@ class JWTVerifier:
             subject: Subject identifier (usually user ID)
             expires_delta: Token expiration time (default: 24 hours)
             additional_claims: Additional claims to include in token
+            jti: JWT ID for token revocation (auto-generated UUID if not provided)
 
         Returns:
             Encoded JWT token string
@@ -304,10 +332,16 @@ class JWTVerifier:
         if expires_delta is None:
             expires_delta = timedelta(hours=24)
 
+        # Generate JTI for revocation support
+        import uuid
+        if not jti:
+            jti = str(uuid.uuid4())
+
         payload = {
             "sub": subject,
             "iat": datetime.utcnow(),
             "exp": datetime.utcnow() + expires_delta,
+            "jti": jti,  # JWT ID for revocation
         }
 
         if self.audience:
@@ -320,7 +354,7 @@ class JWTVerifier:
             payload.update(additional_claims)
 
         token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
-        logger.info(f"JWT_VERIFICATION: Token created for sub={subject}")
+        logger.info(f"JWT_VERIFICATION: Token created for sub={subject}, jti={jti}")
         return token
 
 

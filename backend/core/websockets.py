@@ -44,57 +44,55 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket, token: str):
         await websocket.accept()
-        
+
         # Authenticate
         with get_db_session() as db:
-        try:
-            # Allow dev bypass
-            if token == "dev-token":
-                # Create a mock user for dev
-                class MockUser:
-                    id = "dev-user"
-                    email = "dev@local.host"
-                    teams = []
-                    workspace_id = "default"
-                user = MockUser()
-            else:
-                user = await get_current_user_ws(token, db)
-            
-            if not user:
-                await websocket.close(code=4001) # Unauthorized
-                return None
-            
-            user_id = user.id
-            
-            # Register user connection
-            if user_id not in self.user_connections:
-                self.user_connections[user_id] = []
-            self.user_connections[user_id].append(websocket)
-            
-            # Auto-subscribe to User Channel
-            self.subscribe(websocket, f"user:{user_id}")
-            
-            # Auto-subscribe to Team Channels
-            for team in user.teams:
-                self.subscribe(websocket, f"team:{team.id}")
-                
-            # Auto-subscribe to Workspace Channel
-            if user.workspace_id:
-                self.subscribe(websocket, f"workspace:{user.workspace_id}")
-                
-            logger.info(f"User {user.email} connected via WebSocket")
-            return user
-            
-        except Exception as e:
-            logger.error(f"WebSocket connection error: {e}")
             try:
-                await websocket.close()
-            except RuntimeError:
-                # Connection might be already closed or in a state where close() is invalid
-                pass
-            return None
-        finally:
-            db.close()
+                # Allow dev bypass
+                if token == "dev-token":
+                    # Create a mock user for dev
+                    class MockUser:
+                        id = "dev-user"
+                        email = "dev@local.host"
+                        teams = []
+                        workspace_id = "default"
+                    user = MockUser()
+                else:
+                    user = await get_current_user_ws(token, db)
+
+                if not user:
+                    await websocket.close(code=4001) # Unauthorized
+                    return None
+
+                user_id = user.id
+
+                # Register user connection
+                if user_id not in self.user_connections:
+                    self.user_connections[user_id] = []
+                self.user_connections[user_id].append(websocket)
+
+                # Auto-subscribe to User Channel
+                self.subscribe(websocket, f"user:{user_id}")
+
+                # Auto-subscribe to Team Channels
+                for team in user.teams:
+                    self.subscribe(websocket, f"team:{team.id}")
+
+                # Auto-subscribe to Workspace Channel
+                if user.workspace_id:
+                    self.subscribe(websocket, f"workspace:{user.workspace_id}")
+
+                logger.info(f"User {user.email} connected via WebSocket")
+                return user
+
+            except Exception as e:
+                logger.error(f"WebSocket connection error: {e}")
+                try:
+                    await websocket.close()
+                except RuntimeError:
+                    # Connection might be already closed or in a state where close() is invalid
+                    pass
+                return None
 
     def disconnect(self, websocket: WebSocket, user_id: str):
         # Remove from user connections

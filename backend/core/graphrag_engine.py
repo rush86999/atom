@@ -343,106 +343,106 @@ JSON Schema:
     def add_entity(self, entity: Entity, workspace_id: str) -> str:
         """Upsert entity to Postgres"""
         with get_db_session() as session:
-        try:
-            # Check existence first (or use ON CONFLICT in raw SQL)
-            # Using ORM for clarity, though bulk raw SQL is faster for mass ingestion
-            existing = session.query(GraphNode).filter_by(
-                workspace_id=workspace_id, 
-                name=entity.name, 
-                type=entity.entity_type
-            ).first()
-            
-            if existing:
-                existing.description = entity.description
-                existing.properties = entity.properties
-                entity.id = existing.id
-            else:
-                node = GraphNode(
-                    id=entity.id,
+            try:
+                # Check existence first (or use ON CONFLICT in raw SQL)
+                # Using ORM for clarity, though bulk raw SQL is faster for mass ingestion
+                existing = session.query(GraphNode).filter_by(
                     workspace_id=workspace_id,
                     name=entity.name,
-                    type=entity.entity_type,
-                    description=entity.description,
-                    properties=entity.properties
-                )
-                session.add(node)
-                
-            session.commit()
-            return entity.id
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Failed to add entity: {e}")
-            return None
-        finally:
-            session.close()
+                    type=entity.entity_type
+                ).first()
+
+                if existing:
+                    existing.description = entity.description
+                    existing.properties = entity.properties
+                    entity.id = existing.id
+                else:
+                    node = GraphNode(
+                        id=entity.id,
+                        workspace_id=workspace_id,
+                        name=entity.name,
+                        type=entity.entity_type,
+                        description=entity.description,
+                        properties=entity.properties
+                    )
+                    session.add(node)
+
+                session.commit()
+                return entity.id
+            except Exception as e:
+                session.rollback()
+                logger.error(f"Failed to add entity: {e}")
+                return None
+            finally:
+                session.close()
 
     def add_relationship(self, rel: Relationship, workspace_id: str) -> str:
         """Insert edge to Postgres"""
         with get_db_session() as session:
-        try:
-            # Ensure nodes exist (basic check logic should be upstream, but foreign keys enforce it)
-            # Here we assume IDs are valid GraphNode.ids
-            edge = GraphEdge(
-                id=rel.id,
-                workspace_id=workspace_id,
-                source_node_id=rel.from_entity,
-                target_node_id=rel.to_entity,
-                relationship_type=rel.rel_type,
-                properties=rel.properties
-            )
-            session.add(edge)
-            session.commit()
-            return rel.id
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Failed to add relationship: {e}")
-            return None
-        finally:
-            session.close()
+            try:
+                # Ensure nodes exist (basic check logic should be upstream, but foreign keys enforce it)
+                # Here we assume IDs are valid GraphNode.ids
+                edge = GraphEdge(
+                    id=rel.id,
+                    workspace_id=workspace_id,
+                    source_node_id=rel.from_entity,
+                    target_node_id=rel.to_entity,
+                    relationship_type=rel.rel_type,
+                    properties=rel.properties
+                )
+                session.add(edge)
+                session.commit()
+                return rel.id
+            except Exception as e:
+                session.rollback()
+                logger.error(f"Failed to add relationship: {e}")
+                return None
+            finally:
+                session.close()
 
     def ingest_structured_data(self, workspace_id: str, entities: List[Dict], relationships: List[Dict]):
         """Batch ingestion using session"""
         with get_db_session() as session:
-        try:
-            # 1. Process Nodes
-            node_map = {} # Name -> ID
-            for e_data in entities:
-                name = e_data.get("name")
-                if not name: continue
-                
-                # Deduplicate logic simplified:
-                node = GraphNode(
-                    workspace_id=workspace_id,
-                    name=name,
-                    type=e_data.get("type", "unknown"),
-                    description=e_data.get("description", ""),
-                    properties=e_data.get("properties", {})
-                )
-                session.add(node)
-                session.flush() # Get ID
-                node_map[name] = node.id
-            
-            # 2. Process Edges
-            for r_data in relationships:
-                src = node_map.get(r_data.get("from"))
-                dst = node_map.get(r_data.get("to"))
-                if src and dst:
-                    edge = GraphEdge(
+            try:
+                # 1. Process Nodes
+                node_map = {} # Name -> ID
+                for e_data in entities:
+                    name = e_data.get("name")
+                    if not name: continue
+
+                    # Deduplicate logic simplified:
+                    node = GraphNode(
                         workspace_id=workspace_id,
-                        source_node_id=src,
-                        target_node_id=dst,
-                        relationship_type=r_data.get("type", "related_to"),
-                        properties=r_data.get("properties", {})
+                        name=name,
+                        type=e_data.get("type", "unknown"),
+                        description=e_data.get("description", ""),
+                        properties=e_data.get("properties", {})
                     )
-                    session.add(edge)
-            
-            session.commit()
-            logger.info(f"Ingested {len(entities)} nodes, {len(relationships)} edges to Postgres")
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Structured ingestion failed: {e}")
-        finally:
-            session.close()
+                    session.add(node)
+                    session.flush() # Get ID
+                    node_map[name] = node.id
+
+                # 2. Process Edges
+                for r_data in relationships:
+                    src = node_map.get(r_data.get("from"))
+                    dst = node_map.get(r_data.get("to"))
+                    if src and dst:
+                        edge = GraphEdge(
+                            workspace_id=workspace_id,
+                            source_node_id=src,
+                            target_node_id=dst,
+                            relationship_type=r_data.get("type", "related_to"),
+                            properties=r_data.get("properties", {})
+                        )
+                        session.add(edge)
+
+                session.commit()
+                logger.info(f"Ingested {len(entities)} nodes, {len(relationships)} edges to Postgres")
+            except Exception as e:
+                session.rollback()
+                logger.error(f"Structured ingestion failed: {e}")
+            finally:
+                session.close()
 
     # ==================== READ OPERATIONS (SQL) ====================
 
@@ -452,83 +452,83 @@ JSON Schema:
         Finds the neighborhood of entities matching the query.
         """
         with get_db_session() as session:
-        try:
-            # 1. Find Start Nodes (Search by name fuzzy match)
-            start_nodes_sql = text("""
-                SELECT id, name, type, description 
-                FROM graph_nodes 
-                WHERE workspace_id = :ws_id 
-                AND name ILIKE :query 
-                LIMIT 5
-            """)
-            start_nodes = session.execute(start_nodes_sql, {"ws_id": workspace_id, "query": f"%{query}%"}).fetchall()
-            
-            if not start_nodes:
-                return {"mode": "local", "entities": [], "relationships": [], "context": "No matching entities found."}
+            try:
+                # 1. Find Start Nodes (Search by name fuzzy match)
+                start_nodes_sql = text("""
+                    SELECT id, name, type, description
+                    FROM graph_nodes
+                    WHERE workspace_id = :ws_id
+                    AND name ILIKE :query
+                    LIMIT 5
+                """)
+                start_nodes = session.execute(start_nodes_sql, {"ws_id": workspace_id, "query": f"%{query}%"}).fetchall()
 
-            start_ids = [n.id for n in start_nodes]
-            
-            # 2. Recursive Traversal
-            # Note: Postgres RECURSIVE CTE syntax
-            traversal_sql = text("""
-                WITH RECURSIVE traversal AS (
-                    -- Base Case: Start Nodes
-                    SELECT n.id, n.name, n.type, n.description, 0 as depth
-                    FROM graph_nodes n
-                    WHERE n.id = ANY(:start_ids)
-                    
-                    UNION
-                    
-                    -- Recursive Step: Join Edges
-                    SELECT target.id, target.name, target.type, target.description, t.depth + 1
-                    FROM graph_nodes target
-                    JOIN graph_edges e ON e.target_node_id = target.id
-                    JOIN traversal t ON e.source_node_id = t.id
-                    WHERE t.depth < :max_depth
-                )
-                SELECT DISTINCT * FROM traversal;
-            """)
-            
-            # Also fetch edges for context
-            edges_sql = text("""
-                SELECT e.source_node_id, e.target_node_id, e.relationship_type, e.properties
-                FROM graph_edges e
-                WHERE e.source_node_id = ANY(:node_ids) OR e.target_node_id = ANY(:node_ids)
-                LIMIT 50
-            """)
+                if not start_nodes:
+                    return {"mode": "local", "entities": [], "relationships": [], "context": "No matching entities found."}
 
-            nodes_result = session.execute(traversal_sql, {
-                "start_ids": start_ids, 
-                "max_depth": depth
-            }).fetchall()
-            
-            found_node_ids = [n.id for n in nodes_result]
-            
-            edges_result = session.execute(edges_sql, {"node_ids": found_node_ids}).fetchall()
-            
-            # Format Output
-            entities = [
-                {"id": str(n.id), "name": n.name, "type": n.type, "description": n.description} 
-                for n in nodes_result
-            ]
-            relationships = [
-                {"from": str(e.source_node_id), "to": str(e.target_node_id), "type": e.relationship_type}
-                for e in edges_result
-            ]
-            
-            return {
-                "mode": "local",
-                "start_entities": [n.name for n in start_nodes],
-                "entities": entities,
-                "relationships": relationships,
-                "count": len(entities)
-            }
+                start_ids = [n.id for n in start_nodes]
 
-        except Exception as e:
-            logger.error(f"Local search failed: {e}")
-            return {"error": str(e)}
-        finally:
-            session.close()
+                # 2. Recursive Traversal
+                # Note: Postgres RECURSIVE CTE syntax
+                traversal_sql = text("""
+                    WITH RECURSIVE traversal AS (
+                        -- Base Case: Start Nodes
+                        SELECT n.id, n.name, n.type, n.description, 0 as depth
+                        FROM graph_nodes n
+                        WHERE n.id = ANY(:start_ids)
+
+                        UNION
+
+                        -- Recursive Step: Join Edges
+                        SELECT target.id, target.name, target.type, target.description, t.depth + 1
+                        FROM graph_nodes target
+                        JOIN graph_edges e ON e.target_node_id = target.id
+                        JOIN traversal t ON e.source_node_id = t.id
+                        WHERE t.depth < :max_depth
+                    )
+                    SELECT DISTINCT * FROM traversal;
+                """)
+
+                # Also fetch edges for context
+                edges_sql = text("""
+                    SELECT e.source_node_id, e.target_node_id, e.relationship_type, e.properties
+                    FROM graph_edges e
+                    WHERE e.source_node_id = ANY(:node_ids) OR e.target_node_id = ANY(:node_ids)
+                    LIMIT 50
+                """)
+
+                nodes_result = session.execute(traversal_sql, {
+                    "start_ids": start_ids,
+                    "max_depth": depth
+                }).fetchall()
+
+                found_node_ids = [n.id for n in nodes_result]
+
+                edges_result = session.execute(edges_sql, {"node_ids": found_node_ids}).fetchall()
+
+                # Format Output
+                entities = [
+                    {"id": str(n.id), "name": n.name, "type": n.type, "description": n.description}
+                    for n in nodes_result
+                ]
+                relationships = [
+                    {"from": str(e.source_node_id), "to": str(e.target_node_id), "type": e.relationship_type}
+                    for e in edges_result
+                ]
+
+                return {
+                    "mode": "local",
+                    "start_entities": [n.name for n in start_nodes],
+                    "entities": entities,
+                    "relationships": relationships,
+                    "count": len(entities)
+                }
+
+            except Exception as e:
+                logger.error(f"Local search failed: {e}")
+                return {"error": str(e)}
+            finally:
+                session.close()
 
     def global_search(self, workspace_id: str, query: str) -> Dict[str, Any]:
         """
@@ -536,46 +536,46 @@ JSON Schema:
         Queries 'graph_communities' table.
         """
         with get_db_session() as session:
-        try:
-            # Simple keyword match on community keywords or summary
-            # In a real impl, this would use pgvector on community summaries
-            sql = text("""
-                SELECT id, summary, keywords, level
-                FROM graph_communities
-                WHERE workspace_id = :ws_id
-                ORDER BY created_at DESC
-                LIMIT 10
-            """)
-            
-            communities = session.execute(sql, {"ws_id": workspace_id}).fetchall()
-            
-            # Re-rank in Python (simplified)
-            scored = []
-            q_lower = query.lower()
-            for c in communities:
-                score = 0
-                if c.keywords:
-                    score += sum(1 for k in c.keywords if k.lower() in q_lower)
-                if q_lower in c.summary.lower():
-                    score += 1
-                if score > 0 or not q_lower:
-                    scored.append(c.summary)
-            
-            if not scored:
-                # Fallback: Just return generic summaries
-                scored = [c.summary for c in communities[:3]]
+            try:
+                # Simple keyword match on community keywords or summary
+                # In a real impl, this would use pgvector on community summaries
+                sql = text("""
+                    SELECT id, summary, keywords, level
+                    FROM graph_communities
+                    WHERE workspace_id = :ws_id
+                    ORDER BY created_at DESC
+                    LIMIT 10
+                """)
 
-            return {
-                "mode": "global",
-                "summaries": scored,
-                "answer": " | ".join(scored)
-            }
+                communities = session.execute(sql, {"ws_id": workspace_id}).fetchall()
 
-        except Exception as e:
-            logger.error(f"Global search failed: {e}")
-            return {"error": str(e)}
-        finally:
-            session.close()
+                # Re-rank in Python (simplified)
+                scored = []
+                q_lower = query.lower()
+                for c in communities:
+                    score = 0
+                    if c.keywords:
+                        score += sum(1 for k in c.keywords if k.lower() in q_lower)
+                    if q_lower in c.summary.lower():
+                        score += 1
+                    if score > 0 or not q_lower:
+                        scored.append(c.summary)
+
+                if not scored:
+                    # Fallback: Just return generic summaries
+                    scored = [c.summary for c in communities[:3]]
+
+                return {
+                    "mode": "global",
+                    "summaries": scored,
+                    "answer": " | ".join(scored)
+                }
+
+            except Exception as e:
+                logger.error(f"Global search failed: {e}")
+                return {"error": str(e)}
+            finally:
+                session.close()
 
     def query(self, workspace_id: str, query: str, mode: str = "auto") -> Dict[str, Any]:
         """Unified query entry point"""

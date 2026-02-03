@@ -94,16 +94,16 @@ class SatelliteService:
             logger.info(f"Received identity for tenant {tenant_id}: {message}")
             try:
                 with get_db_session() as db:
-                # Map message to node_data structure
-                node_data = {
-                    "deviceId": message.get("metadata", {}).get("hostname", f"node-{tenant_id}"),
-                    "name": message.get("metadata", {}).get("hostname", "Unknown Device"),
-                    "type": "satellite_bridge",
-                    "capabilities": message.get("capabilities", []),
-                    "metadata": message.get("metadata", {})
-                }
-                device_node_service.register_node(db, tenant_id, node_data)
-                db.close()
+                    # Map message to node_data structure
+                    node_data = {
+                        "deviceId": message.get("metadata", {}).get("hostname", f"node-{tenant_id}"),
+                        "name": message.get("metadata", {}).get("hostname", "Unknown Device"),
+                        "type": "satellite_bridge",
+                        "capabilities": message.get("capabilities", []),
+                        "metadata": message.get("metadata", {})
+                    }
+                    device_node_service.register_node(db, tenant_id, node_data)
+                    db.close()
             except Exception as e:
                 logger.error(f"Failed to register node identity: {e}")
 
