@@ -1032,61 +1032,62 @@ class ChatOrchestrator:
         try:
             # Generate a DB session
             with get_db_session() as db:
-            try:
-                # In a real app, workspace_id comes from context or session
-                workspace_id = context.get("workspace_id") if context else "default-workspace"
-                assistant = AccountingAssistant(db)
-                result = await assistant.process_query(workspace_id, message)
-                
-                # Check for specific AP/AR follow-up actions
-                if "intent" in result:
-                    if result["intent"] == "check_overdue":
-                        agent = CollectionAgent(db)
-                        reminders = await agent.check_overdue_invoices(workspace_id)
-                        result["answer"] = f"I've identified {len(reminders)} overdue invoices and triggered reminders."
-                        result["reminders"] = reminders
-                    elif result["intent"] == "get_aging":
-                        agent = CollectionAgent(db)
-                        result["aging_report"] = agent.generate_aging_report(workspace_id)
-                        result["answer"] = "Here is your current AR aging report summary."
-                    elif result["intent"] == "check_close_readiness":
-                        agent = CloseChecklistAgent(db)
-                        period = result.get("params", {}).get("period", datetime.utcnow().strftime("%Y-%m"))
-                        result["close_check"] = await agent.run_close_check(workspace_id, period)
-                        result["answer"] = f"Here is the close readiness report for {period}."
-                    elif result["intent"] == "get_tax_estimate":
-                        service = TaxService(db)
-                        result["tax_estimate"] = service.estimate_tax_liability(workspace_id)
-                        result["answer"] = "I've calculated your estimated tax liability based on current sales."
-                    elif result["intent"] == "get_cash_forecast":
-                        service = FPAService(db)
-                        result["forecast"] = service.get_13_week_forecast(workspace_id)
-                        result["answer"] = "Here is your 13-week cash flow forecast."
-                    elif result["intent"] == "run_scenario":
-                        service = FPAService(db)
-                        # Assume params contains scenario definitions
-                        scenarios = result.get("params", {}).get("scenarios", [])
-                        result["scenario_results"] = service.run_scenario(workspace_id, scenarios)
-                        result["answer"] = "I've modeled the requested scenario and updated the forecast."
-                    elif result["intent"] == "get_intercompany_report":
-                        manager = IntercompanyManager(db)
-                        result["intercompany_report"] = manager.generate_elimination_report(workspace_id)
-                        result["answer"] = "Here is the intercompany activity and elimination report."
-                    
-                    # Append Regulatory Disclaimer to all financial answers
-                    if "answer" in result:
-                        result["answer"] += REGULATORY_DISCLAIMER
+                try:
+                    # In a real app, workspace_id comes from context or session
+                    workspace_id = context.get("workspace_id") if context else "default-workspace"
+                    assistant = AccountingAssistant(db)
+                    result = await assistant.process_query(workspace_id, message)
 
-                return {
-                    "success": True,
-                    "data": result,
-                    "message": result.get("answer", "I've processed your financial request."),
-                    "suggested_actions": ["Run P&L Report", "Check AR Aging", "View Unpaid Bills"]
-                }
-            finally:
-                db.close()
+                    # Check for specific AP/AR follow-up actions
+                    if "intent" in result:
+                        if result["intent"] == "check_overdue":
+                            agent = CollectionAgent(db)
+                            reminders = await agent.check_overdue_invoices(workspace_id)
+                            result["answer"] = f"I've identified {len(reminders)} overdue invoices and triggered reminders."
+                            result["reminders"] = reminders
+                        elif result["intent"] == "get_aging":
+                            agent = CollectionAgent(db)
+                            result["aging_report"] = agent.generate_aging_report(workspace_id)
+                            result["answer"] = "Here is your current AR aging report summary."
+                        elif result["intent"] == "check_close_readiness":
+                            agent = CloseChecklistAgent(db)
+                            period = result.get("params", {}).get("period", datetime.utcnow().strftime("%Y-%m"))
+                            result["close_check"] = await agent.run_close_check(workspace_id, period)
+                            result["answer"] = f"Here is the close readiness report for {period}."
+                        elif result["intent"] == "get_tax_estimate":
+                            service = TaxService(db)
+                            result["tax_estimate"] = service.estimate_tax_liability(workspace_id)
+                            result["answer"] = "I've calculated your estimated tax liability based on current sales."
+                        elif result["intent"] == "get_cash_forecast":
+                            service = FPAService(db)
+                            result["forecast"] = service.get_13_week_forecast(workspace_id)
+                            result["answer"] = "Here is your 13-week cash flow forecast."
+                        elif result["intent"] == "run_scenario":
+                            service = FPAService(db)
+                            # Assume params contains scenario definitions
+                            scenarios = result.get("params", {}).get("scenarios", [])
+                            result["scenario_results"] = service.run_scenario(workspace_id, scenarios)
+                            result["answer"] = "I've modeled the requested scenario and updated the forecast."
+                        elif result["intent"] == "get_intercompany_report":
+                            manager = IntercompanyManager(db)
+                            result["intercompany_report"] = manager.generate_elimination_report(workspace_id)
+                            result["answer"] = "Here is the intercompany activity and elimination report."
+
+                        # Append Regulatory Disclaimer to all financial answers
+                        if "answer" in result:
+                            result["answer"] += REGULATORY_DISCLAIMER
+
+                    return {
+                        "success": True,
+                        "data": result,
+                        "message": result.get("answer", "I've processed your financial request."),
+                        "suggested_actions": ["Run P&L Report", "Check AR Aging", "View Unpaid Bills"]
+                    }
+                except Exception as e:
+                    logger.error(f"Finance handler failed: {e}")
+                    return {"success": False, "error": str(e)}
         except Exception as e:
-            logger.error(f"Finance handler failed: {e}")
+            logger.error(f"Finance request failed: {e}")
             return {"success": False, "error": str(e)}
 
     async def _handle_crm_request(
@@ -1102,20 +1103,20 @@ class ChatOrchestrator:
         
         try:
             with get_db_session() as db:
-            try:
-                from sales.assistant import SalesAssistant
-                workspace_id = context.get("workspace_id") if context else "default-workspace"
-                assistant = SalesAssistant(db)
-                answer = await assistant.answer_sales_query(workspace_id, message)
-                
-                return {
-                    "success": True,
-                    "data": {"answer": answer},
-                    "message": answer[:100] + "...",
-                    "suggested_actions": ["View Pipeline", "Check Top Leads", "List My Tasks"]
-                }
-            finally:
-                db.close()
+                try:
+                    from sales.assistant import SalesAssistant
+                    workspace_id = context.get("workspace_id") if context else "default-workspace"
+                    assistant = SalesAssistant(db)
+                    answer = await assistant.answer_sales_query(workspace_id, message)
+
+                    return {
+                        "success": True,
+                        "data": {"answer": answer},
+                        "message": answer[:100] + "...",
+                        "suggested_actions": ["View Pipeline", "Check Top Leads", "List My Tasks"]
+                    }
+                finally:
+                    db.close()
         except Exception as e:
             logger.error(f"CRM handler failed: {e}")
             return {"success": False, "error": str(e)}

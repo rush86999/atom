@@ -48,34 +48,39 @@ class AccountingAgent(BusinessAgent):
     async def run(self, workspace_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         logger.info(f"Running Accounting Agent for workspace {workspace_id}")
         with get_db_session() as db:
-        try:
-            # 1. Fetch unapproved transactions (Mocking interaction with APService/Ledger)
-            # In a real scenario, we'd query the ledger for pending entries.
-            results = {
-                "categorized": 0,
-                "anomalies_detected": 0,
-                "reconciliations_performed": 0,
-                "logs": []
-            }
-            
-            # 2. Logic: Process Transactions
-            # (Simplified simulation of AI categorization)
-            results["categorized"] = 12
-            results["logs"].append("Categorized 12 transactions with > 85% confidence.")
-            
-            # 3. Logic: Anomaly Detection
-            # (Checking for duplicates or unusual spend)
-            results["anomalies_detected"] = 1
-            results["logs"].append("Detected 1 potential duplicate invoice for Vendor 'AWS'.")
-            
-            return {
-                "status": "success",
-                "agent": self.name,
-                "results": results,
-                "summary": "Completed autonomous bookkeeping and anomaly detection."
-            }
-        finally:
-            db.close()
+            try:
+                # 1. Fetch unapproved transactions (Mocking interaction with APService/Ledger)
+                # In a real scenario, we'd query the ledger for pending entries.
+                results = {
+                    "categorized": 0,
+                    "anomalies_detected": 0,
+                    "reconciliations_performed": 0,
+                    "logs": []
+                }
+
+                # 2. Logic: Process Transactions
+                # (Simplified simulation of AI categorization)
+                results["categorized"] = 12
+                results["logs"].append("Categorized 12 transactions with > 85% confidence.")
+
+                # 3. Logic: Anomaly Detection
+                # (Checking for duplicates or unusual spend)
+                results["anomalies_detected"] = 1
+                results["logs"].append("Detected 1 potential duplicate invoice for Vendor 'AWS'.")
+
+                return {
+                    "status": "success",
+                    "agent": self.name,
+                    "results": results,
+                    "summary": "Completed autonomous bookkeeping and anomaly detection."
+                }
+            except Exception as e:
+                logger.error(f"Accounting agent failed: {e}")
+                return {
+                    "status": "error",
+                    "agent": self.name,
+                    "error": str(e)
+                }
 
 class SalesAgent(BusinessAgent):
     """

@@ -194,7 +194,7 @@ class AtomMetaAgent:
         
         # 0. Get Tenant ID and Create Execution Record
         with get_db_session() as db:
-        tenant_id = None
+        with get_db_session() as db:
         try:
             workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
             if workspace:
@@ -394,7 +394,7 @@ class AtomMetaAgent:
         duration = (end_time - start_time).total_seconds()
         
         with get_db_session() as db:
-        try:
+            try:
             execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
             if execution:
                 execution.status = "completed" if status == "success" else status
