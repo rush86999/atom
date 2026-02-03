@@ -7,13 +7,16 @@ import os
 import json
 import logging
 import asyncio
+
+logger = logging.getLogger(__name__)
+
 try:
     # import numpy as np
     # FORCE DISABLE numpy to prevent crash
     NUMPY_AVAILABLE = False # True
 except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
-    print(f"Numpy not available: {e}")
+    logger.warning(f"Numpy not available: {e}")
 from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,7 +25,7 @@ try:
     PANDAS_AVAILABLE = False
 except (ImportError, BaseException) as e:
     PANDAS_AVAILABLE = False
-    print(f"Pandas not available: {e}")
+    logger.warning(f"Pandas not available: {e}")
 
 try:
     import lancedb
@@ -30,16 +33,16 @@ try:
     from lancedb.table import Table
     from lancedb.pydantic import LanceModel, Vector
     import pyarrow as pa
-    
+
     # Allow disabling via env var (crucial for CI reliability)
     if os.getenv("ATOM_DISABLE_LANCEDB", "false").lower() == "true":
         LANCEDB_AVAILABLE = False
-        print("LanceDB disabled via ATOM_DISABLE_LANCEDB env var")
+        logger.info("LanceDB disabled via ATOM_DISABLE_LANCEDB env var")
     else:
         LANCEDB_AVAILABLE = True
 except (ImportError, BaseException) as e:
     LANCEDB_AVAILABLE = False
-    print(f"LanceDB not available: {e}")
+    logger.warning(f"LanceDB not available: {e}")
 
 # Define Table type alias if not available to prevent NameError in type hints
 if not 'Table' in locals():
@@ -55,7 +58,7 @@ except (ImportError, BaseException) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
 except (ImportError, BaseException) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
-    print(f"Sentence transformers not available: {e}")
+    logger.warning(f"Sentence transformers not available: {e}")
 
 # Import OpenAI for embeddings
 try:
@@ -63,7 +66,7 @@ try:
     OPENAI_AVAILABLE = True
 except (ImportError, Exception) as e:
     OPENAI_AVAILABLE = False
-    print(f"OpenAI not available: {e}")
+    logger.warning(f"OpenAI not available: {e}")
 
 # BYOK Integration
 try:
@@ -71,8 +74,6 @@ try:
 except ImportError:
     get_byok_manager = None
 
-
-logger = logging.getLogger(__name__)
 
 class MockEmbedder:
     """Deterministic mock embedder for testing when ML libs are missing"""
@@ -118,7 +119,8 @@ class LanceDBHandler:
         # BYOK Manager
         try:
             self.byok_manager = get_byok_manager() if get_byok_manager else None
-        except:
+        except Exception as e:
+            logger.error(f"Failed to initialize BYOK manager: {e}", exc_info=True)
             self.byok_manager = None
         
         # Initialize LanceDB if available

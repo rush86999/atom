@@ -97,7 +97,7 @@ class AIDocumentProcessor:
         try:
             ai_response = await ai_enhanced_service.process_ai_request(ai_request)
             data = ai_response.output_data
-            print(f"DEBUG: AI Output Data: {data}")
+            logger.debug(f"AI Output Data: {data}")
             if isinstance(data, str):
                 # Clean potential markdown code blocks
                 data = data.replace("```json", "").replace("```", "").strip()
