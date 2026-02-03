@@ -560,6 +560,8 @@ class IntegrationCatalog(Base):
     actions = Column(JSON, default=list)
     
     popular = Column(Boolean, default=False)
+    status = Column(String, default="active")  # active, inactive, deprecated
+    last_successful_connection = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -587,6 +589,35 @@ class UserConnection(Base):
     # Relationships
     user = relationship("User", backref="connections")
     workspace = relationship("Workspace", backref="connections")
+
+class IntegrationHealthMetrics(Base):
+    """
+    Health metrics for integrations to track latency, error rates, and trends.
+    Used by the health monitoring system to calculate integration health.
+    """
+    __tablename__ = "integration_health_metrics"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    integration_id = Column(String, ForeignKey("integration_catalog.id"), nullable=False, index=True)
+    connection_id = Column(String, ForeignKey("user_connections.id"), nullable=False, index=True)
+
+    # Health metrics
+    latency_ms = Column(Float, default=0.0)
+    success_rate = Column(Float, default=1.0)
+    error_count = Column(Integer, default=0)
+    request_count = Column(Integer, default=0)
+
+    # Trend tracking
+    health_trend = Column(String, default="stable")  # improving, stable, declining
+    last_success_at = Column(DateTime(timezone=True), nullable=True)
+    last_failure_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    integration = relationship("IntegrationCatalog", backref="health_metrics")
+    connection = relationship("UserConnection", backref="health_metrics")
 
 class WorkflowSnapshot(Base):
     """

@@ -18,7 +18,8 @@ from core.models import (
     CanvasRecording,
     AgentExecution,
     IntegrationCatalog,
-    UserConnection
+    UserConnection,
+    IntegrationHealthMetrics
 )
 from core.websockets import manager as ws_manager
 
@@ -243,8 +244,13 @@ class HealthMonitoringService:
             ).count()
 
             # Get integration health
+            # Define healthy: active status with successful connection within last 5 minutes
+            recent_success_threshold = datetime.now() - timedelta(minutes=5)
             total_integrations = self.db.query(IntegrationCatalog).count()
-            healthy_integrations = total_integrations  # TODO: Calculate based on actual health
+            healthy_integrations = self.db.query(IntegrationCatalog).filter(
+                IntegrationCatalog.last_successful_connection >= recent_success_threshold,
+                IntegrationCatalog.status == "active"
+            ).count()
 
             # Get alert counts
             alerts = await self.get_active_alerts_summary()
@@ -568,17 +574,44 @@ class HealthMonitoringService:
                 status = "degraded"
                 connection_status = "disconnected"
 
-            # Calculate health trend
-            health_trend = "stable"  # TODO: Calculate from historical data
+            # Get health metrics from historical data
+            metrics = self.db.query(IntegrationHealthMetrics).filter(
+                IntegrationHealthMetrics.connection_id == connection.id
+            ).order_by(IntegrationHealthMetrics.created_at.desc()).limit(100).all()
+
+            # Calculate health trend, latency, and error rate from metrics
+            if metrics and len(metrics) >= 2:
+                # Calculate average latency
+                avg_latency = sum(m.latency_ms for m in metrics if m.latency_ms) / max(len([m for m in metrics if m.latency_ms]), 1)
+                latency_ms = round(avg_latency, 2)
+
+                # Calculate error rate
+                total_requests = sum(m.request_count for m in metrics)
+                total_errors = sum(m.error_count for m in metrics)
+                error_rate = round(total_errors / max(total_requests, 1), 4)
+
+                # Calculate trend based on recent vs older success rates
+                recent_metrics = metrics[:10]  # Most recent 10
+                older_metrics = metrics[10:20] if len(metrics) > 10 else metrics[10:]
+
+                recent_success_rate = sum(m.success_rate for m in recent_metrics) / max(len(recent_metrics), 1)
+                older_success_rate = sum(m.success_rate for m in older_metrics) / max(len(older_metrics), 1)
+
+                # Determine trend
+                if recent_success_rate > older_success_rate + 0.1:
+                    health_trend = "improving"
+                elif recent_success_rate < older_success_rate - 0.1:
+                    health_trend = "declining"
+                else:
+                    health_trend = "stable"
+            else:
+                # Default values when no historical data
+                latency_ms = 0.0
+                error_rate = 0.0
+                health_trend = "stable"
 
             # Get last used time
             last_used = connection.updated_at or connection.created_at
-
-            # Placeholder latency (would measure in production)
-            latency_ms = 150.0  # TODO: Measure actual latency
-
-            # Calculate error rate (placeholder)
-            error_rate = 0.0  # TODO: Calculate from actual errors
 
             return {
                 "integration_id": integration.id,

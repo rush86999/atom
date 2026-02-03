@@ -13,7 +13,8 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.recording_review_service import RecordingReviewService, get_recording_review_service
-from core.models import CanvasRecordingReview, CanvasRecording
+from core.models import CanvasRecordingReview, CanvasRecording, User
+from core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -80,19 +81,12 @@ class ReviewMetricsResponse(BaseModel):
     strengths: list
 
 
-# Dependencies
-def get_current_user_id() -> str:
-    """Get current user ID from auth context (placeholder)"""
-    # TODO: Integrate with actual auth system
-    return "default_user"
-
-
 # Endpoints
 @router.post("", response_model=CreateReviewResponse)
 async def create_review(
     request: CreateReviewRequest,
     db: Session = Depends(get_db),
-    reviewer_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Create a manual review for a canvas recording.
@@ -128,7 +122,7 @@ async def create_review(
         # Create review
         review_id = await review_service.create_review(
             recording_id=request.recording_id,
-            reviewer_id=reviewer_id,
+            reviewer_id=user.id,
             review_status=request.review_status,
             overall_rating=request.overall_rating,
             performance_rating=request.performance_rating,
@@ -173,7 +167,7 @@ async def create_review(
 async def get_review(
     review_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get recording review details.
@@ -200,7 +194,7 @@ async def get_review(
             CanvasRecording.recording_id == review.recording_id
         ).first()
 
-        if not recording or (recording.user_id != user_id):
+        if not recording or (recording.user_id != user.id):
             # TODO: Add admin check
             pass  # Allow for now
 
@@ -242,7 +236,7 @@ async def get_review(
 async def get_recording_reviews(
     recording_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get all reviews for a specific recording.
@@ -261,7 +255,7 @@ async def get_recording_reviews(
                 detail=f"Recording {recording_id} not found"
             )
 
-        if recording.user_id != user_id:
+        if recording.user_id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have access to this recording"
@@ -314,7 +308,7 @@ async def get_agent_review_metrics(
     agent_id: str,
     days: int = 30,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get review metrics for an agent.
@@ -350,7 +344,7 @@ async def get_agent_review_metrics(
 async def trigger_auto_review(
     recording_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Manually trigger auto-review for a recording.

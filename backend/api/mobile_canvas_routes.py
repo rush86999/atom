@@ -14,9 +14,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import MobileDevice, OfflineAction, SyncState, User
+from core.models import (
+    MobileDevice, OfflineAction, SyncState, User,
+    CanvasAudit, AgentRegistry
+)
 from core.push_notification_service import PushNotificationService, get_push_notification_service
 from core.websockets import manager as ws_manager
+from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
@@ -444,14 +448,74 @@ async def list_mobile_canvases(
         Mobile-optimized canvas list
     """
     try:
-        # TODO: Implement canvas listing when CanvasSession model is available
-        # For now, return empty list
-        logger.info(f"Canvas listing requested by user {user_id} - not yet implemented")
+        # Query recent canvas audits, grouped by canvas_id
+        # Get the latest activity for each unique canvas
+        subquery = (
+            db.query(
+                CanvasAudit.canvas_id,
+                func.max(CanvasAudit.created_at).label("latest_activity")
+            )
+            .filter(CanvasAudit.user_id == user_id)
+            .filter(CanvasAudit.canvas_id.isnot(None))
+            .group_by(CanvasAudit.canvas_id)
+            .order_by(func.max(CanvasAudit.created_at).desc())
+            .offset(offset)
+            .limit(limit)
+            .subquery()
+        )
+
+        # Get full canvas audit details with agent information
+        canvas_audits = (
+            db.query(CanvasAudit, AgentRegistry)
+            .join(subquery, CanvasAudit.canvas_id == subquery.c.canvas_id)
+            .outerjoin(AgentRegistry, CanvasAudit.agent_id == AgentRegistry.id)
+            .filter(
+                CanvasAudit.user_id == user_id,
+                CanvasAudit.canvas_id.isnot(None)
+            )
+            .all()
+        )
+
+        # Build response list
+        canvases = []
+        seen_canvas_ids = set()
+
+        for audit, agent in canvas_audits:
+            # Skip duplicates (can happen with joins)
+            if audit.canvas_id in seen_canvas_ids:
+                continue
+            seen_canvas_ids.add(audit.canvas_id)
+
+            # Get component count for this canvas
+            component_count = db.query(func.count(CanvasAudit.id)).filter(
+                CanvasAudit.canvas_id == audit.canvas_id,
+                CanvasAudit.user_id == user_id
+            ).scalar() or 0
+
+            canvases.append(MobileCanvasListItem(
+                canvas_id=audit.canvas_id or str(uuid.uuid4()),
+                title=audit.component_name or f"Canvas {audit.canvas_id[:8] if audit.canvas_id else 'Unknown'}",
+                agent_name=agent.name if agent else "Unknown",
+                status="active",  # Can be enhanced with actual status tracking
+                created_at=audit.created_at.isoformat(),
+                updated_at=audit.created_at.isoformat(),  # Using created_at as fallback
+                component_count=component_count
+            ))
+
+            # Respect limit after deduplication
+            if len(canvases) >= limit:
+                break
+
+        # Get total count of unique canvases
+        total = db.query(CanvasAudit.canvas_id).filter(
+            CanvasAudit.user_id == user_id,
+            CanvasAudit.canvas_id.isnot(None)
+        ).distinct().count()
 
         return MobileCanvasListResponse(
-            canvases=[],
-            total=0,
-            has_more=False
+            canvases=canvases,
+            total=total,
+            has_more=offset + limit < total
         )
 
     except Exception as e:

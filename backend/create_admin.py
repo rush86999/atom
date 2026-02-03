@@ -14,31 +14,29 @@ if "postgres" in DATABASE_URL:
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-db = SessionLocal()
 
 email = "admin@example.com"
 password = "securePass123"
 
-# Check if user exists
-user = db.query(User).filter(User.email == email).first()
+with SessionLocal() as db:
+    # Check if user exists
+    user = db.query(User).filter(User.email == email).first()
 
-if user:
-    print(f"User {email} exists. resetting password...")
-    user.password_hash = get_password_hash(password)
-    user.status = UserStatus.ACTIVE
-    db.commit()
-    print(f"User {email} password reset to '{password}'")
-else:
-    print(f"User {email} not found. Creating...")
-    new_user = User(
-        email=email,
-        password_hash=get_password_hash(password),
-        first_name="Admin",
-        last_name="User",
-        status=UserStatus.ACTIVE
-    )
-    db.add(new_user)
-    db.commit()
-    print(f"User {email} created with password '{password}'")
-
-db.close()
+    if user:
+        print(f"User {email} exists. resetting password...")
+        user.password_hash = get_password_hash(password)
+        user.status = UserStatus.ACTIVE
+        db.commit()
+        print(f"User {email} password reset to '{password}'")
+    else:
+        print(f"User {email} not found. Creating...")
+        new_user = User(
+            email=email,
+            password_hash=get_password_hash(password),
+            first_name="Admin",
+            last_name="User",
+            status=UserStatus.ACTIVE
+        )
+        db.add(new_user)
+        db.commit()
+        print(f"User {email} created with password '{password}'")
