@@ -19,7 +19,8 @@ from .workflow_analytics_engine import (
     WorkflowStatus
 )
 from core.database import get_db
-from core.models import Dashboard, DashboardWidget, AgentExecution, IntegrationHealthMetrics
+from core.models import Dashboard, DashboardWidget, AgentExecution, IntegrationHealthMetrics, User
+from core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -397,6 +398,7 @@ async def delete_alert(alert_id: str):
 @router.get("/dashboards")
 async def list_dashboards(
     include_public: bool = Query(True),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List available dashboards"""
@@ -404,8 +406,11 @@ async def list_dashboards(
         query = db.query(Dashboard).filter(Dashboard.is_active == True)
 
         if not include_public:
-            # TODO: Add user_id filter when authentication is implemented
-            pass
+            # Filter to user's dashboards and public dashboards
+            query = query.filter(
+                (Dashboard.owner_id == current_user.id) |
+                (Dashboard.is_public == True)
+            )
 
         dashboards = query.order_by(Dashboard.created_at.desc()).all()
 
@@ -435,12 +440,13 @@ async def list_dashboards(
 @router.post("/dashboards")
 async def create_dashboard(
     dashboard_data: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new analytics dashboard"""
     try:
-        # TODO: Get owner_id from authentication context
-        owner_id = dashboard_data.get("owner_id", "default_user")
+        # Get owner_id from authenticated user
+        owner_id = current_user.id
 
         dashboard = Dashboard(
             name=dashboard_data.get("name", "Untitled Dashboard"),
