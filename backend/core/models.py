@@ -1,4 +1,5 @@
 
+import datetime
 import enum
 import uuid
 from sqlalchemy import JSON, Boolean, Column, DateTime
@@ -702,6 +703,78 @@ class IntegrationHealthMetrics(Base):
     # Relationships
     integration = relationship("IntegrationCatalog", backref="health_metrics")
     connection = relationship("UserConnection", backref="health_metrics")
+
+class OAuthState(Base):
+    """
+    OAuth state parameter storage for CSRF protection.
+
+    Stores temporary state tokens used during OAuth flows to prevent CSRF attacks.
+    States are single-use and expire after a short time (typically 10 minutes).
+    """
+    __tablename__ = "oauth_states"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    provider = Column(String, nullable=False, index=True)  # google, github, notion, etc.
+    state = Column(String, unique=True, nullable=False, index=True)  # Random state token
+
+    # OAuth flow parameters
+    scopes = Column(JSON, nullable=True)  # List of requested scopes
+    redirect_uri = Column(String, nullable=True)  # Where to redirect after auth
+
+    # Expiration and cleanup
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    used = Column(Boolean, default=False, index=True)  # Mark as used after callback
+
+    # Relationships
+    user = relationship("User", backref="oauth_states")
+
+    def __repr__(self):
+        return f"<OAuthState(id={self.id}, user_id={self.user_id}, provider={self.provider}, used={self.used})>"
+
+class OAuthToken(Base):
+    """
+    Unified OAuth token storage for all OAuth providers.
+
+    Stores access tokens, refresh tokens, and metadata for OAuth integrations.
+    Supports multiple providers (Google, GitHub, Notion, etc.) with automatic
+    token refresh capabilities.
+    """
+    __tablename__ = "oauth_tokens"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    provider = Column(String, nullable=False, index=True)  # google, github, notion, etc.
+
+    # Token data (access_token should be encrypted in production)
+    access_token = Column(Text, nullable=False)  # TODO: Encrypt at rest
+    refresh_token = Column(Text, nullable=True)  # Some providers don't have refresh tokens
+    token_type = Column(String, default="Bearer")  # Typically "Bearer"
+
+    # Token metadata
+    scopes = Column(JSON, nullable=True)  # List of granted scopes
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # Some tokens don't expire (Notion)
+
+    # Status tracking
+    status = Column(String, default="active", index=True)  # active, expired, revoked
+    last_used = Column(DateTime(timezone=True), nullable=True)  # Track when token was last used
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="oauth_tokens")
+
+    def __repr__(self):
+        return f"<OAuthToken(id={self.id}, user_id={self.user_id}, provider={self.provider}, status={self.status})>"
+
+    def is_expired(self) -> bool:
+        """Check if the token is expired"""
+        if self.expires_at is None:
+            return False  # Tokens without expiration (like Notion) don't expire
+        return datetime.datetime.now(self.expires_at.tzinfo) > self.expires_at
 
 class WorkflowSnapshot(Base):
     """

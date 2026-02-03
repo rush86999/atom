@@ -457,48 +457,155 @@ class AuthService:
         redirect_uri: str,
     ):
         """Store OAuth state for validation"""
-        # Implementation depends on database schema
-        pass
+        from core.models import OAuthState
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            # Create OAuth state record with 10-minute expiration
+            oauth_state = OAuthState(
+                user_id=user_id,
+                provider=provider,
+                state=state,
+                scopes=scopes,
+                redirect_uri=redirect_uri,
+                expires_at=datetime.now() + timedelta(minutes=10),
+                used=False
+            )
+            db.add(oauth_state)
+            db.commit()
+
+            logger.info(f"Stored OAuth state for user {user_id}, provider {provider}")
 
     async def _validate_auth_state(
         self, user_id: str, provider: str, state: str
     ) -> bool:
         """Validate OAuth state parameter"""
-        # Implementation depends on database schema
-        return True
+        from core.models import OAuthState
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            # Query for valid, unused, non-expired state
+            oauth_state = db.query(OAuthState).filter(
+                OAuthState.user_id == user_id,
+                OAuthState.provider == provider,
+                OAuthState.state == state,
+                OAuthState.used == False,
+                OAuthState.expires_at > datetime.now()
+            ).first()
+
+            if oauth_state:
+                logger.info(f"Validated OAuth state for user {user_id}, provider {provider}")
+                return True
+            else:
+                logger.warning(f"Invalid or expired OAuth state for user {user_id}, provider {provider}")
+                return False
 
     async def _cleanup_auth_state(self, user_id: str, provider: str, state: str):
         """Clean up OAuth state after use"""
-        # Implementation depends on database schema
-        pass
+        from core.models import OAuthState
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            # Mark state as used (soft delete for audit trail)
+            oauth_state = db.query(OAuthState).filter(
+                OAuthState.user_id == user_id,
+                OAuthState.provider == provider,
+                OAuthState.state == state
+            ).first()
+
+            if oauth_state:
+                oauth_state.used = True
+                db.commit()
+                logger.info(f"Cleaned up OAuth state for user {user_id}, provider {provider}")
 
     async def _store_tokens(
         self, user_id: str, provider: str, tokens: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Store OAuth tokens securely"""
-        # Implementation depends on database schema and encryption
+        from core.models import OAuthToken
+        from core.database import get_db_session
+
         expires_in = tokens.get("expires_in", 3600)
-        expires_at = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
+        expires_at = None if expires_in == 0 else (datetime.now() + timedelta(seconds=expires_in))
 
-        token_data = {
-            "user_id": user_id,
-            "provider": provider,
-            "access_token": tokens.get("access_token"),
-            "refresh_token": tokens.get("refresh_token"),
-            "scope": tokens.get("scope"),
-            "expires_at": expires_at,
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
-        }
+        with get_db_session() as db:
+            # Check if token already exists for this user/provider
+            existing_token = db.query(OAuthToken).filter(
+                OAuthToken.user_id == user_id,
+                OAuthToken.provider == provider
+            ).first()
 
-        return token_data
+            if existing_token:
+                # Update existing token
+                existing_token.access_token = tokens.get("access_token")
+                existing_token.refresh_token = tokens.get("refresh_token", existing_token.refresh_token)
+                existing_token.expires_at = expires_at
+                existing_token.scopes = tokens.get("scope", "").split() if tokens.get("scope") else []
+                existing_token.status = "active"
+                existing_token.updated_at = datetime.now()
+                db.commit()
+                logger.info(f"Updated OAuth token for user {user_id}, provider {provider}")
+            else:
+                # Create new token
+                oauth_token = OAuthToken(
+                    user_id=user_id,
+                    provider=provider,
+                    access_token=tokens.get("access_token"),
+                    refresh_token=tokens.get("refresh_token"),
+                    token_type=tokens.get("token_type", "Bearer"),
+                    scopes=tokens.get("scope", "").split() if tokens.get("scope") else [],
+                    expires_at=expires_at,
+                    status="active"
+                )
+                db.add(oauth_token)
+                db.commit()
+                logger.info(f"Stored new OAuth token for user {user_id}, provider {provider}")
+
+            token_data = {
+                "user_id": user_id,
+                "provider": provider,
+                "access_token": tokens.get("access_token"),
+                "refresh_token": tokens.get("refresh_token"),
+                "scope": tokens.get("scope"),
+                "expires_at": expires_at.isoformat() if expires_at else None,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+            }
+
+            return token_data
 
     async def _get_stored_tokens(
         self, user_id: str, provider: str
     ) -> Optional[Dict[str, Any]]:
         """Get stored OAuth tokens"""
-        # Implementation depends on database schema
-        return None
+        from core.models import OAuthToken
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            oauth_token = db.query(OAuthToken).filter(
+                OAuthToken.user_id == user_id,
+                OAuthToken.provider == provider,
+                OAuthToken.status == "active"
+            ).first()
+
+            if oauth_token:
+                # Update last_used timestamp
+                oauth_token.last_used = datetime.now()
+                db.commit()
+
+                token_data = {
+                    "access_token": oauth_token.access_token,
+                    "refresh_token": oauth_token.refresh_token,
+                    "token_type": oauth_token.token_type,
+                    "scope": " ".join(oauth_token.scopes) if oauth_token.scopes else "",
+                    "expires_at": oauth_token.expires_at.isoformat() if oauth_token.expires_at else None,
+                    "created_at": oauth_token.created_at.isoformat() if oauth_token.created_at else None,
+                }
+                logger.info(f"Retrieved OAuth token for user {user_id}, provider {provider}")
+                return token_data
+            else:
+                logger.warning(f"No active OAuth token found for user {user_id}, provider {provider}")
+                return None
 
     async def _update_tokens(
         self, user_id: str, provider: str, tokens: Dict[str, Any]
@@ -509,5 +616,19 @@ class AuthService:
 
     async def _delete_tokens(self, user_id: str, provider: str):
         """Delete stored OAuth tokens"""
-        # Implementation depends on database schema
-        pass
+        from core.models import OAuthToken
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            oauth_token = db.query(OAuthToken).filter(
+                OAuthToken.user_id == user_id,
+                OAuthToken.provider == provider
+            ).first()
+
+            if oauth_token:
+                # Soft delete by marking as revoked
+                oauth_token.status = "revoked"
+                db.commit()
+                logger.info(f"Revoked OAuth token for user {user_id}, provider {provider}")
+            else:
+                logger.warning(f"No OAuth token found to delete for user {user_id}, provider {provider}")
