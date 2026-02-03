@@ -44,7 +44,7 @@ class FinancialWorkflowService:
             if alert["type"] == "FINANCIAL_BUDGET_OVERRUN":
                 # Workflow: Notify Slack about budget overrun
                 # Note: In real scenarios, use slack.post_message with a valid token
-                print(f"Workflow Triggered: Slack alert for budget overrun in {tx.workspace_id}")
+                logger.info(f"Workflow Triggered: Slack alert for budget overrun in {tx.workspace_id}")
 
     async def automate_invoice_to_task(self, workspace_id: str, invoice_data: Dict[str, Any]):
         """

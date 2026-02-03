@@ -305,11 +305,11 @@ class ATOMConfig:
                 config_data['ai'] = AIConfig(**config_data['ai'])
             if 'logging' in config_data:
                 config_data['logging'] = LoggingConfig(**config_data['logging'])
-            
+
             return cls(**config_data)
-            
+
         except Exception as e:
-            print(f"Error loading config from {config_path}: {e}")
+            logger.error(f"Error loading config from {config_path}: {e}")
             return cls.from_env()
     
     def to_dict(self) -> Dict[str, Any]:
@@ -324,10 +324,10 @@ class ATOMConfig:
             
             with open(config_path, 'w') as f:
                 json.dump(self.to_dict(), f, indent=2)
-            
+
             return True
         except Exception as e:
-            print(f"Error saving config to {config_path}: {e}")
+            logger.error(f"Error saving config to {config_path}: {e}")
             return False
     
     def validate(self) -> Dict[str, Any]:
@@ -382,14 +382,14 @@ def get_config() -> ATOMConfig:
 def load_config(config_path: str = None) -> ATOMConfig:
     """Load configuration from file or environment"""
     global config
-    
+
     if config_path and os.path.exists(config_path):
         config = ATOMConfig.from_file(config_path)
-        print(f"Configuration loaded from {config_path}")
+        logger.info(f"Configuration loaded from {config_path}")
     else:
         config = ATOMConfig.from_env()
-        print("Configuration loaded from environment variables")
-    
+        logger.info("Configuration loaded from environment variables")
+
     return config
 
 def setup_logging(config: LoggingConfig = None) -> None:
