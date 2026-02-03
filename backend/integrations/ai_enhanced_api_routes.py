@@ -122,7 +122,7 @@ def validate_ai_service_type(service_type: str) -> AIServiceType:
 
 # AI Service Health Check
 @ai_bp.route('/enhanced_health', methods=['POST'])
-def ai_enhanced_health_check():
+async def ai_enhanced_health_check():
     """Enhanced health check for all AI services"""
     try:
         if not validate_ai_config():
@@ -166,7 +166,7 @@ def ai_enhanced_health_check():
 
 # AI Message Analysis
 @ai_bp.route('/analyze_message', methods=['POST'])
-def analyze_message_ai():
+async def analyze_message_ai():
     """Analyze message with AI"""
     try:
         data = get_ai_request_data()

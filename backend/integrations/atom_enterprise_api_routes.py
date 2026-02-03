@@ -196,7 +196,7 @@ def get_enterprise_request_data() -> Dict[str, Any]:
 
 # Enterprise Authentication
 @enterprise_bp.route('/auth/login', methods=['POST'])
-def enterprise_login():
+async def enterprise_login():
     """Enterprise authentication with security checks"""
     try:
         data = get_enterprise_request_data()
@@ -363,7 +363,7 @@ def create_workflow_automation():
 @enterprise_bp.route('/automation/execute', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.STANDARD)
-def execute_workflow_automation():
+async def execute_workflow_automation():
     """Execute workflow automation"""
     try:
         data = get_enterprise_request_data()
@@ -402,7 +402,7 @@ def execute_workflow_automation():
 @jwt_required()
 @require_enterprise_role('security_admin')
 @require_security_level(SecurityLevel.ENTERPRISE)
-def create_security_automation():
+async def create_security_automation():
     """Create security automation"""
     try:
         data = get_enterprise_request_data()
@@ -436,7 +436,7 @@ def create_security_automation():
 @jwt_required()
 @require_enterprise_role('compliance_admin')
 @require_security_level(SecurityLevel.ENTERPRISE)
-def create_compliance_automation():
+async def create_compliance_automation():
     """Create compliance automation"""
     try:
         data = get_enterprise_request_data()
@@ -470,7 +470,7 @@ def create_compliance_automation():
 @jwt_required()
 @require_enterprise_role('integration_admin')
 @require_security_level(SecurityLevel.ADVANCED)
-def create_integration_automation():
+async def create_integration_automation():
     """Create integration automation"""
     try:
         data = get_enterprise_request_data()
@@ -503,7 +503,7 @@ def create_integration_automation():
 @enterprise_bp.route('/automation/list', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.STANDARD)
-def get_automations():
+async def get_automations():
     """Get workflow automations"""
     try:
         data = get_enterprise_request_data()
@@ -543,7 +543,7 @@ def get_automations():
 @enterprise_bp.route('/automation/executions', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.STANDARD)
-def get_automation_executions():
+async def get_automation_executions():
     """Get automation executions"""
     try:
         data = get_enterprise_request_data()
@@ -584,7 +584,7 @@ def get_automation_executions():
 @enterprise_bp.route('/automation/metrics', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.ADVANCED)
-def get_automation_metrics():
+async def get_automation_metrics():
     """Get automation metrics"""
     try:
         data = get_enterprise_request_data()
@@ -626,7 +626,7 @@ def get_automation_metrics():
 @enterprise_bp.route('/integration/platforms/status', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.STANDARD)
-def get_platform_integration_status():
+async def get_platform_integration_status():
     """Get platform integration status"""
     try:
         data = get_enterprise_request_data()
@@ -674,7 +674,7 @@ def get_platform_integration_status():
 @jwt_required()
 @require_enterprise_role('integration_admin')
 @require_security_level(SecurityLevel.ADVANCED)
-def sync_integration_workflows():
+async def sync_integration_workflows():
     """Sync integration workflows"""
     try:
         data = get_enterprise_request_data()
@@ -740,7 +740,7 @@ def sync_integration_workflows():
 @enterprise_bp.route('/analytics/comprehensive', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.ADVANCED)
-def get_comprehensive_analytics():
+async def get_comprehensive_analytics():
     """Get comprehensive enterprise analytics"""
     try:
         data = get_enterprise_request_data()
@@ -814,7 +814,7 @@ def get_comprehensive_analytics():
         return create_enterprise_response(False, error=str(e)), 500
 
 @enterprise_bp.route('/monitoring/health', methods=['POST'])
-def enterprise_health_monitoring():
+async def enterprise_health_monitoring():
     """Enterprise health monitoring with automation integration"""
     try:
         if not validate_enterprise_config():

@@ -99,7 +99,7 @@ class AnalyticsType(Enum):
     WEBSITE_TRAFFIC = "website_traffic"
     MARKETING_ROI = "marketing_roi"
     LEAD_SCORING = "lead_scoring"
-    A/B_TESTING = "ab_testing"
+    AB_TESTING = "ab_testing"
 
 @dataclass
 class Contact:
@@ -902,7 +902,7 @@ class AtomHubSpotIntegrationService:
         try:
             integration = self.platform_integrations.get(platform)
             if integration:
-                message = f"🎯 New Lead: {contact.get('properties', {}).get('firstname')} {contact.get('properties', {}).get('lastname')} from {contact.get('properties', {}).get('company')}"
+                message = f"[ ] New Lead: {contact.get('properties', {}).get('firstname')} {contact.get('properties', {}).get('lastname')} from {contact.get('properties', {}).get('company')}"
                 await integration.send_notification(
                     user_id="marketing_team",
                     message=message,

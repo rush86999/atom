@@ -577,19 +577,19 @@ class WorkflowEngine:
 
                     # Update step execution record
                     with get_db_session() as db:
-                    try:
-                        step_exec = db.query(WorkflowStepExecution).filter(
-                            WorkflowStepExecution.execution_id == execution_id,
-                            WorkflowStepExecution.step_id == step_id
-                        ).first()
-                        if step_exec:
-                            step_exec.status = "completed"
-                            step_exec.completed_at = datetime.utcnow()
-                            step_exec.duration_ms = int((datetime.utcnow() - step_exec.started_at).total_seconds() * 1000)
-                            step_exec.output_data = output
-                            db.commit()
-                    finally:
-                        db.close()
+                        try:
+                            step_exec = db.query(WorkflowStepExecution).filter(
+                                WorkflowStepExecution.execution_id == execution_id,
+                                WorkflowStepExecution.step_id == step_id
+                            ).first()
+                            if step_exec:
+                                step_exec.status = "completed"
+                                step_exec.completed_at = datetime.utcnow()
+                                step_exec.duration_ms = int((datetime.utcnow() - step_exec.started_at).total_seconds() * 1000)
+                                step_exec.output_data = output
+                                db.commit()
+                        except Exception as e:
+                            logger.error(f"Failed to update step execution record: {e}")
                     
                     # Update in-memory state for next steps
                     state = await self.state_manager.get_execution_state(execution_id)
@@ -1821,21 +1821,21 @@ class WorkflowEngine:
         if not catalog_data:
             # 1. Fetch metadata from DB
             with get_db_session() as db:
-            try:
-                catalog_item = db.query(IntegrationCatalog).filter(IntegrationCatalog.id == service_name).first()
-                if not catalog_item:
-                    raise ValueError(f"Service '{service_name}' not found in Integration Catalog")
-                
-                # Serialize for cache
-                catalog_data = {
-                    "id": catalog_item.id,
-                    "actions": catalog_item.actions
-                }
-                # Cache for 1 hour
-                await cache.set(cache_key, catalog_data, expire=3600)
-                
-            finally:
-                db.close()
+                try:
+                    catalog_item = db.query(IntegrationCatalog).filter(IntegrationCatalog.id == service_name).first()
+                    if not catalog_item:
+                        raise ValueError(f"Service '{service_name}' not found in Integration Catalog")
+
+                    # Serialize for cache
+                    catalog_data = {
+                        "id": catalog_item.id,
+                        "actions": catalog_item.actions
+                    }
+                    # Cache for 1 hour
+                    await cache.set(cache_key, catalog_data, expire=3600)
+                except Exception as e:
+                    logger.error(f"Failed to fetch catalog item: {e}")
+                    raise
             
         # 2. Find specific action definition
         actions = catalog_data.get("actions") or []

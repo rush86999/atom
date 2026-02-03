@@ -127,7 +127,7 @@ def verify_teams_webhook(request_body: bytes, signature: str, secret: str) -> bo
 
 # Health Check
 @enhanced_teams_bp.route('/enhanced_health', methods=['POST'])
-def teams_enhanced_health_check():
+async def teams_enhanced_health_check():
     """Enhanced health check for all Teams services"""
     try:
         if not validate_teams_config():
@@ -209,7 +209,7 @@ def get_teams_oauth_url():
         return create_teams_response(False, error=str(e)), 500
 
 @enhanced_teams_bp.route('/oauth_callback', methods=['POST'])
-def handle_teams_oauth_callback():
+async def handle_teams_oauth_callback():
     """Handle Teams OAuth callback"""
     try:
         data = get_teams_request_data()
@@ -250,7 +250,7 @@ def handle_teams_oauth_callback():
 
 # Enhanced Workspace Management
 @enhanced_teams_bp.route('/workspaces/enhanced', methods=['POST'])
-def get_enhanced_teams_workspaces():
+async def get_enhanced_teams_workspaces():
     """Get Teams workspaces with enhanced metadata"""
     try:
         data = get_teams_request_data()
@@ -305,7 +305,7 @@ def get_enhanced_teams_workspaces():
 
 # Enhanced Channel Management
 @enhanced_teams_bp.route('/channels/enhanced', methods=['POST'])
-def get_enhanced_teams_channels():
+async def get_enhanced_teams_channels():
     """Get Teams channels with enhanced metadata"""
     try:
         data = get_teams_request_data()
@@ -398,7 +398,7 @@ def get_enhanced_teams_channels():
 
 # Enhanced Message Operations
 @enhanced_teams_bp.route('/messages/enhanced', methods=['POST'])
-def get_enhanced_teams_messages():
+async def get_enhanced_teams_messages():
     """Get Teams messages with enhanced metadata and analysis"""
     try:
         data = get_teams_request_data()
@@ -492,7 +492,7 @@ def get_enhanced_teams_messages():
         return create_teams_response(False, error=str(e)), 500
 
 @enhanced_teams_bp.route('/messages/enhanced_send', methods=['POST'])
-def send_enhanced_teams_message():
+async def send_enhanced_teams_message():
     """Send Teams message with enhanced features"""
     try:
         data = get_teams_request_data()
@@ -546,7 +546,7 @@ def send_enhanced_teams_message():
 
 # Enhanced Search
 @enhanced_teams_bp.route('/search/enhanced', methods=['POST'])
-def enhanced_teams_search():
+async def enhanced_teams_search():
     """Enhanced Teams search with analytics and insights"""
     try:
         data = get_teams_request_data()
@@ -620,7 +620,7 @@ def enhanced_teams_search():
 
 # File Operations
 @enhanced_teams_bp.route('/files/enhanced_upload', methods=['POST'])
-def enhanced_teams_file_upload():
+async def enhanced_teams_file_upload():
     """Enhanced Teams file upload with analysis"""
     try:
         data = get_teams_request_data()
@@ -684,7 +684,7 @@ def enhanced_teams_file_upload():
 
 # Call Operations
 @enhanced_teams_bp.route('/calls/start', methods=['POST'])
-def start_teams_call():
+async def start_teams_call():
     """Start Teams call with enhanced features"""
     try:
         data = get_teams_request_data()
@@ -732,7 +732,7 @@ def start_teams_call():
         return create_teams_response(False, error=str(e)), 500
 
 @enhanced_teams_bp.route('/calls/enhanced_info', methods=['POST'])
-def get_enhanced_call_info():
+async def get_enhanced_call_info():
     """Get enhanced Teams call information"""
     try:
         data = get_teams_request_data()
@@ -831,7 +831,7 @@ def manage_teams_workflows():
         return create_teams_response(False, error=str(e)), 500
 
 @enhanced_teams_bp.route('/workflows/<workflow_id>/execute', methods=['POST'])
-def execute_teams_workflow(workflow_id: str):
+async def execute_teams_workflow(workflow_id: str):
     """Execute Teams workflow"""
     try:
         data = get_teams_request_data()
@@ -862,7 +862,7 @@ def execute_teams_workflow(workflow_id: str):
 
 # Analytics and Reporting
 @enhanced_teams_bp.route('/analytics/metrics', methods=['POST'])
-def get_teams_analytics_metrics():
+async def get_teams_analytics_metrics():
     """Get Teams analytics metrics"""
     try:
         data = get_teams_request_data()
@@ -926,7 +926,7 @@ def get_teams_analytics_metrics():
         return create_teams_response(False, error=str(e)), 500
 
 @enhanced_teams_bp.route('/analytics/call_metrics', methods=['POST'])
-def get_teams_call_analytics():
+async def get_teams_call_analytics():
     """Get Teams call analytics"""
     try:
         data = get_teams_request_data()
@@ -960,7 +960,7 @@ def get_teams_call_analytics():
         return create_teams_response(False, error=str(e)), 500
 
 @enhanced_teams_bp.route('/analytics/top_users', methods=['POST'])
-def get_teams_top_users():
+async def get_teams_top_users():
     """Get top Teams users by metric"""
     try:
         data = get_teams_request_data()
@@ -1008,7 +1008,7 @@ def get_teams_top_users():
 
 # Enhanced Webhook Handler
 @enhanced_teams_bp.route('/enhanced_events', methods=['POST'])
-def enhanced_teams_webhook_handler():
+async def enhanced_teams_webhook_handler():
     """Enhanced Teams webhook event handler"""
     try:
         # Get request data

@@ -37,17 +37,17 @@ class UniversalWebhookBridge:
             from core.models import AgentRegistry
             
             with get_db_session() as db:
-            # Try exact match first
-            agent = db.query(AgentRegistry).filter(AgentRegistry.name.ilike(name)).first()
-            if agent:
+                # Try exact match first
+                agent = db.query(AgentRegistry).filter(AgentRegistry.name.ilike(name)).first()
+                if agent:
+                    db.close()
+                    return agent.id
+
+                # Try fuzzy match in registry
+                agent = db.query(AgentRegistry).filter(AgentRegistry.name.ilike(f"%{name}%")).first()
                 db.close()
-                return agent.id
-            
-            # Try fuzzy match in registry
-            agent = db.query(AgentRegistry).filter(AgentRegistry.name.ilike(f"%{name}%")).first()
-            db.close()
-            if agent:
-                return agent.id
+                if agent:
+                    return agent.id
                 
             # Try templates
             templates = SpecialtyAgentTemplate.TEMPLATES
@@ -388,7 +388,7 @@ class UniversalWebhookBridge:
                     {
                         "recipient_id": msg.sender_id if msg.platform == "whatsapp" else msg.recipient_id,
                         "channel": msg.recipient_id,
-                        "content": f"🚀 Triggering agent *{agent_name}* (ID: {agent_id}) with task: {task_input}\nI will notify you here when the results are ready!",
+                        "content": f"[ ] Triggering agent *{agent_name}* (ID: {agent_id}) with task: {task_input}\nI will notify you here when the results are ready!",
                         "thread_ts": msg.thread_id or msg.metadata.get("ts")
                     }
                 )
@@ -449,17 +449,17 @@ class UniversalWebhookBridge:
                 from core.models import AgentRegistry
                 
                 with get_db_session() as db:
-                db_agents = db.query(AgentRegistry).all()
-                db.close()
-                
-                agent_list = [f"• *{a.name}* ({a.id}) - {a.description}" for a in db_agents]
-                
-                # Add templates
-                templates = SpecialtyAgentTemplate.TEMPLATES
-                template_list = [f"• *{t['name']}* (Template) - {t['description']}" for t in templates.values()]
-                
-                full_list = agent_list + template_list
-                content = "🕵️ *Available Agents*:\n" + "\n".join(full_list) if full_list else "No agents found."
+                    db_agents = db.query(AgentRegistry).all()
+                    db.close()
+
+                    agent_list = [f"• *{a.name}* ({a.id}) - {a.description}" for a in db_agents]
+
+                    # Add templates
+                    templates = SpecialtyAgentTemplate.TEMPLATES
+                    template_list = [f"• *{t['name']}* (Template) - {t['description']}" for t in templates.values()]
+
+                    full_list = agent_list + template_list
+                    content = "[.] *Available Agents*:\n" + "\n".join(full_list) if full_list else "No agents found."
                 
                 from core.agent_integration_gateway import ActionType, agent_integration_gateway
                 await agent_integration_gateway.execute_action(
@@ -512,7 +512,7 @@ class UniversalWebhookBridge:
                     {
                         "recipient_id": msg.sender_id if msg.platform == "whatsapp" or msg.platform == "agent" else msg.recipient_id,
                         "channel": msg.recipient_id,
-                        "content": f"📊 *System Status*: Online\nConnected via: {msg.platform.capitalize()}\nNo active background agents for session {user_id}.",
+                        "content": f"[ ] *System Status*: Online\nConnected via: {msg.platform.capitalize()}\nNo active background agents for session {user_id}.",
                         "thread_ts": msg.thread_id or msg.metadata.get("ts")
                     }
                 )
