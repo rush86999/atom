@@ -132,11 +132,11 @@ def get_db():
 
     This is the RECOMMENDED pattern for API routes.
     """
-    with get_db_session() as db:
-        try:
-            yield db
-        finally:
-            db.close()
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 # ============================================================================
@@ -165,9 +165,13 @@ def get_db_session():
     - Prevents connection leaks
     - Thread-safe
 
-    Preferred over manual `with get_db_session() as db:` pattern.
+    Preferred over manual `with SessionLocal() as db:` pattern.
     """
-    with get_db_session() as db:
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _session_context():
+        db = SessionLocal()
         try:
             yield db
             db.commit()
@@ -176,6 +180,8 @@ def get_db_session():
             raise
         finally:
             db.close()
+
+    return _session_context()
 
 
 # Legacy alias for backwards compatibility
