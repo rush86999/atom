@@ -310,10 +310,10 @@ class ChatSessionManager:
                         "title": s.title,
                         "created_at": s.created_at.isoformat() if s.created_at else None,
                         "last_active": s.updated_at.isoformat() if s.updated_at else None,
-                    "metadata": s.metadata_json or {},
-                    "message_count": s.message_count,
-                    "history": [] # Lightweight list
-                } for s in sessions]
+                        "metadata": s.metadata_json or {},
+                        "message_count": s.message_count,
+                        "history": [] # Lightweight list
+                    } for s in sessions]
 
                     # STRICT_DB: Return only DB results
                     if self.persistence_mode == "STRICT_DB":
@@ -345,11 +345,8 @@ class ChatSessionManager:
                     except Exception as e:
                         logger.warning(f"Hybrid merge failed: {e}")
                         return results # Return at least DB results
-
                 except Exception as e:
                     logger.error(f"DB List Sessions failed: {e}")
-                finally:
-                    db.close()
 
         # 2. File Path
         sessions = self._load_sessions_file()

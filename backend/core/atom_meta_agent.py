@@ -194,28 +194,25 @@ class AtomMetaAgent:
         
         # 0. Get Tenant ID and Create Execution Record
         with get_db_session() as db:
-        with get_db_session() as db:
-        try:
-            workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
-            if workspace:
-                tenant_id = workspace.tenant_id
-            
-            # Create persistent execution record
-            execution = AgentExecution(
-                id=execution_id,
-                agent_id="atom_main",
-                tenant_id=tenant_id or "default",
-                status="running",
-                input_summary=request[:200],
-                triggered_by=trigger_mode.value,
-                started_at=start_time
-            )
-            db.add(execution)
-            db.commit()
-        except Exception as e:
-            logger.error(f"Failed to create AgentExecution: {e}")
-        finally:
-            db.close()
+            try:
+                workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
+                if workspace:
+                    tenant_id = workspace.tenant_id
+
+                # Create persistent execution record
+                execution = AgentExecution(
+                    id=execution_id,
+                    agent_id="atom_main",
+                    tenant_id=tenant_id or "default",
+                    status="running",
+                    input_summary=request[:200],
+                    triggered_by=trigger_mode.value,
+                    started_at=start_time
+                )
+                db.add(execution)
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to create AgentExecution: {e}")
         
         # 1. Access Memory for relevant context
         memory_context = await self.world_model.recall_experiences(
@@ -395,18 +392,16 @@ class AtomMetaAgent:
         
         with get_db_session() as db:
             try:
-            execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
-            if execution:
-                execution.status = "completed" if status == "success" else status
-                execution.result_summary = str(final_answer)[:500]
-                execution.duration_seconds = duration
-                execution.completed_at = end_time
-                db.commit()
-        except Exception as e:
-            logger.error(f"Failed to update AgentExecution: {e}")
-            db.rollback()
-        finally:
-            db.close()
+                execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
+                if execution:
+                    execution.status = "completed" if status == "success" else status
+                    execution.result_summary = str(final_answer)[:500]
+                    execution.duration_seconds = duration
+                    execution.completed_at = end_time
+                    db.commit()
+            except Exception as e:
+                logger.error(f"Failed to update AgentExecution: {e}")
+                db.rollback()
 
         return result_payload
 
@@ -554,9 +549,9 @@ What is your next step?"""
         try:
             # 1. Governance Check
             with get_db_session() as db:
-            try:
-                gov = AgentGovernanceService(db)
-                auth_check = gov.can_perform_action("atom_main", tool_name)
+                try:
+                    gov = AgentGovernanceService(db)
+                    auth_check = gov.can_perform_action("atom_main", tool_name)
                 
                 if auth_check.get("requires_human_approval"):
                     action_id = gov.request_approval(

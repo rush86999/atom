@@ -114,7 +114,7 @@ def async_route(coro):
 
 # Health Check
 @enhanced_slack_bp.route('/enhanced_health', methods=['POST'])
-def enhanced_health_check():
+async def enhanced_health_check():
     """Enhanced health check for all Slack services"""
     try:
         if not validate_enhanced_config():
@@ -205,7 +205,7 @@ def get_oauth_url():
         return create_response(False, error=str(e)), 500
 
 @enhanced_slack_bp.route('/oauth_callback', methods=['POST'])
-def handle_oauth_callback():
+async def handle_oauth_callback():
     """Handle OAuth callback with enhanced security"""
     try:
         data = get_request_data()
@@ -241,7 +241,7 @@ def handle_oauth_callback():
 
 # Enhanced Workspace Management
 @enhanced_slack_bp.route('/workspaces/enhanced', methods=['POST'])
-def get_enhanced_workspaces():
+async def get_enhanced_workspaces():
     """Get workspaces with enhanced metadata"""
     try:
         data = get_request_data()
@@ -291,7 +291,7 @@ def get_enhanced_workspaces():
 
 # Enhanced Channel Management
 @enhanced_slack_bp.route('/channels/enhanced', methods=['POST'])
-def get_enhanced_channels():
+async def get_enhanced_channels():
     """Get channels with enhanced metadata"""
     try:
         data = get_request_data()
@@ -371,7 +371,7 @@ def get_enhanced_channels():
 
 # Enhanced Message Operations
 @enhanced_slack_bp.route('/messages/enhanced', methods=['POST'])
-def get_enhanced_messages():
+async def get_enhanced_messages():
     """Get messages with enhanced metadata and analysis"""
     try:
         data = get_request_data()
@@ -457,7 +457,7 @@ def get_enhanced_messages():
         return create_response(False, error=str(e)), 500
 
 @enhanced_slack_bp.route('/messages/enhanced_send', methods=['POST'])
-def send_enhanced_message():
+async def send_enhanced_message():
     """Send message with enhanced features"""
     try:
         data = get_request_data()
@@ -510,7 +510,7 @@ def send_enhanced_message():
 
 # Enhanced Search
 @enhanced_slack_bp.route('/search/enhanced', methods=['POST'])
-def enhanced_search():
+async def enhanced_search():
     """Enhanced search with analytics and insights"""
     try:
         data = get_request_data()
@@ -643,7 +643,7 @@ def manage_workflows():
         return create_response(False, error=str(e)), 500
 
 @enhanced_slack_bp.route('/workflows/<workflow_id>/execute', methods=['POST'])
-def execute_workflow(workflow_id: str):
+async def execute_workflow(workflow_id: str):
     """Execute a workflow"""
     try:
         data = get_request_data()
@@ -696,7 +696,7 @@ def get_workflow_templates():
 
 # Analytics and Reporting
 @enhanced_slack_bp.route('/analytics/metrics', methods=['POST'])
-def get_analytics_metrics():
+async def get_analytics_metrics():
     """Get analytics metrics"""
     try:
         data = get_request_data()
@@ -760,7 +760,7 @@ def get_analytics_metrics():
         return create_response(False, error=str(e)), 500
 
 @enhanced_slack_bp.route('/analytics/insights', methods=['POST'])
-def get_analytics_insights():
+async def get_analytics_insights():
     """Get analytics insights"""
     try:
         data = get_request_data()
@@ -799,7 +799,7 @@ def get_analytics_insights():
         return create_response(False, error=str(e)), 500
 
 @enhanced_slack_bp.route('/analytics/top_users', methods=['POST'])
-def get_top_users():
+async def get_top_users():
     """Get top users by metric"""
     try:
         data = get_request_data()
@@ -845,7 +845,7 @@ def get_top_users():
         return create_response(False, error=str(e)), 500
 
 @enhanced_slack_bp.route('/analytics/trending_topics', methods=['POST'])
-def get_trending_topics():
+async def get_trending_topics():
     """Get trending topics"""
     try:
         data = get_request_data()
@@ -884,7 +884,7 @@ def get_trending_topics():
         return create_response(False, error=str(e)), 500
 
 @enhanced_slack_bp.route('/analytics/predict_volume', methods=['POST'])
-def predict_message_volume():
+async def predict_message_volume():
     """Predict message volume"""
     try:
         data = get_request_data()
@@ -912,7 +912,7 @@ def predict_message_volume():
 
 # Enhanced File Operations
 @enhanced_slack_bp.route('/files/enhanced_upload', methods=['POST'])
-def enhanced_file_upload():
+async def enhanced_file_upload():
     """Enhanced file upload with analysis"""
     try:
         data = get_request_data()
@@ -971,7 +971,7 @@ def enhanced_file_upload():
 
 # Enhanced Webhook Handler
 @enhanced_slack_bp.route('/enhanced_events', methods=['POST'])
-def enhanced_webhook_handler():
+async def enhanced_webhook_handler():
     """Enhanced webhook event handler"""
     try:
         # Get request data
@@ -1075,7 +1075,7 @@ def start_data_ingestion():
         return create_response(False, error=str(e)), 500
 
 @enhanced_slack_bp.route('/ingestion/status', methods=['POST'])
-def get_ingestion_status():
+async def get_ingestion_status():
     """Get data ingestion status"""
     try:
         data = get_request_data()
