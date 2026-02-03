@@ -408,22 +408,22 @@ class WorldModelService:
         """
         try:
             with get_db_session() as db:
-            messages = db.query(ChatMessage).filter(
-                ChatMessage.conversation_id == conversation_id,
-                ChatMessage.tenant_id == self.db.workspace_id
-            ).order_by(ChatMessage.created_at.asc()).all()
-            
-            if not messages:
-                db.close()
-                return False
-                
-            # Combine session history into a single archival document
-            session_text = "\n".join([f"{m.role}: {m.content}" for m in messages])
-            metadata = {
-                "conversation_id": conversation_id,
-                "msg_count": len(messages),
-                "type": "archived_session",
-                "archived_at": datetime.now().isoformat()
+                messages = db.query(ChatMessage).filter(
+                    ChatMessage.conversation_id == conversation_id,
+                    ChatMessage.tenant_id == self.db.workspace_id
+                ).order_by(ChatMessage.created_at.asc()).all()
+
+                if not messages:
+                    db.close()
+                    return False
+
+                # Combine session history into a single archival document
+                session_text = "\n".join([f"{m.role}: {m.content}" for m in messages])
+                metadata = {
+                    "conversation_id": conversation_id,
+                    "msg_count": len(messages),
+                    "type": "archived_session",
+                    "archived_at": datetime.now().isoformat()
             }
             
             # Save to LanceDB (Cold Storage)

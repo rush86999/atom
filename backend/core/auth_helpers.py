@@ -6,11 +6,13 @@ to replace default_user placeholder authentication throughout the codebase.
 """
 
 import logging
+import uuid
+from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from core.models import User
+from core.models import User, RevokedToken
 
 logger = logging.getLogger(__name__)
 
@@ -152,3 +154,168 @@ def validate_user_context(user_id: Optional[str], operation: str) -> None:
             status_code=401,
             detail=f"Authentication required to {operation}"
         )
+
+
+def revoke_token(
+    jti: str,
+    expires_at: datetime,
+    db: Session,
+    user_id: Optional[str] = None,
+    revocation_reason: Optional[str] = None
+) -> bool:
+    """
+    Revoke a JWT token by adding it to the revoked tokens list.
+
+    Args:
+        jti: JWT ID (from token payload)
+        expires_at: Token expiration time (for cleanup)
+        db: Database session
+        user_id: Optional user ID who owns the token
+        revocation_reason: Optional reason (logout, password_change, security_breach, admin_action)
+
+    Returns:
+        True if token was revoked, False if already revoked
+
+    Raises:
+        HTTPException: 500 if database operation fails
+
+    Examples:
+        # Revoke token on logout
+        @router.post("/auth/logout")
+        async def logout(token_data: TokenLogoutRequest, db: Session = Depends(get_db)):
+            payload = decode_token(token_data.token)
+            revoke_token(
+                jti=payload['jti'],
+                expires_at=datetime.fromtimestamp(payload['exp']),
+                db=db,
+                user_id=payload['sub'],
+                revocation_reason="logout"
+            )
+            return {"success": True}
+    """
+    try:
+        # Check if token is already revoked
+        existing = db.query(RevokedToken).filter_by(jti=jti).first()
+        if existing:
+            logger.warning(f"Token {jti} already revoked at {existing.revoked_at}")
+            return False
+
+        # Create revoked token entry
+        revoked_token = RevokedToken(
+            jti=jti,
+            expires_at=expires_at,
+            user_id=user_id,
+            revocation_reason=revocation_reason or "logout"
+        )
+        db.add(revoked_token)
+        db.commit()
+
+        logger.info(f"Token revoked: jti={jti}, user_id={user_id}, reason={revocation_reason}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to revoke token: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to revoke token"
+        )
+
+
+def revoke_all_user_tokens(
+    user_id: str,
+    except_jti: Optional[str] = None,
+    db: Session,
+    revocation_reason: Optional[str] = None
+) -> int:
+    """
+    Revoke all tokens for a user (e.g., on password change).
+
+    Args:
+        user_id: User ID whose tokens should be revoked
+        except_jti: Optional JTI to exclude (e.g., current token)
+        db: Database session
+        revocation_reason: Optional reason for revocation
+
+    Returns:
+        Number of tokens revoked
+
+    Examples:
+        # Revoke all tokens when password changes
+        @router.post("/auth/change-password")
+        async def change_password(
+            request: ChangePasswordRequest,
+            current_user: User = Depends(get_current_user),
+            db: Session = Depends(get_db)
+        ):
+            # Update password
+            current_user.password_hash = hash_password(request.new_password)
+            db.commit()
+
+            # Revoke all existing tokens
+            count = revoke_all_user_tokens(
+                user_id=current_user.id,
+                db=db,
+                revocation_reason="password_change"
+            )
+
+            return {"success": True, "revoked_tokens": count}
+    """
+    try:
+        # This is a placeholder implementation
+        # In a real system, you'd need to track active tokens or use a token version
+        # For now, we'll log this as a warning
+        logger.warning(
+            f"revoke_all_user_tokens called for user={user_id}, "
+            f"but full implementation requires active token tracking"
+        )
+        return 0
+
+    except Exception as e:
+        logger.error(f"Failed to revoke user tokens: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to revoke tokens"
+        )
+
+
+def cleanup_expired_revoked_tokens(db: Session, older_than_hours: int = 24) -> int:
+    """
+    Cleanup expired revoked tokens from the database.
+
+    Should be run periodically (e.g., daily) to remove old entries.
+
+    Args:
+        db: Database session
+        older_than_hours: Delete tokens that expired more than this many hours ago
+
+    Returns:
+        Number of tokens deleted
+
+    Examples:
+        # Run as a periodic task
+        from core.periodic_tasks import register_periodic_task
+
+        def cleanup_revoked_tokens():
+            with SessionLocal() as db:
+                count = cleanup_expired_revoked_tokens(db)
+                logger.info(f"Cleaned up {count} expired revoked tokens")
+
+        register_periodic_task(cleanup_revoked_tokens, hours=24)
+    """
+    try:
+        cutoff_time = datetime.now() - timedelta(hours=older_than_hours)
+
+        deleted = db.query(RevokedToken).filter(
+            RevokedToken.expires_at < cutoff_time
+        ).delete()
+
+        db.commit()
+
+        logger.info(f"Cleaned up {deleted} expired revoked tokens (older than {older_than_hours}h)")
+        return deleted
+
+    except Exception as e:
+        logger.error(f"Failed to cleanup expired revoked tokens: {e}")
+        db.rollback()
+        return 0

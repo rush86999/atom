@@ -2949,3 +2949,41 @@ class DashboardWidget(Base):
         Index('ix_dashboard_widgets_dashboard', 'dashboard_id'),
         Index('ix_dashboard_widgets_type', 'widget_type'),
     )
+
+
+# ============================================================================
+# AUTHENTICATION AND SECURITY MODELS
+# ============================================================================
+
+class RevokedToken(Base):
+    """
+    JWT Token Revocation Store
+
+    Tracks revoked JWT tokens for security enforcement.
+    When a user logs out, changes password, or has tokens invalidated,
+    the JTI (JWT ID) is stored here to prevent further use.
+
+    Cleanup: Expired entries should be periodically removed via maintenance job.
+    """
+    __tablename__ = "revoked_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    jti = Column(String(255), unique=True, nullable=False, index=True)
+    revoked_at = Column(DateTime, server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)  # For cleanup
+
+    # Optional: Track which user revoked the token
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+
+    # Optional: Track revocation reason (logout, password_change, security_breach, admin_action)
+    revocation_reason = Column(String(50), nullable=True)
+
+    # Relationships
+    user = relationship("User")
+
+    # Indexes for efficient lookups and cleanup
+    __table_args__ = (
+        Index('ix_revoked_tokens_jti', 'jti'),
+        Index('ix_revoked_tokens_expires', 'expires_at'),
+        Index('ix_revoked_tokens_user', 'user_id', 'revoked_at'),
+    )

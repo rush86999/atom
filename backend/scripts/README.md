@@ -103,10 +103,23 @@ If unsure, move to `legacy/` instead of deleting.
 
 ## Migration Status
 
-**Total Scripts**: 284
-- ✅ Categorized: 0 (just started)
-- 🔄 To categorize: ~280
-- ❌ Obsolete: ~50 (estimated)
+**Last Updated**: February 2, 2026
+
+**Total Scripts**: ~285
+- ✅ **Categorized**: 160 scripts organized
+  - dev/: 91 scripts
+  - production/: 39 scripts
+  - legacy/: 17 scripts
+  - utils/: 13 scripts
+- 🔄 **Remaining in root**: 125 scripts (to be categorized)
+- ❌ **Obsolete**: ~50 (in legacy/)
+
+**Recent Changes**:
+- Moved all `final_*.py` assessment scripts to `legacy/`
+- Moved `dev_*.py` diagnostic scripts to `utils/`
+- Moved `test_*.py`, `demo_*.py`, `debug_*.py` to `dev/`
+- Moved `init_*.py` initialization scripts to `utils/`
+- Moved deployment scripts to `production/`
 
 ## Common Operations
 

@@ -1246,7 +1246,8 @@ class MCPService:
                                         "description": data.get("description"),
                                         "trigger": data.get("trigger")
                                     })
-                            except: pass
+                            except Exception as e:
+                                logger.warning(f"Failed to load workflow from {filename}: {e}")
                     return workflows
                 except Exception as e:
                     return []
@@ -1541,8 +1542,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["salesforce", "hubspot", "zoho_crm", "intercom"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"CRM search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "create_crm_lead":
@@ -1566,7 +1570,8 @@ class MCPService:
                         if res.get("status") == "success":
                             for op in res.get("data", []):
                                 pipeline.append({"deal": op.get("Name"), "value": op.get("Amount", 0), "status": op.get("StageName"), "platform": "salesforce"})
-                    except: pass
+                    except Exception as e:
+                        logger.debug(f"Failed to fetch Salesforce pipeline: {e}")
                 # HubSpot
                 if not platform or platform == "hubspot":
                     try:
@@ -1575,7 +1580,8 @@ class MCPService:
                             for deal in res.get("data", []):
                                 props = deal.get("properties", {})
                                 pipeline.append({"deal": props.get("dealname"), "value": float(props.get("amount") or 0), "status": props.get("dealstage"), "platform": "hubspot"})
-                    except: pass
+                    except Exception as e:
+                        logger.debug(f"Failed to fetch HubSpot pipeline: {e}")
                 return pipeline
 
             # --- Project Management ---
@@ -1587,8 +1593,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["jira", "asana", "linear", "monday"]:
-                        try: results[p] = await service.execute(p, "list", {}, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.execute(p, "list", {}, context=context)
+                        except Exception as e:
+                            logger.debug(f"Failed to list tasks from {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "search_tasks":
@@ -1600,8 +1609,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["jira", "asana", "linear", "monday"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"Failed to search tasks in {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "create_task":
@@ -1670,8 +1682,11 @@ class MCPService:
                 platforms = arguments.get("platforms") or ["slack", "google_chat", "telegram", "whatsapp", "gmail"]
                 results = {}
                 for p in platforms:
-                    try: results[p] = await service.search(p, query, context=context)
-                    except: continue
+                    try:
+                        results[p] = await service.search(p, query, context=context)
+                    except Exception as e:
+                        logger.debug(f"Unified communication search failed for {p}: {e}")
+                        continue
                 return results
 
             elif tool_name == "list_calendar_events":
@@ -1696,8 +1711,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["google_drive", "dropbox", "notion"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"File search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "list_files":
@@ -1779,8 +1797,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["zendesk", "freshdesk", "intercom"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"Support ticket search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "create_ticket":
@@ -1800,8 +1821,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["github", "gitlab"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"Repository search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "search_designs":
@@ -1823,8 +1847,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["stripe", "quickbooks", "xero", "zoho_books"]:
-                        try: results[p] = await service.execute(p, "list", {"entity": "invoice"}, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.execute(p, "list", {"entity": "invoice"}, context=context)
+                        except Exception as e:
+                            logger.debug(f"Finance invoice listing failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "finance_close_check":
@@ -1864,8 +1891,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["tableau", "google_analytics"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"Dashboard search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "create_zoom_meeting":
