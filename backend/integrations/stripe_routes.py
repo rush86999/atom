@@ -139,10 +139,22 @@ async def handle_oauth_callback(code: str):
 
 # Dependency for Stripe access token
 async def get_stripe_access_token() -> str:
-    """Get Stripe access token from request headers or session"""
-    # In a real implementation, this would extract the token from headers
-    # or from the user's session based on their authenticated Stripe account
-    return "mock_access_token"  # Placeholder for actual implementation
+    """
+    Get Stripe access token from request headers or session.
+
+    TODO: Implement proper token extraction from:
+    - Request headers (Authorization: Bearer <token>)
+    - User session storage
+    - Database token cache
+
+    For now, this raises NotImplementedError to prevent use of mock credentials.
+    """
+    raise NotImplementedError(
+        "Stripe access token retrieval not implemented. "
+        "This feature requires: 1) User authentication integration, "
+        "2) Stripe OAuth flow, 3) Token storage in database. "
+        "See integrations/stripe_routes.py:141"
+    )
 
 
 @router.get("/health")
