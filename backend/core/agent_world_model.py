@@ -247,10 +247,51 @@ class WorldModelService:
         Boost confidence when an experience leads to successful outcomes.
         Called when an agent successfully reuses a past experience pattern.
         """
-        # This is a lighter-weight update than full feedback
-        # In production, this would use a proper update mechanism
-        logger.info(f"Boosting experience {experience_id} confidence by {boost_amount}")
-        return True  # Placeholder - would implement with proper DB update
+        try:
+            # Search for the experience by ID
+            results = self.db.search(
+                table_name=self.table_name,
+                query="",  # Empty query to get all records
+                limit=1000  # Increase limit to find the target experience
+            )
+
+            for res in results:
+                if res.get("id") == experience_id:
+                    meta = res.get("metadata", {})
+
+                    # Boost confidence score (cap at 1.0)
+                    old_confidence = meta.get("confidence_score", 0.5)
+                    new_confidence = min(1.0, old_confidence + boost_amount)
+
+                    # Track boost count
+                    boost_count = meta.get("boost_count", 0) + 1
+
+                    meta["confidence_score"] = new_confidence
+                    meta["boost_count"] = boost_count
+                    meta["last_boosted_at"] = datetime.now().isoformat()
+
+                    # Re-add with updated metadata (LanceDB append-only)
+                    self.db.add_document(
+                        table_name=self.table_name,
+                        text=res.get("text", ""),
+                        source=res.get("source", "system"),
+                        metadata=meta,
+                        user_id="confidence_boost_system"
+                    )
+
+                    logger.info(
+                        f"Boosted experience {experience_id} confidence: "
+                        f"{old_confidence:.3f} -> {new_confidence:.3f} "
+                        f"(boost #{boost_count})"
+                    )
+                    return True
+
+            logger.warning(f"Experience {experience_id} not found for confidence boost")
+            return False
+
+        except Exception as e:
+            logger.error(f"Failed to boost experience confidence: {e}")
+            return False
 
     async def get_experience_statistics(
         self,

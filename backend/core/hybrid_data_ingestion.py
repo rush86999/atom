@@ -445,15 +445,103 @@ class HybridDataIngestionService:
     async def _fetch_gmail_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
         """Fetch data from Gmail"""
         records = []
-        # Placeholder - would use Gmail API
-        logger.info("Gmail fetcher not fully implemented")
+        try:
+            from integrations.gmail_service import get_gmail_service
+
+            gmail_service = get_gmail_service()
+
+            # Build date query for last N days
+            days_query = f"after:{datetime.now().timestamp() - config.sync_last_n_days * 86400}"
+
+            # Fetch emails
+            messages = gmail_service.get_messages(
+                query=days_query,
+                max_results=min(config.max_records_per_sync, 500)
+            )
+
+            for msg in messages:
+                records.append({
+                    "id": msg.get("id"),
+                    "type": "email",
+                    "thread_id": msg.get("threadId"),
+                    "subject": msg.get("subject", ""),
+                    "from": msg.get("from", ""),
+                    "to": msg.get("to", ""),
+                    "date": msg.get("date"),
+                    "snippet": msg.get("snippet", ""),
+                    "body": msg.get("body", ""),
+                    "labels": msg.get("labels", [])
+                })
+
+            logger.info(f"Fetched {len(records)} emails from Gmail")
+
+        except ImportError:
+            logger.warning("Gmail service not available - install google-api-python-client")
+        except Exception as e:
+            logger.error(f"Gmail fetch error: {e}")
+
         return records
     
     async def _fetch_notion_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
         """Fetch data from Notion"""
         records = []
-        # Placeholder - would use Notion API
-        logger.info("Notion fetcher not fully implemented")
+        try:
+            from integrations.notion_service import get_notion_service
+
+            notion_service = get_notion_service()
+
+            # Fetch pages
+            if "pages" in config.entity_types:
+                pages = notion_service.search_pages_in_workspace(
+                    query=""  # Get all pages
+                )
+
+                for page in pages[:config.max_records_per_sync]:
+                    page_id = page.get("id", "")
+                    title = page.get("title", "Untitled")
+
+                    # Get page content
+                    children = notion_service.get_block_children(page_id, page_size=50)
+                    content_blocks = children.get("results", [])
+
+                    records.append({
+                        "id": page_id,
+                        "type": "page",
+                        "title": title,
+                        "url": page.get("url", ""),
+                        "created_time": page.get("created_time"),
+                        "last_edited_time": page.get("last_edited_time"),
+                        "content_blocks_count": len(content_blocks),
+                        "archived": page.get("archived", False)
+                    })
+
+            # Fetch databases
+            if "databases" in config.entity_types:
+                databases = notion_service.search_databases_in_workspace(
+                    query=""  # Get all databases
+                )
+
+                for db in databases[:config.max_records_per_sync]:
+                    db_id = db.get("id", "")
+                    db_info = notion_service.get_database(db_id)
+
+                    if db_info:
+                        records.append({
+                            "id": db_id,
+                            "type": "database",
+                            "title": db_info.get("title", [{}])[0].get("plain_text", "Untitled") if db_info.get("title") else "Untitled",
+                            "created_time": db_info.get("created_time"),
+                            "last_edited_time": db_info.get("last_edited_time"),
+                            "properties_count": len(db_info.get("properties", {}))
+                        })
+
+            logger.info(f"Fetched {len(records)} items from Notion (pages + databases)")
+
+        except ImportError:
+            logger.warning("Notion service not available")
+        except Exception as e:
+            logger.error(f"Notion fetch error: {e}")
+
         return records
     
     async def _fetch_jira_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
@@ -480,8 +568,57 @@ class HybridDataIngestionService:
     async def _fetch_zendesk_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
         """Fetch data from Zendesk"""
         records = []
-        # Placeholder - would use Zendesk API
-        logger.info("Zendesk fetcher not fully implemented")
+        try:
+            from integrations.zendesk_service import get_zendesk_service
+
+            zendesk_service = get_zendesk_service()
+
+            # Fetch tickets
+            if "tickets" in config.entity_types or not config.entity_types:
+                tickets = await zendesk_service.get_tickets(
+                    per_page=min(config.max_records_per_sync, 100)
+                )
+
+                for ticket in tickets:
+                    records.append({
+                        "id": ticket.get("id"),
+                        "type": "ticket",
+                        "subject": ticket.get("subject", ""),
+                        "status": ticket.get("status", ""),
+                        "priority": ticket.get("priority", ""),
+                        "created_at": ticket.get("created_at"),
+                        "updated_at": ticket.get("updated_at"),
+                        "requester_id": ticket.get("requester_id"),
+                        "assignee_id": ticket.get("assignee_id"),
+                        "ticket_type": ticket.get("type", ""),
+                        "description": ticket.get("description", "")
+                    })
+
+            # Fetch users
+            if "users" in config.entity_types:
+                users = await zendesk_service.get_users(
+                    per_page=min(config.max_records_per_sync, 100)
+                )
+
+                for user in users:
+                    records.append({
+                        "id": user.get("id"),
+                        "type": "user",
+                        "name": user.get("name", ""),
+                        "email": user.get("email", ""),
+                        "role": user.get("role", ""),
+                        "created_at": user.get("created_at"),
+                        "last_login_at": user.get("last_login_at"),
+                        "verified": user.get("verified", False)
+                    })
+
+            logger.info(f"Fetched {len(records)} items from Zendesk (tickets + users)")
+
+        except ImportError:
+            logger.warning("Zendesk service not available")
+        except Exception as e:
+            logger.error(f"Zendesk fetch error: {e}")
+
         return records
     
     def _record_to_text(self, record: Dict[str, Any], integration_id: str) -> str:

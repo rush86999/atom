@@ -108,7 +108,8 @@ class ServerConfig:
     debug: bool = False
     workers: int = 1
     reload: bool = False
-    
+    app_url: str = "http://localhost:3000"  # Base URL for the application (used for password reset links, etc.)
+
     def __post_init__(self):
         if os.getenv('PORT'):
             self.port = int(os.getenv('PORT'))
@@ -118,6 +119,7 @@ class ServerConfig:
         self.reload = os.getenv('RELOAD', 'false').lower() == 'true'
         if os.getenv('WORKERS'):
             self.workers = int(os.getenv('WORKERS'))
+        self.app_url = os.getenv('APP_URL', self.app_url)
 
 @dataclass
 class SecurityConfig:

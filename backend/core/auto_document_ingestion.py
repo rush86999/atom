@@ -583,26 +583,167 @@ class AutoDocumentIngestionService:
             logger.error(f"Failed to download from {integration_id}: {e}")
             return None
     
-    # Integration-specific implementations (stubs)
+    # Integration-specific implementations
     async def _list_google_drive_files(self, settings: IngestionSettings) -> List[Dict]:
         """List files from Google Drive"""
-        # Placeholder - would use Google Drive API
-        logger.info("Google Drive file listing not fully implemented")
-        return []
-    
+        try:
+            from integrations.google_drive_service import google_drive_service
+            import os
+
+            access_token = os.getenv("GOOGLE_DRIVE_ACCESS_TOKEN")
+            if not access_token:
+                logger.warning("Google Drive access token not configured")
+                return []
+
+            result = await google_drive_service.list_files(
+                access_token=access_token,
+                page_size=settings.max_files
+            )
+
+            if result["status"] == "success":
+                files = result["data"].get("files", [])
+                logger.info(f"Listed {len(files)} files from Google Drive")
+                return files
+            else:
+                logger.error(f"Failed to list Google Drive files: {result.get('message')}")
+                return []
+
+        except Exception as e:
+            logger.error(f"Google Drive file listing error: {e}")
+            return []
+
     async def _download_google_drive_file(self, file_info: Dict) -> Optional[bytes]:
         """Download from Google Drive"""
-        return None
+        try:
+            import httpx
+            import os
+
+            access_token = os.getenv("GOOGLE_DRIVE_ACCESS_TOKEN")
+            if not access_token:
+                logger.warning("Google Drive access token not configured")
+                return None
+
+            file_id = file_info.get("id")
+            if not file_id:
+                return None
+
+            # Get download URL based on MIME type
+            mime_type = file_info.get("mimeType", "")
+            if "google-apps" in mime_type:
+                # Google Docs format - need to export
+                export_formats = {
+                    "application/vnd.google-apps.document": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/vnd.google-apps.spreadsheet": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "application/vnd.google-apps.presentation": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                }
+                export_mime = export_formats.get(mime_type, "application/pdf")
+                url = f"https://www.googleapis.com/drive/v3/files/{file_id}/export?mimeType={export_mime}"
+            else:
+                # Regular file - direct download
+                url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    url,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    timeout=60.0
+                )
+                response.raise_for_status()
+                return response.content
+
+        except Exception as e:
+            logger.error(f"Google Drive download error: {e}")
+            return None
     
     async def _list_dropbox_files(self, settings: IngestionSettings) -> List[Dict]:
         """List files from Dropbox"""
-        # Placeholder - would use Dropbox API
-        logger.info("Dropbox file listing not fully implemented")
-        return []
-    
+        try:
+            import httpx
+            import os
+
+            access_token = os.getenv("DROPBOX_ACCESS_TOKEN")
+            if not access_token:
+                logger.warning("Dropbox access token not configured")
+                return []
+
+            # List files in Dropbox using API v2
+            async with httpx.AsyncClient() as client:
+                headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
+                }
+
+                # Use list_folder endpoint
+                response = await client.post(
+                    "https://api.dropboxapi.com/2/files/list_folder",
+                    headers=headers,
+                    json={"path": "", "recursive": False, "limit": settings.max_files},
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                files = []
+                for entry in data.get("entries", []):
+                    if entry.get(".tag") == "file":
+                        files.append({
+                            "id": entry.get("id"),
+                            "name": entry.get("name"),
+                            "path_lower": entry.get("path_lower"),
+                            "size": entry.get("size"),
+                            "client_modified": entry.get("client_modified"),
+                            "server_modified": entry.get("server_modified")
+                        })
+
+                logger.info(f"Listed {len(files)} files from Dropbox")
+                return files
+
+        except Exception as e:
+            logger.error(f"Dropbox file listing error: {e}")
+            return []
+
     async def _download_dropbox_file(self, file_info: Dict) -> Optional[bytes]:
         """Download from Dropbox"""
-        return None
+        try:
+            import httpx
+            import os
+
+            access_token = os.getenv("DROPBOX_ACCESS_TOKEN")
+            if not access_token:
+                logger.warning("Dropbox access token not configured")
+                return None
+
+            path = file_info.get("path_lower")
+            if not path:
+                return None
+
+            # Download file using Dropbox API
+            async with httpx.AsyncClient() as client:
+                headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
+                }
+
+                # Get temporary download link
+                post_response = await client.post(
+                    "https://api.dropboxapi.com/2/files/get_temporary_link",
+                    headers=headers,
+                    json={"path": path},
+                    timeout=30.0
+                )
+                post_response.raise_for_status()
+                link_data = post_response.json()
+
+                # Download file content
+                download_url = link_data.get("link")
+                if download_url:
+                    download_response = await client.get(download_url, timeout=60.0)
+                    download_response.raise_for_status()
+                    return download_response.content
+
+        except Exception as e:
+            logger.error(f"Dropbox download error: {e}")
+            return None
     
     async def _list_onedrive_files(self, settings: IngestionSettings) -> List[Dict]:
         """List files from OneDrive"""
