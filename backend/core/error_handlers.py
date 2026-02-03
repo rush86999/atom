@@ -389,6 +389,8 @@ class InvoiceError(Exception):
         self.code = code
         self.details = details or {}
         self.timestamp = datetime.utcnow()
+        # Set http_status from HTTP_STATUS_MAP
+        self.http_status = HTTP_STATUS_MAP.get(code, 500)
         super().__init__(self.message)
 
     def to_http_exception(self) -> HTTPException:
@@ -397,7 +399,7 @@ class InvoiceError(Exception):
             self.code,
             self.message,
             self.details,
-            status_code=HTTP_STATUS_MAP.get(self.code, 500)
+            status_code=self.http_status
         )
 
 
