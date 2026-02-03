@@ -42,7 +42,11 @@ ai_bp = Blueprint('ai_api', __name__, url_prefix='/api/integrations/ai')
 # Mock service for health check detection
 class AIEnhancedServiceMock:
     def __init__(self):
-        self.api_key = "mock_api_key"
+        self.api_key = os.getenv("AI_ENHANCED_API_KEY")
+        if not self.api_key or self.api_key == "mock_api_key":
+            raise NotImplementedError(
+                "AI_ENHANCED_API_KEY must be configured in environment variables"
+            )
 
 
 # Configuration validation

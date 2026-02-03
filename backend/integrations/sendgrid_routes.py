@@ -6,7 +6,11 @@ router = APIRouter(prefix="/api/sendgrid", tags=["sendgrid"])
 
 class SendGridService:
     def __init__(self):
-        self.api_key = "mock_api_key"
+        self.api_key = os.getenv("SENDGRID_API_KEY")
+        if not self.api_key or self.api_key == "mock_api_key":
+            raise NotImplementedError(
+                "SENDGRID_API_KEY must be configured in environment variables"
+            )
         
     async def send_email(self, to, subject, content):
         return {"status": "sent"}

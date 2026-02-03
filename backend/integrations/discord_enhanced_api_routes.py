@@ -40,7 +40,11 @@ discord_bp = Blueprint("discord_api", __name__, url_prefix="/api/integrations/di
 
 class DiscordEnhancedService:
     def __init__(self):
-        self.bot_token = "mock_bot_token"
+        self.bot_token = os.getenv("DISCORD_BOT_TOKEN")
+        if not self.bot_token or self.bot_token == "mock_bot_token":
+            raise NotImplementedError(
+                "DISCORD_BOT_TOKEN must be configured in environment variables"
+            )
         
     async def get_guilds(self):
         return []
