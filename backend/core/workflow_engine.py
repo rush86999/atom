@@ -552,22 +552,22 @@ class WorkflowEngine:
 
                 # Create step execution record
                 with get_db_session() as db:
-                try:
-                    step_exec = WorkflowStepExecution(
-                        execution_id=execution_id,
-                        workflow_id=workflow.get("id", "unknown"),
-                        step_id=step["id"],
-                        step_name=step.get("name", step["id"]),
-                        step_type=step.get("type", "action"),
-                        sequence_order=step.get("sequence_order", 0),
-                        status="running",
-                        started_at=datetime.utcnow(),
-                        input_data=resolved_params
-                    )
-                    db.add(step_exec)
-                    db.commit()
-                finally:
-                    db.close()
+                    try:
+                        step_exec = WorkflowStepExecution(
+                            execution_id=execution_id,
+                            workflow_id=workflow.get("id", "unknown"),
+                            step_id=step["id"],
+                            step_name=step.get("name", step["id"]),
+                            step_type=step.get("type", "action"),
+                            sequence_order=step.get("sequence_order", 0),
+                            status="running",
+                            started_at=datetime.utcnow(),
+                            input_data=resolved_params
+                        )
+                        db.add(step_exec)
+                        db.commit()
+                    except Exception as e:
+                        logger.error(f"Failed to create step execution record: {e}")
                 
                 try:
                     output = await self._execute_step(step, resolved_params)

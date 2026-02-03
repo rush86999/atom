@@ -98,31 +98,31 @@ class CommunicationService:
 
         # 1. Resolve User and Workspace
         with get_db_session() as db:
-        user = None
-        workspace_id = "default"
-        
-        try:
-            # Lookup User Identity
-            from core.models import UserIdentity
-            
-            identity = db.query(UserIdentity).filter(
-                UserIdentity.provider == source,
-                UserIdentity.provider_user_id == sender_id
-            ).first()
-            
-            if identity and identity.user:
-                user = identity.user
-                logger.info(f"Resolved user {user.email} from {source} ID {sender_id}")
-                # Use first workspace for now
-                if user.workspaces:
-                    workspace_id = user.workspaces[0].id
-            else:
-                # Security: Reject messages from unknown identities instead of falling back to admin
-                logger.error(f"No identity found for {source}:{sender_id}. Rejecting message for security.")
-                return {"status": "error", "message": "User identity not found. Please link your account."}
-                
-        finally:
-            db.close()
+            user = None
+            workspace_id = "default"
+
+            try:
+                # Lookup User Identity
+                from core.models import UserIdentity
+
+                identity = db.query(UserIdentity).filter(
+                    UserIdentity.provider == source,
+                    UserIdentity.provider_user_id == sender_id
+                ).first()
+
+                if identity and identity.user:
+                    user = identity.user
+                    logger.info(f"Resolved user {user.email} from {source} ID {sender_id}")
+                    # Use first workspace for now
+                    if user.workspaces:
+                        workspace_id = user.workspaces[0].id
+                else:
+                    # Security: Reject messages from unknown identities instead of falling back to admin
+                    logger.error(f"No identity found for {source}:{sender_id}. Rejecting message for security.")
+                    return {"status": "error", "message": "User identity not found. Please link your account."}
+            except Exception as e:
+                logger.error(f"Failed to resolve user identity: {e}")
+                return {"status": "error", "message": "Failed to resolve user identity"}
 
         if not user:
              logger.warning(f"Could not resolve user for {source} sender {sender_id}")

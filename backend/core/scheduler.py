@@ -93,7 +93,7 @@ class AgentScheduler:
         Execution wrapper that creates AgentJob record.
         """
         with get_db_session() as db:
-        job_record = AgentJob(
+        with get_db_session() as db:
             id=str(uuid.uuid4()),
             agent_id=agent_id,
             status=AgentJobStatus.RUNNING.value,
@@ -135,7 +135,7 @@ class AgentScheduler:
             from core.models import AgentRegistry
             
             with get_db_session() as db:
-            try:
+                try:
                 agent_model = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                 if agent_model:
                     runner = GenericAgent(agent_model)

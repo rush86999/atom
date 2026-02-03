@@ -25,7 +25,7 @@ class LifecycleCommGenerator:
         rules_context = ""
         if workspace_id:
             with get_db_session() as db:
-            try:
+                try:
                 rules = db.query(BusinessRule).filter(BusinessRule.workspace_id == workspace_id, BusinessRule.is_active == True).all()
                 if rules:
                     rules_context = "\nApplicable Business Rules & Calculations:\n"

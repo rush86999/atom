@@ -160,7 +160,8 @@ async def get_live_financial_overview(
     # Calculate Stats
     total_rev = sum(t.amount for t in transactions if t.status in ['succeeded', 'paid', 'paid'])
     pending_rev = sum(t.amount for t in transactions if t.status in ['pending', 'open'])
-    
+
+    breakdown = {
         "stripe": sum(t.amount for t in transactions if t.platform == 'stripe'),
         "xero": sum(t.amount for t in transactions if t.platform == 'xero'),
         "zoho": sum(t.amount for t in transactions if t.platform == 'zoho'),

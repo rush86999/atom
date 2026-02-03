@@ -13,7 +13,7 @@ def ensure_admin_user():
     This runs INSIDE the main application process to avoid DB locks.
     """
     with get_db_session() as db:
-    try:
+        try:
         email = "admin@example.com"
         password = "securePass123"
         
