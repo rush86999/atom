@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from core.error_handlers import handle_not_found, handle_permission_denied
 from core.governance_cache import get_governance_cache
 from core.models import (
     AgentFeedback,
@@ -74,8 +75,8 @@ class AgentGovernanceService:
         """
         agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
         if not agent:
-            raise HTTPException(status_code=404, detail="Agent not found")
-            
+            raise handle_not_found("Agent", agent_id)
+
         feedback = AgentFeedback(
             agent_id=agent_id,
             user_id=user_id,
@@ -216,14 +217,11 @@ class AgentGovernanceService:
         """
         # 1. Permission Check
         if not RBACService.check_permission(user, Permission.AGENT_MANAGE):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions to promote agent."
-            )
-            
+            raise handle_permission_denied("promote", "Agent")
+
         agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
         if not agent:
-            raise HTTPException(status_code=404, detail="Agent not found")
+            raise handle_not_found("Agent", agent_id)
             
         # 2. Update Status
         agent.status = AgentStatus.AUTONOMOUS.value
@@ -401,7 +399,7 @@ class AgentGovernanceService:
         """
         agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
         if not agent:
-            return {"error": "Agent not found", "capabilities": []}
+            raise handle_not_found("Agent", agent_id)
         
         maturity_order = [
             AgentStatus.STUDENT.value,
