@@ -7,10 +7,15 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/data-ingestion", tags=["Data Ingestion"])
+
+# Governance feature flags
+DATA_INGESTION_GOVERNANCE_ENABLED = os.getenv("DATA_INGESTION_GOVERNANCE_ENABLED", "true").lower() == "true"
+EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 
 # Request/Response Models
@@ -63,20 +68,47 @@ async def get_integration_usage():
 
 @router.post("/enable-sync")
 async def enable_auto_sync(
-    request: EnableSyncRequest
+    request: EnableSyncRequest,
+    agent_id: Optional[str] = None
 ):
     """
     Enable automatic data sync for an integration.
     Data will be synced into Atom Memory for agent queries.
+
+    **Governance**: Requires INTERN+ maturity for data sync configuration.
     """
+    # Governance check for data sync configuration
+    if DATA_INGESTION_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="enable_auto_sync",
+                resource_type="data_sync_config",
+                complexity=2  # MODERATE - sync configuration
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for enable_auto_sync by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     try:
         from core.hybrid_data_ingestion import (
-            get_hybrid_ingestion_service, 
+            get_hybrid_ingestion_service,
             SyncConfiguration
         )
-        
+
         service = get_hybrid_ingestion_service("default")
-        
+
         config = None
         if request.entity_types:
             config = SyncConfiguration(
@@ -84,20 +116,23 @@ async def enable_auto_sync(
                 entity_types=request.entity_types,
                 sync_last_n_days=request.sync_last_n_days or 30,
             )
-        
+
         service.enable_auto_sync(request.integration_id, config)
-        
+
         # Update sync frequency if provided
         if request.sync_frequency_minutes:
             stats = service.usage_stats.get(request.integration_id)
             if stats:
                 stats.sync_frequency_minutes = request.sync_frequency_minutes
-        
+
+        logger.info(f"Auto-sync enabled for {request.integration_id} by agent {agent_id or 'system'}")
         return {
             "success": True,
             "message": f"Auto-sync enabled for {request.integration_id}",
             "integration_id": request.integration_id
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to enable auto-sync: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -105,21 +140,51 @@ async def enable_auto_sync(
 
 @router.post("/disable-sync/{integration_id}")
 async def disable_auto_sync(
-    integration_id: str
+    integration_id: str,
+    agent_id: Optional[str] = None
 ):
     """
     Disable automatic data sync for an integration.
+
+    **Governance**: Requires INTERN+ maturity for data sync configuration.
     """
+    # Governance check for data sync configuration
+    if DATA_INGESTION_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="disable_auto_sync",
+                resource_type="data_sync_config",
+                complexity=2  # MODERATE - sync configuration
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for disable_auto_sync by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
         service = get_hybrid_ingestion_service("default")
         service.disable_auto_sync(integration_id)
-        
+
+        logger.info(f"Auto-sync disabled for {integration_id} by agent {agent_id or 'system'}")
         return {
             "success": True,
             "message": f"Auto-sync disabled for {integration_id}",
             "integration_id": integration_id
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to disable auto-sync: {e}")
         raise HTTPException(status_code=500, detail=str(e))

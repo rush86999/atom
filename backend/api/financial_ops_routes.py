@@ -7,10 +7,15 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Governance feature flags
+FINANCIAL_GOVERNANCE_ENABLED = os.getenv("FINANCIAL_GOVERNANCE_ENABLED", "true").lower() == "true"
+EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 # ==================== COST LEAK DETECTION ====================
 
@@ -24,9 +29,38 @@ class SubscriptionRequest(BaseModel):
     category: str = "general"
 
 @router.post("/cost/subscriptions")
-async def add_subscription(request: SubscriptionRequest):
+async def add_subscription(request: SubscriptionRequest, agent_id: Optional[str] = None):
+    """
+    Add a subscription for cost leak detection.
+
+    **Governance**: Requires INTERN+ maturity for financial data modifications.
+    """
+    # Governance check for financial operations
+    if FINANCIAL_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="add_subscription",
+                resource_type="financial_data",
+                complexity=2  # MODERATE - financial data modification
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for add_subscription by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     from core.financial_ops_engine import cost_detector, SaaSSubscription
-    
+
     sub = SaaSSubscription(
         id=request.id,
         name=request.name,
@@ -37,6 +71,7 @@ async def add_subscription(request: SubscriptionRequest):
         category=request.category
     )
     cost_detector.add_subscription(sub)
+    logger.info(f"Subscription added: {request.id} by agent {agent_id or 'system'}")
     return {"status": "added", "id": request.id}
 
 @router.get("/cost/savings-report")
@@ -59,9 +94,38 @@ class SpendCheckRequest(BaseModel):
     milestone: Optional[str] = None
 
 @router.post("/budget/limits")
-async def set_budget_limit(request: BudgetLimitRequest):
+async def set_budget_limit(request: BudgetLimitRequest, agent_id: Optional[str] = None):
+    """
+    Set a budget limit for a spending category.
+
+    **Governance**: Requires SUPERVISED+ maturity for budget policy changes.
+    """
+    # Governance check for budget policy changes
+    if FINANCIAL_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="set_budget_limit",
+                resource_type="budget_policy",
+                complexity=3  # HIGH - budget policy modification
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for set_budget_limit by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     from core.financial_ops_engine import budget_guardrails, BudgetLimit
-    
+
     limit = BudgetLimit(
         category=request.category,
         monthly_limit=request.monthly_limit,
@@ -69,6 +133,7 @@ async def set_budget_limit(request: BudgetLimitRequest):
         milestone_required=request.milestone_required
     )
     budget_guardrails.set_limit(limit)
+    logger.info(f"Budget limit set for category {request.category} by agent {agent_id or 'system'}")
     return {"status": "set", "category": request.category}
 
 @router.post("/budget/check")
@@ -100,9 +165,38 @@ class ContractRequest(BaseModel):
     end_date: str
 
 @router.post("/invoices")
-async def add_invoice(request: InvoiceRequest):
+async def add_invoice(request: InvoiceRequest, agent_id: Optional[str] = None):
+    """
+    Add an invoice for reconciliation.
+
+    **Governance**: Requires INTERN+ maturity for invoice data entry.
+    """
+    # Governance check for invoice entry
+    if FINANCIAL_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="add_invoice",
+                resource_type="financial_data",
+                complexity=2  # MODERATE - financial data entry
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for add_invoice by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     from core.financial_ops_engine import invoice_reconciler, Invoice
-    
+
     inv = Invoice(
         id=request.id,
         vendor=request.vendor,
@@ -111,12 +205,42 @@ async def add_invoice(request: InvoiceRequest):
         contract_id=request.contract_id
     )
     invoice_reconciler.add_invoice(inv)
+    logger.info(f"Invoice added: {request.id} by agent {agent_id or 'system'}")
     return {"status": "added", "id": request.id}
 
 @router.post("/contracts")
-async def add_contract(request: ContractRequest):
+async def add_contract(request: ContractRequest, agent_id: Optional[str] = None):
+    """
+    Add a contract for invoice reconciliation.
+
+    **Governance**: Requires SUPERVISED+ maturity for contract management.
+    """
+    # Governance check for contract entry
+    if FINANCIAL_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="add_contract",
+                resource_type="contract_data",
+                complexity=3  # HIGH - contract management
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for add_contract by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     from core.financial_ops_engine import invoice_reconciler, Contract
-    
+
     contract = Contract(
         id=request.id,
         vendor=request.vendor,
@@ -125,6 +249,7 @@ async def add_contract(request: ContractRequest):
         end_date=datetime.fromisoformat(request.end_date)
     )
     invoice_reconciler.add_contract(contract)
+    logger.info(f"Contract added: {request.id} by agent {agent_id or 'system'}")
     return {"status": "added", "id": request.id}
 
 @router.get("/invoices/reconcile")

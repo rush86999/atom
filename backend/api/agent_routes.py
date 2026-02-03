@@ -1,11 +1,12 @@
 
 import logging
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 import datetime
 import asyncio
-from core.database import SessionLocal 
+from core.database import SessionLocal, get_db_session
 from core.agent_world_model import WorldModelService, AgentExperience
 
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
@@ -208,189 +209,187 @@ async def decide_hitl_action(
 
 async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
     """Background task to run the agent logic"""
-    # Create new DB session for background task
-    db = SessionLocal() 
-    result = None
-    try:
-        agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-        if not agent:
-            logger.error(f"Agent {agent_id} not found in background task")
-            return
-
-        logger.info(f"Starting agent {agent.name} (ID: {agent_id})...")
-        
-        # 1. World Model Retrieval
-        wm_service = WorldModelService()
-        
-        # Build a context string from params to query memory
-        task_context = f"Execute {agent.name} with params: {str(params)}"
-        relevant_memories = await wm_service.recall_experiences(agent, task_context)
-        
-        if isinstance(relevant_memories, dict):
-             # Extract the actual experiences list from the dictionary response
-             experiences = relevant_memories.get("experiences", [])
-             
-             if experiences:
-                logger.info(f"Agents {agent.name} found {len(experiences)} relevant past experiences.")
-                for mem in experiences:
-                    # Defensive check if mem is object or dict (mock vs real)
-                    if hasattr(mem, "input_summary"):
-                         logger.info(f"  [Memory] {mem.input_summary} -> {mem.learnings} ({mem.outcome})")
-                    else:
-                         logger.info(f"  [Memory] {str(mem)}")
-        elif isinstance(relevant_memories, list):
-             # Legacy/Fallback support if it returns a list directly
-             logger.info(f"Agents {agent.name} found {len(relevant_memories)} relevant past experiences.")
-             for mem in relevant_memories:
-                 if hasattr(mem, "input_summary"):
-                    logger.info(f"  [Memory] {mem.input_summary} -> {mem.learnings} ({mem.outcome})")
-                 else:
-                    logger.info(f"  [Memory] {str(mem)}")
-
-        # Dynamic Import
-        # Unified Execution Logic using GenericAgent ReAct Loop
-        from core.generic_agent import GenericAgent
-        
+    # Use context manager for background task
+    with get_db_session() as db:
         result = None
         try:
-            # 1. Determine Tools based on Agent ID/Type (Migration compatibility)
-            # If the agent is legacy and doesn't have tools configured, we inject them here.
-            override_config = {}
-            if agent.id == "competitive_intel":
-                 override_config["tools"] = ["track_competitor_pricing"]
-                 override_config["system_prompt"] = "You are a Competitive Intelligence Agent. Use the 'track_competitor_pricing' tool to gather market data."
-            elif agent.id == "inventory_reconcile":
-                 override_config["tools"] = ["reconcile_inventory"]
-                 override_config["system_prompt"] = "You are an Inventory Manager. Use 'reconcile_inventory' to check for variance."
-            elif agent.id == "payroll_guardian":
-                 override_config["tools"] = ["reconcile_payroll"]
-                 override_config["system_prompt"] = "You are a Payroll Guardian. Use 'reconcile_payroll' to verify accuracy."
+            agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            if not agent:
+                logger.error(f"Agent {agent_id} not found in background task")
+                return
 
-            # 2. Instantiate Runtime
-            if override_config:
-                if not agent.configuration:
-                    agent.configuration = {}
-                # Merge defaults if not present
-                for k, v in override_config.items():
-                    if k not in agent.configuration:
-                        agent.configuration[k] = v
-            
-            runner = GenericAgent(agent)
-            
-            # 3. Determine Input
-            # ReAct loop needs a natural language instruction.
-            task_input = params.get("task_input") or params.get("request")
-            
-            # If input is missing but we have params, we construct a prompt
-            if not task_input:
+            logger.info(f"Starting agent {agent.name} (ID: {agent_id})...")
+
+            # 1. World Model Retrieval
+            wm_service = WorldModelService()
+
+            # Build a context string from params to query memory
+            task_context = f"Execute {agent.name} with params: {str(params)}"
+            relevant_memories = await wm_service.recall_experiences(agent, task_context)
+
+            if isinstance(relevant_memories, dict):
+                 # Extract the actual experiences list from the dictionary response
+                 experiences = relevant_memories.get("experiences", [])
+
+                 if experiences:
+                    logger.info(f"Agents {agent.name} found {len(experiences)} relevant past experiences.")
+                    for mem in experiences:
+                        # Defensive check if mem is object or dict (mock vs real)
+                        if hasattr(mem, "input_summary"):
+                             logger.info(f"  [Memory] {mem.input_summary} -> {mem.learnings} ({mem.outcome})")
+                        else:
+                             logger.info(f"  [Memory] {str(mem)}")
+            elif isinstance(relevant_memories, list):
+                 # Legacy/Fallback support if it returns a list directly
+                 logger.info(f"Agents {agent.name} found {len(relevant_memories)} relevant past experiences.")
+                 for mem in relevant_memories:
+                     if hasattr(mem, "input_summary"):
+                        logger.info(f"  [Memory] {mem.input_summary} -> {mem.learnings} ({mem.outcome})")
+                     else:
+                        logger.info(f"  [Memory] {str(mem)}")
+
+            # Dynamic Import
+            # Unified Execution Logic using GenericAgent ReAct Loop
+            from core.generic_agent import GenericAgent
+
+            result = None
+            try:
+                # 1. Determine Tools based on Agent ID/Type (Migration compatibility)
+                # If the agent is legacy and doesn't have tools configured, we inject them here.
+                override_config = {}
                 if agent.id == "competitive_intel":
-                    task_input = f"Track pricing for {params.get('product', 'configured products')} against {params.get('competitors', 'competitors')}."
+                     override_config["tools"] = ["track_competitor_pricing"]
+                     override_config["system_prompt"] = "You are a Competitive Intelligence Agent. Use the 'track_competitor_pricing' tool to gather market data."
                 elif agent.id == "inventory_reconcile":
-                    task_input = f"Reconcile inventory for {params.get('skus', 'all SKUs')}."
+                     override_config["tools"] = ["reconcile_inventory"]
+                     override_config["system_prompt"] = "You are an Inventory Manager. Use 'reconcile_inventory' to check for variance."
                 elif agent.id == "payroll_guardian":
-                    task_input = f"Reconcile payroll for period {params.get('period', 'current')}."
-                else:
-                     task_input = f"Execute task with params: {params}"
-            
-            # 4. Execute ReAct Loop with step streaming
-            logger.info(f"Executing Agent {agent.name} with ReAct Loop. Input: {task_input}")
-            
-            async def streaming_callback(step_record):
+                     override_config["tools"] = ["reconcile_payroll"]
+                     override_config["system_prompt"] = "You are a Payroll Guardian. Use 'reconcile_payroll' to verify accuracy."
+
+                # 2. Instantiate Runtime
+                if override_config:
+                    if not agent.configuration:
+                        agent.configuration = {}
+                    # Merge defaults if not present
+                    for k, v in override_config.items():
+                        if k not in agent.configuration:
+                            agent.configuration[k] = v
+
+                runner = GenericAgent(agent)
+
+                # 3. Determine Input
+                # ReAct loop needs a natural language instruction.
+                task_input = params.get("task_input") or params.get("request")
+
+                # If input is missing but we have params, we construct a prompt
+                if not task_input:
+                    if agent.id == "competitive_intel":
+                        task_input = f"Track pricing for {params.get('product', 'configured products')} against {params.get('competitors', 'competitors')}."
+                    elif agent.id == "inventory_reconcile":
+                        task_input = f"Reconcile inventory for {params.get('skus', 'all SKUs')}."
+                    elif agent.id == "payroll_guardian":
+                        task_input = f"Reconcile payroll for period {params.get('period', 'current')}."
+                    else:
+                         task_input = f"Execute task with params: {params}"
+
+                # 4. Execute ReAct Loop with step streaming
+                logger.info(f"Executing Agent {agent.name} with ReAct Loop. Input: {task_input}")
+
+                async def streaming_callback(step_record):
+                    await ws_manager.broadcast("workspace:default", {
+                        "type": "agent_step_update",
+                        "agent_id": agent_id,
+                        "step": step_record
+                    })
+
+                result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
+
+                # 5. Process Result
+                result = result_obj
+
+                # Success Notification
                 await ws_manager.broadcast("workspace:default", {
-                    "type": "agent_step_update",
+                    "type": "agent_status_change",
                     "agent_id": agent_id,
-                    "step": step_record
+                    "status": "success",
+                    "result": result
                 })
-            
-            result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
-            
-            # 5. Process Result
-            result = result_obj
-            
-            # Success Notification
+
+                # --- [NEW] External Bridge Response Routing ---
+                source_platform = params.get("source_platform")
+                recipient_id = params.get("recipient_id") or params.get("channel_id")
+
+                if source_platform and recipient_id:
+                    try:
+                        from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                        final_output = result.get("final_output") if isinstance(result, dict) else str(result)
+
+                        if final_output:
+                            logger.info(f"Routing async agent result back to {source_platform}")
+                            routing_params = {
+                                "recipient_id": recipient_id,
+                                "channel": params.get("channel_id") or recipient_id,
+                                "content": f"✅ *{agent.name}* finished task:\n{final_output}",
+                                "thread_ts": params.get("thread_ts")
+                            }
+
+                            # Phase 105: Include original sender for Agent-to-Agent loopback
+                            if source_platform == "agent":
+                                routing_params["sender_agent_id"] = params.get("agent_id") or params.get("sender_id")
+
+                            await agent_integration_gateway.execute_action(
+                                ActionType.SEND_MESSAGE,
+                                source_platform,
+                                routing_params
+                            )
+                    except Exception as route_err:
+                        logger.error(f"Failed to route async agent result back to {source_platform}: {route_err}")
+
+                # 6. Record Experience happens inside GenericAgent.execute() now.
+
+
+            except Exception as e:
+                logger.error(f"Agent {agent_id} logic failed: {e}")
+
+                # Record Failure
+                await wm_service.record_experience(AgentExperience(
+                    id=str(uuid.uuid4()),
+                    agent_id=agent.id,
+                    task_type=agent.class_name,
+                    input_summary=str(params),
+                    outcome="Failure",
+                    learnings=f"Failed with error: {str(e)}",
+                    agent_role=agent.category,
+                    specialty=None,
+                    timestamp=datetime.datetime.utcnow()
+                ))
+                raise e
+
+        except Exception as e:
+            import traceback
+            import sys
+            error_msg = f"Agent execution FAILED: {str(e)}\n{traceback.format_exc()}"
+            print(f"!!! CRITICAL AGENT ERROR !!!\n{error_msg}", file=sys.stderr)
+            logger.error(f"Agent {agent_id} execution wrapper failed: {e}")
+
+            # Urgent Notification (Phase 34 requirement)
+            await notification_manager.send_urgent_notification(
+                message=f"Agent execution FAILED: {str(e)}",
+                workspace_id="default_workspace",
+                channel="slack"
+            )
+
+            # Notify UI Status
             await ws_manager.broadcast("workspace:default", {
                 "type": "agent_status_change",
                 "agent_id": agent_id,
-                "status": "success",
-                "result": result
+                "status": "failed",
+                "error": str(e),
+                "traceback": traceback.format_exc()
             })
 
-            # --- [NEW] External Bridge Response Routing ---
-            source_platform = params.get("source_platform")
-            recipient_id = params.get("recipient_id") or params.get("channel_id")
-            
-            if source_platform and recipient_id:
-                try:
-                    from core.agent_integration_gateway import agent_integration_gateway, ActionType
-                    final_output = result.get("final_output") if isinstance(result, dict) else str(result)
-                    
-                    if final_output:
-                        logger.info(f"Routing async agent result back to {source_platform}")
-                        routing_params = {
-                            "recipient_id": recipient_id,
-                            "channel": params.get("channel_id") or recipient_id,
-                            "content": f"✅ *{agent.name}* finished task:\n{final_output}",
-                            "thread_ts": params.get("thread_ts")
-                        }
-                        
-                        # Phase 105: Include original sender for Agent-to-Agent loopback
-                        if source_platform == "agent":
-                            routing_params["sender_agent_id"] = params.get("agent_id") or params.get("sender_id")
-                        
-                        await agent_integration_gateway.execute_action(
-                            ActionType.SEND_MESSAGE,
-                            source_platform,
-                            routing_params
-                        )
-                except Exception as route_err:
-                    logger.error(f"Failed to route async agent result back to {source_platform}: {route_err}")
-
-            # 6. Record Experience happens inside GenericAgent.execute() now.
-        
-            
-        except Exception as e:
-            logger.error(f"Agent {agent_id} logic failed: {e}")
-            
-            # Record Failure
-            await wm_service.record_experience(AgentExperience(
-                id=str(uuid.uuid4()),
-                agent_id=agent.id,
-                task_type=agent.class_name,
-                input_summary=str(params),
-                outcome="Failure",
-                learnings=f"Failed with error: {str(e)}",
-                agent_role=agent.category,
-                specialty=None,
-                timestamp=datetime.datetime.utcnow()
-            ))
-            raise e
-
-    except Exception as e:
-        import traceback
-        import sys
-        error_msg = f"Agent execution FAILED: {str(e)}\n{traceback.format_exc()}"
-        print(f"!!! CRITICAL AGENT ERROR !!!\n{error_msg}", file=sys.stderr)
-        logger.error(f"Agent {agent_id} execution wrapper failed: {e}")
-        
-        # Urgent Notification (Phase 34 requirement)
-        await notification_manager.send_urgent_notification(
-            message=f"Agent execution FAILED: {str(e)}",
-            workspace_id="default_workspace",
-            channel="slack"
-        )
-        
-        # Notify UI Status
-        await ws_manager.broadcast("workspace:default", {
-            "type": "agent_status_change",
-            "agent_id": agent_id,
-            "status": "failed",
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
-    finally:
-        db.close()
-        
-    return result
+        return result
 
 
 # ==================== ATOM META-AGENT ENDPOINTS ====================

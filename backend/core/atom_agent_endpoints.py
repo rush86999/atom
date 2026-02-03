@@ -195,8 +195,12 @@ async def get_session_history(session_id: str):
                         formatted_msg["metadata"] = json.loads(msg["metadata"])
                     else:
                         formatted_msg["metadata"] = msg["metadata"]
-                except:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse metadata as JSON: {e}")
+                    formatted_msg["metadata"] = msg["metadata"]
+                except Exception as e:
+                    logger.warning(f"Unexpected error parsing metadata: {e}")
+                    formatted_msg["metadata"] = {}
             
             formatted_messages.append(formatted_msg)
         

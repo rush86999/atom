@@ -272,167 +272,165 @@ async def websocket_device_endpoint(
     manager = get_device_connection_manager()
     user: Optional[User] = None
     device_node_id: Optional[str] = None
-    db = SessionLocal()
 
-    try:
-        # Authenticate user from token
-        payload = decode_token(token)
-        user_id = payload.get("sub")
-
-        if not user_id:
-            await websocket.close(code=1008, reason="Invalid token")
-            return
-
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            await websocket.close(code=1008, reason="User not found")
-            return
-
-        # Accept connection
-        await websocket.accept()
-
-        # Wait for device registration
+    # Use context manager for WebSocket endpoint
+    with SessionLocal() as db:
         try:
-            register_msg = await websocket.receive_json(timeout=10)
-        except Exception as e:
-            await websocket.close(code=1008, reason="Registration timeout")
-            return
+            # Authenticate user from token
+            payload = decode_token(token)
+            user_id = payload.get("sub")
 
-        if register_msg.get("type") != "register":
-            await websocket.close(code=1002, reason="Expected register message")
-            return
+            if not user_id:
+                await websocket.close(code=1008, reason="Invalid token")
+                return
 
-        # Extract device info
-        device_node_id = register_msg.get("device_node_id")
-        if not device_node_id:
-            await websocket.close(code=1002, reason="device_node_id required")
-            return
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                await websocket.close(code=1008, reason="User not found")
+                return
 
-        device_info = register_msg.get("device_info", {})
-        device_info["user_id"] = user_id
+            # Accept connection
+            await websocket.accept()
 
-        # Get or create device node in database
-        device = db.query(DeviceNode).filter(
-            DeviceNode.device_id == device_node_id
-        ).first()
-
-        if device:
-            # Update existing device
-            device.status = "online"
-            device.last_seen = datetime.now()
-            device.capabilities = device_info.get("capabilities", [])
-            device.platform = device_info.get("platform")
-            device.platform_version = device_info.get("platform_version")
-            device.hardware_info = device_info.get("hardware_info", {})
-        else:
-            # Create new device
-            device = DeviceNode(
-                id=str(uuid.uuid4()),
-                device_id=device_node_id,
-                user_id=user_id,
-                name=device_info.get("name", f"Device {device_node_id[:8]}"),
-                node_type=device_info.get("node_type", "mobile"),
-                status="online",
-                platform=device_info.get("platform"),
-                platform_version=device_info.get("platform_version"),
-                architecture=device_info.get("architecture"),
-                capabilities=device_info.get("capabilities", []),
-                capabilities_detailed=device_info.get("capabilities_detailed", {}),
-                hardware_info=device_info.get("hardware_info", {}),
-                last_seen=datetime.now()
-            )
-            db.add(device)
-
-        db.commit()
-
-        # Register connection
-        await manager.connect(websocket, device_node_id, user_id, device_info)
-
-        # Send registration confirmation
-        await websocket.send_json({
-            "type": "registered",
-            "device_node_id": device_node_id,
-            "registered_at": datetime.now().isoformat()
-        })
-
-        # Message loop
-        last_heartbeat = datetime.now()
-
-        while True:
+            # Wait for device registration
             try:
-                # Wait for message with timeout
-                message = await asyncio.wait_for(
-                    websocket.receive_json(),
-                    timeout=DEVICE_HEARTBEAT_INTERVAL
-                )
+                register_msg = await websocket.receive_json(timeout=10)
+            except Exception as e:
+                await websocket.close(code=1008, reason="Registration timeout")
+                return
 
-                msg_type = message.get("type")
+            if register_msg.get("type") != "register":
+                await websocket.close(code=1002, reason="Expected register message")
+                return
 
-                if msg_type == "result":
-                    # Command result from device
-                    logger.debug(f"Received result from device {device_node_id}: {message.get('command_id')}")
-                    # Result is handled by the waiting command in send_command
+            # Extract device info
+            device_node_id = register_msg.get("device_node_id")
+            if not device_node_id:
+                await websocket.close(code=1002, reason="device_node_id required")
+                return
 
-                elif msg_type == "heartbeat":
-                    # Update heartbeat
-                    last_heartbeat = datetime.now()
-                    await websocket.send_json({
-                        "type": "heartbeat_ack",
-                        "timestamp": datetime.now().isoformat()
-                    })
+            device_info = register_msg.get("device_info", {})
+            device_info["user_id"] = user_id
 
-                    # Update device last_seen in database
-                    device = db.query(DeviceNode).filter(
-                        DeviceNode.device_id == device_node_id
-                    ).first()
-                    if device:
-                        device.last_seen = datetime.now()
-                        db.commit()
-
-                elif msg_type == "error":
-                    # Error from device
-                    logger.error(f"Device {device_node_id} error: {message.get('error')}")
-
-                else:
-                    logger.warning(f"Unknown message type from device {device_node_id}: {msg_type}")
-
-            except asyncio.TimeoutError:
-                # Heartbeat timeout - check if device should be disconnected
-                age = (datetime.now() - last_heartbeat).total_seconds()
-                if age > DEVICE_CONNECTION_TIMEOUT:
-                    logger.warning(f"Device {device_node_id} heartbeat timeout after {age}s")
-                    break
-
-                # Send heartbeat probe
-                try:
-                    await websocket.send_json({
-                        "type": "heartbeat_probe",
-                        "timestamp": datetime.now().isoformat()
-                    })
-                except:
-                    break
-
-    except WebSocketDisconnect:
-        logger.info(f"Device {device_node_id} disconnected")
-
-    except Exception as e:
-        logger.error(f"WebSocket error for device {device_node_id}: {e}")
-
-    finally:
-        # Cleanup
-        if device_node_id and user:
-            manager.disconnect(device_node_id, user_id)
-
-            # Update device status in database
+            # Get or create device node in database
             device = db.query(DeviceNode).filter(
                 DeviceNode.device_id == device_node_id
             ).first()
-            if device:
-                device.status = "offline"
-                db.commit()
 
-        # Close database session
-        db.close()
+            if device:
+                # Update existing device
+                device.status = "online"
+                device.last_seen = datetime.now()
+                device.capabilities = device_info.get("capabilities", [])
+                device.platform = device_info.get("platform")
+                device.platform_version = device_info.get("platform_version")
+                device.hardware_info = device_info.get("hardware_info", {})
+            else:
+                # Create new device
+                device = DeviceNode(
+                    id=str(uuid.uuid4()),
+                    device_id=device_node_id,
+                    user_id=user_id,
+                    name=device_info.get("name", f"Device {device_node_id[:8]}"),
+                    node_type=device_info.get("node_type", "mobile"),
+                    status="online",
+                    platform=device_info.get("platform"),
+                    platform_version=device_info.get("platform_version"),
+                    architecture=device_info.get("architecture"),
+                    capabilities=device_info.get("capabilities", []),
+                    capabilities_detailed=device_info.get("capabilities_detailed", {}),
+                    hardware_info=device_info.get("hardware_info", {}),
+                    last_seen=datetime.now()
+                )
+                db.add(device)
+
+            db.commit()
+
+            # Register connection
+            await manager.connect(websocket, device_node_id, user_id, device_info)
+
+            # Send registration confirmation
+            await websocket.send_json({
+                "type": "registered",
+                "device_node_id": device_node_id,
+                "registered_at": datetime.now().isoformat()
+            })
+
+            # Message loop
+            last_heartbeat = datetime.now()
+
+            while True:
+                try:
+                    # Wait for message with timeout
+                    message = await asyncio.wait_for(
+                        websocket.receive_json(),
+                        timeout=DEVICE_HEARTBEAT_INTERVAL
+                    )
+
+                    msg_type = message.get("type")
+
+                    if msg_type == "result":
+                        # Command result from device
+                        logger.debug(f"Received result from device {device_node_id}: {message.get('command_id')}")
+                        # Result is handled by the waiting command in send_command
+
+                    elif msg_type == "heartbeat":
+                        # Update heartbeat
+                        last_heartbeat = datetime.now()
+                        await websocket.send_json({
+                            "type": "heartbeat_ack",
+                            "timestamp": datetime.now().isoformat()
+                        })
+
+                        # Update device last_seen in database
+                        device = db.query(DeviceNode).filter(
+                            DeviceNode.device_id == device_node_id
+                        ).first()
+                        if device:
+                            device.last_seen = datetime.now()
+                            db.commit()
+
+                    elif msg_type == "error":
+                        # Error from device
+                        logger.error(f"Device {device_node_id} error: {message.get('error')}")
+
+                    else:
+                        logger.warning(f"Unknown message type from device {device_node_id}: {msg_type}")
+
+                except asyncio.TimeoutError:
+                    # Heartbeat timeout - check if device should be disconnected
+                    age = (datetime.now() - last_heartbeat).total_seconds()
+                    if age > DEVICE_CONNECTION_TIMEOUT:
+                        logger.warning(f"Device {device_node_id} heartbeat timeout after {age}s")
+                        break
+
+                    # Send heartbeat probe
+                    try:
+                        await websocket.send_json({
+                            "type": "heartbeat_probe",
+                            "timestamp": datetime.now().isoformat()
+                        })
+                    except:
+                        break
+
+        except WebSocketDisconnect:
+            logger.info(f"Device {device_node_id} disconnected")
+
+        except Exception as e:
+            logger.error(f"WebSocket error for device {device_node_id}: {e}")
+
+        finally:
+            # Cleanup
+            if device_node_id and user:
+                manager.disconnect(device_node_id, user_id)
+
+                # Update device status in database
+                device = db.query(DeviceNode).filter(
+                    DeviceNode.device_id == device_node_id
+                ).first()
+                if device:
+                    device.status = "offline"
+                    db.commit()
 
 
 # ============================================================================

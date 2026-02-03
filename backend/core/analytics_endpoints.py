@@ -378,9 +378,9 @@ async def get_burnout_risk():
                 {"id": "burnout_protection", "name": "Burnout Protection"},
                 {"risk_score": risk_assessment.score, "factors": risk_assessment.factors}
             ))
-        except:
-            pass
-            
+        except Exception as e:
+            logger.error(f"Failed to trigger burnout protection workflow: {e}", exc_info=True)
+
     return risk_assessment
 
 @router.get("/estimation-bias")
@@ -450,6 +450,6 @@ async def get_deadline_risk():
                 {"id": "deadline_mitigation", "name": "Deadline Risk Mitigation"},
                 {"risk_score": risk_assessment.score, "factors": risk_assessment.factors}
             ))
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to trigger deadline mitigation workflow: {e}", exc_info=True)
     return risk_assessment

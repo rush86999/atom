@@ -268,9 +268,10 @@ async def execute_workflow_by_id(workflow_id: str, background_tasks: BackgroundT
     
     try:
         background_tasks.add_task(_run_orchestration)
-    except:
-        pass  # Orchestrator may not be available
-    
+    except Exception as e:
+        logger.error(f"Failed to schedule workflow execution: {e}", exc_info=True)
+        # Orchestrator may not be available
+
     return {"success": True, "execution_id": execution_id, "workflow_id": workflow_id}
 
 @router.get("/workflows/{workflow_id}/history")

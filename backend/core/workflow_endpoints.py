@@ -66,12 +66,17 @@ class WorkflowEditResponse(BaseModel):
 
 
 def load_workflows() -> List[Dict]:
+    """Load workflows from JSON file with error handling"""
     if not os.path.exists(WORKFLOWS_FILE):
         return []
     try:
         with open(WORKFLOWS_FILE, 'r') as f:
             return json.load(f)
-    except:
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to decode workflows JSON: {e}", exc_info=True)
+        return []
+    except Exception as e:
+        logger.error(f"Failed to load workflows: {e}", exc_info=True)
         return []
 
 def save_workflows(workflows: List[Dict]):

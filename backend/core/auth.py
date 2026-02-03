@@ -129,6 +129,23 @@ async def get_current_user_ws(token: str, db: Session):
     except JWTError:
         return None
 
+def decode_token(token: str) -> Optional[Dict[str, Any]]:
+    """
+    Decode and verify JWT token.
+
+    Returns the token payload if valid, None otherwise.
+    This is a synchronous version for use in non-async contexts.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError as e:
+        logger.warning(f"Failed to decode token: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error decoding token: {e}")
+        return None
+
 def generate_satellite_key() -> str:
     """Generate a secure Satellite API Key (sk-...)"""
     return f"sk-{secrets.token_hex(24)}"

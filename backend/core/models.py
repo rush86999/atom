@@ -2872,3 +2872,76 @@ class TrainingSession(Base):
         Index('ix_training_sessions_status', 'status'),
         Index('ix_training_sessions_created', 'created_at'),
     )
+
+
+class Dashboard(Base):
+    """
+    Analytics dashboard for visualizing workflow and agent performance metrics.
+    Supports multiple widget types with customizable configurations.
+    """
+    __tablename__ = "dashboards"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    owner_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Dashboard configuration (layout, theme, refresh interval, etc.)
+    configuration = Column(JSON, default={})
+
+    # Visibility settings
+    is_public = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    owner = relationship("User", backref="dashboards")
+    widgets = relationship("DashboardWidget", back_populates="dashboard", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_dashboards_owner', 'owner_id'),
+        Index('ix_dashboards_public', 'is_public'),
+        Index('ix_dashboards_active', 'is_active'),
+    )
+
+
+class DashboardWidget(Base):
+    """
+    Individual widget within a dashboard.
+    Supports various types: charts, metrics, tables, etc.
+    """
+    __tablename__ = "dashboard_widgets"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    dashboard_id = Column(String, ForeignKey("dashboards.id"), nullable=False, index=True)
+
+    # Widget configuration
+    widget_type = Column(String(50), nullable=False)  # 'line_chart', 'bar_chart', 'metric', 'table', etc.
+    widget_name = Column(String(255), nullable=False)
+
+    # Data source configuration
+    data_source = Column(JSON, default={})  # Query type, filters, aggregation, etc.
+
+    # Display configuration
+    position = Column(JSON, default={})  # {x, y, width, height, etc.}
+    display_config = Column(JSON, default={})  # Colors, labels, axis settings, etc.
+
+    # Refresh settings
+    refresh_interval_seconds = Column(Integer, default=300)  # 5 minutes default
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    dashboard = relationship("Dashboard", back_populates="widgets")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_dashboard_widgets_dashboard', 'dashboard_id'),
+        Index('ix_dashboard_widgets_type', 'widget_type'),
+    )
