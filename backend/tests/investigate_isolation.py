@@ -1,13 +1,14 @@
 
-import unittest
-import shutil
 import os
+import shutil
 import sys
+import unittest
 
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.lancedb_handler import get_lancedb_handler
+
 
 class TestIsolation(unittest.TestCase):
     def setUp(self):

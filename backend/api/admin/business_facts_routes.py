@@ -5,22 +5,22 @@ REST API for managing business facts with JIT citations.
 Supports document upload, fact extraction, and CRUD operations.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from sqlalchemy.orm import Session
-from typing import List, Optional, Any, Dict
-from pydantic import BaseModel
-from datetime import datetime
-import uuid
+import logging
 import os
 import tempfile
-import logging
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from core.agent_world_model import BusinessFact, WorldModelService
+from core.auth import get_current_user
 from core.database import get_db
 from core.models import UserRole
-from core.auth import get_current_user
-from core.security.rbac import require_role
-from core.agent_world_model import WorldModelService, BusinessFact
 from core.policy_fact_extractor import get_policy_fact_extractor
+from core.security.rbac import require_role
 
 logger = logging.getLogger(__name__)
 

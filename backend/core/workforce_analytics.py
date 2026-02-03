@@ -1,10 +1,11 @@
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from service_delivery.models import Project, ProjectTask
 from sqlalchemy import func
+
 from core.database import get_db_session
-from core.models import User, Team
-from service_delivery.models import ProjectTask, Project
+from core.models import Team, User
 
 logger = logging.getLogger(__name__)
 

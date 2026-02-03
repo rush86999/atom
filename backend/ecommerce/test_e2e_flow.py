@@ -1,20 +1,21 @@
-import sys
-import os
 import asyncio
-import logging
-import uuid
 import json
-import httpx
+import logging
+import os
+import sys
+import uuid
 from datetime import datetime, timezone
+import httpx
 
 # Add the current directory to sys.path
 sys.path.append(os.getcwd())
 
+from accounting.models import Account, Entity, EntityType, EntryType, JournalEntry, Transaction
+from ecommerce.models import EcommerceCustomer, EcommerceOrder
+from sales.models import Lead
+
 from core.database import SessionLocal
 from core.models import Workspace
-from ecommerce.models import EcommerceOrder, EcommerceCustomer
-from accounting.models import Account, Transaction, JournalEntry, Entity, EntityType, EntryType
-from sales.models import Lead
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -72,11 +73,13 @@ async def verify_e2e_shopify_flow():
         # but here we'll simulate the call to the running backend.
         # Alternatively, we can call the router function directly.
         
-        from integrations.shopify_webhooks import shopify_order_created
         from fastapi import Request
+
+        from integrations.shopify_webhooks import shopify_order_created
+
         # Mocking Request is hard, let's just use httpx if backend is running 
         # OR call the logic directly if we want a unit-test style.
-        
+
         # For simplicity and reliability in this environment, let's trigger the logic 
         # by manually calling the parts that the webhook would call.
         
@@ -99,6 +102,7 @@ async def verify_e2e_shopify_flow():
                 print(f"Could not reach backend via HTTP: {e}. Falling back to manual stimulus.")
                 # Manual stimulus if backend isn't up
                 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
+
                 # Create the order and trigger workflow manually
                 # (This mimics what shopify_webhooks.py does)
                 pass

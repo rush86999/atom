@@ -6,14 +6,14 @@ This script monitors the main application startup and provides diagnostics
 when the application gets stuck during initialization.
 """
 
-import os
-import sys
-import time
 import logging
-import requests
+import os
 import subprocess
+import sys
 import threading
+import time
 from datetime import datetime, timedelta
+import requests
 
 # Configure logging
 logging.basicConfig(
@@ -147,9 +147,9 @@ class MainAppMonitor:
         """Check for common import issues"""
         try:
             # Test basic imports
-            import flask
             import sqlite3
             import bcrypt
+            import flask
             import jwt
 
             return {"healthy": True, "message": "All required imports available"}

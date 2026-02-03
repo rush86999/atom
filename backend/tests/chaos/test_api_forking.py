@@ -1,9 +1,9 @@
 
-import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
-from fastapi.testclient import TestClient
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
+from fastapi.testclient import TestClient
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))

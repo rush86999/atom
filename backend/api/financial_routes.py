@@ -2,16 +2,16 @@
 Financial Data API Routes
 Handles financial accounts and net worth tracking
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
-from typing import List, Optional
-from decimal import Decimal
 from datetime import date, datetime
+from decimal import Decimal
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, FinancialAccount, NetWorthSnapshot
 from core.auth import get_current_user
+from core.database import get_db
+from core.models import FinancialAccount, NetWorthSnapshot, User
 
 router = APIRouter(prefix="/api/financial", tags=["Financial"])
 

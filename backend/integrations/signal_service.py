@@ -5,9 +5,9 @@ Handles interaction with signal-cli-rest-api
 
 import logging
 import os
-import httpx
-from typing import Any, Dict, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
+import httpx
 
 logger = logging.getLogger(__name__)
 

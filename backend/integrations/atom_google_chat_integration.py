@@ -3,23 +3,28 @@ ATOM Google Chat Integration Module
 Integrates Google Chat seamlessly into ATOM's unified communication ecosystem
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union
-from dataclasses import dataclass, asdict
+import os
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 # Import existing ATOM services
 try:
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from google_chat_enhanced_service import google_chat_enhanced_service, GoogleChatSpace, GoogleChatMessage, GoogleChatFile
     from google_chat_analytics_engine import google_chat_analytics_engine
+    from google_chat_enhanced_service import (
+        GoogleChatFile,
+        GoogleChatMessage,
+        GoogleChatSpace,
+        google_chat_enhanced_service,
+    )
 except ImportError as e:
     logging.warning(f"Google Chat integration services not available: {e}")
     google_chat_enhanced_service = None

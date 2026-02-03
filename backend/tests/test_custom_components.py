@@ -9,23 +9,13 @@ Comprehensive test suite for custom HTML/CSS/JS components including:
 - Usage tracking
 """
 
-import pytest
 import uuid
 from datetime import datetime
+import pytest
 from sqlalchemy.orm import Session
 
-from core.models import (
-    CustomComponent,
-    ComponentVersion,
-    ComponentUsage,
-    User,
-    AgentRegistry
-)
-from core.custom_components_service import (
-    CustomComponentsService,
-    ComponentSecurityError
-)
-
+from core.custom_components_service import ComponentSecurityError, CustomComponentsService
+from core.models import AgentRegistry, ComponentUsage, ComponentVersion, CustomComponent, User
 
 # ============================================================================
 # Fixtures

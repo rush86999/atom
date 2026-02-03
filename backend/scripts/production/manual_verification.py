@@ -3,8 +3,8 @@ Simple Manual Verification Script for Real-time Collaboration
 Bypasses automated testing to directly verify each endpoint
 """
 
-import requests
 import json
+import requests
 
 BASE_URL = "http://localhost:5062"
 

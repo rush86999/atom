@@ -1,20 +1,20 @@
-import sys
+import asyncio
 import os
-import unittest
+import sys
 import threading
 import time
-import asyncio
+import unittest
 from pathlib import Path
 
 # Add project root
 sys.path.append(os.getcwd())
 
-from sales.automations.prospect_researcher import ProspectResearcherWorkflow
-from sales.automations.crm_operator import CRMManualOperator
-from tests.mock_bank.server import run_server
-
 # Configure logging
 import logging
+from sales.automations.crm_operator import CRMManualOperator
+from sales.automations.prospect_researcher import ProspectResearcherWorkflow
+from tests.mock_bank.server import run_server
+
 logging.basicConfig(level=logging.INFO)
 
 class TestPhase20SalesAgents(unittest.IsolatedAsyncioTestCase):
@@ -57,6 +57,7 @@ class TestPhase20SalesAgents(unittest.IsolatedAsyncioTestCase):
 # Helper to run server
 import http.server
 import socketserver
+
 
 def run_sales_mock_server():
     # Serve mock_sales dir

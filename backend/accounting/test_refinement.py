@@ -1,15 +1,23 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from core.database import Base
-import core.models
-from accounting.models import Account, Transaction, JournalEntry, EntryType, CategorizationProposal, Budget
 from accounting.categorizer import AICategorizer
 from accounting.export_service import AccountExporter
-from core.cross_system_reasoning import CrossSystemReasoningEngine
+from accounting.models import (
+    Account,
+    Budget,
+    CategorizationProposal,
+    EntryType,
+    JournalEntry,
+    Transaction,
+)
 from accounting.seeds import seed_default_accounts
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+import core.models
+from core.cross_system_reasoning import CrossSystemReasoningEngine
+from core.database import Base
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +34,7 @@ async def test_learning_and_reasoning():
     workspace_id = "reasoning-test-ws"
     
     try:
-        from core.models import Workspace, User
+        from core.models import User, Workspace
         if not db.query(Workspace).filter(Workspace.id == workspace_id).first():
             ws = Workspace(id=workspace_id, name="Reasoning Test")
             db.add(ws)
@@ -40,7 +48,12 @@ async def test_learning_and_reasoning():
             db.commit()
 
         # Clean old data if any (cascading cleanup)
-        from accounting.models import JournalEntry, Transaction, CategorizationRule, CategorizationProposal
+        from accounting.models import (
+            CategorizationProposal,
+            CategorizationRule,
+            JournalEntry,
+            Transaction,
+        )
         db.query(JournalEntry).filter(JournalEntry.account_id.in_(
             db.query(Account.id).filter(Account.workspace_id == workspace_id)
         )).delete(synchronize_session=False)

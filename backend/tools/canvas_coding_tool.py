@@ -1,6 +1,6 @@
 """Coding Canvas Tool"""
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +17,8 @@ async def present_coding_canvas(
 
     Creates a code development workspace.
     """
-    from core.database import get_db_session
     from core.canvas_coding_service import CodingCanvasService
+    from core.database import get_db_session
     from tools.canvas_tool import present_specialized_canvas
 
     try:

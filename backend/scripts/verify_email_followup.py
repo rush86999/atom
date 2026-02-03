@@ -1,6 +1,7 @@
-import requests
 import json
 from datetime import datetime, timedelta
+import requests
+
 
 def verify_email_followup():
     base_url = "http://localhost:8000/api/v1/analytics"

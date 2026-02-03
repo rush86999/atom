@@ -6,13 +6,18 @@ Generates training scenarios, reviews INTERN proposals, and conducts training se
 """
 
 import logging
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.models import (
-    AgentRegistry, AgentProposal, TrainingSession, BlockedTriggerContext,
-    ProposalStatus, ProposalType, AgentStatus
+    AgentProposal,
+    AgentRegistry,
+    AgentStatus,
+    BlockedTriggerContext,
+    ProposalStatus,
+    ProposalType,
+    TrainingSession,
 )
 
 logger = logging.getLogger(__name__)

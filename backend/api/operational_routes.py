@@ -1,12 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
-from sqlalchemy.orm import Session
-from typing import Dict, Any, List
 import logging
+from typing import Any, Dict, List
+from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy.orm import Session
 
-from core.database import get_db
+from core.active_intervention_service import active_intervention_service
 from core.business_health_service import business_health_service
 from core.cross_system_reasoning import CrossSystemReasoningEngine
-from core.active_intervention_service import active_intervention_service
+from core.database import get_db
 
 router = APIRouter(prefix="/api/business-health", tags=["operational-intelligence"])
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ async def get_price_drift(db: Session = Depends(get_db)):
     Detects vendor and ad-spend price drift.
     """
     try:
-        from core.financial_forensics import VendorIntelligence, MOCK_MODE
+        from core.financial_forensics import MOCK_MODE, VendorIntelligence
         service = VendorIntelligence(db)
         data = await service.detect_price_drift("default")
         return {"data": data, "is_mock": MOCK_MODE}
@@ -58,7 +58,7 @@ async def get_pricing_advice(db: Session = Depends(get_db)):
     Provides margin protection and underpricing recommendations.
     """
     try:
-        from core.financial_forensics import PricingAdvisor, MOCK_MODE
+        from core.financial_forensics import MOCK_MODE, PricingAdvisor
         service = PricingAdvisor(db)
         data = await service.get_pricing_recommendations("default")
         return {"data": data, "is_mock": MOCK_MODE}
@@ -72,7 +72,7 @@ async def get_subscription_waste(db: Session = Depends(get_db)):
     Identifies SaaS waste and zombie subscriptions.
     """
     try:
-        from core.financial_forensics import SubscriptionWasteService, MOCK_MODE
+        from core.financial_forensics import MOCK_MODE, SubscriptionWasteService
         service = SubscriptionWasteService(db)
         data = await service.find_zombie_subscriptions("default")
         return {"data": data, "is_mock": MOCK_MODE}

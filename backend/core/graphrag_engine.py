@@ -4,20 +4,20 @@ Stateless Graph Traversal using Recursive CTEs.
 Replaces previous in-memory implementation.
 """
 
+import json
 import logging
 import os
-import json
-import uuid
 import re
-from typing import Dict, Any, List, Optional, Set
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Set
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 # Import Database
-from core.database import get_db_session, engine
-from core.models import GraphNode, GraphEdge, GraphCommunity, CommunityMembership
+from core.database import engine, get_db_session
+from core.models import CommunityMembership, GraphCommunity, GraphEdge, GraphNode
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ class GraphRAGEngine:
             
         try:
             from openai import OpenAI
+
             from core.byok_endpoints import get_byok_manager
             
             byok = get_byok_manager()

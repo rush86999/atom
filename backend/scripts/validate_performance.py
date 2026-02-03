@@ -7,20 +7,20 @@ Tests governance cache, database queries, and API response times.
 """
 
 import asyncio
+import os
+import statistics
 import sys
 import time
-import statistics
 from datetime import datetime
 from typing import Dict, List, Tuple
-import os
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from core.governance_cache import governance_cache
     from core.agent_governance_service import AgentGovernanceService
     from core.database import SessionLocal, get_db_session
+    from core.governance_cache import governance_cache
     from core.models import AgentRegistry
 except ImportError as e:
     print(f"❌ Import error: {e}")

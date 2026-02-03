@@ -1,9 +1,9 @@
-import logging
-import json
 import asyncio
+import json
+import logging
 import os
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 # Import ChatOrchestrator (Lazy load to avoid circular imports)
@@ -32,9 +32,9 @@ class UniversalWebhookBridge:
     async def _get_agent_id_by_name(self, name: str) -> Optional[str]:
         """Look up agent ID by name (Registry or Template)"""
         try:
-            from core.models import AgentRegistry
-            from core.database import get_db_session
             from core.atom_meta_agent import SpecialtyAgentTemplate
+            from core.database import get_db_session
+            from core.models import AgentRegistry
             
             with get_db_session() as db:
             # Try exact match first
@@ -118,8 +118,8 @@ class UniversalWebhookBridge:
             # --- [NEW] Automatically send response back to platform ---
             if response and response.get("message"):
                 try:
-                    from core.agent_integration_gateway import agent_integration_gateway, ActionType
-                    
+                    from core.agent_integration_gateway import ActionType, agent_integration_gateway
+
                     # Determine recipient and thread
                     # For Slack, recipient is the user or channel, and we might want to thread
                     recipient_id = unified_msg.sender_id if platform == "whatsapp" else unified_msg.recipient_id
@@ -367,7 +367,7 @@ class UniversalWebhookBridge:
 
             try:
                 from api.agent_routes import execute_agent_task
-                
+
                 # Run in background
                 params = {
                     "task_input": task_input,
@@ -381,7 +381,7 @@ class UniversalWebhookBridge:
                 asyncio.create_task(execute_agent_task(agent_id, params))
                 
                 # Acknowledge back to platform
-                from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                from core.agent_integration_gateway import ActionType, agent_integration_gateway
                 await agent_integration_gateway.execute_action(
                     ActionType.SEND_MESSAGE,
                     msg.platform,
@@ -421,7 +421,7 @@ class UniversalWebhookBridge:
                 # Otherwise trigger by event
                 asyncio.create_task(orchestrator.trigger_event(f"manual_trigger:{workflow_id}", event_data))
                 
-                from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                from core.agent_integration_gateway import ActionType, agent_integration_gateway
                 await agent_integration_gateway.execute_action(
                     ActionType.SEND_MESSAGE,
                     msg.platform,
@@ -444,9 +444,9 @@ class UniversalWebhookBridge:
 
         elif command == "agents":
             try:
-                from core.models import AgentRegistry
-                from core.database import get_db_session
                 from core.atom_meta_agent import SpecialtyAgentTemplate
+                from core.database import get_db_session
+                from core.models import AgentRegistry
                 
                 with get_db_session() as db:
                 db_agents = db.query(AgentRegistry).all()
@@ -461,7 +461,7 @@ class UniversalWebhookBridge:
                 full_list = agent_list + template_list
                 content = "🕵️ *Available Agents*:\n" + "\n".join(full_list) if full_list else "No agents found."
                 
-                from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                from core.agent_integration_gateway import ActionType, agent_integration_gateway
                 await agent_integration_gateway.execute_action(
                     ActionType.SEND_MESSAGE,
                     msg.platform,
@@ -486,7 +486,7 @@ class UniversalWebhookBridge:
                 "• `/status`: Check system and session health.\n"
                 "• `/help`: Show this message."
             )
-            from core.agent_integration_gateway import agent_integration_gateway, ActionType
+            from core.agent_integration_gateway import ActionType, agent_integration_gateway
             await agent_integration_gateway.execute_action(
                 ActionType.SEND_MESSAGE,
                 msg.platform,
@@ -505,7 +505,7 @@ class UniversalWebhookBridge:
                 # For MVP, we provide a generic status
                 user_id = f"{msg.platform}_{msg.sender_id}"
                 
-                from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                from core.agent_integration_gateway import ActionType, agent_integration_gateway
                 await agent_integration_gateway.execute_action(
                     ActionType.SEND_MESSAGE,
                     msg.platform,

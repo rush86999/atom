@@ -3,10 +3,10 @@ Mock Search Endpoints - LanceDB Alternative
 Provides search functionality without Python 3.13 compatibility issues
 """
 
+import logging
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
-import logging
 
 from .mock_hybrid_search import get_mock_search
 

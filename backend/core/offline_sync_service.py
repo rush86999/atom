@@ -7,10 +7,10 @@ for mobile devices. Handles background sync operations and retry logic.
 
 import logging
 import uuid
-from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
 
 from core.models import MobileDevice, OfflineAction, SyncState
 from core.websockets import manager as ws_manager

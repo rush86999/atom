@@ -1,10 +1,11 @@
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from core.schedule_optimizer import schedule_optimizer
+from typing import Any, Dict, List, Optional
+from sqlalchemy.orm import Session
+
 from core.burnout_detection_engine import burnout_engine
 from core.database import get_db
-from sqlalchemy.orm import Session
+from core.schedule_optimizer import schedule_optimizer
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class MutualAvailabilityNegotiator:
         # In a real scenario, we'd loop through all connected integrations for this user
         # and fetch events. For now, we interact with the unified calendar logic.
         from core.unified_calendar_endpoints import MOCK_EVENTS
-        
+
         # Filter for the specific user and time range
         # (Assuming MOCK_EVENTS might eventually have user_id, otherwise we use all for demo)
         events = []

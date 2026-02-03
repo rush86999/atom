@@ -1,10 +1,12 @@
 
-import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
-from core.models import AgentRegistry, AgentStatus
-from core.generic_agent import GenericAgent
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
+
+from core.generic_agent import GenericAgent
+from core.models import AgentRegistry, AgentStatus
+
 
 @pytest.fixture
 def mock_agent_registry():

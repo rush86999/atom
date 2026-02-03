@@ -1,6 +1,8 @@
 
-from core.database import engine
 from sqlalchemy import text
+
+from core.database import engine
+
 
 def reset_analytics_table():
     print("Dropping analytics_workflow_logs table...")

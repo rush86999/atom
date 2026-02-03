@@ -4,37 +4,38 @@ FastAPI routes for Salesforce CRM integration and enterprise workflow automation
 """
 
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import os
-
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 # Import Salesforce services
 # Import Salesforce services
 try:
     from simple_salesforce import Salesforce
+
     from .salesforce_service import (
         create_account,
         create_contact,
         create_lead,
         create_opportunity,
+        execute_soql_query,
         get_opportunity,
         list_accounts,
         list_contacts,
-        list_opportunities,
         list_leads,
+        list_opportunities,
         update_opportunity,
-        execute_soql_query
     )
     SALESFORCE_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Salesforce integration not available: {e}")
     SALESFORCE_AVAILABLE = False
 
-from .auth_handler_salesforce import salesforce_auth_handler
 from core.mock_mode import get_mock_mode_manager
-from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
+from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
+
+from .auth_handler_salesforce import salesforce_auth_handler
 
 # Create router
 # Auth Type: OAuth2

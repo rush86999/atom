@@ -1,13 +1,17 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Enum as SQLEnum, JSON, Text
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-import uuid
 import enum
-from core.database import Base
-import accounting.models # Ensure Entity is registered for relationships
+import uuid
+import accounting.models  # Ensure Entity is registered for relationships
 
 # Import Deal for relationship resolution
 from sales.models import Deal
+from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from core.database import Base
+
 
 class ContractType(str, enum.Enum):
     FIXED_FEE = "fixed_fee"

@@ -1,6 +1,6 @@
 """Spreadsheet Canvas Tool"""
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ async def present_sheets_canvas(
 
     Creates a grid-based spreadsheet with cells, formulas, and charts.
     """
-    from core.database import get_db_session
     from core.canvas_sheets_service import SpreadsheetCanvasService
+    from core.database import get_db_session
     from tools.canvas_tool import present_specialized_canvas
 
     try:

@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
+from core.document_learner import DocumentLifecycleLearner
 from integrations.microsoft365_service import microsoft365_service
 from integrations.onedrive_service import onedrive_service
-from core.document_learner import DocumentLifecycleLearner
 
 logger = logging.getLogger(__name__)
 

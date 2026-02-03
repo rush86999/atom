@@ -3,13 +3,14 @@
 Honest Truth Verification - What Actually Works
 """
 
-import os
-import requests
 import json
-import time
+import os
 import secrets
+import time
 import urllib.parse
 from datetime import datetime
+import requests
+
 
 def start_working_oauth_server():
     """Start a working OAuth server with actual credentials"""

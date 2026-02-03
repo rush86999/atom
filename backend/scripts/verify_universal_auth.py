@@ -10,7 +10,8 @@ sys.path.append(os.path.join(os.getcwd(), 'backend'))
 os.environ["APP_DOMAIN"] = "localhost:3000"
 os.environ["URL_SCHEME"] = "http"
 
-from backend.integrations.universal.auth_handler import universal_auth, OAuthState
+from backend.integrations.universal.auth_handler import OAuthState, universal_auth
+
 
 async def test_universal_auth():
     print("Testing Universal Auth Handler...")

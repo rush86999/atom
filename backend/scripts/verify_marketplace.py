@@ -1,7 +1,7 @@
-import sys
-import os
-import requests
 import json
+import os
+import sys
+import requests
 
 # Add backend directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))

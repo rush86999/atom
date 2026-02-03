@@ -3,8 +3,8 @@ Resource Guards - Timeouts and limits for integrations
 """
 import asyncio
 import logging
-from typing import Callable, Any, Optional
 from functools import wraps
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -108,8 +108,8 @@ class MemoryGuard:
     def get_memory_usage_mb() -> float:
         """Get current process memory usage in MB"""
         try:
-            import psutil
             import os
+            import psutil
             process = psutil.Process(os.getpid())
             return process.memory_info().rss / 1024 / 1024
         except ImportError:

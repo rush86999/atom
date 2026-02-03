@@ -3,17 +3,17 @@ Tests for Microsoft Teams API Real-Time Message Ingestion
 Tests the Microsoft Graph API integration for polling and message fetching.
 """
 
+import asyncio
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 import pytest_asyncio
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timezone, timedelta
 
 from integrations.atom_communication_ingestion_pipeline import (
-    CommunicationIngestionPipeline,
     CommunicationAppType,
+    CommunicationIngestionPipeline,
     IngestionConfig,
-    LanceDBMemoryManager
+    LanceDBMemoryManager,
 )
 
 

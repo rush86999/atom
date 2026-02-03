@@ -1,10 +1,11 @@
-import logging
 import asyncio
+import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 from sales.models import Deal, NegotiationState
-from core.database import get_db_session
+
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

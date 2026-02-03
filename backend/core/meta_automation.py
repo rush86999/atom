@@ -1,7 +1,7 @@
 
 import logging
-from typing import Dict, Any, Optional, Type
 import re
+from typing import Any, Dict, Optional, Type
 
 # In a real app, we might import specific agent classes here or lazily load them
 # form operations.automations... 
@@ -72,6 +72,7 @@ class MetaAutomationEngine:
             # Lazy import to avoid circular deps
             try:
                 from operations.automations.marketplace_admin import MarketplaceAdminWorkflow
+
                 # Mock URL for now, or fetch from config
                 agent = MarketplaceAdminWorkflow(base_url="http://localhost:8089") 
                 # Assuming simple price update goal for MVP tests

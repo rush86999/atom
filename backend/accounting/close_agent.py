@@ -1,9 +1,19 @@
 import logging
-from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import func
 from datetime import datetime
-from accounting.models import Transaction, TransactionStatus, JournalEntry, CategorizationProposal, Bill, Invoice, BillStatus, InvoiceStatus, FinancialClose
+from typing import Any, Dict, List, Optional
+from accounting.models import (
+    Bill,
+    BillStatus,
+    CategorizationProposal,
+    FinancialClose,
+    Invoice,
+    InvoiceStatus,
+    JournalEntry,
+    Transaction,
+    TransactionStatus,
+)
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

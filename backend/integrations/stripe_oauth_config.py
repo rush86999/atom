@@ -3,13 +3,13 @@ Stripe OAuth Configuration Helper
 Configuration and utilities for Stripe OAuth 2.0 authentication flow
 """
 
-import os
 import json
-import requests
-from typing import Dict, Optional, Any
-from datetime import datetime, timedelta
 import logging
+import os
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 from urllib.parse import urlencode, urljoin
+import requests
 
 logger = logging.getLogger(__name__)
 

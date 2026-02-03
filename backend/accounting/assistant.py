@@ -1,11 +1,18 @@
-import logging
 import json
+import logging
 from datetime import datetime
-from typing import Dict, Any, List, Optional
-from sqlalchemy.orm import Session
-from accounting.models import Account, AccountType, EntryType
+from typing import Any, Dict, List, Optional
 from accounting.ledger import EventSourcedLedger
-from integrations.ai_enhanced_service import ai_enhanced_service, AIRequest, AITaskType, AIModelType, AIServiceType
+from accounting.models import Account, AccountType, EntryType
+from sqlalchemy.orm import Session
+
+from integrations.ai_enhanced_service import (
+    AIModelType,
+    AIRequest,
+    AIServiceType,
+    AITaskType,
+    ai_enhanced_service,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@ OAuth Flow Test Suite
 Tests OAuth User Context and related functionality
 """
 
-import sys
 import os
+import sys
 from datetime import datetime, timedelta
 
 # Add backend to path
@@ -182,7 +182,7 @@ def test_google_services():
 
     # Test Google Calendar Service
     print("\n1. Testing Google Calendar Service...")
-    from integrations.google_calendar_service import GoogleCalendarService, GOOGLE_APIS_AVAILABLE
+    from integrations.google_calendar_service import GOOGLE_APIS_AVAILABLE, GoogleCalendarService
 
     service = GoogleCalendarService()
     assert hasattr(service, 'authenticate')
@@ -192,7 +192,8 @@ def test_google_services():
 
     # Test Gmail Service
     print("\n2. Testing Gmail Service...")
-    from integrations.gmail_service import GmailService, GOOGLE_APIS_AVAILABLE as GMAIL_API_AVAILABLE
+    from integrations.gmail_service import GOOGLE_APIS_AVAILABLE as GMAIL_API_AVAILABLE
+    from integrations.gmail_service import GmailService
 
     gmail_service = GmailService()
     assert hasattr(gmail_service, '_authenticate')

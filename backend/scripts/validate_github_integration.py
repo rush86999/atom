@@ -4,12 +4,12 @@ GitHub Integration Validation Script
 Validates GitHub OAuth setup and tests connectivity
 """
 
+import asyncio
+import json
 import os
 import sys
-import asyncio
-import httpx
-import json
 from urllib.parse import urlencode
+import httpx
 from dotenv import load_dotenv
 
 # Load environment variables

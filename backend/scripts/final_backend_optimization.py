@@ -4,11 +4,12 @@ FINAL BACKEND OPTIMIZATION - FIX REMAINING ISSUES
 Fix the Search API 500 error and optimize to 95%+ production readiness
 """
 
-import subprocess
 import os
+import subprocess
 import time
-import requests
 from datetime import datetime
+import requests
+
 
 def fix_search_api_issue():
     """Fix the Search API 500 error"""

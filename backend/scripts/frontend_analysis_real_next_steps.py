@@ -4,9 +4,10 @@ FRONTEND ANALYSIS & REAL NEXT STEPS
 Check actual Next.js apps and determine real next steps
 """
 
-import os
 import json
+import os
 from datetime import datetime
+
 
 def analyze_frontend_and_real_next_steps():
     """Analyze actual frontend structure and create real next steps"""

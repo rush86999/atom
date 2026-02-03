@@ -3,7 +3,6 @@ import ssl
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
-
 import ldap3
 from fastapi import APIRouter, Depends, HTTPException
 from ldap3 import ALL, ALL_ATTRIBUTES, ALL_OPERATIONAL_ATTRIBUTES, Connection, Server

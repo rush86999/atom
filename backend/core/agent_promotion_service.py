@@ -17,13 +17,13 @@ Usage:
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
 
-from core.models import AgentRegistry, AgentFeedback, AgentExecution
 from core.feedback_analytics import FeedbackAnalytics
+from core.models import AgentExecution, AgentFeedback, AgentRegistry
 
 logger = logging.getLogger(__name__)
 

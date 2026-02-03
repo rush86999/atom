@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import AsyncMock, patch
-from enhanced_ai_workflow_endpoints import RealAIWorkflowService
 import json
+from unittest.mock import AsyncMock, patch
+import pytest
+from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+
 
 @pytest.mark.asyncio
 async def test_routing_logic_sales(mock_env_vars):

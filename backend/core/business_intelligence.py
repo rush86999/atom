@@ -1,10 +1,11 @@
 import logging
-from typing import Dict, Any, List, Optional
-from core.database import get_db_session
+from typing import Any, Dict, List, Optional
 from ecommerce.models import EcommerceOrder
 from sales.models import Deal
-from core.models import BusinessRule
+
 from core.auto_invoicer import AutoInvoicer
+from core.database import get_db_session
+from core.models import BusinessRule
 
 logger = logging.getLogger(__name__)
 

@@ -4,12 +4,13 @@ Integration Registry - Auto-discover all ATOM integrations
 Scans backend/integrations/ directory and catalogs all services
 """
 
+import importlib.util
+import json
 import os
 import re
-import json
 from pathlib import Path
-from typing import Dict, List, Any
-import importlib.util
+from typing import Any, Dict, List
+
 
 class IntegrationRegistry:
     """Discovers and catalogs all ATOM integrations"""

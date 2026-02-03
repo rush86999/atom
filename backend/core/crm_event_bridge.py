@@ -1,8 +1,9 @@
-import logging
 import asyncio
+import logging
 from typing import List
-from core.database import get_db_session
 from sales.models import Deal, DealStage
+
+from core.database import get_db_session
 from core.pm_orchestrator import pm_orchestrator
 
 logger = logging.getLogger(__name__)

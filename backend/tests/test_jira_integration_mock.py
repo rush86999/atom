@@ -32,7 +32,7 @@ def test_jira_auth_handler():
         sys.path.append("backend/python-api-service")
 
         # Import Jira auth handler
-        from auth_handler_jira import JIRA_SERVER_URL, JIRA_API_TOKEN
+        from auth_handler_jira import JIRA_API_TOKEN, JIRA_SERVER_URL
 
         print(f"✅ Jira auth handler imported successfully")
         print(f"   Server URL: {JIRA_SERVER_URL}")
@@ -92,7 +92,7 @@ def test_jira_database_integration():
         sys.path.append("backend/python-api-service")
 
         # Import database integration
-        from db_oauth_jira import TABLE_NAME, save_tokens, get_tokens
+        from db_oauth_jira import TABLE_NAME, get_tokens, save_tokens
 
         print("✅ Jira database integration imported successfully")
         print(f"   Table name: {TABLE_NAME}")

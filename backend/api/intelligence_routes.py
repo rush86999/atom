@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
-from ai.data_intelligence import DataIntelligenceEngine, PlatformType
-from typing import List, Optional, Dict, Any
 import logging
+from typing import Any, Dict, List, Optional
+from ai.data_intelligence import DataIntelligenceEngine, PlatformType
+from fastapi import APIRouter, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 

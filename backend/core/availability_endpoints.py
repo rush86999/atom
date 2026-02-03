@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Body, Depends
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
 from datetime import datetime
-from core.availability_negotiator import availability_negotiator
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Body, Depends, HTTPException
+from pydantic import BaseModel
+
 from core.auth import get_current_user
+from core.availability_negotiator import availability_negotiator
 from core.models import User
 
 router = APIRouter(prefix="/api/v1/availability", tags=["availability"])

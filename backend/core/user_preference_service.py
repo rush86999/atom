@@ -1,10 +1,12 @@
 
-from sqlalchemy import Column, String, Text, DateTime, UniqueConstraint
+import json
+import uuid
+from sqlalchemy import Column, DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
+
 from core.database import Base
-import uuid
-import json
+
 
 class UserPreference(Base):
     __tablename__ = "user_preferences"

@@ -9,15 +9,16 @@ Tests for:
 - Performance metrics
 """
 
-import pytest
 import time
 from datetime import datetime, timedelta
+import pytest
+
 from core.uptime_tracker import (
-    UptimeTracker,
-    UptimeMetrics,
     DowntimeEvent,
-    get_uptime_tracker,
+    UptimeMetrics,
+    UptimeTracker,
     check_uptime,
+    get_uptime_tracker,
 )
 
 

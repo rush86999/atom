@@ -1,11 +1,10 @@
-import logging
 import datetime
-from sqlalchemy.orm import Session
-from typing import Optional, List
+import logging
 from datetime import timezone
-
+from typing import List, Optional
+from accounting.models import Entity, EntityType, Invoice, InvoiceStatus
 from service_delivery.models import Milestone, MilestoneStatus
-from accounting.models import Invoice, InvoiceStatus, Entity, EntityType
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

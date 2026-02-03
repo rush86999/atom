@@ -5,9 +5,9 @@ Comprehensive verification of UI components for all 43 features
 across web app and desktop app, including settings and dead code detection.
 """
 
+import json
 import os
 import sys
-import json
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 

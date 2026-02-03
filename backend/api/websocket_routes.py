@@ -1,6 +1,7 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from core.notification_manager import notification_manager
 import logging
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+from core.notification_manager import notification_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

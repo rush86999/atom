@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Dict, Any
-from integrations.mcp_service import mcp_service
-from sqlalchemy.orm import Session
 import logging
+from typing import Any, Dict, List
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from core.database import get_db
+from integrations.mcp_service import mcp_service
 
 router = APIRouter(prefix="/api/sales", tags=["sales"])
 logger = logging.getLogger(__name__)

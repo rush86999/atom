@@ -1,21 +1,23 @@
-import unittest
 import asyncio
-from unittest.mock import MagicMock, patch
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-import uuid
 import json
+import unittest
+import uuid
+from unittest.mock import MagicMock, patch
+import accounting.models  # Required for Invoice/Entity relationships
+import sales.models  # Required for Deal relationship
+import service_delivery.models
+from service_delivery.models import ProjectTask
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
 
 # Import models
 from core.database import Base
-import core.models
-import service_delivery.models
-import sales.models # Required for Deal relationship
-import accounting.models # Required for Invoice/Entity relationships
-from core.models import User, Team, Workspace
-from service_delivery.models import ProjectTask
+from core.models import Team, User, Workspace
 from core.resource_manager import ResourceMonitor
 from core.staffing_advisor import StaffingAdvisor
+
 
 class TestResourceIntelligence(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

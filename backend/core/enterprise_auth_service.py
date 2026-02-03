@@ -3,18 +3,18 @@ Enterprise Authentication Service
 Production-ready authentication with bcrypt, JWT, SAML SSO, and RBAC.
 """
 
-import os
+import hashlib
 import logging
+import os
 import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+from typing import Any, Dict, List, Optional
 import bcrypt
 import jwt
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
-from enum import Enum
-import hashlib
-from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 from sqlalchemy.orm import Session
 
 # Import UserRole from models to avoid duplication
@@ -103,8 +103,8 @@ class EnterpriseAuthService:
 
     def _generate_rsa_keys(self) -> str:
         """Generate RSA key pair for JWT signing"""
-        from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
 
         # Generate private key
         private_key = rsa.generate_private_key(
@@ -469,10 +469,10 @@ class EnterpriseAuthService:
             SAML_ASSERTION_CONSUMER_SERVICE: ACS URL
         """
         try:
-            from base64 import b64decode
-            from xml.etree import ElementTree as ET
-            from urllib.parse import unquote
             import re
+            from base64 import b64decode
+            from urllib.parse import unquote
+            from xml.etree import ElementTree as ET
 
             # Decode SAML response
             try:
@@ -580,12 +580,12 @@ class EnterpriseAuthService:
             True if signature is valid, False otherwise
         """
         try:
-            from cryptography.hazmat.primitives import serialization
-            from cryptography.hazmat.primitives.asymmetric import padding
-            from cryptography.x509 import load_pem_x509_certificate
             import base64
             import re
             from xml.etree import ElementTree as ET
+            from cryptography.hazmat.primitives import serialization
+            from cryptography.hazmat.primitives.asymmetric import padding
+            from cryptography.x509 import load_pem_x509_certificate
 
             # Parse XML and find Signature element
             root = ET.fromstring(xml_string)

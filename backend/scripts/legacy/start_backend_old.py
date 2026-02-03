@@ -5,11 +5,12 @@ Simplified, reliable startup with proper error handling
 """
 
 import os
-import sys
-import time
 import signal
 import subprocess
+import sys
+import time
 from pathlib import Path
+
 
 def check_python_version():
     """Check if Python version is compatible"""
@@ -93,7 +94,7 @@ def start_backend():
     try:
         import uvicorn
         from main_api_app import app
-        
+
         # Configuration
         host = os.getenv('HOST', '0.0.0.0')
         port = int(os.getenv('PORT', '5058'))

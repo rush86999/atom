@@ -5,19 +5,19 @@ Manages chat session metadata (Hybrid: DB + JSON fallback)
 """
 
 import json
+import logging
 import os
 import uuid
-import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pathlib import Path
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
 
 # Conditional Import to avoid circular dependencies if simple script
 try:
     from core.database import get_db_session
-    from core.models import ChatSession, ChatMessage
+    from core.models import ChatMessage, ChatSession
     DB_AVAILABLE = True
 except ImportError:
     SessionLocal = None

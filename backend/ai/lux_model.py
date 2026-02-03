@@ -3,20 +3,21 @@ LUX Model Integration for Computer Use
 Advanced AI model for desktop automation and computer control
 """
 
-import os
-import json
 import asyncio
-import logging
 import base64
+import io
+import json
+import logging
+import os
+import platform
 import subprocess
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 import anthropic
 from PIL import Image, ImageGrab
-import io
-import platform
+
 try:
     import pyautogui
     PYAUTOGUI_AVAILABLE = True
@@ -25,9 +26,10 @@ except (ImportError, KeyError):
     PYAUTOGUI_AVAILABLE = False
     pyautogui = None
 
+from pathlib import Path
 import cv2
 import numpy as np
-from pathlib import Path
+
 from core.lux_config import lux_config
 
 logger = logging.getLogger(__name__)

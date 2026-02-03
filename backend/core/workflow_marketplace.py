@@ -1,20 +1,21 @@
 import json
 import os
 import uuid
-from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, UploadFile, File, Query
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel, Field
 
 # Import advanced workflow system
 from .advanced_workflow_system import (
     AdvancedWorkflowDefinition,
-    WorkflowStep,
     InputParameter,
-    ParameterType
+    ParameterType,
+    WorkflowStep,
 )
 from .industry_workflow_templates import Industry, IndustryWorkflowTemplate
+
 
 class TemplateType(str, Enum):
     LEGACY = "legacy"  # Original node-based templates

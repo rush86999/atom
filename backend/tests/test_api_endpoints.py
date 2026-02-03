@@ -4,14 +4,14 @@ Test script to verify Atom API endpoints are working correctly.
 This script tests the core functionality of the Atom personal assistant backend.
 """
 
+import asyncio
+import base64
+import json
 import os
 import sys
-import json
-import requests
-import asyncio
-import aiohttp
 from datetime import datetime, timedelta
-import base64
+import aiohttp
+import requests
 
 # Configuration
 BASE_URL = "http://localhost:5058"

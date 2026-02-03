@@ -5,16 +5,18 @@ Real-time supervision for SUPERVISED agents (0.7-0.9 confidence).
 Provides monitoring, intervention, and outcome tracking.
 """
 
-import logging
 import asyncio
-from typing import Optional, Dict, Any, List, AsyncGenerator
-from datetime import datetime
-from datetime import timedelta
+import logging
+from datetime import datetime, timedelta
+from typing import Any, AsyncGenerator, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.models import (
-    AgentRegistry, SupervisionSession, BlockedTriggerContext,
-    SupervisionStatus, AgentStatus
+    AgentRegistry,
+    AgentStatus,
+    BlockedTriggerContext,
+    SupervisionSession,
+    SupervisionStatus,
 )
 
 logger = logging.getLogger(__name__)

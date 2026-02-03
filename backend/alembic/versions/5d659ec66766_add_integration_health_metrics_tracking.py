@@ -6,10 +6,8 @@ Create Date: 2026-02-02 19:22:21.923310
 
 """
 from typing import Sequence, Union
-
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '5d659ec66766'

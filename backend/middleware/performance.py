@@ -3,16 +3,17 @@ Performance Optimization Middleware
 Provides caching, compression, and connection pooling
 """
 
-import time
+import asyncio
 import hashlib
 import json
-from typing import Dict, Any, Optional
+import time
 from datetime import datetime, timedelta
+from functools import wraps
+from typing import Any, Dict, Optional
+import aioredis
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-import aioredis
-import asyncio
-from functools import wraps
+
 
 # Simple in-memory cache for MVP (replace with Redis in production)
 class SimpleCache:

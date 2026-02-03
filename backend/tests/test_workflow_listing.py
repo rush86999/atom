@@ -3,15 +3,11 @@ Tests for Improved Workflow Listing from State Manager
 Tests comprehensive filtering, sorting, and pagination of workflows.
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any
+from typing import Any, Dict
+import pytest
 
-from core.advanced_workflow_system import (
-    StateManager,
-    WorkflowState,
-    AdvancedWorkflowDefinition
-)
+from core.advanced_workflow_system import AdvancedWorkflowDefinition, StateManager, WorkflowState
 
 
 @pytest.fixture

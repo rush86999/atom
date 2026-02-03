@@ -3,9 +3,9 @@
 Test Complete OAuth Authorization Endpoints
 """
 
-import requests
 import json
 from datetime import datetime
+import requests
 
 # Configuration
 BASE_URL = "http://localhost:5058"

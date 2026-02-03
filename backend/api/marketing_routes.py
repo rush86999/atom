@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
-from core.database import get_db
-from core.auth import get_current_user
-from core.models import User
-from integrations.ai_enhanced_service import ai_enhanced_service
-from core.marketing_manager import AIMarketingManager
-from core.reputation_service import ReputationManager
-from core.marketing_analytics import PlainEnglishReporter
-from sales.models import Lead
-from typing import List, Dict, Any
 import logging
+from typing import Any, Dict, List
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sales.models import Lead
+from sqlalchemy.orm import Session
+
+from core.auth import get_current_user
+from core.database import get_db
+from core.marketing_analytics import PlainEnglishReporter
+from core.marketing_manager import AIMarketingManager
+from core.models import User
+from core.reputation_service import ReputationManager
+from integrations.ai_enhanced_service import ai_enhanced_service
 
 router = APIRouter(prefix="/api/marketing", tags=["Marketing"])
 logger = logging.getLogger(__name__)

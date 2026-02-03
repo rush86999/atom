@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+from service_delivery.models import Milestone, Project, ProjectTask
 from sqlalchemy.orm import Session
+
 from core.database import get_db_session
-from service_delivery.models import Project, Milestone, ProjectTask
 from integrations.asana_real_service import asana_real_service
 from integrations.linear_service import linear_service
 

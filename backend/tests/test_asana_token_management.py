@@ -4,18 +4,17 @@ Tests for Asana Token Management
 Tests the proper token retrieval and storage for Asana integration
 """
 
-import pytest
-import tempfile
 import os
-from fastapi import HTTPException
-
+import tempfile
+import pytest
 from consolidated.integrations.asana_routes import (
+    delete_asana_token,
     get_access_token,
     save_asana_token,
-    delete_asana_token
 )
-from core.token_storage import TokenStorage
+from fastapi import HTTPException
 
+from core.token_storage import TokenStorage
 
 # Sample token data
 SAMPLE_TOKEN_DATA = {

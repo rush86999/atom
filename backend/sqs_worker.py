@@ -12,7 +12,6 @@ import signal
 import sys
 from datetime import datetime
 from typing import Any, Dict, Optional
-
 import boto3
 from botocore.exceptions import ClientError
 

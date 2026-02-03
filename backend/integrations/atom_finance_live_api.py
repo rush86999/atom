@@ -1,15 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
-from datetime import datetime, timedelta
-import logging
 import asyncio
+import logging
 import os
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
+from integrations.microsoft365_service import microsoft365_service
 from integrations.stripe_service import stripe_service
 from integrations.xero_service import XeroService
 from integrations.zoho_books_service import ZohoBooksService
-from integrations.microsoft365_service import microsoft365_service
 
 router = APIRouter(prefix="/api/atom/finance/live", tags=["finance-live"])
 logger = logging.getLogger(__name__)

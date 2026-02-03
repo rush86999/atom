@@ -1,8 +1,8 @@
-import sys
-import os
-import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
 import asyncio
+import os
+import sys
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.append(os.getcwd())
 

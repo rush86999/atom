@@ -4,11 +4,12 @@ Exposes Messenger webhook functionality
 """
 
 import logging
+import os
 from typing import Any, Dict
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+
 from .messenger_service import messenger_service
 from .universal_webhook_bridge import universal_webhook_bridge
-import os
 
 logger = logging.getLogger(__name__)
 

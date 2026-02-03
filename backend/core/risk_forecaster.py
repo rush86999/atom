@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, List
 from datetime import datetime
-from core.database import get_db_session
+from typing import Any, Dict, List
 from service_delivery.models import Project, ProjectTask
+
+from core.database import get_db_session
 from core.resource_reasoning import ResourceReasoningEngine
 
 logger = logging.getLogger(__name__)

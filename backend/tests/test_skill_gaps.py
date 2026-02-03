@@ -1,21 +1,24 @@
-import unittest
 import os
 import sys
+import unittest
 from datetime import datetime
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-import core.models
-import sales.models
-import saas.models
-import ecommerce.models
 import accounting.models
+import ecommerce.models
+import saas.models
+import sales.models
 import service_delivery.models
-from core.models import Workspace, User
-from service_delivery.models import Project, Milestone, ProjectTask
+from service_delivery.models import Milestone, Project, ProjectTask
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
+from core.database import Base
+from core.models import User, Workspace
 from core.workforce_analytics import WorkforceAnalyticsService
+
 
 class TestSkillGaps(unittest.TestCase):
     def setUp(self):

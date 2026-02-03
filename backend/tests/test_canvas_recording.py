@@ -4,14 +4,15 @@ Canvas Recording Service Tests
 Tests for canvas session recording, event capture, and playback functionality.
 """
 
-import pytest
-from datetime import datetime, timedelta
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from core.canvas_recording_service import CanvasRecordingService
-from core.models import CanvasRecording, AgentRegistry, User, Base
-import sys
 import os
+import sys
+from datetime import datetime, timedelta
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from core.canvas_recording_service import CanvasRecordingService
+from core.models import AgentRegistry, Base, CanvasRecording, User
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))

@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+import random
 import uuid
 from datetime import datetime
-import random
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
 
 # Import core workflow models if available, otherwise define local ones for UI
 # For now, we'll define UI-specific models to match the frontend expectations
@@ -301,7 +301,7 @@ async def create_workflow_definition(payload: Dict[str, Any]):
 async def get_executions():
     # Fetch real executions from the orchestrator
     try:
-        from advanced_workflow_orchestrator import get_orchestrator, WorkflowStatus
+        from advanced_workflow_orchestrator import WorkflowStatus, get_orchestrator
         orchestrator = get_orchestrator()
         
         executions = []
@@ -395,7 +395,14 @@ async def get_executions():
 
 @router.post("/execute")
 async def execute_workflow(payload: Dict[str, Any], background_tasks: BackgroundTasks):
-    from advanced_workflow_orchestrator import get_orchestrator, WorkflowContext, WorkflowStatus, WorkflowDefinition, WorkflowStep, WorkflowStepType
+    from advanced_workflow_orchestrator import (
+        WorkflowContext,
+        WorkflowDefinition,
+        WorkflowStatus,
+        WorkflowStep,
+        WorkflowStepType,
+        get_orchestrator,
+    )
     orchestrator = get_orchestrator()
     
     workflow_id = payload.get("workflow_id")

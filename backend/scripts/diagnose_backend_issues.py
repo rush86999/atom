@@ -4,13 +4,13 @@
 Quickly diagnose and fix backend server issues
 """
 
+import os
+import socket
 import subprocess
 import sys
-import os
 import time
-import socket
-import requests
 from pathlib import Path
+import requests
 
 
 def check_port_availability(port=5058):

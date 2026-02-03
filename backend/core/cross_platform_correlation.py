@@ -4,11 +4,11 @@ Detects and links conversations across multiple communication platforms.
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Set, Tuple
-from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 

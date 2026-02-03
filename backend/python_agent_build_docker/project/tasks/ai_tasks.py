@@ -1,9 +1,9 @@
-from celery import shared_task
-import logging
-from typing import Dict, Any, List, Optional
-import os
-import openai
 import json
+import logging
+import os
+from typing import Any, Dict, List, Optional
+import openai
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 

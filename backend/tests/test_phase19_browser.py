@@ -1,19 +1,19 @@
-import sys
+import asyncio
 import os
-import unittest
+import sys
 import threading
 import time
-import asyncio
+import unittest
 from pathlib import Path
 
 # Add project root
 sys.path.append(os.getcwd())
 
+# Configure logging
+import logging
 from finance.automations.legacy_portals import BankPortalWorkflow
 from tests.mock_bank.server import run_server
 
-# Configure logging
-import logging
 logging.basicConfig(level=logging.INFO)
 
 class TestPhase19Browser(unittest.IsolatedAsyncioTestCase):

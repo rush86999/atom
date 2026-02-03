@@ -4,8 +4,8 @@ OAuth Endpoint Test Suite
 Tests OAuth endpoints with real implementation
 """
 
-import sys
 import os
+import sys
 from datetime import datetime
 
 # Add backend to path
@@ -18,10 +18,10 @@ def test_oauth_configs():
     print("=" * 70)
 
     from core.oauth_handler import (
+        GITHUB_OAUTH_CONFIG,
         GOOGLE_OAUTH_CONFIG,
         MICROSOFT_OAUTH_CONFIG,
         SLACK_OAUTH_CONFIG,
-        GITHUB_OAUTH_CONFIG
     )
 
     # Test Google OAuth Config
@@ -69,7 +69,7 @@ def test_oauth_authorization_urls():
     print("TESTING OAUTH AUTHORIZATION URL GENERATION")
     print("=" * 70)
 
-    from core.oauth_handler import OAuthHandler, GOOGLE_OAUTH_CONFIG, SLACK_OAUTH_CONFIG
+    from core.oauth_handler import GOOGLE_OAUTH_CONFIG, SLACK_OAUTH_CONFIG, OAuthHandler
 
     # Test Google OAuth URL generation
     print("\n1. Google OAuth URL:")

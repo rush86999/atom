@@ -8,13 +8,14 @@ Tests for:
 - Accounting entity creation and linking
 """
 
-import pytest
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from core.auto_invoicer import AutoInvoicer
+import pytest
+from accounting.models import Entity, EntityType, Invoice
+from ecommerce.models import EcommerceCustomer, EcommerceOrder
 from service_delivery.models import Appointment, AppointmentStatus
-from accounting.models import Invoice, Entity, EntityType
-from ecommerce.models import EcommerceOrder, EcommerceCustomer
+from sqlalchemy.orm import Session
+
+from core.auto_invoicer import AutoInvoicer
 from core.models import BusinessProductService, Workspace
 
 

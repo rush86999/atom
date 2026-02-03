@@ -12,14 +12,13 @@ Key Features:
 - Winner determination based on confidence levels
 """
 
-import logging
 import hashlib
+import logging
 import uuid
-from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
-
+from typing import Any, Dict, List, Optional
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
 
 from core.models import ABTest, ABTestParticipant, AgentRegistry
 

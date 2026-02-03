@@ -6,11 +6,11 @@ Provides WebSocket endpoints for real-time updates during workflow debugging.
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.websocket_manager import get_websocket_manager, get_debugging_websocket_manager
+from core.websocket_manager import get_debugging_websocket_manager, get_websocket_manager
 from core.workflow_debugger import WorkflowDebugger
 
 logger = logging.getLogger(__name__)

@@ -3,11 +3,11 @@ ATOM Enhanced Communication Ecosystem - Phase 4 Complete with Discord
 Comprehensive unified communication platform with Slack, Teams, Google Chat, and Discord
 """
 
-import os
 import json
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List
 
 # Configure logging
 logger = logging.getLogger(__name__)

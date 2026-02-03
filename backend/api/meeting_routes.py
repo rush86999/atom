@@ -2,15 +2,15 @@
 Meeting Attendance API Routes
 Handles meeting attendance tracking and status
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, MeetingAttendanceStatus
 from core.auth import get_current_user
+from core.database import get_db
+from core.models import MeetingAttendanceStatus, User
 
 router = APIRouter(prefix="/api/meetings", tags=["Meetings"])
 

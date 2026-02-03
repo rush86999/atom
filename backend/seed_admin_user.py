@@ -1,15 +1,16 @@
 
-import sys
-import os
 import logging
+import os
+import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 # Add parent directory to path to import core modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from core.models import User, UserStatus
-from core.database import DATABASE_URL
 from core.auth import get_password_hash
+from core.database import DATABASE_URL
+from core.models import User, UserStatus
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

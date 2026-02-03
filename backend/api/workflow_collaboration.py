@@ -5,19 +5,19 @@ REST API for workflow collaboration features
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Any, Optional
-from fastapi import APIRouter, HTTPException, Query, Depends, WebSocket, WebSocketDisconnect
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from core.database import get_db
 from core.collaboration_service import CollaborationService
+from core.database import get_db
 from core.models import (
-    WorkflowCollaborationSession,
+    CollaborationComment,
     CollaborationSessionParticipant,
     EditLock,
+    WorkflowCollaborationSession,
     WorkflowShare,
-    CollaborationComment,
 )
 
 logger = logging.getLogger(__name__)

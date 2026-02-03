@@ -8,12 +8,12 @@ This service provides unified authentication and OAuth management across multipl
 - Token lifecycle management
 """
 
-import os
-import logging
 import json
-from typing import Dict, List, Optional, Any
+import logging
+import os
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -293,8 +293,8 @@ class AuthService:
 
     def _generate_state_parameter(self, user_id: str, provider: str) -> str:
         """Generate secure state parameter for OAuth flow"""
-        import secrets
         import hashlib
+        import secrets
 
         random_bytes = secrets.token_bytes(32)
         state_data = f"{user_id}:{provider}:{random_bytes.hex()}"

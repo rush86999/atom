@@ -6,7 +6,6 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "backend", "integrations"))
 
 import logging
-
 from fastapi import HTTPException
 from hubspot_routes import (
     HubSpotAuthRequest,

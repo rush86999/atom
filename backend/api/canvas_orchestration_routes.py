@@ -1,12 +1,12 @@
 """Orchestration Canvas API Routes"""
+import logging
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
-import logging
 
-from core.database import get_db
 from core.canvas_orchestration_service import OrchestrationCanvasService
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/canvas/orchestration", tags=["canvas_orchestration"])
@@ -114,8 +114,9 @@ async def add_task(canvas_id: str, request: AddTaskRequest, db: Session = Depend
 @router.get("/{canvas_id}")
 async def get_orchestration_canvas(canvas_id: str, db: Session = Depends(get_db)):
     """Get an orchestration canvas."""
-    from core.models import CanvasAudit
     from sqlalchemy import desc
+
+    from core.models import CanvasAudit
 
     audit = db.query(CanvasAudit).filter(
         CanvasAudit.canvas_id == canvas_id,

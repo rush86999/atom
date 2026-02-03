@@ -4,12 +4,12 @@ Focused Asana Integration Activation Test
 Tests Asana integration endpoints and OAuth flow setup
 """
 
-import os
-import sys
-import requests
 import json
 import logging
-from typing import Dict, Any, Optional
+import os
+import sys
+from typing import Any, Dict, Optional
+import requests
 
 # Add backend modules to Python path
 backend_path = os.path.join(os.path.dirname(__file__), "backend", "python-api-service")
@@ -345,20 +345,17 @@ class AsanaActivationTest:
         for module_name in modules_to_test:
             try:
                 if module_name == "asana_service_real":
-                    from asana_service_real import (
-                        AsanaServiceReal,
-                        get_asana_service_real,
-                    )
+                    from asana_service_real import AsanaServiceReal, get_asana_service_real
                 elif module_name == "asana_handler":
                     from asana_handler import asana_bp, get_asana_client
                 elif module_name == "auth_handler_asana":
                     from auth_handler_asana import auth_asana_bp
                 elif module_name == "db_oauth_asana":
                     from db_oauth_asana import (
-                        store_tokens,
-                        get_tokens,
-                        update_tokens,
                         delete_tokens,
+                        get_tokens,
+                        store_tokens,
+                        update_tokens,
                     )
 
                 self.print_success(f"{module_name} imported successfully")

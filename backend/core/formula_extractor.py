@@ -5,8 +5,8 @@ Extracts formulas from Excel spreadsheets and stores them in Atom's memory.
 
 import logging
 import re
-from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -389,7 +389,7 @@ class FormulaExtractor:
         Uses odfpy or pyexcel-ods for ODS support.
         """
         try:
-            from odf import text, table
+            from odf import table, text
             from odf.opendocument import load
         except ImportError:
             logger.warning("odfpy not installed. Run: pip install odfpy")

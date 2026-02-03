@@ -1,16 +1,16 @@
 
-import logging
 import json
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List, Optional, Tuple, Iterable
+import logging
 from dataclasses import asdict
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 # Bytewax imports
 import bytewax.operators as op
+from bytewax.connectors.stdio import StdOutSink
 from bytewax.dataflow import Dataflow
 from bytewax.inputs import DynamicSource, StatelessSourcePartition
 from bytewax.outputs import DynamicSink, StatelessSinkPartition
-from bytewax.connectors.stdio import StdOutSink
 
 # Vectorization
 try:
@@ -696,7 +696,7 @@ class BytewaxQueueSource(DynamicSource):
 # Test Execution (for manual verification)
 if __name__ == "__main__":
     from bytewax.testing import TestingSource
-    
+
     # Mock Data
     test_data = [
         {"app_type": "whatsapp", "record_type": "communication", "text": "Hello form Bytewax!", "id": "msg_1", "operation": "CREATE"},
@@ -709,6 +709,7 @@ if __name__ == "__main__":
     flow = BytewaxIngestionService.create_dataflow(source)
     
     from bytewax.execution import run_main
+
     # This runs the dataflow in the current process
     # Bytewax 0.19+ uses run_main or similar entry points
     try:

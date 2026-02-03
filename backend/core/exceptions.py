@@ -5,8 +5,8 @@ Provides a consistent, structured exception system for better error handling,
 logging, and API responses across all services.
 """
 
-from typing import Optional, Any, Dict, List
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class ErrorSeverity(Enum):

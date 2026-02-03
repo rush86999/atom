@@ -3,11 +3,11 @@ Test suite for newly implemented integration features
 Tests the communication ingestion pipeline, OAuth context manager, and enterprise services
 """
 
-import pytest
 import asyncio
 from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from typing import Dict, Any
+from typing import Any, Dict
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+import pytest
 
 
 class TestCommunicationIngestionPipeline:
@@ -16,7 +16,10 @@ class TestCommunicationIngestionPipeline:
     @pytest.fixture
     def pipeline(self):
         """Create pipeline instance"""
-        from integrations.atom_communication_ingestion_pipeline import CommunicationIngestionPipeline, LanceDBMemoryManager
+        from integrations.atom_communication_ingestion_pipeline import (
+            CommunicationIngestionPipeline,
+            LanceDBMemoryManager,
+        )
         memory_manager = LanceDBMemoryManager()
         pipeline = CommunicationIngestionPipeline(memory_manager)
         return pipeline
@@ -222,7 +225,7 @@ class TestSlackConfig:
     @pytest.fixture
     def config_manager(self):
         """Create config manager"""
-        from integrations.slack_config import SlackIntegrationConfig, SlackConfigManager
+        from integrations.slack_config import SlackConfigManager, SlackIntegrationConfig
         config = SlackIntegrationConfig()
         manager = SlackConfigManager()
         return manager

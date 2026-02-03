@@ -3,16 +3,16 @@ Tests for Webhook Handlers
 Tests real-time webhook event processing for Slack, Teams, and Gmail.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, Mock, patch
+import pytest
 
 from core.webhook_handlers import (
-    WebhookEvent,
+    GmailWebhookHandler,
     SlackWebhookHandler,
     TeamsWebhookHandler,
-    GmailWebhookHandler,
-    WebhookProcessor
+    WebhookEvent,
+    WebhookProcessor,
 )
 
 
@@ -49,8 +49,8 @@ class TestSlackWebhookHandler:
         body = b"test_body"
 
         # Calculate expected signature
-        import hmac
         import hashlib
+        import hmac
         basestring = f"v0:{timestamp}".encode() + body
         expected_signature = "v0=" + hmac.new(
             slack_handler.signing_secret.encode(),

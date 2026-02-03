@@ -5,7 +5,7 @@ Complete implementation status with deployment guide and next steps
 
 import json
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 # Enhanced Slack Integration Status Report
 ENHANCED_SLACK_STATUS = {

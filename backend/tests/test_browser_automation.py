@@ -9,30 +9,29 @@ Tests cover:
 - Agent execution tracking
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+import pytest
 from sqlalchemy.orm import Session
 
-from tools.browser_tool import (
-    BrowserSession,
-    BrowserSessionManager,
-    get_browser_manager,
-    browser_create_session,
-    browser_navigate,
-    browser_screenshot,
-    browser_fill_form,
-    browser_click,
-    browser_extract_text,
-    browser_execute_script,
-    browser_close_session,
-    browser_get_page_info,
-)
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
 from core.models import AgentRegistry, AgentStatus, User, Workspace
-
+from tools.browser_tool import (
+    BrowserSession,
+    BrowserSessionManager,
+    browser_click,
+    browser_close_session,
+    browser_create_session,
+    browser_execute_script,
+    browser_extract_text,
+    browser_fill_form,
+    browser_get_page_info,
+    browser_navigate,
+    browser_screenshot,
+    get_browser_manager,
+)
 
 # ============================================================================
 # Fixtures

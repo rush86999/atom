@@ -1,9 +1,6 @@
 from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -14,18 +11,20 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add backend to path to allow imports
 sys.path.append(str(Path(__file__).parent.parent))
 
 from core.models import Base
+
 target_metadata = Base.metadata
 
 # Override sqlalchemy.url from environment if present
 from core.database import DATABASE_URL
+
 if DATABASE_URL:
     config.set_main_option("sqlalchemy.url", DATABASE_URL)
 

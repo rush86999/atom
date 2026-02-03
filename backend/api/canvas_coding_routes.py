@@ -1,12 +1,12 @@
 """Coding Canvas API Routes"""
+import logging
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
 from sqlalchemy.orm import Session
-import logging
 
-from core.database import get_db
 from core.canvas_coding_service import CodingCanvasService
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/canvas/coding", tags=["canvas_coding"])
@@ -87,8 +87,9 @@ async def add_diff(canvas_id: str, request: AddDiffRequest, db: Session = Depend
 @router.get("/{canvas_id}")
 async def get_coding_canvas(canvas_id: str, db: Session = Depends(get_db)):
     """Get a coding canvas."""
-    from core.models import CanvasAudit
     from sqlalchemy import desc
+
+    from core.models import CanvasAudit
 
     audit = db.query(CanvasAudit).filter(
         CanvasAudit.canvas_id == canvas_id,

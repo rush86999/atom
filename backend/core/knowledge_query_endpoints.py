@@ -1,8 +1,9 @@
-import logging
 import json
-from typing import List, Dict, Any, Optional
+import logging
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
 from core.lancedb_handler import get_lancedb_handler
 
 logger = logging.getLogger(__name__)

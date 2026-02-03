@@ -27,28 +27,26 @@ Governance Integration:
 - Agent execution tracking for all device sessions
 """
 
-import logging
-import uuid
 import asyncio
 import json
-from typing import Optional, Dict, Any, List
+import logging
+import uuid
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.models import (
-    DeviceSession, DeviceAudit, AgentExecution, User, DeviceNode
-)
-from core.agent_governance_service import AgentGovernanceService
 from core.agent_context_resolver import AgentContextResolver
+from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentExecution, DeviceAudit, DeviceNode, DeviceSession, User
 
 logger = logging.getLogger(__name__)
 
 # Import WebSocket communication
 try:
     from api.device_websocket import (
-        send_device_command,
+        get_connected_devices_info,
         is_device_online,
-        get_connected_devices_info
+        send_device_command,
     )
     WEBSOCKET_AVAILABLE = True
     logger.info("Device WebSocket module loaded - real device communication enabled")
@@ -59,6 +57,7 @@ except ImportError as e:
 
 # Feature flags
 import os
+
 DEVICE_GOVERNANCE_ENABLED = os.getenv("DEVICE_GOVERNANCE_ENABLED", "true").lower() == "true"
 EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 

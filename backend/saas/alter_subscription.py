@@ -1,11 +1,12 @@
-from sqlalchemy import text
-import sys
 import os
+import sys
+from sqlalchemy import text
 
 # Add project root
 sys.path.append(os.getcwd())
 
 from core.database import engine
+
 
 def alter_subscription():
     print("Altering ecommerce_subscriptions table...")

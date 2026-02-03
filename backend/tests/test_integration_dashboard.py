@@ -3,16 +3,16 @@ Tests for Integration Dashboard
 Tests real-time metrics, health monitoring, and dashboard endpoints.
 """
 
-import pytest
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Any, Dict
+import pytest
 
 from core.integration_dashboard import (
     IntegrationDashboard,
-    IntegrationMetrics,
     IntegrationHealth,
+    IntegrationMetrics,
     IntegrationStatus,
-    get_integration_dashboard
+    get_integration_dashboard,
 )
 
 

@@ -5,14 +5,14 @@ Tests the update_canvas() function which enables dynamic dashboards and
 real-time data updates without re-presenting entire components.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+import pytest
 
-from tools.canvas_tool import update_canvas
-from core.models import AgentRegistry, AgentExecution, CanvasAudit
 from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentExecution, AgentRegistry, CanvasAudit
+from tools.canvas_tool import update_canvas
 
 
 @pytest.fixture

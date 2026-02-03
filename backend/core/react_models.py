@@ -3,8 +3,9 @@ Pydantic Models for Robust ReAct Loop Parsing
 Based on 2025 Architecture: PydanticAI wraps each step of the loop in a validation layer.
 """
 
-from typing import Dict, Any, Optional, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
+
 
 class ToolCall(BaseModel):
     """Structured representation of a tool call decided by the agent."""

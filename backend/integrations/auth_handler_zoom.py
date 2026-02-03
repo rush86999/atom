@@ -3,11 +3,11 @@ Zoom Authentication Handler
 OAuth 2.0 authentication handler for Zoom integration
 """
 
-import os
 import json
 import logging
-from typing import Dict, Optional, Any
+import os
 from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 import aiohttp
 from fastapi import HTTPException
 

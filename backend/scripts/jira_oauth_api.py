@@ -3,17 +3,17 @@ ATOM Jira OAuth API Implementation
 Complete OAuth flow for Jira integration
 """
 
-import os
-import json
-import httpx
-import hashlib
 import base64
-from typing import Dict, Any, Optional
+import hashlib
+import json
+import os
+from typing import Any, Dict, Optional
+from urllib.parse import parse_qs, urlencode
+import httpx
+from cryptography.fernet import Fernet
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from cryptography.fernet import Fernet
-from urllib.parse import urlencode, parse_qs
 
 # Configuration
 JIRA_CLIENT_ID = os.getenv("JIRA_CLIENT_ID", "")

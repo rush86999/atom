@@ -4,11 +4,12 @@ VERIFY ACTUAL OUTPUT vs README CLAIMS
 Test complete application for real user usability
 """
 
-import subprocess
-import time
 import json
 import re
+import subprocess
+import time
 from datetime import datetime
+
 
 def verify_actual_output_vs_readme():
     """Verify actual application output against README claims"""

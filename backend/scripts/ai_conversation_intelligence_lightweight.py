@@ -10,7 +10,7 @@ Version: 3.0.0-lightweight
 import logging
 import re
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 try:
     from textblob import TextBlob

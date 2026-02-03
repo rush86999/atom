@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import os
-import sys
 import json
+import os
 import re
+import sys
 from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -11,7 +11,8 @@ from sqlalchemy.orm import sessionmaker
 sys.path.append(str(Path(__file__).parent.parent))
 
 from core.database import DATABASE_URL
-from core.models import IntegrationCatalog, Base
+from core.models import Base, IntegrationCatalog
+
 
 def seed_integrations():
     print(f"Connecting to database: {DATABASE_URL}")

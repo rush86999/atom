@@ -5,9 +5,9 @@ Production Workflow Enhancement
 Updates workflow automation API to use enhanced service detection
 """
 
-import requests
 import json
 import time
+import requests
 
 BASE_URL = "http://localhost:5058"
 

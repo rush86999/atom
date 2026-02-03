@@ -1,14 +1,15 @@
 
-import unittest
 import asyncio
-from unittest.mock import MagicMock
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock
 
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.financial_forensics import get_forensics_services
+
 
 class TestFinancialForensics(unittest.TestCase):
     def setUp(self):

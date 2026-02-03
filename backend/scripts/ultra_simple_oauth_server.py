@@ -4,9 +4,9 @@ Standalone OAuth Server - Ultra Simple
 """
 
 import os
-from flask import Flask, jsonify, request
-from threading import Thread
 import time
+from threading import Thread
+from flask import Flask, jsonify, request
 
 # Load GitHub credentials
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID')

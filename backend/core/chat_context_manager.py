@@ -4,8 +4,9 @@ Handles context extraction and entity resolution from chat history.
 """
 
 import logging
-from typing import List, Dict, Any, Optional
-from core.lancedb_handler import get_lancedb_handler, LanceDBHandler
+from typing import Any, Dict, List, Optional
+
+from core.lancedb_handler import LanceDBHandler, get_lancedb_handler
 
 logger = logging.getLogger(__name__)
 

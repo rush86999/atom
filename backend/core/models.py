@@ -1,11 +1,15 @@
 
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Table, JSON, Enum as SQLEnum, Index
-from sqlalchemy.orm import relationship, backref
-from sqlalchemy.sql import func
-import uuid
 import enum
-from core.database import Base
+import uuid
+from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Table, Text
+from sqlalchemy.orm import backref, relationship
+from sqlalchemy.sql import func
+
 from core.data_visibility import DataVisibility
+from core.database import Base
+
 
 # Enums
 class UserRole(str, enum.Enum):

@@ -8,10 +8,10 @@ Usage:
     python monitor_services.py
 """
 
-import requests
-import time
 import json
+import time
 from datetime import datetime
+import requests
 
 BASE_URL = "http://localhost:5058"
 ENDPOINTS = [

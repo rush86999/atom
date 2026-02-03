@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from integrations.microsoft365_service import microsoft365_service
 
+
 async def test_excel_granularity():
     print("Testing Excel Granular Updates (Column Mapping)...")
     

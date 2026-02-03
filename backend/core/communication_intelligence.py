@@ -1,17 +1,17 @@
-import logging
 import asyncio
-from typing import Dict, Any, List, Optional
-from core.knowledge_extractor import KnowledgeExtractor
-from core.automation_settings import get_automation_settings
-from core.database import get_db_session
-from core.models import User
+import json
+import logging
+from typing import Any, Dict, List, Optional
 from ecommerce.models import EcommerceCustomer
 from sales.models import Deal, Lead
-from core.negotiation_engine import NegotiationStateMachine
+
+from core.automation_settings import get_automation_settings
 from core.business_intelligence import BusinessEventIntelligence
-from core.business_intelligence import BusinessEventIntelligence
+from core.database import get_db_session
+from core.knowledge_extractor import KnowledgeExtractor
 from core.lifecycle_comm_generator import LifecycleCommGenerator
-import json
+from core.models import User
+from core.negotiation_engine import NegotiationStateMachine
 
 logger = logging.getLogger(__name__)
 

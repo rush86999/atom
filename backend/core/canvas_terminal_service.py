@@ -5,10 +5,10 @@ Backend service for terminal canvas with command execution,
 file trees, process monitoring, and log viewing.
 """
 import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-from sqlalchemy.orm import Session
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from sqlalchemy.orm import Session
 
 from core.models import CanvasAudit
 

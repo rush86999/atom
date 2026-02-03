@@ -1,23 +1,26 @@
-import unittest
 import os
 import sys
+import unittest
 from datetime import datetime, timedelta
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-import core.models
-import ecommerce.models
-import sales.models
-import saas.models
-import marketing.models
 import accounting.models
+import ecommerce.models
+import marketing.models
+import saas.models
+import sales.models
 import service_delivery.models
-from core.models import Workspace, User
-from service_delivery.models import Project, ProjectTask, Milestone
-from core.timeline_prediction import TimelinePredictionService
+from service_delivery.models import Milestone, Project, ProjectTask
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
+from core.database import Base
+from core.models import User, Workspace
 from core.risk_forecaster import ProjectRiskForecaster
+from core.timeline_prediction import TimelinePredictionService
+
 
 class MockAnalyticsService:
     def calculate_team_velocity(self, workspace_id: str, days: int = 30):

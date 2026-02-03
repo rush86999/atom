@@ -3,9 +3,9 @@
 Test OAuth Status with Direct Import
 """
 
-import requests
 import json
 from datetime import datetime
+import requests
 
 # Test OAuth status endpoints directly
 BASE_URL = "http://localhost:5058"

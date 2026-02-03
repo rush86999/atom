@@ -12,28 +12,24 @@ Features:
 - Full governance integration
 """
 
+import json
 import logging
 import uuid
-import json
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.websockets import manager as ws_manager
-from core.models import (
-    AgentOperationTracker,
-    AgentRegistry,
-    AgentExecution,
-    CanvasAudit
-)
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentExecution, AgentOperationTracker, AgentRegistry, CanvasAudit
+from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
 
 # Feature flags
 import os
+
 AGENT_GUIDANCE_ENABLED = os.getenv("AGENT_GUIDANCE_ENABLED", "true").lower() == "true"
 EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 

@@ -8,7 +8,6 @@ import asyncio
 import os
 import sys
 from unittest.mock import AsyncMock, Mock, patch
-
 import pytest
 from fastapi.testclient import TestClient
 

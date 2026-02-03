@@ -3,12 +3,12 @@ Integration Auto-Healing Engine
 Provides automatic retry, circuit breaker, and error recovery for integration API calls
 """
 
-import time
 import asyncio
 import logging
-from functools import wraps
-from typing import Callable, Any, Optional
+import time
 from datetime import datetime, timedelta
+from functools import wraps
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 

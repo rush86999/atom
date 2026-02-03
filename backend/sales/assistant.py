@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, List
-from sqlalchemy.orm import Session
-from sales.models import Lead, Deal, FollowUpTask, LeadStatus
+from typing import Any, Dict, List
 from sales.intelligence import SalesIntelligence
+from sales.models import Deal, FollowUpTask, Lead, LeadStatus
+from sqlalchemy.orm import Session
+
 from core.automation_settings import get_automation_settings
 
 logger = logging.getLogger(__name__)

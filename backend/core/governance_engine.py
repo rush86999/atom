@@ -3,13 +3,14 @@ ATOM External Contact Governance Engine
 Implements safety guardrails for agent-driven external communications.
 """
 
-import logging
 import json
-from typing import Dict, Any, List, Optional
+import logging
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
+
 from core.database import get_db_session
-from core.models import Workspace, HITLAction, HITLActionStatus
+from core.models import HITLAction, HITLActionStatus, Workspace
 
 logger = logging.getLogger(__name__)
 

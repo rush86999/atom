@@ -1,16 +1,16 @@
-import sys
-import os
 import asyncio
-import jwt
+import os
+import sys
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
+import jwt
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 async def verify_asana_token_storage():
     print("\nTesting Asana Token Storage...")
-    from integrations.asana_routes import set_access_token, get_access_token, _token_store
+    from integrations.asana_routes import _token_store, get_access_token, set_access_token
     
     user_id = "test_user_123"
     token = "test_token_abc"

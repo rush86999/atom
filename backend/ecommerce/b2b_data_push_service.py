@@ -4,11 +4,12 @@ Orchestrates the synchronization of B2B data (customers, draft orders) to extern
 """
 
 import logging
-from typing import Dict, Any, Optional
-from sqlalchemy.orm import Session
+from typing import Any, Dict, Optional
 from ecommerce.models import EcommerceCustomer, EcommerceOrder, EcommerceOrderItem
-from integrations.hubspot_service import hubspot_service
+from sqlalchemy.orm import Session
+
 from integrations.atom_quickbooks_integration_service import AtomQuickBooksIntegrationService
+from integrations.hubspot_service import hubspot_service
 
 logger = logging.getLogger(__name__)
 

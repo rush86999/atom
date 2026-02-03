@@ -5,24 +5,26 @@ REST endpoints for training proposals, action proposals, and supervision session
 Supports all maturity levels: STUDENT (training), INTERN (proposals), SUPERVISED (monitoring).
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, WebSocket
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.models import (
-    AgentProposal, TrainingSession, SupervisionSession, AgentRegistry,
-    BlockedTriggerContext, ProposalStatus, ProposalType, SupervisionStatus
-)
-from core.student_training_service import (
-    StudentTrainingService, TrainingOutcome
+    AgentProposal,
+    AgentRegistry,
+    BlockedTriggerContext,
+    ProposalStatus,
+    ProposalType,
+    SupervisionSession,
+    SupervisionStatus,
+    TrainingSession,
 )
 from core.proposal_service import ProposalService
-from core.supervision_service import (
-    SupervisionService, SupervisionOutcome
-)
+from core.student_training_service import StudentTrainingService, TrainingOutcome
+from core.supervision_service import SupervisionOutcome, SupervisionService
 from core.training_websocket_events import TrainingWebSocketEvents
 
 router = APIRouter(prefix="/api/maturity", tags=["Agent Maturity"])

@@ -20,11 +20,10 @@ Usage:
 """
 
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
-
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from core.models import AgentFeedback, AgentRegistry
 

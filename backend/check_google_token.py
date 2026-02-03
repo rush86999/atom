@@ -1,6 +1,7 @@
-from core.token_storage import token_storage
 import json
 from datetime import datetime
+
+from core.token_storage import token_storage
 
 print("Checking Token Storage for 'google'...")
 token = token_storage.get_token("google")

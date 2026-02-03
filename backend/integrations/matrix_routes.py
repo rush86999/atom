@@ -6,6 +6,7 @@ Exposes Matrix webhook functionality
 import logging
 from typing import Any, Dict
 from fastapi import APIRouter, HTTPException, Request
+
 from .matrix_service import matrix_service
 from .universal_webhook_bridge import universal_webhook_bridge
 

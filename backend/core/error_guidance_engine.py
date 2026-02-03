@@ -13,18 +13,19 @@ Features:
 
 import logging
 import uuid
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
+from core.models import CanvasAudit, OperationErrorResolution
 from core.websockets import manager as ws_manager
-from core.models import OperationErrorResolution, CanvasAudit
 
 logger = logging.getLogger(__name__)
 
 
 # Feature flags
 import os
+
 ERROR_GUIDANCE_ENABLED = os.getenv("ERROR_GUIDANCE_ENABLED", "true").lower() == "true"
 
 

@@ -1,24 +1,27 @@
-import unittest
+import asyncio
 import os
 import sys
-import asyncio
+import unittest
 from datetime import datetime, timedelta
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-import core.models
-import ecommerce.models
-import sales.models
-import saas.models
-import marketing.models
 import accounting.models
+import ecommerce.models
+import marketing.models
+import saas.models
+import sales.models
 import service_delivery.models
-from core.models import Workspace
 from accounting.models import Entity, EntityType
 from service_delivery.models import Appointment, AppointmentStatus
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
+from core.database import Base
+from core.models import Workspace
 from core.small_biz_scheduler import SmallBizScheduler
+
 
 class MockIntelService:
     def __init__(self, db_session):

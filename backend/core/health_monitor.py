@@ -7,8 +7,8 @@ import asyncio
 import logging
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
 from enum import Enum
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

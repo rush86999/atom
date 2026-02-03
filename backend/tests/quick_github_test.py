@@ -3,8 +3,9 @@
 Quick GitHub OAuth Test
 """
 
-import requests
 import os
+import requests
+
 
 def quick_github_test():
     """Quick test of GitHub OAuth"""

@@ -1,6 +1,7 @@
-from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
+
 
 class ResolutionSlot(BaseModel):
     start: datetime

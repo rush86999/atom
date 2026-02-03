@@ -10,15 +10,15 @@ Usage:
     python deploy_production_with_oauth.py
 """
 
-import os
-import sys
 import json
-import time
-import subprocess
-import requests
+import os
 import secrets
+import subprocess
+import sys
+import time
 from datetime import datetime
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
+import requests
 
 
 class ProductionDeploymentWithOAuth:

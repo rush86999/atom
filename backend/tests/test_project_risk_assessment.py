@@ -4,15 +4,13 @@ Tests for Project Risk Assessment
 Tests the risk-based project gating logic
 """
 
+from unittest.mock import MagicMock, Mock
 import pytest
-from unittest.mock import Mock, MagicMock
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from service_delivery.project_service import ProjectService
 from sales.models import Deal, DealStage
 from service_delivery.models import ProjectStatus
-
+from service_delivery.project_service import ProjectService
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_project_risk.db"
@@ -21,8 +19,8 @@ TEST_DATABASE_URL = "sqlite:///./test_project_risk.db"
 @pytest.fixture
 def db_session():
     """Create test database session"""
-    from service_delivery.models import Base
     from sales.models import Base as SalesBase
+    from service_delivery.models import Base
 
     engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)

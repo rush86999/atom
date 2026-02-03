@@ -1,18 +1,19 @@
 import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Union, Any
-from jose import jwt, JWTError
-
+from typing import Any, Optional, Union
 import bcrypt
+from jose import JWTError, jwt
+
 BCRYPT_AVAILABLE = True
 
-from fastapi import Depends, HTTPException, status, Request
+import logging
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+
 from core.database import get_db
 from core.models import User
-import logging
 
 # Configuration
 logger = logging.getLogger(__name__)

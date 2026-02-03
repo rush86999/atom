@@ -3,35 +3,66 @@ ATOM Voice and Video Features Integration Service
 Comprehensive voice and video AI features integration across all platforms
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
+import os
 import time
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union, Callable, Tuple
-from dataclasses import dataclass, asdict
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-import httpx
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
-from collections import defaultdict, Counter
-import pandas as pd
+import httpx
 import numpy as np
+import pandas as pd
 
 # Import existing ATOM services
 try:
-    from atom_enterprise_security_service import atom_enterprise_security_service, SecurityLevel, ComplianceStandard
-    from atom_workflow_automation_service import atom_workflow_automation_service, AutomationPriority, AutomationStatus
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType
+    from ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
     from atom_ai_integration import atom_ai_integration
-    from atom_voice_ai_service import atom_voice_ai_service, VoiceRequest, VoiceResponse, VoiceTaskType, VoiceModelType, VoiceLanguage, VoiceFormat
-    from atom_video_ai_service import atom_video_ai_service, VideoRequest, VideoResponse, VideoTaskType, VideoModelType, VideoFormat, VideoResolution
+    from atom_discord_integration import atom_discord_integration
+    from atom_enterprise_security_service import (
+        ComplianceStandard,
+        SecurityLevel,
+        atom_enterprise_security_service,
+    )
+    from atom_google_chat_integration import atom_google_chat_integration
     from atom_slack_integration import atom_slack_integration
     from atom_teams_integration import atom_teams_integration
-    from atom_google_chat_integration import atom_google_chat_integration
-    from atom_discord_integration import atom_discord_integration
     from atom_telegram_integration import atom_telegram_integration
+    from atom_video_ai_service import (
+        VideoFormat,
+        VideoModelType,
+        VideoRequest,
+        VideoResolution,
+        VideoResponse,
+        VideoTaskType,
+        atom_video_ai_service,
+    )
+    from atom_voice_ai_service import (
+        VoiceFormat,
+        VoiceLanguage,
+        VoiceModelType,
+        VoiceRequest,
+        VoiceResponse,
+        VoiceTaskType,
+        atom_voice_ai_service,
+    )
     from atom_whatsapp_integration import atom_whatsapp_integration
+    from atom_workflow_automation_service import (
+        AutomationPriority,
+        AutomationStatus,
+        atom_workflow_automation_service,
+    )
     from atom_zoom_integration import atom_zoom_integration
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")

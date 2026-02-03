@@ -1,7 +1,8 @@
 
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+
 from core.automation_settings import get_automation_settings
 
 router = APIRouter(prefix="/api/v1/settings/automations", tags=["Settings"])

@@ -6,9 +6,10 @@ Test frontend accessibility and key UI endpoints
 
 import os
 import sys
-import requests
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
+import requests
+
 
 class FrontendIntegrationTester:
     """Frontend accessibility testing"""

@@ -11,9 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.database import get_db
 from core.health_monitoring_service import HealthMonitoringService, get_health_monitoring_service
-from core.auth import get_current_user
 from core.models import User
 
 logger = logging.getLogger(__name__)

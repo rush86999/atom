@@ -1,10 +1,11 @@
 import csv
-import logging
 import io
-from typing import List, Dict, Any, Type
-from sqlalchemy.orm import Session
-from core.database import Base
+import logging
+from typing import Any, Dict, List, Type
 from ai.etl_mapper import AI_ETL_Mapper
+from sqlalchemy.orm import Session
+
+from core.database import Base
 
 logger = logging.getLogger(__name__)
 

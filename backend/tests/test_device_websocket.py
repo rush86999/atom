@@ -5,17 +5,18 @@ Tests the real WebSocket communication between backend and mobile devices.
 These tests require WebSocket server to be running.
 """
 
-import pytest
 import asyncio
-import uuid
 import json
+import uuid
 from datetime import datetime
+import pytest
 from httpx import AsyncClient
+from main import app
 from sqlalchemy.orm import Session
 
-from core.models import User, DeviceNode, DeviceAudit
 from core.database import get_db
-from main import app
+from core.models import DeviceAudit, DeviceNode, User
+
 
 # Test fixtures
 @pytest.fixture
@@ -317,10 +318,9 @@ async def test_device_send_notification_command(
 @pytest.mark.asyncio
 async def test_device_not_connected_error(db: Session, test_user: User, test_device_node: DeviceNode):
     """Test error when device is not connected."""
-    from tools.device_tool import device_camera_snap
-
     # Make sure device is not connected
     from api.device_websocket import get_device_connection_manager
+    from tools.device_tool import device_camera_snap
     manager = get_device_connection_manager()
     assert not manager.is_device_connected(test_device_node.device_id)
 
@@ -442,10 +442,10 @@ async def test_device_governance_check(
 ):
     """Test that governance checks are performed for device actions."""
     from api.device_websocket import get_device_connection_manager
-    from tools.device_tool import device_execute_command
 
     # Create an agent with STUDENT maturity (should be blocked from command execution)
     from core.models import AgentRegistry
+    from tools.device_tool import device_execute_command
     agent = AgentRegistry(
         id=str(uuid.uuid4()),
         name="test_student_agent",

@@ -10,16 +10,16 @@ Tests for:
 - Connection management
 """
 
+import asyncio
+import json
+import logging
 import os
 import sys
-import logging
-import json
-import uuid
-import asyncio
 import time
-import websockets
+import uuid
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+import websockets
 
 # Add backend directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -79,7 +79,7 @@ class WebSocketIntegrationTester:
             
             # Import and start server
             from setup_websocket_server import websocket_server
-            
+
             # Start server in event loop
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -243,7 +243,7 @@ class WebSocketIntegrationTester:
         try:
             # Import workflow engine
             from working_enhanced_workflow_engine import working_enhanced_workflow_engine
-            
+
             # Create and execute workflow
             templates = working_enhanced_workflow_engine.get_available_templates()
             if not templates:

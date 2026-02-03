@@ -111,8 +111,9 @@ def test_alert_management(engine):
     """Test alert creation, update, and delete."""
     print("\nTesting alert management...")
 
-    from core.workflow_analytics_engine import Alert, AlertSeverity
     from datetime import datetime
+
+    from core.workflow_analytics_engine import Alert, AlertSeverity
 
     try:
         # Create alert

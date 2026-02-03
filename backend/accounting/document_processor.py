@@ -1,12 +1,19 @@
-import logging
 import json
-from typing import Dict, Any, Optional, List
-from sqlalchemy.orm import Session
+import logging
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 import dateparser
+from accounting.models import Bill, BillStatus, Document, Entity, EntityType, Invoice, InvoiceStatus
+from sqlalchemy.orm import Session
+
 from core.automation_settings import get_automation_settings
-from accounting.models import Entity, EntityType, Document, Bill, BillStatus, Invoice, InvoiceStatus
-from integrations.ai_enhanced_service import ai_enhanced_service, AIRequest, AITaskType, AIModelType, AIServiceType
+from integrations.ai_enhanced_service import (
+    AIModelType,
+    AIRequest,
+    AIServiceType,
+    AITaskType,
+    ai_enhanced_service,
+)
 
 logger = logging.getLogger(__name__)
 

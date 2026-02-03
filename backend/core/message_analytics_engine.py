@@ -5,11 +5,11 @@ Provides analytics and insights from unified message data across platforms.
 
 import logging
 import re
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta, timezone
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

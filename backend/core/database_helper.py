@@ -19,10 +19,10 @@ Usage:
 """
 
 import logging
-from typing import Type, TypeVar, Optional, Dict, Any, List
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from typing import Any, Dict, List, Optional, Type, TypeVar
 from fastapi import HTTPException, status
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
 
 from core.database import Base
 

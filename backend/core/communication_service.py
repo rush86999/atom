@@ -1,31 +1,31 @@
-import logging
-import uuid
 import json
-from typing import Dict, Any, Optional, List
-from datetime import datetime
-from sqlalchemy.orm import Session
-from fastapi import BackgroundTasks
-
-from core.database import get_db_session
-from core.models import User, AgentExecution, UserIdentity
-from core.agent_world_model import WorldModelService
-from core.notification_manager import notification_manager
-from core.atom_meta_agent import handle_manual_trigger, SpecialtyAgentTemplate
-from core.communication.adapters.base import PlatformAdapter, GenericAdapter
-from core.communication.adapters.slack import SlackAdapter
-from core.communication.adapters.discord import DiscordAdapter
-from core.communication.adapters.whatsapp import WhatsAppAdapter
-from core.communication.adapters.email import EmailAdapter
-from core.communication.adapters.sms import SMSAdapter
-from core.communication.adapters.google_chat import GoogleChatAdapter
-from core.communication.adapters.matrix import MatrixAdapter
-from core.communication.adapters.facebook import FacebookAdapter
-from core.communication.adapters.line import LineAdapter
-from core.communication.adapters.signal import SignalAdapter
-from core.communication.adapters.telegram import TelegramAdapter
-from core.communication.adapters.teams import TeamsAdapter
-from core.communication.adapters.intercom import IntercomAdapter
+import logging
 import os
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import BackgroundTasks
+from sqlalchemy.orm import Session
+
+from core.agent_world_model import WorldModelService
+from core.atom_meta_agent import SpecialtyAgentTemplate, handle_manual_trigger
+from core.communication.adapters.base import GenericAdapter, PlatformAdapter
+from core.communication.adapters.discord import DiscordAdapter
+from core.communication.adapters.email import EmailAdapter
+from core.communication.adapters.facebook import FacebookAdapter
+from core.communication.adapters.google_chat import GoogleChatAdapter
+from core.communication.adapters.intercom import IntercomAdapter
+from core.communication.adapters.line import LineAdapter
+from core.communication.adapters.matrix import MatrixAdapter
+from core.communication.adapters.signal import SignalAdapter
+from core.communication.adapters.slack import SlackAdapter
+from core.communication.adapters.sms import SMSAdapter
+from core.communication.adapters.teams import TeamsAdapter
+from core.communication.adapters.telegram import TelegramAdapter
+from core.communication.adapters.whatsapp import WhatsAppAdapter
+from core.database import get_db_session
+from core.models import AgentExecution, User, UserIdentity
+from core.notification_manager import notification_manager
 
 logger = logging.getLogger(__name__)
 

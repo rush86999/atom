@@ -3,7 +3,6 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode, urlparse
-
 import jwt
 import requests
 from cryptography.hazmat.primitives import serialization

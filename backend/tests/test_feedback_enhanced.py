@@ -10,22 +10,16 @@ Comprehensive test suite for enhanced feedback functionality including:
 - World model integration
 """
 
-import pytest
 import uuid
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
+import pytest
 from sqlalchemy.orm import Session
 
-from core.models import (
-    AgentRegistry,
-    AgentExecution,
-    AgentFeedback,
-    User
-)
+from core.agent_learning_enhanced import AgentLearningEnhanced
 from core.database import SessionLocal
 from core.feedback_analytics import FeedbackAnalytics
-from core.agent_learning_enhanced import AgentLearningEnhanced
-
+from core.models import AgentExecution, AgentFeedback, AgentRegistry, User
 
 # ============================================================================
 # Fixtures

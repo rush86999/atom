@@ -6,13 +6,13 @@ This script systematically activates and tests service integrations
 to increase the number of actively connected services from 2 to 10+.
 """
 
-import requests
 import json
 import logging
 import sys
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+import requests
 
 # Configure logging
 logging.basicConfig(

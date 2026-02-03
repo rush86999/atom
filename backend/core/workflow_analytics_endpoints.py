@@ -3,24 +3,25 @@ Workflow Analytics API Endpoints
 REST API for workflow analytics, monitoring, and dashboard data
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import Dict, List, Any, Optional, Union
-from pydantic import BaseModel, Field
-from datetime import datetime, timedelta
 import json
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Union
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from core.auth import get_current_user
+from core.database import get_db
+from core.models import AgentExecution, Dashboard, DashboardWidget, IntegrationHealthMetrics, User
 
 from .workflow_analytics_engine import (
-    WorkflowAnalyticsEngine,
     Alert,
     AlertSeverity,
     MetricType,
-    WorkflowStatus
+    WorkflowAnalyticsEngine,
+    WorkflowStatus,
 )
-from core.database import get_db
-from core.models import Dashboard, DashboardWidget, AgentExecution, IntegrationHealthMetrics, User
-from core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

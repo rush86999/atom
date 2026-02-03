@@ -1,10 +1,9 @@
 import logging
 import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+from ecommerce.models import EcommerceCustomer, EcommerceOrder, Subscription, SubscriptionAudit
 from sqlalchemy.orm import Session
-from typing import Optional, List, Dict, Any
-from datetime import datetime, timezone, timedelta
-
-from ecommerce.models import Subscription, SubscriptionAudit, EcommerceCustomer, EcommerceOrder
 
 logger = logging.getLogger(__name__)
 

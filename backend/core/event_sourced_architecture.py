@@ -3,14 +3,14 @@ Event-Sourced AI Architecture - Scalability Foundation
 Separates: Perception (LLM) → Planning (State Machine) → Execution (Idempotent Workers)
 """
 
+import asyncio
+import json
 import logging
 import uuid
-from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import json
-import asyncio
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

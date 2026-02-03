@@ -10,20 +10,19 @@ REST endpoints for agent guidance operations including:
 
 import logging
 import uuid
-from typing import Dict, Any, Optional
 from datetime import datetime
-
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, AgentOperationTracker, AgentRequestLog
-from core.security_dependencies import get_current_user
 from core.agent_guidance_canvas_tool import get_agent_guidance_system
-from core.view_coordinator import get_view_coordinator
-from core.error_guidance_engine import get_error_guidance_engine
 from core.agent_request_manager import get_agent_request_manager
+from core.database import get_db
+from core.error_guidance_engine import get_error_guidance_engine
+from core.models import AgentOperationTracker, AgentRequestLog, User
+from core.security_dependencies import get_current_user
+from core.view_coordinator import get_view_coordinator
 
 logger = logging.getLogger(__name__)
 

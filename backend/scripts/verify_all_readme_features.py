@@ -6,14 +6,14 @@ This script verifies that all features listed in the README.md and FEATURES.md
 are implemented and functional locally, excluding deployment-only features.
 """
 
-import os
-import sys
 import importlib
 import inspect
 import json
 import logging
+import os
+import sys
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 # Configure logging
 logging.basicConfig(

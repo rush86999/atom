@@ -1,40 +1,41 @@
-from fastapi import APIRouter, HTTPException, Body
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-import uuid
-from datetime import datetime, timedelta
-import logging
 import json
-
-# Import workflow management components
-from core.workflow_endpoints import load_workflows, save_workflows
+import logging
+import uuid
+from dataclasses import asdict
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from advanced_workflow_orchestrator import get_orchestrator
 from ai.automation_engine import AutomationEngine
 from ai.workflow_scheduler import workflow_scheduler
 
-# Import Calendar and Email services
-from integrations.google_calendar_service import GoogleCalendarService
-from integrations.gmail_service import GmailService
-
-# Import Task and Finance services
-from core.unified_task_endpoints import get_tasks, create_task, CreateTaskRequest
-from integrations.quickbooks_routes import list_quickbooks_items
-
-# Import System and Search services
-from core.system_status import SystemStatus
-from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
-from core.unified_search_endpoints import SearchRequest
-
 # Import AI service for intent classification
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
-from advanced_workflow_orchestrator import get_orchestrator
-from dataclasses import asdict
+from fastapi import APIRouter, Body, HTTPException
+from operations.system_intelligence_service import SystemIntelligenceService
+from pydantic import BaseModel
+
+from core.chat_context_manager import get_chat_context_manager
+from core.chat_session_manager import get_chat_session_manager
+from core.knowledge_query_endpoints import get_knowledge_query_manager
 
 # Import chat history management
 from core.lancedb_handler import get_chat_history_manager
-from core.chat_session_manager import get_chat_session_manager
-from core.chat_context_manager import get_chat_context_manager
-from core.knowledge_query_endpoints import get_knowledge_query_manager
-from operations.system_intelligence_service import SystemIntelligenceService
+
+# Import System and Search services
+from core.system_status import SystemStatus
+from core.unified_search_endpoints import SearchRequest
+from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
+
+# Import Task and Finance services
+from core.unified_task_endpoints import CreateTaskRequest, create_task, get_tasks
+
+# Import workflow management components
+from core.workflow_endpoints import load_workflows, save_workflows
+from integrations.gmail_service import GmailService
+
+# Import Calendar and Email services
+from integrations.google_calendar_service import GoogleCalendarService
+from integrations.quickbooks_routes import list_quickbooks_items
 
 # Initialize AI service
 ai_service = RealAIWorkflowService()
@@ -894,8 +895,9 @@ async def handle_get_status(request: ChatRequest, entities: Dict[str, Any]) -> D
 async def handle_crm_intent(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle sales and CRM queries via SalesAssistant"""
     try:
-        from core.database import get_db_session
         from sales.assistant import SalesAssistant
+
+        from core.database import get_db_session
 
         with get_db_session() as db:
             # Get workspace_id from entities or default to temp_ws for now
@@ -1145,7 +1147,7 @@ async def handle_follow_up_emails(request: ChatRequest, entities: Dict[str, Any]
     """Handle request to follow up on emails by triggering the workflow template"""
     try:
         from core.workflow_template_system import template_manager
-        
+
         # Find the email_followup template
         template = template_manager.get_template("email_followup")
         if not template:
@@ -1268,6 +1270,7 @@ async def handle_set_goal(request: ChatRequest, entities: Dict[str, Any]) -> Dic
     """Handle request to set a new high-level goal"""
     try:
         from core.workflow_template_system import template_manager
+
         # Extract goal and date if possible, otherwise use defaults/mock
         goal_text = entities.get("goal_text", request.message)
         # Default to end of month if no date specified
@@ -1345,6 +1348,7 @@ async def handle_goal_status(request: ChatRequest, entities: Dict[str, Any]) -> 
     """Handle request to check status of active goals"""
     try:
         from core.goal_engine import goal_engine
+
         # Mock status for now
         return {
             "success": True,
@@ -1485,12 +1489,12 @@ async def chat_stream_agent(request: ChatRequest):
 
     try:
         # Import streaming support
-        from core.llm.byok_handler import BYOKHandler
-        from core.websockets import manager as ws_manager
-        from core.database import get_db_session
         from core.agent_context_resolver import AgentContextResolver
         from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db_session
+        from core.llm.byok_handler import BYOKHandler
         from core.models import AgentExecution
+        from core.websockets import manager as ws_manager
 
         # Determine workspace
         ws_id = request.workspace_id or "default"

@@ -4,11 +4,12 @@ ATOM Notion Integration Test Script
 Tests backend components, endpoints, and basic functionality
 """
 
+import json
 import os
 import sys
-import json
-import requests
 from datetime import datetime
+import requests
+
 
 def test_environment():
     """Test environment configuration"""
@@ -45,7 +46,7 @@ def test_database_connection():
     try:
         # Import database utilities
         from db_utils import get_db_pool
-        
+
         # Get connection pool
         db_pool = get_db_pool()
         if db_pool:
@@ -101,7 +102,7 @@ def test_blueprint_registration():
     print("\n🔧 Testing Blueprint Registration...")
     
     try:
-        from main_api_app import app, ASANA_OAUTH_AVAILABLE, NOTION_OAUTH_AVAILABLE
+        from main_api_app import ASANA_OAUTH_AVAILABLE, NOTION_OAUTH_AVAILABLE, app
         
         print(f"  ✓ Main app imported")
         print(f"  ✓ Asana OAuth available: {ASANA_OAUTH_AVAILABLE}")

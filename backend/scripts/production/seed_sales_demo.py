@@ -1,11 +1,12 @@
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from sales.models import CallTranscript, Deal, DealStage, Lead, LeadStatus
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sales.models import Lead, Deal, CallTranscript, LeadStatus, DealStage
+
+from core.database import DATABASE_URL, Base
 from core.models import Workspace
-from core.database import Base, DATABASE_URL
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

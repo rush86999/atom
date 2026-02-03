@@ -4,14 +4,14 @@ Advanced NLU, sentiment analysis, and context-aware response generation
 """
 
 import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 try:
-    from transformers import pipeline
     import spacy
     from sentence_transformers import SentenceTransformer
     from textblob import TextBlob
+    from transformers import pipeline
     from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
     AI_AVAILABLE = True
 except ImportError as e:

@@ -1,14 +1,16 @@
 import logging
-import sys
 import os
+import sys
 
 # Add the current directory to sys.path
 sys.path.append(os.getcwd())
 
-from core.database import engine, Base
+import accounting.models
+
 # Import all models to ensure they are registered with Base.metadata
 import core.models
-import accounting.models
+from core.database import Base, engine
+
 # Add other model imports as needed
 
 logging.basicConfig(level=logging.INFO)

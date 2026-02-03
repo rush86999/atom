@@ -80,8 +80,8 @@ def test_simple_app():
     print("\n🌐 Testing Simple Flask App...")
     
     try:
-        from flask import Flask
         from auth_handler_notion import auth_notion_bp
+        from flask import Flask
         from notion_handler_real import notion_bp
         
         app = Flask(__name__)

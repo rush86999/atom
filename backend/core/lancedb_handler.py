@@ -3,10 +3,10 @@ LanceDB Handler for ATOM Platform
 Provides comprehensive vector database operations with LanceDB
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,10 @@ try:
 except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
     logger.warning(f"Numpy not available: {e}")
-from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 try:
     # import pandas as pd
     PANDAS_AVAILABLE = False
@@ -29,10 +30,10 @@ except (ImportError, BaseException) as e:
 
 try:
     import lancedb
-    from lancedb.db import LanceDBConnection
-    from lancedb.table import Table
-    from lancedb.pydantic import LanceModel, Vector
     import pyarrow as pa
+    from lancedb.db import LanceDBConnection
+    from lancedb.pydantic import LanceModel, Vector
+    from lancedb.table import Table
 
     # Allow disabling via env var (crucial for CI reliability)
     if os.getenv("ATOM_DISABLE_LANCEDB", "false").lower() == "true":
@@ -329,7 +330,7 @@ class LanceDBHandler:
                     model="text-embedding-3-small"
                 )
                 if NUMPY_AVAILABLE:
-                    import numpy as np # Import locally if needed
+                    import numpy as np  # Import locally if needed
                     return np.array(response.data[0].embedding)
                 return response.data[0].embedding
             
@@ -485,6 +486,7 @@ class LanceDBHandler:
                 # NEW: Trigger Workflow Events
                 try:
                     from advanced_workflow_orchestrator import get_orchestrator
+
                     # Non-blocking trigger
                     asyncio.create_task(get_orchestrator().trigger_event("document_uploaded", {
                         "text": text,

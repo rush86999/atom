@@ -1,7 +1,7 @@
 import logging
-from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 from sales.models import CallTranscript
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

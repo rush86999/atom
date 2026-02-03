@@ -4,10 +4,10 @@ Claims Generator - Automatically generate marketing claims from integration spec
 """
 
 import json
-from pathlib import Path
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

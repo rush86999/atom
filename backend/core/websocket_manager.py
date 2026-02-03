@@ -5,11 +5,11 @@ Provides WebSocket connection management for broadcasting real-time updates
 to connected clients during workflow debugging and execution.
 """
 
-import logging
-import json
 import asyncio
-from typing import Dict, Set, Any, Optional
+import json
+import logging
 from datetime import datetime
+from typing import Any, Dict, Optional, Set
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketDisconnect
 

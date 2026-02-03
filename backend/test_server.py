@@ -3,13 +3,14 @@ Minimal test server for testing the streaming and canvas implementation.
 This bypasses existing backend issues to test only the new functionality.
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 
 # Create minimal FastAPI app
 app = FastAPI(title="Atom Test Server")
@@ -35,8 +36,8 @@ except Exception as e:
 try:
     print("Importing atom agent routes (for streaming endpoint)...")
     # We'll create a minimal streaming endpoint inline since the full module has dependencies
+    from typing import Any, Dict, List, Optional
     from pydantic import BaseModel
-    from typing import Optional, Dict, Any, List
 
     class ChatRequest(BaseModel):
         message: str
@@ -50,6 +51,7 @@ try:
     async def chat_stream(request: ChatRequest):
         """Test streaming endpoint"""
         import uuid
+
         from core.websockets import manager as ws_manager
 
         message_id = str(uuid.uuid4())
@@ -87,7 +89,9 @@ except Exception as e:
 
 # WebSocket endpoint
 from fastapi import WebSocket
+
 from core.websockets import manager as ws_manager
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

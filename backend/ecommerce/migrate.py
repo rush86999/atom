@@ -1,11 +1,19 @@
-from core.database import engine, Base
-from core.models import Workspace
-from sales.models import Deal, CommissionEntry
 from accounting.models import Entity
-from ecommerce.models import EcommerceCustomer, EcommerceOrder, EcommerceOrderItem, Subscription, SubscriptionAudit
-from service_delivery.models import Contract, Project, Milestone
+from ecommerce.models import (
+    EcommerceCustomer,
+    EcommerceOrder,
+    EcommerceOrderItem,
+    Subscription,
+    SubscriptionAudit,
+)
+from intelligence.models import BusinessScenario, CapacityPlan, ClientHealthScore, ResourceRole
 from saas.models import SaaSTier, UsageEvent
-from intelligence.models import ClientHealthScore, ResourceRole, CapacityPlan, BusinessScenario
+from sales.models import CommissionEntry, Deal
+from service_delivery.models import Contract, Milestone, Project
+
+from core.database import Base, engine
+from core.models import Workspace
+
 
 def migrate():
     print("Updating database schema for Phase 18...")

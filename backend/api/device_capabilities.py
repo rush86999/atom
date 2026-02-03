@@ -14,24 +14,23 @@ Governance Integration:
 import logging
 import os
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, DeviceSession, DeviceAudit, AgentExecution, DeviceNode
-from core.security_dependencies import get_current_user
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
-
+from core.database import get_db
+from core.models import AgentExecution, DeviceAudit, DeviceNode, DeviceSession, User
+from core.security_dependencies import get_current_user
 from tools.device_tool import (
     device_camera_snap,
+    device_execute_command,
+    device_get_location,
     device_screen_record_start,
     device_screen_record_stop,
-    device_get_location,
     device_send_notification,
-    device_execute_command,
     get_device_info,
     list_devices,
 )

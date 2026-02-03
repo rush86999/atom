@@ -1,8 +1,9 @@
 import asyncio
 import logging
 from datetime import datetime
-from core.database import SessionLocal
 from analytics.models import WorkflowExecutionLog
+
+from core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 

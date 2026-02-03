@@ -6,13 +6,16 @@ Integrates with existing WebSocket infrastructure.
 """
 
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.models import (
-    AgentProposal, TrainingSession, SupervisionSession,
-    ProposalStatus, SupervisionStatus
+    AgentProposal,
+    ProposalStatus,
+    SupervisionSession,
+    SupervisionStatus,
+    TrainingSession,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,6 +45,7 @@ class TrainingWebSocketEvents:
         if not self.websocket_manager:
             try:
                 from core.websocket_manager import WebSocketConnectionManager
+
                 # Use a singleton instance
                 if not hasattr(TrainingWebSocketEvents, '_default_manager'):
                     TrainingWebSocketEvents._default_manager = WebSocketConnectionManager()

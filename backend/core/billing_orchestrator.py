@@ -1,12 +1,13 @@
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
-from sqlalchemy.orm import Session
-from core.database import get_db_session
-from service_delivery.models import Milestone, Project, Contract, MilestoneStatus, ContractType
-from accounting.models import Invoice, Entity, EntityType, InvoiceStatus
+from typing import Any, Dict, Optional
+from accounting.models import Entity, EntityType, Invoice, InvoiceStatus
 from sales.models import Deal
+from service_delivery.models import Contract, ContractType, Milestone, MilestoneStatus, Project
+from sqlalchemy.orm import Session
+
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

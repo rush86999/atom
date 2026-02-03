@@ -1,9 +1,10 @@
-from fastapi import Depends, HTTPException, status, WebSocket, Query
-from core.auth import get_current_user, decode_token
-from core.models import User
-from core.rbac_service import RBACService, Permission
 from typing import Optional
+from fastapi import Depends, HTTPException, Query, WebSocket, status
 from sqlalchemy.orm import Session
+
+from core.auth import decode_token, get_current_user
+from core.models import User
+from core.rbac_service import Permission, RBACService
 
 
 def require_permission(permission: Permission):

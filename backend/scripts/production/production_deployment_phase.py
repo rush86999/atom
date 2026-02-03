@@ -4,11 +4,12 @@ PRODUCTION DEPLOYMENT PHASE - NEXT STEPS
 Deploy ATOM application from development to production environment
 """
 
-import subprocess
-import os
 import json
+import os
+import subprocess
 import time
 from datetime import datetime
+
 
 def start_production_deployment_phase():
     """Start production deployment phase - move from development to production"""

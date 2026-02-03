@@ -1,7 +1,7 @@
-import logging
 import json
+import logging
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,12 @@ class PlainEnglishReporter:
         """
         
         if self.ai:
-            from integrations.ai_enhanced_service import AIRequest, AITaskType, AIModelType, AIServiceType
+            from integrations.ai_enhanced_service import (
+                AIModelType,
+                AIRequest,
+                AIServiceType,
+                AITaskType,
+            )
             request = AIRequest(
                 request_id=f"report_{datetime.now().timestamp()}",
                 task_type=AITaskType.CONTENT_GENERATION,
@@ -59,7 +64,12 @@ class PlainEnglishReporter:
         """
         
         if self.ai:
-            from integrations.ai_enhanced_service import AIRequest, AITaskType, AIModelType, AIServiceType
+            from integrations.ai_enhanced_service import (
+                AIModelType,
+                AIRequest,
+                AIServiceType,
+                AITaskType,
+            )
             request = AIRequest(
                 request_id=f"advice_{datetime.now().timestamp()}",
                 task_type=AITaskType.CONTENT_GENERATION,

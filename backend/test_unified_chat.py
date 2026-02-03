@@ -1,6 +1,6 @@
-import requests
 import json
 import uuid
+import requests
 
 BASE_URL = "http://localhost:8000/api/atom-agent/chat"
 

@@ -1,12 +1,12 @@
 """Terminal Canvas API Routes"""
+import logging
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-import logging
 
-from core.database import get_db
 from core.canvas_terminal_service import TerminalCanvasService
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/canvas/terminal", tags=["canvas_terminal"])
@@ -62,8 +62,9 @@ async def add_output(canvas_id: str, request: AddOutputRequest, db: Session = De
 @router.get("/{canvas_id}")
 async def get_terminal_canvas(canvas_id: str, db: Session = Depends(get_db)):
     """Get a terminal canvas."""
-    from core.models import CanvasAudit
     from sqlalchemy import desc
+
+    from core.models import CanvasAudit
 
     audit = db.query(CanvasAudit).filter(
         CanvasAudit.canvas_id == canvas_id,

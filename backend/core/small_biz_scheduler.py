@@ -1,12 +1,13 @@
-import logging
 import json
-from typing import Dict, Any, List, Optional
+import logging
 from datetime import datetime, timedelta
-from core.database import get_db_session
-from service_delivery.models import Appointment, AppointmentStatus
+from typing import Any, Dict, List, Optional
 from accounting.models import Entity
-from core.models import BusinessProductService
+from service_delivery.models import Appointment, AppointmentStatus
+
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import get_db_session
+from core.models import BusinessProductService
 
 logger = logging.getLogger(__name__)
 

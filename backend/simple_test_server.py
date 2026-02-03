@@ -4,13 +4,13 @@ Simple ATOM Backend Server for E2E Testing
 Minimal server to achieve 98% validation target
 """
 
+import asyncio
+import json
+from datetime import datetime
+from typing import Any, Dict
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-import json
-import asyncio
-from datetime import datetime
-from typing import Dict, Any
 
 app = FastAPI(
     title="ATOM E2E Test Backend",

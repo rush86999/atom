@@ -1,11 +1,13 @@
 
-import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock
-from core.models import AgentRegistry, AgentStatus
-from core.generic_agent import GenericAgent
+from unittest.mock import AsyncMock, MagicMock
+import pytest
+
 from core.agent_governance_service import AgentGovernanceService
 from core.database import SessionLocal
+from core.generic_agent import GenericAgent
+from core.models import AgentRegistry, AgentStatus
+
 
 @pytest.mark.asyncio
 async def test_agent_governance_gating():

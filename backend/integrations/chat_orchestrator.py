@@ -9,21 +9,22 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 - Cross-platform workflow execution
 """
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
 from enum import Enum
-import asyncio
+from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
-from core.database import get_db_session
-from core.automation_settings import get_automation_settings
+
 from api.agent_routes import execute_agent_task
+from core import unified_search_endpoints, unified_task_endpoints
+from core.automation_settings import get_automation_settings
 from core.chat_session_manager import get_chat_session_manager
-from core import unified_task_endpoints
-from core import unified_search_endpoints
+from core.database import get_db_session
 from core.unified_task_endpoints import CreateTaskRequest, Task
 from core.websockets import get_connection_manager
+
 
 class SimpleUser:
     """Helper user class for internal calls"""
@@ -253,9 +254,9 @@ class ChatOrchestrator:
         
         # Import AI engines
         try:
-            from ai.nlp_engine import NaturalLanguageEngine
-            from ai.data_intelligence import DataIntelligenceEngine
             from ai.automation_engine import AutomationEngine
+            from ai.data_intelligence import DataIntelligenceEngine
+            from ai.nlp_engine import NaturalLanguageEngine
 
             self.ai_engines = {
                 "nlp": NaturalLanguageEngine(),
@@ -647,8 +648,8 @@ class ChatOrchestrator:
         try:
             logger.info(f"Handling search request: {message}")
             
-            from core.unified_search_endpoints import SearchRequest
             from core import unified_search_endpoints
+            from core.unified_search_endpoints import SearchRequest
 
             # Clean up query
             query = message
@@ -792,7 +793,7 @@ class ChatOrchestrator:
         try:
             logger.info(f"Handling workflow request: {message}")
             from core.workflow_template_system import WorkflowTemplateManager
-            
+
             # Initialize manager
             manager = WorkflowTemplateManager() 
             
@@ -876,7 +877,7 @@ class ChatOrchestrator:
     ) -> Dict[str, Any]:
         """Handle calendar and meeting requests"""
         from integrations.google_calendar_service import google_calendar_service
-        
+
         # Check if authenticated
         if not google_calendar_service.authenticate():
             return {
@@ -1288,8 +1289,8 @@ class ChatOrchestrator:
         Atom will analyze the request, spawn specialty agents if needed, and coordinate response.
         """
         try:
-            from core.atom_meta_agent import get_atom_agent, AgentTriggerMode
-            
+            from core.atom_meta_agent import AgentTriggerMode, get_atom_agent
+
             # Get user from session if available
             user_id = session.get("user_id", "default_user")
             

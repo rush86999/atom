@@ -4,15 +4,14 @@ Complete Slack integration with comprehensive API endpoints using FastAPI
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
-
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 import os
 import secrets
-from fastapi import Request
-from core.oauth_handler import OAuthHandler, SLACK_OAUTH_CONFIG
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+
+from core.oauth_handler import SLACK_OAUTH_CONFIG, OAuthHandler
 from core.token_storage import token_storage
 
 try:

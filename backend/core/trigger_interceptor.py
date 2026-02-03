@@ -8,18 +8,24 @@ Performance target: <5ms routing decision latency using GovernanceCache.
 """
 
 import logging
-from datetime import datetime
-from typing import Optional, Dict, Any, Literal
-from enum import Enum
 import uuid
-
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, Literal, Optional
 from sqlalchemy.orm import Session
 
-from core.models import (
-    AgentRegistry, BlockedTriggerContext, AgentProposal, SupervisionSession,
-    AgentStatus, TriggerSource, ProposalStatus, SupervisionStatus, ProposalType
-)
 from core.governance_cache import get_async_governance_cache
+from core.models import (
+    AgentProposal,
+    AgentRegistry,
+    AgentStatus,
+    BlockedTriggerContext,
+    ProposalStatus,
+    ProposalType,
+    SupervisionSession,
+    SupervisionStatus,
+    TriggerSource,
+)
 from core.student_training_service import StudentTrainingService
 
 logger = logging.getLogger(__name__)

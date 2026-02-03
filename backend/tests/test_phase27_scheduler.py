@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 sys.path.append(os.getcwd())
 
 from api.agent_routes import router as agent_router
+
 
 class TestPhase27Scheduler(unittest.TestCase):
     

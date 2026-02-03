@@ -5,11 +5,11 @@ This script tests all search-related endpoints and functionality
 to ensure the search UI implementation is working correctly.
 """
 
-import requests
 import json
 import sys
 import time
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+import requests
 
 # Configuration
 BACKEND_URL = "http://localhost:5058"

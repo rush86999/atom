@@ -1,8 +1,10 @@
 
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+
+from core.atom_meta_agent import AgentTriggerMode, AtomMetaAgent
 from core.models import User
-from core.atom_meta_agent import AtomMetaAgent, AgentTriggerMode
+
 
 @pytest.fixture
 def mock_atom_agent():

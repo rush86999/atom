@@ -3,15 +3,24 @@ Tests for Analytics Dashboard API Routes
 Tests all analytics, correlation, and prediction endpoints.
 """
 
+from datetime import datetime, timezone
+from unittest.mock import Mock, patch
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
-from datetime import datetime, timezone
 
 from api.analytics_dashboard_routes import router
+from core.cross_platform_correlation import (
+    CorrelationStrength,
+    CrossPlatformCorrelationEngine,
+    LinkedConversation,
+)
 from core.message_analytics_engine import MessageAnalyticsEngine, SentimentLevel
-from core.cross_platform_correlation import CrossPlatformCorrelationEngine, LinkedConversation, CorrelationStrength
-from core.predictive_insights import PredictiveInsightsEngine, UrgencyLevel, ResponseTimePrediction, RecommendationConfidence
+from core.predictive_insights import (
+    PredictiveInsightsEngine,
+    RecommendationConfidence,
+    ResponseTimePrediction,
+    UrgencyLevel,
+)
 
 
 @pytest.fixture

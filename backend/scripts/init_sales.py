@@ -1,14 +1,15 @@
 import logging
-import sys
 import os
+import sys
 from sqlalchemy import text
 
 # Add the current directory to sys.path
 sys.path.append(os.getcwd())
 
-from core.database import engine, Base
-import core.models
 import sales.models
+
+import core.models
+from core.database import Base, engine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

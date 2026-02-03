@@ -10,10 +10,10 @@ This script provides:
 - System status summary
 """
 
-import os
-import sys
 import json
+import os
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -82,7 +82,7 @@ if workflow_engine_path.exists():
         sys.path.append(str(current_dir))
         
         from working_enhanced_workflow_engine import working_enhanced_workflow_engine
-        
+
         # Get available templates
         templates = working_enhanced_workflow_engine.get_available_templates()
         print(f"      📝 Templates Available: {len(templates)}")
@@ -133,7 +133,7 @@ if websocket_server_path.exists():
         sys.path.append(str(current_dir))
         
         from setup_websocket_server import websocket_server
-        
+
         # Get server metrics
         metrics = websocket_server.get_metrics()
         print(f"      🌐 Server Status: {'Running' if metrics['server_running'] else 'Stopped'}")

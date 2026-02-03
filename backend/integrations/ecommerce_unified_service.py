@@ -4,13 +4,13 @@ Aggregates data from Amazon Seller, Etsy, WooCommerce, and Shopify.
 """
 
 import logging
-from datetime import datetime
-from typing import Dict, Any, List, Optional
-from enum import Enum
 from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 try:
-    from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
+    from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
 except ImportError:
     logging.warning("Core services not available for Ecommerce Service")
 

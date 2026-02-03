@@ -4,14 +4,14 @@ Documentation Canvas API Routes
 Provides endpoints for documentation canvas operations including
 document creation, updates, versioning, and comments.
 """
+import logging
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
-import logging
-
-from core.database import get_db
-from core.canvas_docs_service import DocumentationCanvasService
 from sqlalchemy.orm import Session
+
+from core.canvas_docs_service import DocumentationCanvasService
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +93,9 @@ async def get_document_canvas(canvas_id: str, db: Session = Depends(get_db)):
     Returns the latest version of the document with all comments.
     """
     try:
-        from core.models import CanvasAudit
         from sqlalchemy import desc
+
+        from core.models import CanvasAudit
 
         audit = db.query(CanvasAudit).filter(
             CanvasAudit.canvas_id == canvas_id,

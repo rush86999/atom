@@ -4,17 +4,18 @@ Analytics endpoints for real-time analytics validation
 Supports >98% marketing claim validation with comprehensive evidence
 """
 
+import asyncio
+import random
+import time
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
-import time
-import random
-import asyncio
-from datetime import datetime, timedelta
+
 from core.burnout_detection_engine import BurnoutDetectionEngine, WellnessScore
-from core.industry_workflow_templates import IndustryWorkflowEngine, Industry
+from core.email_followup_engine import FollowUpCandidate, followup_engine
+from core.industry_workflow_templates import Industry, IndustryWorkflowEngine
 from core.workflow_engine import WorkflowEngine
-from core.email_followup_engine import followup_engine, FollowUpCandidate
 from core.workforce_analytics import WorkforceAnalyticsService
 
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])

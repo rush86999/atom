@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .industry_workflow_templates import (
-    get_industry_workflow_engine,
+    Industry,
     IndustryWorkflowEngine,
-    Industry
+    get_industry_workflow_engine,
 )
 
 router = APIRouter()

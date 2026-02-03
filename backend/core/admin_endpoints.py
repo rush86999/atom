@@ -1,6 +1,8 @@
 from fastapi import Depends, HTTPException, status
+
 from core.auth import get_current_user
 from core.models import User, UserRole
+
 
 async def get_super_admin(current_user: User = Depends(get_current_user)):
     """

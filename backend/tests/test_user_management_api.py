@@ -2,18 +2,26 @@
 User Management API Tests
 Tests for user management, email verification, tenant, admin, meeting, and financial endpoints
 """
+import json
+from datetime import datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+
+from core.auth import create_access_token, get_password_hash
 from core.database import SessionLocal
 from core.models import (
-    User, UserStatus, EmailVerificationToken, UserSession, Tenant,
-    AdminRole, AdminUser, MeetingAttendanceStatus,
-    FinancialAccount, NetWorthSnapshot
+    AdminRole,
+    AdminUser,
+    EmailVerificationToken,
+    FinancialAccount,
+    MeetingAttendanceStatus,
+    NetWorthSnapshot,
+    Tenant,
+    User,
+    UserSession,
+    UserStatus,
 )
-from core.auth import get_password_hash, create_access_token
-from datetime import datetime, timedelta
-import json
 
 # Import app for testing - use try/except for flexibility
 try:

@@ -3,9 +3,9 @@
 Test script for Microsoft Teams and Slack unified communication
 """
 
-import requests
 import json
 import time
+import requests
 
 API_BASE_URL = "http://localhost:8000"  # Updated to match .env configuration
 TEST_USER_ID = "test-user-123"

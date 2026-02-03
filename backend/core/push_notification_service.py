@@ -5,12 +5,12 @@ Integrates with Firebase Cloud Messaging (FCM) and Apple Push Notification Servi
 to send push notifications to mobile devices for agent events, alerts, and system updates.
 """
 
-import logging
-import uuid
 import json
+import logging
 import time
-from typing import Dict, Any, Optional, List
+import uuid
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Feature flags
 import os
+
 PUSH_NOTIFICATIONS_ENABLED = os.getenv("PUSH_NOTIFICATIONS_ENABLED", "true").lower() == "true"
 FCM_SERVER_KEY = os.getenv("FCM_SERVER_KEY")  # Firebase service account key
 APNS_KEY_ID = os.getenv("APNS_KEY_ID")  # Apple Push Notification key ID

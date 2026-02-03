@@ -3,10 +3,10 @@ Periodic System Tasks
 Executed by the SQS Worker on a schedule (Heartbeat).
 """
 import logging
+from saas.models import Workspace
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from saas.models import Workspace
 from core.config import get_config
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ async def run_global_ingestion_pulse():
             logger.info(f"Found {len(workspaces)} workspaces to check")
             
             from sqs_worker import dispatch_task
+
             from core.auto_document_ingestion import get_document_ingestion_service
             
             total_dispatched = 0

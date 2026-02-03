@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from pydantic import BaseModel
 
 try:
     from .deepgram_service import get_deepgram_service

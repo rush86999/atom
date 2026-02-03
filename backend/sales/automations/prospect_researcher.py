@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from browser_engine.agent import BrowserAgent
 
 logger = logging.getLogger(__name__)

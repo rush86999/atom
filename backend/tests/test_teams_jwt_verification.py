@@ -4,14 +4,13 @@ Tests for Teams Adapter JWT Signature Verification
 Tests the security fix for JWT signature validation
 """
 
-import pytest
-import jwt
 import time
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+import jwt
+import pytest
 from fastapi import Request
 
 from core.communication.adapters.teams import TeamsAdapter
-
 
 # Mock RSA keys for testing
 MOCK_PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----

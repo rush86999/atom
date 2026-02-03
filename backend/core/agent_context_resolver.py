@@ -11,14 +11,12 @@ This ensures all actions have proper agent attribution for governance and audit 
 """
 
 import logging
-from typing import Optional, Dict, Any, Tuple
-from sqlalchemy.orm import Session
 from datetime import datetime
+from typing import Any, Dict, Optional, Tuple
+from sqlalchemy.orm import Session
 
-from core.models import (
-    AgentRegistry, AgentStatus, User, ChatSession
-)
 from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentRegistry, AgentStatus, ChatSession, User
 
 logger = logging.getLogger(__name__)
 

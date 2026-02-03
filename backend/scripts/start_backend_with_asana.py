@@ -6,12 +6,12 @@ This script starts the ATOM backend with Asana integration properly registered
 and configured. It ensures all Asana endpoints are available and ready for OAuth.
 """
 
+import logging
 import os
 import sys
-import logging
+import threading
 import time
 from flask import Flask, jsonify
-import threading
 
 # Add backend modules to Python path
 backend_path = os.path.join(os.path.dirname(__file__), "backend", "python-api-service")
@@ -115,9 +115,9 @@ def create_app_with_asana():
 
     try:
         # Register other core integrations
-        from workflow_handler import workflow_bp
-        from workflow_api import workflow_api_bp
         from workflow_agent_api import workflow_agent_api_bp
+        from workflow_api import workflow_api_bp
+        from workflow_handler import workflow_bp
 
         app.register_blueprint(workflow_bp, url_prefix="/api/v1/workflows")
         app.register_blueprint(workflow_api_bp, url_prefix="/api/v1/workflows")

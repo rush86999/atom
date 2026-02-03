@@ -9,14 +9,14 @@ Simplified testing for:
 - Performance monitoring
 """
 
+import json
+import logging
 import os
 import sys
-import logging
-import json
-import uuid
 import time
+import uuid
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 # Add backend directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -68,7 +68,11 @@ class AdvancedWorkflowTester:
             print("✅ Testing enhanced workflow data structures...")
             
             # Test WorkflowStep
-            from enhance_workflow_engine import WorkflowStep, ParallelExecutionMode, StepExecutionStatus
+            from enhance_workflow_engine import (
+                ParallelExecutionMode,
+                StepExecutionStatus,
+                WorkflowStep,
+            )
             
             test_step = WorkflowStep(
                 id="test_step_1",
@@ -153,10 +157,10 @@ class AdvancedWorkflowTester:
             
             # Test ErrorClassifier
             from implement_error_recovery import (
-                ErrorClassifier,
                 ErrorCategory,
+                ErrorClassifier,
                 ErrorSeverity,
-                RecoveryStrategy
+                RecoveryStrategy,
             )
             
             classifier = ErrorClassifier()
@@ -232,9 +236,9 @@ class AdvancedWorkflowTester:
             # Test template creation and management
             from enhance_workflow_engine import (
                 EnhancedWorkflowEngine,
-                WorkflowTemplate,
+                ParallelExecutionMode,
                 WorkflowStep,
-                ParallelExecutionMode
+                WorkflowTemplate,
             )
             
             engine = EnhancedWorkflowEngine()
@@ -418,7 +422,7 @@ class AdvancedWorkflowTester:
             
             # Test conditional logic evaluator
             from enhance_workflow_engine import ConditionalEvaluator
-            from implement_error_recovery import ConditionalRule, ConditionalLogicOperator
+            from implement_error_recovery import ConditionalLogicOperator, ConditionalRule
             
             evaluator = ConditionalEvaluator()
             print(f"   ✅ Created ConditionalEvaluator")

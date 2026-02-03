@@ -8,7 +8,7 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -74,8 +74,9 @@ class FormulaMemoryManager:
         Add a formula to Hybrid Memory (Postgres + LanceDB).
         """
         self._ensure_initialized()
-        from core.database import get_db_session
         from saas.models import Formula
+
+        from core.database import get_db_session
 
         if parameters is None:
             parameters = []
@@ -219,8 +220,9 @@ Output: {json.dumps(example_output)}
 
     def get_formula(self, formula_id: str) -> Optional[Dict[str, Any]]:
         """Get strict formula definition from Postgres (Source of Truth)."""
-        from core.database import get_db_session
         from saas.models import Formula
+
+        from core.database import get_db_session
         
         try:
             with get_db_session() as db:
@@ -281,8 +283,9 @@ Output: {json.dumps(example_output)}
     def delete_formula(self, formula_id: str) -> bool:
         """Delete from Postgres AND LanceDB."""
         self._ensure_initialized()
-        from core.database import get_db_session
         from saas.models import Formula
+
+        from core.database import get_db_session
         
         success = False
         # 1. SQL Delete

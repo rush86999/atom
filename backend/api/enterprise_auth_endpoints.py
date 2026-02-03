@@ -3,16 +3,15 @@ Enterprise Authentication API Endpoints
 FastAPI-based REST API for user registration, login, and session management.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status
-from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel, Field, EmailStr
-from typing import Dict, Any, Optional, List
+import logging
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +70,8 @@ async def register_user(
     - Password hashed with bcrypt (cost factor 12)
     """
     try:
-        from core.models import User
         from core.enterprise_auth_service import EnterpriseAuthService
+        from core.models import User
 
         auth_service = EnterpriseAuthService()
 
@@ -477,8 +476,8 @@ async def _verify_enterprise_credentials_new(username: str, password: str) -> Di
         User credentials dict if valid, None if invalid
     """
     try:
-        from core.enterprise_auth_service import EnterpriseAuthService
         from core.database import get_db
+        from core.enterprise_auth_service import EnterpriseAuthService
 
         auth_service = EnterpriseAuthService()
 

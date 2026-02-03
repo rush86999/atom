@@ -1,21 +1,22 @@
-import unittest
 import asyncio
-from unittest.mock import MagicMock, patch
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
+import unittest
 import uuid
 from datetime import datetime
+from unittest.mock import MagicMock, patch
+import accounting.models
+import sales.models
+import service_delivery.models
+from accounting.models import Entity, EntityType, Invoice, InvoiceStatus
+from service_delivery.models import Contract, ContractType, Milestone, MilestoneStatus, Project
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
+from core.billing_orchestrator import BillingOrchestrator
 
 # Import models
 from core.database import Base
-import core.models
-import service_delivery.models
-import sales.models
-import accounting.models
 
-from service_delivery.models import Project, Milestone, MilestoneStatus, Contract, ContractType
-from accounting.models import Invoice, Entity, EntityType, InvoiceStatus
-from core.billing_orchestrator import BillingOrchestrator
 
 class TestMilestoneBilling(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

@@ -6,6 +6,7 @@ Exposes Signal webhook functionality for signal-cli-rest-api
 import logging
 from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, Request
+
 from .signal_service import signal_service
 from .universal_webhook_bridge import universal_webhook_bridge
 
@@ -34,6 +35,7 @@ async def signal_webhook(request: Request):
             
             if data_message and data_message.get("message"):
                 import asyncio
+
                 # Extract relevant fields for standardization
                 # sender: data.get("source")
                 # text: data_message.get("message")

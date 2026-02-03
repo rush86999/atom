@@ -3,14 +3,14 @@ GitHub Integration Routes for FastAPI
 Provides REST API endpoints for GitHub integration
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
 import asyncio
 import logging
 import os
 import sys
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 

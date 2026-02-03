@@ -5,8 +5,8 @@ Provides consistent logging format across all modules.
 """
 
 import logging
-import sys
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional

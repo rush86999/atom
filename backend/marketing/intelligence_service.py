@@ -1,11 +1,11 @@
 import logging
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List
+from ecommerce.models import EcommerceOrder
+from marketing.models import AdSpendEntry, AttributionEvent, MarketingChannel
+from sales.models import Deal, Lead
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from marketing.models import MarketingChannel, AdSpendEntry, AttributionEvent
-from sales.models import Lead, Deal
-from ecommerce.models import EcommerceOrder
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 

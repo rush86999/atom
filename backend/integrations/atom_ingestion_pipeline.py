@@ -3,20 +3,20 @@ Unified Ingestion Pipeline for ATOM Memory
 Consolidates data from all integrations into LanceDB vector storage.
 """
 
-import logging
 import json
+import logging
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 # Import LanceDB handlers
 try:
     from core.lancedb_handler import LanceDBHandler
     from integrations.atom_communication_ingestion_pipeline import (
-        CommunicationAppType, 
+        CommunicationAppType,
+        CommunicationData,
         LanceDBMemoryManager,
-        CommunicationData
     )
 except (ImportError, OSError, Exception) as e:
     logging.warning(f"Core LanceDB and Communication handlers not found ({e}). Using local fallbacks for development.")
@@ -165,4 +165,5 @@ class AtomIngestionPipeline:
 
 # Global instance
 from integrations.atom_communication_ingestion_pipeline import memory_manager
+
 atom_ingestion_pipeline = AtomIngestionPipeline(memory_manager)

@@ -1,25 +1,31 @@
 
+import asyncio
+import datetime
 import logging
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
-import datetime
-import asyncio
-from core.database import SessionLocal, get_db_session
-from core.agent_world_model import WorldModelService, AgentExperience
-
+from typing import Any, Dict, List, Optional
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
-from core.notification_manager import notification_manager
-from core.websockets import manager as ws_manager
-from core.models import User
-from core.security_dependencies import require_permission
-from core.rbac_service import Permission
-from core.enterprise_security import enterprise_security, AuditEvent, EventType, SecurityLevel
-from core.database import get_db
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
 from core.agent_governance_service import AgentGovernanceService
-from core.models import AgentRegistry, AgentStatus, AgentFeedback, HITLAction, HITLActionStatus, AgentJob
+from core.agent_world_model import AgentExperience, WorldModelService
+from core.database import SessionLocal, get_db, get_db_session
+from core.enterprise_security import AuditEvent, EventType, SecurityLevel, enterprise_security
+from core.models import (
+    AgentFeedback,
+    AgentJob,
+    AgentRegistry,
+    AgentStatus,
+    HITLAction,
+    HITLActionStatus,
+    User,
+)
+from core.notification_manager import notification_manager
+from core.rbac_service import Permission
+from core.security_dependencies import require_permission
+from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -322,7 +328,10 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
 
                 if source_platform and recipient_id:
                     try:
-                        from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                        from core.agent_integration_gateway import (
+                            ActionType,
+                            agent_integration_gateway,
+                        )
                         final_output = result.get("final_output") if isinstance(result, dict) else str(result)
 
                         if final_output:
@@ -367,8 +376,8 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
                 raise e
 
         except Exception as e:
-            import traceback
             import sys
+            import traceback
             error_msg = f"Agent execution FAILED: {str(e)}\n{traceback.format_exc()}"
             print(f"!!! CRITICAL AGENT ERROR !!!\n{error_msg}", file=sys.stderr)
             logger.error(f"Agent {agent_id} execution wrapper failed: {e}")
@@ -417,7 +426,7 @@ async def execute_atom(
     Atom will analyze the request and spawn specialty agents as needed.
     """
     from core.atom_meta_agent import handle_manual_trigger
-    
+
     # Determine workspace from user context
     workspace_id = "default"
 

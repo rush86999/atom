@@ -3,28 +3,33 @@ ATOM Enhanced Teams API Routes
 Complete API with authentication, real-time features, calls, and analytics
 """
 
-import os
-import json
-import logging
 import asyncio
 import base64
 import hashlib
 import hmac
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional
-from flask import Blueprint, request, jsonify, current_app
+import json
+import logging
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+from flask import Blueprint, current_app, jsonify, request
 from loguru import logger
 
 # Import enhanced services
 try:
-    from teams_enhanced_service import teams_enhanced_service
-    from teams_workflow_engine import teams_workflow_engine, TeamsWorkflowTemplate
-    from teams_analytics_engine import teams_analytics_engine, TeamsAnalyticsMetric, TeamsAnalyticsTimeRange, TeamsAnalyticsGranularity
-    from teams_call_service import teams_call_service
     from atom_ingestion_pipeline import atom_ingestion_pipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import atom_workflow_service
+    from teams_analytics_engine import (
+        TeamsAnalyticsGranularity,
+        TeamsAnalyticsMetric,
+        TeamsAnalyticsTimeRange,
+        teams_analytics_engine,
+    )
+    from teams_call_service import teams_call_service
+    from teams_enhanced_service import teams_enhanced_service
+    from teams_workflow_engine import TeamsWorkflowTemplate, teams_workflow_engine
     from universal_webhook_bridge import universal_webhook_bridge
 except ImportError as e:
     logger.warning(f"Enhanced Teams services not available: {e}")
@@ -787,7 +792,11 @@ def manage_teams_workflows():
                 return create_teams_response(False, error="Teams workflow engine not available"), 503
             
             # Create workflow
-            from teams_workflow_engine import TeamsWorkflow, TeamsWorkflowTrigger, TeamsWorkflowAction
+            from teams_workflow_engine import (
+                TeamsWorkflow,
+                TeamsWorkflowAction,
+                TeamsWorkflowTrigger,
+            )
             
             workflow = TeamsWorkflow(
                 id=f"workflow_{int(datetime.utcnow().timestamp())}",

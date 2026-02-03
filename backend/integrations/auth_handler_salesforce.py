@@ -3,15 +3,16 @@ Salesforce Authentication Handler
 OAuth 2.0 authentication handler for Salesforce integration
 """
 
-import os
 import json
 import logging
+import os
 import secrets
-from typing import Dict, Optional, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 import aiohttp
 from fastapi import HTTPException
+
 from core.app_secrets import get_secret_manager
 
 logger = logging.getLogger(__name__)

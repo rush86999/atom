@@ -4,10 +4,9 @@ Minimal startup script for Atom API service.
 This script starts only the essential components for testing core functionality.
 """
 
-import sys
-import os
-
 import logging
+import os
+import sys
 from flask import Flask
 
 # Add backend modules to Python path
@@ -112,11 +111,11 @@ def create_minimal_app():
     @app.route("/api/test/lancedb", methods=["GET"])
     def test_lancedb():
         try:
-            from lancedb_handler import (
-                get_lancedb_connection,
-                create_generic_document_tables_if_not_exist,
-            )
             import asyncio
+            from lancedb_handler import (
+                create_generic_document_tables_if_not_exist,
+                get_lancedb_connection,
+            )
 
             async def test():
                 db_conn = await get_lancedb_connection()

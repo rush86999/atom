@@ -14,8 +14,8 @@ def test_imports():
     """Test that all required modules can be imported."""
     print("Testing imports...")
     try:
-        from tools.registry import ToolRegistry, get_tool_registry, ToolMetadata
         from api.tools import router
+        from tools.registry import ToolMetadata, ToolRegistry, get_tool_registry
         print("  ✓ All imports successful")
         return True
     except Exception as e:

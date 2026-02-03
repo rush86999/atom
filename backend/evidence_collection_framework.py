@@ -4,17 +4,17 @@ Evidence Collection Framework for AI Workflow Marketing Claim Validation
 Systematically collects, organizes, and presents evidence for independent AI validators
 """
 
-import os
+import asyncio
+import datetime
 import json
 import logging
-import asyncio
+import os
 import time
-import datetime
-from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Union
+import requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import requests
 
 # Configure logging
 logger = logging.getLogger(__name__)

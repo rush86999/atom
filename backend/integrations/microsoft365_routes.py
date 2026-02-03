@@ -6,7 +6,6 @@ It handles API endpoints for Teams, Outlook, Calendar, and other Microsoft 365 s
 """
 
 from typing import Any, Dict, List, Optional
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -17,6 +16,7 @@ from .microsoft365_service import (
     Microsoft365Team,
     Microsoft365User,
 )
+
 
 class Microsoft365SubscriptionRequest(BaseModel):
     resource: str

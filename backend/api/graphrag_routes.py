@@ -3,10 +3,10 @@ GraphRAG API Routes - Phase 42
 Endpoints for GraphRAG queries.
 """
 
-from fastapi import APIRouter
-from typing import Dict, Any, Optional
-from pydantic import BaseModel
 import logging
+from typing import Any, Dict, Optional
+from fastapi import APIRouter
+from pydantic import BaseModel
 
 router = APIRouter()
 

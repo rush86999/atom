@@ -7,16 +7,17 @@ import asyncio
 import json
 import logging
 import os
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Any, Optional, Union
-from dataclasses import dataclass, asdict
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 import httpx
+
 try:
     import lancedb
-    import pyarrow as pa
-    import pandas as pd
     import numpy as np
+    import pandas as pd
+    import pyarrow as pa
 except ImportError:
     lancedb = None
     pa = None
@@ -32,6 +33,7 @@ except ImportError:
     np = MagicMock()
 
 from pathlib import Path
+
 from core.knowledge_ingestion import get_knowledge_ingestion
 
 logger = logging.getLogger(__name__)
@@ -572,7 +574,9 @@ class CommunicationIngestionPipeline:
                                 ))
                                 
                                 # 2. Advanced Communication Intelligence (Intent + Responses)
-                                from core.communication_intelligence import CommunicationIntelligenceService
+                                from core.communication_intelligence import (
+                                    CommunicationIntelligenceService,
+                                )
                                 intel_service = CommunicationIntelligenceService()
                                 loop.create_task(intel_service.analyze_and_route(
                                     comm_data=asdict(comm_data),
@@ -718,8 +722,8 @@ class CommunicationIngestionPipeline:
         """
         try:
             import os
-            from slack_sdk.web.async_client import AsyncWebClient
             from slack_sdk.errors import SlackApiError
+            from slack_sdk.web.async_client import AsyncWebClient
 
             bot_token = os.getenv("SLACK_BOT_TOKEN")
             if not bot_token:
@@ -1159,8 +1163,8 @@ class CommunicationIngestionPipeline:
     async def _fetch_email_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """Fetch new email messages via IMAP"""
         try:
-            import imaplib
             import email
+            import imaplib
             from email.header import decode_header
 
             imap_server = os.getenv("IMAP_SERVER")
@@ -1184,8 +1188,8 @@ class CommunicationIngestionPipeline:
     def _fetch_imap_messages(self, imap_server: str, imap_user: str, imap_password: str, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """Synchronous IMAP fetching - runs in executor"""
         try:
-            import imaplib
             import email
+            import imaplib
             from email.header import decode_header
 
             # Connect to IMAP server
@@ -1289,8 +1293,9 @@ class CommunicationIngestionPipeline:
         Supports incremental fetching and proper message normalization.
         """
         try:
-            from integrations.gmail_service import GmailService
             import asyncio
+
+            from integrations.gmail_service import GmailService
 
             gmail_service = GmailService()
 

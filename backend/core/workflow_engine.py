@@ -11,25 +11,21 @@ Handles the execution of workflows with support for:
 import asyncio
 import logging
 import re
-from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
 import uuid
-import jsonschema
-from jsonschema import validate, ValidationError
-
-from core.execution_state_manager import get_state_manager, ExecutionStateManager
-from core.auto_healing import async_retry_with_backoff
-from core.websockets import get_connection_manager
-from core.token_storage import token_storage
-from core.exceptions import (
-    AuthenticationError,
-    ExternalServiceError,
-    ValidationError as AtomValidationError,
-    AgentExecutionError
-)
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
 import httpx
-from core.models import IntegrationCatalog, WorkflowStepExecution
+import jsonschema
+from jsonschema import ValidationError, validate
+
+from core.auto_healing import async_retry_with_backoff
 from core.database import get_db_session
+from core.exceptions import AgentExecutionError, AuthenticationError, ExternalServiceError
+from core.exceptions import ValidationError as AtomValidationError
+from core.execution_state_manager import ExecutionStateManager, get_state_manager
+from core.models import IntegrationCatalog, WorkflowStepExecution
+from core.token_storage import token_storage
+from core.websockets import get_connection_manager
 
 logger = logging.getLogger(__name__)
 
@@ -957,7 +953,7 @@ class WorkflowEngine:
     async def _execute_slack_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Slack service actions"""
         from integrations.slack_service_unified import slack_unified_service
-        
+
         # Try to get token if connection_id is present
         token_data = None
         if connection_id:
@@ -1245,7 +1241,7 @@ class WorkflowEngine:
     async def _execute_gmail_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Gmail service actions"""
         from integrations.gmail_service import gmail_service
-        
+
         # Try to get token if connection_id is present
         token_data = None
         if connection_id:
@@ -1536,8 +1532,8 @@ class WorkflowEngine:
 
     def _load_workflow_by_id(self, workflow_id: str) -> Optional[Dict[str, Any]]:
         """Load workflow definition by ID from workflows.json."""
-        import os
         import json
+        import os
 
         # Calculate path to workflows.json (same as in workflow_endpoints.py)
         workflows_file = os.path.join(

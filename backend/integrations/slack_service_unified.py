@@ -3,17 +3,17 @@ Enhanced Slack Service - Unified API Interface
 Complete Slack service with consistent error handling and rate limiting
 """
 
-import os
-import logging
 import asyncio
-import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Union
-from dataclasses import dataclass, asdict
-from enum import Enum
-import httpx
-import hmac
 import hashlib
+import hmac
+import json
+import logging
+import os
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+import httpx
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ class SlackUnifiedService:
         try:
             import secrets
             import urllib.parse
-            
+
             # Generate state if not provided
             if not state:
                 state = secrets.token_urlsafe(16)

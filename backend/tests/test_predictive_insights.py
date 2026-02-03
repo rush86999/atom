@@ -3,19 +3,19 @@ Tests for Predictive Insights Engine
 Tests response time prediction, channel recommendations, and bottleneck detection.
 """
 
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List
 import pytest
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List
 
 from core.predictive_insights import (
+    BottleneckAlert,
+    ChannelRecommendation,
+    CommunicationPattern,
     PredictiveInsightsEngine,
-    UrgencyLevel,
     RecommendationConfidence,
     ResponseTimePrediction,
-    ChannelRecommendation,
-    BottleneckAlert,
-    CommunicationPattern,
-    get_predictive_insights_engine
+    UrgencyLevel,
+    get_predictive_insights_engine,
 )
 
 

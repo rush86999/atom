@@ -1,15 +1,17 @@
 
-import unittest
 import asyncio
 import os
 import sys
-from unittest.mock import MagicMock, patch, AsyncMock
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from integrations.chat_orchestrator import ChatOrchestrator, ChatIntent, FeatureType, PlatformType
-from ai.nlp_engine import NaturalLanguageEngine, CommandType
+from ai.nlp_engine import CommandType, NaturalLanguageEngine
+
+from integrations.chat_orchestrator import ChatIntent, ChatOrchestrator, FeatureType, PlatformType
+
 
 class TestPhase26ChatIntegration(unittest.TestCase):
     

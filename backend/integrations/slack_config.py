@@ -3,11 +3,11 @@ Slack Integration Configuration
 Complete configuration management for Slack integration
 """
 
-import os
 import logging
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
+import os
+from dataclasses import asdict, dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

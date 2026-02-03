@@ -3,16 +3,16 @@ Tests for Slack API Real-Time Message Ingestion
 Tests the Slack WebClient integration for polling and message fetching.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+import pytest
 
 from integrations.atom_communication_ingestion_pipeline import (
-    CommunicationIngestionPipeline,
     CommunicationAppType,
+    CommunicationIngestionPipeline,
     IngestionConfig,
-    LanceDBMemoryManager
+    LanceDBMemoryManager,
 )
 
 

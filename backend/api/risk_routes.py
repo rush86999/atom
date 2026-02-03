@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any
 import os
+from typing import Any, Dict, List
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
 
-from core.database import get_db
 from core.auth import get_current_user
+from core.database import get_db
 from core.models import User
 from core.risk_prevention import customer_protection, early_warning, fraud_detection
 

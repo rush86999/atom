@@ -4,10 +4,9 @@ Standardized Response Models for Atom Platform
 Provides consistent Pydantic models for API responses.
 """
 
-from typing import Any, Dict, Generic, List, Optional, TypeVar
 from datetime import datetime
+from typing import Any, Dict, Generic, List, Optional, TypeVar
 from pydantic import BaseModel, Field
-
 
 # Generic type variable for data field
 T = TypeVar('T')

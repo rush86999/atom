@@ -5,17 +5,17 @@ Provides aggregated metrics and KPIs for the analytics dashboard
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from fastapi import APIRouter, HTTPException, Query, Depends
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from core.workflow_analytics_engine import (
-    WorkflowAnalyticsEngine,
-    PerformanceMetrics,
-    MetricType,
-    AlertSeverity
-)
 from core.database import SessionLocal
+from core.workflow_analytics_engine import (
+    AlertSeverity,
+    MetricType,
+    PerformanceMetrics,
+    WorkflowAnalyticsEngine,
+)
 
 logger = logging.getLogger(__name__)
 

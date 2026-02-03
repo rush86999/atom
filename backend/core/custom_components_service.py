@@ -12,21 +12,20 @@ Manages custom HTML/CSS/JS components for canvas presentations with:
 import logging
 import re
 import uuid
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
-
+from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, desc
 
 from core.models import (
-    CustomComponent,
-    ComponentVersion,
-    ComponentUsage,
-    User,
-    AgentRegistry,
     AgentExecution,
-    CanvasAudit
+    AgentRegistry,
+    CanvasAudit,
+    ComponentUsage,
+    ComponentVersion,
+    CustomComponent,
+    User,
 )
 
 logger = logging.getLogger(__name__)

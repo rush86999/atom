@@ -24,18 +24,18 @@ Usage:
 4. Device executes and returns results
 """
 
+import asyncio
+import json
 import logging
 import uuid
-import json
-import asyncio
-from typing import Dict, Any, Optional, Set, List
 from datetime import datetime
-from fastapi import WebSocket, WebSocketDisconnect, Query
+from typing import Any, Dict, List, Optional, Set
+from fastapi import Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from core.database import get_db, SessionLocal
-from core.models import User, DeviceNode, DeviceSession
 from core.auth import decode_token
+from core.database import SessionLocal, get_db
+from core.models import DeviceNode, DeviceSession, User
 
 logger = logging.getLogger(__name__)
 

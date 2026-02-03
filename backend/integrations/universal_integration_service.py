@@ -1,17 +1,18 @@
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from core.database import SessionLocal
-from integrations.salesforce_service import SalesforceService
-from integrations.hubspot_service import get_hubspot_service
 from integrations.atom_telegram_integration import atom_telegram_integration
+from integrations.figma_service import figma_service
+from integrations.google_chat_enhanced_service import google_chat_enhanced_service
+from integrations.google_integration import google_integration
+from integrations.hubspot_service import get_hubspot_service
+from integrations.mailchimp_service import MailchimpService
+from integrations.salesforce_service import SalesforceService
+from integrations.tableau_service import tableau_service
 from integrations.whatsapp_business_integration import whatsapp_integration
 from integrations.zoom_service import zoom_service
-from integrations.google_chat_enhanced_service import google_chat_enhanced_service
-from integrations.figma_service import figma_service
-from integrations.mailchimp_service import MailchimpService
-from integrations.tableau_service import tableau_service
-from integrations.google_integration import google_integration
 
 logger = logging.getLogger(__name__)
 
