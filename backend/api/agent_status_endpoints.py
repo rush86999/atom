@@ -47,7 +47,7 @@ def load_agent_status() -> Dict[str, Any]:
     try:
         with open(AGENT_STATUS_FILE, 'r') as f:
             return json.load(f)
-    except:
+    except Exception as e:
         return {"agents": {}, "tasks": {}}
 
 def save_agent_status(data: Dict[str, Any]):

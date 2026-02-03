@@ -996,7 +996,7 @@ class SlackAnalyticsEngine:
             # Handle ISO string
             try:
                 return datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            except:
+            except Exception as e:
                 # Try other formats
                 return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
         

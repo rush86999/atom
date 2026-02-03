@@ -329,7 +329,7 @@ async def upload_and_extract(
         try:
             os.unlink(temp_path)
             os.rmdir(temp_dir)
-        except:
+        except Exception as e:
             pass
 
 

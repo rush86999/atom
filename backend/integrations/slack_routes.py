@@ -155,7 +155,7 @@ async def slack_search(request: SlackSearchRequest):
     for result in results:
         try:
             atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, result)
-        except:
+        except Exception as e:
             pass
 
     return SlackSearchResponse(
@@ -256,7 +256,7 @@ async def get_conversation_history(
             # Add channel info to message for better context in memory
             msg_with_context = {**msg, "channel": channel}
             atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, msg_with_context)
-        except:
+        except Exception as e:
             pass
 
     return {"ok": True, "messages": messages}

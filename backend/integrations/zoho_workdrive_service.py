@@ -166,7 +166,7 @@ class ZohoWorkDriveService:
                     if f.get("modified_at"):
                         try:
                             modified_at = datetime.fromisoformat(f["modified_at"].replace("Z", "+00:00"))
-                        except:
+                        except Exception as e:
                             pass
 
                     if existing:

@@ -133,7 +133,7 @@ async def get_providers():
             "default": "deepseek" if ai_service.deepseek_api_key else "openai",
             "count": len(providers)
         }
-    except:
+    except Exception as e:
         return {
             "providers": [
                 {"id": "openai", "name": "OpenAI GPT-4", "enabled": False},

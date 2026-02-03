@@ -547,7 +547,7 @@ class AtomEnhancedFinanceAppsEnhancement:
                     dt = datetime.fromisoformat(timestamp)
                     if dt.hour >= 22 or dt.hour <= 4:
                         risk_score += 0.2
-                except:
+                except Exception as e:
                     pass
             
             # Description-based risk

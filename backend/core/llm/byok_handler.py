@@ -927,7 +927,7 @@ class BYOKHandler:
                     input_tokens = len(prompt) // 4
                     output_tokens = 500
                     estimated_cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
-            except:
+            except Exception as e:
                 pass
             
             return {

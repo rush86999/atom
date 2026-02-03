@@ -53,7 +53,7 @@ async def websocket_satellite_endpoint(websocket: WebSocket):
         logger.error(f"Satellite WS error: {e}")
         try:
             await websocket.close(code=1011)
-        except:
+        except Exception as e:
             pass
 
 @router.get("/api/satellite/key")

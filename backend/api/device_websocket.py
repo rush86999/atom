@@ -410,7 +410,8 @@ async def websocket_device_endpoint(
                             "type": "heartbeat_probe",
                             "timestamp": datetime.now().isoformat()
                         })
-                    except:
+                    except Exception as e:
+                        logger.debug(f"Heartbeat failed for device {device_node_id}: {e}")
                         break
 
         except WebSocketDisconnect:

@@ -280,7 +280,7 @@ class AIEnhancedService:
         # BYOK Manager
         try:
             self.byok_manager = get_byok_manager()
-        except:
+        except Exception as e:
             self.byok_manager = None
             logger.warning("BYOK Manager not initialized in AIEnhancedService")
         

@@ -217,7 +217,7 @@ async def get_salesforce_accounts(
         for account in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, account) # Mapping to CONTACT if generic not available
-            except:
+            except Exception as e:
                 pass
                 
         return format_salesforce_response({"accounts": result})
@@ -316,7 +316,7 @@ async def get_salesforce_contacts(
         for contact in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, contact)
-            except:
+            except Exception as e:
                 pass
 
         return format_salesforce_response(result)
@@ -389,7 +389,7 @@ async def get_salesforce_opportunities(
         for opp in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.DEAL.value, opp)
-            except:
+            except Exception as e:
                 pass
                 
         return format_salesforce_response(result)
@@ -455,7 +455,7 @@ async def get_salesforce_leads(
         for lead in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.LEAD.value, lead)
-            except:
+            except Exception as e:
                 pass
                 
         return format_salesforce_response(result)
