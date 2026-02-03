@@ -1,78 +1,11 @@
-import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
+"""
+Hybrid Data Ingestion API Routes
+Exposes endpoints for managing automatic data sync from integrations.
+"""
 
-from core.api_governance import require_governance, ActionComplexity
-from core.database import get_db
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from core.api_governance import require_governance, ActionComplexity
-from core.database import get_db
-import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from core.api_governance import require_governance, ActionComplexity
-from core.database import get_db
-import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from core.api_governance import require_governance, ActionComplexity
-from core.database import get_db
-import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from core.api_governance import require_governance, ActionComplexity
-from core.database import get_db
-import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from core.api_governance import require_governance, ActionComplexity
-from core.database import get_db
-import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from core.api_governance import require_governance, ActionComplexity
-from core.database import get_db
-import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from core.api_governance import require_governance, ActionComplexity
-from core.database import get_db
-import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from core.api_governance import require_governance, ActionComplexity
-from core.database import get_db
-import logging
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -82,10 +15,6 @@ from core.database import get_db
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/data-ingestion", tags=["Data Ingestion"])
-
-# Governance feature flags
-DATA_INGESTION_GOVERNANCE_ENABLED = os.getenv("DATA_INGESTION_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 
 # Request/Response Models
