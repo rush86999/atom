@@ -17,6 +17,7 @@ from core.auth import (
     get_password_hash,
     verify_password,
 )
+from core.config import get_config
 from core.database import get_db
 from core.email_utils import send_smtp_email
 from core.models import (
@@ -233,10 +234,13 @@ async def forgot_password(request: ForgotPasswordRequest, background_tasks: Back
     db.commit()
     
     # Send email asynchronously
-    reset_link = f"https://atom.app/reset-password?token={token}" # Placeholder domain
+    config = get_config()
+    reset_link = f"{config.server.app_url}/reset-password?token={token}"
     subject = "Password Reset Request"
     body = f"Hello {user.first_name or 'User'},\n\nYou requested a password reset. Please use the link below to reset your password:\n\n{reset_link}\n\nThis link will expire in 1 hour."
     html_body = f"<p>Hello {user.first_name or 'User'},</p><p>You requested a password reset. Please click the link below to reset your password:</p><p><a href='{reset_link}'>{reset_link}</a></p><p>This link will expire in 1 hour.</p>"
+
+    logger.info(f"Password reset link generated for user {user.id}: {reset_link}")
     
     background_tasks.add_task(send_smtp_email, user.email, subject, body, html_body)
     

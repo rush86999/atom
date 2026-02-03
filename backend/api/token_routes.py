@@ -16,7 +16,7 @@ from core.auth import get_current_user
 from core.auth_helpers import revoke_token, cleanup_expired_revoked_tokens
 from core.database import get_db
 from core.jwt_verifier import verify_token_string
-from core.models import User
+from core.models import User, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -139,11 +139,27 @@ async def cleanup_expired_tokens(
     Examples:
         POST /api/auth/tokens/cleanup?older_than_hours=24
     """
-    # TODO: Add admin check in production
-    # if current_user.role != UserRole.SUPER_ADMIN:
-    #     raise HTTPException(status_code=403, detail="Admin access required")
+    # Enforce admin-only access for token cleanup
+    if current_user.role != UserRole.SUPER_ADMIN:
+        logger.warning(
+            f"Non-admin user {current_user.id} (role: {current_user.role}) "
+            f"attempted to cleanup expired tokens"
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "admin_access_required",
+                "message": "Token cleanup requires super-admin privileges",
+                "user_role": current_user.role,
+                "required_role": UserRole.SUPER_ADMIN
+            }
+        )
 
     try:
+        logger.info(
+            f"Admin user {current_user.id} initiating token cleanup "
+            f"(older_than_hours: {older_than_hours})"
+        )
         deleted_count = cleanup_expired_revoked_tokens(db, older_than_hours)
 
         return {

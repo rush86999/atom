@@ -12,6 +12,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.models import (
+    AgentExecution,
     AgentRegistry,
     AgentStatus,
     BlockedTriggerContext,
@@ -122,7 +123,8 @@ class SupervisionService:
 
     async def monitor_agent_execution(
         self,
-        session: SupervisionSession
+        session: SupervisionSession,
+        db: Session
     ) -> AsyncGenerator[SupervisionEvent, None]:
         """
         Stream supervision events to human monitor.
@@ -130,49 +132,107 @@ class SupervisionService:
         Events include: agent actions, intermediate results, potential issues.
 
         This is an async generator that yields events as they occur.
+        Polls AgentExecution table for real-time updates.
         """
         logger.info(f"Starting monitoring for supervision session {session.id}")
 
-        # In production, this would connect to the actual agent execution
-        # and stream real-time events
+        # Track the execution ID we're monitoring
+        execution_id = None
+        last_status = "running"
+        poll_interval = 0.5  # Poll every 500ms
+        max_duration = timedelta(minutes=30)  # Maximum supervision duration
+        start_time = datetime.now()
 
-        # Placeholder: Generate some example events
-        yield SupervisionEvent(
-            event_type="action",
-            timestamp=datetime.now(),
-            data={
-                "action_type": "task_execution",
-                "description": "Agent started executing task",
-                "agent_id": session.agent_id
-            }
-        )
+        try:
+            while datetime.now() - start_time < max_duration:
+                # Check if session is still active
+                db.refresh(session)
+                if session.status != SupervisionStatus.RUNNING.value:
+                    logger.info(f"Supervision session {session.id} is no longer running")
+                    break
 
-        # Simulate some execution events
-        await asyncio.sleep(1)
+                # Find the most recent execution for this agent
+                execution = db.query(AgentExecution).filter(
+                    AgentExecution.agent_id == session.agent_id,
+                    AgentExecution.started_at >= session.started_at
+                ).order_by(AgentExecution.started_at.desc()).first()
 
-        yield SupervisionEvent(
-            event_type="result",
-            timestamp=datetime.now(),
-            data={
-                "step": "data_processing",
-                "status": "completed",
-                "records_processed": 100
-            }
-        )
+                if execution:
+                    # First time seeing this execution
+                    if execution_id != execution.id:
+                        execution_id = execution.id
+                        yield SupervisionEvent(
+                            event_type="action",
+                            timestamp=datetime.now(),
+                            data={
+                                "action_type": "execution_started",
+                                "description": f"Agent execution started: {execution.id}",
+                                "agent_id": session.agent_id,
+                                "execution_id": execution.id,
+                                "input_summary": execution.input_summary
+                            }
+                        )
 
-        await asyncio.sleep(1)
+                    # Check for status changes
+                    if execution.status != last_status:
+                        last_status = execution.status
 
-        yield SupervisionEvent(
-            event_type="action",
-            timestamp=datetime.now(),
-            data={
-                "action_type": "decision",
-                "description": "Agent making decision based on processed data",
-                "confidence": session.agent.confidence_score if hasattr(session, 'agent') else 0.8
-            }
-        )
+                        if execution.status == "completed":
+                            yield SupervisionEvent(
+                                event_type="result",
+                                timestamp=datetime.now(),
+                                data={
+                                    "step": "execution_completed",
+                                    "status": "completed",
+                                    "execution_id": execution.id,
+                                    "output_summary": execution.output_summary,
+                                    "duration_seconds": execution.duration_seconds
+                                }
+                            )
+                            break  # Execution completed, stop monitoring
 
-        logger.info(f"Monitoring completed for session {session.id}")
+                        elif execution.status == "failed":
+                            yield SupervisionEvent(
+                                event_type="error",
+                                timestamp=datetime.now(),
+                                data={
+                                    "step": "execution_failed",
+                                    "status": "failed",
+                                    "execution_id": execution.id,
+                                    "error_message": execution.error_message
+                                }
+                            )
+                            break  # Execution failed, stop monitoring
+
+                        elif execution.status == "running":
+                            # Still running, send progress update
+                            yield SupervisionEvent(
+                                event_type="action",
+                                timestamp=datetime.now(),
+                                data={
+                                    "action_type": "execution_progress",
+                                    "description": f"Agent execution in progress: {execution.id}",
+                                    "execution_id": execution.id,
+                                    "duration_so_far": (datetime.now() - execution.started_at).total_seconds()
+                                }
+                            )
+
+                # Wait before next poll
+                await asyncio.sleep(poll_interval)
+
+        except Exception as e:
+            logger.error(f"Error monitoring agent execution: {e}")
+            yield SupervisionEvent(
+                event_type="error",
+                timestamp=datetime.now(),
+                data={
+                    "error_type": "monitoring_error",
+                    "error_message": str(e),
+                    "session_id": session.id
+                }
+            )
+
+        logger.info(f"Monitoring completed for supervision session {session.id}")
 
     async def intervene(
         self,
