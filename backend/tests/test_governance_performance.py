@@ -262,7 +262,6 @@ class TestAgentResolutionPerformance:
                 start = time.perf_counter()
                 agent, context = await resolver.resolve_agent_for_request(
                     user_id="user-1",
-                    workspace_id="workspace-1",
                     requested_agent_id="agent-1",
                     action_type="chat"
                 )
@@ -300,7 +299,6 @@ class TestAgentResolutionPerformance:
                     start = time.perf_counter()
                     agent, context = await resolver.resolve_agent_for_request(
                         user_id="user-1",
-                        workspace_id="workspace-1",
                         action_type="chat"
                     )
                     end = time.perf_counter()
@@ -344,7 +342,6 @@ class TestStreamingWithGovernanceOverhead:
 
                 agent, context = await resolver.resolve_agent_for_request(
                     user_id="user-1",
-                    workspace_id="workspace-1",
                     requested_agent_id="agent-1",
                     action_type="stream_chat"
                 )
@@ -397,7 +394,6 @@ class TestConcurrentAgentResolution:
             async def resolve_concurrent():
                 await resolver.resolve_agent_for_request(
                     user_id="user-1",
-                    workspace_id="workspace-1",
                     requested_agent_id="agent-1",
                     action_type="chat"
                 )
