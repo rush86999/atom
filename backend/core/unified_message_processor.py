@@ -333,7 +333,7 @@ class UnifiedMessageProcessor:
         attachments = raw_message.get("attachments", [])
 
         if raw_message.get("metadata", {}).get("message_type") == "message":
-            # Regular message
+            # Regular message - continue to content analysis below
             pass
 
         if raw_message.get("metadata", {}).get("bot_id") and not content.strip():
