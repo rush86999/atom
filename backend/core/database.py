@@ -11,7 +11,7 @@ load_dotenv()
 
 # CRITICAL: Production database configuration
 logger = logging.getLogger(__name__)
-print(f"DEBUG: Loading core.database module. ENV: MOCK={os.getenv('ATOM_MOCK_DATABASE')}", file=sys.stderr)
+logger.debug(f"Loading core.database module. ENV: MOCK={os.getenv('ATOM_MOCK_DATABASE')}")
 
 def get_database_url():
     """Get database URL with production safety checks"""

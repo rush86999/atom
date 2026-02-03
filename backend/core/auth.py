@@ -32,7 +32,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password using bcrypt"""
     if isinstance(plain_password, str):
         plain_password = plain_password.encode('utf-8')
@@ -48,7 +48,7 @@ def verify_password(plain_password, hashed_password):
         logger.error(f"Error in verify_password: {e}")
         return False
 
-def get_password_hash(password):
+def get_password_hash(password: str) -> str:
     """Hash password using bcrypt"""
     if isinstance(password, str):
         # Encode to bytes, truncate to 71 bytes (safe margin)
@@ -58,7 +58,7 @@ def get_password_hash(password):
     hashed = bcrypt.hashpw(password, bcrypt.gensalt())
     return hashed.decode('utf-8')
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -75,7 +75,7 @@ async def get_current_user(
     request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
-):
+) -> User:
     """
     Get current user from Bearer token OR NextAuth session cookie
     """
@@ -119,7 +119,7 @@ async def get_current_user(
         raise credentials_exception
     return user
 
-async def get_current_user_ws(token: str, db: Session):
+async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
     """Get user from token for WebSocket connections"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -148,5 +148,10 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
         return None
 
 def generate_satellite_key() -> str:
-    """Generate a secure Satellite API Key (sk-...)"""
+    """
+    Generate a secure Satellite API Key (sk-...)
+
+    Returns:
+        str: A securely generated API key
+    """
     return f"sk-{secrets.token_hex(24)}"

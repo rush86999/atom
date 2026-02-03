@@ -19,14 +19,22 @@ async def get_auth_url():
 
 @router.get("/callback")
 async def handle_oauth_callback(code: str):
-    """Handle Notion OAuth callback"""
-    return {
-        "ok": True,
-        "status": "success",
-        "code": code,
-        "message": "Notion authentication successful (mock)",
-        "timestamp": datetime.now().isoformat()
-    }
+    """
+    Handle Notion OAuth callback.
+
+    TODO: Implement proper OAuth token exchange and storage.
+    This endpoint should:
+    1. Exchange the authorization code for access tokens
+    2. Store tokens securely in the database
+    3. Link the tokens to the authenticated user
+
+    For now, this is a mock implementation.
+    """
+    raise NotImplementedError(
+        "Notion OAuth callback not fully implemented. "
+        "This feature requires: 1) OAuth token exchange, 2) Token storage, 3) User linking. "
+        "See integrations/notion_routes.py:21"
+    )
 
 class NotionSearchRequest(BaseModel):
     query: str

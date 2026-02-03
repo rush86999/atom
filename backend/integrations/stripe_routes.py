@@ -4,7 +4,8 @@ FastAPI routes for Stripe payment processing and financial management
 """
 
 import logging
-from datetime import datetime
+import os
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import stripe
 from accounting.ingestion import TransactionIngestor
@@ -12,7 +13,9 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Requ
 from sqlalchemy.orm import Session
 
 from core.automation_settings import get_automation_settings
+from core.auth import get_current_user
 from core.database import get_db
+from core.models import StripeToken, User
 
 # Import Stripe services
 try:
@@ -37,6 +40,10 @@ try:
             "error": {"code": "TEST_ERROR", "message": error_msg, "service": "stripe"},
             "timestamp": "2024-01-01T00:00:00Z",
         }
+
+    def format_error_response(error_msg):
+        """Alias for mock_format_error_response"""
+        return mock_format_error_response(error_msg)
 
     STRIPE_AVAILABLE = True
 except ImportError as e:
@@ -118,42 +125,214 @@ async def handle_invoice_payment_failed(invoice, db: Session):
 router = APIRouter(prefix="/stripe", tags=["stripe"])
 
 @router.get("/auth/url")
-async def get_auth_url():
-    """Get Stripe OAuth URL"""
+async def get_auth_url(current_user: User = Depends(get_current_user)):
+    """
+    Get Stripe OAuth URL for user authentication.
+
+    Returns the Stripe Connect OAuth URL that users should visit to authorize
+    Atom to access their Stripe account.
+    """
+    stripe_client_id = os.getenv("STRIPE_CLIENT_ID")
+    if not stripe_client_id:
+        raise HTTPException(
+            status_code=500,
+            detail="Stripe client ID not configured. Please set STRIPE_CLIENT_ID environment variable."
+        )
+
+    redirect_uri = os.getenv("STRIPE_REDIRECT_URI", "http://localhost:8000/api/stripe/callback")
+
+    auth_url = (
+        f"https://connect.stripe.com/oauth/authorize"
+        f"?response_type=code"
+        f"&client_id={stripe_client_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope=read_write"
+        f"&state={current_user.id}"  # Use user_id as state for verification
+    )
+
     return {
-        "url": "https://connect.stripe.com/oauth/authorize?response_type=code&client_id=INSERT_CLIENT_ID&scope=read_write",
+        "url": auth_url,
         "timestamp": datetime.now().isoformat()
     }
 
 @router.get("/callback")
-async def handle_oauth_callback(code: str):
-    """Handle Stripe OAuth callback"""
-    return {
-        "ok": True,
-        "status": "success",
-        "code": code,
-        "message": "Stripe authentication successful (mock)",
-        "timestamp": datetime.now().isoformat()
-    }
+async def handle_oauth_callback(
+    code: str,
+    state: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Handle Stripe OAuth callback.
+
+    Exchange the authorization code for access tokens and store them in the database.
+
+    Args:
+        code: Authorization code from Stripe
+        state: State parameter (user_id) for CSRF protection
+        db: Database session
+    """
+    stripe_client_id = os.getenv("STRIPE_CLIENT_ID")
+    stripe_client_secret = os.getenv("STRIPE_CLIENT_SECRET")
+    stripe_redirect_uri = os.getenv("STRIPE_REDIRECT_URI", "http://localhost:8000/api/stripe/callback")
+
+    if not all([stripe_client_id, stripe_client_secret]):
+        raise HTTPException(
+            status_code=500,
+            detail="Stripe client credentials not configured. Please set STRIPE_CLIENT_ID and STRIPE_CLIENT_SECRET environment variables."
+        )
+
+    try:
+        # Exchange authorization code for access token
+        import requests
+        token_response = requests.post(
+            "https://connect.stripe.com/oauth/token",
+            data={
+                "client_secret": stripe_client_secret,
+                "code": code,
+                "grant_type": "authorization_code",
+            }
+        )
+
+        if token_response.status_code != 200:
+            logging.error(f"Stripe token exchange failed: {token_response.text}")
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to exchange authorization code for access token"
+            )
+
+        token_data = token_response.json()
+
+        # Extract token information
+        access_token = token_data.get("access_token")
+        refresh_token = token_data.get("refresh_token")  # May not be present
+        stripe_user_id = token_data.get("stripe_user_id")
+        livemode = token_data.get("livemode", False)
+        token_type = token_data.get("token_type", "bearer")
+        scope = token_data.get("scope", "read_write")
+
+        # Get user from state (if provided) or use a default
+        # In production, you would validate the state parameter properly
+        user_id = state  # This should be the user_id from the auth URL
+
+        if not user_id:
+            # For testing purposes, use a default user or raise error
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid state parameter. Please restart the OAuth flow."
+            )
+
+        # Check if user exists
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
+            )
+
+        # Deactivate old tokens for this user
+        db.query(StripeToken).filter(
+            StripeToken.user_id == user_id,
+            StripeToken.status == "active"
+        ).update({"status": "revoked"})
+
+        # Store new token
+        stripe_token = StripeToken(
+            user_id=user_id,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            stripe_user_id=stripe_user_id,
+            livemode=livemode,
+            token_type=token_type,
+            scope=scope,
+            # Stripe access tokens don't expire, but we set a default for safety
+            expires_at=datetime.utcnow() + timedelta(days=365),
+            status="active"
+        )
+
+        db.add(stripe_token)
+        db.commit()
+
+        logging.info(f"Successfully stored Stripe token for user {user_id}")
+
+        return {
+            "ok": True,
+            "status": "success",
+            "stripe_user_id": stripe_user_id,
+            "livemode": livemode,
+            "message": "Stripe authentication successful",
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Stripe OAuth callback error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Stripe authentication failed: {str(e)}"
+        )
 
 
 # Dependency for Stripe access token
-async def get_stripe_access_token() -> str:
+async def get_stripe_access_token(
+    authorization: Optional[str] = Header(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> str:
     """
-    Get Stripe access token from request headers or session.
+    Get Stripe access token from request headers or database.
 
-    TODO: Implement proper token extraction from:
-    - Request headers (Authorization: Bearer <token>)
-    - User session storage
-    - Database token cache
+    Priority order:
+    1. Authorization header (Bearer token) - for API access
+    2. Database lookup - for web/app access with user session
 
-    For now, this raises NotImplementedError to prevent use of mock credentials.
+    Args:
+        authorization: Authorization header value
+        current_user: Current authenticated user from session
+        db: Database session
+
+    Returns:
+        str: Valid Stripe access token
+
+    Raises:
+        HTTPException: If no valid token found
     """
-    raise NotImplementedError(
-        "Stripe access token retrieval not implemented. "
-        "This feature requires: 1) User authentication integration, "
-        "2) Stripe OAuth flow, 3) Token storage in database. "
-        "See integrations/stripe_routes.py:141"
+    # 1. Check Authorization header first (API access)
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+        # TODO: Validate token with Stripe API if needed
+        # For now, trust the header if user is authenticated
+        logging.info(f"Using Stripe access token from Authorization header for user {current_user.id}")
+        return token
+
+    # 2. Check database for stored token (web/app access)
+    stripe_token = db.query(StripeToken).filter(
+        StripeToken.user_id == current_user.id,
+        StripeToken.status == "active"
+    ).first()
+
+    if stripe_token:
+        # Check if token is expired
+        if stripe_token.expires_at and stripe_token.expires_at < datetime.utcnow():
+            logging.warning(f"Stripe token for user {current_user.id} is expired")
+            # TODO: Implement token refresh using refresh_token
+            raise HTTPException(
+                status_code=401,
+                detail="Stripe access token expired. Please re-authenticate with Stripe."
+            )
+
+        # Update last_used timestamp
+        stripe_token.last_used = datetime.utcnow()
+        db.commit()
+
+        logging.info(f"Using Stripe access token from database for user {current_user.id}")
+        return stripe_token.access_token
+
+    # 3. No token found
+    logging.warning(f"No Stripe token found for user {current_user.id}")
+    raise HTTPException(
+        status_code=401,
+        detail="Stripe authentication required. Please connect your Stripe account."
     )
 
 
