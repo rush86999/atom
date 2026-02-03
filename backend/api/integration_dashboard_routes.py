@@ -4,16 +4,15 @@ Provides endpoints for monitoring and managing communication platform integratio
 """
 
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime
-
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.integration_dashboard import (
     IntegrationDashboard,
     IntegrationStatus,
-    get_integration_dashboard
+    get_integration_dashboard,
 )
 
 logger = logging.getLogger(__name__)

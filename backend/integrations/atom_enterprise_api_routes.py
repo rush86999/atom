@@ -3,32 +3,67 @@ ATOM Enterprise API Routes
 Advanced enterprise-grade API endpoints with comprehensive automation integration
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union
-from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity, get_jwt
-from loguru import logger
+import os
+from datetime import datetime, timedelta, timezone
 from functools import wraps
+from typing import Any, Dict, List, Optional, Union
+from flask import Blueprint, current_app, jsonify, request
+from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required
+from loguru import logger
 
 # Import enterprise services
 try:
-    from atom_enterprise_security_service import atom_enterprise_security_service, SecurityPolicy, ThreatDetection, ComplianceReport, SecurityAudit, SecurityLevel, ComplianceStandard, ThreatType, AuditEventType
-    from atom_enterprise_unified_service import atom_enterprise_unified_service, EnterpriseWorkflow, SecurityWorkflowAction, ComplianceAutomation, EnterpriseServiceType, WorkflowSecurityLevel, ComplianceWorkflowType, AutomationTriggerType
-    from atom_workflow_automation_service import atom_workflow_automation_service, WorkflowAutomation, AutomationExecution, WorkflowAutomationType, AutomationActionType, AutomationConditionType, AutomationPriority, AutomationStatus
-    from atom_workflow_service import AtomWorkflowService
+    from ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
+    from atom_ai_integration import atom_ai_integration
+    from atom_discord_integration import atom_discord_integration
+    from atom_enterprise_security_service import (
+        AuditEventType,
+        ComplianceReport,
+        ComplianceStandard,
+        SecurityAudit,
+        SecurityLevel,
+        SecurityPolicy,
+        ThreatDetection,
+        ThreatType,
+        atom_enterprise_security_service,
+    )
+    from atom_enterprise_unified_service import (
+        AutomationTriggerType,
+        ComplianceAutomation,
+        ComplianceWorkflowType,
+        EnterpriseServiceType,
+        EnterpriseWorkflow,
+        SecurityWorkflowAction,
+        WorkflowSecurityLevel,
+        atom_enterprise_unified_service,
+    )
+    from atom_google_chat_integration import atom_google_chat_integration
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType
-    from atom_ai_integration import atom_ai_integration
     from atom_slack_integration import atom_slack_integration
     from atom_teams_integration import atom_teams_integration
-    from atom_google_chat_integration import atom_google_chat_integration
-    from atom_discord_integration import atom_discord_integration
+    from atom_workflow_automation_service import (
+        AutomationActionType,
+        AutomationConditionType,
+        AutomationExecution,
+        AutomationPriority,
+        AutomationStatus,
+        WorkflowAutomation,
+        WorkflowAutomationType,
+        atom_workflow_automation_service,
+    )
+    from atom_workflow_service import AtomWorkflowService
 except ImportError as e:
     logger.warning(f"Enterprise services not available: {e}")
     atom_enterprise_security_service = None
@@ -889,8 +924,8 @@ async def _verify_enterprise_credentials(username: str, password: str) -> Dict[s
         User credentials dict if valid, None if invalid
     """
     try:
-        from core.enterprise_auth_service import EnterpriseAuthService
         from core.database import get_db
+        from core.enterprise_auth_service import EnterpriseAuthService
 
         auth_service = EnterpriseAuthService()
 

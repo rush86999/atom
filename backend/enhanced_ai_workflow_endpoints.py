@@ -5,18 +5,18 @@ Optimized for 2025 Architecture: DeepSeek V3, Structured Outputs, and Robustness
 Implements ReAct Loop (Reason + Act) for Agentic Behavior.
 """
 
-import os
+import asyncio
+import datetime
 import json
 import logging
-import asyncio
+import os
 import time
-import datetime
-from typing import Dict, Any, List, Optional, Union, Literal
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Literal, Optional, Union
+import anthropic
+import openai
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-import openai
-import anthropic
 
 try:
     import instructor
@@ -31,6 +31,7 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 import base64
+
 from core.voice_service import get_voice_service
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai_workflows"])

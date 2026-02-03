@@ -24,10 +24,10 @@ Security features:
 - Limited to safe operations only
 """
 
-import re
-import operator
-from typing import Any, Dict, Optional, Union, List
 import logging
+import operator
+import re
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 

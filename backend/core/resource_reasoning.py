@@ -1,11 +1,12 @@
-import logging
 import json
-from typing import Dict, Any, List, Optional
+import logging
 from datetime import datetime
-from core.database import get_db_session
-from core.models import User
+from typing import Any, Dict, List, Optional
 from service_delivery.models import ProjectTask
+
+from core.database import get_db_session
 from core.knowledge_ingestion import get_knowledge_ingestion
+from core.models import User
 from core.workforce_analytics import WorkforceAnalyticsService
 
 logger = logging.getLogger(__name__)

@@ -4,12 +4,13 @@ Production Setup Script
 Environment configuration cleanup and production preparation
 """
 
-import os
-import sys
 import json
+import os
 import subprocess
+import sys
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
 
 class ProductionSetup:
     """Production environment setup and configuration"""

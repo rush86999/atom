@@ -1,10 +1,12 @@
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from integrations.chat_orchestrator import ChatOrchestrator, ChatIntent, FeatureType, PlatformType
-from core.auto_document_ingestion import AutoDocumentIngestionService, IngestionSettings
-import core.atom_meta_agent # Fix for patch resolution
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
+
+import core.atom_meta_agent  # Fix for patch resolution
+from core.auto_document_ingestion import AutoDocumentIngestionService, IngestionSettings
+from integrations.chat_orchestrator import ChatIntent, ChatOrchestrator, FeatureType, PlatformType
+
 
 @pytest.fixture
 def mock_chat_orchestrator():

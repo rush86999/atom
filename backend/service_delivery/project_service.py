@@ -1,12 +1,11 @@
-import logging
 import datetime
-from sqlalchemy.orm import Session
-from typing import Optional, Dict
+import logging
 from datetime import timezone
-
-from sales.models import Deal, DealStage
-from service_delivery.models import Contract, ContractType, Project, ProjectStatus, Milestone
+from typing import Dict, Optional
 from accounting.credit_risk_engine import CreditRiskEngine
+from sales.models import Deal, DealStage
+from service_delivery.models import Contract, ContractType, Milestone, Project, ProjectStatus
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +214,8 @@ class ProjectService:
                 logger.warning(f"Project {project.name} gated due to payment risk: {risk_data.get('reason')}")
                 
                 # Notify PM via TeamMessage
-                from core.models import TeamMessage, Team
+                from core.models import Team, TeamMessage
+
                 # Find the team associated with the project's workspace (MVP simplification)
                 team = self.db.query(Team).filter(Team.workspace_id == project.workspace_id).first()
                 if team:

@@ -9,18 +9,21 @@ Tests the complete task invoicing implementation including:
 - Invoice line items
 """
 
-import pytest
 from datetime import datetime, timedelta
+import pytest
+from accounting.models import Entity, Invoice, InvoiceStatus
+from service_delivery.models import (
+    Contract,
+    ContractType,
+    Milestone,
+    Project,
+    ProjectStatus,
+    ProjectTask,
+)
 from sqlalchemy.orm import Session
 
-from core.models import User, Workspace
 from core.auto_invoicer import AutoInvoicer
-from service_delivery.models import (
-    Project, ProjectStatus, Milestone, ProjectTask,
-    Contract, ContractType
-)
-from accounting.models import Invoice, InvoiceStatus, Entity
-
+from core.models import User, Workspace
 
 # ============================================================================
 # Fixtures

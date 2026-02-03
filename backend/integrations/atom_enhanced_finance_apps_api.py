@@ -3,17 +3,20 @@ ATOM Enhanced Finance Apps API Integration
 Comprehensive API integration for enhanced finance applications
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Body, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+import asyncio
 import json
 import logging
-import asyncio
 from dataclasses import asdict
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from integrations.atom_communication_ingestion_pipeline import memory_manager
-from integrations.atom_enhanced_finance_apps_enhancement import finance_apps_enhancement, FinanceAppType
+from integrations.atom_enhanced_finance_apps_enhancement import (
+    FinanceAppType,
+    finance_apps_enhancement,
+)
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()

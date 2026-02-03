@@ -1,16 +1,18 @@
 
+import os
+import sys
 import unittest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-import sys
-import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main_api_app import app
+
 from core.database import Base, get_db
+
 
 class TestPreferenceAPI(unittest.TestCase):
     def setUp(self):

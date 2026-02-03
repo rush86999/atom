@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Basic test cases for main module"""
 
-import pytest
-import sys
 import os
+import sys
+import pytest
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import python_agent_build_docker.main
+
 
 class TestBasic:
     """Basic test cases for module import and structure"""

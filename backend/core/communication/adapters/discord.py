@@ -1,12 +1,11 @@
+import json
 import logging
 import os
-import json
-from typing import Dict, Any, Optional
-from fastapi import Request
+from typing import Any, Dict, Optional
 import httpx
-
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from fastapi import Request
 
 from core.communication.adapters.base import PlatformAdapter
 

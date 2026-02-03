@@ -4,11 +4,11 @@ Comprehensive Box OAuth Flow Test
 Tests the complete OAuth authorization flow for Box integration
 """
 
+import json
 import os
 import sys
-import json
+from urllib.parse import parse_qs, urlparse
 import requests
-from urllib.parse import urlparse, parse_qs
 from dotenv import load_dotenv
 
 # Load environment variables

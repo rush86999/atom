@@ -1,17 +1,17 @@
 import logging
 from typing import Dict, List, Optional
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-from core.mock_mode import get_mock_mode_manager
 from datetime import datetime
 from fastapi import Request
+
+from core.mock_mode import get_mock_mode_manager
+from core.token_storage import token_storage
 from integrations.auth_handler_zoom import zoom_auth_handler
 from integrations.zoom_service import zoom_service
-from core.token_storage import token_storage
 
 # Auth Type: OAuth2
 router = APIRouter(prefix="/api/zoom/v1", tags=["zoom-v1"])

@@ -1,28 +1,31 @@
-import unittest
 import asyncio
-from unittest.mock import MagicMock, patch
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from datetime import datetime, timedelta
-import uuid
 import json
-
 import os
 import sys
+import unittest
+import uuid
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
 sys.path.append(os.getcwd())
+
+import accounting.models
+import sales.models
+import service_delivery.models
+from accounting.fpa_service import FPAService
+from accounting.models import Account, AccountType, EntryType, JournalEntry, Transaction
+from accounting.revenue_recognition import revenue_recognition_service
+from accounting.seeds import seed_default_accounts
+from service_delivery.models import Contract, Milestone, MilestoneStatus, Project
+
+import core.models
 
 # Import models
 from core.database import Base
-import core.models
-import service_delivery.models
-import sales.models
-import accounting.models
-from core.models import User, Workspace, BusinessProductService, user_workspaces
-from service_delivery.models import Contract, Project, Milestone, MilestoneStatus
-from accounting.models import Account, AccountType, Transaction, JournalEntry, EntryType
-from accounting.revenue_recognition import revenue_recognition_service
-from accounting.fpa_service import FPAService
-from accounting.seeds import seed_default_accounts
+from core.models import BusinessProductService, User, Workspace, user_workspaces
+
 
 class TestRevenueForecasting(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

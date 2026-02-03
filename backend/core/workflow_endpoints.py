@@ -1,15 +1,16 @@
-from fastapi import APIRouter, HTTPException, Depends, Body, BackgroundTasks
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
-from datetime import datetime
-import uuid
 import json
-import os
 import logging
+import os
 import re
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
+from pydantic import BaseModel
+
 from core.models import User
-from core.security_dependencies import require_permission
 from core.rbac_service import Permission
+from core.security_dependencies import require_permission
 
 # Import AI workflow editor for natural language processing
 logger = logging.getLogger(__name__)
@@ -375,7 +376,7 @@ async def execute_workflow(
 ):
     """Execute a workflow by ID"""
     from core.workflow_engine import get_workflow_engine
-    
+
     # Load workflow
     workflows = load_workflows()
     workflow = next((w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id), None)
@@ -422,8 +423,8 @@ async def resume_workflow(
     user: User = Depends(require_permission(Permission.WORKFLOW_RUN))
 ):
     """Resume a paused workflow execution"""
-    from core.workflow_engine import get_workflow_engine
     from core.execution_state_manager import get_state_manager
+    from core.workflow_engine import get_workflow_engine
     
     engine = get_workflow_engine()
     state_manager = get_state_manager()

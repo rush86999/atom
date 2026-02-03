@@ -4,12 +4,13 @@ SMART BLUEPRINT IMPORT FIX - MAKE ALL BLUEPRINTS WORK PROPERLY
 Fix slow imports to make all 135 blueprints load gracefully with timeouts
 """
 
-import subprocess
 import os
 import re
+import subprocess
 import time
-import requests
 from datetime import datetime
+import requests
+
 
 def smart_blueprint_import_fix():
     """Smart fix to make all blueprints work properly with timeouts"""

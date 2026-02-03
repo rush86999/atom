@@ -9,10 +9,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
-from .whatsapp_business_integration import (
-    WhatsAppBusinessIntegration,
-    whatsapp_integration,
-)
+from .whatsapp_business_integration import WhatsAppBusinessIntegration, whatsapp_integration
 
 logger = logging.getLogger(__name__)
 

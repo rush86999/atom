@@ -5,15 +5,15 @@ Provides endpoints for bank/ledger reconciliation and anomaly detection.
 All endpoints require authentication and appropriate governance.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import Dict, Any, Optional
-from pydantic import BaseModel, Field
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Dict, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from core.database import get_db
 from core.auth import get_current_user
+from core.database import get_db
 from core.models import User
 
 router = APIRouter(prefix="/api/reconciliation", tags=["Reconciliation"])
@@ -66,7 +66,7 @@ async def add_bank_entry(
                         detail=f"Agent not permitted to modify financial data: {governance_check['reason']}"
                     )
 
-        from core.reconciliation_engine import reconciliation_engine, ReconciliationEntry
+        from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
 
         entry = ReconciliationEntry(
             id=request.id,
@@ -128,7 +128,7 @@ async def add_ledger_entry(
                         detail=f"Agent not permitted to modify financial data: {governance_check['reason']}"
                     )
 
-        from core.reconciliation_engine import reconciliation_engine, ReconciliationEntry
+        from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
 
         entry = ReconciliationEntry(
             id=request.id,

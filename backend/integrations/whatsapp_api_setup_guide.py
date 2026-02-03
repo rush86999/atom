@@ -7,6 +7,7 @@ import json
 import os
 from datetime import datetime
 
+
 def create_api_setup_guide():
     """Create comprehensive API setup guide"""
     

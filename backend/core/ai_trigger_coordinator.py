@@ -4,11 +4,11 @@ Automatically evaluates ingested data and triggers specialty agents as needed.
 This is distinct from user-defined workflow triggers - it's AI-driven.
 """
 
-import logging
 import asyncio
-from typing import Dict, Any, List, Optional, Tuple
-from enum import Enum
+import logging
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +93,8 @@ class AITriggerCoordinator:
             return self._enabled
         
         try:
-            from core.user_preference_service import UserPreferenceService
             from core.database import get_db_session
+            from core.user_preference_service import UserPreferenceService
             
             with get_db_session() as db:
                 service = UserPreferenceService(db)
@@ -354,7 +354,7 @@ class AITriggerCoordinator:
         Uses Atom Meta-Agent to spawn and execute.
         """
         try:
-            from core.atom_meta_agent import get_atom_agent, AgentTriggerMode
+            from core.atom_meta_agent import AgentTriggerMode, get_atom_agent
             from core.trigger_interceptor import TriggerInterceptor, TriggerSource
 
             atom = get_atom_agent(self.workspace_id)

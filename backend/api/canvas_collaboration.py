@@ -18,15 +18,14 @@ Endpoints:
 """
 
 import logging
-from typing import Dict, Any, Optional
 from datetime import datetime
-
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from core.database import get_db
 from core.canvas_collaboration_service import CanvasCollaborationService
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 

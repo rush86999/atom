@@ -13,7 +13,6 @@ import sys
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-
 import requests
 
 # Add project root to path for imports

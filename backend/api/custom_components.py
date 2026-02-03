@@ -20,14 +20,13 @@ Endpoints:
 """
 
 import logging
-from typing import Dict, Any, Optional
-
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.custom_components_service import ComponentSecurityError, CustomComponentsService
 from core.database import get_db
-from core.custom_components_service import CustomComponentsService, ComponentSecurityError
 
 logger = logging.getLogger(__name__)
 

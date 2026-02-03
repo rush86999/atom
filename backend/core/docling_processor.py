@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 # Docling availability check
 try:
-    from docling.document_converter import DocumentConverter
     from docling.datamodel.base_models import InputFormat
+    from docling.document_converter import DocumentConverter
     DOCLING_AVAILABLE = True
 except ImportError:
     DOCLING_AVAILABLE = False

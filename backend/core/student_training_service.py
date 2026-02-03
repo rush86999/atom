@@ -6,15 +6,21 @@ Provides AI-based training duration estimation and confidence boosting.
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
 import uuid
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
 
 from core.models import (
-    AgentRegistry, BlockedTriggerContext, AgentProposal, TrainingSession,
-    ProposalStatus, ProposalType, AgentStatus, TriggerSource
+    AgentProposal,
+    AgentRegistry,
+    AgentStatus,
+    BlockedTriggerContext,
+    ProposalStatus,
+    ProposalType,
+    TrainingSession,
+    TriggerSource,
 )
 
 logger = logging.getLogger(__name__)

@@ -5,14 +5,14 @@ Backend service for documentation canvas with rich editing,
 version history, comments, and table of contents.
 """
 import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
 
-from core.models import CanvasAudit, User
 from core.canvas_type_registry import canvas_type_registry
+from core.models import CanvasAudit, User
 
 logger = logging.getLogger(__name__)
 

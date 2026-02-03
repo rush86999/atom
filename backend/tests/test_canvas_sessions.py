@@ -5,13 +5,13 @@ Tests that multiple agent sessions can present different canvases simultaneously
 without state collisions. Enables parallel agent workflows.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+import pytest
 
+from core.models import AgentExecution, AgentRegistry, CanvasAudit
 from tools.canvas_tool import present_chart, present_markdown, update_canvas
-from core.models import AgentRegistry, AgentExecution, CanvasAudit
 
 
 @pytest.fixture

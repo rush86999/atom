@@ -5,9 +5,9 @@ Simple Matrix client implementation for sending messages
 
 import logging
 import os
-import httpx
-from typing import Any, Dict, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
+import httpx
 
 logger = logging.getLogger(__name__)
 

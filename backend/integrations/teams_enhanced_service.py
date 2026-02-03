@@ -3,25 +3,25 @@ ATOM Microsoft Teams Enhanced Service
 Complete Teams integration with advanced features and unified architecture
 """
 
-import os
-import json
-import logging
 import asyncio
+import base64
 import hashlib
 import hmac
-import base64
+import json
+import logging
+import os
 import time
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Callable, AsyncGenerator
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 import httpx
-import msal
 import jwt
-from cryptography.fernet import Fernet
+import msal
+from azure.graph import GraphServiceClient
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.teams import TeamsClient
-from azure.graph import GraphServiceClient
+from cryptography.fernet import Fernet
 
 # Configure logging
 logger = logging.getLogger(__name__)

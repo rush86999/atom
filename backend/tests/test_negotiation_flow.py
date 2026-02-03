@@ -1,23 +1,26 @@
-import unittest
 import asyncio
 import os
 import sys
+import unittest
 from datetime import datetime, timedelta
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-import core.models
-import ecommerce.models
-import sales.models
-import saas.models
-import marketing.models
 import accounting.models
+import ecommerce.models
+import marketing.models
+import saas.models
+import sales.models
 import service_delivery.models
-from core.models import Workspace
 from sales.models import Deal, NegotiationState
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import Base
+from core.models import Workspace
+
 
 class MockAIService:
     def __init__(self, response_json):
@@ -91,7 +94,7 @@ class TestNegotiationFlow(unittest.TestCase):
 
     def test_autonomous_followup_detection(self):
         from core.followup_service import AutonomousFollowupService
-        
+
         # 1. Make the deal "Ghosted" (last engagement > 48h ago)
         self.deal.last_engagement_at = datetime.utcnow() - timedelta(hours=72)
         self.db.commit()

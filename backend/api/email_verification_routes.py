@@ -2,19 +2,19 @@
 Email Verification API Routes
 Handles email verification codes and sending verification emails via Mailgun
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field, EmailStr
-from datetime import datetime, timedelta
-import secrets
-from typing import Optional, Dict
+import asyncio
 import logging
 import os
-import asyncio
+import secrets
 from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Dict, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import User, UserStatus, EmailVerificationToken
+from core.models import EmailVerificationToken, User, UserStatus
 
 logger = logging.getLogger(__name__)
 

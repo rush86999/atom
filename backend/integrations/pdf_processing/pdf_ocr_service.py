@@ -5,7 +5,6 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
-
 import numpy as np
 import PyPDF2
 from PIL import Image

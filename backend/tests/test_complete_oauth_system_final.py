@@ -3,9 +3,10 @@
 Test Complete Fixed OAuth Server
 """
 
-import requests
 import json
 from datetime import datetime
+import requests
+
 
 def test_complete_oauth_system():
     """Test the complete OAuth system"""

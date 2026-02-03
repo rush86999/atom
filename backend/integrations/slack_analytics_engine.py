@@ -3,19 +3,19 @@ ATOM Slack Analytics Engine
 Comprehensive analytics with reporting, insights, and predictions
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-import statistics
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Tuple, Union
-from dataclasses import dataclass, asdict
-from enum import Enum
-import pandas as pd
-import numpy as np
-from collections import defaultdict, Counter
+import os
 import re
+import statistics
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple, Union
+import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 

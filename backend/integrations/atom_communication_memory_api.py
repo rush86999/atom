@@ -3,19 +3,20 @@ ATOM Communication Memory API
 Comprehensive API for all communication apps with LanceDB ingestion
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Body
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
 import json
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Query
+
+from integrations.atom_communication_apps_lancedb_integration import communication_ingestion_router
 from integrations.atom_communication_ingestion_pipeline import (
-    memory_manager, 
-    ingestion_pipeline, 
     CommunicationAppType,
     CommunicationData,
-    IngestionConfig
+    IngestionConfig,
+    ingestion_pipeline,
+    memory_manager,
 )
-from integrations.atom_communication_apps_lancedb_integration import communication_ingestion_router
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +129,10 @@ class AtomCommunicationMemoryAPI:
                 
                 if success:
                     # Broadcast update to connected clients
-                    from core.websockets import manager
                     import asyncio
-                    
+
+                    from core.websockets import manager
+
                     # Create a background task for broadcasting to not block ingestion
                     asyncio.create_task(manager.broadcast_event(
                         "communication_stats", 

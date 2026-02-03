@@ -4,15 +4,16 @@ Recording Review Service Tests
 Tests for recording review integration with agent governance and learning.
 """
 
-import pytest
-from datetime import datetime, timedelta
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from core.recording_review_service import RecordingReviewService
-from core.canvas_recording_service import CanvasRecordingService
-from core.models import CanvasRecording, CanvasRecordingReview, AgentRegistry, User, Base
-import sys
 import os
+import sys
+from datetime import datetime, timedelta
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from core.canvas_recording_service import CanvasRecordingService
+from core.models import AgentRegistry, Base, CanvasRecording, CanvasRecordingReview, User
+from core.recording_review_service import RecordingReviewService
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))

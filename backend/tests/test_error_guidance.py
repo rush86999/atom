@@ -4,18 +4,13 @@ Error Guidance Engine Tests
 Tests for error categorization and resolution mapping.
 """
 
-import pytest
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
 
 from core.database import SessionLocal
-from core.models import (
-    User,
-    AgentRegistry,
-    OperationErrorResolution,
-    CanvasAudit
-)
 from core.error_guidance_engine import ErrorGuidanceEngine
+from core.models import AgentRegistry, CanvasAudit, OperationErrorResolution, User
 
 
 @pytest.fixture

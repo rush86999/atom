@@ -3,9 +3,9 @@ OAuth Token Refresh Service
 Automatically refreshes OAuth tokens before they expire
 """
 
-import os
 import asyncio
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from dotenv import load_dotenv

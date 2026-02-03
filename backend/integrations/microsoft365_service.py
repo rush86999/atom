@@ -8,7 +8,6 @@ Teams, Outlook, OneDrive, SharePoint, and Power Platform.
 
 import logging
 from typing import Any, Dict, List, Optional
-
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)

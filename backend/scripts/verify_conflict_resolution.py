@@ -1,6 +1,7 @@
-import requests
 import json
 from datetime import datetime
+import requests
+
 
 def verify_conflict_resolution():
     base_url = "http://localhost:8000/api/v1/calendar"

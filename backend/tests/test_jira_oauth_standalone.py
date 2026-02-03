@@ -4,12 +4,12 @@ Jira OAuth Standalone Test
 Tests Jira OAuth integration without requiring the full backend
 """
 
+import asyncio
+import json
 import os
 import sys
-import asyncio
+from urllib.parse import parse_qs, urlencode, urlparse
 import httpx
-import json
-from urllib.parse import urlencode, urlparse, parse_qs
 from dotenv import load_dotenv
 
 # Load environment variables

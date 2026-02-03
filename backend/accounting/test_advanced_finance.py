@@ -1,18 +1,19 @@
 import asyncio
 import logging
-import sys
 import os
-from sqlalchemy.orm import Session
+import sys
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 # Add the current directory to sys.path
 sys.path.append(os.getcwd())
 
-from core.database import SessionLocal, engine
+from accounting.models import Account, Budget, Transaction
+from accounting.seeds import seed_default_accounts
 from accounting.sync_manager import AccountingSyncManager
 from accounting.workflow_service import FinancialWorkflowService
-from accounting.models import Account, Transaction, Budget
-from accounting.seeds import seed_default_accounts
+
+from core.database import SessionLocal, engine
 from core.models import Workspace
 from integrations.atom_communication_ingestion_pipeline import memory_manager
 
@@ -79,7 +80,11 @@ async def test_advanced_finance_flow():
         print(f"✅ Transaction {tx.id} ingested into PostgreSQL")
 
         # Now test the semantic ingestion part
-        from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, IngestionConfig, CommunicationAppType
+        from integrations.atom_communication_ingestion_pipeline import (
+            CommunicationAppType,
+            IngestionConfig,
+            ingestion_pipeline,
+        )
         ingestion_pipeline.configure_app(CommunicationAppType.ZOHO, IngestionConfig(
             app_type=CommunicationAppType.ZOHO,
             enabled=True,

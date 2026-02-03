@@ -4,12 +4,12 @@ ATOM Integration Status Verification Script
 Comprehensive verification of all implemented integrations
 """
 
+import json
 import os
 import sys
-import json
-import requests
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+import requests
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

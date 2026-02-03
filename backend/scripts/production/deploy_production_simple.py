@@ -9,8 +9,8 @@ Usage:
     python deploy_production_simple.py
 """
 
-import os
 import json
+import os
 import secrets
 from datetime import datetime
 

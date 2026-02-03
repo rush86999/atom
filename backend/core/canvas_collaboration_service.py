@@ -10,20 +10,19 @@ Manages collaboration between multiple agents on shared canvases with:
 
 import logging
 import uuid
-from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 from enum import Enum
-
+from typing import Any, Dict, List, Optional
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
 from sqlalchemy.sql import func as sql_func
 
 from core.models import (
-    CanvasCollaborationSession,
-    CanvasAgentParticipant,
-    CanvasConflict,
     AgentRegistry,
-    CanvasAudit
+    CanvasAgentParticipant,
+    CanvasAudit,
+    CanvasCollaborationSession,
+    CanvasConflict,
 )
 
 logger = logging.getLogger(__name__)

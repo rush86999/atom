@@ -9,13 +9,13 @@ Usage:
     python initialize_lancedb.py
 """
 
+import json
+import logging
 import os
 import sys
-import logging
-import json
 import uuid
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Configure logging
 logging.basicConfig(
@@ -30,9 +30,9 @@ def initialize_lancedb():
     try:
         # Import LanceDB
         import lancedb
-        import pyarrow as pa
-        import pandas as pd
         import numpy as np
+        import pandas as pd
+        import pyarrow as pa
     except ImportError as e:
         logger.error(f"LanceDB dependencies not available: {e}")
         logger.info(

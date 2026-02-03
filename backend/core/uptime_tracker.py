@@ -18,11 +18,11 @@ Usage:
 
 import logging
 import time
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
-from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 from sqlalchemy import func, text
+from sqlalchemy.orm import Session
 
 from core.database import get_db_session
 

@@ -1,6 +1,5 @@
-from fastapi import APIRouter, HTTPException
-
 from datetime import datetime
+from fastapi import APIRouter, HTTPException
 
 # Auth Type: API Key
 router = APIRouter(prefix="/api/sendgrid", tags=["sendgrid"])

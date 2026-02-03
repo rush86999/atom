@@ -3,17 +3,17 @@ Tests for Real-Time Communication Ingestion Implementation
 Tests the polling-based real-time ingestion functionality.
 """
 
-import pytest
 import asyncio
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+import pytest
 
 from integrations.atom_communication_ingestion_pipeline import (
-    CommunicationIngestionPipeline,
     CommunicationAppType,
+    CommunicationIngestionPipeline,
     IngestionConfig,
-    LanceDBMemoryManager
+    LanceDBMemoryManager,
 )
 
 

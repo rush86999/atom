@@ -1,10 +1,11 @@
-import logging
 import json
-from typing import Dict, Any, List, Optional
+import logging
+from typing import Any, Dict, List, Optional
+
+from core.ai_service import get_ai_service
 from core.database import get_db_session
 from core.models import User
 from core.resource_manager import resource_monitor
-from core.ai_service import get_ai_service
 
 logger = logging.getLogger(__name__)
 

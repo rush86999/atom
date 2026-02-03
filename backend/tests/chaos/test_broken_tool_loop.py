@@ -1,13 +1,14 @@
 
 import asyncio
-import sys
-import os
 import json
-from unittest.mock import MagicMock, patch, AsyncMock
-import traceback
+import os
 
 # Fix path
 import pathlib
+import sys
+import traceback
+from unittest.mock import AsyncMock, MagicMock, patch
+
 backend_path = pathlib.Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(backend_path))
 sys.path.append(os.getcwd())
@@ -18,7 +19,8 @@ sys.modules['google.generativeai'] = MagicMock()
 sys.modules['zhipuai'] = MagicMock()
 sys.modules['instructor'] = MagicMock()
 
-from enhanced_ai_workflow_endpoints import RealAIWorkflowService, ToolCall, FinalAnswer, AgentStep
+from enhanced_ai_workflow_endpoints import AgentStep, FinalAnswer, RealAIWorkflowService, ToolCall
+
 
 async def main():
     log_file = "chaos_broken_tool.txt"

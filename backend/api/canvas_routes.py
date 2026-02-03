@@ -10,20 +10,20 @@ Now includes governance integration with:
 """
 
 import logging
-import uuid
 import os
+import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, AgentExecution, CanvasAudit
-from core.websockets import manager as ws_manager
-from core.security_dependencies import get_current_user
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
+from core.database import get_db
+from core.models import AgentExecution, CanvasAudit, User
+from core.security_dependencies import get_current_user
+from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 

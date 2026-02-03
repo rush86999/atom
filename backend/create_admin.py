@@ -1,10 +1,11 @@
-import sys
 import os
+import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from core.models import User, UserStatus
+
 from core.auth import get_password_hash
 from core.database import Base
+from core.models import User, UserStatus
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./atom.db") # Default to sqlite if not set

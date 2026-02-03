@@ -4,18 +4,23 @@ Enhanced AI Validator for Complex Workflow Testing
 Uses multi-provider AI analysis to find subtle bugs in workflow execution
 """
 import asyncio
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from independent_ai_validator.core.validator_engine import IndependentAIValidator, MarketingClaim, ValidationRequest
-from independent_ai_validator.core.credential_manager import CredentialManager
 import json
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+from independent_ai_validator.core.credential_manager import CredentialManager
+from independent_ai_validator.core.validator_engine import (
+    IndependentAIValidator,
+    MarketingClaim,
+    ValidationRequest,
+)
+
 
 class EnhancedWorkflowValidator:
     """Use AI validator to analyze workflow behavior and find bugs"""

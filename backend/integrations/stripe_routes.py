@@ -6,13 +6,13 @@ FastAPI routes for Stripe payment processing and financial management
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
 import stripe
+from accounting.ingestion import TransactionIngestor
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from core.database import get_db
+
 from core.automation_settings import get_automation_settings
-from accounting.ingestion import TransactionIngestor
+from core.database import get_db
 
 # Import Stripe services
 try:

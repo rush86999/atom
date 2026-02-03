@@ -3,15 +3,15 @@ Tests for Unified Message Processor
 Tests cross-platform message normalization, deduplication, and threading.
 """
 
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List
 import pytest
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List
 
 from core.unified_message_processor import (
-    UnifiedMessageProcessor,
-    UnifiedMessage,
+    MessagePriority,
     MessageType,
-    MessagePriority
+    UnifiedMessage,
+    UnifiedMessageProcessor,
 )
 
 

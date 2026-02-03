@@ -7,7 +7,7 @@ of the Atom system with BYOK (Bring Your Own Keys) functionality.
 
 import os
 import secrets
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 class ProductionConfig:

@@ -4,10 +4,11 @@ TEST INTEGRATION - Next Phase
 Test if complete application is working
 """
 
+import json
 import subprocess
 import time
-import json
 from datetime import datetime
+
 
 def test_integration_phase():
     """Test the integration of complete application"""

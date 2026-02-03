@@ -22,15 +22,8 @@ logger = logging.getLogger(__name__)
 # Import the advanced modules
 try:
     sys.path.append("backend/python-api-service")
-    from advanced_workflow_engine import (
-        AdvancedWorkflowEngine,
-        WorkflowStatus,
-        NodeType,
-    )
-    from memory_system_optimizer import (
-        MemorySystemOptimizer,
-        CrossIntegrationSearchResult,
-    )
+    from advanced_workflow_engine import AdvancedWorkflowEngine, NodeType, WorkflowStatus
+    from memory_system_optimizer import CrossIntegrationSearchResult, MemorySystemOptimizer
 
     ADVANCED_FEATURES_AVAILABLE = True
 except ImportError as e:

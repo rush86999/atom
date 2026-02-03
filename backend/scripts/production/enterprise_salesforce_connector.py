@@ -4,7 +4,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
-
 import aiohttp
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request

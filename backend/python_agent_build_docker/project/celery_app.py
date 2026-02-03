@@ -1,5 +1,5 @@
-from celery import Celery
 import os
+from celery import Celery
 
 # Create Celery application
 app = Celery(
@@ -37,6 +37,7 @@ app.conf.beat_schedule = {
 try:
     # This will import tasks from project.tasks module
     from project import tasks
+
     # Tasks are automatically registered when imported
 except ImportError as e:
     print(f"Warning: Could not import tasks module: {e}")

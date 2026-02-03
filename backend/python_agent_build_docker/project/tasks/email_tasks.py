@@ -1,11 +1,11 @@
-from celery import shared_task
 import logging
-from typing import Dict, Any, List, Optional
 import os
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any, Dict, List, Optional
 import requests
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 

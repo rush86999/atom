@@ -1,11 +1,12 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends
+import logging
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
+
+from core.auth import generate_satellite_key, get_current_user
+from core.database import SessionLocal, get_db
+from core.models import Workspace
 from core.satellite_service import satellite_service
 from core.security import verify_api_key_ws
-from core.database import get_db, SessionLocal
-from core.models import Workspace
-from core.auth import get_current_user, generate_satellite_key
-import logging
 
 router = APIRouter(tags=["Satellite"])
 

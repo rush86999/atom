@@ -1,8 +1,9 @@
 import logging
 from sqlalchemy.orm import Session
-from core.models import User, UserStatus
+
 from core.auth import get_password_hash
 from core.database import get_db_session
+from core.models import User, UserStatus
 
 logger = logging.getLogger("ATOM_BOOTSTRAP")
 

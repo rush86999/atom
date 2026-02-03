@@ -1,15 +1,22 @@
-import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
-from datetime import datetime
-import sys
 import os
+import sys
+import unittest
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add backend directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.agent_world_model import WorldModelService, AgentExperience
+from advanced_workflow_orchestrator import (
+    AdvancedWorkflowOrchestrator,
+    WorkflowContext,
+    WorkflowStep,
+    WorkflowStepType,
+)
+
+from core.agent_world_model import AgentExperience, WorldModelService
 from core.models import AgentRegistry, AgentStatus
-from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator, WorkflowStep, WorkflowStepType, WorkflowContext
+
 
 class TestWorldModel(unittest.TestCase):
     def setUp(self):

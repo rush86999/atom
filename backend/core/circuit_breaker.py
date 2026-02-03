@@ -4,8 +4,8 @@ Circuit Breaker - Automatically disable failing integrations
 import logging
 import time
 from collections import defaultdict
-from typing import Dict, Set
 from dataclasses import dataclass, field
+from typing import Dict, Set
 
 logger = logging.getLogger(__name__)
 

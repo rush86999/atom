@@ -5,15 +5,15 @@ Comprehensive tests for mobile canvas access, push notifications,
 and offline sync functionality.
 """
 
-import pytest
 from datetime import datetime
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from core.database import Base
 from core.models import MobileDevice, OfflineAction, SyncState, User
 from core.offline_sync_service import OfflineSyncService, get_offline_sync_service
 from core.push_notification_service import PushNotificationService, get_push_notification_service
-
 
 # Test database
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"

@@ -4,8 +4,8 @@ IMPROVED OAUTH SERVER - Emergency Fix
 Complete OAuth server with all required endpoints
 """
 
-import os
 import json
+import os
 import secrets
 import urllib.parse
 from datetime import datetime

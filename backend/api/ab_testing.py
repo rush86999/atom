@@ -15,15 +15,14 @@ Endpoints:
 """
 
 import logging
-from typing import Dict, Any, Optional, List
 from datetime import datetime
-
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from core.database import get_db
 from core.ab_testing_service import ABTestingService
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 

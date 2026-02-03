@@ -4,16 +4,16 @@ GitHub OAuth API Implementation
 Follows established Jira integration pattern
 """
 
-import os
+import json
 import logging
+import os
 import secrets
-from flask import Blueprint, request, jsonify, session, current_app
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
 import httpx
-import json
-from datetime import datetime, timedelta
-from crypto_utils import encrypt_message, decrypt_message
-from db_oauth_github import save_tokens, get_tokens, delete_tokens
+from crypto_utils import decrypt_message, encrypt_message
+from db_oauth_github import delete_tokens, get_tokens, save_tokens
+from flask import Blueprint, current_app, jsonify, request, session
 
 logger = logging.getLogger(__name__)
 

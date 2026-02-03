@@ -1,15 +1,15 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import uvicorn
-import os
-import logging
-import datetime
-from typing import Optional, List, Dict, Any
 import asyncio
-import aiohttp
-from notion_client import AsyncClient as NotionClient
-import deepgram
+import datetime
 import json
+import logging
+import os
+from typing import Any, Dict, List, Optional
+import aiohttp
+import deepgram
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from notion_client import AsyncClient as NotionClient
+from pydantic import BaseModel
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

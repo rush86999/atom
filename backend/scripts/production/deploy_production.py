@@ -4,14 +4,14 @@ ATOM Platform - Production Deployment Script
 Automated deployment and configuration for production environment
 """
 
-import os
-import sys
-import subprocess
 import json
+import os
+import subprocess
+import sys
 import time
-import requests
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import requests
 
 
 class ProductionDeployment:

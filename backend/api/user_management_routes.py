@@ -2,14 +2,15 @@
 User Management API Routes
 Provides endpoints for user profile and session management
 """
-from fastapi import APIRouter, HTTPException, Depends, status, Request
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
-from typing import Optional, List, Tuple
 from datetime import datetime
+from typing import List, Optional, Tuple
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session
+
+from core.auth import get_current_user
 from core.database import get_db
 from core.models import User, UserSession
-from core.auth import get_current_user
 
 router = APIRouter(prefix="/api/users", tags=["User Management"])
 

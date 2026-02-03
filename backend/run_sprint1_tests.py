@@ -4,8 +4,8 @@ Sprint 1 Test Runner
 Runs tests without loading conftest to avoid main app import issues
 """
 
-import sys
 import os
+import sys
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -67,9 +67,15 @@ def main():
 
     # Import test classes
     from tests.test_graphrag_patterns import (
-        TestEmailExtraction, TestURLExtraction, TestPhoneExtraction,
-        TestDateExtraction, TestCurrencyExtraction, TestIPExtraction,
-        TestUUIDExtraction, TestMixedContent, TestEmptyInput
+        TestCurrencyExtraction,
+        TestDateExtraction,
+        TestEmailExtraction,
+        TestEmptyInput,
+        TestIPExtraction,
+        TestMixedContent,
+        TestPhoneExtraction,
+        TestURLExtraction,
+        TestUUIDExtraction,
     )
 
     test_instances = [

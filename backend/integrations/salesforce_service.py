@@ -1,8 +1,8 @@
-import os
 import logging
-from typing import Optional, Tuple, List, Dict, Any
-from simple_salesforce import Salesforce, SalesforceAuthenticationFailed
+import os
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
+from simple_salesforce import Salesforce, SalesforceAuthenticationFailed
 
 logger = logging.getLogger(__name__)
 

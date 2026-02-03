@@ -1,7 +1,7 @@
 import asyncio
+import json
 import os
 import sys
-import json
 from datetime import datetime
 
 # Add the backend directory to sys.path
@@ -10,9 +10,16 @@ if backend_dir not in sys.path:
     sys.path.append(backend_dir)
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator, WorkflowStep, WorkflowStepType, WorkflowDefinition
+from advanced_workflow_orchestrator import (
+    AdvancedWorkflowOrchestrator,
+    WorkflowDefinition,
+    WorkflowStep,
+    WorkflowStepType,
+)
+
 
 async def verify_followup_automation():
     print("Starting Workflow Automation Verification...")

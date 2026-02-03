@@ -1,9 +1,8 @@
 
+import base64
 import logging
 import os
-import base64
 from typing import Any, Dict, List, Optional
-
 import httpx
 from fastapi import HTTPException
 

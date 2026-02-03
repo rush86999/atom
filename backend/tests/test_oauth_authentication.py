@@ -12,11 +12,11 @@ Features tested:
 - Blueprint registration verification
 """
 
-import requests
 import json
 import sys
 import time
 from typing import Dict, List, Tuple
+import requests
 
 # Configuration
 BASE_URL = "http://localhost:5058"

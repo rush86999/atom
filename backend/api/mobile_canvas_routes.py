@@ -7,20 +7,17 @@ Includes push notification registration, offline sync, and mobile-friendly respo
 
 import logging
 import uuid
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import (
-    MobileDevice, OfflineAction, SyncState, User,
-    CanvasAudit, AgentRegistry
-)
+from core.models import AgentRegistry, CanvasAudit, MobileDevice, OfflineAction, SyncState, User
 from core.push_notification_service import PushNotificationService, get_push_notification_service
 from core.websockets import manager as ws_manager
-from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 

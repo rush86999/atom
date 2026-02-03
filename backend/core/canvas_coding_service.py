@@ -5,10 +5,10 @@ Backend service for coding canvas with code editor,
 diff views, repo browser, and PR reviews.
 """
 import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-from sqlalchemy.orm import Session
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from sqlalchemy.orm import Session
 
 from core.models import CanvasAudit
 

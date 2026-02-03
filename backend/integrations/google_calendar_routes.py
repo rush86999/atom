@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from fastapi import APIRouter, HTTPException
 
 # Auth Type: OAuth2

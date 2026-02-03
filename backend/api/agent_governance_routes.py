@@ -4,17 +4,18 @@ Exposes endpoints for frontend to query and interact with agent governance.
 Used by AgentWorkflowGenerator.tsx to check maturity levels and approval requirements.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+from core.database import SessionLocal
+
 # Import newly created intervention service
 from core.intervention_service import intervention_service
-from core.database import SessionLocal
 from core.models import User, UserRole
 
 router = APIRouter(prefix="/api/agent-governance", tags=["Agent Governance"])

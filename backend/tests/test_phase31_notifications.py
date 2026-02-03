@@ -1,16 +1,17 @@
-import sys
 import os
+import sys
 import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.append(os.getcwd())
 
 from core.workflow_notifier import (
-    WorkflowNotifier,
     NotificationSettings,
+    WorkflowNotifier,
     get_notification_settings,
-    set_notification_settings
+    set_notification_settings,
 )
+
 
 class TestPhase31Notifications(unittest.IsolatedAsyncioTestCase):
 

@@ -4,13 +4,12 @@ Evidence Collection API Endpoints
 Provides systematic evidence collection for marketing claim validation
 """
 
-import logging
 import asyncio
-from typing import Dict, Any
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel
-
+import logging
+from typing import Any, Dict
 from evidence_collection_framework import evidence_framework
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 

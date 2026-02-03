@@ -4,14 +4,22 @@ Health Monitoring Service Tests
 Tests for health monitoring of agents, integrations, and system metrics.
 """
 
-import pytest
-from datetime import datetime, timedelta
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from core.health_monitoring_service import HealthMonitoringService
-from core.models import AgentRegistry, User, AgentExecution, IntegrationCatalog, UserConnection, Base
-import sys
 import os
+import sys
+from datetime import datetime, timedelta
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from core.health_monitoring_service import HealthMonitoringService
+from core.models import (
+    AgentExecution,
+    AgentRegistry,
+    Base,
+    IntegrationCatalog,
+    User,
+    UserConnection,
+)
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))

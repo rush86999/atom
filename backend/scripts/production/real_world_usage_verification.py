@@ -4,10 +4,11 @@ Comprehensive Real World Usage Verification
 Test all actual working features against documented marketing claims
 """
 
-import os
 import json
+import os
 import sys
 from datetime import datetime
+
 
 def test_documented_capabilities():
     """Test all documented capabilities from README against actual implementation"""

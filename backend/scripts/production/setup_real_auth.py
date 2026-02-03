@@ -7,11 +7,11 @@ and initializes demo users for immediate testing.
 """
 
 import os
-import sys
 import sqlite3
-import bcrypt
+import sys
 import uuid
 from pathlib import Path
+import bcrypt
 
 # Configuration
 SQLITE_DB_PATH = "/tmp/atom_auth.db"

@@ -1,9 +1,10 @@
 import logging
-from typing import Dict, Any, List
 from datetime import datetime
-from core.database import get_db_session
+from typing import Any, Dict, List
 from accounting.models import Invoice, InvoiceStatus
+
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

@@ -1,14 +1,14 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Request
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-import pyotp
 import logging
 from typing import List, Optional
+import pyotp
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, AuditEventType, SecurityLevel, ThreatLevel
-from core.auth import get_current_user
 from core.audit_service import audit_service
+from core.auth import get_current_user
+from core.database import get_db
+from core.models import AuditEventType, SecurityLevel, ThreatLevel, User
 
 logger = logging.getLogger(__name__)
 

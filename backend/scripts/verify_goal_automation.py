@@ -1,13 +1,14 @@
 import asyncio
-import sys
 import os
+import sys
 from datetime import datetime, timedelta
 
 # Add parent directory to path to import core modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.goal_engine import goal_engine, Goal
+from core.goal_engine import Goal, goal_engine
 from core.workflow_engine import get_workflow_engine
+
 
 async def verify_goal_automation():
     print("🚀 Starting Goal-Driven Automation Verification...")

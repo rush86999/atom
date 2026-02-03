@@ -2,12 +2,12 @@
 AI Accounting API Routes - Phase 39
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
-from datetime import datetime
-from sqlalchemy.orm import Session
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from core.database import get_db
 
@@ -37,7 +37,7 @@ class CategorizeRequest(BaseModel):
 @router.post("/transactions")
 async def ingest_transaction(request: TransactionRequest):
     """Ingest a single transaction"""
-    from core.ai_accounting_engine import ai_accounting, Transaction, TransactionSource
+    from core.ai_accounting_engine import Transaction, TransactionSource, ai_accounting
     
     tx = Transaction(
         id=request.id,

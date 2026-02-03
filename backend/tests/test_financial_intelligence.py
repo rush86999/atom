@@ -1,23 +1,34 @@
-import unittest
 import os
 import sys
+import unittest
 from datetime import datetime, timedelta
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-import core.models
-import ecommerce.models
-import sales.models
-import saas.models
-import marketing.models
 import accounting.models
+import ecommerce.models
+import marketing.models
+import saas.models
+import sales.models
 import service_delivery.models
-from core.models import Workspace
-from accounting.models import Account, Transaction, AccountType, Bill, Invoice, BillStatus, InvoiceStatus
+from accounting.models import (
+    Account,
+    AccountType,
+    Bill,
+    BillStatus,
+    Invoice,
+    InvoiceStatus,
+    Transaction,
+)
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
 from core.cash_flow_forecaster import CashFlowForecastingService
+from core.database import Base
 from core.expense_optimizer import ExpenseOptimizer
+from core.models import Workspace
+
 
 class TestFinancialIntelligence(unittest.TestCase):
     def setUp(self):

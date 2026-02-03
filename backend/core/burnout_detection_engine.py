@@ -5,7 +5,7 @@ Analyzes productivity and communication patterns to detect signs of overload.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)

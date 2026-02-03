@@ -4,9 +4,9 @@ Provides access to secrets via environment variables or local persistence.
 Named 'app_secrets.py' to avoid gitignore issues.
 """
 
-import os
 import json
 import logging
+import os
 from typing import Optional
 
 logger = logging.getLogger(__name__)

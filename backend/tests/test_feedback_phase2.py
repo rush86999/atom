@@ -8,28 +8,21 @@ Comprehensive test suite for Phase 2 features including:
 - Advanced analytics (correlation, cohorts, prediction, velocity)
 """
 
-import pytest
-import uuid
 import csv
 import json
+import uuid
 from datetime import datetime, timedelta
 from io import StringIO
 from unittest.mock import Mock, patch
-
+import pytest
 from sqlalchemy.orm import Session
 
-from core.models import (
-    AgentRegistry,
-    AgentExecution,
-    AgentFeedback,
-    User
-)
-from core.database import SessionLocal
-from core.agent_promotion_service import AgentPromotionService, PromotionCriteria
-from core.feedback_export_service import FeedbackExportService
-from core.feedback_advanced_analytics import AdvancedFeedbackAnalytics
 from api.feedback_batch import router as feedback_batch_router
-
+from core.agent_promotion_service import AgentPromotionService, PromotionCriteria
+from core.database import SessionLocal
+from core.feedback_advanced_analytics import AdvancedFeedbackAnalytics
+from core.feedback_export_service import FeedbackExportService
+from core.models import AgentExecution, AgentFeedback, AgentRegistry, User
 
 # ============================================================================
 # Fixtures

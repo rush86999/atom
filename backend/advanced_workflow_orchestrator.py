@@ -4,22 +4,24 @@ Advanced Workflow Orchestrator for ATOM
 Builds complex multi-step workflows with conditional logic, parallel processing, and cross-service integration
 """
 
-import os
+import ast
+import asyncio
+import datetime
 import json
 import logging
-import asyncio
+import os
+import re
 import time
-import datetime
-from typing import Dict, Any, List, Optional, Union, Callable
+import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from fastapi import HTTPException
+from typing import Any, Callable, Dict, List, Optional, Union
 import aiohttp
-import uuid
-import re
-import ast
+from fastapi import HTTPException
+
 from core.byok_endpoints import get_byok_manager
 from core.meta_automation import get_meta_automation
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -201,9 +203,10 @@ class AdvancedWorkflowOrchestrator:
         # 2. Save to Database (If available)
         if MODELS_AVAILABLE: 
             try:
+                import json
+
                 from core.database import SessionLocal
                 from core.models import WorkflowSnapshot
-                import json
                 
                 with SessionLocal() as db:
                     snapshot = WorkflowSnapshot(
@@ -228,9 +231,10 @@ class AdvancedWorkflowOrchestrator:
             return
 
         try:
+            import json
+
             from core.database import SessionLocal
             from core.models import WorkflowExecution
-            import json
             
             with SessionLocal() as db:
                 # Fetch orphaned executions
@@ -300,9 +304,10 @@ class AdvancedWorkflowOrchestrator:
         # 1. Try DB First (Source of Truth)
         if MODELS_AVAILABLE:
             try:
+                import json
+
                 from core.database import SessionLocal
                 from core.models import WorkflowSnapshot
-                import json
                 
                 with SessionLocal() as db:
                     snapshot = db.query(WorkflowSnapshot).filter(
@@ -349,9 +354,10 @@ class AdvancedWorkflowOrchestrator:
             meta_found = False
             if MODELS_AVAILABLE:
                 try:
+                    import json
+
                     from core.database import SessionLocal
                     from core.models import WorkflowExecution, WorkflowExecutionStatus
-                    import json
                     
                     with SessionLocal() as db:
                          original_exec = db.query(WorkflowExecution).filter(
@@ -381,9 +387,10 @@ class AdvancedWorkflowOrchestrator:
             # Persist the NEW execution to DB
             if MODELS_AVAILABLE:
                 try:
+                    import json
+
                     from core.database import SessionLocal
                     from core.models import WorkflowExecution, WorkflowExecutionStatus
-                    import json
 
                     with SessionLocal() as db:
                         new_exec = WorkflowExecution(
@@ -1695,6 +1702,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
 
         try:
             from ecommerce.ledger_mapper import OrderToLedgerMapper
+
             from core.database import SessionLocal
             
             with SessionLocal() as db:
@@ -1729,6 +1737,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
 
         try:
             from ecommerce.b2b_procurement_service import B2BProcurementService
+
             from core.database import SessionLocal
             
             with SessionLocal() as db:
@@ -2144,8 +2153,9 @@ Return your response as a JSON object with this format:
             return {"status": "failed", "error": "No document_id provided for invoice processing"}
 
         try:
-            from core.database import SessionLocal
             from accounting.ap_service import APService
+
+            from core.database import SessionLocal
             
             with SessionLocal() as db:
                 ap_service = APService(db)
@@ -2538,7 +2548,7 @@ Return your response as a JSON object with this format:
         """Execute App Memory (LanceDB) search step"""
         try:
             from integrations.atom_communication_ingestion_pipeline import memory_manager
-            
+
             # Ensure initialized
             if not memory_manager.db:
                 memory_manager.initialize()
@@ -2655,7 +2665,7 @@ Return your response as a JSON object with this format:
             logger.info(f"Universal Integration (Real): {service} -> {action}")
             
             from core.external_integration_service import external_integration_service
-            
+
             # Prepare parameters - merge step params with input data
             # Filter out system params like 'service', 'action', 'credentials'
             action_params = {k: v for k, v in step.parameters.items() if k not in ["service", "action", "credentials"]}
@@ -2684,7 +2694,7 @@ Return your response as a JSON object with this format:
             
         try:
             from core.workflow_template_system import TemplateCategory, TemplateComplexity
-            
+
             # Map workflow steps to template steps
             template_steps = []
             for step in workflow.steps:
@@ -2843,11 +2853,12 @@ Return your response as a JSON object with this format:
 
         try:
             # Phase 28/29: Use DB Registry and World Model
-            from core.models import AgentRegistry
-            from core.database import SessionLocal
-            from core.agent_world_model import WorldModelService, AgentExperience
-            from api.agent_routes import execute_agent_task
             import uuid
+
+            from api.agent_routes import execute_agent_task
+            from core.agent_world_model import AgentExperience, WorldModelService
+            from core.database import SessionLocal
+            from core.models import AgentRegistry
 
             # 1. Fetch Agent Definition
             with SessionLocal() as db:
@@ -3235,8 +3246,9 @@ Return your response as a JSON object with this format:
 
         try:
             from saas.models import Subscription
-            from core.models import TeamMessage, Team
+
             from core.database import SessionLocal
+            from core.models import Team, TeamMessage
             
             db = SessionLocal()
             sub = db.query(Subscription).filter(Subscription.id == sub_id).first()

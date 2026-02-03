@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
-from typing import List, Dict, Any, Optional
-from core.connection_service import connection_service
-from core.auth import get_current_user
-from core.models import User
-from pydantic import BaseModel
-import os
 import logging
+import os
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.connection_service import connection_service
+from core.models import User
 
 router = APIRouter(prefix="/api/v1/connections", tags=["Connections"])
 logger = logging.getLogger(__name__)

@@ -9,6 +9,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from independent_ai_validator.core.business_outcome_validator import BusinessOutcomeValidator
 
+
 async def run_validation():
     print("=" * 80)
     print("ATOM BUSINESS OUTCOME VALIDATION")

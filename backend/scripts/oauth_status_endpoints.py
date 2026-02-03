@@ -5,6 +5,7 @@ OAuth Status Endpoints Implementation
 
 from flask import Blueprint, jsonify, request
 
+
 def create_oauth_status_blueprint():
     """Create OAuth status endpoints blueprint"""
     

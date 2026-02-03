@@ -3,10 +3,11 @@
 Test Service Connectivity After Dependency Installation
 """
 
+import json
 import os
 import sys
-import json
 from datetime import datetime
+
 
 def test_openai():
     """Test OpenAI connectivity"""
@@ -32,6 +33,7 @@ def test_asana():
     """Test Asana connectivity"""
     try:
         import asana_handler
+
         # Test if handler can be instantiated
         return {"status": "handler_available", "message": "Asana handler imported successfully"}
     except Exception as e:
@@ -41,6 +43,7 @@ def test_trello():
     """Test Trello connectivity"""
     try:
         import trello_handler
+
         # Test if handler can be instantiated
         return {"status": "handler_available", "message": "Trello handler imported successfully"}
     except Exception as e:
@@ -50,6 +53,7 @@ def test_notion():
     """Test Notion connectivity"""
     try:
         import notion_handler_real
+
         # Test if handler can be instantiated
         return {"status": "handler_available", "message": "Notion handler imported successfully"}
     except Exception as e:
@@ -59,6 +63,7 @@ def test_github():
     """Test GitHub connectivity"""
     try:
         import github_handler
+
         # Test if handler can be instantiated
         return {"status": "handler_available", "message": "GitHub handler imported successfully"}
     except Exception as e:
@@ -68,6 +73,7 @@ def test_dropbox():
     """Test Dropbox connectivity"""
     try:
         import dropbox_handler
+
         # Test if handler can be instantiated
         return {"status": "handler_available", "message": "Dropbox handler imported successfully"}
     except Exception as e:

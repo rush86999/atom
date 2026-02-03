@@ -175,7 +175,7 @@ def test_jira_backend_integration():
         print(f"   Blueprint name: {jira_bp.name}")
 
         # Test if we can create Jira service
-        from jira_service_real import get_real_jira_client, RealJiraService
+        from jira_service_real import RealJiraService, get_real_jira_client
 
         server_url = os.getenv("JIRA_SERVER_URL")
         api_token = os.getenv("JIRA_API_TOKEN")
@@ -194,7 +194,7 @@ def test_jira_backend_integration():
                 )
                 print("   Falling back to mock service for development")
 
-                from jira_service import get_jira_client, JiraService
+                from jira_service import JiraService, get_jira_client
 
                 mock_client = get_jira_client(server_url)
                 mock_service = JiraService(mock_client)

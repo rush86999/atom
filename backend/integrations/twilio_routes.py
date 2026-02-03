@@ -6,7 +6,6 @@ Uses the real twilio_service.py for all operations
 import logging
 from datetime import datetime
 from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
@@ -142,8 +141,9 @@ async def twilio_webhook(request: Request):
         logger.info(f"Received Twilio webhook: {data.get('MessageSid')}")
         
         # Route to Universal Webhook Bridge
-        from .universal_webhook_bridge import universal_webhook_bridge
         import asyncio
+
+        from .universal_webhook_bridge import universal_webhook_bridge
         asyncio.create_task(universal_webhook_bridge.process_incoming_message("twilio", data))
         
         # Twilio expects a TwiML response (even if empty)

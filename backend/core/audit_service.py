@@ -3,11 +3,10 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
-
 from fastapi import Request
 from sqlalchemy.orm import Session
 
-from core.models import AuditLog, AuditEventType, SecurityLevel, ThreatLevel
+from core.models import AuditEventType, AuditLog, SecurityLevel, ThreatLevel
 
 logger = logging.getLogger(__name__)
 

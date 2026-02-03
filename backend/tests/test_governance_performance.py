@@ -9,15 +9,15 @@ Tests cover:
 - Target: <10ms cached check, <50ms total overhead
 """
 
-import pytest
 import asyncio
 import time
-from unittest.mock import Mock, patch
 from typing import List
+from unittest.mock import Mock, patch
+import pytest
 
-from core.governance_cache import GovernanceCache, get_governance_cache
-from core.agent_governance_service import AgentGovernanceService
 from core.agent_context_resolver import AgentContextResolver
+from core.agent_governance_service import AgentGovernanceService
+from core.governance_cache import GovernanceCache, get_governance_cache
 from core.models import AgentRegistry, AgentStatus
 
 

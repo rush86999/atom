@@ -1,7 +1,8 @@
 import logging
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+from accounting.models import Account, JournalEntry, Transaction
 from sqlalchemy.orm import Session
-from accounting.models import Transaction, Account, JournalEntry
+
 from core.cross_system_reasoning import get_reasoning_engine
 from integrations.asana_service import AsanaService
 from integrations.slack_service_unified import SlackUnifiedService

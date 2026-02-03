@@ -4,9 +4,9 @@ Manual Blueprint Registration Test
 Tests blueprint registration for Asana, Trello, and Notion auth handlers
 """
 
+import logging
 import os
 import sys
-import logging
 from flask import Flask
 
 # Add the current directory to Python path

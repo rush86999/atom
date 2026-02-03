@@ -1,11 +1,12 @@
-import json
-import uuid
 import datetime
-from enum import Enum
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+import json
 import os
+import uuid
+from enum import Enum
+from typing import Any, Dict, List, Optional
 import aiofiles
+from pydantic import BaseModel, Field
+
 
 class TraceStepType(str, Enum):
     THOUGHT = "thought"

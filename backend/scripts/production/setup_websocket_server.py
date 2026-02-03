@@ -10,21 +10,21 @@ This script implements:
 - Live status updates for workflows
 """
 
+import asyncio
+import json
+import logging
 import os
 import sys
-import logging
-import json
-import uuid
-import asyncio
+import threading
 import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Set, Callable
+import uuid
+from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Set
 import websockets
 from websockets.server import WebSocketServerProtocol
-import threading
-from collections import defaultdict
 
 # Add backend directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

@@ -1,6 +1,7 @@
 
-import requests
 import sys
+import requests
+
 
 def test_login():
     url = "http://127.0.0.1:8000/api/auth/login"

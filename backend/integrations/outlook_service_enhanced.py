@@ -3,17 +3,17 @@ Enhanced Outlook Service with Comprehensive Microsoft Graph API Integration
 Complete enterprise-grade Outlook integration for the ATOM platform
 """
 
-import logging
 import asyncio
-import aiohttp
-import json
-from typing import Dict, List, Optional, Any, Union
-from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict
-from enum import Enum
 import base64
 import hashlib
 import hmac
+import json
+import logging
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+import aiohttp
 
 logger = logging.getLogger(__name__)
 

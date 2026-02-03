@@ -2,20 +2,20 @@
 Pytest configuration and fixtures
 """
 
-import pytest
-import sys
 import os
+import sys
+from unittest.mock import MagicMock, patch
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from unittest.mock import patch, MagicMock
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from main_api_app import app
-from core.database import Base, get_db
 
+from core.database import Base, get_db
 
 # Test database
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test.db"

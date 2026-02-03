@@ -1,14 +1,18 @@
 
-import sys
-import os
 import asyncio
+import os
+import sys
 from pathlib import Path
 
 # Add backend to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from integrations.salesforce_routes import get_salesforce_client_from_env, format_salesforce_error_response
-from integrations.slack_routes import get_slack_client, SLACK_SDK_AVAILABLE
+from integrations.salesforce_routes import (
+    format_salesforce_error_response,
+    get_salesforce_client_from_env,
+)
+from integrations.slack_routes import SLACK_SDK_AVAILABLE, get_slack_client
+
 
 async def verify_salesforce():
     print("\n--- Verifying Salesforce ---")

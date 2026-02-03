@@ -1,8 +1,8 @@
 
-import sys
-import os
 import asyncio
 import json
+import os
+import sys
 import requests
 from websockets.client import connect
 

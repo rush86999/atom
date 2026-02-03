@@ -9,16 +9,13 @@ Comprehensive test suite for A/B testing functionality including:
 - API endpoints
 """
 
-import pytest
 import uuid
 from datetime import datetime, timedelta
+import pytest
 from sqlalchemy.orm import Session
 
-from core.models import (
-    ABTest, ABTestParticipant, AgentRegistry, User
-)
 from core.ab_testing_service import ABTestingService
-
+from core.models import ABTest, ABTestParticipant, AgentRegistry, User
 
 # ============================================================================
 # Fixtures

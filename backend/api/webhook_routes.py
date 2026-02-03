@@ -4,7 +4,7 @@ Provides endpoints for Slack, Teams, and Gmail webhooks.
 """
 
 import logging
-from fastapi import APIRouter, Request, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from core.webhook_handlers import get_webhook_processor

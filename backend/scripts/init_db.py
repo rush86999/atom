@@ -1,19 +1,22 @@
-import sys
 import os
+import sys
 from sqlalchemy import create_engine
 
 # Add backend to path
 sys.path.append(os.path.join(os.getcwd(), "backend"))
 
-from core.database import Base, DATABASE_URL
+from accounting.models import *
+from ecommerce.models import *
+from marketing.models import *
+from saas.models import *
+from sales.models import *
+from service_delivery.models import *
+
+from core.database import DATABASE_URL, Base
+
 # Import all models to ensure they are registered with Base.metadata
 from core.models import *
-from accounting.models import *
-from marketing.models import *
-from sales.models import *
-from ecommerce.models import *
-from saas.models import *
-from service_delivery.models import *
+
 
 def init_db():
     # Use SQLite for easy local verification

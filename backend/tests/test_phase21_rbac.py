@@ -1,14 +1,15 @@
-import unittest
-from unittest.mock import MagicMock, patch
-from enum import Enum
-
-import sys
 import os
+import sys
+import unittest
+from enum import Enum
+from unittest.mock import MagicMock, patch
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from core.enterprise_security import AuditEvent, EnterpriseSecurity, EventType
 from core.models import User, UserRole
-from core.rbac_service import RBACService, Permission
-from core.enterprise_security import EnterpriseSecurity, AuditEvent, EventType
+from core.rbac_service import Permission, RBACService
+
 
 class TestRBACService(unittest.TestCase):
     def test_get_user_permissions(self):
@@ -43,8 +44,10 @@ class TestRBACService(unittest.TestCase):
 
 from fastapi.testclient import TestClient
 from main_api_app import app
-from core.security_dependencies import require_permission
+
 from core.auth import get_current_user
+from core.security_dependencies import require_permission
+
 
 class TestRBACIntegration(unittest.TestCase):
     def setUp(self):

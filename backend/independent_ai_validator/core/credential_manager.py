@@ -4,13 +4,13 @@ Secure Credential Manager for Independent AI Validator
 Loads credentials from notes/credentials.md with in-memory storage only
 """
 
-import os
-import re
 import json
 import logging
-from typing import Dict, Optional, Any
+import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

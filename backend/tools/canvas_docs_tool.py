@@ -4,7 +4,7 @@ Documentation Canvas Tool
 Agent tool for creating and managing documentation canvases.
 """
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from core.canvas_docs_service import DocumentationCanvasService
 from tools.canvas_tool import present_specialized_canvas

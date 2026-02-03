@@ -1,19 +1,20 @@
 
-import unittest
-import threading
-import http.server
-import socketserver
-import os
-import time
-import sys
 import asyncio
+import http.server
 import logging
-from unittest.mock import MagicMock, patch, AsyncMock
+import os
+import socketserver
+import sys
+import threading
+import time
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from browser_engine.agent import BrowserAgent
+
 # We don't import lancedb_handler anymore as we mock it
 
 PORT = 8092

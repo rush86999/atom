@@ -4,16 +4,12 @@ Tests for Workflow Template Manager
 Tests the workflow template system for reusability
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
+import pytest
 
-from core.workflow_template_manager import (
-    WorkflowTemplateManager,
-    WorkflowTemplate
-)
-
+from core.workflow_template_manager import WorkflowTemplate, WorkflowTemplateManager
 
 # Sample template data
 SAMPLE_TEMPLATE = {

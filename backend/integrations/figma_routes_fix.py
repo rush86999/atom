@@ -5,10 +5,9 @@ Provides REST API endpoints for Figma integration
 """
 
 import logging
+from datetime import datetime
 import httpx
 from flask import Blueprint, jsonify, request
-from datetime import datetime
-
 
 # Auth Type: OAuth2
 figma_bp = Blueprint('figma', __name__)

@@ -4,10 +4,11 @@ WebSocket API Endpoints
 Provides WebSocket connections for real-time updates
 """
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends, Body
-from core.websockets import manager
 import json
 import logging
+from fastapi import APIRouter, Body, Depends, Query, WebSocket, WebSocketDisconnect
+
+from core.websockets import manager
 
 logger = logging.getLogger(__name__)
 

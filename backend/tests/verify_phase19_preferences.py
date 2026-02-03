@@ -1,7 +1,7 @@
 
-import unittest
-import sys
 import os
+import sys
+import unittest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.database import Base
 from core.user_preference_service import UserPreference, UserPreferenceService
+
 
 class TestUserPreferences(unittest.TestCase):
     def setUp(self):

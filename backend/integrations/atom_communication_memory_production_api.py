@@ -3,24 +3,24 @@ ATOM Communication Memory Production API
 Production-ready API with enhanced features
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Body, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+import asyncio
 import json
 import logging
-import asyncio
 import os
 from dataclasses import asdict
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from integrations.atom_communication_ingestion_pipeline import (
-    memory_manager,
-    ingestion_pipeline,
-    CommunicationAppType,
-    IngestionConfig
-)
 from core.jwt_verifier import verify_token
 from core.uptime_tracker import check_uptime
+from integrations.atom_communication_ingestion_pipeline import (
+    CommunicationAppType,
+    IngestionConfig,
+    ingestion_pipeline,
+    memory_manager,
+)
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()

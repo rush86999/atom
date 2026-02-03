@@ -3,21 +3,21 @@ ATOM Google Chat Analytics Engine
 Comprehensive analytics for Google Chat within unified communication ecosystem
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-import time
-import statistics
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Tuple, Union
-from dataclasses import dataclass, asdict
-from enum import Enum
-import httpx
-import pandas as pd
-import numpy as np
-from collections import defaultdict, Counter
+import os
 import re
+import statistics
+import time
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple, Union
+import httpx
+import numpy as np
+import pandas as pd
 
 # Configure logging
 logger = logging.getLogger(__name__)

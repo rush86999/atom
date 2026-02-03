@@ -1,14 +1,15 @@
 import logging
 import uuid
-from typing import Dict, Any, List, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
-from core.database import get_db_session
+from typing import Any, Dict, List, Optional
 from sales.models import Deal
-from service_delivery.models import Contract, Project, ContractType, ProjectStatus
-from core.pm_engine import pm_engine
-from core.graphrag_engine import graphrag_engine
+from service_delivery.models import Contract, ContractType, Project, ProjectStatus
+from sqlalchemy.orm import Session
+
+from core.database import get_db_session
 from core.external_pm_sync import external_pm_sync
+from core.graphrag_engine import graphrag_engine
+from core.pm_engine import pm_engine
 
 logger = logging.getLogger(__name__)
 

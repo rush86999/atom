@@ -3,18 +3,18 @@ Google Calendar Real API Integration Service
 Provides real Google Calendar API access for event management and conflict detection
 """
 
-import os
 import json
 import logging
-from typing import Dict, List, Optional, Any
+import os
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Make Google APIs optional for calendar integration
 try:
-    from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
     GOOGLE_APIS_AVAILABLE = True
@@ -56,7 +56,7 @@ class GoogleCalendarService:
 
             # Create credentials object
             from core.oauth_handler import GOOGLE_OAUTH_CONFIG
-            
+
             # Construct credentials from stored token
             self.creds = Credentials(
                 token=token_data.get("access_token"),

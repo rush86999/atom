@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 
+
 def print_banner():
     """Print platform banner"""
     print("🌟" + "=" * 60)

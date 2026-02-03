@@ -7,19 +7,19 @@ Provides real-time health status with proactive alerting.
 
 import logging
 import uuid
-from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
 
 from core.models import (
-    AgentRegistry,
-    User,
-    CanvasRecording,
     AgentExecution,
+    AgentRegistry,
+    CanvasRecording,
     IntegrationCatalog,
+    IntegrationHealthMetrics,
+    User,
     UserConnection,
-    IntegrationHealthMetrics
 )
 from core.websockets import manager as ws_manager
 
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Feature flags
 import os
+
 HEALTH_POLLING_INTERVAL = int(os.getenv("HEALTH_POLLING_INTERVAL", "30"))  # seconds
 ALERT_ERROR_RATE_THRESHOLD = float(os.getenv("ALERT_ERROR_RATE_THRESHOLD", "0.5"))  # 50%
 ALERT_LATENCY_THRESHOLD = int(os.getenv("ALERT_LATENCY_THRESHOLD", "5000"))  # 5s

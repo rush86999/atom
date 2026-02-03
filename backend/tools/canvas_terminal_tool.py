@@ -1,6 +1,6 @@
 """Terminal Canvas Tool"""
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +16,8 @@ async def present_terminal_canvas(
 
     Creates a terminal interface for command execution.
     """
-    from core.database import get_db_session
     from core.canvas_terminal_service import TerminalCanvasService
+    from core.database import get_db_session
     from tools.canvas_tool import present_specialized_canvas
 
     try:

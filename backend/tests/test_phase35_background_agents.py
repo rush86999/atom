@@ -1,12 +1,13 @@
-import sys
-import os
-import unittest
 import asyncio
+import os
+import sys
+import unittest
 from datetime import datetime
 
 sys.path.append(os.getcwd())
 
-from core.background_agent_runner import BackgroundAgentRunner, AgentStatus
+from core.background_agent_runner import AgentStatus, BackgroundAgentRunner
+
 
 class TestPhase35BackgroundAgents(unittest.IsolatedAsyncioTestCase):
 

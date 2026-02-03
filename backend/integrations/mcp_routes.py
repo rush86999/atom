@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Body
-from typing import Dict, Any, List
-from integrations.mcp_service import mcp_service
 import logging
+from typing import Any, Dict, List
+from fastapi import APIRouter, Body, HTTPException
+
+from integrations.mcp_service import mcp_service
 
 router = APIRouter(prefix="/api/mcp", tags=["mcp"])
 logger = logging.getLogger(__name__)

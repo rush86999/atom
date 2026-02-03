@@ -5,7 +5,7 @@ Loads integrations on-demand instead of at startup
 import importlib
 import logging
 from functools import lru_cache
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

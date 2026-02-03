@@ -4,9 +4,9 @@ Minimal test of the LanceDB integration functionality.
 This test focuses on the core LanceDB functionality that has been successfully implemented.
 """
 
+import asyncio
 import os
 import sys
-import asyncio
 import tempfile
 
 # Add the backend directory to the path
@@ -18,12 +18,12 @@ async def test_lancedb_integration():
 
     try:
         from lancedb_handler import (
-            get_lancedb_connection,
-            create_generic_document_tables_if_not_exist,
             add_processed_document,
-            search_documents,
+            create_generic_document_tables_if_not_exist,
+            delete_document,
             get_document_stats,
-            delete_document
+            get_lancedb_connection,
+            search_documents,
         )
 
         # Set test environment
@@ -112,9 +112,9 @@ async def test_document_processor():
     print("🧪 Testing Document Processor Integration...")
 
     try:
-        from document_processor import process_document_and_store
-        import tempfile
         import os
+        import tempfile
+        from document_processor import process_document_and_store
 
         # Create test document in a temporary file
         test_content = "This is a test document for the document processor integration."

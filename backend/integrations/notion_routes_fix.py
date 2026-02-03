@@ -5,9 +5,9 @@ Provides REST API endpoints for Notion integration
 """
 
 import logging
+from datetime import datetime
 import httpx
 from flask import Blueprint, jsonify, request
-from datetime import datetime
 
 # Auth Type: OAuth2
 notion_bp = Blueprint('notion', __name__)

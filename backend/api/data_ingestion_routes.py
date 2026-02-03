@@ -3,11 +3,11 @@ Hybrid Data Ingestion API Routes
 Exposes endpoints for managing automatic data sync from integrations.
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
 import logging
 import os
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -102,10 +102,7 @@ async def enable_auto_sync(
             db.close()
 
     try:
-        from core.hybrid_data_ingestion import (
-            get_hybrid_ingestion_service,
-            SyncConfiguration
-        )
+        from core.hybrid_data_ingestion import SyncConfiguration, get_hybrid_ingestion_service
 
         service = get_hybrid_ingestion_service("default")
 

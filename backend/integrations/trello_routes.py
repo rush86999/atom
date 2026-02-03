@@ -1,19 +1,21 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, Body
-from typing import Dict, List, Any, Optional
-import logging
 import asyncio
-from datetime import datetime
+import logging
 import os
 import sys
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 # Add the parent directory to the path to import from python-api-service
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "python-api-service"))
 
 from trello_enhanced_service import TrelloEnhancedService
-# TrelloHandler is not available, using only TrelloEnhancedService
 
 # Import TrelloService for health check compliance
 from .trello_service import TrelloService
+
+# TrelloHandler is not available, using only TrelloEnhancedService
+
 
 # Configure logging
 logger = logging.getLogger(__name__)

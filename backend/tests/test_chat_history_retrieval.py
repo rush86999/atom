@@ -4,14 +4,14 @@ Tests for Chat Session History Retrieval
 Tests the fix for broken chat history feature
 """
 
-import pytest
 from datetime import datetime, timedelta
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from core.database import Base, get_db
-from core.models import ChatSession, ChatMessage
-from core.chat_session_manager import ChatSessionManager
 
+from core.chat_session_manager import ChatSessionManager
+from core.database import Base, get_db
+from core.models import ChatMessage, ChatSession
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_chat_history.db"

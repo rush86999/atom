@@ -13,22 +13,19 @@ Features:
 
 import logging
 import uuid
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
+from core.models import AgentRegistry, CanvasAudit, ViewOrchestrationState
 from core.websockets import manager as ws_manager
-from core.models import (
-    ViewOrchestrationState,
-    AgentRegistry,
-    CanvasAudit
-)
 
 logger = logging.getLogger(__name__)
 
 
 # Feature flags
 import os
+
 VIEW_COORDINATION_ENABLED = os.getenv("VIEW_COORDINATION_ENABLED", "true").lower() == "true"
 EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 

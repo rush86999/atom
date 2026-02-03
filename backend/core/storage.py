@@ -1,7 +1,7 @@
+import logging
 import os
 import boto3
 from botocore.config import Config
-import logging
 
 logger = logging.getLogger(__name__)
 

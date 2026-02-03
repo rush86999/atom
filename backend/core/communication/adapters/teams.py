@@ -1,10 +1,10 @@
 import logging
 import os
-import httpx
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+import httpx
 from fastapi import Request
-from jose import jwt, jwk
+from jose import jwk, jwt
 from jose.utils import base64url_decode
 
 from core.communication.adapters.base import PlatformAdapter

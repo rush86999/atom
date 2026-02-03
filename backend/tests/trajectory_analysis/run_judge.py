@@ -1,15 +1,16 @@
 import asyncio
+import glob
+import json
 import os
 import sys
-import json
-import glob
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Fix path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from core.trajectory import ExecutionTrace
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+
+from core.trajectory import ExecutionTrace
 
 JUDGE_PROMPT = """You are an Expert AI Auditor. Review this execution trace found below.
 Your goal is to evaluate the agent's reasoning process.

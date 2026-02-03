@@ -1,13 +1,13 @@
-import logging
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.executors.pool import ThreadPoolExecutor
-from sqlalchemy.orm import Session
-import uuid
 import datetime
 import json
+import logging
+import uuid
+from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy.orm import Session
 
-from core.database import get_db_session, engine
+from core.database import engine, get_db_session
 from core.models import AgentJob, AgentJobStatus, AgentRegistry
 
 logger = logging.getLogger(__name__)
@@ -131,8 +131,8 @@ class AgentScheduler:
         # 1. Define the execution wrapper
         async def run_agent_wrapper():
             from core.database import get_db_session
-            from core.models import AgentRegistry
             from core.generic_agent import GenericAgent
+            from core.models import AgentRegistry
             
             with get_db_session() as db:
             try:

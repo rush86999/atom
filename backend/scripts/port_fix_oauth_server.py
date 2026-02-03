@@ -7,6 +7,7 @@ import os
 import socket
 from flask import Flask, jsonify
 
+
 def is_port_available(port):
     """Check if port is available"""
     try:

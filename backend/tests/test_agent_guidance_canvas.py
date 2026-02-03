@@ -4,20 +4,14 @@ Agent Guidance Canvas Tests
 Tests for real-time agent operation broadcasting to canvas.
 """
 
-import pytest
-import uuid
 import json
+import uuid
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
 
 from core.database import SessionLocal
-from core.models import (
-    AgentRegistry,
-    User,
-    Workspace,
-    AgentOperationTracker,
-    CanvasAudit
-)
+from core.models import AgentOperationTracker, AgentRegistry, CanvasAudit, User, Workspace
 from tools.agent_guidance_canvas_tool import AgentGuidanceSystem
 
 

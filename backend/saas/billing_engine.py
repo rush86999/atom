@@ -1,9 +1,8 @@
 import logging
-from sqlalchemy.orm import Session
-from typing import Dict, Any
-
-from saas.models import SaaSTier
+from typing import Any, Dict
 from ecommerce.models import Subscription
+from saas.models import SaaSTier
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

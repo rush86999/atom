@@ -1,17 +1,18 @@
-import logging
-import uuid
-import json
 import asyncio
+import json
+import logging
 import os
+import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
+
 from core.agent_governance_service import AgentGovernanceService
-from core.agent_world_model import WorldModelService, AgentExperience
-from core.react_models import ReActStep, ToolCall, ReActObservation
-from core.models import AgentRegistry, AgentStatus, HITLActionStatus
+from core.agent_world_model import AgentExperience, WorldModelService
 from core.database import get_db_session
-from integrations.mcp_service import mcp_service
 from core.llm.byok_handler import BYOKHandler
+from core.models import AgentRegistry, AgentStatus, HITLActionStatus
+from core.react_models import ReActObservation, ReActStep, ToolCall
+from integrations.mcp_service import mcp_service
 
 # Try to import instructor for structured parsing
 try:
@@ -150,6 +151,7 @@ class GenericAgent:
                             if tool_name == "browser_screenshot" and "saved to" in str(observation):
                                 try:
                                     import base64
+
                                     # Extract path from observation: "Screenshot saved to /tmp/screenshot_xyz.png"
                                     path = observation.split("saved to ")[-1].strip()
                                     if os.path.exists(path):

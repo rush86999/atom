@@ -3,14 +3,14 @@ Jira Service for ATOM Platform
 Provides comprehensive Jira integration functionality
 """
 
+import base64
 import json
 import logging
 import os
-import base64
-from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlencode, urljoin
 import requests
-from urllib.parse import urljoin, urlencode
 
 logger = logging.getLogger(__name__)
 

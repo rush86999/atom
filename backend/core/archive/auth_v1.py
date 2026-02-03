@@ -1,8 +1,8 @@
 import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Union, Any
-from jose import jwt, JWTError
+from typing import Any, Optional, Union
+from jose import JWTError, jwt
 
 # Make bcrypt optional for authentication
 try:
@@ -11,12 +11,13 @@ try:
 except ImportError:
     BCRYPT_AVAILABLE = False
 
+import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+
 from core.database import get_db
 from core.models import User
-import logging
 
 # Configuration
 logger = logging.getLogger(__name__)

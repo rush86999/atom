@@ -1,13 +1,14 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-import sys
 import os
+import sys
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from integrations.figma_service import FigmaService
+
 
 @pytest.fixture
 def figma_service():

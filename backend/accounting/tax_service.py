@@ -1,10 +1,10 @@
 import logging
 import re
-from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional, Tuple
+from accounting.models import Entity, Invoice, InvoiceStatus, TaxNexus
 from sqlalchemy import func
-from accounting.models import Invoice, Entity, TaxNexus, InvoiceStatus
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

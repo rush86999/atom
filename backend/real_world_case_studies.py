@@ -4,14 +4,14 @@ Real-World Case Studies for AI Workflow Marketing Claim Validation
 Creates detailed business impact scenarios with measurable metrics
 """
 
-import os
+import asyncio
+import datetime
 import json
 import logging
-import asyncio
+import os
 import time
-import datetime
-from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 

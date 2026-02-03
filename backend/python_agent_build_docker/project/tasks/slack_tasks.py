@@ -1,8 +1,8 @@
-from celery import shared_task
 import logging
-from typing import Dict, Any, List, Optional
 import os
+from typing import Any, Dict, List, Optional
 import requests
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 

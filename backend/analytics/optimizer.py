@@ -1,7 +1,7 @@
-import re
 import logging
-from typing import Dict, List, Set, Any
+import re
 from dataclasses import dataclass
+from typing import Any, Dict, List, Set
 
 logger = logging.getLogger(__name__)
 

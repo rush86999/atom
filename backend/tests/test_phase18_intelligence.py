@@ -1,21 +1,23 @@
-import sys
+import datetime
 import os
+import sys
 import unittest
 import uuid
-import datetime
 from datetime import timezone
 
 # Add project root
 sys.path.append(os.getcwd())
 
+from accounting.models import Entity, EntityType, Invoice, InvoiceStatus
+from intelligence.health_engine import HealthScoringEngine
+from intelligence.models import ResourceRole
+from intelligence.scenario_engine import ScenarioEngine
+from intelligence.staffing_forecaster import StaffingForecaster
+from sales.models import Deal, DealStage
+
 from core.database import SessionLocal
 from core.models import Workspace
-from accounting.models import Entity, Invoice, InvoiceStatus, EntityType
-from sales.models import Deal, DealStage
-from intelligence.models import ResourceRole
-from intelligence.health_engine import HealthScoringEngine
-from intelligence.staffing_forecaster import StaffingForecaster
-from intelligence.scenario_engine import ScenarioEngine
+
 
 class TestPhase18Intelligence(unittest.TestCase):
     def setUp(self):

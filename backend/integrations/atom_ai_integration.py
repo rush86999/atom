@@ -3,29 +3,37 @@ ATOM AI Integration Module
 Seamless AI integration within unified communication ecosystem with cross-platform intelligence
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union
-from dataclasses import dataclass, asdict
+import os
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-import httpx
+from typing import Any, Dict, List, Optional, Union
 import aiohttp
-from collections import defaultdict, Counter
+import httpx
 
 # Import existing ATOM services
 try:
+    from ai_enhanced_service import (
+        AIConversationContext,
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
+    from atom_discord_integration import atom_discord_integration
+    from atom_google_chat_integration import atom_google_chat_integration
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
-    from atom_workflow_service import AtomWorkflowService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_slack_integration import atom_slack_integration
     from atom_teams_integration import atom_teams_integration
-    from atom_google_chat_integration import atom_google_chat_integration
-    from atom_discord_integration import atom_discord_integration
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType, AIConversationContext
+    from atom_workflow_service import AtomWorkflowService
 except ImportError as e:
     logging.warning(f"AI integration services not available: {e}")
 

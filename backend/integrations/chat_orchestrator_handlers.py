@@ -31,7 +31,7 @@
             if str(backend_root) not in sys.path:
                 sys.path.insert(0, str(backend_root))
                 
-            from core.unified_task_endpoints import create_task, get_tasks, CreateTaskRequest
+            from core.unified_task_endpoints import CreateTaskRequest, create_task, get_tasks
             
             if "create" in message.lower() or "add" in message.lower():
                 title = message.replace("create task", "").replace("add task", "").strip()

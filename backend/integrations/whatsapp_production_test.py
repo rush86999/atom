@@ -3,12 +3,12 @@ WhatsApp Business Production Testing Script
 Comprehensive testing suite for WhatsApp Business integration
 """
 
-import requests
 import json
-import time
-import threading
-from datetime import datetime, timedelta
 import logging
+import threading
+import time
+from datetime import datetime, timedelta
+import requests
 
 logger = logging.getLogger(__name__)
 

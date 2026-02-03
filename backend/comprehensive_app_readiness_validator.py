@@ -7,8 +7,8 @@ Validates features, detects gaps, and provides readiness assessment
 import asyncio
 import json
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from independent_ai_validator.core.validator_engine import IndependentAIValidator, MarketingClaim
 
 # Marketing claims to validate
@@ -163,7 +163,9 @@ async def run_comprehensive_validation():
         print("=" * 80)
         print()
         
-        from independent_ai_validator.core.business_outcome_validator import BusinessOutcomeValidator
+        from independent_ai_validator.core.business_outcome_validator import (
+            BusinessOutcomeValidator,
+        )
         business_validator = BusinessOutcomeValidator(backend_url="http://localhost:8000")
         business_results = await business_validator.validate_business_outcomes()
         

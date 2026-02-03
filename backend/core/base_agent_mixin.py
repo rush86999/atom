@@ -3,8 +3,9 @@ Base Agent Mixin - Provides MCP capabilities to all agent types.
 Ensures consistent web search and web access across all agents.
 """
 
+from typing import Any, Dict
+
 from integrations.mcp_service import mcp_service
-from typing import Dict, Any
 
 
 class MCPCapableMixin:

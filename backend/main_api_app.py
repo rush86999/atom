@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-from unittest.mock import MagicMock
 import types
+from unittest.mock import MagicMock
 
 # Prevent numpy/pandas from loading real DLLs that crash on Py 3.13
 # Setting to None raises ImportError instead of crashing, allowing try-except blocks to work
@@ -13,32 +13,36 @@ sys.modules["pyarrow"] = None
 
 print("WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash")
 
-import threading
 import logging
+import threading
+from datetime import datetime
 from pathlib import Path
 import uvicorn
-from datetime import datetime
-import core.models
-import core.models_registration  # Fixes circular relationship issues
-from core.database import SessionLocal, get_db
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+
+import core.models
+import core.models_registration  # Fixes circular relationship issues
+from core.circuit_breaker import circuit_breaker
+from core.database import SessionLocal, get_db
 
 # --- V2 IMPORTS (Architecture) ---
 from core.lazy_integration_registry import (
-    load_integration,
+    ESSENTIAL_INTEGRATIONS,
     get_integration_list,
     get_loaded_integrations,
-    ESSENTIAL_INTEGRATIONS
+    load_integration,
 )
-from core.circuit_breaker import circuit_breaker
-from core.resource_guards import ResourceGuard, MemoryGuard
+from core.resource_guards import MemoryGuard, ResourceGuard
 from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
+
 try:
-    from core.integration_loader import IntegrationLoader # Kept for backward compatibility if needed
+    from core.integration_loader import (
+        IntegrationLoader,  # Kept for backward compatibility if needed
+    )
 except ImportError:
     IntegrationLoader = None
     print("⚠️ WARNING: IntegrationLoader could not be imported (likely numpy/lancedb issue)")
@@ -67,6 +71,7 @@ DISABLE_DOCS = ENVIRONMENT == "production"
 # --- LIFECYCLE MANAGER ---
 from contextlib import asynccontextmanager
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- STARTUP ---
@@ -76,11 +81,12 @@ async def lifespan(app: FastAPI):
     
     # 0. Initialize Database (Critical for in-memory DB)
     try:
+        from analytics.models import WorkflowExecutionLog  # Force registration
+        from sqlalchemy import inspect
+
+        from core.admin_bootstrap import ensure_admin_user
         from core.database import engine
         from core.models import Base
-        from analytics.models import WorkflowExecutionLog # Force registration
-        from core.admin_bootstrap import ensure_admin_user
-        from sqlalchemy import inspect
         
         logger.info("Initializing database tables...")
         Base.metadata.create_all(bind=engine)
@@ -498,13 +504,14 @@ try:
 
     # 4d. Time Travel Routes
     try:
-        from api.time_travel_routes import router as time_travel_router # [Lesson 3]
+        from api.time_travel_routes import router as time_travel_router  # [Lesson 3]
         app.include_router(time_travel_router) # [Lesson 3]
     except ImportError as e:
         logger.warning(f"Time Travel routes not found: {e}")
     # 4. Microsoft 365 Integration
     try:
         from integrations.microsoft365_routes import microsoft365_router
+
         # Primary Route (New Standard)
         app.include_router(microsoft365_router, prefix="/api/integrations/microsoft365", tags=["Microsoft 365"])
         # Legacy Route (For backward compatibility/caching rewrites)
@@ -667,10 +674,10 @@ try:
 
     # 14.6 Core Business Routes (Intelligence, Projects, Sales)
     try:
+        from api.device_nodes import router as device_node_router
         from api.intelligence_routes import router as intelligence_router
         from api.project_routes import router as project_router
         from api.sales_routes import router as sales_router
-        from api.device_nodes import router as device_node_router
         
         app.include_router(intelligence_router) # Prefix defined in router
         app.include_router(project_router)      # Prefix defined in router
@@ -934,9 +941,9 @@ try:
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router
-        from integrations.atom_sales_live_api import router as sales_live_router
-        from integrations.atom_projects_live_api import router as projects_live_router
         from integrations.atom_finance_live_api import router as finance_live_router
+        from integrations.atom_projects_live_api import router as projects_live_router
+        from integrations.atom_sales_live_api import router as sales_live_router
         
         app.include_router(comm_live_router)
         app.include_router(sales_live_router)
@@ -1019,6 +1026,7 @@ try:
         initialize_whatsapp_service,
         register_whatsapp_routes,
     )
+
     # Register routes immediately
     if register_whatsapp_routes(app):
         logger.info("[OK] WhatsApp Business integration routes loaded")

@@ -5,14 +5,14 @@ API endpoints for AI-powered workflow analysis and optimization
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Body, Query
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .ai_workflow_optimizer import (
-    get_ai_workflow_optimizer,
     AIWorkflowOptimizer,
+    OptimizationRecommendation,
     OptimizationType,
-    OptimizationRecommendation
+    get_ai_workflow_optimizer,
 )
 
 router = APIRouter()

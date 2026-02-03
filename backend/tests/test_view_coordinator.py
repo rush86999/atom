@@ -4,19 +4,13 @@ View Coordinator Tests
 Tests for multi-view orchestration system.
 """
 
-import pytest
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
 
 from core.database import SessionLocal
-from core.models import (
-    User,
-    Workspace,
-    AgentRegistry,
-    ViewOrchestrationState,
-    CanvasAudit
-)
+from core.models import AgentRegistry, CanvasAudit, User, ViewOrchestrationState, Workspace
 from core.view_coordinator import ViewCoordinator
 
 

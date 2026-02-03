@@ -6,17 +6,13 @@ Atom is a single-tenant, single-workspace system - permissions are based
 solely on the user's global role, not workspace membership.
 """
 
+from unittest.mock import MagicMock, Mock
 import pytest
-from unittest.mock import Mock, MagicMock
 from sqlalchemy.orm import Session
 
-from core.models import User, Workspace, UserRole, user_workspaces
 from core.enterprise_auth_service import EnterpriseAuthService
-from core.exceptions import (
-    UserNotFoundError,
-    WorkspaceAccessDeniedError,
-    ForbiddenError
-)
+from core.exceptions import ForbiddenError, UserNotFoundError, WorkspaceAccessDeniedError
+from core.models import User, UserRole, Workspace, user_workspaces
 
 
 @pytest.fixture

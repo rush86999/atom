@@ -5,10 +5,11 @@ Test suite for database-backed template system
 
 import pytest
 from fastapi.testclient import TestClient
+from main import app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from core.database import Base, get_db
-from main import app
 
 # Test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test_templates.db"

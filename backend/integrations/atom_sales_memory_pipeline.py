@@ -4,19 +4,20 @@ Background ingestion for HubSpot and Salesforce data into LanceDB for AI/RAG.
 """
 
 import asyncio
-import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime
 import json
+import logging
 import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from integrations.atom_communication_ingestion_pipeline import (
-    LanceDBMemoryManager, 
-    CommunicationData, 
-    get_memory_manager
-)
 from core.websockets import manager
+from integrations.atom_communication_ingestion_pipeline import (
+    CommunicationData,
+    LanceDBMemoryManager,
+    get_memory_manager,
+)
 from integrations.hubspot_service import hubspot_service
+
 # from integrations.salesforce_service import salesforce_service # Import when ready
 
 logger = logging.getLogger(__name__)

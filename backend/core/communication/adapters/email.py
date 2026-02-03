@@ -1,10 +1,11 @@
-from typing import Dict, Any, Optional, List
-import os
 import json
 import logging
+import os
+from email.utils import parseaddr
+from typing import Any, Dict, List, Optional
 import boto3
 from botocore.exceptions import ClientError
-from email.utils import parseaddr
+
 from core.communication.adapters.base import PlatformAdapter
 
 logger = logging.getLogger(__name__)

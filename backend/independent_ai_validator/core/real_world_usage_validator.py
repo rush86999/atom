@@ -1,10 +1,10 @@
 import asyncio
+import json
 import logging
 import time
-import json
-import aiohttp
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+import aiohttp
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -679,7 +679,7 @@ class RealWorldUsageValidator:
     async def _check_calendar_conflicts(self, conflict_data: Dict[str, Any]) -> Any:
         """Check calendar conflicts using real Outlook or Google Calendar API with fallbacks"""
         from datetime import datetime, timezone
-        
+
         # Parse start and end times early for both APIs
         start_str = conflict_data.get("start_time", conflict_data.get("start", "")).replace("Z", "+00:00")
         end_str = conflict_data.get("end_time", conflict_data.get("end", "")).replace("Z", "+00:00")

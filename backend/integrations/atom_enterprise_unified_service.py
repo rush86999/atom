@@ -3,35 +3,59 @@ ATOM Enterprise Unified Service
 Comprehensive enterprise service integrating security, compliance, workflow automation, and AI
 """
 
-import os
+import asyncio
+import hashlib
 import json
 import logging
-import asyncio
+import os
 import time
-import hashlib
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union, Callable, Tuple
-from dataclasses import dataclass, asdict
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-import httpx
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
-from collections import defaultdict, Counter
-import pandas as pd
+import httpx
 import numpy as np
+import pandas as pd
 
 # Import existing ATOM services
 try:
-    from atom_enterprise_security_service import atom_enterprise_security_service, SecurityPolicy, ThreatDetection, ComplianceReport, SecurityAudit, SecurityLevel, ComplianceStandard, ThreatType, AuditEventType
-    from atom_workflow_service import AtomWorkflowService, Workflow, WorkflowStep, WorkflowTrigger, WorkflowAction, WorkflowStatus
+    from ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
+    from atom_ai_integration import atom_ai_integration
+    from atom_discord_integration import atom_discord_integration
+    from atom_enterprise_security_service import (
+        AuditEventType,
+        ComplianceReport,
+        ComplianceStandard,
+        SecurityAudit,
+        SecurityLevel,
+        SecurityPolicy,
+        ThreatDetection,
+        ThreatType,
+        atom_enterprise_security_service,
+    )
+    from atom_google_chat_integration import atom_google_chat_integration
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType
-    from atom_ai_integration import atom_ai_integration
     from atom_slack_integration import atom_slack_integration
     from atom_teams_integration import atom_teams_integration
-    from atom_google_chat_integration import atom_google_chat_integration
-    from atom_discord_integration import atom_discord_integration
+    from atom_workflow_service import (
+        AtomWorkflowService,
+        Workflow,
+        WorkflowAction,
+        WorkflowStatus,
+        WorkflowStep,
+        WorkflowTrigger,
+    )
 except ImportError as e:
     logging.warning(f"Enterprise unified services not available: {e}")
 
@@ -986,7 +1010,9 @@ class AtomEnterpriseUnifiedService:
             logger.info("Initializing enterprise services")
             # Initialize security service
             if not self.security_service:
-                from integrations.atom_enterprise_security_service import enterprise_security_service
+                from integrations.atom_enterprise_security_service import (
+                    enterprise_security_service,
+                )
                 self.security_service = enterprise_security_service
 
             # Initialize AI integration

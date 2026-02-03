@@ -4,11 +4,11 @@ Continuous reconciliation, anomaly flagging, confidence scoring.
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import statistics
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

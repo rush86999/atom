@@ -7,23 +7,19 @@ Analyzes recordings to update agent confidence, provide feedback, and drive lear
 
 import logging
 import uuid
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.models import (
-    CanvasRecording,
-    CanvasRecordingReview,
-    AgentRegistry,
-    User
-)
 from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentRegistry, CanvasRecording, CanvasRecordingReview, User
 
 logger = logging.getLogger(__name__)
 
 
 # Feature flags
 import os
+
 AUTO_REVIEW_ENABLED = os.getenv("AUTO_REVIEW_ENABLED", "true").lower() == "true"
 AUTO_REVIEW_CONFIDENCE_THRESHOLD = float(os.getenv("AUTO_REVIEW_CONFIDENCE_THRESHOLD", "0.7"))
 
@@ -439,7 +435,7 @@ class RecordingReviewService:
     ):
         """Update agent world model with insights from recording."""
         try:
-            from core.agent_world_model import WorldModelService, AgentExperience
+            from core.agent_world_model import AgentExperience, WorldModelService
 
             wm = WorldModelService()
 

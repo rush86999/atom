@@ -1,9 +1,11 @@
 
-import pytest
-from unittest.mock import MagicMock, patch
-from core.models import AgentRegistry, AgentStatus
-from core.generic_agent import GenericAgent
 import uuid
+from unittest.mock import MagicMock, patch
+import pytest
+
+from core.generic_agent import GenericAgent
+from core.models import AgentRegistry, AgentStatus
+
 
 @pytest.fixture
 def mock_agent_model():
@@ -60,8 +62,8 @@ async def test_generic_agent_execution(mock_llm_cls, mock_wm_cls, mock_agent_mod
 @patch("core.generic_agent.GenericAgent.execute")
 @pytest.mark.asyncio
 async def test_meta_agent_execution_flow(mock_execute, mock_record, mock_db, mock_registry_cls):
-    from core.atom_meta_agent import AtomMetaAgent, AgentTriggerMode
-    
+    from core.atom_meta_agent import AgentTriggerMode, AtomMetaAgent
+
     # Setup
     meta_agent = AtomMetaAgent()
     meta_agent.user = MagicMock(id="user1")

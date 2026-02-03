@@ -2,12 +2,11 @@
 Document Routes - API endpoints for document ingestion and search
 """
 import logging
-from typing import Any, Dict, Optional, List
-from datetime import datetime
-import uuid
 import os
-
-from fastapi import APIRouter, HTTPException, UploadFile, File
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)

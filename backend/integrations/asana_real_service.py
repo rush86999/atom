@@ -3,11 +3,11 @@ Asana Real API Integration Service
 Connects unified task endpoints to real Asana workspace
 """
 
-import aiohttp
-import os
-from typing import Dict, List, Optional, Any
-from datetime import datetime
 import logging
+import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+import aiohttp
 
 logger = logging.getLogger(__name__)
 

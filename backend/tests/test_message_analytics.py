@@ -3,17 +3,17 @@ Tests for Message Analytics Engine
 Tests sentiment analysis, response times, activity detection, and cross-platform analytics.
 """
 
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List
 import pytest
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List
 
 from core.message_analytics_engine import (
+    ActivityMetrics,
     MessageAnalyticsEngine,
-    SentimentLevel,
     MessageStats,
     ResponseTimeMetrics,
+    SentimentLevel,
     ThreadParticipation,
-    ActivityMetrics
 )
 
 

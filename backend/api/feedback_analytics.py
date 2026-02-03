@@ -11,8 +11,7 @@ Endpoints:
 """
 
 import logging
-from typing import Dict, Any, List
-
+from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 

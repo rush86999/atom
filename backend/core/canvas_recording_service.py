@@ -11,27 +11,23 @@ Features:
 - Playback and review support
 """
 
+import json
 import logging
 import uuid
-import json
-from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
 
-from core.websockets import manager as ws_manager
-from core.models import (
-    CanvasRecording,
-    AgentRegistry,
-    CanvasAudit,
-    User
-)
 from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentRegistry, CanvasAudit, CanvasRecording, User
+from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
 
 # Feature flags
 import os
+
 CANVAS_RECORDING_ENABLED = os.getenv("CANVAS_RECORDING_ENABLED", "true").lower() == "true"
 RECORDING_RETENTION_DAYS = int(os.getenv("RECORDING_RETENTION_DAYS", "90"))
 

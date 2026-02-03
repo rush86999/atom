@@ -3,7 +3,6 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
-
 import pandas as pd
 import plotly.graph_objects as go
 from fastapi import APIRouter, Depends, HTTPException, Request

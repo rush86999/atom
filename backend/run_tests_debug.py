@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 import pytest
 
 # Add current directory to path

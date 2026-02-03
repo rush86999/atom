@@ -3,16 +3,17 @@ ATOM Specialized Autonomous Business Agents
 Implements domain-specific agents for Accounting, Sales, Marketing, and more.
 """
 
-import logging
 import json
+import logging
 import uuid
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
+
 from core.database import get_db_session
-from core.models import Workspace, AgentJob, AgentJobStatus
-from integrations.ai_enhanced_service import ai_enhanced_service, AITaskType
+from core.models import AgentJob, AgentJobStatus, Workspace
+from integrations.ai_enhanced_service import AITaskType, ai_enhanced_service
 from integrations.mcp_service import mcp_service
 
 logger = logging.getLogger(__name__)

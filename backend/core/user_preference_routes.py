@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
-from typing import Dict, Any, List, Optional
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.user_preference_service import UserPreferenceService

@@ -2,8 +2,7 @@
 import logging
 import os
 from typing import Any, Dict, List, Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from .mailchimp_service import MailchimpService

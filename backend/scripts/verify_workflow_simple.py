@@ -4,10 +4,10 @@ Simplified Verification Script for Atom Workflow Automation System
 This script verifies the core workflow automation components without requiring the full backend server.
 """
 
+import logging
 import os
 import sys
-import logging
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 # Add backend to path
 sys.path.insert(

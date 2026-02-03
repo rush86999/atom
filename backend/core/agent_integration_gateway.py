@@ -4,24 +4,25 @@ Unified control plane for agents to interact with all integrations (Read/Write).
 """
 
 import logging
-from typing import Dict, Any, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
-# Import specialized services
-from integrations.meta_business_service import meta_business_service, MetaPlatform
-from integrations.ecommerce_unified_service import ecommerce_service, EcommercePlatform
-from integrations.marketing_unified_service import marketing_service, MarketingPlatform
-from integrations.atom_whatsapp_integration import atom_whatsapp_integration
-from integrations.document_logic_service import document_logic_service
-from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
-from integrations.shopify_service import ShopifyService
 from core.governance_engine import contact_governance
 from integrations.atom_discord_integration import atom_discord_integration
-from integrations.teams_enhanced_service import teams_enhanced_service
+from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
 from integrations.atom_telegram_integration import atom_telegram_integration
+from integrations.atom_whatsapp_integration import atom_whatsapp_integration
+from integrations.document_logic_service import document_logic_service
+from integrations.ecommerce_unified_service import EcommercePlatform, ecommerce_service
 from integrations.google_chat_enhanced_service import google_chat_enhanced_service
-from integrations.slack_enhanced_service import slack_enhanced_service
+from integrations.marketing_unified_service import MarketingPlatform, marketing_service
+
+# Import specialized services
+from integrations.meta_business_service import MetaPlatform, meta_business_service
 from integrations.openclaw_service import openclaw_service
+from integrations.shopify_service import ShopifyService
+from integrations.slack_enhanced_service import slack_enhanced_service
+from integrations.teams_enhanced_service import teams_enhanced_service
 
 logger = logging.getLogger(__name__)
 
@@ -339,8 +340,8 @@ class AgentIntegrationGateway:
             return {"status": "error", "message": "formula_id is required"}
         
         try:
-            from core.formula_memory import get_formula_manager
             from core.agent_world_model import WorldModelService
+            from core.formula_memory import get_formula_manager
             
             manager = get_formula_manager(workspace_id)
             
@@ -370,8 +371,8 @@ class AgentIntegrationGateway:
                 
                 # Update agent confidence via existing governance system
                 try:
-                    from core.database import get_db_session
                     from core.agent_governance_service import AgentGovernanceService
+                    from core.database import get_db_session
                     
                     db = next(get_db_session())
                     governance = AgentGovernanceService(db)

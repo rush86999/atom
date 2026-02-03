@@ -1,6 +1,6 @@
 """Email Canvas Tool"""
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ async def present_email_canvas(
 
     Creates a compose interface for email creation.
     """
-    from core.database import get_db_session
     from core.canvas_email_service import EmailCanvasService
+    from core.database import get_db_session
     from tools.canvas_tool import present_specialized_canvas
 
     try:

@@ -1,9 +1,13 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Enum as SQLEnum, JSON, UniqueConstraint
+import enum
+import uuid
+from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import uuid
-import enum
+
 from core.database import Base
+
 
 class AccountType(str, enum.Enum):
     ASSET = "asset"

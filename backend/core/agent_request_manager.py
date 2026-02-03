@@ -12,22 +12,23 @@ Features:
 - Request expiration and revocation
 """
 
+import asyncio
 import logging
 import uuid
-import asyncio
-from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.websockets import manager as ws_manager
-from core.models import AgentRequestLog, AgentRegistry, CanvasAudit
 from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentRegistry, AgentRequestLog, CanvasAudit
+from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
 
 # Feature flags
 import os
+
 AGENT_REQUESTS_ENABLED = os.getenv("AGENT_REQUESTS_ENABLED", "true").lower() == "true"
 
 

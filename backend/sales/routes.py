@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any
-from core.database import get_db
-from sales.lead_manager import LeadManager
-from sales.intelligence import SalesIntelligence
+from typing import Any, Dict, List
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sales.call_service import CallAutomationService
 from sales.dashboard_service import SalesDashboardService
-from sales.models import Lead, Deal, CallTranscript
+from sales.intelligence import SalesIntelligence
+from sales.lead_manager import LeadManager
+from sales.models import CallTranscript, Deal, Lead
+from sqlalchemy.orm import Session
+
+from core.database import get_db
 
 router = APIRouter(prefix="/api/sales", tags=["Sales Automation"])
 

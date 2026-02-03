@@ -4,15 +4,15 @@ Auto-ingests documents from connected file storage integrations (Google Drive, D
 Supports: Excel, PDF, DOC/DOCX, TXT, CSV, Markdown files
 """
 
-import logging
 import asyncio
-import os
 import io
-from typing import Dict, Any, List, Optional, Set
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from enum import Enum
 import json
+import logging
+import os
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set
 
 # Import for lazy loading to avoid circular imports
 # from core.atom_meta_agent import handle_data_event_trigger
@@ -272,6 +272,7 @@ class DocumentParser:
         
         try:
             import pandas as pd
+
             # Read all sheets
             xls = pd.ExcelFile(io.BytesIO(content))
             full_text = []

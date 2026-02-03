@@ -4,18 +4,18 @@ Provides real Microsoft Graph API access for event management and conflict detec
 Uses delegated permissions with device code flow (no admin consent required)
 """
 
-import os
-import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta, timezone
-import aiohttp
 import asyncio
 import json
-from msal import PublicClientApplication
+import logging
+import os
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+import aiohttp
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
-from pathlib import Path
+from msal import PublicClientApplication
 
 # Load .env from project root (atom/.env)
 env_path = Path(__file__).parent.parent.parent / '.env'

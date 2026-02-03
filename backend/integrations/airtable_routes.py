@@ -6,12 +6,11 @@ Uses the real airtable_service.py for all operations
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 # Import the real Airtable service
-from .airtable_service import airtable_service, AirtableService
+from .airtable_service import AirtableService, airtable_service
 
 logger = logging.getLogger(__name__)
 

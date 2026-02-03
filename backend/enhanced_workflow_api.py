@@ -1,11 +1,13 @@
 import logging
 import time
-from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
 from collections import defaultdict
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+
 try:
     import numpy as np
+
     # FORCE DISABLE numpy to prevent crash
     NUMPY_AVAILABLE = False # True
 except ImportError:

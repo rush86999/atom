@@ -4,9 +4,10 @@ Final Simple Honest Assessment
 What actually works vs marketing claims
 """
 
-import os
 import json
+import os
 from datetime import datetime
+
 
 def simple_honest_assessment():
     """Simple, honest assessment of what actually works"""

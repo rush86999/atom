@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy import text
-from core.database import SessionLocal
-from core.cache import cache
-from core.admin_endpoints import get_super_admin
-from core.models import User
 import logging
 import time
+from fastapi import APIRouter, Depends
+from sqlalchemy import text
+
+from core.admin_endpoints import get_super_admin
+from core.cache import cache
+from core.database import SessionLocal
+from core.models import User
 
 # Initialize cache service (use global)
 # cache_service = RedisCacheService() # Removed

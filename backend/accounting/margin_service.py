@@ -1,10 +1,11 @@
 import logging
-from typing import Dict, Any, List
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List
+from service_delivery.models import Contract, Project, ProjectTask
 from sqlalchemy import func
-from core.models import User
-from service_delivery.models import Project, ProjectTask, Contract
+from sqlalchemy.orm import Session
+
 from core.database import SessionLocal
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ class MarginCalculatorService:
                     total_cost += self.calculate_project_labor_cost(project.id, db)
                 
                 # Also include tangible product sales cost if linked to orders
-                from ecommerce.models import EcommerceOrderItem, EcommerceOrder
+                from ecommerce.models import EcommerceOrder, EcommerceOrderItem
                 order_items = db.query(EcommerceOrderItem).join(EcommerceOrder).filter(
                     EcommerceOrderItem.product_id == product.id,
                     EcommerceOrder.workspace_id == workspace_id

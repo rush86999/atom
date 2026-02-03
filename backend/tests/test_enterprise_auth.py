@@ -3,28 +3,18 @@ Tests for Enterprise Authentication System
 Tests user registration, login, JWT tokens, password hashing, and RBAC.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, Mock, patch
 import bcrypt
 import pydantic
-
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.enterprise_auth_service import (
-    EnterpriseAuthService,
-    UserRole,
-    SecurityLevel
-)
-from api.enterprise_auth_endpoints import (
-    UserRegister,
-    UserLogin,
-    ChangePasswordRequest,
-    router
-)
-from core.models import User, UserRole as DBUserRole
-
+from api.enterprise_auth_endpoints import ChangePasswordRequest, UserLogin, UserRegister, router
+from core.enterprise_auth_service import EnterpriseAuthService, SecurityLevel, UserRole
+from core.models import User
+from core.models import UserRole as DBUserRole
 
 # Create test app
 test_app = FastAPI()
@@ -162,8 +152,8 @@ class TestJWTTokenManagement:
         service = EnterpriseAuthService()
 
         # Create a token that's already expired
+        from datetime import datetime, timedelta, timezone
         import jwt
-        from datetime import datetime, timezone, timedelta
 
         payload = {
             "user_id": "test_user",

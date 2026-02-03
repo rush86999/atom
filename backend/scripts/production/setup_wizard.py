@@ -4,9 +4,9 @@ Interactive Setup Wizard for ATOM Application
 Guides users through environment configuration step-by-step.
 """
 
+import base64
 import os
 import secrets
-import base64
 from pathlib import Path
 
 

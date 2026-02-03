@@ -9,7 +9,8 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from .database_manager import db_manager
 
 logger = logging.getLogger(__name__)

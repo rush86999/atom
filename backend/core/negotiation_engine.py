@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, Optional, List
-from sales.models import Deal, NegotiationState
-from core.database import get_db_session
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+from sales.models import Deal, NegotiationState
+
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

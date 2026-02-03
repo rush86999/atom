@@ -3,22 +3,19 @@ Analytics Dashboard API Routes
 Provides endpoints for message analytics, cross-platform correlation, and predictive insights.
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, HTTPException, Query
 
-from core.message_analytics_engine import (
-    get_message_analytics_engine,
-    MessageAnalyticsEngine
-)
 from core.cross_platform_correlation import (
+    CrossPlatformCorrelationEngine,
     get_cross_platform_correlation_engine,
-    CrossPlatformCorrelationEngine
 )
+from core.message_analytics_engine import MessageAnalyticsEngine, get_message_analytics_engine
 from core.predictive_insights import (
-    get_predictive_insights_engine,
     PredictiveInsightsEngine,
-    UrgencyLevel
+    UrgencyLevel,
+    get_predictive_insights_engine,
 )
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])

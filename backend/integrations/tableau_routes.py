@@ -6,7 +6,6 @@ Uses the real tableau_service.py for all operations
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 

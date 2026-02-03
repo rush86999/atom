@@ -5,8 +5,8 @@ Mobile-optimized endpoints for workflow access on mobile devices
 
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -82,8 +82,8 @@ async def get_mobile_workflows(
     """
     try:
         # Load workflows from JSON file
-        import os
         import json
+        import os
 
         workflows_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
@@ -248,8 +248,9 @@ async def trigger_workflow_mobile(
         # Start workflow in background (non-blocking)
         if request.synchronous:
             # Run synchronously (wait for completion)
-            from core.workflow_engine import get_workflow_engine
             import asyncio
+
+            from core.workflow_engine import get_workflow_engine
 
             engine = get_workflow_engine()
 
@@ -612,8 +613,8 @@ async def search_workflows_mobile(
 
 def _load_workflow_definition(db: Session, workflow_id: str) -> Optional[Dict[str, Any]]:
     """Load workflow definition from workflows.json"""
-    import os
     import json
+    import os
 
     workflows_file = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),

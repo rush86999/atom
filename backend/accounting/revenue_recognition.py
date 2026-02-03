@@ -1,11 +1,12 @@
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
-from sqlalchemy.orm import Session, joinedload
-from core.database import SessionLocal
-from service_delivery.models import Milestone, Project, Contract
-from accounting.models import Account, AccountType, EntryType
+from typing import Any, Dict, Optional
 from accounting.ledger import EventSourcedLedger
+from accounting.models import Account, AccountType, EntryType
+from service_delivery.models import Contract, Milestone, Project
+from sqlalchemy.orm import Session, joinedload
+
+from core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 

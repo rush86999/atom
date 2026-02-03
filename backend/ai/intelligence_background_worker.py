@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from typing import Set
 from ai.data_intelligence import DataIntelligenceEngine, PlatformType
+
 from core.notification_manager import notification_manager
 
 logger = logging.getLogger(__name__)

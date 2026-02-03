@@ -3,24 +3,29 @@ ATOM Enhanced Slack API Routes
 Complete API with workflow automation, analytics, and real-time features
 """
 
-import os
-import logging
 import asyncio
 import json
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional
-from flask import Blueprint, request, jsonify, current_app
+import logging
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+from flask import Blueprint, current_app, jsonify, request
 from loguru import logger
 
 # Import enhanced services
 try:
-    from slack_enhanced_service import slack_enhanced_service
-    from slack_workflow_engine import workflow_engine, WorkflowTemplate
-    from slack_analytics_engine import slack_analytics_engine, AnalyticsMetric, AnalyticsTimeRange, AnalyticsGranularity
     from atom_ingestion_pipeline import atom_ingestion_pipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
+    from slack_analytics_engine import (
+        AnalyticsGranularity,
+        AnalyticsMetric,
+        AnalyticsTimeRange,
+        slack_analytics_engine,
+    )
+    from slack_enhanced_service import slack_enhanced_service
     from slack_workflow_automation import slack_workflow_automation
+    from slack_workflow_engine import WorkflowTemplate, workflow_engine
 except ImportError as e:
     logger.warning(f"Enhanced Slack services not available: {e}")
     slack_enhanced_service = None
@@ -599,7 +604,11 @@ def manage_workflows():
                 return create_response(False, error="Workflow name is required")
             
             # Create workflow
-            from slack_workflow_automation import SlackWorkflow, SlackWorkflowTrigger, SlackWorkflowAction
+            from slack_workflow_automation import (
+                SlackWorkflow,
+                SlackWorkflowAction,
+                SlackWorkflowTrigger,
+            )
             
             workflow = SlackWorkflow(
                 id=f"workflow_{int(datetime.utcnow().timestamp())}",

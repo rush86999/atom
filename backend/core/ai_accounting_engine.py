@@ -4,11 +4,11 @@ Transaction ingestion, AI categorization, and Chart of Accounts learning.
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import re
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +295,7 @@ class AIAccountingEngine:
         
         try:
             # Import existing ledger
-            from accounting.ledger import EventSourcedLedger, DoubleEntryEngine
+            from accounting.ledger import DoubleEntryEngine, EventSourcedLedger
             from accounting.models import EntryType
             
             if db_session is None:

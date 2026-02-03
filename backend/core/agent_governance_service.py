@@ -1,15 +1,21 @@
-from datetime import datetime
-from typing import Optional, Dict, Any, List
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 import logging
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 
 from core.models import (
-    User, AgentRegistry, AgentFeedback, AgentStatus, 
-    FeedbackStatus, UserRole, HITLAction, HITLActionStatus
+    AgentFeedback,
+    AgentRegistry,
+    AgentStatus,
+    FeedbackStatus,
+    HITLAction,
+    HITLActionStatus,
+    User,
+    UserRole,
 )
-from core.rbac_service import RBACService, Permission
+from core.rbac_service import Permission, RBACService
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +126,7 @@ class AgentGovernanceService:
             self._update_confidence_score(feedback.agent_id, positive=False, impact_level="high")
             
             # EXPLICIT LEARNING: Record this correction in World Model
-            from core.agent_world_model import WorldModelService, AgentExperience
+            from core.agent_world_model import AgentExperience, WorldModelService
             wm = WorldModelService()
             
             # Create a corrective experience

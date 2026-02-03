@@ -3,13 +3,13 @@ Voice Service - Voice-to-text and voice command processing
 Uses Web Speech API on frontend or Whisper for backend transcription.
 """
 
-import logging
 import asyncio
-from typing import Dict, Any, Optional
-from dataclasses import dataclass
-from datetime import datetime
 import base64
 import io
+import logging
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +77,9 @@ class VoiceService:
         """Use OpenAI Whisper API for transcription"""
         try:
             import openai
+
             from core.byok_manager import BYOKManager
-            
+
             # Get API key
             byok = BYOKManager()
             api_key = byok.get_key("openai", self.workspace_id)
@@ -166,9 +167,9 @@ class VoiceService:
         
         # Execute through Atom
         try:
-            from core.atom_meta_agent import get_atom_agent, AgentTriggerMode
-            from core.reasoning_chain import get_reasoning_tracker, ReasoningStepType
-            
+            from core.atom_meta_agent import AgentTriggerMode, get_atom_agent
+            from core.reasoning_chain import ReasoningStepType, get_reasoning_tracker
+
             # Start reasoning chain
             tracker = get_reasoning_tracker()
             chain_id = tracker.start_chain()

@@ -1,25 +1,28 @@
-import unittest
+import asyncio
 import os
 import sys
-import asyncio
+import unittest
 from datetime import datetime
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-from core.lancedb_handler import get_lancedb_handler
-import core.models
-import ecommerce.models
-import sales.models
-import saas.models
-import marketing.models
 import accounting.models
+import ecommerce.models
+import marketing.models
+import saas.models
+import sales.models
 import service_delivery.models
-from core.models import Workspace
 from ecommerce.models import EcommerceCustomer, EcommerceOrder
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import Base
 from core.historical_learner import HistoricalLifecycleLearner
+from core.lancedb_handler import get_lancedb_handler
+from core.models import Workspace
+
 
 class MockAIService:
     async def analyze_text(self, text, system_prompt=None):

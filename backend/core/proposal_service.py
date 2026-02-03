@@ -8,13 +8,18 @@ Includes proposal creation, approval workflow, and execution.
 import logging
 import os
 import uuid
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.models import (
-    AgentRegistry, AgentProposal, BlockedTriggerContext,
-    ProposalStatus, ProposalType, AgentStatus, AgentExecution
+    AgentExecution,
+    AgentProposal,
+    AgentRegistry,
+    AgentStatus,
+    BlockedTriggerContext,
+    ProposalStatus,
+    ProposalType,
 )
 
 logger = logging.getLogger(__name__)

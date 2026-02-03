@@ -1,20 +1,21 @@
-import unittest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
+import unittest
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
+import accounting.models
+import sales.models
+import service_delivery.models
+from sales.models import Deal, DealStage
+from service_delivery.models import Milestone, Project, ProjectTask
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
 
 # Import models
 from core.database import Base
-import core.models
-import service_delivery.models
-import sales.models
-import accounting.models
-
-from service_delivery.models import Project, Milestone, ProjectTask
-from sales.models import Deal, DealStage
 from core.pm_orchestrator import PMOrchestrator
+
 
 class TestPMExternalSync(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

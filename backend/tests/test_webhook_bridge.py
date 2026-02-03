@@ -1,6 +1,6 @@
-import pytest
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
 
 # Mock problematic dependencies
 sys.modules["instructor"] = MagicMock()
@@ -10,8 +10,10 @@ sys.modules["lancedb"] = MagicMock()
 
 import asyncio
 from datetime import datetime
+
 import core.agent_integration_gateway
-from integrations.universal_webhook_bridge import universal_webhook_bridge, UnifiedIncomingMessage
+from integrations.universal_webhook_bridge import UnifiedIncomingMessage, universal_webhook_bridge
+
 
 @pytest.mark.asyncio
 async def test_slack_message_routing():

@@ -1,19 +1,21 @@
-import sys
 import os
-from datetime import datetime, timedelta
+import sys
 import uuid
+from datetime import datetime, timedelta
 
 # Add backend to path
 sys.path.append(os.path.join(os.getcwd(), "backend"))
 
-from core.database import SessionLocal, engine
-from core.models import Workspace, AgentJob
-from accounting.models import Entity, Bill, Transaction, TransactionStatus, EntityType, BillStatus
+from accounting.models import Bill, BillStatus, Entity, EntityType, Transaction, TransactionStatus
 from ecommerce.models import EcommerceCustomer, EcommerceOrder, EcommerceOrderItem, Subscription
-from marketing.models import MarketingChannel, ChannelType
+from marketing.models import ChannelType, MarketingChannel
 from saas.models import SaaSTier
 from sales.models import Deal, Lead
-from service_delivery.models import Project, Milestone, Contract
+from service_delivery.models import Contract, Milestone, Project
+
+from core.database import SessionLocal, engine
+from core.models import AgentJob, Workspace
+
 
 def seed_forensics():
     workspace_id = "default-workspace"

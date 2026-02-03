@@ -1,17 +1,18 @@
-import logging
 import json
+import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+from service_delivery.models import Milestone, MilestoneStatus, Project, ProjectStatus, ProjectTask
 from sqlalchemy.orm import Session
+
+from core.ai_service import get_ai_service
 from core.database import get_db_session
-from service_delivery.models import Project, Milestone, ProjectTask, ProjectStatus, MilestoneStatus
 from core.graphrag_engine import graphrag_engine
 from core.knowledge_extractor import KnowledgeExtractor
-from core.ai_service import get_ai_service
-from core.workforce_analytics import WorkforceAnalyticsService
-from core.resource_reasoning import ResourceReasoningEngine
 from core.pm_swarm import AutonomousBusinessSwarm
+from core.resource_reasoning import ResourceReasoningEngine
+from core.workforce_analytics import WorkforceAnalyticsService
 
 logger = logging.getLogger(__name__)
 

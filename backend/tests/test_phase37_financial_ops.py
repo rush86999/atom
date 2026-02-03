@@ -1,15 +1,20 @@
-import sys
 import os
+import sys
 import unittest
 from datetime import datetime, timedelta
 
 sys.path.append(os.getcwd())
 
 from core.financial_ops_engine import (
-    CostLeakDetector, SaaSSubscription,
-    BudgetGuardrails, BudgetLimit,
-    InvoiceReconciler, Invoice, Contract
+    BudgetGuardrails,
+    BudgetLimit,
+    Contract,
+    CostLeakDetector,
+    Invoice,
+    InvoiceReconciler,
+    SaaSSubscription,
 )
+
 
 class TestPhase37FinancialOps(unittest.TestCase):
 

@@ -2,17 +2,17 @@
 Admin User Management API Routes
 Handles administrative users and role-based access control
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field, EmailStr
-from typing import List, Optional, Dict
-from datetime import datetime
-import os
 import logging
+import os
+from datetime import datetime
+from typing import Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, AdminUser, AdminRole
 from core.auth import get_current_user
+from core.database import get_db
+from core.models import AdminRole, AdminUser, User
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)

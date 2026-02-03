@@ -1,12 +1,11 @@
 
 import logging
-from typing import List, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import func
 from datetime import datetime, timedelta
-
-from accounting.models import Bill, Entity, Transaction, EntityType, BillStatus
+from typing import Any, Dict, List
+from accounting.models import Bill, BillStatus, Entity, EntityType, Transaction
 from ecommerce.models import EcommerceOrder, EcommerceOrderItem
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

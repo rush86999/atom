@@ -4,12 +4,12 @@ Provides ML-style predictions for response times, optimal channels, and bottlene
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta, timezone
+import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-import statistics
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

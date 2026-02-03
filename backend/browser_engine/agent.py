@@ -1,15 +1,15 @@
-import logging
 import asyncio
 import base64
-import os
 import io
-from typing import Dict, Any, List, Optional
-from playwright.async_api import Page
-from PIL import Image
-
+import logging
+import os
+from typing import Any, Dict, List, Optional
+from ai.lux_model import ComputerActionType, LuxModel
 from browser_engine.driver import BrowserManager
+from PIL import Image
+from playwright.async_api import Page
+
 from integrations.mcp_service import mcp_service
-from ai.lux_model import LuxModel, ComputerActionType
 
 logger = logging.getLogger(__name__)
 

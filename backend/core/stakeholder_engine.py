@@ -1,13 +1,14 @@
 
-import logging
-import json
 import asyncio
+import json
+import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from core.lancedb_handler import get_lancedb_handler
+from typing import Any, Dict, List, Optional
+from sqlalchemy import or_, select
+
 from core.database import get_db_session
-from core.models import User, Team, team_members
-from sqlalchemy import select, or_
+from core.lancedb_handler import get_lancedb_handler
+from core.models import Team, User, team_members
 
 logger = logging.getLogger(__name__)
 

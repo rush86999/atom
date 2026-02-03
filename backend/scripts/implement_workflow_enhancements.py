@@ -14,7 +14,6 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-
 import requests
 
 # Configure logging

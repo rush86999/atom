@@ -12,7 +12,6 @@ import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
 import pytest
 
 # Add project root to path
@@ -29,7 +28,8 @@ class TestDoclingAvailability:
     def test_docling_import_check(self):
         """Test that docling availability check works correctly."""
         try:
-            from core.docling_processor import is_docling_available, DOCLING_AVAILABLE
+            from core.docling_processor import DOCLING_AVAILABLE, is_docling_available
+
             # Should return bool without raising
             result = is_docling_available()
             assert isinstance(result, bool)
@@ -74,7 +74,7 @@ class TestDocumentParserIntegration:
         """Test that DocumentParser falls back gracefully if docling unavailable."""
         try:
             from core.auto_document_ingestion import DocumentParser
-            
+
             # Test with simple text file (should work regardless of docling)
             text_content = b"Hello, this is a test document."
             result = await DocumentParser.parse_document(text_content, "txt", "test.txt")
@@ -106,7 +106,7 @@ class TestPDFOCRServiceIntegration:
     def test_service_initialization(self):
         """Test PDFOCRService initializes with docling if available."""
         try:
-            from integrations.pdf_processing.pdf_ocr_service import PDFOCRService, DOCLING_AVAILABLE
+            from integrations.pdf_processing.pdf_ocr_service import DOCLING_AVAILABLE, PDFOCRService
             
             service = PDFOCRService(use_byok=False)
             status = service.service_status
@@ -126,7 +126,7 @@ class TestPDFOCRServiceIntegration:
     def test_ocr_method_priority(self):
         """Test that docling is highest priority OCR method."""
         try:
-            from integrations.pdf_processing.pdf_ocr_service import PDFOCRService, DOCLING_AVAILABLE
+            from integrations.pdf_processing.pdf_ocr_service import DOCLING_AVAILABLE, PDFOCRService
             
             service = PDFOCRService(use_byok=False)
             methods = service._get_available_ocr_methods(use_advanced_comprehension=False)
@@ -148,7 +148,7 @@ class TestDoclingProcessor:
     async def test_process_document_with_mock(self):
         """Test document processing with mocked docling."""
         try:
-            from core.docling_processor import DoclingDocumentProcessor, DOCLING_AVAILABLE
+            from core.docling_processor import DOCLING_AVAILABLE, DoclingDocumentProcessor
             
             if not DOCLING_AVAILABLE:
                 logger.info("Skipping - docling not installed")

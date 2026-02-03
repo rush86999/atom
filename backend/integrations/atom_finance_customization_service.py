@@ -3,45 +3,60 @@ ATOM Finance Industry Customization Service
 Regulatory compliant financial AI and risk management system
 """
 
-import os
-import json
-import logging
 import asyncio
-import time
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union, Callable, Tuple
-from dataclasses import dataclass, asdict
-from enum import Enum
-import httpx
-import aiohttp
-from collections import defaultdict, Counter
-import pandas as pd
-import numpy as np
-from pydantic import BaseModel, Field
+import base64
 import hashlib
 import hmac
-import base64
+import json
+import logging
+import os
+import time
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlencode
+import aiohttp
+import httpx
+import numpy as np
+import pandas as pd
+from pydantic import BaseModel, Field
 
 # Import existing ATOM services
 try:
-    from atom_enterprise_security_service import atom_enterprise_security_service, SecurityLevel, ComplianceStandard
-    from atom_workflow_automation_service import atom_workflow_automation_service, AutomationPriority, AutomationStatus
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType
+    from ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
     from atom_ai_integration import atom_ai_integration
+    from atom_discord_integration import atom_discord_integration
+    from atom_enterprise_security_service import (
+        ComplianceStandard,
+        SecurityLevel,
+        atom_enterprise_security_service,
+    )
+    from atom_google_chat_integration import atom_google_chat_integration
+    from atom_hubspot_integration_service import atom_hubspot_integration_service
+    from atom_quickbooks_integration_service import atom_quickbooks_integration_service
     from atom_slack_integration import atom_slack_integration
     from atom_teams_integration import atom_teams_integration
-    from atom_google_chat_integration import atom_google_chat_integration
-    from atom_discord_integration import atom_discord_integration
     from atom_telegram_integration import atom_telegram_integration
-    from atom_whatsapp_integration import atom_whatsapp_integration
-    from atom_zoom_integration import atom_zoom_integration
-    from atom_voice_ai_service import atom_voice_ai_service
     from atom_video_ai_service import atom_video_ai_service
+    from atom_voice_ai_service import atom_voice_ai_service
     from atom_voice_video_integration_service import atom_voice_video_integration_service
+    from atom_whatsapp_integration import atom_whatsapp_integration
+    from atom_workflow_automation_service import (
+        AutomationPriority,
+        AutomationStatus,
+        atom_workflow_automation_service,
+    )
     from atom_zendesk_integration_service import atom_zendesk_integration_service
-    from atom_quickbooks_integration_service import atom_quickbooks_integration_service
-    from atom_hubspot_integration_service import atom_hubspot_integration_service
+    from atom_zoom_integration import atom_zoom_integration
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
 

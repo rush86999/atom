@@ -4,12 +4,13 @@ REAL-WORLD SERVICE INTEGRATION VERIFICATION
 Test each service integration with real-world usage per user journey
 """
 
-import subprocess
-import os
 import json
+import os
+import subprocess
 import time
-import requests
 from datetime import datetime
+import requests
+
 
 def verify_service_integrations():
     """Verify each service integration with real-world usage per user journey"""

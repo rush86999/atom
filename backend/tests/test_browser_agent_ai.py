@@ -5,15 +5,15 @@ Tests the enhanced AI-powered browser automation with visual reasoning.
 Note: These tests use extensive mocking to avoid numpy/cv2 import issues in test environment.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime
 import io
-
 
 # Mock the problematic imports before importing our test modules
 import sys
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+import pytest
+
 sys.modules['cv2'] = MagicMock()
 sys.modules['numpy'] = MagicMock()
 sys.modules['pyautogui'] = MagicMock()
@@ -217,8 +217,8 @@ class TestBrowserAgentIntegration:
     @pytest.mark.asyncio
     async def test_execute_task_uses_lux_interpret_command(self):
         """Test that execute_task uses lux.interpret_command for action planning"""
-        from browser_engine.agent import BrowserAgent
         from ai.lux_model import ComputerAction, ComputerActionType
+        from browser_engine.agent import BrowserAgent
 
         with patch('browser_engine.agent.LuxModel') as mock_lux_class:
             # Setup mocks
@@ -263,8 +263,8 @@ class TestBrowserAgentIntegration:
     @pytest.mark.asyncio
     async def test_execute_task_with_context_injection(self):
         """Test that business context is passed to Lux"""
-        from browser_engine.agent import BrowserAgent
         from ai.lux_model import ComputerAction, ComputerActionType
+        from browser_engine.agent import BrowserAgent
 
         with patch('browser_engine.agent.LuxModel') as mock_lux_class:
             mock_lux = Mock()
@@ -314,8 +314,8 @@ class TestActionPlanningPerformance:
     @pytest.mark.asyncio
     async def test_action_planning_speed(self):
         """Test that action planning completes quickly"""
-        from ai.lux_model import LuxModel
         import time
+        from ai.lux_model import LuxModel
 
         model = LuxModel()
         model.client = Mock()

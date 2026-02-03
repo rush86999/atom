@@ -1,12 +1,13 @@
 
-import sys
 import os
+import sys
 from sqlalchemy import text
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from core.database import engine
+
 
 def migrate():
     print("Migrating User model for Onboarding...")

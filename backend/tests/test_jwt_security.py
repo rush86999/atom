@@ -13,18 +13,13 @@ Tests for centralized JWT verification including:
 """
 
 import os
-import pytest
-import jwt
 from datetime import datetime, timedelta
+import jwt
+import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
-from core.jwt_verifier import (
-    JWTVerifier,
-    verify_token,
-    verify_token_string,
-    JWTVerificationError,
-)
+from core.jwt_verifier import JWTVerificationError, JWTVerifier, verify_token, verify_token_string
 
 
 class TestJWTVerifierBasics:

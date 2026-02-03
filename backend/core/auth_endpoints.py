@@ -1,19 +1,32 @@
-from fastapi import APIRouter, HTTPException, Body, Depends, status, Request, BackgroundTasks
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
-from typing import Optional
-import uuid
+import hashlib
 import logging
 import secrets
-import hashlib
+import uuid
 from datetime import datetime, timedelta
+from typing import Optional
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, UserStatus, PasswordResetToken, AuditEventType, SecurityLevel, ThreatLevel
-from core.auth import verify_password, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
 from core.audit_service import audit_service
+from core.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    create_access_token,
+    get_current_user,
+    get_password_hash,
+    verify_password,
+)
+from core.database import get_db
 from core.email_utils import send_smtp_email
+from core.models import (
+    AuditEventType,
+    PasswordResetToken,
+    SecurityLevel,
+    ThreatLevel,
+    User,
+    UserStatus,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)

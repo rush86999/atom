@@ -3,16 +3,16 @@ Tests for Cross-Platform Correlation Engine
 Tests conversation linking across Slack, Teams, Gmail, and Outlook.
 """
 
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List
 import pytest
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List
 
 from core.cross_platform_correlation import (
-    CrossPlatformCorrelationEngine,
     CorrelationStrength,
-    LinkedConversation,
+    CrossPlatformCorrelationEngine,
     CrossPlatformLink,
-    get_cross_platform_correlation_engine
+    LinkedConversation,
+    get_cross_platform_correlation_engine,
 )
 
 

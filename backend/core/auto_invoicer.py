@@ -1,11 +1,12 @@
 import logging
-from typing import Optional, Any
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from core.database import get_db_session
-from service_delivery.models import Appointment, AppointmentStatus, ProjectTask
-from accounting.models import Invoice, InvoiceStatus, Entity
+from typing import Any, Optional
+from accounting.models import Entity, Invoice, InvoiceStatus
 from ecommerce.models import EcommerceOrder
+from service_delivery.models import Appointment, AppointmentStatus, ProjectTask
+from sqlalchemy.orm import Session
+
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ class AutoInvoicer:
         Returns:
             Invoice object if successful, None otherwise
         """
-        from service_delivery.models import Project, Milestone
+        from service_delivery.models import Milestone, Project
 
         db = self.db or get_db_session()
         try:

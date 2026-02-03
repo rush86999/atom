@@ -11,11 +11,11 @@ This script sets up production deployment with:
 - Deployment scripts
 """
 
-import os
-import sys
 import json
-import uuid
+import os
 import subprocess
+import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
 

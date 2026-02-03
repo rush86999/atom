@@ -1,7 +1,7 @@
-from typing import List, Optional, Dict, Any
+import os
 import time
 from datetime import datetime
-import os
+from typing import Any, Dict, List, Optional
 
 # Make psutil optional for system monitoring
 try:
@@ -10,15 +10,15 @@ try:
 except ImportError:
     PSUTIL_AVAILABLE = False
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 
-from .database_manager import db_manager
-from .database import get_db
 from .auth import get_current_user, get_password_hash
-from .models import User
 from .chat_process_manager import get_process_manager
+from .database import get_db
+from .database_manager import db_manager
+from .models import User
 
 # Initialize router
 router = APIRouter()

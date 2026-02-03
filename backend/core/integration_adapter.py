@@ -2,10 +2,10 @@
 Base Integration Adapter
 Abstract interface for all integrations
 """
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
-import httpx
 import logging
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional
+import httpx
 
 logger = logging.getLogger(__name__)
 

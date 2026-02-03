@@ -3,13 +3,13 @@ Completely standalone test server for testing streaming and canvas implementatio
 No dependencies on existing backend infrastructure.
 """
 
+import asyncio
+import json
+import uuid
+from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-import uuid
-import asyncio
-import json
 
 # Create FastAPI app
 app = FastAPI(title="Atom Implementation Test Server")

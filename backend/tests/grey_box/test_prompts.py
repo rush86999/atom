@@ -1,6 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+import pytest
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+
 
 @pytest.mark.asyncio
 async def test_system_prompt_structure(mock_env_vars):

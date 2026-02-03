@@ -4,12 +4,13 @@ IMMEDIATE BACKEND API IMPLEMENTATION - CRITICAL PRIORITY
 Create real FastAPI endpoints with database connectivity and actual functionality
 """
 
-import subprocess
-import os
 import json
+import os
+import subprocess
 import time
-import requests
 from datetime import datetime
+import requests
+
 
 def implement_immediate_backend_apis():
     """Implement immediate backend APIs with real functionality"""

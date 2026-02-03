@@ -1,6 +1,6 @@
 """Orchestration Canvas Tool"""
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +17,8 @@ async def present_orchestration_canvas(
 
     Creates a multi-app workflow orchestration deck.
     """
-    from core.database import get_db_session
     from core.canvas_orchestration_service import OrchestrationCanvasService
+    from core.database import get_db_session
     from tools.canvas_tool import present_specialized_canvas
 
     try:

@@ -1,9 +1,11 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, JSON, Text
+import uuid
+from saas.models import SaaSTier
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import uuid
+
 from core.database import Base
-from saas.models import SaaSTier
+
 
 class EcommerceStore(Base):
     __tablename__ = "ecommerce_stores"

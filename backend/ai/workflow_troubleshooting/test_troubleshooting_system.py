@@ -28,9 +28,7 @@ from backend.ai.workflow_troubleshooting import (
     WorkflowMonitoringSystem,
     WorkflowTroubleshootingEngine,
 )
-from backend.ai.workflow_troubleshooting.troubleshooting_api import (
-    StartTroubleshootingRequest,
-)
+from backend.ai.workflow_troubleshooting.troubleshooting_api import StartTroubleshootingRequest
 
 # Configure logging
 logging.basicConfig(

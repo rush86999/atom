@@ -5,6 +5,7 @@ Tests the fallback mechanism when LLM is unavailable
 """
 
 import pytest
+
 from core.graphrag_engine import GraphRAGEngine
 
 

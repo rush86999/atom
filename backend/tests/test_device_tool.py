@@ -9,26 +9,25 @@ Unit tests for device capability functions including:
 - Command execution
 """
 
-import pytest
-import uuid
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+import uuid
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+import pytest
 from sqlalchemy.orm import Session
 
-from core.models import DeviceNode, DeviceSession, DeviceAudit, AgentRegistry, User, AgentStatus
+from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentRegistry, AgentStatus, DeviceAudit, DeviceNode, DeviceSession, User
 from tools.device_tool import (
+    _create_device_audit,
     device_camera_snap,
+    device_execute_command,
+    device_get_location,
     device_screen_record_start,
     device_screen_record_stop,
-    device_get_location,
     device_send_notification,
-    device_execute_command,
     get_device_session_manager,
-    _create_device_audit,
 )
-from core.agent_governance_service import AgentGovernanceService
-
 
 # ============================================================================
 # Fixtures

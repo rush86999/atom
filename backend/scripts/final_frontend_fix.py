@@ -4,12 +4,13 @@ FINAL FRONTEND FIX - COMPLETE USER VALUE
 Fix the last critical issue: frontend accessibility
 """
 
-import subprocess
-import os
-import time
 import json
-import requests
+import os
+import subprocess
+import time
 from datetime import datetime
+import requests
+
 
 def fix_frontend_completely():
     """Complete the final frontend fix to achieve full user value"""

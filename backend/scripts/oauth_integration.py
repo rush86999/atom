@@ -1,8 +1,9 @@
 import os
-import requests
-import urllib.parse
 import secrets
+import urllib.parse
 from typing import Dict, Optional
+import requests
+
 
 class OAuthIntegration:
     def __init__(self):

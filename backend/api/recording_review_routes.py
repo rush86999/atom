@@ -11,10 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.recording_review_service import RecordingReviewService, get_recording_review_service
-from core.models import CanvasRecordingReview, CanvasRecording, User, UserRole
 from core.auth import get_current_user
+from core.database import get_db
+from core.models import CanvasRecording, CanvasRecordingReview, User, UserRole
+from core.recording_review_service import RecordingReviewService, get_recording_review_service
 
 logger = logging.getLogger(__name__)
 

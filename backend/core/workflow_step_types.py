@@ -3,7 +3,7 @@ Workflow Step Types Reference - Phase 38
 Complete list of all available step types for building workflow templates.
 """
 
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 # All available step types for workflow templates
 STEP_TYPE_REFERENCE: Dict[str, Dict[str, Any]] = {

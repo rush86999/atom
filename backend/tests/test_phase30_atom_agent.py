@@ -1,17 +1,17 @@
-import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add backend directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.atom_meta_agent import (
-    AtomMetaAgent, 
-    SpecialtyAgentTemplate, 
     AgentTriggerMode,
+    AtomMetaAgent,
+    SpecialtyAgentTemplate,
+    handle_data_event_trigger,
     handle_manual_trigger,
-    handle_data_event_trigger
 )
 from core.models import AgentRegistry, AgentStatus, User, UserRole
 

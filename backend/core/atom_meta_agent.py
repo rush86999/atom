@@ -6,18 +6,24 @@ The main intelligent agent that can spawn specialty agents and access all platfo
 import asyncio
 import logging
 import uuid
-from typing import Dict, Any, List, Optional
 from datetime import datetime
 from enum import Enum
-
-from core.models import AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution, Workspace
-from core.database import get_db_session
-from core.agent_world_model import WorldModelService, AgentExperience
-from core.agent_governance_service import AgentGovernanceService
+from typing import Any, Dict, List, Literal, Optional
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
+from ai.nlp_engine import CommandType, NaturalLanguageEngine
+
+from core.agent_governance_service import AgentGovernanceService
+from core.agent_world_model import AgentExperience, WorldModelService
+from core.database import get_db_session
+from core.models import (
+    AgentExecution,
+    AgentRegistry,
+    AgentStatus,
+    HITLActionStatus,
+    User,
+    Workspace,
+)
 from integrations.mcp_service import mcp_service
-from ai.nlp_engine import NaturalLanguageEngine, CommandType
-from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -119,9 +125,10 @@ class SpecialtyAgentTemplate:
 
 
 
-from core.llm.byok_handler import BYOKHandler
-from core.react_models import ReActStep, ToolCall, ReActObservation
 import json
+
+from core.llm.byok_handler import BYOKHandler
+from core.react_models import ReActObservation, ReActStep, ToolCall
 
 # Try to import instructor and AsyncOpenAI
 try:
@@ -812,7 +819,7 @@ async def handle_manual_trigger(request: str, user: User,
             })
             
             # 2. Persist to DB for long-term visibility
-            from core.reasoning_chain import get_reasoning_tracker, ReasoningStep
+            from core.reasoning_chain import ReasoningStep, get_reasoning_tracker
             tracker = get_reasoning_tracker()
             
             execution_id = step_record.get("execution_id")

@@ -15,9 +15,9 @@ def test_flask_notion():
     print("🔧 Testing Flask + Notion Integration...")
     
     try:
+        from auth_handler_notion import auth_notion_bp
         from flask import Flask
         from notion_handler_real import notion_bp
-        from auth_handler_notion import auth_notion_bp
         
         app = Flask(__name__)
         app.register_blueprint(notion_bp)
@@ -57,7 +57,7 @@ def test_simple_notion_client():
     
     try:
         from notion_service_real import RealNotionService
-        
+
         # Create service with mock token
         service = RealNotionService("mock_token")
         

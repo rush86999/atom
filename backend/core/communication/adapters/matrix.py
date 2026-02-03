@@ -1,7 +1,8 @@
-from typing import Dict, Any, Optional
 import logging
-import httpx
 import uuid
+from typing import Any, Dict, Optional
+import httpx
+
 from core.communication.adapters.base import PlatformAdapter
 
 logger = logging.getLogger(__name__)

@@ -6,12 +6,12 @@ This script starts a minimal Flask backend with Asana integration
 properly registered and ready for OAuth configuration.
 """
 
+import logging
 import os
 import sys
-import logging
-from flask import Flask, jsonify
 import threading
 import time
+from flask import Flask, jsonify
 
 # Add backend modules to Python path
 backend_path = os.path.join(os.path.dirname(__file__), "backend", "python-api-service")

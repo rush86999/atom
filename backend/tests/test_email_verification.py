@@ -4,15 +4,14 @@ Tests for Email Verification Service
 Tests email verification endpoints with Mailgun integration,
 rate limiting, and error handling.
 """
+from datetime import datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
-from datetime import datetime, timedelta
+from main_api_app import app
 from sqlalchemy.orm import Session
 
-from main_api_app import app
 from core.database import get_db
-from core.models import User, UserStatus, EmailVerificationToken
-
+from core.models import EmailVerificationToken, User, UserStatus
 
 client = TestClient(app)
 
@@ -278,8 +277,9 @@ class TestEmailService:
 
     def test_rate_limit_tracking(self):
         """Test rate limit tracking mechanism"""
-        from api.email_verification_routes import _email_rate_tracker, _RATE_LIMIT_WINDOW
         from datetime import datetime, timedelta
+
+        from api.email_verification_routes import _RATE_LIMIT_WINDOW, _email_rate_tracker
 
         email = "test@example.com"
         now = datetime.utcnow()

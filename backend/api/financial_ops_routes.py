@@ -2,12 +2,12 @@
 Financial & Ops API Routes - Phase 37
 """
 
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
-from datetime import datetime
 import logging
 import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ async def add_subscription(request: SubscriptionRequest, agent_id: Optional[str]
         finally:
             db.close()
 
-    from core.financial_ops_engine import cost_detector, SaaSSubscription
+    from core.financial_ops_engine import SaaSSubscription, cost_detector
 
     sub = SaaSSubscription(
         id=request.id,
@@ -124,7 +124,7 @@ async def set_budget_limit(request: BudgetLimitRequest, agent_id: Optional[str] 
         finally:
             db.close()
 
-    from core.financial_ops_engine import budget_guardrails, BudgetLimit
+    from core.financial_ops_engine import BudgetLimit, budget_guardrails
 
     limit = BudgetLimit(
         category=request.category,
@@ -195,7 +195,7 @@ async def add_invoice(request: InvoiceRequest, agent_id: Optional[str] = None):
         finally:
             db.close()
 
-    from core.financial_ops_engine import invoice_reconciler, Invoice
+    from core.financial_ops_engine import Invoice, invoice_reconciler
 
     inv = Invoice(
         id=request.id,
@@ -239,7 +239,7 @@ async def add_contract(request: ContractRequest, agent_id: Optional[str] = None)
         finally:
             db.close()
 
-    from core.financial_ops_engine import invoice_reconciler, Contract
+    from core.financial_ops_engine import Contract, invoice_reconciler
 
     contract = Contract(
         id=request.id,

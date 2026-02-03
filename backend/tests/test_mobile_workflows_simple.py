@@ -4,16 +4,15 @@ Simple Mobile Workflow API Tests
 Tests for mobile-optimized workflow endpoints without loading the full app.
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+from unittest.mock import MagicMock, Mock
 import pytest
-from unittest.mock import Mock, MagicMock
-from api.mobile_workflows import (
-    _load_workflow_definition,
-    router
-)
+
+from api.mobile_workflows import _load_workflow_definition, router
 
 
 class TestMobileWorkflowsSimple:

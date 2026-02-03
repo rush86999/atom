@@ -3,9 +3,9 @@ Tests for Asana Token Refresh Logic
 Tests automatic OAuth token refresh for Asana integration.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, Mock, patch
+import pytest
 
 from core.token_storage import TokenStorage
 

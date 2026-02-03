@@ -3,16 +3,17 @@ ATOM Meta Business Service
 Unified integration for Facebook, Instagram, and Meta Ads.
 """
 
-import logging
 import asyncio
+import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Dict, Any, List, Optional
 from enum import Enum
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
 
 try:
-    from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
     from ai_enhanced_service import ai_enhanced_service
+
+    from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
 except ImportError:
     logging.warning("Core services not available for Meta Business Service")
 

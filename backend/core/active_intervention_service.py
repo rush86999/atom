@@ -1,6 +1,6 @@
 import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 # Import Integration Services
 try:
@@ -17,6 +17,7 @@ except ImportError:
 
 try:
     from integrations.outlook_service_enhanced import OutlookEnhancedService
+
     # In a real app, this would be a singleton or dependency injected
     outlook_service = OutlookEnhancedService() 
     OUTLOOK_AVAILABLE = True

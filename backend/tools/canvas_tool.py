@@ -13,21 +13,22 @@ Now includes governance integration with:
 
 import logging
 import uuid
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.websockets import manager as ws_manager
-from core.models import AgentExecution, CanvasAudit
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
-from core.canvas_type_registry import canvas_type_registry, CanvasType
+from core.canvas_type_registry import CanvasType, canvas_type_registry
+from core.models import AgentExecution, CanvasAudit
+from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
 
 # Feature flags
 import os
+
 CANVAS_GOVERNANCE_ENABLED = os.getenv("CANVAS_GOVERNANCE_ENABLED", "true").lower() == "true"
 EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 

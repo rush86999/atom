@@ -4,13 +4,13 @@ Automatically ingests data from frequently used integrations into Atom Memory.
 Enables cross-system insights without manual configuration.
 """
 
-import logging
 import asyncio
-from typing import Dict, Any, List, Optional, Set
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from collections import defaultdict
 import json
+import logging
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 

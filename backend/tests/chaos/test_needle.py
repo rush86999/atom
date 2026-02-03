@@ -1,12 +1,13 @@
 import asyncio
-import sys
-import os
 import json
-import random
-from unittest.mock import MagicMock, patch, AsyncMock
+import os
 
 # Fix path
 import pathlib
+import random
+import sys
+from unittest.mock import AsyncMock, MagicMock, patch
+
 backend_path = pathlib.Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(backend_path))
 sys.path.append(os.getcwd())
@@ -18,6 +19,7 @@ sys.modules['zhipuai'] = MagicMock()
 sys.modules['instructor'] = MagicMock()
 
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+
 
 async def main():
     log_file = "chaos_needle_result.txt"

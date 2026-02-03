@@ -1,15 +1,14 @@
+import asyncio
+import json
 import logging
 import os
 import re
-import json
-from typing import Optional, Dict, Any, List, AsyncGenerator
 from enum import Enum
-import asyncio
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 # Try imports
 try:
-    from openai import OpenAI
-    from openai import AsyncOpenAI
+    from openai import AsyncOpenAI, OpenAI
 except ImportError:
     OpenAI = None
     AsyncOpenAI = None
@@ -311,8 +310,8 @@ class BYOKHandler:
         
         # 1. Dynamic BPC Selection (Data-Driven)
         try:
-            from core.dynamic_pricing_fetcher import get_pricing_fetcher
             from core.benchmarks import get_quality_score
+            from core.dynamic_pricing_fetcher import get_pricing_fetcher
             fetcher = get_pricing_fetcher()
             
             # Context window requirements
@@ -486,9 +485,9 @@ class BYOKHandler:
 
         try:
             # --- Tier & Pricing Mode Enforcement (Phase 59 Refinement) ---
-            from core.database import get_db_session
-            from core.models import Workspace, Tenant
             from core.cost_config import BYOK_ENABLED_PLANS
+            from core.database import get_db_session
+            from core.models import Tenant, Workspace
             
             with get_db_session() as db:
             tenant_plan = "free"
@@ -733,9 +732,9 @@ class BYOKHandler:
                 return None
             
             # Get tenant plan and determine BYOK vs managed
-            from core.database import get_db_session
-            from core.models import Workspace, Tenant
             from core.cost_config import BYOK_ENABLED_PLANS
+            from core.database import get_db_session
+            from core.models import Tenant, Workspace
             
             with get_db_session() as db:
             tenant_plan = "free"

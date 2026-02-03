@@ -4,13 +4,13 @@ ATOM Platform - OAuth Setup and Configuration Script
 Complete OAuth setup for production deployment
 """
 
+import json
 import os
 import sys
-import json
-import requests
 import webbrowser
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import requests
 
 
 class OAuthSetup:

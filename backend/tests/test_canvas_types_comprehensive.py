@@ -3,16 +3,17 @@ Comprehensive Tests for Specialized Canvas Types
 
 Tests all canvas type services, API routes, and tools.
 """
+from datetime import datetime
 import pytest
 from sqlalchemy.orm import Session
-from datetime import datetime
-from core.canvas_type_registry import canvas_type_registry, CanvasType, MaturityLevel
+
+from core.canvas_coding_service import CodingCanvasService
 from core.canvas_docs_service import DocumentationCanvasService
 from core.canvas_email_service import EmailCanvasService
-from core.canvas_sheets_service import SpreadsheetCanvasService
 from core.canvas_orchestration_service import OrchestrationCanvasService
+from core.canvas_sheets_service import SpreadsheetCanvasService
 from core.canvas_terminal_service import TerminalCanvasService
-from core.canvas_coding_service import CodingCanvasService
+from core.canvas_type_registry import CanvasType, MaturityLevel, canvas_type_registry
 
 
 class TestCanvasTypeRegistry:

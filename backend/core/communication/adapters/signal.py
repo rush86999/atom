@@ -1,6 +1,7 @@
-from typing import Dict, Any, Optional
 import logging
+from typing import Any, Dict, Optional
 import httpx
+
 from core.communication.adapters.base import PlatformAdapter
 
 logger = logging.getLogger(__name__)

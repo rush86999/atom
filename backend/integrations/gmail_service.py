@@ -3,15 +3,15 @@ Gmail Service for ATOM Platform
 Provides comprehensive Gmail integration functionality
 """
 
+import base64
 import json
 import logging
 import os
-import base64
 import re
-from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any, Dict, List, Optional, Union
 import requests
 
 logger = logging.getLogger(__name__)
@@ -30,8 +30,9 @@ except ImportError:
         "Google APIs not available. "
         "Install with: pip install google-api-python-client google-auth-oauthlib"
     )
-from core.token_storage import token_storage
 from core.oauth_handler import GOOGLE_OAUTH_CONFIG
+from core.token_storage import token_storage
+
 
 class GmailService:
     """Gmail API integration service"""

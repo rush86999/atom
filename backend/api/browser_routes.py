@@ -10,31 +10,30 @@ Governance Integration:
 """
 
 import logging
-import uuid
 import os
+import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, BrowserSession, BrowserAudit, AgentExecution, AgentRegistry
-from core.security_dependencies import get_current_user
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
-
+from core.database import get_db
+from core.models import AgentExecution, AgentRegistry, BrowserAudit, BrowserSession, User
+from core.security_dependencies import get_current_user
 from tools.browser_tool import (
-    get_browser_manager,
+    browser_click,
+    browser_close_session,
     browser_create_session,
+    browser_execute_script,
+    browser_extract_text,
+    browser_fill_form,
+    browser_get_page_info,
     browser_navigate,
     browser_screenshot,
-    browser_fill_form,
-    browser_click,
-    browser_extract_text,
-    browser_execute_script,
-    browser_close_session,
-    browser_get_page_info,
+    get_browser_manager,
 )
 
 logger = logging.getLogger(__name__)

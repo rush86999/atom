@@ -1,15 +1,16 @@
 
-import sys
-import os
 import asyncio
-import httpx
+import os
+import sys
 from pathlib import Path
+import httpx
 
 # Add backend to path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from integrations.salesforce_routes import get_salesforce_client_from_env
 from integrations.slack_routes import get_slack_client
+
 
 async def verify_system():
     print("\n--- Final System Verification ---")

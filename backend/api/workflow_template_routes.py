@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
 import logging
 import os
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -280,8 +280,8 @@ async def execute_template(template_id: str, parameters: Dict[str, Any] = {}, ag
         workflow_id = workflow_data.get("workflow_id")
 
         # 2. Execute via orchestrator
-        from advanced_workflow_orchestrator import get_orchestrator
         import asyncio
+        from advanced_workflow_orchestrator import get_orchestrator
 
         # Create execution context
         context = await get_orchestrator().execute_workflow(

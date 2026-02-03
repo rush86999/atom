@@ -4,12 +4,12 @@ Canvas Type API Routes
 Provides endpoints for managing and querying canvas types,
 including validation, metadata lookup, and governance requirements.
 """
+import logging
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-import logging
 
-from core.canvas_type_registry import canvas_type_registry, CanvasType, MaturityLevel
+from core.canvas_type_registry import CanvasType, MaturityLevel, canvas_type_registry
 
 logger = logging.getLogger(__name__)
 

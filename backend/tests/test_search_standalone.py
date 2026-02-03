@@ -5,9 +5,9 @@ This script tests the search functionality without requiring the full backend st
 It directly imports and tests the LanceDB search API and search routes.
 """
 
-import sys
-import os
 import json
+import os
+import sys
 from unittest.mock import Mock, patch
 
 # Add the backend directory to Python path
@@ -22,10 +22,9 @@ def test_lancedb_search_api():
 
     try:
         # Import the blueprint
-        from lancedb_search_api import lancedb_search_api
-
         # Create a test client
         from flask import Flask
+        from lancedb_search_api import lancedb_search_api
 
         app = Flask(__name__)
         app.register_blueprint(lancedb_search_api)
@@ -72,10 +71,9 @@ def test_search_routes():
 
     try:
         # Import the blueprint
-        from search_routes import search_routes_bp
-
         # Create a test client
         from flask import Flask
+        from search_routes import search_routes_bp
 
         app = Flask(__name__)
         app.register_blueprint(search_routes_bp)

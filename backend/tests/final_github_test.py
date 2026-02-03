@@ -5,6 +5,7 @@ Final GitHub OAuth Test
 
 import requests
 
+
 def final_github_test():
     """Final test of GitHub OAuth"""
     

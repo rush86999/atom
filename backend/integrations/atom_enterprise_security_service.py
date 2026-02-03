@@ -3,38 +3,45 @@ ATOM Enterprise Security Service
 Advanced enterprise-grade security with AI-powered threat detection and compliance automation
 """
 
-import os
+import asyncio
+import base64
+import hashlib
 import json
 import logging
-import asyncio
-import time
-import hashlib
+import os
 import re
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union, Callable, Tuple
-from dataclasses import dataclass, asdict
+import time
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-import httpx
+from ipaddress import ip_address, ip_network
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
-from collections import defaultdict, Counter
-import pandas as pd
+import geoip2.database
+import httpx
+import jwt
 import numpy as np
+import pandas as pd
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import base64
-import jwt
-from ipaddress import ip_address, ip_network
-import geoip2.database
 
 # Import existing ATOM services
 try:
+    from ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
+    from atom_ai_integration import atom_ai_integration
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType
-    from atom_ai_integration import atom_ai_integration
 except ImportError as e:
     logging.warning(f"Enterprise security services not available: {e}")
 

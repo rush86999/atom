@@ -5,17 +5,24 @@ Tests trigger interception, maturity-based routing decisions,
 and integration with all trigger sources.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+import pytest
 from sqlalchemy.orm import Session
 
-from core.trigger_interceptor import (
-    TriggerInterceptor, TriggerSource, MaturityLevel, RoutingDecision
-)
 from core.models import (
-    AgentRegistry, AgentStatus, BlockedTriggerContext,
-    AgentProposal, SupervisionSession, SupervisionStatus
+    AgentProposal,
+    AgentRegistry,
+    AgentStatus,
+    BlockedTriggerContext,
+    SupervisionSession,
+    SupervisionStatus,
+)
+from core.trigger_interceptor import (
+    MaturityLevel,
+    RoutingDecision,
+    TriggerInterceptor,
+    TriggerSource,
 )
 
 

@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
-from datetime import datetime
-import logging
 import asyncio
+import logging
 import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from db_connection import get_db_connection
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from integrations.asana_service import asana_service
 from integrations.jira_service import get_jira_service
-from integrations.zoho_projects_service import ZohoProjectsService
 from integrations.microsoft365_service import microsoft365_service
-from db_connection import get_db_connection
+from integrations.zoho_projects_service import ZohoProjectsService
 
 router = APIRouter(prefix="/api/atom/projects/live", tags=["projects-live"])
 logger = logging.getLogger(__name__)

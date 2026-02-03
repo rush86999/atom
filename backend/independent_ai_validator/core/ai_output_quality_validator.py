@@ -8,8 +8,8 @@ Implements multi-provider consensus for quality assessment
 import asyncio
 import json
 import logging
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

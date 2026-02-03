@@ -1,10 +1,11 @@
 import logging
-from typing import Dict, Any, List
-from sqlalchemy.orm import Session
-from accounting.models import Invoice, InvoiceStatus, Entity
-from service_delivery.models import Project, ProjectStatus, Contract
-from core.database import SessionLocal
 from datetime import datetime, timezone
+from typing import Any, Dict, List
+from accounting.models import Entity, Invoice, InvoiceStatus
+from service_delivery.models import Contract, Project, ProjectStatus
+from sqlalchemy.orm import Session
+
+from core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 

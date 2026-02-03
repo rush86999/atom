@@ -9,24 +9,23 @@ Comprehensive test suite for multi-agent canvas collaboration including:
 - API endpoints
 """
 
-import pytest
 import uuid
 from datetime import datetime, timedelta
+import pytest
 from sqlalchemy.orm import Session
 
-from core.models import (
-    CanvasCollaborationSession,
-    CanvasAgentParticipant,
-    CanvasConflict,
-    AgentRegistry,
-    User
-)
 from core.canvas_collaboration_service import (
+    AgentRole,
     CanvasCollaborationService,
     CollaborationMode,
-    AgentRole
 )
-
+from core.models import (
+    AgentRegistry,
+    CanvasAgentParticipant,
+    CanvasCollaborationSession,
+    CanvasConflict,
+    User,
+)
 
 # ============================================================================
 # Fixtures

@@ -3,27 +3,27 @@ ATOM Discord API Routes
 Complete API with authentication, real-time features, and analytics integration
 """
 
-import os
-import json
-import logging
 import asyncio
 import base64
 import hashlib
 import hmac
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional
-from flask import Blueprint, request, jsonify, current_app
+import json
+import logging
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+from flask import Blueprint, current_app, jsonify, request
 from loguru import logger
 
 # Import enhanced services
 try:
-    from discord_enhanced_service import discord_enhanced_service
     from atom_discord_integration import atom_discord_integration
     from atom_ingestion_pipeline import atom_ingestion_pipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import atom_workflow_service
     from discord_analytics_engine import discord_analytics_engine
+    from discord_enhanced_service import discord_enhanced_service
     from universal_webhook_bridge import universal_webhook_bridge
 except ImportError as e:
     logger.warning(f"Discord integration services not available: {e}")

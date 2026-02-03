@@ -9,18 +9,16 @@ import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from core.jwt_verifier import verify_token as verify_jwt_token
 from integrations.atom_communication_ingestion_pipeline import (
     CommunicationAppType,
     ingestion_pipeline,
 )
-from integrations.atom_communication_memory_production_api import (
-    atom_memory_production_api,
-)
-from core.jwt_verifier import verify_token as verify_jwt_token
+from integrations.atom_communication_memory_production_api import atom_memory_production_api
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()

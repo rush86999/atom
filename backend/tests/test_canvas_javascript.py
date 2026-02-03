@@ -5,13 +5,13 @@ Tests the canvas_execute_javascript() function which allows AUTONOMOUS agents
 to execute JavaScript in canvas context for custom interactivity.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+import pytest
 
+from core.models import AgentExecution, AgentRegistry, CanvasAudit
 from tools.canvas_tool import canvas_execute_javascript
-from core.models import AgentRegistry, AgentExecution, CanvasAudit
 
 
 @pytest.fixture

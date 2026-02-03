@@ -6,9 +6,9 @@ This script provides a quick test of the OAuth status endpoints
 to verify the current state of the OAuth authentication system.
 """
 
-import requests
 import json
 from datetime import datetime
+import requests
 
 
 def test_oauth_status():

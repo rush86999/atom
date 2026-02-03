@@ -1,7 +1,7 @@
 import asyncio
-import logging
 import json
-from typing import Dict, Any, Optional
+import logging
+from typing import Any, Dict, Optional
 from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
@@ -73,8 +73,9 @@ class SatelliteService:
 
     async def handle_message(self, tenant_id: str, message: Dict[str, Any]):
         """Process incoming messages from the satellite."""
-        from core.database import get_db_session
         from ai.device_node_service import device_node_service
+
+        from core.database import get_db_session
 
         msg_type = message.get("type")
         

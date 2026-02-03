@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, JSON, Text
+import uuid
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import uuid
+
 from core.database import Base
+
 
 class SaaSTier(Base):
     __tablename__ = "saas_tiers"

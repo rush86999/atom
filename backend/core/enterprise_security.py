@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from enum import Enum
 from ipaddress import ip_address
 from typing import Any, Dict, List, Optional, Tuple
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, validator
 

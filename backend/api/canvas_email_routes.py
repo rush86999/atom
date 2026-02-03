@@ -1,12 +1,12 @@
 """Email Canvas API Routes"""
+import logging
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-import logging
 
-from core.database import get_db
 from core.canvas_email_service import EmailCanvasService
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/canvas/email", tags=["canvas_email"])
@@ -116,8 +116,9 @@ async def categorize_email(canvas_id: str, request: CategorizeRequest, db: Sessi
 @router.get("/{canvas_id}")
 async def get_email_canvas(canvas_id: str, db: Session = Depends(get_db)):
     """Get an email canvas by ID."""
-    from core.models import CanvasAudit
     from sqlalchemy import desc
+
+    from core.models import CanvasAudit
 
     audit = db.query(CanvasAudit).filter(
         CanvasAudit.canvas_id == canvas_id,
