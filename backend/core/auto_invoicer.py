@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from service_delivery.models import Appointment, AppointmentStatus, ProjectTask
-from accounting.models import Invoice, InvoiceStatus
+from accounting.models import Invoice, InvoiceStatus, Entity
 from ecommerce.models import EcommerceOrder
 
 logger = logging.getLogger(__name__)
@@ -38,10 +38,15 @@ class AutoInvoicer:
                 logger.info(f"Invoice already exists for Appointment {appointment_id}")
                 return existing
 
-            # Calculate amount
-            # If deposit was 0, we might need to look up service price.
-            # For the prototype, we use deposit_amount or a default.
-            amount = appt.deposit_amount if appt.deposit_amount > 0 else 100.0 # Default fallback
+            # Calculate amount using dynamic price lookup
+            amount = self._resolve_appointment_price(appt, db)
+            if amount is None or amount <= 0:
+                logger.warning(
+                    f"Cannot determine price for Appointment {appointment_id}. "
+                    f"Deposit: ${appt.deposit_amount}, Service: {appt.service_id}. "
+                    f"Skipping invoice generation."
+                )
+                return None
             
             invoice = Invoice(
                 workspace_id=appt.workspace_id,
@@ -85,18 +90,21 @@ class AutoInvoicer:
             if existing:
                 return existing
 
+            # Resolve or create accounting entity
+            customer_id = self._resolve_accounting_entity(order, db)
+            if not customer_id:
+                logger.error(f"Cannot resolve accounting entity for Order {order_id}")
+                return None
+
             invoice = Invoice(
                 workspace_id=order.workspace_id,
-                customer_id=order.customer.accounting_entity_id if order.customer else None,
+                customer_id=customer_id,
                 amount=order.total_price,
                 status=InvoiceStatus.OPEN,
                 issue_date=datetime.utcnow(),
                 due_date=datetime.utcnow() + timedelta(days=3),
                 description=f"Invoice for Ecommerce Order {order_id} (Status: {order.status})"
             )
-            
-            # If the order doesn't have an accounting entity linked yet, we might need a resolver step.
-            # For the prototype, we assume the link exists or will be handled.
             
             db.add(invoice)
             db.commit()
@@ -314,3 +322,154 @@ class AutoInvoicer:
         # Generate sequential number
         sequence = count + 1
         return f"INV-{today}-{sequence:04d}"
+
+    def _resolve_appointment_price(self, appointment: Appointment, db: Session) -> Optional[float]:
+        """
+        Resolve appointment price using priority order:
+        1. Deposit amount (if > 0)
+        2. Service price from linked BusinessProductService
+        3. Appointment metadata (service_price field)
+        4. Workspace default service price
+        5. Return None if no price found
+
+        Args:
+            appointment: Appointment object
+            db: Database session
+
+        Returns:
+            Price as float, or None if no price found
+        """
+        # Priority 1: Use deposit amount if set
+        if appointment.deposit_amount and appointment.deposit_amount > 0:
+            logger.debug(f"Using deposit amount ${appointment.deposit_amount} for appointment {appointment.id}")
+            return appointment.deposit_amount
+
+        # Priority 2: Check linked service price
+        if appointment.service_id:
+            from core.models import BusinessProductService
+            service = db.query(BusinessProductService).filter(
+                BusinessProductService.id == appointment.service_id
+            ).first()
+            if service and service.base_price and service.base_price > 0:
+                logger.debug(
+                    f"Using service price ${service.base_price} from {service.name} "
+                    f"for appointment {appointment.id}"
+                )
+                return service.base_price
+
+        # Priority 3: Check appointment metadata for service_price
+        if appointment.metadata_json and isinstance(appointment.metadata_json, dict):
+            metadata_price = appointment.metadata_json.get("service_price")
+            if metadata_price and metadata_price > 0:
+                logger.debug(f"Using metadata price ${metadata_price} for appointment {appointment.id}")
+                return metadata_price
+
+        # Priority 4: Check workspace default service price
+        if appointment.workspace and appointment.workspace.metadata_json:
+            workspace_default = appointment.workspace.metadata_json.get("default_service_price")
+            if workspace_default and workspace_default > 0:
+                logger.debug(
+                    f"Using workspace default price ${workspace_default} "
+                    f"for appointment {appointment.id}"
+                )
+                return workspace_default
+
+        # No price found
+        logger.warning(
+            f"No price found for appointment {appointment.id} "
+            f"(deposit=${appointment.deposit_amount}, service={appointment.service_id})"
+        )
+        return None
+
+    def _resolve_accounting_entity(self, order: EcommerceOrder, db: Session) -> Optional[str]:
+        """
+        Resolve or create accounting entity for ecommerce order.
+
+        Priority order:
+        1. Use existing accounting_entity_id from customer
+        2. Find existing entity by email match
+        3. Create new accounting entity from customer data
+        4. Return None if cannot resolve
+
+        Args:
+            order: EcommerceOrder object
+            db: Database session
+
+        Returns:
+            Accounting entity ID, or None if cannot resolve
+        """
+        if not order.customer:
+            logger.warning(f"Order {order.id} has no customer linked")
+            return None
+
+        # Priority 1: Use existing accounting entity
+        if order.customer.accounting_entity_id:
+            # Verify it still exists
+            entity = db.query(Entity).filter(
+                Entity.id == order.customer.accounting_entity_id
+            ).first()
+            if entity:
+                logger.debug(
+                    f"Using existing accounting entity {entity.id} "
+                    f"for customer {order.customer.email}"
+                )
+                return entity.id
+            else:
+                logger.warning(
+                    f"Accounting entity {order.customer.accounting_entity_id} "
+                    f"not found for customer {order.customer.email}"
+                )
+
+        # Priority 2: Try to find existing entity by email
+        if order.customer.email:
+            existing_entity = db.query(Entity).filter(
+                Entity.workspace_id == order.workspace_id,
+                Entity.email == order.customer.email,
+                Entity.type == "customer"
+            ).first()
+
+            if existing_entity:
+                # Link it to the ecommerce customer
+                order.customer.accounting_entity_id = existing_entity.id
+                db.commit()
+
+                logger.info(
+                    f"Found and linked existing accounting entity {existing_entity.id} "
+                    f"for customer {order.customer.email}"
+                )
+                return existing_entity.id
+
+        # Priority 3: Create new accounting entity
+        try:
+            from accounting.models import EntityType
+
+            new_entity = Entity(
+                workspace_id=order.workspace_id,
+                name=f"{order.customer.first_name or ''} {order.customer.last_name or ''}".strip() or order.customer.email,
+                email=order.customer.email,
+                phone=order.customer.phone,
+                type=EntityType.CUSTOMER,
+            )
+            db.add(new_entity)
+            db.commit()
+            db.refresh(new_entity)
+
+            # Link to ecommerce customer
+            order.customer.accounting_entity_id = new_entity.id
+            db.commit()
+
+            logger.info(
+                f"Created new accounting entity {new_entity.id} "
+                f"for customer {order.customer.email}"
+            )
+            return new_entity.id
+
+        except Exception as e:
+            logger.error(f"Failed to create accounting entity for order {order.id}: {e}")
+            db.rollback()
+            return None
+
+        # Priority 4: Cannot resolve
+        logger.error(f"Cannot resolve accounting entity for order {order.id}")
+        return None
+

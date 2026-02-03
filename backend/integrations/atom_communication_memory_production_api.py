@@ -11,15 +11,16 @@ import json
 import logging
 import asyncio
 import os
-import jwt
 from dataclasses import asdict
 
 from integrations.atom_communication_ingestion_pipeline import (
-    memory_manager, 
-    ingestion_pipeline, 
+    memory_manager,
+    ingestion_pipeline,
     CommunicationAppType,
     IngestionConfig
 )
+from core.jwt_verifier import verify_token
+from core.uptime_tracker import check_uptime
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
@@ -43,23 +44,19 @@ class AtomCommunicationMemoryProductionAPI:
         # Monitoring
         self.start_time = datetime.now()
     
-    def verify_token(self, credentials: HTTPAuthorizationCredentials = Depends(security)):
-        """Verify JWT token"""
-        try:
-            token = credentials.credentials
-            secret_key = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
-            payload = jwt.decode(token, secret_key, algorithms=["HS256"])
-            return token
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail="Token has expired")
-        except jwt.InvalidTokenError:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        except Exception as e:
-            logger.error(f"Token verification failed: {str(e)}")
-            # For development/testing, allow if DEBUG is True
-            if os.getenv("DEBUG", "False").lower() == "true":
-                return credentials.credentials
-            raise HTTPException(status_code=401, detail="Could not validate credentials")
+    def verify_token(self, payload: Dict[str, Any] = Depends(verify_token)):
+        """
+        Verify JWT token using centralized verifier.
+
+        Args:
+            payload: Decoded JWT payload from centralized verifier
+
+        Returns:
+            Decoded JWT payload
+        """
+        # The actual verification is done by the verify_token dependency
+        # from core.jwt_verifier which provides comprehensive validation
+        return payload
     
     def setup_routes(self):
         """Setup production API routes"""
@@ -125,7 +122,8 @@ class AtomCommunicationMemoryProductionAPI:
                     },
                     "ingestion_pipeline": stats,
                     "performance": {
-                        "uptime": str(datetime.now() - self.start_time),
+                        "uptime": check_uptime().get("uptime_formatted", "N/A"),
+                        "uptime_percentage": f"{check_uptime().get('uptime_percentage', 0):.2f}%",
                         "ingestion_rate": "1000+ messages/second",
                         "search_latency": "< 100ms"
                     }
@@ -394,9 +392,38 @@ class AtomCommunicationMemoryProductionAPI:
                             pass
 
                     # Estimate compression efficiency (LanceDB typically achieves 60-80% compression)
-                    # This is a calculated estimate based on the data characteristics
+                    # Calculate actual storage efficiency
                     avg_message_size = total_content_size / max(1, total_messages)
-                    compression_ratio = 65  # LanceDB average compression ratio
+
+                    # Get actual database size on disk
+                    try:
+                        import os
+                        db_path = memory_manager.db_path
+                        if os.path.exists(db_path):
+                            # Calculate total size of database directory
+                            total_db_size = 0
+                            for dirpath, dirnames, filenames in os.walk(db_path):
+                                for filename in filenames:
+                                    filepath = os.path.join(dirpath, filename)
+                                    if os.path.exists(filepath):
+                                        total_db_size += os.path.getsize(filepath)
+
+                            # Calculate compression ratio
+                            if total_content_size > 0:
+                                compression_ratio = (1 - (total_db_size / total_content_size)) * 100
+                                compression_ratio = max(0, min(100, compression_ratio))  # Clamp to 0-100
+                            else:
+                                compression_ratio = 0
+
+                            compressed_size = total_db_size
+                        else:
+                            # Fallback to estimate if database path doesn't exist
+                            compression_ratio = 65  # LanceDB average
+                            compressed_size = round(total_content_size * (1 - compression_ratio / 100))
+                    except Exception as e:
+                        logger.warning(f"Could not calculate actual storage efficiency: {e}")
+                        compression_ratio = 65  # Fallback to estimate
+                        compressed_size = round(total_content_size * (1 - compression_ratio / 100))
 
                     analytics["detailed_metrics"] = {
                         "average_messages_per_day": len(filtered_records) / max(1, len(analytics["timeline_data"])),
@@ -405,9 +432,10 @@ class AtomCommunicationMemoryProductionAPI:
                         "total_attachments": messages_with_attachments,
                         "total_messages": total_messages,
                         "average_message_size_bytes": round(avg_message_size, 2),
-                        "storage_efficiency": f"{compression_ratio}% compression (LanceDB)",
+                        "storage_efficiency": f"{compression_ratio:.1f}% compression (LanceDB)",
                         "estimated_raw_size_bytes": total_content_size,
-                        "estimated_compressed_size_bytes": round(total_content_size * (1 - compression_ratio / 100))
+                        "estimated_compressed_size_bytes": compressed_size,
+                        "actual_db_size_bytes": compressed_size if compressed_size else "N/A"
                     }
                 
                 return {
