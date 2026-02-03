@@ -222,3 +222,180 @@ class DatabaseManager:
 
 # Global instance
 db_manager = DatabaseManager()
+
+
+# ============================================================================
+# Synchronous Database Session Manager
+# ============================================================================
+
+from contextlib import contextmanager
+from sqlalchemy.orm import Session as SyncSession
+from core.database import SessionLocal
+
+
+@contextmanager
+def get_db_session(
+    commit: bool = False,
+    close: bool = True,
+    rollback_on_error: bool = True
+):
+    """
+    Unified database session manager with auto-commit/rollback.
+
+    Provides a context manager for database sessions that automatically:
+    - Commits if `commit=True` and no exceptions occur
+    - Rolls back if `rollback_on_error=True` and an exception occurs
+    - Closes the session if `close=True`
+
+    Args:
+        commit: Whether to automatically commit on success (default: False)
+        close: Whether to automatically close the session (default: True)
+        rollback_on_error: Whether to rollback on error (default: True)
+
+    Example:
+        # Read-only (no commit)
+        with get_db_session() as db:
+            user = db.query(User).filter(User.id == user_id).first()
+            print(user.name)
+
+        # Auto-commit
+        with get_db_session(commit=True) as db:
+            user = User(name="John", email="john@example.com")
+            db.add(user)
+            # Automatically committed on exit
+
+        # Manual transaction control
+        with get_db_session(commit=False, close=False) as db:
+            user = db.query(User).first()
+            user.name = "Updated"
+            db.commit()
+        # Session still open for further operations
+
+    Feature Flags:
+        None - this is a core utility function
+    """
+    db = SessionLocal()
+    try:
+        yield db
+        if commit:
+            db.commit()
+    except Exception as e:
+        if rollback_on_error:
+            db.rollback()
+        raise
+    finally:
+        if close:
+            db.close()
+
+
+def get_db_session_for_request():
+    """
+    Get database session for FastAPI request dependency.
+
+    This is a generator function that can be used with FastAPI's Depends:
+
+    Example:
+        @router.get("/users/{user_id}")
+        async def get_user(user_id: str, db: Session = Depends(get_db_session_for_request)):
+            user = db.query(User).filter(User.id == user_id).first()
+            return user
+
+    Note: This function does NOT auto-commit or auto-close.
+    FastAPI handles the lifecycle of the session.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# ============================================================================
+# Database Session Health Monitoring
+# ============================================================================
+
+import time
+from collections import deque
+from typing import Deque
+
+
+class SessionHealthMonitor:
+    """
+    Monitor database session health and performance.
+
+    Tracks:
+    - Session creation time
+    - Query execution time
+    - Session lifetime
+    - Error rates
+    """
+
+    def __init__(self, max_samples: int = 1000):
+        self.max_samples = max_samples
+        self.creation_times: Deque[float] = deque(maxlen=max_samples)
+        self.query_times: Deque[float] = deque(maxlen=max_samples)
+        self.error_count: int = 0
+        self.total_sessions: int = 0
+
+    def record_session_creation(self, duration: float):
+        """Record time taken to create a session"""
+        self.creation_times.append(duration)
+        self.total_sessions += 1
+
+    def record_query(self, duration: float):
+        """Record time taken to execute a query"""
+        self.query_times.append(duration)
+
+    def record_error(self):
+        """Record a database error"""
+        self.error_count += 1
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get health statistics"""
+        return {
+            "total_sessions": self.total_sessions,
+            "error_count": self.error_count,
+            "error_rate": self.error_count / max(self.total_sessions, 1),
+            "avg_creation_time": sum(self.creation_times) / max(len(self.creation_times), 1),
+            "avg_query_time": sum(self.query_times) / max(len(self.query_times), 1),
+            "p95_creation_time": self._percentile(self.creation_times, 95),
+            "p99_creation_time": self._percentile(self.creation_times, 99),
+        }
+
+    def _percentile(self, data: Deque[float], p: int) -> float:
+        """Calculate percentile of data"""
+        if not data:
+            return 0.0
+        sorted_data = sorted(data)
+        index = int(len(sorted_data) * p / 100)
+        return sorted_data[min(index, len(sorted_data) - 1)]
+
+
+# Global health monitor instance
+session_health_monitor = SessionHealthMonitor()
+
+
+@contextmanager
+def get_monitored_db_session(commit: bool = False, close: bool = True):
+    """
+    Get database session with health monitoring.
+
+    Tracks session creation time and error rates for observability.
+
+    Example:
+        with get_monitored_db_session(commit=True) as db:
+            user = User(name="John")
+            db.add(user)
+            # Session creation time and errors are automatically tracked
+    """
+    start_time = time.time()
+
+    try:
+        with get_db_session(commit=commit, close=close) as db:
+            creation_time = time.time() - start_time
+            session_health_monitor.record_session_creation(creation_time)
+            yield db
+
+    except Exception as e:
+        session_health_monitor.record_error()
+        raise

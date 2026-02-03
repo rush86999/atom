@@ -59,6 +59,23 @@ class ErrorCode(str, Enum):
     CANVAS_NOT_FOUND = "CANVAS_NOT_FOUND"
     INVALID_COMPONENT_TYPE = "INVALID_COMPONENT_TYPE"
 
+    # Invoice-Specific
+    INVOICE_NOT_FOUND = "INVOICE_NOT_FOUND"
+    INVOICE_VALIDATION_ERROR = "INVOICE_VALIDATION_ERROR"
+    INVOICE_PRICING_ERROR = "INVOICE_PRICING_ERROR"
+    APPOINTMENT_NOT_FOUND = "APPOINTMENT_NOT_FOUND"
+    APPOINTMENT_INVALID_STATUS = "APPOINTMENT_INVALID_STATUS"
+    ORDER_NOT_FOUND = "ORDER_NOT_FOUND"
+    TASK_NOT_FOUND = "TASK_NOT_FOUND"
+    MILESTONE_NOT_FOUND = "MILESTONE_NOT_FOUND"
+    PROJECT_NOT_FOUND = "PROJECT_NOT_FOUND"
+    ENTITY_NOT_FOUND = "ENTITY_NOT_FOUND"
+    PRICE_NOT_DETERMINED = "PRICE_NOT_DETERMINED"
+
+    # OAuth-Specific
+    OAUTH_TOKEN_INVALID = "OAUTH_TOKEN_INVALID"
+    OAUTH_TOKEN_EXPIRED = "OAUTH_TOKEN_EXPIRED"
+
 
 class ErrorResponse(BaseModel):
     """Standardized error response model"""
@@ -353,3 +370,183 @@ def handle_permission_denied(
         details=details or {"action": action, "resource_type": resource_type},
         status_code=403
     )
+
+
+# ============================================================================
+# Specialized Exception Classes
+# ============================================================================
+
+class InvoiceError(Exception):
+    """Base exception for invoice-related errors"""
+
+    def __init__(
+        self,
+        message: str,
+        code: ErrorCode,
+        details: Optional[Dict[str, Any]] = None
+    ):
+        self.message = message
+        self.code = code
+        self.details = details or {}
+        self.timestamp = datetime.utcnow()
+        super().__init__(self.message)
+
+    def to_http_exception(self) -> HTTPException:
+        """Convert to HTTPException"""
+        return api_error(
+            self.code,
+            self.message,
+            self.details,
+            status_code=HTTP_STATUS_MAP.get(self.code, 500)
+        )
+
+
+class InvoiceNotFoundError(InvoiceError):
+    """Raised when an invoice or related entity cannot be found"""
+
+    def __init__(
+        self,
+        message: str,
+        invoice_type: str = "unknown",
+        details: Optional[Dict[str, Any]] = None
+    ):
+        _details = details or {}
+        _details["invoice_type"] = invoice_type
+        super().__init__(message, ErrorCode.INVOICE_NOT_FOUND, _details)
+
+
+class InvoiceValidationError(InvoiceError):
+    """Raised when invoice validation fails"""
+
+    def __init__(
+        self,
+        message: str,
+        details: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(message, ErrorCode.INVOICE_VALIDATION_ERROR, details)
+
+
+class InvoicePricingError(InvoiceError):
+    """Raised when invoice pricing cannot be determined"""
+
+    def __init__(
+        self,
+        message: str,
+        details: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(message, ErrorCode.INVOICE_PRICING_ERROR, details)
+
+
+# HTTP Status Code Mapping for Invoice Errors
+HTTP_STATUS_MAP: Dict[ErrorCode, int] = {
+    ErrorCode.INVOICE_NOT_FOUND: 404,
+    ErrorCode.INVOICE_VALIDATION_ERROR: 500,
+    ErrorCode.INVOICE_PRICING_ERROR: 500,
+    ErrorCode.APPOINTMENT_NOT_FOUND: 404,
+    ErrorCode.APPOINTMENT_INVALID_STATUS: 500,
+    ErrorCode.ORDER_NOT_FOUND: 404,
+    ErrorCode.TASK_NOT_FOUND: 404,
+    ErrorCode.MILESTONE_NOT_FOUND: 404,
+    ErrorCode.PROJECT_NOT_FOUND: 404,
+    ErrorCode.ENTITY_NOT_FOUND: 404,
+    ErrorCode.PRICE_NOT_DETERMINED: 500,
+    ErrorCode.OAUTH_TOKEN_INVALID: 401,
+    ErrorCode.OAUTH_TOKEN_EXPIRED: 401,
+}
+
+
+# ============================================================================
+# Result Pattern for Operations
+# ============================================================================
+
+from typing import TypeVar, Generic
+
+T = TypeVar('T')
+
+
+class Result(Generic[T]):
+    """
+    Result pattern for operation outcomes.
+
+    Encourages explicit error handling instead of returning None.
+
+    Example:
+        def divide(a: int, b: int) -> Result[float]:
+            if b == 0:
+                return Result.error("Division by zero", ErrorCode.VALIDATION_ERROR)
+            return Result.ok(a / b)
+
+        result = divide(10, 2)
+        if result.is_ok:
+            print(result.value)  # 5.0
+        else:
+            print(result.error)  # Error details
+    """
+
+    def __init__(
+        self,
+        is_ok: bool,
+        value: Optional[T] = None,
+        error: Optional[InvoiceError] = None
+    ):
+        self.is_ok = is_ok
+        self.value = value
+        self.error = error
+
+    @staticmethod
+    def ok(value: T) -> 'Result[T]':
+        """Create a successful result"""
+        return Result(is_ok=True, value=value)
+
+    @staticmethod
+    def error(
+        message: str,
+        code: ErrorCode = ErrorCode.INTERNAL_SERVER_ERROR,
+        details: Optional[Dict[str, Any]] = None
+    ) -> 'Result[T]':
+        """Create a failed result"""
+        return Result(
+            is_ok=False,
+            error=InvoiceError(message=message, code=code, details=details)
+        )
+
+    @staticmethod
+    def from_exception(e: Exception) -> 'Result[T]':
+        """Create a failed result from an exception"""
+        if isinstance(e, InvoiceError):
+            return Result(is_ok=False, error=e)
+        return Result(
+            is_ok=False,
+            error=InvoiceError(
+                message=str(e),
+                code=ErrorCode.INTERNAL_SERVER_ERROR,
+                details={"original_exception": type(e).__name__}
+            )
+        )
+
+    def unwrap(self) -> T:
+        """Unwrap the value or raise the error"""
+        if self.is_ok:
+            return self.value
+        if self.error:
+            raise self.error
+        raise InvoiceError("Unknown error", ErrorCode.INTERNAL_SERVER_ERROR)
+
+    def unwrap_or(self, default: T) -> T:
+        """Unwrap the value or return default"""
+        return self.value if self.is_ok else default
+
+    def map(self, func) -> 'Result':
+        """Map the value if result is ok"""
+        if self.is_ok:
+            try:
+                return Result.ok(func(self.value))
+            except Exception as e:
+                return Result.from_exception(e)
+        return self
+
+    def and_then(self, func) -> 'Result':
+        """Chain another operation that returns a Result"""
+        if self.is_ok:
+            return func(self.value)
+        return self

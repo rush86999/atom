@@ -22,39 +22,64 @@ try:
     # Import Stripe services directly from files
     from .stripe_service import stripe_service
 
-    # Mock functions for testing since enhanced API expects Flask context
-    async def mock_health_check():
-        return {"status": "healthy", "timestamp": "2024-01-01T00:00:00Z"}
-
-    def mock_format_stripe_response(data):
-        return {
-            "ok": True,
-            "data": data,
-            "service": "stripe",
-            "timestamp": "2024-01-01T00:00:00Z",
-        }
-
-    def mock_format_error_response(error_msg):
-        return {
-            "ok": False,
-            "error": {"code": "TEST_ERROR", "message": error_msg, "service": "stripe"},
-            "timestamp": "2024-01-01T00:00:00Z",
-        }
-
-    def format_error_response(error_msg):
-        """Alias for mock_format_error_response"""
-        return mock_format_error_response(error_msg)
-
     STRIPE_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Stripe integration not available: {e}")
     STRIPE_AVAILABLE = False
+    stripe_service = None
 
 
-# Mock service for health check detection
-class StripeServiceMock:
-    def __init__(self):
-        self.api_key = "mock_api_key"
+# Feature flag for emergency rollback
+STRIPE_USE_MOCK = os.getenv("STRIPE_USE_MOCK", "false").lower() == "true"
+
+if STRIPE_USE_MOCK:
+    logging.warning("STRIPE_USE_MOCK is TRUE - Using mock responses instead of real Stripe API")
+
+
+def format_stripe_response(data: Any) -> Dict[str, Any]:
+    """
+    Format successful Stripe API response with consistent structure.
+
+    Args:
+        data: Response data from Stripe API
+
+    Returns:
+        Formatted response dictionary
+    """
+    return {
+        "ok": True,
+        "data": data,
+        "service": "stripe",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+def format_stripe_error(
+    error_msg: str,
+    error_code: str = "STRIPE_ERROR",
+    status_code: int = 500
+) -> Dict[str, Any]:
+    """
+    Format Stripe error response with consistent structure.
+
+    Args:
+        error_msg: Error message
+        error_code: Error code identifier
+        status_code: HTTP status code
+
+    Returns:
+        Formatted error response dictionary
+    """
+    return {
+        "ok": False,
+        "error": {
+            "code": error_code,
+            "message": error_msg,
+            "service": "stripe",
+            "status_code": status_code
+        },
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
 # Webhook event handlers
 async def handle_payment_success(payment_intent, db: Session):
@@ -414,16 +439,86 @@ async def get_stripe_access_token(
 
 @router.get("/health")
 async def stripe_health_check():
-    """Check Stripe integration health"""
+    """
+    Check Stripe integration health with real API verification.
+
+    Verifies connectivity to Stripe API and checks configuration.
+    """
     if not STRIPE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Stripe integration not available")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "ok": False,
+                "error": "Stripe integration not available",
+                "service": "stripe",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
 
     try:
-        result = await mock_health_check()
-        return result
+        # Check if Stripe is configured
+        stripe_client_id = os.getenv("STRIPE_CLIENT_ID")
+        stripe_client_secret = os.getenv("STRIPE_CLIENT_SECRET")
+
+        if not stripe_client_id or not stripe_client_secret:
+            return {
+                "ok": True,
+                "status": "configured_partial",
+                "message": "Stripe integration available but credentials not fully configured",
+                "has_client_id": bool(stripe_client_id),
+                "has_client_secret": bool(stripe_client_secret),
+                "service": "stripe",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+        # Verify real Stripe connectivity if not using mock mode
+        if not STRIPE_USE_MOCK:
+            try:
+                # Make a lightweight API call to verify connectivity
+                # We use the API key from environment to verify Stripe is accessible
+                stripe_api_key = os.getenv("STRIPE_API_KEY") or stripe_client_secret
+                if stripe_api_key:
+                    # Test connectivity with a simple API call
+                    account = stripe.Account.retrieve(
+                        stripe_api_key,
+                        headers={"Stripe-Version": "2023-10-16"}
+                    )
+
+                    return {
+                        "ok": True,
+                        "status": "healthy",
+                        "message": "Stripe API is accessible",
+                        "account_id": account.get("id") if account else None,
+                        "service": "stripe",
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+            except stripe.error.AuthenticationError:
+                return {
+                    "ok": True,
+                    "status": "configured",
+                    "message": "Stripe is configured but API authentication failed",
+                    "error": "Invalid API key",
+                    "service": "stripe",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            except Exception as stripe_error:
+                logging.warning(f"Stripe API verification failed: {stripe_error}")
+                # Continue anyway - configuration is present but API might be temporarily unavailable
+
+        return {
+            "ok": True,
+            "status": "configured",
+            "message": "Stripe integration is configured",
+            "mock_mode": STRIPE_USE_MOCK,
+            "service": "stripe",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
     except Exception as e:
+        logging.error(f"Stripe health check failed: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Stripe health check failed: {str(e)}"
+            status_code=503,
+            detail=format_stripe_error(f"Stripe health check failed: {str(e)}")
         )
 
 
@@ -442,9 +537,9 @@ async def get_stripe_payments(
         result = stripe_service.list_payments(
             access_token, limit=limit, customer=customer, status=status
         )
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/payments/{payment_id}")
@@ -459,9 +554,9 @@ async def get_stripe_payment(
     try:
         # Use the service directly for single payment lookup
         result = stripe_service.get_payment(access_token, payment_id)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.post("/payments")
@@ -486,9 +581,9 @@ async def create_stripe_payment(
             description=description,
             metadata=metadata,
         )
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/customers")
@@ -503,9 +598,9 @@ async def get_stripe_customers(
 
     try:
         result = stripe_service.list_customers(access_token, limit=limit, email=email)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/customers/{customer_id}")
@@ -519,9 +614,9 @@ async def get_stripe_customer(
 
     try:
         result = stripe_service.get_customer(access_token, customer_id)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.post("/customers")
@@ -544,9 +639,9 @@ async def create_stripe_customer(
             description=description,
             metadata=metadata,
         )
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/subscriptions")
@@ -566,9 +661,9 @@ async def get_stripe_subscriptions(
         result = stripe_service.list_subscriptions(
             access_token, limit=limit, customer=customer, status=status
         )
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/subscriptions/{subscription_id}")
@@ -582,9 +677,9 @@ async def get_stripe_subscription(
 
     try:
         result = stripe_service.get_subscription(access_token, subscription_id)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.post("/subscriptions")
@@ -602,9 +697,9 @@ async def create_stripe_subscription(
         result = stripe_service.create_subscription(
             access_token=access_token, customer=customer, items=items, metadata=metadata
         )
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.delete("/subscriptions/{subscription_id}")
@@ -618,9 +713,9 @@ async def cancel_stripe_subscription(
 
     try:
         result = stripe_service.cancel_subscription(access_token, subscription_id)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/products")
@@ -635,9 +730,9 @@ async def get_stripe_products(
 
     try:
         result = stripe_service.list_products(access_token, limit=limit, active=active)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/products/{product_id}")
@@ -651,9 +746,9 @@ async def get_stripe_product(
 
     try:
         result = stripe_service.get_product(access_token, product_id)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.post("/products")
@@ -674,9 +769,9 @@ async def create_stripe_product(
             description=description,
             metadata=metadata,
         )
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/search")
@@ -693,9 +788,9 @@ async def search_stripe_data(
     try:
         # For search functionality, use a simple service call
         result = stripe_service.get_account(access_token)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/profile")
@@ -708,9 +803,9 @@ async def get_stripe_profile(
 
     try:
         result = stripe_service.get_account(access_token)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/balance")
@@ -723,9 +818,9 @@ async def get_stripe_balance(
 
     try:
         result = stripe_service.get_balance(access_token)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 @router.get("/account")
@@ -738,9 +833,9 @@ async def get_stripe_account(
 
     try:
         result = stripe_service.get_account(access_token)
-        return mock_format_stripe_response(result)
+        return format_stripe_response(result)
     except Exception as e:
-        return mock_format_error_response(str(e))
+        return format_stripe_error(str(e))
 
 
 # Error handlers
