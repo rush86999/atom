@@ -34,7 +34,7 @@ from fastapi import Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from core.auth import decode_token
-from core.database import SessionLocal, get_db
+from core.database import get_db, get_db_session
 from core.models import DeviceNode, DeviceSession, User
 
 logger = logging.getLogger(__name__)
@@ -274,7 +274,7 @@ async def websocket_device_endpoint(
     device_node_id: Optional[str] = None
 
     # Use context manager for WebSocket endpoint
-    with SessionLocal() as db:
+    with get_db_session() as db:
         try:
             # Authenticate user from token
             payload = decode_token(token)

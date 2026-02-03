@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from core.admin_endpoints import get_super_admin
 from core.cache import cache
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import User
 
 # Initialize cache service (use global)
@@ -37,7 +37,7 @@ def get_system_health(admin: User = Depends(get_super_admin)):
     db_status = "unknown"
     try:
         start = time.time()
-        with SessionLocal() as db:
+        with get_db_session() as db:
             db.execute(text("SELECT 1"))
             db_time = time.time() - start
             db_status = "operational" if db_time < 2.0 else "degraded"

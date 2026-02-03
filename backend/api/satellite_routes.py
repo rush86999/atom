@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from sqlalchemy.orm import Session
 
 from core.auth import generate_satellite_key, get_current_user
-from core.database import SessionLocal, get_db
+from core.database import get_db, get_db_session
 from core.models import Workspace
 from core.satellite_service import satellite_service
 from core.security import verify_api_key_ws
@@ -26,7 +26,7 @@ async def websocket_satellite_endpoint(websocket: WebSocket):
             return
 
         # Use context manager for WebSocket endpoints (can't use Depends)
-        with SessionLocal() as db:
+        with get_db_session() as db:
             workspace = db.query(Workspace).filter(Workspace.satellite_api_key == api_key).first()
             if not workspace:
                 # Fallback for sk- prefix if no keys generated yet (migration path)

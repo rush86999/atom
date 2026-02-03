@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from core.governance_cache import get_governance_cache
 from core.models import (
     AgentFeedback,
     AgentRegistry,
@@ -201,6 +202,9 @@ class AgentGovernanceService:
              
         if agent.status != previous_status:
             logger.info(f"Agent {agent.name} transitioned: {previous_status} -> {agent.status} (Score: {new_score:.2f})")
+            # Invalidate cache when agent status changes
+            cache = get_governance_cache()
+            cache.invalidate(agent_id)
 
         self.db.add(agent)
         self.db.commit()
@@ -224,7 +228,11 @@ class AgentGovernanceService:
         # 2. Update Status
         agent.status = AgentStatus.AUTONOMOUS.value
         logger.info(f"Agent {agent.name} promoted to Autonomous check by {user.email}")
-        
+
+        # Invalidate cache when agent status changes
+        cache = get_governance_cache()
+        cache.invalidate(agent_id)
+
         self.db.commit()
         self.db.refresh(agent)
         return agent
@@ -298,14 +306,16 @@ class AgentGovernanceService:
     }
     
     def can_perform_action(
-        self, 
-        agent_id: str, 
-        action_type: str, 
+        self,
+        agent_id: str,
+        action_type: str,
         require_approval: bool = False
     ) -> Dict[str, Any]:
         """
         Check if an agent has sufficient maturity to perform an action.
-        
+
+        Uses governance cache for sub-millisecond performance on repeated checks.
+
         Returns:
             {
                 "allowed": bool,
@@ -316,6 +326,17 @@ class AgentGovernanceService:
                 "requires_human_approval": bool
             }
         """
+        # Check cache first (sub-millisecond lookup)
+        cache = get_governance_cache()
+        cached_result = cache.get(agent_id, action_type)
+        if cached_result:
+            logger.debug(f"Cache HIT for governance check: {agent_id}:{action_type}")
+            # Update require_approval flag based on current request
+            if require_approval:
+                cached_result["requires_human_approval"] = True
+            return cached_result
+
+        logger.debug(f"Cache MISS for governance check: {agent_id}:{action_type}")
         agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
         if not agent:
             return {
@@ -355,8 +376,8 @@ class AgentGovernanceService:
             reason = f"Agent {agent.name} ({agent.status}) lacks maturity for {action_type}. Required: {required_status.value}"
         
         logger.info(f"Governance check: {reason} - Approval required: {requires_approval}")
-        
-        return {
+
+        result = {
             "allowed": is_allowed,
             "reason": reason,
             "agent_status": agent.status,
@@ -365,6 +386,12 @@ class AgentGovernanceService:
             "requires_human_approval": requires_approval or require_approval,
             "confidence_score": agent.confidence_score or 0.5
         }
+
+        # Cache the result for future lookups (sub-millisecond performance)
+        cache.set(agent_id, action_type, result)
+        logger.debug(f"Cached governance decision for {agent_id}:{action_type}")
+
+        return result
     
     def get_agent_capabilities(self, agent_id: str) -> Dict[str, Any]:
         """

@@ -68,6 +68,14 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 DISABLE_DOCS = ENVIRONMENT == "production"
 
+# Import config
+from core.config import get_config
+config = get_config()
+
+# Override with config values
+if config.server.host:
+    ALLOWED_HOSTS.append(config.server.host)
+
 # --- LIFECYCLE MANAGER ---
 from contextlib import asynccontextmanager
 
@@ -75,9 +83,14 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- STARTUP ---
+    from core.config import get_config
+    config = get_config()
+
     logger.info("=" * 60)
     logger.info("ATOM Platform Starting (Hybrid Mode) - FINAL FIX v3")
     logger.info("=" * 60)
+    logger.info(f"Server will start on {config.server.host}:{config.server.port}")
+    logger.info(f"Environment: {ENVIRONMENT}")
     
     # 0. Initialize Database (Critical for in-memory DB)
     try:
@@ -523,8 +536,17 @@ try:
     try:
         from oauth_routes import router as oauth_router
         app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
+        logger.info("✓ OAuth Routes Loaded")
     except ImportError:
         logger.warning("OAuth routes not found, skipping.")
+
+    # 5.1. OAuth Status Routes (for OAuth system testing)
+    try:
+        from oauth_status_routes import router as oauth_status_router
+        app.include_router(oauth_status_router, tags=["OAuth Status"])
+        logger.info("✓ OAuth Status Routes Loaded")
+    except ImportError:
+        logger.warning("OAuth status routes not found, skipping.")
 
     # 4. WebSockets (Real-time features)
     try:
@@ -1123,5 +1145,15 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Failed to bootstrap admin: {e}")
 
-    # Trigger Reload
-    uvicorn.run("main_api_app:app", host="0.0.0.0", port=8000, reload=True)
+    # Get configuration
+    from core.config import get_config
+    config = get_config()
+
+    # Trigger Reload with configured port
+    logger.info(f"Starting server on port {config.server.port}")
+    uvicorn.run(
+        "main_api_app:app",
+        host=config.server.host,
+        port=config.server.port,
+        reload=config.server.reload
+    )

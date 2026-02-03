@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Database and models for Phase 11 persistence
 try:
-    from core.database import SessionLocal
+    from core.database import get_db_session
     from core.models import WorkflowExecution, WorkflowExecutionStatus
     MODELS_AVAILABLE = True
 except ImportError:
@@ -205,10 +205,10 @@ class AdvancedWorkflowOrchestrator:
             try:
                 import json
 
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 from core.models import WorkflowSnapshot
                 
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     snapshot = WorkflowSnapshot(
                         execution_id=context.workflow_id,
                         step_id=step_id,
@@ -233,10 +233,10 @@ class AdvancedWorkflowOrchestrator:
         try:
             import json
 
-            from core.database import SessionLocal
+            from core.database import get_db_session
             from core.models import WorkflowExecution
             
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 # Fetch orphaned executions
                 restorable_statuses = [
                     WorkflowStatus.RUNNING.value,
@@ -306,10 +306,10 @@ class AdvancedWorkflowOrchestrator:
             try:
                 import json
 
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 from core.models import WorkflowSnapshot
                 
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     snapshot = db.query(WorkflowSnapshot).filter(
                         WorkflowSnapshot.execution_id == original_execution_id,
                         WorkflowSnapshot.step_id == step_id
@@ -356,10 +356,10 @@ class AdvancedWorkflowOrchestrator:
                 try:
                     import json
 
-                    from core.database import SessionLocal
+                    from core.database import get_db_session
                     from core.models import WorkflowExecution, WorkflowExecutionStatus
                     
-                    with SessionLocal() as db:
+                    with get_db_session() as db:
                          original_exec = db.query(WorkflowExecution).filter(
                             WorkflowExecution.execution_id == original_execution_id
                          ).first()
@@ -389,10 +389,10 @@ class AdvancedWorkflowOrchestrator:
                 try:
                     import json
 
-                    from core.database import SessionLocal
+                    from core.database import get_db_session
                     from core.models import WorkflowExecution, WorkflowExecutionStatus
 
-                    with SessionLocal() as db:
+                    with get_db_session() as db:
                         new_exec = WorkflowExecution(
                             execution_id=new_execution_id,
                             workflow_id=original_workflow_id,
@@ -1107,7 +1107,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             return
 
         try:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 # Find or create execution record
                 execution = db.query(WorkflowExecution).filter(
                     WorkflowExecution.execution_id == context.workflow_id
@@ -1194,7 +1194,7 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             return None
 
         try:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 execution = db.query(WorkflowExecution).filter(
                     WorkflowExecution.execution_id == execution_id
                 ).first()
@@ -1703,9 +1703,9 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         try:
             from ecommerce.ledger_mapper import OrderToLedgerMapper
 
-            from core.database import SessionLocal
+            from core.database import get_db_session
             
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 mapper = OrderToLedgerMapper(db)
                 if action == "order_to_ledger":
                     tx_id = mapper.process_order(order_id)
@@ -1738,9 +1738,9 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         try:
             from ecommerce.b2b_procurement_service import B2BProcurementService
 
-            from core.database import SessionLocal
+            from core.database import get_db_session
             
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 service = B2BProcurementService(db)
                 
                 # 1. Extraction
@@ -2155,9 +2155,9 @@ Return your response as a JSON object with this format:
         try:
             from accounting.ap_service import APService
 
-            from core.database import SessionLocal
+            from core.database import get_db_session
             
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 ap_service = APService(db)
                 result = await ap_service.process_invoice_document(
                     document_id=document_id,
@@ -2857,11 +2857,11 @@ Return your response as a JSON object with this format:
 
             from api.agent_routes import execute_agent_task
             from core.agent_world_model import AgentExperience, WorldModelService
-            from core.database import SessionLocal
+            from core.database import get_db_session
             from core.models import AgentRegistry
 
             # 1. Fetch Agent Definition
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                 if not agent:
                    return {"status": "failed", "error": f"Agent {agent_id} not found in registry"}
@@ -3247,7 +3247,7 @@ Return your response as a JSON object with this format:
         try:
             from saas.models import Subscription
 
-            from core.database import SessionLocal
+            from core.database import get_db_session
             from core.models import Team, TeamMessage
             
             db = SessionLocal()
