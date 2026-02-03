@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.health_monitoring_service import HealthMonitoringService, get_health_monitoring_service
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -77,19 +79,12 @@ class AlertResponse(BaseModel):
     acknowledged: bool
 
 
-# Dependencies
-def get_current_user_id() -> str:
-    """Get current user ID from auth context (placeholder)"""
-    # TODO: Integrate with actual auth system
-    return "default_user"
-
-
 # Endpoints
 @router.get("/agent/{agent_id}", response_model=AgentHealthResponse)
 async def get_agent_health(
     agent_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get comprehensive health status for an agent.
@@ -127,7 +122,7 @@ async def get_agent_health(
 @router.get("/integrations", response_model=list[IntegrationHealthResponse])
 async def get_integrations_health(
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get health status for all user's integrations.
@@ -141,7 +136,7 @@ async def get_integrations_health(
     try:
         health_service = get_health_monitoring_service(db)
 
-        health_list = await health_service.get_all_integrations_health(user_id)
+        health_list = await health_service.get_all_integrations_health(user.id)
 
         return [IntegrationHealthResponse(**h) for h in health_list]
 
@@ -156,7 +151,7 @@ async def get_integrations_health(
 @router.get("/system", response_model=SystemMetricsResponse)
 async def get_system_metrics(
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get system-wide health metrics.
@@ -187,7 +182,7 @@ async def get_system_metrics(
 async def get_alerts(
     severity: Optional[str] = None,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get active alerts for the user.
@@ -200,7 +195,7 @@ async def get_alerts(
     try:
         health_service = get_health_monitoring_service(db)
 
-        alerts = await health_service.get_active_alerts(user_id)
+        alerts = await health_service.get_active_alerts(user.id)
 
         # Filter by severity if specified
         if severity:
@@ -225,7 +220,7 @@ async def acknowledge_alert(
     alert_id: str,
     request: AcknowledgeAlertRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Acknowledge an alert (mark as resolved).
@@ -239,7 +234,7 @@ async def acknowledge_alert(
     try:
         health_service = get_health_monitoring_service(db)
 
-        success = await health_service.acknowledge_alert(alert_id, user_id)
+        success = await health_service.acknowledge_alert(alert_id, user.id)
 
         if not success:
             raise HTTPException(
@@ -265,7 +260,7 @@ async def get_health_history(
     entity_id: Optional[str] = None,
     days: int = 30,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get health history for trend analysis.

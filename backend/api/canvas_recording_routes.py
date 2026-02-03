@@ -20,7 +20,8 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.canvas_recording_service import CanvasRecordingService, get_canvas_recording_service
-from core.models import CanvasRecording
+from core.models import CanvasRecording, User
+from core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -84,19 +85,12 @@ class FlagRecordingRequest(BaseModel):
     flag_reason: str = Field(..., description="Why it's flagged")
 
 
-# Dependencies
-def get_current_user_id() -> str:
-    """Get current user ID from auth context (placeholder)"""
-    # TODO: Integrate with actual auth system
-    return "default_user"
-
-
 # Endpoints
 @router.post("/start", response_model=StartRecordingResponse)
 async def start_recording(
     request: StartRecordingRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Start recording a canvas session.
@@ -113,7 +107,7 @@ async def start_recording(
         recording_service = get_canvas_recording_service(db)
 
         recording_id = await recording_service.start_recording(
-            user_id=user_id,
+            user_id=user.id,
             agent_id=request.agent_id,
             canvas_id=request.canvas_id,
             reason=request.reason,
@@ -124,7 +118,7 @@ async def start_recording(
         return StartRecordingResponse(
             recording_id=recording_id,
             agent_id=request.agent_id,
-            user_id=user_id,
+            user_id=user.id,
             reason=request.reason,
             status="recording"
         )
@@ -181,7 +175,7 @@ async def stop_recording(
     recording_id: str,
     request: StopRecordingRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Stop recording and finalize.
@@ -214,7 +208,7 @@ async def stop_recording(
 async def get_recording(
     recording_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get recording details with full event timeline.
@@ -233,7 +227,7 @@ async def get_recording(
             )
 
         # Verify user owns this recording
-        if recording["user_id"] != user_id:
+        if recording["user_id"] != user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have access to this recording"
@@ -257,7 +251,7 @@ async def list_recordings(
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     List recordings for current user.
@@ -272,7 +266,7 @@ async def list_recordings(
         recording_service = get_canvas_recording_service(db)
 
         recordings = await recording_service.list_recordings(
-            user_id=user_id,
+            user_id=user.id,
             agent_id=agent_id,
             limit=limit,
             offset=offset
@@ -293,7 +287,7 @@ async def flag_recording(
     recording_id: str,
     request: FlagRecordingRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Flag a recording for human review.
@@ -306,7 +300,7 @@ async def flag_recording(
         # Verify recording exists and user owns it
         recording = db.query(CanvasRecording).filter(
             CanvasRecording.recording_id == recording_id,
-            CanvasRecording.user_id == user_id
+            CanvasRecording.user_id == user.id
         ).first()
 
         if not recording:
@@ -320,7 +314,7 @@ async def flag_recording(
         await recording_service.flag_for_review(
             recording_id=recording_id,
             flag_reason=request.flag_reason,
-            flagged_by=user_id
+            flagged_by=user.id
         )
 
         return {"success": True, "message": "Recording flagged for review"}
@@ -339,7 +333,7 @@ async def flag_recording(
 async def get_recording_replay(
     recording_id: str,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id)
+    user: User = Depends(get_current_user)
 ):
     """
     Get recording data for playback/replay.
@@ -359,7 +353,7 @@ async def get_recording_replay(
             )
 
         # Verify user owns this recording
-        if recording["user_id"] != user_id:
+        if recording["user_id"] != user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have access to this recording"

@@ -6,6 +6,7 @@ import uuid
 import asyncio
 import os
 import sys
+import logging
 from core.auth import get_current_user
 from pathlib import Path
 
@@ -14,17 +15,16 @@ backend_root = Path(__file__).parent.parent.resolve()
 if str(backend_root) not in sys.path:
     sys.path.insert(0, str(backend_root))
 
+logger = logging.getLogger(__name__)
+
 try:
     from integrations.asana_service import asana_service
     ASANA_AVAILABLE = True
-    try:
-        print("Asana service loaded successfully")
-    except UnicodeEncodeError:
-        pass
+    logger.info("Asana service loaded successfully")
 except ImportError as e:
     ASANA_AVAILABLE = False
     asana_service = None
-    print(f"⚠️ Asana service not available: {e}")
+    logger.warning(f"Asana service not available: {e}")
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["unified_tasks"])
 project_router = APIRouter(prefix="/api/v1/projects", tags=["unified_projects"])
@@ -223,9 +223,9 @@ async def get_tasks(platform: str = Query("all")):
                 return {"success": True, "tasks": all_tasks, "source": "asana"}
         except Exception as e:
             # Fall back to mock data on error
-            print(f"Error fetching Asana tasks: {e}")
+            logger.error(f"Error fetching Asana tasks: {e}")
             import traceback
-            traceback.print_exc()
+            logger.error(traceback.format_exc())
     
     # Return mock tasks if Asana not available or error
     return {"success": True, "tasks": MOCK_TASKS, "source": "mock"}
@@ -233,18 +233,16 @@ async def get_tasks(platform: str = Query("all")):
 @router.post("/", response_model=Dict[str, Any])
 async def create_task(task_data: CreateTaskRequest, current_user: Any = Depends(get_current_user)):
     """Create a task in Asana or local mock system"""
-    
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.error(f"!!! CREATE_TASK CALLED - Platform: {task_data.platform}, ASANA_AVAILABLE: {ASANA_AVAILABLE}")
+
+    logger.info(f"CREATE_TASK called - Platform: {task_data.platform}, ASANA_AVAILABLE: {ASANA_AVAILABLE}")
     
     # If platform is Asana, create in Asana
     if task_data.platform == "asana" and ASANA_AVAILABLE:
-        print(f"[CREATE_TASK] Creating in Asana...")
+        logger.info(f"[CREATE_TASK] Creating in Asana...")
         try:
             # Convert datetime to just date string
             due_date_str = task_data.dueDate.strftime("%Y-%m-%d") if isinstance(task_data.dueDate, datetime) else task_data.dueDate.split("T")[0]
-            
+
             asana_task_data = {
                 "name": task_data.title,
                 "description": task_data.description or "",
@@ -252,16 +250,16 @@ async def create_task(task_data: CreateTaskRequest, current_user: Any = Depends(
                 "projects": [ASANA_DEFAULT_PROJECT_GID],
                 "workspace": ASANA_WORKSPACE_GID,
             }
-            
-            print(f"[CREATE_TASK] Asana task data: {asana_task_data}")
-            
+
+            logger.debug(f"[CREATE_TASK] Asana task data: {asana_task_data}")
+
             result = await asana_service.create_task(ASANA_ACCESS_TOKEN, asana_task_data)
-            
-            print(f"[CREATE_TASK] Asana result: {result}")
-            
+
+            logger.info(f"[CREATE_TASK] Asana result: {result}")
+
             if result.get("ok"):
                 asana_task = result.get("task")
-                
+
                 # Parse created_at and modified_at safely
                 created_at = datetime.now()
                 if asana_task.get("created_at"):
@@ -271,7 +269,7 @@ async def create_task(task_data: CreateTaskRequest, current_user: Any = Depends(
                         created_at = datetime.fromisoformat(created_str)
                     except:
                         pass
-                
+
                 created_task = Task(
                     id=asana_task.get("gid"),
                     title=asana_task.get("name"),
@@ -288,20 +286,20 @@ async def create_task(task_data: CreateTaskRequest, current_user: Any = Depends(
                     createdAt=created_at,
                     updatedAt=datetime.now(),
                 )
-                print(f"[CREATE_TASK] Successfully created in Asana: {created_task.id}")
+                logger.info(f"[CREATE_TASK] Successfully created in Asana: {created_task.id}")
                 return {"success": True, "task": created_task, "platform": "asana"}
             else:
-                print(f"[CREATE_TASK] Asana API returned not OK: {result}")
+                logger.warning(f"[CREATE_TASK] Asana API returned not OK: {result}")
         except Exception as e:
-            print(f"[CREATE_TASK] Error creating Asana task: {e}")
+            logger.error(f"[CREATE_TASK] Error creating Asana task: {e}")
             import traceback
-            traceback.print_exc()
-            print("[CREATE_TASK] Falling back to local mock task")
+            logger.error(traceback.format_exc())
+            logger.info("[CREATE_TASK] Falling back to local mock task")
             # Don't raise, just fall through to local creation
             # raise HTTPException(status_code=500, detail=f"Failed to create Asana task: {str(e)}")
     
     # Otherwise create mock task locally
-    print(f"[CREATE_TASK] Creating local mock task")
+    logger.info(f"[CREATE_TASK] Creating local mock task")
     new_task = Task(
         id=str(uuid.uuid4()),
         **task_data.dict(),
