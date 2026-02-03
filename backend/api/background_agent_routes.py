@@ -3,18 +3,17 @@ Background Agent API Routes - Phase 35
 """
 
 import logging
-import os
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from core.api_governance import require_governance, ActionComplexity
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/background-agents", tags=["Background Agents"])
-
-# Governance feature flags
-BACKGROUND_AGENT_GOVERNANCE_ENABLED = os.getenv("BACKGROUND_AGENT_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 class RegisterAgentRequest(BaseModel):
     interval_seconds: int = 3600
@@ -40,78 +39,55 @@ async def list_background_tasks():
         }
 
 @router.post("/{agent_id}/register")
-async def register_background_agent(agent_id: str, request: RegisterAgentRequest, requesting_agent_id: Optional[str] = None):
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="register_background_agent",
+    feature="background_agent"
+)
+async def register_background_agent(
+    agent_id: str,
+    request: RegisterAgentRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    requesting_agent_id: Optional[str] = None
+):
     """
     Register an agent for background execution.
 
-    **Governance**: Requires SUPERVISED+ maturity to register background agents.
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Background agent registration is a high-complexity action
+    - Requires SUPERVISED maturity or higher
     """
-    # Governance check for background agent registration
-    if BACKGROUND_AGENT_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and requesting_agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-        from core.database import get_db
-
-        db = next(get_db())
-        try:
-            governance = AgentGovernanceService(db)
-            check = governance.can_perform_action(
-                agent_id=requesting_agent_id,
-                action="register_background_agent",
-                resource_type="background_agent",
-                complexity=3  # HIGH - background execution control
-            )
-
-            if not check["allowed"]:
-                logger.warning(f"Governance check failed for register_background_agent by agent {requesting_agent_id}: {check['reason']}")
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Governance check failed: {check['reason']}"
-                )
-        finally:
-            db.close()
-
     from core.background_agent_runner import background_runner
 
     background_runner.register_agent(agent_id, request.interval_seconds)
-    logger.info(f"Background agent registered: {agent_id} by {requesting_agent_id or 'system'}")
+    logger.info(f"Background agent registered: {agent_id}")
     return {"status": "registered", "agent_id": agent_id, "interval": request.interval_seconds}
 
 @router.post("/{agent_id}/start")
-async def start_background_agent(agent_id: str, requesting_agent_id: Optional[str] = None):
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="start_background_agent",
+    feature="background_agent"
+)
+async def start_background_agent(
+    agent_id: str,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    requesting_agent_id: Optional[str] = None
+):
     """
     Start periodic execution of an agent.
 
-    **Governance**: Requires SUPERVISED+ maturity to start background agents.
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Starting background agents is a high-complexity action
+    - Requires SUPERVISED maturity or higher
     """
-    # Governance check for starting background agents
-    if BACKGROUND_AGENT_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and requesting_agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-        from core.database import get_db
-
-        db = next(get_db())
-        try:
-            governance = AgentGovernanceService(db)
-            check = governance.can_perform_action(
-                agent_id=requesting_agent_id,
-                action="start_background_agent",
-                resource_type="background_agent",
-                complexity=3  # HIGH - background execution control
-            )
-
-            if not check["allowed"]:
-                logger.warning(f"Governance check failed for start_background_agent by agent {requesting_agent_id}: {check['reason']}")
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Governance check failed: {check['reason']}"
-                )
-        finally:
-            db.close()
-
     from core.background_agent_runner import background_runner
 
     try:
         await background_runner.start_agent(agent_id)
-        logger.info(f"Background agent started: {agent_id} by {requesting_agent_id or 'system'}")
+        logger.info(f"Background agent started: {agent_id}")
         return {"status": "started", "agent_id": agent_id}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
