@@ -224,8 +224,8 @@ def revoke_token(
 
 def revoke_all_user_tokens(
     user_id: str,
-    except_jti: Optional[str] = None,
     db: Session,
+    except_jti: Optional[str] = None,
     revocation_reason: Optional[str] = None
 ) -> int:
     """
