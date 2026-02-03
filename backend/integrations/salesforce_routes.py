@@ -51,12 +51,19 @@ class SalesforceServiceMock:
 # Dependency for Salesforce access token
 # Dependency for Salesforce access token
 async def get_salesforce_access_token() -> str:
-    """Get Salesforce access token from handler"""
+    """Get Salesforce access token from handler
+
+    Raises:
+        HTTPException: If no valid Salesforce token is available
+    """
     try:
         return await salesforce_auth_handler.ensure_valid_token()
     except HTTPException:
-        # Fallback for testing/mocking if no token available
-        return os.getenv("SALESFORCE_ACCESS_TOKEN", "mock_access_token")
+        # No mock fallback - require proper authentication
+        raise HTTPException(
+            status_code=401,
+            detail="Salesforce authentication required. Please connect your Salesforce account."
+        )
 
 def get_salesforce_client_from_env() -> Optional[Any]:
     """Create Salesforce client using OAuth token"""
