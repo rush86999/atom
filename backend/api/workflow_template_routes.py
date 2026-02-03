@@ -1,16 +1,15 @@
 import logging
-import os
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from core.api_governance import require_governance, ActionComplexity
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Governance feature flags
-WORKFLOW_GOVERNANCE_ENABLED = os.getenv("WORKFLOW_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 # Lazy import to avoid circular dependencies
 def get_template_manager():
@@ -38,36 +37,24 @@ class UpdateTemplateRequest(BaseModel):
     tags: Optional[List[str]] = None
 
 @router.post("/")
-async def create_template(request: CreateTemplateRequest, agent_id: Optional[str] = None):
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="create_template",
+    feature="workflow"
+)
+async def create_template(
+    request: CreateTemplateRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
     """
     Create a new workflow template from the visual builder.
 
-    **Governance**: Requires INTERN+ maturity for template creation.
+    **Governance**: Requires INTERN+ maturity (MODERATE complexity).
+    - Workflow template creation is a moderate action
+    - Requires INTERN maturity or higher
     """
-    # Governance check for workflow template creation
-    if WORKFLOW_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-        from core.database import get_db
-
-        db = next(get_db())
-        try:
-            governance = AgentGovernanceService(db)
-            check = governance.can_perform_action(
-                agent_id=agent_id,
-                action="create_template",
-                resource_type="workflow_template",
-                complexity=2  # MODERATE - workflow creation
-            )
-
-            if not check["allowed"]:
-                logger.warning(f"Governance check failed for create_template by agent {agent_id}: {check['reason']}")
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Governance check failed: {check['reason']}"
-                )
-        finally:
-            db.close()
-
     try:
         manager = get_template_manager()
 
@@ -92,7 +79,7 @@ async def create_template(request: CreateTemplateRequest, agent_id: Optional[str
 
         template = manager.create_template(template_data)
 
-        logger.info(f"Template created: {template.template_id} by agent {agent_id or 'system'}")
+        logger.info(f"Template created: {template.template_id}")
         return {
             "status": "success",
             "template_id": template.template_id,
@@ -237,36 +224,25 @@ async def search_templates(query: str, limit: int = 20):
     ]
 
 @router.post("/{template_id}/execute")
-async def execute_template(template_id: str, parameters: Dict[str, Any] = {}, agent_id: Optional[str] = None):
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="execute_template",
+    feature="workflow"
+)
+async def execute_template(
+    template_id: str,
+    parameters: Dict[str, Any] = {},
+    request: Request = None,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
     """
     Execute a workflow template immediately.
 
-    **Governance**: Requires SUPERVISED+ maturity for workflow execution.
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Workflow execution is a high-complexity action
+    - Requires SUPERVISED maturity or higher
     """
-    # Governance check for workflow execution
-    if WORKFLOW_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-        from core.database import get_db
-
-        db = next(get_db())
-        try:
-            governance = AgentGovernanceService(db)
-            check = governance.can_perform_action(
-                agent_id=agent_id,
-                action="execute_template",
-                resource_type="workflow_execution",
-                complexity=3  # HIGH - workflow execution
-            )
-
-            if not check["allowed"]:
-                logger.warning(f"Governance check failed for execute_template by agent {agent_id}: {check['reason']}")
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Governance check failed: {check['reason']}"
-                )
-        finally:
-            db.close()
-
     try:
         manager = get_template_manager()
 
