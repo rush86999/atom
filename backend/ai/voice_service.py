@@ -76,10 +76,8 @@ class DeepgramProvider(TextToSpeechProvider):
         
         # Add model/voice if specified, else generic default
         if voice_id:
-            # e.g., "aura-asteria-en"
-            # We append query params or payload depending on exact API version
-            # For simplicity using payload for now
-            pass 
+            # Use the specified voice_id model instead of default
+            url = f"{self.base_url}?model={voice_id}" 
 
         async with aiohttp.ClientSession() as session:
             try:

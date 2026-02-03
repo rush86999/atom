@@ -300,10 +300,25 @@ async def get_stripe_access_token(
     # 1. Check Authorization header first (API access)
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:]
-        # TODO: Validate token with Stripe API if needed
-        # For now, trust the header if user is authenticated
-        logging.info(f"Using Stripe access token from Authorization header for user {current_user.id}")
-        return token
+
+        # Validate token with Stripe API
+        try:
+            stripe_account = stripe.Account.retrieve(
+                token,
+                headers={"Stripe-Version": "2023-10-16"}
+            )
+            logging.info(f"Validated Stripe access token from Authorization header for user {current_user.id}, account: {stripe_account.get('id')}")
+            return token
+        except stripe.error.AuthenticationError as e:
+            logging.error(f"Stripe token validation failed: {e}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid Stripe access token. Please provide a valid token."
+            )
+        except stripe.error.APIError as e:
+            logging.warning(f"Stripe API error during token validation: {e}")
+            # Allow token to proceed if there's a temporary API error
+            return token
 
     # 2. Check database for stored token (web/app access)
     stripe_token = db.query(StripeToken).filter(
@@ -315,11 +330,72 @@ async def get_stripe_access_token(
         # Check if token is expired
         if stripe_token.expires_at and stripe_token.expires_at < datetime.utcnow():
             logging.warning(f"Stripe token for user {current_user.id} is expired")
-            # TODO: Implement token refresh using refresh_token
-            raise HTTPException(
-                status_code=401,
-                detail="Stripe access token expired. Please re-authenticate with Stripe."
-            )
+
+            # Attempt token refresh if refresh_token is available
+            if stripe_token.refresh_token:
+                try:
+                    import requests
+
+                    stripe_client_secret = os.getenv("STRIPE_CLIENT_SECRET")
+                    if not stripe_client_secret:
+                        raise HTTPException(
+                            status_code=500,
+                            detail="Stripe client secret not configured for token refresh"
+                        )
+
+                    # Refresh the token using Stripe's OAuth endpoint
+                    refresh_response = requests.post(
+                        "https://connect.stripe.com/oauth/token",
+                        data={
+                            "client_secret": stripe_client_secret,
+                            "refresh_token": stripe_token.refresh_token,
+                            "grant_type": "refresh_token",
+                        }
+                    )
+
+                    if refresh_response.status_code != 200:
+                        logging.error(f"Stripe token refresh failed: {refresh_response.text}")
+                        raise HTTPException(
+                            status_code=401,
+                            detail="Failed to refresh Stripe access token. Please re-authenticate."
+                        )
+
+                    token_data = refresh_response.json()
+
+                    # Update stored token
+                    stripe_token.access_token = token_data.get("access_token", stripe_token.access_token)
+                    # Stripe may return a new refresh token
+                    if "refresh_token" in token_data:
+                        stripe_token.refresh_token = token_data["refresh_token"]
+
+                    # Update expiration (Stripe tokens don't expire, but we track for safety)
+                    stripe_token.expires_at = datetime.utcnow() + timedelta(days=365)
+                    stripe_token.status = "active"
+
+                    db.commit()
+
+                    logging.info(f"Successfully refreshed Stripe token for user {current_user.id}")
+                    return stripe_token.access_token
+
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logging.error(f"Stripe token refresh error: {e}")
+                    # Mark as expired and require re-authentication
+                    stripe_token.status = "expired"
+                    db.commit()
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Stripe token refresh failed. Please re-authenticate with Stripe."
+                    )
+            else:
+                # No refresh token available, mark as expired
+                stripe_token.status = "expired"
+                db.commit()
+                raise HTTPException(
+                    status_code=401,
+                    detail="Stripe access token expired and no refresh token available. Please re-authenticate with Stripe."
+                )
 
         # Update last_used timestamp
         stripe_token.last_used = datetime.utcnow()

@@ -1,11 +1,16 @@
 import logging
-from datetime import datetime, timezone
+import os
+import re
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 from accounting.models import Entity, Invoice, InvoiceStatus
 from sales.models import CommissionEntry, CommissionStatus, Deal, DealStage
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+# Feature flags
+COMMISSION_AUTO_CALCULATE = os.getenv("COMMISSION_AUTO_CALCULATE", "true").lower() == "true"
 
 class CommissionService:
     def __init__(self, db: Session):
@@ -16,6 +21,11 @@ class CommissionService:
         """
         Evaluates an invoice for commission eligibility when it is paid.
         """
+        # Check if commission calculation is enabled
+        if not COMMISSION_AUTO_CALCULATE:
+            logger.info(f"Commission auto-calculation is disabled (COMMISSION_AUTO_CALCULATE=false)")
+            return None
+
         invoice = self.db.query(Invoice).filter(Invoice.id == invoice_id).first()
         if not invoice:
             logger.error(f"Invoice {invoice_id} not found")
@@ -34,51 +44,53 @@ class CommissionService:
         # 2. Link to Deal
         # Try to find deal_id in metadata, or fallback to finding the most recent WON deal for this customer
         deal_id = None
-        if invoice.description and "Deal:" in invoice.description:
-             # simplistic parsing if stored in description "Services for Deal: <uuid>"
-             # robust implementation uses metadata
-             pass
-        
-        # Check metadata first
-        # We assume the invoicing process puts deal_id there
-        # For now, let's implement the fallback search:
-        # Find closed_won deal for this customer within last 60 days?
-        
-        if not deal_id:
-            # Fallback: Find most recent generic Closed Won deal for customer
-            # Requires Entity -> Lead/Contact mapping or shared name/email
-            # This is tricky without strict linking.
-            # Let's assume for Phase 14 verify that we will seed the match or link it manually.
-            pass
 
-        # For the purpose of the MVP/Phase 14 validation, we will require the caller 
-        # (or the invoice creation process) to have linked the deal, 
-        # OR we search for *any* active deal for this customer.
-        
-        # Let's try to match by Customer Entity
-        customer_entity = invoice.customer
-        if not customer_entity:
-            logger.warning("Invoice has no customer, cannot link deal.")
-            return None
-            
-        # Try to find a deal with matching company/name???
-        # Ideally we added deal_id to Invoice. 
-        # Let's assume for this implementation we passed deal_id explicitly or we rely on a heuristic.
-        
-        # Heuristic: Find latest Closed Won deal for this workspace? (Weak)
-        # Better: We will start using metadata_json={'deal_id': ...} on Invoices.
-        
-        if invoice.customer:
-             logger.info(f"Checking customer metadata: {invoice.customer.metadata_json}")
-             if invoice.customer.metadata_json and 'crm_deal_id' in invoice.customer.metadata_json:
-                 deal_id = invoice.customer.metadata_json['crm_deal_id']
-        
-        # Verification Script will likely need to populate this link.
-        
-        if not deal_id:
-            # Search for Deal by fuzzy name match or similar?
-            # Let's verify if we can simply query Deals for this workspace...
-            pass
+        # Method 1: Parse deal_id from invoice description
+        if invoice.description and "Deal:" in invoice.description:
+            # Parse "Deal: UUID" format from description
+            match = re.search(r'Deal:\s*([a-f0-9-]+)', invoice.description, re.IGNORECASE)
+            if match:
+                deal_id = match.group(1)
+                logger.info(f"Extracted deal_id {deal_id} from invoice description")
+
+        # Method 2: Check invoice metadata
+        if not deal_id and invoice.metadata_json:
+            deal_id = invoice.metadata_json.get('deal_id')
+            if deal_id:
+                logger.info(f"Found deal_id {deal_id} in invoice metadata")
+
+        # Method 3: Check customer metadata for CRM deal link
+        if not deal_id and invoice.customer and invoice.customer.metadata_json:
+            deal_id = invoice.customer.metadata_json.get('crm_deal_id')
+            if deal_id:
+                logger.info(f"Found deal_id {deal_id} in customer metadata")
+
+        # Method 4: Fallback - Find most recent Closed Won deal for this customer
+        if not deal_id and invoice.customer:
+            # Look for deals with matching customer name or within last 60 days
+            sixty_days_ago = datetime.now(timezone.utc) - timedelta(days=60)
+
+            # Try to match by customer name in deal metadata
+            from sqlalchemy import or_
+            deal = self.db.query(Deal).filter(
+                Deal.workspace_id == invoice.workspace_id,
+                Deal.stage == DealStage.CLOSED_WON,
+                Deal.closed_date >= sixty_days_ago
+            ).order_by(Deal.closed_date.desc()).first()
+
+            if deal:
+                # Check if deal is associated with this customer via metadata
+                deal_customer_id = None
+                if deal.metadata_json:
+                    deal_customer_id = deal.metadata_json.get('customer_id')
+
+                # Link if customer IDs match or if deal is in the same workspace
+                if deal_customer_id == invoice.customer.id:
+                    deal_id = deal.id
+                    logger.info(f"Linked invoice to deal {deal_id} via customer match")
+
+        # Verification Script will need to populate deal links for existing invoices
+        # For now, if we still can't find a deal, skip commission
             
         if not deal_id:
              logger.warning(f"Could not link Invoice {invoice.invoice_number} to a Deal. Skipping commission.")

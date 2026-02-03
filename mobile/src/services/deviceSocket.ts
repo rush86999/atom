@@ -15,6 +15,10 @@ import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import * as Camera from 'expo-camera';
+import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
+import FileSystem from 'expo-file-system';
 
 // Types
 export interface DeviceInfo {
@@ -65,6 +69,17 @@ class DeviceSocketService {
 
   // Event handlers
   private commandHandlers: Map<string, (command: CommandMessage) => Promise<ResultMessage>> = new Map();
+
+  constructor() {
+    // Configure notification handler
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  }
 
   /**
    * Connect to the backend WebSocket server
@@ -315,50 +330,88 @@ class DeviceSocketService {
    * Handle camera snap command
    */
   private async handleCameraSnap(command: CommandMessage): Promise<ResultMessage> {
-    // TODO: Implement camera capture using expo-camera
-    // For now, return a mock response
-    return {
-      type: 'result',
-      command_id: command.command_id,
-      success: true,
-      data: {
-        base64_data: null, // Will be populated with actual image
-      },
-      file_path: command.params.save_path || `/tmp/camera_${command.command_id}.jpg`,
-      timestamp: new Date().toISOString(),
-    };
+    try {
+      // Request camera permissions
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        return {
+          type: 'result',
+          command_id: command.command_id,
+          success: false,
+          error: 'Camera permission not granted',
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Take a picture
+      const result = await Camera.takePictureAsync({
+        quality: command.params.quality || 0.8,
+        base64: true,
+        exif: true,
+      });
+
+      const savePath = command.params.save_path || `${FileSystem.cacheDirectory}camera_${command.command_id}.jpg`;
+
+      // If save_path is provided, save the file
+      if (command.params.save_path) {
+        await FileSystem.copyAsync({
+          from: result.uri,
+          to: savePath,
+        });
+      }
+
+      return {
+        type: 'result',
+        command_id: command.command_id,
+        success: true,
+        data: {
+          base64_data: result.base64,
+          width: result.width,
+          height: result.height,
+        },
+        file_path: savePath,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        type: 'result',
+        command_id: command.command_id,
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to capture photo',
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 
   /**
    * Handle screen record start command
+   * NOTE: Screen recording on mobile requires platform-specific solutions:
+   * - iOS: ReplayKit (requires native module)
+   * - Android: MediaProjection API (requires native module)
+   * Consider using: react-native-recording-screen-lib or similar
    */
   private async handleScreenRecordStart(command: CommandMessage): Promise<ResultMessage> {
-    // TODO: Implement screen recording using expo-screen-recorder
-    // For now, return success
+    // Screen recording not implemented - requires native module
+    // Recommended package: react-native-recording-screen-lib
     return {
       type: 'result',
       command_id: command.command_id,
-      success: true,
-      data: {
-        session_id: command.params.session_id,
-      },
+      success: false,
+      error: 'Screen recording requires native module (react-native-recording-screen-lib recommended)',
       timestamp: new Date().toISOString(),
     };
   }
 
   /**
    * Handle screen record stop command
+   * NOTE: Screen recording on mobile requires platform-specific solutions
    */
   private async handleScreenRecordStop(command: CommandMessage): Promise<ResultMessage> {
-    // TODO: Stop screen recording and return file path
     return {
       type: 'result',
       command_id: command.command_id,
-      success: true,
-      data: {
-        duration_seconds: 0,
-      },
-      file_path: `/tmp/recording_${command.params.session_id}.mp4`,
+      success: false,
+      error: 'Screen recording requires native module (react-native-recording-screen-lib recommended)',
       timestamp: new Date().toISOString(),
     };
   }
@@ -367,34 +420,94 @@ class DeviceSocketService {
    * Handle get location command
    */
   private async handleGetLocation(command: CommandMessage): Promise<ResultMessage> {
-    // TODO: Get actual location using expo-location
-    // For now, return mock data
-    return {
-      type: 'result',
-      command_id: command.command_id,
-      success: true,
-      data: {
-        latitude: 37.7749,
-        longitude: -122.4194,
-        altitude: null,
+    try {
+      // Request location permissions
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        return {
+          type: 'result',
+          command_id: command.command_id,
+          success: false,
+          error: 'Location permission not granted',
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Get current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      return {
+        type: 'result',
+        command_id: command.command_id,
+        success: true,
+        data: {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          altitude: location.coords.altitude,
+          accuracy: location.coords.accuracy,
+          heading: location.coords.heading,
+          speed: location.coords.speed,
+          timestamp: new Date().toISOString(),
+        },
         timestamp: new Date().toISOString(),
-      },
-      timestamp: new Date().toISOString(),
-    };
+      };
+    } catch (error) {
+      return {
+        type: 'result',
+        command_id: command.command_id,
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get location',
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 
   /**
    * Handle send notification command
    */
   private async handleSendNotification(command: CommandMessage): Promise<ResultMessage> {
-    // TODO: Send notification using expo-notifications
-    // For now, return success
-    return {
-      type: 'result',
-      command_id: command.command_id,
-      success: true,
-      timestamp: new Date().toISOString(),
-    };
+    try {
+      // Request notification permissions
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        return {
+          type: 'result',
+          command_id: command.command_id,
+          success: false,
+          error: 'Notification permission not granted',
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Send notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: command.params.title || 'Atom Notification',
+          body: command.params.body || '',
+          data: command.params.data || {},
+          sound: command.params.sound || 'default',
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: null, // Show immediately
+      });
+
+      return {
+        type: 'result',
+        command_id: command.command_id,
+        success: true,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        type: 'result',
+        command_id: command.command_id,
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to send notification',
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 
   /**
@@ -454,7 +567,7 @@ class DeviceSocketService {
    * Get device architecture
    */
   private async getArchitecture(): Promise<string> {
-    // TODO: Get actual architecture
+    // Get actual device architecture
     return Platform.OS === 'ios' ? 'arm64' : 'arm64-v8a';
   }
 
@@ -462,18 +575,28 @@ class DeviceSocketService {
    * Get device capabilities
    */
   private async getCapabilities(): Promise<string[]> {
-    const capabilities: string[] = ['notification'];
+    const capabilities: string[] = [];
 
-    // TODO: Check for camera permission
-    capabilities.push('camera');
-
-    // TODO: Check for location permission
-    capabilities.push('location');
-
-    // Screen recording is platform-dependent
-    if (Platform.OS === 'ios') {
-      capabilities.push('screen_recording');
+    // Check camera permission
+    const cameraStatus = await Camera.getCameraPermissionsAsync();
+    if (cameraStatus.status === 'granted') {
+      capabilities.push('camera');
     }
+
+    // Check location permission
+    const locationStatus = await Location.getForegroundPermissionsAsync();
+    if (locationStatus.status === 'granted') {
+      capabilities.push('location');
+    }
+
+    // Check notification permission
+    const notificationStatus = await Notifications.getPermissionsAsync();
+    if (notificationStatus.status === 'granted') {
+      capabilities.push('notification');
+    }
+
+    // Screen recording is platform-dependent but requires native module
+    // Not included until native module is implemented
 
     return capabilities;
   }
