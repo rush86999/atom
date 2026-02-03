@@ -6,7 +6,7 @@ Integrates with existing WebSocket infrastructure.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -22,14 +22,33 @@ class TrainingWebSocketEvents:
     """
     WebSocket event notifications for training/proposal/supervision system.
 
-    In production, this would integrate with the existing WebSocket manager
-    to send real-time notifications to frontend clients.
+    Integrates with the existing WebSocket manager to send real-time
+    notifications to frontend clients.
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, websocket_manager: Optional[Any] = None):
+        """
+        Initialize training WebSocket events handler.
+
+        Args:
+            db: Database session
+            websocket_manager: Optional WebSocket manager instance.
+                             If None, will attempt to import and use the global instance.
+        """
         self.db = db
-        # In production, would inject WebSocket manager here
-        # self.websocket_manager = get_websocket_manager()
+        self.websocket_manager = websocket_manager
+
+        # Lazy import of websocket_manager if not provided
+        if not self.websocket_manager:
+            try:
+                from core.websocket_manager import WebSocketConnectionManager
+                # Use a singleton instance
+                if not hasattr(TrainingWebSocketEvents, '_default_manager'):
+                    TrainingWebSocketEvents._default_manager = WebSocketConnectionManager()
+                self.websocket_manager = TrainingWebSocketEvents._default_manager
+            except ImportError:
+                logger.warning("WebSocket manager not available, events will be logged only")
+                self.websocket_manager = None
 
     # ========================================================================
     # Training Events (STUDENT agents)
@@ -342,23 +361,35 @@ class TrainingWebSocketEvents:
         debug: bool = False
     ) -> None:
         """
-        Log WebSocket event (placeholder for actual WebSocket broadcast).
+        Log and broadcast WebSocket event.
 
-        In production, this would integrate with the WebSocket manager:
-        await self.websocket_manager.broadcast(event_data)
+        Integrates with the WebSocket manager to send real-time notifications
+        to connected clients.
 
-        For now, just log the event structure.
+        Args:
+            event_name: Name of the event
+            event_data: Event data to broadcast
+            debug: Whether to log at debug level
         """
         if debug:
             logger.debug(f"WebSocket Event [{event_name}]: {event_data}")
         else:
             logger.info(f"WebSocket Event [{event_name}]: {event_data}")
 
-        # Placeholder for WebSocket integration
-        # TODO: Integrate with existing WebSocket infrastructure
-        # Example:
-        # from core.websocket_manager import websocket_manager
-        # await websocket_manager.broadcast_to_workspace(
-        #     workspace_id=event_data["data"]["workspace_id"],
-        #     message=event_data
-        # )
+        # Broadcast to WebSocket if manager is available
+        if self.websocket_manager:
+            try:
+                # Extract workspace_id from event data if available
+                workspace_id = event_data.get("data", {}).get("workspace_id", "default")
+
+                # Broadcast to workspace subscribers
+                await self.websocket_manager.broadcast_to_workspace(
+                    workspace_id=workspace_id,
+                    message=event_data
+                )
+
+                logger.debug(f"Broadcasted event {event_name} to workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Failed to broadcast WebSocket event: {e}")
+        else:
+            logger.debug("WebSocket manager not available, event logged only")
