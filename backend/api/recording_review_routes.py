@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.recording_review_service import RecordingReviewService, get_recording_review_service
-from core.models import CanvasRecordingReview, CanvasRecording, User
+from core.models import CanvasRecordingReview, CanvasRecording, User, UserRole
 from core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -195,8 +195,12 @@ async def get_review(
         ).first()
 
         if not recording or (recording.user_id != user.id):
-            # TODO: Add admin check
-            pass  # Allow for now
+            # Verify user is admin
+            if user.role not in [UserRole.SUPER_ADMIN.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SECURITY_ADMIN.value]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied. You must own this recording or be an admin."
+                )
 
         return ReviewResponse(
             review_id=review.id,

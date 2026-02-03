@@ -249,20 +249,16 @@ class AutoInvoicer:
             ])
 
             # Store full line items in metadata_json for future use
-            if not hasattr(invoice, 'metadata_json'):
-                # Add column if not exists (migration needed)
-                pass
-            else:
-                invoice.metadata_json = {
-                    "line_items": line_items,
-                    "task_id": task_id,
-                    "project_id": project.id,
-                    "milestone_id": milestone.id,
-                    "billing_type": billing_type,
-                    "tax_rate": tax_rate,
-                    "tax_amount": tax_amount,
-                    "subtotal": subtotal
-                }
+            invoice.metadata_json = {
+                "line_items": line_items,
+                "task_id": task_id,
+                "project_id": project.id,
+                "milestone_id": milestone.id,
+                "billing_type": billing_type,
+                "tax_rate": tax_rate,
+                "tax_amount": tax_amount,
+                "subtotal": subtotal
+            }
 
             db.add(invoice)
             db.commit()

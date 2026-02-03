@@ -186,6 +186,7 @@ class Invoice(Base):
     status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT)
     description = Column(Text, nullable=True)
     transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=True) # Linked ledger tx
+    metadata_json = Column(JSON, nullable=True) # Additional invoice metadata (line items, billing details, etc.)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

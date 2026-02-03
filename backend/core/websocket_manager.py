@@ -230,6 +230,24 @@ class WebSocketConnectionManager:
             ],
         }
 
+    async def broadcast_to_workspace(
+        self,
+        workspace_id: str,
+        message: Dict[str, Any],
+    ) -> int:
+        """
+        Broadcast a message to all connections in a workspace.
+
+        Args:
+            workspace_id: Workspace identifier
+            message: Message to broadcast
+
+        Returns:
+            Number of connections notified
+        """
+        stream_id = f"workspace_{workspace_id}"
+        return await self.broadcast(stream_id, message)
+
 
 class DebuggingWebSocketManager:
     """
