@@ -563,24 +563,23 @@ class WorldModelService:
                 try:
                     from saas.models import Formula
                     with get_db_session() as db:
-                    hot_formulas = db.query(Formula).filter(
-                        Formula.workspace_id == self.db.workspace_id,
-                        Formula.domain == (agent_category if agent_category != "general" else Formula.domain)
-                    ).order_by(Formula.updated_at.desc()).limit(limit - len(formula_results)).all()
-                    
-                    for f in hot_formulas:
-                        # Avoid duplicates
-                        if not any(fr["id"] == f.id for fr in formula_results):
-                            formula_results.append({
-                                "id": f.id,
-                                "name": f.name,
-                                "expression": f.expression,
-                                "domain": f.domain,
-                                "description": f.description,
-                                "parameters": f.parameters,
-                                "type": "formula_hot"
-                            })
-                    db.close()
+                        hot_formulas = db.query(Formula).filter(
+                            Formula.workspace_id == self.db.workspace_id,
+                            Formula.domain == (agent_category if agent_category != "general" else Formula.domain)
+                        ).order_by(Formula.updated_at.desc()).limit(limit - len(formula_results)).all()
+
+                        for f in hot_formulas:
+                            # Avoid duplicates
+                            if not any(fr["id"] == f.id for fr in formula_results):
+                                formula_results.append({
+                                    "id": f.id,
+                                    "name": f.name,
+                                    "expression": f.expression,
+                                    "domain": f.domain,
+                                    "description": f.description,
+                                    "parameters": f.parameters,
+                                    "type": "formula_hot"
+                                })
                 except Exception as he:
                     logger.warning(f"Hot formula fallback failed: {he}")
         except Exception as fe:
@@ -590,13 +589,13 @@ class WorldModelService:
         conversation_results = []
         try:
             with get_db_session() as db:
-            # Get latest 5 messages for this tenant/agent context (generic)
-            # In a real scenario, we might want to filter by keywords or session_id
-            messages = db.query(ChatMessage).filter(
-                ChatMessage.tenant_id == self.db.workspace_id
-            ).order_by(ChatMessage.created_at.desc()).limit(limit).all()
-            
-            conversation_results = [
+                # Get latest 5 messages for this tenant/agent context (generic)
+                # In a real scenario, we might want to filter by keywords or session_id
+                messages = db.query(ChatMessage).filter(
+                    ChatMessage.tenant_id == self.db.workspace_id
+                ).order_by(ChatMessage.created_at.desc()).limit(limit).all()
+
+                conversation_results = [
                 {
                     "role": m.role,
                     "content": m.content,

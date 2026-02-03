@@ -66,25 +66,26 @@ class ConnectionService:
         List connections for a user, optionally filtered by integration.
         """
         with get_db_session() as db:
-        try:
-            query = db.query(UserConnection).filter(UserConnection.user_id == user_id)
-            if integration_id:
-                query = query.filter(UserConnection.integration_id == integration_id)
-            
-            connections = query.all()
-            return [
-                {
-                    "id": c.id,
-                    "name": c.connection_name,
-                    "integration_id": c.integration_id,
-                    "status": c.status,
-                    "created_at": c.created_at.isoformat() if c.created_at else None,
-                    "last_used": c.last_used.isoformat() if c.last_used else None
-                }
-                for c in connections
-            ]
-        finally:
-            db.close()
+            try:
+                query = db.query(UserConnection).filter(UserConnection.user_id == user_id)
+                if integration_id:
+                    query = query.filter(UserConnection.integration_id == integration_id)
+
+                connections = query.all()
+                return [
+                    {
+                        "id": c.id,
+                        "name": c.connection_name,
+                        "integration_id": c.integration_id,
+                        "status": c.status,
+                        "created_at": c.created_at.isoformat() if c.created_at else None,
+                        "last_used": c.last_used.isoformat() if c.last_used else None
+                    }
+                    for c in connections
+                ]
+            except Exception as e:
+                logger.error(f"Error retrieving connections: {e}")
+                return []
 
     def save_connection(self, user_id: str, integration_id: str, name: str, credentials: Dict[str, Any], workspace_id: Optional[str] = None) -> UserConnection:
         """
@@ -92,50 +93,51 @@ class ConnectionService:
         Calculates expires_at if possible and encrypts credentials.
         """
         with get_db_session() as db:
-        try:
-            # Check for existing connection for this user and integration
-            conn = db.query(UserConnection).filter(
-                UserConnection.user_id == user_id,
-                UserConnection.integration_id == integration_id
-            ).first()
-            
-            # Calculate expires_at
-            expires_at = None
-            expires_in = credentials.get("expires_in")
-            if expires_in:
-                try:
-                    expires_at = datetime.now() + timedelta(seconds=int(expires_in))
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Failed to parse expires_in: {e}")
+            try:
+                # Check for existing connection for this user and integration
+                conn = db.query(UserConnection).filter(
+                    UserConnection.user_id == user_id,
+                    UserConnection.integration_id == integration_id
+                ).first()
 
-            encrypted_creds = self._encrypt(credentials)
+                # Calculate expires_at
+                expires_at = None
+                expires_in = credentials.get("expires_in")
+                if expires_in:
+                    try:
+                        expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Failed to parse expires_in: {e}")
 
-            if conn:
-                conn.connection_name = name
-                conn.credentials = encrypted_creds
-                conn.updated_at = datetime.now()
-                if expires_at:
-                    conn.expires_at = expires_at
-                db.commit()
-                db.refresh(conn)
-                return conn
-            else:
-                new_conn = UserConnection(
-                    id=str(uuid.uuid4()),
-                    user_id=user_id,
-                    workspace_id=workspace_id,
-                    integration_id=integration_id,
-                    connection_name=name,
-                    credentials=encrypted_creds,
-                    expires_at=expires_at,
-                    status="active"
-                )
-                db.add(new_conn)
-                db.commit()
-                db.refresh(new_conn)
-                return new_conn
-        finally:
-            db.close()
+                encrypted_creds = self._encrypt(credentials)
+
+                if conn:
+                    conn.connection_name = name
+                    conn.credentials = encrypted_creds
+                    conn.updated_at = datetime.now()
+                    if expires_at:
+                        conn.expires_at = expires_at
+                    db.commit()
+                    db.refresh(conn)
+                    return conn
+                else:
+                    new_conn = UserConnection(
+                        id=str(uuid.uuid4()),
+                        user_id=user_id,
+                        workspace_id=workspace_id,
+                        integration_id=integration_id,
+                        connection_name=name,
+                        credentials=encrypted_creds,
+                        expires_at=expires_at,
+                        status="active"
+                    )
+                    db.add(new_conn)
+                    db.commit()
+                    db.refresh(new_conn)
+                    return new_conn
+            except Exception as e:
+                logger.error(f"Error saving connection: {e}")
+                raise
 
     async def get_connection_credentials(self, connection_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -143,36 +145,37 @@ class ConnectionService:
         Ensures user owns the connection and refreshes token if needed.
         """
         with get_db_session() as db:
-        try:
-            conn = db.query(UserConnection).filter(
-                UserConnection.id == connection_id,
-                UserConnection.user_id == user_id
-            ).first()
-            
-            if conn:
-                # Decrypt credentials for use
-                creds = self._decrypt(conn.credentials)
-                
-                # Automatic refresh logic
-                updated_creds = await self._refresh_token_if_needed(conn, creds)
-                if updated_creds:
-                    conn.credentials = self._encrypt(updated_creds)
-                    # Recalculate expires_at from new data
-                    expires_in = updated_creds.get("expires_in")
-                    if expires_in:
-                        conn.expires_at = datetime.now() + timedelta(seconds=int(expires_in))
-                    conn.updated_at = datetime.now()
-                    conn.status = "active" # Mark as active if refresh succeeds
+            try:
+                conn = db.query(UserConnection).filter(
+                    UserConnection.id == connection_id,
+                    UserConnection.user_id == user_id
+                ).first()
+
+                if conn:
+                    # Decrypt credentials for use
+                    creds = self._decrypt(conn.credentials)
+
+                    # Automatic refresh logic
+                    updated_creds = await self._refresh_token_if_needed(conn, creds)
+                    if updated_creds:
+                        conn.credentials = self._encrypt(updated_creds)
+                        # Recalculate expires_at from new data
+                        expires_in = updated_creds.get("expires_in")
+                        if expires_in:
+                            conn.expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+                        conn.updated_at = datetime.now()
+                        conn.status = "active" # Mark as active if refresh succeeds
+                        db.commit()
+                        creds = updated_creds
+
+                    # Update last used
+                    conn.last_used = datetime.now()
                     db.commit()
-                    creds = updated_creds
-                
-                # Update last used
-                conn.last_used = datetime.now()
-                db.commit()
-                return creds
-            return None
-        finally:
-            db.close()
+                    return creds
+                return None
+            except Exception as e:
+                logger.error(f"Error retrieving connection credentials: {e}")
+                return None
 
     async def _refresh_token_if_needed(self, conn: UserConnection, creds: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -226,11 +229,10 @@ class ConnectionService:
                     logger.error(f"Refresh failed for {conn.integration_id}: {resp.text}")
                     # Update status to error/expired
                     with get_db_session() as db:
-                    conn_to_update = db.query(UserConnection).get(conn.id)
-                    if conn_to_update:
-                        conn_to_update.status = "error"
-                        db.commit()
-                    db.close()
+                        conn_to_update = db.query(UserConnection).get(conn.id)
+                        if conn_to_update:
+                            conn_to_update.status = "error"
+                            db.commit()
         except Exception as e:
             logger.error(f"Error during token refresh: {e}")
             
@@ -238,34 +240,36 @@ class ConnectionService:
 
     def update_connection_name(self, connection_id: str, user_id: str, new_name: str) -> bool:
         with get_db_session() as db:
-        try:
-            conn = db.query(UserConnection).filter(
-                UserConnection.id == connection_id,
-                UserConnection.user_id == user_id
-            ).first()
-            if conn:
-                conn.connection_name = new_name
-                conn.updated_at = datetime.now()
-                db.commit()
-                return True
-            return False
-        finally:
-            db.close()
+            try:
+                conn = db.query(UserConnection).filter(
+                    UserConnection.id == connection_id,
+                    UserConnection.user_id == user_id
+                ).first()
+                if conn:
+                    conn.connection_name = new_name
+                    conn.updated_at = datetime.now()
+                    db.commit()
+                    return True
+                return False
+            except Exception as e:
+                logger.error(f"Error updating connection name: {e}")
+                return False
 
     def delete_connection(self, connection_id: str, user_id: str) -> bool:
         with get_db_session() as db:
-        try:
-            conn = db.query(UserConnection).filter(
-                UserConnection.id == connection_id,
-                UserConnection.user_id == user_id
-            ).first()
-            if conn:
-                db.delete(conn)
-                db.commit()
-                return True
-            return False
-        finally:
-            db.close()
+            try:
+                conn = db.query(UserConnection).filter(
+                    UserConnection.id == connection_id,
+                    UserConnection.user_id == user_id
+                ).first()
+                if conn:
+                    db.delete(conn)
+                    db.commit()
+                    return True
+                return False
+            except Exception as e:
+                logger.error(f"Error deleting connection: {e}")
+                return False
 
 # Singleton
 connection_service = ConnectionService()
