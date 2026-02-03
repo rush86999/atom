@@ -1,7 +1,32 @@
 """
-ATOM Discord API Routes
-Complete API with authentication, real-time features, and analytics integration
+DEPRECATED: Discord Enhanced API Routes (Flask Version)
+
+This Flask-based Discord integration is superseded by the FastAPI version.
+Please use `backend/integrations/discord_routes.py` instead.
+
+This file will be removed in version 2.0.
+
+Migration Guide:
+- Old: /api/integrations/discord/* (Flask, this file)
+- New: /api/v1/discord/* (FastAPI, use discord_routes.py)
+
+All functionality has been ported to the FastAPI version with:
+- Better async support
+- Automatic OpenAPI documentation
+- Pydantic validation
+- Improved error handling
+
+Last Updated: February 3, 2026
+Status: DEPRECATED - Removal planned for v2.0
 """
+
+import warnings
+warnings.warn(
+    "discord_enhanced_api_routes.py is deprecated. Use discord_routes.py (FastAPI) instead. "
+    "This file will be removed in v2.0.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import asyncio
 import base64

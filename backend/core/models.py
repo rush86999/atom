@@ -104,6 +104,9 @@ class Workspace(Base):
     graph_nodes = relationship("GraphNode", back_populates="workspace", cascade="all, delete-orphan")
     graph_communities = relationship("GraphCommunity", back_populates="workspace", cascade="all, delete-orphan")
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(id={self.id}, name={self.name}, status={self.status})>"
+
 class Team(Base):
     __tablename__ = "teams"
 
@@ -164,6 +167,9 @@ class User(Base):
     workspaces = relationship("Workspace", secondary=user_workspaces, back_populates="users")
     teams = relationship("Team", secondary=team_members, back_populates="members")
     messages = relationship("TeamMessage", back_populates="sender")
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(id={self.id}, email={self.email}, role={self.role})>"
 
 class TeamMessage(Base):
     __tablename__ = "team_messages"
@@ -512,6 +518,9 @@ class AgentRegistry(Base):
     # Flexible Configuration
     configuration = Column(JSON, default={}) # System prompts, tools, constraints
     schedule_config = Column(JSON, default={}) # Cron expression, active status
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(id={self.id}, name={self.name}, status={self.status}, confidence={self.confidence_score})>"
 
 class AgentFeedback(Base):
     """User feedback on agent actions for RLHF"""
@@ -946,6 +955,9 @@ class AgentExecution(Base):
     agent = relationship("AgentRegistry")
     # Note: workspace relationship removed - workspace_id is a string reference without FK constraint
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(id={self.id}, agent_id={self.agent_id}, status={self.status})>"
+
 
 class CanvasAudit(Base):
     """
@@ -971,6 +983,9 @@ class CanvasAudit(Base):
     audit_metadata = Column(JSON, default={})  # Renamed from 'metadata' (reserved)
     governance_check_passed = Column(Boolean, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(id={self.id}, action={self.action}, component_type={self.component_type})>"
 
 class AgentOperationTracker(Base):
     """
