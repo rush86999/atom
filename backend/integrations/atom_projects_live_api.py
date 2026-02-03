@@ -106,9 +106,15 @@ async def get_live_project_board(
 
     # 1. Fetch Asana Tasks
     try:
-         # Placeholder for token retrieval logic
-         # In a real user-context, we'd fetch tokens from DB
-         pass
+         # Get user's Asana access token from environment or use service account
+         asana_token = os.getenv("ASANA_ACCESS_TOKEN")
+         if not asana_token:
+             logger.warning("ASANA_ACCESS_TOKEN not configured, skipping Asana fetch")
+         else:
+             # Use asana_service to fetch tasks
+             asana_tasks = asana_service.get_user_tasks(user_id=user_id, limit=limit)
+             tasks.extend([map_asana_task(t) for t in asana_tasks])
+             providers_status["asana"] = True
     except Exception as e:
         logger.warning(f"Failed to fetch live Asana tasks: {e}")
 

@@ -82,7 +82,11 @@ enterprise_bp = Blueprint('enterprise_api', __name__, url_prefix='/api/enterpris
 # Mock service for health check detection
 class AtomEnterpriseServiceMock:
     def __init__(self):
-        self.enterprise_key = "mock_enterprise_key"
+        self.enterprise_key = os.getenv("ENTERPRISE_KEY")
+        if not self.enterprise_key or self.enterprise_key == "mock_enterprise_key":
+            raise NotImplementedError(
+                "ENTERPRISE_KEY must be configured in environment variables"
+            )
 
 
 # Enterprise configuration validation
