@@ -594,6 +594,39 @@ class UserConnection(Base):
     user = relationship("User", backref="connections")
     workspace = relationship("Workspace", backref="connections")
 
+class StripeToken(Base):
+    """Stores Stripe OAuth tokens for secure API access"""
+    __tablename__ = "stripe_tokens"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
+
+    # OAuth tokens (encrypted in production)
+    access_token = Column(String, nullable=False)  # Stripe access token
+    refresh_token = Column(String, nullable=True)  # For token refresh
+    stripe_user_id = Column(String, nullable=False, index=True)  # Stripe account ID
+
+    # Token metadata
+    livemode = Column(Boolean, default=False)  # True for production, False for test mode
+    token_type = Column(String, default="bearer")  # Usually "bearer"
+
+    # Expiration tracking
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    scope = Column(String, nullable=True)  # OAuth scope granted
+
+    # Status
+    status = Column(String, default="active")  # active, expired, revoked
+    last_used = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="stripe_tokens")
+    workspace = relationship("Workspace", backref="stripe_tokens")
+
 class IntegrationHealthMetrics(Base):
     """
     Health metrics for integrations to track latency, error rates, and trends.

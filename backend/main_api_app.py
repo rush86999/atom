@@ -233,6 +233,17 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
 
 # ============================================================================
+# GLOBAL EXCEPTION HANDLER
+# Standardized error handling for all uncaught exceptions
+# ============================================================================
+try:
+    from core.error_handlers import global_exception_handler
+    app.add_exception_handler(Exception, global_exception_handler)
+    logger.info("✓ Global Exception Handler Registered")
+except ImportError:
+    logger.warning("Global exception handler not found, skipping...")
+
+# ============================================================================
 # AUTO-LOADING MIDDLEWARE (True Lazy Loading)
 # Automatically loads integrations on first request instead of returning 404
 # ============================================================================

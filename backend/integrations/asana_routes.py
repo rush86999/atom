@@ -88,6 +88,12 @@ async def get_access_token(user_id: Optional[str] = Query(None, description="Use
 
     # Return a placeholder that would be replaced by real token
     # This allows the validator to pass without full auth setup
+    # In production, this should raise NotImplementedError
+    if os.getenv("ENVIRONMENT") == "production":
+        raise NotImplementedError(
+            "Asana access token not found. Please provide ASANA_ACCESS_TOKEN environment variable "
+            "or implement proper OAuth token storage."
+        )
     return "mock_access_token_placeholder"
 
 @router.post("/auth/token")

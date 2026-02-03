@@ -1,9 +1,12 @@
 import random
 import uuid
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 # Import core workflow models if available, otherwise define local ones for UI
 # For now, we'll define UI-specific models to match the frontend expectations
@@ -376,7 +379,7 @@ async def get_executions():
             except Exception as e:
                 # Log but don't crash the whole list
                 import traceback
-                print(f"Error parsing execution context: {e}")
+                logger.error(f"Error parsing execution context: {e}")
                 # traceback.print_exc()
                 continue
 
@@ -472,7 +475,7 @@ async def execute_workflow(payload: Dict[str, Any], background_tasks: Background
             orchestrator_id = workflow_id # Use the ID we just registered
             pass
         else:
-             print(f"Warning: Workflow ID {workflow_id} not found in orchestrator or mocks.")
+             logger.warning(f"Warning: Workflow ID {workflow_id} not found in orchestrator or mocks.")
 
     # Generate Execution ID for immediate UI feedback
     execution_id = f"exec_{uuid.uuid4().hex[:8]}"
@@ -496,9 +499,9 @@ async def execute_workflow(payload: Dict[str, Any], background_tasks: Background
             # Pass the ALREADY CREATED contex ID
             await orchestrator.execute_workflow(orchestrator_id, input_data, execution_id=execution_id)
         except Exception as e:
-            print(f"Background execution failed: {e}")
+            logger.error(f"Background execution failed: {e}")
             import traceback
-            traceback.print_exc()
+            logger.error(traceback.format_exc())
             context.status = WorkflowStatus.FAILED
             context.error_message = str(e)
             context.completed_at = datetime.now()
