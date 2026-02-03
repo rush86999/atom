@@ -16,7 +16,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from enum import Enum
 import asyncio
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.automation_settings import get_automation_settings
 from api.agent_routes import execute_agent_task
 from core.chat_session_manager import get_chat_session_manager
@@ -1030,7 +1030,7 @@ class ChatOrchestrator:
             }
         try:
             # Generate a DB session
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 # In a real app, workspace_id comes from context or session
                 workspace_id = context.get("workspace_id") if context else "default-workspace"
@@ -1100,7 +1100,7 @@ class ChatOrchestrator:
             }
         
         try:
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 from sales.assistant import SalesAssistant
                 workspace_id = context.get("workspace_id") if context else "default-workspace"

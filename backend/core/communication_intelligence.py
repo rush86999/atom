@@ -3,7 +3,7 @@ import asyncio
 from typing import Dict, Any, List, Optional
 from core.knowledge_extractor import KnowledgeExtractor
 from core.automation_settings import get_automation_settings
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import User
 from ecommerce.models import EcommerceCustomer
 from sales.models import Deal, Lead
@@ -92,7 +92,7 @@ class CommunicationIntelligenceService:
         """
         Pulls data from other systems (CRM, eCommerce) based on extracted entities.
         """
-        db = self.db_session or SessionLocal()
+        db = self.db_session or get_db_session()
         context = {}
         try:
             for entity in knowledge.get("entities", []):

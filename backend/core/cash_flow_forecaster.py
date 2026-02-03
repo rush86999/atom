@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from sqlalchemy import func
-from core.database import SessionLocal
+from core.database import get_db_session
 from accounting.models import Account, Transaction, AccountType, Bill, Invoice, BillStatus, InvoiceStatus
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class CashFlowForecastingService:
         """
         Calculates runway and burn rate based on ledger and open obligations.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # 1. Current Cash Balance (Asset accounts with 'cash' in name or mapped as such)
             cash_accounts = (

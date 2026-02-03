@@ -29,7 +29,7 @@ from core.exceptions import (
 )
 import httpx
 from core.models import IntegrationCatalog, WorkflowStepExecution
-from core.database import SessionLocal
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -555,7 +555,7 @@ class WorkflowEngine:
                 await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_RUNNING", {"step_id": step_id})
 
                 # Create step execution record
-                db = SessionLocal()
+                with get_db_session() as db:
                 try:
                     step_exec = WorkflowStepExecution(
                         execution_id=execution_id,
@@ -580,7 +580,7 @@ class WorkflowEngine:
                     await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_COMPLETED", {"step_id": step_id})
 
                     # Update step execution record
-                    db = SessionLocal()
+                    with get_db_session() as db:
                     try:
                         step_exec = db.query(WorkflowStepExecution).filter(
                             WorkflowStepExecution.execution_id == execution_id,
@@ -1824,7 +1824,7 @@ class WorkflowEngine:
         
         if not catalog_data:
             # 1. Fetch metadata from DB
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 catalog_item = db.query(IntegrationCatalog).filter(IntegrationCatalog.id == service_name).first()
                 if not catalog_item:

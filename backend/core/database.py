@@ -132,7 +132,7 @@ def get_db():
 
     This is the RECOMMENDED pattern for API routes.
     """
-    db = SessionLocal()
+    with get_db_session() as db:
     try:
         yield db
     finally:
@@ -165,9 +165,9 @@ def get_db_session():
     - Prevents connection leaks
     - Thread-safe
 
-    Preferred over manual `db = SessionLocal()` pattern.
+    Preferred over manual `with get_db_session() as db:` pattern.
     """
-    db = SessionLocal()
+    with get_db_session() as db:
     try:
         yield db
         db.commit()
@@ -236,7 +236,7 @@ This codebase supports three database session management patterns:
 3. MANUAL PATTERN (DEPRECATED - Avoid in new code)
    ------------------------------------------------
    OLD WAY (don't use):
-       db = SessionLocal()
+       with get_db_session() as db:
        try:
            # operations
            db.commit()
@@ -251,7 +251,7 @@ This codebase supports three database session management patterns:
 MIGRATION GUIDE
 
 If you see manual session management in code:
-1. Replace `db = SessionLocal()` with `with get_db_session() as db:`
+1. Replace `with get_db_session() as db:` with `with get_db_session() as db:`
 2. Remove the `try/finally` block (context manager handles it)
 3. Remove explicit `db.close()` calls
 4. Optionally remove explicit `db.commit()` if at end of function
@@ -259,7 +259,7 @@ If you see manual session management in code:
 Example Migration:
     # OLD
     def process_data(data_id: str):
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             data = db.query(Data).filter(Data.id == data_id).first()
             data.processed = True

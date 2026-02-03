@@ -3,7 +3,7 @@ import json
 import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import User, Workspace
 from service_delivery.models import Project, ProjectTask, Milestone
 from core.workforce_analytics import WorkforceAnalyticsService
@@ -24,7 +24,7 @@ class AutonomousBusinessSwarm:
         """
         Executes a full 'Correction Cycle' for either a specific project or general operations.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # 1. Gather State
             state = self._gather_state(workspace_id, project_id, db)

@@ -2,7 +2,7 @@ import logging
 import json
 from typing import Dict, Any, List, Optional
 from core.lifecycle_comm_generator import LifecycleCommGenerator
-from core.database import SessionLocal
+from core.database import get_db_session
 from service_delivery.models import Project, Contract
 from core.byok_endpoints import get_byok_manager
 
@@ -21,7 +21,7 @@ class ChangeOrderAgent:
         """
         Creates a draft change order and notification email.
         """
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             project = db.query(Project).filter(Project.id == project_id).first()
             if not project:
@@ -67,7 +67,7 @@ class ChangeOrderAgent:
         """
         Analyzes project state and triggers change order if critical.
         """
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             project = db.query(Project).filter(Project.id == project_id).first()
             if project and project.budget_status == "over_budget":

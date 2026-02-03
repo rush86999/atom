@@ -48,10 +48,10 @@ async def present_docs_canvas(
             enable_comments=True
         )
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
 
     try:
-        with SessionLocal() as db:
+        with get_db_session() as db:
             service = DocumentationCanvasService(db)
 
             # Create document canvas
@@ -125,10 +125,10 @@ async def update_docs_canvas(
     Returns:
         Dict with success status
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
 
     try:
-        with SessionLocal() as db:
+        with get_db_session() as db:
             service = DocumentationCanvasService(db)
 
             result = service.update_document_content(

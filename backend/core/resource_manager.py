@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import User, Team
 from service_delivery.models import ProjectTask
 
@@ -19,7 +19,7 @@ class ResourceMonitor:
         """
         should_close = False
         if db is None:
-            db = SessionLocal()
+            with get_db_session() as db:
             should_close = True
 
         try:
@@ -62,7 +62,7 @@ class ResourceMonitor:
         """
         Aggregates utilization for an entire team.
         """
-        with SessionLocal() as db:
+        with get_db_session() as db:
             team = db.query(Team).filter(Team.id == team_id).first()
             if not team:
                 return {"status": "error", "message": "Team not found"}

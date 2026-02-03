@@ -6,7 +6,7 @@ import logging
 import asyncio
 from datetime import datetime
 from core.auth import get_current_user_ws
-from core.database import SessionLocal
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class ConnectionManager:
         await websocket.accept()
         
         # Authenticate
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             # Allow dev bypass
             if token == "dev-token":

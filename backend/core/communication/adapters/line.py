@@ -48,7 +48,8 @@ class LineAdapter(PlatformAdapter):
                 "sender_id": user_id,
                 "content": message_text
             }
-        except:
+        except Exception as e:
+            logger.error(f"Failed to normalize Line payload: {e}", exc_info=True)
             return None
 
     async def send_message(self, target_id: str, message: str) -> bool:

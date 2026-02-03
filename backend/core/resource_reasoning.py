@@ -2,7 +2,7 @@ import logging
 import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import User
 from service_delivery.models import ProjectTask
 from core.knowledge_ingestion import get_knowledge_ingestion
@@ -23,7 +23,7 @@ class ResourceReasoningEngine:
         """
         Suggests the best team member based on semantic skill match, current workload, and estimation bias.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         analytics = WorkforceAnalyticsService(db_session=db)
         try:
             # 1. Get all active users in workspace
@@ -98,7 +98,7 @@ class ResourceReasoningEngine:
         """
         Detects signs of burnout based on workload, throughput volatility, and engagement.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             user = db.query(User).filter(User.id == user_id).first()
             if not user:

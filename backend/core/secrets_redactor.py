@@ -335,13 +335,13 @@ async def redact_with_llm_validation(text: str) -> RedactionResult:
     try:
         from core.local_llm_secrets_detector import analyze_for_secrets
         llm_result = await analyze_for_secrets(pattern_result.redacted_text)
-        
+
         if llm_result.has_secrets and llm_result.analysis_method == "local_llm":
             # LLM found additional secrets - log warning
             logger.warning(f"LLM found {len(llm_result.detected_secrets)} potential secrets that patterns missed")
             for secret in llm_result.detected_secrets:
                 logger.warning(f"  - {secret.get('type')}: {secret.get('reason')}")
-    except:
-        pass  # LLM validation is optional
-    
+    except Exception as e:
+        logger.debug(f"LLM validation unavailable (optional): {e}")  # LLM validation is optional
+
     return pattern_result

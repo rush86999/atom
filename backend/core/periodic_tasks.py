@@ -29,7 +29,7 @@ async def run_global_ingestion_pulse():
     logger.info("❤️ Global Ingestion Heartbeat Started")
     
     try:
-        with SessionLocal() as db:
+        with get_db_session() as db:
             workspaces = db.query(Workspace).all()
             logger.info(f"Found {len(workspaces)} workspaces to check")
             

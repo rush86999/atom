@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, Any, List, Optional
-from core.database import SessionLocal
+from core.database import get_db_session
 from ecommerce.models import EcommerceOrder
 from sales.models import Deal
 from core.models import BusinessRule
@@ -21,7 +21,7 @@ class BusinessEventIntelligence:
         """
         Analyzes extracted entities and relationships to trigger business logic.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # 1. Process Shipment Updates
             await self._handle_shipments(knowledge, workspace_id, db)

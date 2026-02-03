@@ -73,7 +73,7 @@ class SatelliteService:
 
     async def handle_message(self, tenant_id: str, message: Dict[str, Any]):
         """Process incoming messages from the satellite."""
-        from core.database import SessionLocal
+        from core.database import get_db_session
         from ai.device_node_service import device_node_service
 
         msg_type = message.get("type")
@@ -92,7 +92,7 @@ class SatelliteService:
             # Register the device capabilities
             logger.info(f"Received identity for tenant {tenant_id}: {message}")
             try:
-                db = SessionLocal()
+                with get_db_session() as db:
                 # Map message to node_data structure
                 node_data = {
                     "deviceId": message.get("metadata", {}).get("hostname", f"node-{tenant_id}"),

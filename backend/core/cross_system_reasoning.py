@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+from core.database import get_db_session
 
 # Import domain services
 from core.risk_prevention import customer_protection, early_warning
@@ -35,7 +35,7 @@ class CrossSystemReasoningEngine:
 
     @property
     def db(self):
-        return self._db or SessionLocal()
+        return self._db or get_db_session()
 
     async def generate_interventions(self, workspace_id: str) -> List[Intervention]:
         """

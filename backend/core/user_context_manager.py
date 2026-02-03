@@ -128,7 +128,8 @@ class UserContextManager:
                     source = "user"
                 else:
                     source = "bot"
-            except:
+            except Exception as e:
+                logger.debug(f"Failed to retrieve user token for source determination: {e}")
                 source = "bot"
         else:
             source = "bot"

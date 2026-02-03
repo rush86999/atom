@@ -5,7 +5,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from core.lancedb_handler import get_lancedb_handler
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import User, Team, team_members
 from sqlalchemy import select, or_
 
@@ -24,7 +24,7 @@ class StakeholderEngagementEngine:
         ws_id = workspace_id or "default"
         
         # 1. Get Team Members from SQL
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             # Find all teams the user is in
             team_ids = db.execute(

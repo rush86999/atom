@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from service_delivery.models import Project, Milestone, ProjectTask, BudgetStatus
 from accounting.models import Transaction, Bill
-from core.database import SessionLocal
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class BudgetGuardrailService:
         """
         Aggregates costs for the project.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # 1. Labor Costs (Calculated from project tasks)
             # In a real system, we'd join with User.hourly_cost_rate

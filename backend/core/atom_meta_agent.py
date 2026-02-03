@@ -11,7 +11,7 @@ from datetime import datetime
 from enum import Enum
 
 from core.models import AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution, Workspace
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.agent_world_model import WorldModelService, AgentExperience
 from core.agent_governance_service import AgentGovernanceService
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
@@ -186,7 +186,7 @@ class AtomMetaAgent:
         execution_id = execution_id or str(uuid.uuid4())
         
         # 0. Get Tenant ID and Create Execution Record
-        db = SessionLocal()
+        with get_db_session() as db:
         tenant_id = None
         try:
             workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
@@ -386,7 +386,7 @@ class AtomMetaAgent:
         end_time = datetime.utcnow()
         duration = (end_time - start_time).total_seconds()
         
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
             if execution:
@@ -546,7 +546,7 @@ What is your next step?"""
         """Execute a tool via MCP with governance checks"""
         try:
             # 1. Governance Check
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 gov = AgentGovernanceService(db)
                 auth_check = gov.can_perform_action("atom_main", tool_name)
@@ -628,7 +628,7 @@ What is your next step?"""
         
         if persist:
             # Register in database
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 governance = AgentGovernanceService(db)
                 agent = governance.register_or_update_agent(
                     name=agent.name,
@@ -684,7 +684,7 @@ What is your next step?"""
         elapsed = 0
         
         while elapsed < max_wait:
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 gov = AgentGovernanceService(db)
                 status_info = gov.get_approval_status(action_id)
@@ -719,7 +719,7 @@ What is your next step?"""
 
         # 2. Update Governance Outcome
         success = result.get("status") == "success" or (result.get("final_output") is not None and "error" not in result.get("final_output").lower())
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             gov = AgentGovernanceService(db)
             await gov.record_outcome("atom_main", success=success)
@@ -734,7 +734,7 @@ What is your next step?"""
         if not user_id: return ""
         
         try:
-            db = SessionLocal()
+            with get_db_session() as db:
             user = db.query(User).filter(User.id == user_id).first()
             if user and user.metadata_json:
                 c_style = user.metadata_json.get("communication_style", {})

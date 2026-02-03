@@ -864,10 +864,10 @@ class MCPService:
         should_intercept = True
         
         try:
-            from core.database import SessionLocal
+            from core.database import get_db_session
             from core.models import AgentRegistry, User, Workspace
             
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 # 2. Check Agent Maturity & Overrides
                 if agent_id:
                     agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
@@ -918,9 +918,9 @@ class MCPService:
         async def _check_cloud_access() -> bool:
             workspace_id = "default"
             try:
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 from core.models import Workspace
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
                     if not workspace: return False
                     # Use Workspace Plan Tier directly (assuming Tenant model is deprecated/missing in upstream)
@@ -949,9 +949,9 @@ class MCPService:
             
             if tool_name == "finance_close_check":
                 from accounting.close_agent import CloseChecklistAgent
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     agent = CloseChecklistAgent(db)
                     # Use a default workspace or passed one
                     workspace_id = "default"
@@ -960,15 +960,15 @@ class MCPService:
 
             elif tool_name == "b2b_extract_po":
                 from ecommerce.b2b_procurement_service import B2BProcurementService
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = B2BProcurementService(db)
                     return await service.extract_po_from_text(arguments.get("text", ""))
 
             elif tool_name == "b2b_create_draft_order":
                 from ecommerce.b2b_procurement_service import B2BProcurementService
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = B2BProcurementService(db)
                     return await service.create_draft_order_from_po(
                         workspace_id="default",
@@ -978,8 +978,8 @@ class MCPService:
 
             elif tool_name == "b2b_push_to_integrations":
                 from ecommerce.b2b_data_push_service import B2BDataPushService
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = B2BDataPushService(db)
                     return await service.push_draft_order(arguments.get("order_id"))
                     
@@ -1025,9 +1025,9 @@ class MCPService:
 
             elif tool_name == "marketing_review_request":
                 from core.marketing_agent import MarketingAgent
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 
-                with SessionLocal() as db:
+                with get_db_session() as db:
                      agent = MarketingAgent(db_session=db)
                      # Assuming customer_id is passed
                      return await agent.trigger_review_request(
@@ -1072,8 +1072,8 @@ class MCPService:
             # --- Communication Hub Tools ---
             elif tool_name == "analyze_message":
                 from core.collaboration_hub_service import get_collaboration_hub_service
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = get_collaboration_hub_service(db)
                     # For now we just return a success message as the agent's "Thought" process 
                     # usually does the actual analysis. But we can store it.
@@ -1087,8 +1087,8 @@ class MCPService:
 
             elif tool_name == "draft_response":
                 from core.collaboration_hub_service import get_collaboration_hub_service
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = get_collaboration_hub_service(db)
                     return service.save_draft_response(
                         arguments.get("message_id"),
@@ -1098,8 +1098,8 @@ class MCPService:
 
             elif tool_name == "approve_draft":
                 from core.collaboration_hub_service import get_collaboration_hub_service
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = get_collaboration_hub_service(db)
                     return await service.approve_draft(
                         arguments.get("message_id"),
@@ -1112,12 +1112,12 @@ class MCPService:
 
             elif tool_name.startswith("shopify_"):
                 from integrations.shopify_service import ShopifyService
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 from ecommerce.models import EcommerceStore
                 
                 # Helper to get shop credentials
                 def get_shop_creds(ctx_workspace_id):
-                    with SessionLocal() as db:
+                    with get_db_session() as db:
                         store = db.query(EcommerceStore).filter(
                             EcommerceStore.workspace_id == ctx_workspace_id
                         ).first()
@@ -1179,11 +1179,11 @@ class MCPService:
             elif tool_name == "list_agents":
                 from core.atom_meta_agent import SpecialtyAgentTemplate
                 from core.models import AgentRegistry
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 
                 results = {"templates": SpecialtyAgentTemplate.TEMPLATES, "registered": []}
                 try:
-                    with SessionLocal() as db:
+                    with get_db_session() as db:
                         agents = db.query(AgentRegistry).all()
                         results["registered"] = [
                             {"id": a.id, "name": a.name, "description": a.description, "category": a.category} 
@@ -1820,8 +1820,8 @@ class MCPService:
 
             elif tool_name == "finance_close_check":
                 from accounting.close_agent import CloseChecklistAgent
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     agent = CloseChecklistAgent(db)
                     return await agent.run_close_check(context.get("workspace_id", "default"), arguments.get("period", datetime.now().strftime("%Y-%m")))
 

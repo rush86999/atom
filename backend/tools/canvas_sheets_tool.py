@@ -18,12 +18,12 @@ async def present_sheets_canvas(
 
     Creates a grid-based spreadsheet with cells, formulas, and charts.
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
     from core.canvas_sheets_service import SpreadsheetCanvasService
     from tools.canvas_tool import present_specialized_canvas
 
     try:
-        with SessionLocal() as db:
+        with get_db_session() as db:
             service = SpreadsheetCanvasService(db)
 
             result = service.create_spreadsheet_canvas(

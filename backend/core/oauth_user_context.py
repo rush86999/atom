@@ -233,7 +233,8 @@ class OAuthUserContext:
                     params={"access_token": access_token}
                 )
                 return response.status_code == 200
-        except:
+        except Exception as e:
+            logger.error(f"Google token validation failed: {e}", exc_info=True)
             return False
 
     async def _validate_microsoft_token(self, access_token: str) -> bool:
@@ -246,7 +247,8 @@ class OAuthUserContext:
                     headers={"Authorization": f"Bearer {access_token}"}
                 )
                 return response.status_code == 200
-        except:
+        except Exception as e:
+            logger.error(f"Microsoft token validation failed: {e}", exc_info=True)
             return False
 
     async def _validate_slack_token(self, access_token: str) -> bool:
@@ -256,7 +258,8 @@ class OAuthUserContext:
             client = AsyncWebClient(token=access_token)
             result = await client.auth_test()
             return result.get("ok", False)
-        except:
+        except Exception as e:
+            logger.error(f"Slack token validation failed: {e}", exc_info=True)
             return False
 
 

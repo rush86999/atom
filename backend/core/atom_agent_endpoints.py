@@ -259,8 +259,8 @@ async def chat_with_agent(request: ChatRequest):
              # Ideally get_db dependency should be used, but here we can try to reuse existing patterns.
              # Since we are in an endpoint, we might not have direct DB session unless dependency injected.
              # We will use the `get_db` generator manually or a dedicated session for this service.
-             from core.database import SessionLocal
-             with SessionLocal() as db_session:
+             from core.database import get_db_session
+             with get_db_session() as db_session:
                  intel_service = SystemIntelligenceService(db_session)
                  system_context_str = intel_service.get_aggregated_context("default")
         except Exception as ctx_error:
@@ -1487,7 +1487,7 @@ async def chat_stream_agent(request: ChatRequest):
         # Import streaming support
         from core.llm.byok_handler import BYOKHandler
         from core.websockets import manager as ws_manager
-        from core.database import SessionLocal
+        from core.database import get_db_session
         from core.agent_context_resolver import AgentContextResolver
         from core.agent_governance_service import AgentGovernanceService
         from core.models import AgentExecution
@@ -1499,7 +1499,7 @@ async def chat_stream_agent(request: ChatRequest):
         # GOVERNANCE: Agent Resolution & Validation
         # ============================================
         if governance_enabled and not emergency_bypass:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 resolver = AgentContextResolver(db)
                 governance = AgentGovernanceService(db)
 
@@ -1554,7 +1554,7 @@ async def chat_stream_agent(request: ChatRequest):
         try:
             from operations.system_intelligence_service import SystemIntelligenceService
 
-            with SessionLocal() as db_session:
+            with get_db_session() as db_session:
                 intel_service = SystemIntelligenceService(db_session)
                 system_context_str = intel_service.get_aggregated_context(ws_id)
                 if system_context_str:
@@ -1683,7 +1683,7 @@ Provide helpful, concise responses. When you need to take actions, describe what
                 end_time = datetime.now()
                 duration_seconds = (end_time - start_time).total_seconds()
 
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
                         AgentExecution.id == agent_execution.id
                     ).first()
@@ -1715,7 +1715,7 @@ Provide helpful, concise responses. When you need to take actions, describe what
 
             # Mark execution as failed
             if agent_execution and governance_enabled:
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
                         AgentExecution.id == agent_execution.id
                     ).first()

@@ -17,12 +17,12 @@ async def present_coding_canvas(
 
     Creates a code development workspace.
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
     from core.canvas_coding_service import CodingCanvasService
     from tools.canvas_tool import present_specialized_canvas
 
     try:
-        with SessionLocal() as db:
+        with get_db_session() as db:
             service = CodingCanvasService(db)
 
             result = service.create_coding_canvas(

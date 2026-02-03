@@ -64,8 +64,8 @@ class EmailAdapter(PlatformAdapter):
         if "Type" in payload and payload["Type"] == "Notification":
              try:
                  payload = json.loads(payload.get("Message", "{}"))
-             except:
-                 pass
+             except json.JSONDecodeError as e:
+                 logger.debug(f"Failed to parse SNS message: {e}")
 
         if payload.get("notificationType") != "Received":
             return None

@@ -18,12 +18,12 @@ async def present_email_canvas(
 
     Creates a compose interface for email creation.
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
     from core.canvas_email_service import EmailCanvasService
     from tools.canvas_tool import present_specialized_canvas
 
     try:
-        with SessionLocal() as db:
+        with get_db_session() as db:
             service = EmailCanvasService(db)
 
             result = service.create_email_canvas(

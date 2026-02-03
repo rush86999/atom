@@ -3,7 +3,7 @@ import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+from core.database import get_db_session
 from sales.models import Deal
 from service_delivery.models import Contract, Project, ContractType, ProjectStatus
 from core.pm_engine import pm_engine
@@ -23,7 +23,7 @@ class PMOrchestrator:
         """
         logger.info(f"Provisioning delivery for deal {deal_id}")
         
-        with SessionLocal() as db:
+        with get_db_session() as db:
             # 1. Fetch Deal
             deal = db.query(Deal).filter(Deal.id == deal_id).first()
             if not deal:

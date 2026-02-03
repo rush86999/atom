@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from core.models import AgentRegistry, AgentStatus, ChatMessage
 from core.lancedb_handler import LanceDBHandler, get_lancedb_handler
-from core.database import SessionLocal
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -407,7 +407,7 @@ class WorldModelService:
         This keeps Postgres small and fast while preserving long-term memory on S3.
         """
         try:
-            db = SessionLocal()
+            with get_db_session() as db:
             messages = db.query(ChatMessage).filter(
                 ChatMessage.conversation_id == conversation_id,
                 ChatMessage.tenant_id == self.db.workspace_id
@@ -562,7 +562,7 @@ class WorldModelService:
             if len(formula_results) < limit:
                 try:
                     from saas.models import Formula
-                    db = SessionLocal()
+                    with get_db_session() as db:
                     hot_formulas = db.query(Formula).filter(
                         Formula.workspace_id == self.db.workspace_id,
                         Formula.domain == (agent_category if agent_category != "general" else Formula.domain)
@@ -589,7 +589,7 @@ class WorldModelService:
         # 4. Search Conversations (Postgres Persistence)
         conversation_results = []
         try:
-            db = SessionLocal()
+            with get_db_session() as db:
             # Get latest 5 messages for this tenant/agent context (generic)
             # In a real scenario, we might want to filter by keywords or session_id
             messages = db.query(ChatMessage).filter(

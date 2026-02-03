@@ -16,7 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 # Import Database
-from core.database import SessionLocal, engine
+from core.database import get_db_session, engine
 from core.models import GraphNode, GraphEdge, GraphCommunity, CommunityMembership
 
 logger = logging.getLogger(__name__)
@@ -341,7 +341,7 @@ JSON Schema:
 
     def add_entity(self, entity: Entity, workspace_id: str) -> str:
         """Upsert entity to Postgres"""
-        session = SessionLocal()
+        with get_db_session() as session:
         try:
             # Check existence first (or use ON CONFLICT in raw SQL)
             # Using ORM for clarity, though bulk raw SQL is faster for mass ingestion
@@ -377,7 +377,7 @@ JSON Schema:
 
     def add_relationship(self, rel: Relationship, workspace_id: str) -> str:
         """Insert edge to Postgres"""
-        session = SessionLocal()
+        with get_db_session() as session:
         try:
             # Ensure nodes exist (basic check logic should be upstream, but foreign keys enforce it)
             # Here we assume IDs are valid GraphNode.ids
@@ -401,7 +401,7 @@ JSON Schema:
 
     def ingest_structured_data(self, workspace_id: str, entities: List[Dict], relationships: List[Dict]):
         """Batch ingestion using session"""
-        session = SessionLocal()
+        with get_db_session() as session:
         try:
             # 1. Process Nodes
             node_map = {} # Name -> ID
@@ -450,7 +450,7 @@ JSON Schema:
         Perform Local Search using Recursive CTE (BFS).
         Finds the neighborhood of entities matching the query.
         """
-        session = SessionLocal()
+        with get_db_session() as session:
         try:
             # 1. Find Start Nodes (Search by name fuzzy match)
             start_nodes_sql = text("""
@@ -534,7 +534,7 @@ JSON Schema:
         Global Search using Pre-computed Communities.
         Queries 'graph_communities' table.
         """
-        session = SessionLocal()
+        with get_db_session() as session:
         try:
             # Simple keyword match on community keywords or summary
             # In a real impl, this would use pgvector on community summaries
