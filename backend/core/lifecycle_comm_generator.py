@@ -26,13 +26,13 @@ class LifecycleCommGenerator:
         if workspace_id:
             with get_db_session() as db:
                 try:
-                rules = db.query(BusinessRule).filter(BusinessRule.workspace_id == workspace_id, BusinessRule.is_active == True).all()
-                if rules:
-                    rules_context = "\nApplicable Business Rules & Calculations:\n"
-                    for r in rules:
-                        rules_context += f"- {r.description}: {r.formula or r.value} (Applies to: {r.applies_to or 'General'})\n"
-            finally:
-                db.close()
+                    rules = db.query(BusinessRule).filter(BusinessRule.workspace_id == workspace_id, BusinessRule.is_active == True).all()
+                    if rules:
+                        rules_context = "\nApplicable Business Rules & Calculations:\n"
+                        for r in rules:
+                            rules_context += f"- {r.description}: {r.formula or r.value} (Applies to: {r.applies_to or 'General'})\n"
+                finally:
+                    db.close()
 
         prompt = self._get_prompt_for_intent(intent, context)
         if rules_context:
