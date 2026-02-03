@@ -552,46 +552,47 @@ What is your next step?"""
                 try:
                     gov = AgentGovernanceService(db)
                     auth_check = gov.can_perform_action("atom_main", tool_name)
-                
-                if auth_check.get("requires_human_approval"):
-                    action_id = gov.request_approval(
-                        agent_id="atom_main",
-                        action_type=tool_name,
-                        params=args,
-                        reason=auth_check["reason"],
-                        workspace_id=self.workspace_id
-                    )
-                    
-                    if step_callback:
-                        await step_callback({
-                            "type": "hitl_paused",
-                            "action_id": action_id,
-                            "tool": tool_name,
-                            "reason": auth_check["reason"]
-                        })
-                    
-                    approved = await self._wait_for_approval(action_id)
-                    if not approved:
-                        return f"Action {tool_name} was REJECTED or timed out."
-                        
-                elif not auth_check["allowed"]:
-                    return f"Governance blocked: {auth_check['reason']}"
-            finally:
-                db.close()
-            
+
+                    if auth_check.get("requires_human_approval"):
+                        action_id = gov.request_approval(
+                            agent_id="atom_main",
+                            action_type=tool_name,
+                            params=args,
+                            reason=auth_check["reason"],
+                            workspace_id=self.workspace_id
+                        )
+
+                        if step_callback:
+                            await step_callback({
+                                "type": "hitl_paused",
+                                "action_id": action_id,
+                                "tool": tool_name,
+                                "reason": auth_check["reason"]
+                            })
+
+                        approved = await self._wait_for_approval(action_id)
+                        if not approved:
+                            return f"Action {tool_name} was REJECTED or timed out."
+
+                    elif not auth_check["allowed"]:
+                        return f"Governance blocked: {auth_check['reason']}"
+                except Exception as e:
+                    logger.error(f"Governance check failed: {e}")
+                    return f"Governance error: {str(e)}"
+
             # SPECIAL TOOLS (Internal)
             if tool_name == "trigger_workflow":
                 result = await self._trigger_workflow(args.get("workflow_id"), args.get("params", {}), context)
                 return result
-                
+
             elif tool_name == "delegate_task":
                 result = await self._execute_delegation(args.get("agent_name"), args.get("task"), context)
                 return result
-            
+
             # 2. Execute via MCP with governance check
             result = await self.mcp.call_tool(tool_name, args, context=context)
             return str(result)
-            
+
         except Exception as e:
             return f"Tool error: {str(e)}"
 
@@ -687,17 +688,17 @@ What is your next step?"""
         
         while elapsed < max_wait:
             with get_db_session() as db:
-            try:
-                gov = AgentGovernanceService(db)
-                status_info = gov.get_approval_status(action_id)
-                
-                if status_info["status"] == HITLActionStatus.APPROVED.value:
-                    return True
-                if status_info["status"] == HITLActionStatus.REJECTED.value:
-                    return False
-            finally:
-                db.close()
-                
+                try:
+                    gov = AgentGovernanceService(db)
+                    status_info = gov.get_approval_status(action_id)
+
+                    if status_info["status"] == HITLActionStatus.APPROVED.value:
+                        return True
+                    if status_info["status"] == HITLActionStatus.REJECTED.value:
+                        return False
+                except Exception as e:
+                    logger.error(f"Error checking approval status: {e}")
+
             await asyncio.sleep(interval)
             elapsed += interval
             
@@ -722,13 +723,11 @@ What is your next step?"""
         # 2. Update Governance Outcome
         success = result.get("status") == "success" or (result.get("final_output") is not None and "error" not in result.get("final_output").lower())
         with get_db_session() as db:
-        try:
-            gov = AgentGovernanceService(db)
-            await gov.record_outcome("atom_main", success=success)
-        except Exception as ge:
-            logger.error(f"Failed to record Atom governance outcome: {ge}")
-        finally:
-            db.close()
+            try:
+                gov = AgentGovernanceService(db)
+                await gov.record_outcome("atom_main", success=success)
+            except Exception as ge:
+                logger.error(f"Failed to record Atom governance outcome: {ge}")
             
     def _get_communication_instruction(self, context: Dict) -> str:
         """Helper to fetch user communication style"""
@@ -737,18 +736,16 @@ What is your next step?"""
         
         try:
             with get_db_session() as db:
-            user = db.query(User).filter(User.id == user_id).first()
-            if user and user.metadata_json:
-                c_style = user.metadata_json.get("communication_style", {})
-                if c_style.get("enable_personalization"):
-                    guide = c_style.get("style_guide", "")
-                    if guide:
-                        return f"\nCOMMUNICATION STYLE:\n{guide}\nPlease carefully mimic this style in your final answer."
-            return ""
+                user = db.query(User).filter(User.id == user_id).first()
+                if user and user.metadata_json:
+                    c_style = user.metadata_json.get("communication_style", {})
+                    if c_style.get("enable_personalization"):
+                        guide = c_style.get("style_guide", "")
+                        if guide:
+                            return f"\nCOMMUNICATION STYLE:\n{guide}\nPlease carefully mimic this style in your final answer."
+                return ""
         except Exception:
             return ""
-        finally:
-            db.close()
 
 
 # ==================== TRIGGER HANDLERS ====================
