@@ -643,7 +643,7 @@ class NotionToken(Base):
     # Token metadata
     workspace_name = Column(String, nullable=True)  # Notion workspace name
     workspace_icon = Column(String, nullable=True)  # Notion workspace icon URL
-    workspace_id = Column(String, nullable=True)  # Notion workspace ID
+    notion_workspace_id = Column(String, nullable=True)  # Notion workspace ID (external)
 
     # Token type
     token_type = Column(String, default="bearer")  # Usually "bearer"
