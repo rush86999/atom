@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import uuid
 from datetime import datetime
@@ -6,6 +7,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 # Import advanced workflow system
 from .advanced_workflow_system import (
@@ -183,7 +186,7 @@ class MarketplaceEngine:
                             continue
                         templates.append(WorkflowTemplate(**data))
                 except Exception as e:
-                    print(f"Error loading template {filename}: {e}")
+                    logger.error(f"Error loading template {filename}: {e}")
         return templates
 
     def get_template(self, template_id: str) -> Optional[WorkflowTemplate]:
@@ -549,7 +552,7 @@ class MarketplaceEngine:
                         data["template_type"] = TemplateType.LEGACY
                         templates.append(WorkflowTemplate(**data))
                 except Exception as e:
-                    print(f"Error loading legacy template {filename}: {e}")
+                    logger.error(f"Error loading legacy template {filename}: {e}")
         return templates
 
     def _load_advanced_templates(self, category: Optional[str] = None) -> List[WorkflowTemplate]:
@@ -599,7 +602,7 @@ class MarketplaceEngine:
                             templates.append(WorkflowTemplate(**data))
 
                 except Exception as e:
-                    print(f"Error loading advanced template {filename}: {e}")
+                    logger.error(f"Error loading advanced template {filename}: {e}")
         return templates
 
     def _load_industry_templates(self, category: Optional[str] = None, industry: Optional[str] = None) -> List[WorkflowTemplate]:
@@ -652,7 +655,7 @@ class MarketplaceEngine:
                             templates.append(WorkflowTemplate(**data))
 
                 except Exception as e:
-                    print(f"Error loading industry template {filename}: {e}")
+                    logger.error(f"Error loading industry template {filename}: {e}")
         return templates
 
     def get_template(self, template_id: str) -> Optional[WorkflowTemplate]:
