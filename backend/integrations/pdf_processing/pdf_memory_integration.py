@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import os
+import sqlite3
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
@@ -56,6 +58,9 @@ class PDFMemoryIntegration:
         if self.lancedb_handler:
             self._initialize_memory_tables()
 
+        # Initialize SQLite fallback storage
+        self._init_simple_db()
+
     def _initialize_memory_tables(self):
         """Initialize required tables in LanceDB for PDF storage."""
         try:
@@ -83,6 +88,63 @@ class PDFMemoryIntegration:
                 logger.info(f"PDF memory table already exists: {self.table_name}")
         except Exception as e:
             logger.warning(f"Failed to initialize PDF memory tables: {e}")
+
+    def _init_simple_db(self):
+        """Initialize SQLite database for fallback storage"""
+        try:
+            # Place database in backend/data directory
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            self._simple_db_path = os.path.join(backend_dir, "data", "pdf_simple.db")
+            os.makedirs(os.path.dirname(self._simple_db_path), exist_ok=True)
+
+            conn = sqlite3.connect(self._simple_db_path)
+            cursor = conn.cursor()
+
+            # Main table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS pdf_documents (
+                    doc_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    filename TEXT,
+                    page_count INTEGER,
+                    total_chars INTEGER,
+                    pdf_type TEXT,
+                    processing_method TEXT,
+                    extracted_text TEXT,
+                    created_at TEXT,
+                    source_uri TEXT
+                )
+            """)
+
+            # FTS5 virtual table for full-text search
+            cursor.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS pdf_documents_fts
+                USING fts5(doc_id, extracted_text, content='pdf_documents', content_rowid='rowid')
+            """)
+
+            # Triggers to keep FTS in sync
+            cursor.execute("""
+                CREATE TRIGGER IF NOT EXISTS pdf_documents_ai
+                AFTER INSERT ON pdf_documents BEGIN
+                    INSERT INTO pdf_documents_fts(rowid, doc_id, extracted_text)
+                    VALUES (new.rowid, new.doc_id, new.extracted_text);
+                END
+            """)
+
+            cursor.execute("""
+                CREATE TRIGGER IF NOT EXISTS pdf_documents_ad
+                AFTER DELETE ON pdf_documents BEGIN
+                    INSERT INTO pdf_documents_fts(pdf_documents_fts, doc_id, extracted_text)
+                    VALUES ('delete', old.doc_id, old.extracted_text);
+                END
+            """)
+
+            conn.commit()
+            conn.close()
+            logger.info(f"SQLite fallback storage initialized at {self._simple_db_path}")
+        except Exception as e:
+            logger.warning(f"Failed to initialize SQLite fallback storage: {e}")
+            self._simple_db_path = None
 
     async def store_processed_pdf(
         self,
@@ -231,25 +293,41 @@ class PDFMemoryIntegration:
     async def _store_simple_format(
         self, document_data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Store document in simple format for quick access."""
-        # This could be implemented with SQLite, Redis, or file-based storage
-        # For now, we'll just log and return success
-        try:
-            # In production, this would store in a database or file system
-            simple_data = {
-                "doc_id": document_data["doc_id"],
-                "user_id": document_data["user_id"],
-                "filename": document_data["filename"],
-                "page_count": document_data["page_count"],
-                "total_chars": document_data["total_chars"],
-                "pdf_type": document_data["pdf_type"],
-                "processing_method": document_data["processing_method"],
-                "created_at": document_data["created_at"].isoformat(),
-                "source_uri": document_data["source_uri"],
-            }
+        """Store document in SQLite fallback storage"""
+        if not self._simple_db_path:
+            logger.debug("SQLite fallback not available, skipping simple storage")
+            return {"success": False, "error": "SQLite fallback not initialized"}
 
-            logger.debug(f"Stored simple format for document {document_data['doc_id']}")
-            return {"success": True, "storage_type": "simple_format"}
+        try:
+            conn = sqlite3.connect(self._simple_db_path)
+            cursor = conn.cursor()
+
+            # Get extracted text from document_data
+            extracted_text = document_data.get("extracted_text", "")
+
+            cursor.execute("""
+                INSERT OR REPLACE INTO pdf_documents
+                (doc_id, user_id, filename, page_count, total_chars, pdf_type,
+                 processing_method, extracted_text, created_at, source_uri)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                document_data["doc_id"],
+                document_data["user_id"],
+                document_data.get("filename", ""),
+                document_data.get("page_count", 0),
+                document_data.get("total_chars", 0),
+                document_data.get("pdf_type", "unknown"),
+                document_data.get("processing_method", "unknown"),
+                extracted_text[:10000],  # Limit for performance
+                document_data.get("created_at", datetime.now()).isoformat(),
+                document_data.get("source_uri", "")
+            ))
+
+            conn.commit()
+            conn.close()
+
+            logger.debug(f"Stored simple format for {document_data['doc_id']}")
+            return {"success": True, "storage_type": "sqlite"}
 
         except Exception as e:
             logger.error(f"Failed to store in simple format: {e}")
@@ -412,11 +490,67 @@ class PDFMemoryIntegration:
     async def _simple_search(
         self, user_id: str, query: str, limit: int, filters: Optional[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """Simple text-based search fallback."""
-        # This would search in the simple storage format
-        # For now, return empty list as placeholder
-        logger.info("Using simple search fallback (not implemented)")
-        return []
+        """Full-text search using SQLite FTS5"""
+        if not self._simple_db_path:
+            logger.debug("SQLite fallback not available, skipping simple search")
+            return []
+
+        try:
+            conn = sqlite3.connect(self._simple_db_path)
+            cursor = conn.cursor()
+
+            # Build FTS5 search query - escape quotes
+            fts_query = query.replace('"', '""')
+
+            # Apply filters if provided
+            filter_clause = ""
+            filter_params = [user_id, fts_query]
+
+            if filters:
+                if "pdf_type" in filters:
+                    filter_clause += " AND pdf_type = ?"
+                    filter_params.append(filters["pdf_type"])
+                if "processing_method" in filters:
+                    filter_clause += " AND processing_method = ?"
+                    filter_params.append(filters["processing_method"])
+
+            filter_params.append(limit)
+
+            sql = f"""
+                SELECT d.doc_id, d.filename, d.page_count, d.total_chars,
+                       d.pdf_type, d.extracted_text, d.created_at, d.source_uri,
+                       bm25(pdf_documents_fts) as rank
+                FROM pdf_documents d
+                JOIN pdf_documents_fts f ON d.rowid = f.rowid
+                WHERE d.user_id = ? AND pdf_documents_fts MATCH ?{filter_clause}
+                ORDER BY rank
+                LIMIT ?
+            """
+
+            cursor.execute(sql, filter_params)
+            rows = cursor.fetchall()
+            conn.close()
+
+            results = []
+            for row in rows:
+                results.append({
+                    "doc_id": row[0],
+                    "filename": row[1],
+                    "page_count": row[2],
+                    "total_chars": row[3],
+                    "pdf_type": row[4],
+                    "excerpt": self._get_text_excerpt(row[5], query),
+                    "similarity_score": row[8],  # BM25 rank (lower is better)
+                    "created_at": row[6],
+                    "source_uri": row[7]
+                })
+
+            logger.info(f"Simple search found {len(results)} results for query: {query}")
+            return results
+
+        except Exception as e:
+            logger.error(f"Simple search failed: {e}")
+            return []
 
     def _get_text_excerpt(
         self, text: str, query: str, excerpt_length: int = 200
@@ -482,10 +616,42 @@ class PDFMemoryIntegration:
     async def _get_simple_document(
         self, user_id: str, doc_id: str
     ) -> Optional[Dict[str, Any]]:
-        """Get document from simple storage (placeholder implementation)."""
-        # This would retrieve from the simple storage system
-        logger.debug(f"Simple document retrieval not implemented for {doc_id}")
-        return None
+        """Get document from SQLite storage"""
+        if not self._simple_db_path:
+            return None
+
+        try:
+            conn = sqlite3.connect(self._simple_db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT doc_id, user_id, filename, page_count, total_chars,
+                       pdf_type, processing_method, extracted_text, created_at, source_uri
+                FROM pdf_documents
+                WHERE doc_id = ? AND user_id = ?
+            """, (doc_id, user_id))
+
+            row = cursor.fetchone()
+            conn.close()
+
+            if row:
+                return {
+                    "doc_id": row[0],
+                    "user_id": row[1],
+                    "filename": row[2],
+                    "page_count": row[3],
+                    "total_chars": row[4],
+                    "pdf_type": row[5],
+                    "processing_method": row[6],
+                    "extracted_text": row[7],
+                    "created_at": row[8],
+                    "source_uri": row[9]
+                }
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to get simple document: {e}")
+            return None
 
     def _format_document_result(self, document_data: Dict[str, Any]) -> Dict[str, Any]:
         """Format document data for API response."""
@@ -555,9 +721,31 @@ class PDFMemoryIntegration:
     async def _delete_simple_document(
         self, user_id: str, doc_id: str
     ) -> Dict[str, Any]:
-        """Delete document from simple storage (placeholder)."""
-        logger.debug(f"Simple document deletion not implemented for {doc_id}")
-        return {"success": True}
+        """Delete document from SQLite storage"""
+        if not self._simple_db_path:
+            return {"success": False, "error": "SQLite fallback not initialized"}
+
+        try:
+            conn = sqlite3.connect(self._simple_db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                DELETE FROM pdf_documents
+                WHERE doc_id = ? AND user_id = ?
+            """, (doc_id, user_id))
+
+            deleted = cursor.rowcount > 0
+            conn.commit()
+            conn.close()
+
+            if deleted:
+                logger.info(f"Deleted document {doc_id} from SQLite storage")
+
+            return {"success": True, "deleted": deleted}
+
+        except Exception as e:
+            logger.error(f"Failed to delete simple document: {e}")
+            return {"success": False, "error": str(e)}
 
     async def get_user_document_stats(self, user_id: str) -> Dict[str, Any]:
         """
