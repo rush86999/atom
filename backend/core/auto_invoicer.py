@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Any, Optional
 from accounting.models import Entity, Invoice, InvoiceStatus
@@ -7,8 +8,18 @@ from service_delivery.models import Appointment, AppointmentStatus, ProjectTask
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
+from core.error_handlers import (
+    InvoiceNotFoundError,
+    InvoiceValidationError,
+    InvoicePricingError,
+    ErrorCode,
+    HTTP_STATUS_MAP
+)
 
 logger = logging.getLogger(__name__)
+
+# Feature flag for strict error handling
+INVOICING_STRICT_ERRORS = os.getenv("INVOICING_STRICT_ERRORS", "true").lower() == "true"
 
 class AutoInvoicer:
     """
@@ -21,16 +32,43 @@ class AutoInvoicer:
     def invoice_appointment(self, appointment_id: str) -> Optional[Invoice]:
         """
         Creates an invoice for a completed appointment.
+
+        Raises:
+            InvoiceNotFoundError: If appointment not found
+            InvoiceValidationError: If appointment status invalid
+            InvoicePricingError: If price cannot be determined
+
+        Returns:
+            Invoice object if successful
+
+        Feature Flag: INVOICING_STRICT_ERRORS (default: true)
+            - When true: Raises exceptions on errors
+            - When false: Returns None on errors (legacy behavior)
         """
         db = self.db or get_db_session()
         try:
             appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
             if not appt:
                 logger.error(f"Appointment {appointment_id} not found")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoiceNotFoundError(
+                        message=f"Appointment {appointment_id} not found",
+                        invoice_type="appointment",
+                        details={"appointment_id": appointment_id}
+                    )
                 return None
 
             if appt.status != AppointmentStatus.COMPLETED:
                 logger.warning(f"Appointment {appointment_id} is not COMPLETED. Status: {appt.status}")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoiceValidationError(
+                        message=f"Appointment {appointment_id} is not completed. Current status: {appt.status}",
+                        details={
+                            "appointment_id": appointment_id,
+                            "current_status": appt.status,
+                            "required_status": "COMPLETED"
+                        }
+                    )
                 return None
 
             # Prevent double invoicing
@@ -47,8 +85,17 @@ class AutoInvoicer:
                     f"Deposit: ${appt.deposit_amount}, Service: {appt.service_id}. "
                     f"Skipping invoice generation."
                 )
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoicePricingError(
+                        message=f"Cannot determine price for appointment {appointment_id}",
+                        details={
+                            "appointment_id": appointment_id,
+                            "deposit_amount": appt.deposit_amount,
+                            "service_id": appt.service_id
+                        }
+                    )
                 return None
-            
+
             invoice = Invoice(
                 workspace_id=appt.workspace_id,
                 customer_id=appt.customer_id,
@@ -58,11 +105,11 @@ class AutoInvoicer:
                 due_date=datetime.utcnow() + timedelta(days=7),
                 description=f"Service for Appointment {appointment_id} on {appt.start_time.date()}"
             )
-            
+
             db.add(invoice)
             db.commit()
             db.refresh(invoice)
-            
+
             logger.info(f"Generated Invoice {invoice.id} for Appointment {appointment_id}")
             return invoice
         finally:
@@ -72,18 +119,41 @@ class AutoInvoicer:
     def invoice_ecommerce_order(self, order_id: str) -> Optional[Invoice]:
         """
         Creates an invoice for a pending ecommerce order.
+
+        Raises:
+            InvoiceNotFoundError: If order not found
+            InvoiceValidationError: If order status invalid
+            InvoicePricingError: If customer entity cannot be resolved
+
+        Returns:
+            Invoice object if successful
         """
         db = self.db or get_db_session()
         try:
             order = db.query(EcommerceOrder).filter(EcommerceOrder.id == order_id).first()
             if not order:
                 logger.error(f"EcommerceOrder {order_id} not found")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoiceNotFoundError(
+                        message=f"Ecommerce order {order_id} not found",
+                        invoice_type="ecommerce_order",
+                        details={"order_id": order_id}
+                    )
                 return None
 
             # Support invoicing for 'pending' (pre-payment) or 'fulfilled' (post-shipping)
             # Most product businesses invoice after fulfillment (shipping).
             if order.status not in ["pending", "fulfilled"]:
                 logger.warning(f"Order {order_id} is in status {order.status}. Skipping invoicing.")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoiceValidationError(
+                        message=f"Order {order_id} has invalid status for invoicing",
+                        details={
+                            "order_id": order_id,
+                            "current_status": order.status,
+                            "valid_statuses": ["pending", "fulfilled"]
+                        }
+                    )
                 return None
 
             # Prevent double invoicing
@@ -95,6 +165,14 @@ class AutoInvoicer:
             customer_id = self._resolve_accounting_entity(order, db)
             if not customer_id:
                 logger.error(f"Cannot resolve accounting entity for Order {order_id}")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoicePricingError(
+                        message=f"Cannot resolve accounting entity for order {order_id}",
+                        details={
+                            "order_id": order_id,
+                            "reason": "customer_entity_not_found"
+                        }
+                    )
                 return None
 
             invoice = Invoice(
@@ -106,11 +184,11 @@ class AutoInvoicer:
                 due_date=datetime.utcnow() + timedelta(days=3),
                 description=f"Invoice for Ecommerce Order {order_id} (Status: {order.status})"
             )
-            
+
             db.add(invoice)
             db.commit()
             db.refresh(invoice)
-            
+
             logger.info(f"Generated Invoice {invoice.id} for Order {order_id}")
             return invoice
         finally:
@@ -131,8 +209,13 @@ class AutoInvoicer:
         Args:
             task_id: ID of the completed project task
 
+        Raises:
+            InvoiceNotFoundError: If task/milestone/project not found
+            InvoiceValidationError: If task status invalid
+            InvoicePricingError: If customer not found or pricing error
+
         Returns:
-            Invoice object if successful, None otherwise
+            Invoice object if successful
         """
         from service_delivery.models import Milestone, Project
 
@@ -142,22 +225,55 @@ class AutoInvoicer:
             task = db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
             if not task:
                 logger.error(f"Task {task_id} not found")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoiceNotFoundError(
+                        message=f"Task {task_id} not found",
+                        invoice_type="project_task",
+                        details={"task_id": task_id}
+                    )
                 return None
 
             # Verify task is completed
             if task.status != "completed":
                 logger.warning(f"Task {task_id} is not completed. Status: {task.status}")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoiceValidationError(
+                        message=f"Task {task_id} is not completed",
+                        details={
+                            "task_id": task_id,
+                            "current_status": task.status,
+                            "required_status": "completed"
+                        }
+                    )
                 return None
 
             # Get project and milestone for billing info
             milestone = db.query(Milestone).filter(Milestone.id == task.milestone_id).first()
             if not milestone:
                 logger.error(f"Milestone {task.milestone_id} not found for task {task_id}")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoiceNotFoundError(
+                        message=f"Milestone {task.milestone_id} not found for task {task_id}",
+                        invoice_type="milestone",
+                        details={
+                            "task_id": task_id,
+                            "milestone_id": task.milestone_id
+                        }
+                    )
                 return None
 
             project = db.query(Project).filter(Project.id == task.project_id).first()
             if not project:
                 logger.error(f"Project {task.project_id} not found for task {task_id}")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoiceNotFoundError(
+                        message=f"Project {task.project_id} not found for task {task_id}",
+                        invoice_type="project",
+                        details={
+                            "task_id": task_id,
+                            "project_id": task.project_id
+                        }
+                    )
                 return None
 
             # Prevent double invoicing
@@ -203,6 +319,14 @@ class AutoInvoicer:
 
             if not customer_id:
                 logger.warning(f"No customer_id found for task {task_id}, cannot create invoice")
+                if INVOICING_STRICT_ERRORS:
+                    raise InvoicePricingError(
+                        message=f"No customer ID found for task {task_id}",
+                        details={
+                            "task_id": task_id,
+                            "reason": "customer_id_not_found"
+                        }
+                    )
                 return None
 
             # Generate invoice number
@@ -291,6 +415,10 @@ class AutoInvoicer:
         except Exception as e:
             logger.error(f"Error invoicing task {task_id}: {e}", exc_info=True)
             db.rollback()
+            # Re-raise if it's already an InvoiceError
+            if isinstance(e, (InvoiceNotFoundError, InvoiceValidationError, InvoicePricingError)):
+                if INVOICING_STRICT_ERRORS:
+                    raise
             return None
         finally:
             if not self.db:
@@ -338,7 +466,9 @@ class AutoInvoicer:
             db: Database session
 
         Returns:
-            Price as float, or None if no price found
+            Price as float, or None if no price found (with warning logged)
+
+        Note: Does not raise exception by default, allowing graceful fallback.
         """
         # Priority 1: Use deposit amount if set
         if appointment.deposit_amount and appointment.deposit_amount > 0:
@@ -397,7 +527,7 @@ class AutoInvoicer:
             db: Database session
 
         Returns:
-            Accounting entity ID, or None if cannot resolve
+            Accounting entity ID, or None if cannot resolve (with error logged)
         """
         if not order.customer:
             logger.warning(f"Order {order.id} has no customer linked")

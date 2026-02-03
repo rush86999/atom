@@ -1,6 +1,9 @@
 """
 GitHub Integration Routes for FastAPI
 Provides REST API endpoints for GitHub integration
+
+Feature Flags:
+- OAUTH_STRICT_MODE: Enable strict database-only token validation (default: true)
 """
 
 import asyncio
@@ -11,6 +14,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +27,131 @@ except ImportError as e:
     github_service = None
 
 router = APIRouter(prefix="/api/github", tags=["github"])
+
+# Feature flag for OAuth strict mode
+OAUTH_STRICT_MODE = os.getenv("OAUTH_STRICT_MODE", "true").lower() == "true"
+
+if not OAUTH_STRICT_MODE:
+    logger.warning("OAUTH_STRICT_MODE is FALSE - Falling back to environment variable tokens (INSECURE)")
+
+
+def get_db_session():
+    """Get database session for token lookup"""
+    from core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def get_github_tokens(user_id: str, db: Optional[Session] = None) -> Optional[Dict[str, Any]]:
+    """
+    Get GitHub tokens for user from database.
+
+    Priority order:
+    1. Database token (GitHubToken model) - if OAUTH_STRICT_MODE is true
+    2. Environment variable fallback - if OAUTH_STRICT_MODE is false (for testing)
+
+    Args:
+        user_id: User ID to get tokens for
+        db: Optional database session (will create one if not provided)
+
+    Returns:
+        Dictionary with access_token and user_info, or None if not found
+
+    Raises:
+        HTTPException: If OAUTH_STRICT_MODE is true and no token found
+    """
+    try:
+        # Try to get token from database first
+        if db:
+            # Try to import GitHubToken model (may not exist yet)
+            try:
+                from core.models import GitHubToken
+
+                token_record = db.query(GitHubToken).filter(
+                    GitHubToken.user_id == user_id,
+                    GitHubToken.status == "active"
+                ).first()
+
+                if token_record:
+                    # Check if token is expired
+                    if token_record.expires_at and token_record.expires_at < datetime.utcnow():
+                        logger.warning(f"GitHub token for user {user_id} is expired")
+                        if OAUTH_STRICT_MODE:
+                            raise HTTPException(
+                                status_code=401,
+                                detail={
+                                    "ok": False,
+                                    "error": "GitHub token expired",
+                                    "error_code": "OAUTH_TOKEN_EXPIRED",
+                                    "timestamp": datetime.utcnow().isoformat()
+                                }
+                            )
+                        return None
+
+                    # Update last_used timestamp
+                    token_record.last_used = datetime.utcnow()
+                    db.commit()
+
+                    logger.info(f"Using GitHub token from database for user {user_id}")
+                    return {
+                        'access_token': token_record.access_token,
+                        'token_type': token_record.token_type or 'bearer',
+                        'scope': token_record.scope or 'repo,user:email,read:org',
+                        'user_info': token_record.user_info or {},
+                        'source': 'database'
+                    }
+
+            except ImportError:
+                # GitHubToken model doesn't exist yet, fall through to env var
+                logger.debug("GitHubToken model not found, falling back to environment variable")
+
+            except Exception as e:
+                logger.error(f"Error querying GitHub token from database: {e}")
+
+        # Fallback to environment variable if strict mode is disabled
+        if not OAUTH_STRICT_MODE:
+            token = os.getenv('GITHUB_ACCESS_TOKEN')
+            if token:
+                logger.warning(f"Using GitHub access token from environment variable for user {user_id} (INSECURE)")
+                return {
+                    'access_token': token,
+                    'token_type': 'bearer',
+                    'scope': 'repo,user:email,read:org',
+                    'user_info': {
+                        'login': 'testuser',
+                        'id': '123456'
+                    },
+                    'source': 'environment'
+                }
+
+        # No token found
+        if OAUTH_STRICT_MODE:
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "ok": False,
+                    "error": "GitHub authentication required. Please connect your GitHub account.",
+                    "error_code": "OAUTH_TOKEN_INVALID",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
+
+        logger.error(f"No GitHub token found for user {user_id}")
+        return None
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting GitHub tokens for user {user_id}: {e}")
+        if OAUTH_STRICT_MODE:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to retrieve GitHub token: {str(e)}"
+            )
+        return None
 
 # Request/Response Models
 class UserRequest(BaseModel):

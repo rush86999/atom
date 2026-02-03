@@ -1,15 +1,98 @@
 """
 Standardized Logging Configuration for Atom Platform
 
-Provides consistent logging format across all modules.
+Provides consistent logging format across all modules with:
+- Colored console output
+- File logging
+- Correlation ID tracking
+- Structured context variables
+- Request tracing
+
+Feature Flags:
+    LOG_LEVEL: Logging level (default: INFO)
+    LOG_FILE: Path to log file (default: None)
+    LOG_FORMAT: json or text (default: text)
 """
 
 import logging
 import os
 import sys
+import uuid
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
+
+
+# ============================================================================
+# Context Variables for Request Tracking
+# ============================================================================
+
+# Context Variables for Request Tracking
+# Note: ContextVar doesn't support default values, so we use .get() with fallback
+
+CORRELATION_ID: ContextVar[str] = ContextVar('correlation_id')
+USER_ID: ContextVar[str] = ContextVar('user_id')
+REQUEST_ID: ContextVar[str] = ContextVar('request_id')
+
+
+def bind_context(**kwargs):
+    """
+    Bind context variables for the current request/task.
+
+    This should be called at the start of each request to initialize
+    tracking context that will be available in all log messages.
+
+    Args:
+        **kwargs: Context variables to bind (correlation_id, user_id, request_id, etc.)
+
+    Example:
+        # In FastAPI middleware
+        @app.middleware("http")
+        async def add_context(request: Request, call_next):
+            correlation_id = str(uuid.uuid4())
+            bind_context(
+                correlation_id=correlation_id,
+                user_id=getattr(request.state, "user_id", None),
+                request_id=correlation_id
+            )
+            response = await call_next(request)
+            response.headers["X-Correlation-ID"] = correlation_id
+            return response
+
+        # In your application code
+        logger.info("Processing request")  # Automatically includes correlation_id
+    """
+    for key, value in kwargs.items():
+        if value is not None:
+            if key == "correlation_id":
+                CORRELATION_ID.set(str(value))
+            elif key == "user_id":
+                USER_ID.set(str(value))
+            elif key == "request_id":
+                REQUEST_ID.set(str(value))
+
+
+def get_context() -> Dict[str, str]:
+    """Get all current context variables"""
+    try:
+        return {
+            "correlation_id": CORRELATION_ID.get(),
+            "user_id": USER_ID.get(),
+            "request_id": REQUEST_ID.get(),
+        }
+    except LookupError:
+        # Context variables not set yet
+        return {
+            "correlation_id": "",
+            "user_id": "",
+            "request_id": "",
+        }
+
+
+def generate_correlation_id() -> str:
+    """Generate a new correlation ID"""
+    return str(uuid.uuid4())
 
 
 # ANSI color codes for terminal output
@@ -31,7 +114,10 @@ class ColoredFormatter(logging.Formatter):
     """
     Custom log formatter with colors for console output.
 
-    Format: [TIMESTAMP] [LEVEL] [LOGGER_NAME] MESSAGE
+    Format: [TIMESTAMP] [LEVEL] [CORRELATION_ID] [LOGGER_NAME] MESSAGE
+
+    Automatically includes correlation ID, user ID, and request ID
+    from context variables when available.
     """
 
     COLORS = {
@@ -42,15 +128,17 @@ class ColoredFormatter(logging.Formatter):
         logging.CRITICAL: LogColors.RED_BOLD,
     }
 
-    def __init__(self, use_colors: bool = True, show_logger_name: bool = True):
+    def __init__(self, use_colors: bool = True, show_logger_name: bool = True, show_context: bool = True):
         """
         Args:
             use_colors: Enable ANSI color codes (default: True)
             show_logger_name: Include logger name in output (default: True)
+            show_context: Include correlation ID and other context (default: True)
         """
         super().__init__()
         self.use_colors = use_colors
         self.show_logger_name = show_logger_name
+        self.show_context = show_context
 
     def format(self, record: logging.LogRecord) -> str:
         """Format log record with colors and structured information"""
@@ -68,6 +156,18 @@ class ColoredFormatter(logging.Formatter):
             f"[{timestamp}]",
             f"[{levelname}]"
         ]
+
+        # Add context variables (correlation_id, user_id, request_id)
+        if self.show_context:
+            correlation_id = CORRELATION_ID.get()
+            if correlation_id:
+                # Show last 8 characters for readability
+                short_id = correlation_id[-8:] if len(correlation_id) > 8 else correlation_id
+                parts.append(f"[{LogColors.CYAN}{short_id}{LogColors.RESET}]")
+
+            user_id = USER_ID.get()
+            if user_id:
+                parts.append(f"[user:{user_id[:8]}]")
 
         if self.show_logger_name:
             parts.append(f"[{record.name}]")
@@ -259,3 +359,114 @@ class LoggerContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         logger = logging.getLogger(self.logger_name)
         logger.setLevel(self.old_level)
+
+
+# ============================================================================
+# FastAPI Integration
+# ============================================================================
+
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+class LoggingContextMiddleware(BaseHTTPMiddleware):
+    """
+    FastAPI middleware to automatically add logging context to all requests.
+
+    Adds correlation IDs, user IDs, and request IDs to context variables
+    that are automatically included in all log messages.
+
+    Usage:
+        app = FastAPI()
+        app.add_middleware(LoggingContextMiddleware)
+
+    This middleware:
+    1. Generates a correlation ID for each request
+    2. Extracts user ID from request state (if set by auth middleware)
+    3. Adds X-Correlation-ID header to responses
+    4. Makes context available to all loggers during request handling
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        # Generate correlation ID
+        correlation_id = str(uuid.uuid4())
+
+        # Extract user ID from request state (set by auth middleware)
+        user_id = getattr(request.state, "user_id", None)
+
+        # Bind context for this request
+        bind_context(
+            correlation_id=correlation_id,
+            user_id=user_id,
+            request_id=correlation_id
+        )
+
+        # Store correlation ID in request state for access in endpoints
+        request.state.correlation_id = correlation_id
+
+        # Process request
+        response = await call_next(request)
+
+        # Add correlation ID to response headers
+        response.headers["X-Correlation-ID"] = correlation_id
+
+        return response
+
+
+def get_correlation_id() -> str:
+    """
+    Get the current correlation ID from context.
+
+    Can be called from anywhere in the application during request handling.
+
+    Returns:
+        Correlation ID string (empty if not set)
+    """
+    return CORRELATION_ID.get()
+
+
+# ============================================================================
+# Structured Logging Helper
+# ============================================================================
+
+class StructuredLogger:
+    """
+    Helper for structured logging with automatic context inclusion.
+
+    Example:
+        from core.logging_config import StructuredLogger
+
+        logger = StructuredLogger(__name__)
+        logger.info("User logged in", extra={"user_email": "user@example.com", "ip": "1.2.3.4"})
+    """
+
+    def __init__(self, name: str):
+        self._logger = logging.getLogger(name)
+
+    def _add_context(self, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Add context variables to extra dict"""
+        context = {}
+        context.update(get_context())
+        if extra:
+            context.update(extra)
+        return context
+
+    def debug(self, msg: str, **kwargs):
+        """Log debug message with context"""
+        self._logger.debug(msg, extra=self._add_context(kwargs.get("extra")))
+
+    def info(self, msg: str, **kwargs):
+        """Log info message with context"""
+        self._logger.info(msg, extra=self._add_context(kwargs.get("extra")))
+
+    def warning(self, msg: str, **kwargs):
+        """Log warning message with context"""
+        self._logger.warning(msg, extra=self._add_context(kwargs.get("extra")))
+
+    def error(self, msg: str, **kwargs):
+        """Log error message with context"""
+        self._logger.error(msg, extra=self._add_context(kwargs.get("extra")), exc_info=kwargs.get("exc_info", True))
+
+    def critical(self, msg: str, **kwargs):
+        """Log critical message with context"""
+        self._logger.critical(msg, extra=self._add_context(kwargs.get("extra")), exc_info=kwargs.get("exc_info", True))
