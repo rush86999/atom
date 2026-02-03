@@ -19,7 +19,7 @@ from core.models import RevokedToken
 class TestRevokedTokenModel:
     """Test RevokedToken database model"""
 
-    def test_create_revoked_token(self, db: Session):
+    def test_create_revoked_token(self, db_session: Session):
         """Test creating a revoked token entry"""
         # Create a revoked token
         revoked = RevokedToken(
@@ -29,18 +29,18 @@ class TestRevokedTokenModel:
             revocation_reason="logout"
         )
 
-        db.add(revoked)
-        db.commit()
+        db_session.add(revoked)
+        db_session.commit()
 
         # Verify it was saved
-        retrieved = db.query(RevokedToken).filter_by(jti="test-jti-123").first()
+        retrieved = db_session.query(RevokedToken).filter_by(jti="test-jti-123").first()
         assert retrieved is not None
         assert retrieved.jti == "test-jti-123"
         assert retrieved.user_id == "test-user-123"
         assert retrieved.revocation_reason == "logout"
         assert retrieved.revoked_at is not None
 
-    def test_unique_jti_constraint(self, db: Session):
+    def test_unique_jti_constraint(self, db_session: Session):
         """Test that JTI must be unique"""
         # Create first token
         revoked1 = RevokedToken(
@@ -48,8 +48,8 @@ class TestRevokedTokenModel:
             expires_at=datetime.now() + timedelta(hours=24),
             user_id="user-1"
         )
-        db.add(revoked1)
-        db.commit()
+        db_session.add(revoked1)
+        db_session.commit()
 
         # Try to create duplicate
         revoked2 = RevokedToken(
@@ -57,12 +57,12 @@ class TestRevokedTokenModel:
             expires_at=datetime.now() + timedelta(hours=24),
             user_id="user-2"
         )
-        db.add(revoked2)
+        db_session.add(revoked2)
 
         with pytest.raises(Exception):  # IntegrityError
-            db.commit()
+            db_session.commit()
 
-    def test_query_by_user(self, db: Session):
+    def test_query_by_user(self, db_session: Session):
         """Test querying revoked tokens by user"""
         # Add multiple tokens for same user
         for i in range(3):
@@ -71,18 +71,18 @@ class TestRevokedTokenModel:
                 expires_at=datetime.now() + timedelta(hours=24),
                 user_id="test-user-multi"
             )
-            db.add(revoked)
-        db.commit()
+            db_session.add(revoked)
+        db_session.commit()
 
         # Query
-        results = db.query(RevokedToken).filter_by(user_id="test-user-multi").all()
+        results = db_session.query(RevokedToken).filter_by(user_id="test-user-multi").all()
         assert len(results) == 3
 
 
 class TestRevokeToken:
     """Test revoke_token helper function"""
 
-    def test_revoke_token_success(self, db: Session):
+    def test_revoke_token_success(self, db_session: Session):
         """Test successfully revoking a token"""
         was_revoked = revoke_token(
             jti="test-revoke-123",
@@ -95,12 +95,12 @@ class TestRevokeToken:
         assert was_revoked is True
 
         # Verify in database
-        revoked = db.query(RevokedToken).filter_by(jti="test-revoke-123").first()
+        revoked = db_session.query(RevokedToken).filter_by(jti="test-revoke-123").first()
         assert revoked is not None
         assert revoked.user_id == "user-123"
         assert revoked.revocation_reason == "logout"
 
-    def test_revoke_already_revoked_token(self, db: Session):
+    def test_revoke_already_revoked_token(self, db_session: Session):
         """Test revoking a token that's already revoked"""
         # First revocation
         revoke_token(
@@ -120,7 +120,7 @@ class TestRevokeToken:
 
         assert was_revoked is False  # Already revoked
 
-    def test_revoke_token_with_optional_fields(self, db: Session):
+    def test_revoke_token_with_optional_fields(self, db_session: Session):
         """Test revoking token with optional fields"""
         was_revoked = revoke_token(
             jti="test-optional-123",
@@ -132,14 +132,14 @@ class TestRevokeToken:
 
         assert was_revoked is True
 
-        revoked = db.query(RevokedToken).filter_by(jti="test-optional-123").first()
+        revoked = db_session.query(RevokedToken).filter_by(jti="test-optional-123").first()
         assert revoked.revocation_reason == "security_breach"
 
 
 class TestCleanupExpiredTokens:
     """Test cleanup_expired_revoked_tokens helper"""
 
-    def test_cleanup_old_tokens(self, db: Session):
+    def test_cleanup_old_tokens(self, db_session: Session):
         """Test cleaning up expired tokens"""
         # Add expired token (old)
         old_token = RevokedToken(
@@ -147,7 +147,7 @@ class TestCleanupExpiredTokens:
             expires_at=datetime.now() - timedelta(hours=48),  # 2 days ago
             user_id="user-123"
         )
-        db.add(old_token)
+        db_session.add(old_token)
 
         # Add recent token (not old enough)
         recent_token = RevokedToken(
@@ -155,7 +155,7 @@ class TestCleanupExpiredTokens:
             expires_at=datetime.now() - timedelta(hours=12),  # 12 hours ago
             user_id="user-123"
         )
-        db.add(recent_token)
+        db_session.add(recent_token)
 
         # Add active token (not expired)
         active_token = RevokedToken(
@@ -163,9 +163,9 @@ class TestCleanupExpiredTokens:
             expires_at=datetime.now() + timedelta(hours=24),
             user_id="user-123"
         )
-        db.add(active_token)
+        db_session.add(active_token)
 
-        db.commit()
+        db_session.commit()
 
         # Cleanup tokens older than 24 hours
         deleted_count = cleanup_expired_revoked_tokens(db, older_than_hours=24)
@@ -173,11 +173,11 @@ class TestCleanupExpiredTokens:
         assert deleted_count == 1  # Only old_token deleted
 
         # Verify
-        assert db.query(RevokedToken).filter_by(jti="old-token").first() is None
-        assert db.query(RevokedToken).filter_by(jti="recent-token").first() is not None
-        assert db.query(RevokedToken).filter_by(jti="active-token").first() is not None
+        assert db_session.query(RevokedToken).filter_by(jti="old-token").first() is None
+        assert db_session.query(RevokedToken).filter_by(jti="recent-token").first() is not None
+        assert db_session.query(RevokedToken).filter_by(jti="active-token").first() is not None
 
-    def test_cleanup_all_tokens(self, db: Session):
+    def test_cleanup_all_tokens(self, db_session: Session):
         """Test cleaning up all expired tokens"""
         # Add multiple expired tokens
         for i in range(5):
@@ -186,16 +186,16 @@ class TestCleanupExpiredTokens:
                 expires_at=datetime.now() - timedelta(days=7),
                 user_id="user-123"
             )
-            db.add(token)
+            db_session.add(token)
 
-        db.commit()
+        db_session.commit()
 
         # Cleanup
         deleted = cleanup_expired_revoked_tokens(db, older_than_hours=1)
         assert deleted == 5
 
         # All gone
-        remaining = db.query(RevokedToken).filter(
+        remaining = db_session.query(RevokedToken).filter(
             RevokedToken.jti.like("expired-%")
         ).count()
         assert remaining == 0
@@ -204,7 +204,7 @@ class TestCleanupExpiredTokens:
 class TestJWTVerifierRevocation:
     """Test JWTVerifier._is_token_revoked method"""
 
-    def test_verify_non_revoked_token(self, db: Session):
+    def test_verify_non_revoked_token(self, db_session: Session):
         """Test that non-revoked tokens pass validation"""
         verifier = JWTVerifier(secret_key="test-secret")
 
@@ -215,10 +215,10 @@ class TestJWTVerifierRevocation:
         }
 
         # Token should not be revoked
-        is_revoked = verifier._is_token_revoked(payload, db)
+        is_revoked = verifier._is_token_revoked(payload, db_session)
         assert is_revoked is False
 
-    def test_verify_revoked_token(self, db: Session):
+    def test_verify_revoked_token(self, db_session: Session):
         """Test that revoked tokens are detected"""
         verifier = JWTVerifier(secret_key="test-secret")
 
@@ -238,10 +238,10 @@ class TestJWTVerifierRevocation:
             "exp": int((datetime.now() + timedelta(hours=1)).timestamp())
         }
 
-        is_revoked = verifier._is_token_revoked(payload, db)
+        is_revoked = verifier._is_token_revoked(payload, db_session)
         assert is_revoked is True
 
-    def test_verify_token_without_db(self, db: Session):
+    def test_verify_token_without_db(self, db_session: Session):
         """Test that verification works without db session (graceful degradation)"""
         verifier = JWTVerifier(secret_key="test-secret")
 
@@ -255,7 +255,7 @@ class TestJWTVerifierRevocation:
         is_revoked = verifier._is_token_revoked(payload, db=None)
         assert is_revoked is False
 
-    def test_verify_token_without_jti(self, db: Session):
+    def test_verify_token_without_jti(self, db_session: Session):
         """Test that tokens without JTI cannot be checked for revocation"""
         verifier = JWTVerifier(secret_key="test-secret")
 
@@ -266,7 +266,7 @@ class TestJWTVerifierRevocation:
         }
 
         # Should return False (cannot check revocation)
-        is_revoked = verifier._is_token_revoked(payload, db)
+        is_revoked = verifier._is_token_revoked(payload, db_session)
         assert is_revoked is False
 
 
