@@ -336,7 +336,7 @@ class WhatsAppServiceManager:
                 conversations = self.integration.get_conversations(limit=100)
                 return len(conversations)
             return 0
-        except:
+        except Exception as e:
             return 0
 
     def _register_with_service_registry(self):

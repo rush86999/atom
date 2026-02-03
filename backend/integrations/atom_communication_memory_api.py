@@ -393,7 +393,7 @@ class AtomCommunicationMemoryAPI:
                                 else:
                                     metadata = metadata_str
                                 thread_id = metadata.get("thread_id")
-                            except:
+                            except Exception as e:
                                 pass
                             
                             # Fallback grouping key if no thread_id

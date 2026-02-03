@@ -186,7 +186,7 @@ class SalesforceCoreService:
                     error_data = response.json()
                     error_message = error_data.get('error_description', error_data.get('error', 'Unknown error'))
                     error_code = error_data.get('error_code', 'UNKNOWN_ERROR')
-                except:
+                except Exception as e:
                     error_message = response.text
                     error_code = 'HTTP_ERROR'
                 

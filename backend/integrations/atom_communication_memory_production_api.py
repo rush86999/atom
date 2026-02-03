@@ -368,7 +368,7 @@ class AtomCommunicationMemoryProductionAPI:
                         try:
                             record_date = datetime.fromisoformat(record["timestamp"]).date().isoformat()
                             analytics["timeline_data"][record_date] = analytics["timeline_data"].get(record_date, 0) + 1
-                        except:
+                        except Exception as e:
                             pass
                 
                 # Add detailed metrics if requested
@@ -388,7 +388,7 @@ class AtomCommunicationMemoryProductionAPI:
                         try:
                             if len(json.loads(attachments)) > 0:
                                 messages_with_attachments += 1
-                        except:
+                        except Exception as e:
                             pass
 
                     # Estimate compression efficiency (LanceDB typically achieves 60-80% compression)

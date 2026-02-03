@@ -556,7 +556,7 @@ class AtomAIIntegration:
                 return 'medium'
             else:
                 return 'low'
-        except:
+        except Exception as e:
             return 'unknown'
     
     async def _get_activity_trends(self, workspace: Dict[str, Any]) -> Dict[str, Any]:

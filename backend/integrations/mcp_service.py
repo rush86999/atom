@@ -1241,7 +1241,7 @@ class MCPService:
                                     })
                             except: pass
                     return workflows
-                except:
+                except Exception as e:
                     return []
                     
             # --- Computer Use Execution (Dual Mode: Desktop Bridge vs Cloud Headless) ---

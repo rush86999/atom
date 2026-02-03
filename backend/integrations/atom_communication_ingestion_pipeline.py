@@ -1229,12 +1229,12 @@ class CommunicationIngestionPipeline:
                                         try:
                                             body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
                                             break
-                                        except:
+                                        except Exception as e:
                                             pass
                             else:
                                 try:
                                     body = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
-                                except:
+                                except Exception as e:
                                     body = msg.get_payload()
 
                             # Extract attachments
