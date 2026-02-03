@@ -158,8 +158,9 @@ async def get_live_project_board(
     # Calculate Stats
     total_active = len(tasks)
     # Simple logic for overdue - robust logic would parse dates
-    overdue = 0 
-    
+    overdue = 0
+
+    platform_counts = {
         "asana": len([t for t in tasks if t.platform == 'asana']),
         "jira": len([t for t in tasks if t.platform == 'jira']),
         "zoho": len([t for t in tasks if t.platform == 'zoho']),
